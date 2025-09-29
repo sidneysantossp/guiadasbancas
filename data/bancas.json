@@ -1,0 +1,134 @@
+[
+  {
+    "id": "banca-1758901610179",
+    "name": "Banca Colonial",
+    "address": "",
+    "cover": "/uploads/1758938015818-h68buj.webp",
+    "avatar": "/uploads/1758901539633-vbcm7j.png",
+    "images": {
+      "cover": "/uploads/1758938015818-h68buj.webp",
+      "avatar": "/uploads/1758901539633-vbcm7j.png"
+    },
+    "addressObj": {
+      "cep": "04438-030",
+      "street": "Rua Matilde Diez",
+      "number": "338",
+      "complement": "",
+      "neighborhood": "Vila do Castelo",
+      "city": "São Paulo",
+      "uf": "SP"
+    },
+    "location": {
+      "lat": -23.6734282,
+      "lng": -46.6711052
+    },
+    "contact": {
+      "whatsapp": "(11) 99638-4376"
+    },
+    "socials": {
+      "facebook": "https://facebook.com/guiadasbancas",
+      "instagram": "https://instagram.com/guiadasbancas",
+      "gmb": ""
+    },
+    "hours": [
+      {
+        "key": "mon",
+        "label": "Segunda",
+        "open": true,
+        "start": "08:00",
+        "end": "18:00"
+      },
+      {
+        "key": "tue",
+        "label": "Terça",
+        "open": true,
+        "start": "08:00",
+        "end": "18:00"
+      },
+      {
+        "key": "wed",
+        "label": "Quarta",
+        "open": true,
+        "start": "08:00",
+        "end": "18:00"
+      },
+      {
+        "key": "thu",
+        "label": "Quinta",
+        "open": true,
+        "start": "08:00",
+        "end": "18:00"
+      },
+      {
+        "key": "fri",
+        "label": "Sexta",
+        "open": true,
+        "start": "08:00",
+        "end": "18:00"
+      },
+      {
+        "key": "sat",
+        "label": "Sábado",
+        "open": false,
+        "start": "08:00",
+        "end": "13:00"
+      },
+      {
+        "key": "sun",
+        "label": "Domingo",
+        "open": false,
+        "start": "09:00",
+        "end": "12:00"
+      }
+    ],
+    "rating": 5,
+    "tags": [
+      "Tabacaria",
+      "Bebidas",
+      "Gibis"
+    ],
+    "payments": [
+      "pix",
+      "dinheiro"
+    ],
+    "gallery": [],
+    "featured": true,
+    "ctaUrl": "#",
+    "description": "A banca colonial esta presente na vida dos moradores de Perdizes a mais de 23 anos.",
+    "categories": [
+      "Papelaria",
+      "Pet Shop",
+      "Promoções",
+      "Revistas",
+      "Tabacaria",
+      "Bebidas",
+      "Figurinhas",
+      "Eletrônicos",
+      "Brinquedos",
+      "Bomboniere",
+      "Colecionáveis",
+      "Mangás & Gibis",
+      "Jornais",
+      "Informática",
+      "cat-1758881018346",
+      "cat-1758882508157",
+      "cat-1758882602223",
+      "cat-1758882669110",
+      "cat-1758882724024",
+      "cat-1758882798352",
+      "cat-1758882853044",
+      "cat-1758882897397",
+      "cat-1758882829294",
+      "cat-1758882750201",
+      "cat-1758882692964",
+      "cat-1758882632653",
+      "cat-1758882572802",
+      "cat-1758881332118"
+    ],
+    "active": true,
+    "order": 1,
+    "lat": -23.6734282,
+    "lng": -46.6711052,
+    "createdAt": "2025-09-27T01:53:44.500Z"
+  }
+]

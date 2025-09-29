@@ -1,0 +1,53 @@
+[
+  {
+    "id": "slide-1",
+    "title": "Encontre uma Banca perto de você!",
+    "description": "Compre Jornais, Revistas, Papelaria, Tabacaria e muito mais direto com o Jornaleiro pertinho de você!",
+    "imageUrl": "https://storage.caosplanejado.com/uploads/2024/09/Banca-Capa.webp",
+    "imageAlt": "Banca de jornal com revistas e jornais ao fundo",
+    "gradientFrom": "#ff7a33",
+    "gradientTo": "#e64a00",
+    "cta1Text": " Peça agora online!",
+    "cta1Link": "/bancas-perto-de-mim",
+    "cta1Style": "primary",
+    "cta2Text": "Sou jornaleiro",
+    "cta2Link": "/jornaleiro",
+    "cta2Style": "outline",
+    "active": true,
+    "order": 1
+  },
+  {
+    "id": "slide-2",
+    "title": "Do Físico para o Digital!",
+    "description": "Encontre os lançamentos e clássicos nas bancas mais próximas de você.",
+    "imageUrl": "/uploads/1758915475963-ymbd8w.jpg",
+    "imageAlt": "Pilha de revistas coloridas",
+    "gradientFrom": "#ffa366",
+    "gradientTo": "#ff5c00",
+    "cta1Text": "",
+    "cta1Link": "",
+    "cta1Style": "primary",
+    "cta2Text": "",
+    "cta2Link": "/registrar",
+    "cta2Style": "outline",
+    "active": true,
+    "order": 2
+  },
+  {
+    "id": "slide-3",
+    "title": "Conveniência na palma da sua mão!",
+    "description": "Bebidas, snacks, pilhas, papelaria e recargas com entrega rápida.",
+    "imageUrl": "https://storage.caosplanejado.com/uploads/2024/09/Banca-Capa.webp",
+    "imageAlt": "Loja de conveniência com prateleiras e bebidas",
+    "gradientFrom": "#ffd6c2",
+    "gradientTo": "#ff5c00",
+    "cta1Text": "Explorar agora",
+    "cta1Link": "/bancas-perto-de-mim",
+    "cta1Style": "primary",
+    "cta2Text": "Como funciona",
+    "cta2Link": "/minha-conta",
+    "cta2Style": "outline",
+    "active": true,
+    "order": 3
+  }
+]

@@ -1,0 +1,114 @@
+[
+  {
+    "id": "cat-1758881018346",
+    "name": "Papelaria",
+    "image": "https://admin.guiadasbancas.com.br/storage/app/public/category/2025-08-03-688fc60e3fbca.png",
+    "link": "/categorias/papelaria",
+    "active": true,
+    "order": 1
+  },
+  {
+    "id": "cat-1758881332118",
+    "name": "Pet Shop",
+    "image": "https://admin.guiadasbancas.com.br/storage/app/public/category/2025-08-03-688fc799af9a5.png",
+    "link": "/categorias/pet-shop",
+    "active": true,
+    "order": 2
+  },
+  {
+    "id": "cat-1758882508157",
+    "name": "Promoções",
+    "image": "/uploads/1758882489160-g6xkfa.png",
+    "link": "/categorias/promocoes",
+    "active": true,
+    "order": 3
+  },
+  {
+    "id": "cat-1758882572802",
+    "name": "Revistas",
+    "image": "/uploads/1758882558520-w8gfff.png",
+    "link": "/categorias/revistas",
+    "active": true,
+    "order": 4
+  },
+  {
+    "id": "cat-1758882602223",
+    "name": "Tabacaria",
+    "image": "/uploads/1758882583478-933qxl.png",
+    "link": "/categorias/tabacaria",
+    "active": true,
+    "order": 5
+  },
+  {
+    "id": "cat-1758882632653",
+    "name": "Bebidas",
+    "image": "/uploads/1758882622132-y6mzxd.png",
+    "link": "/categorias/bebidas",
+    "active": true,
+    "order": 6
+  },
+  {
+    "id": "cat-1758882669110",
+    "name": "Bomboniere",
+    "image": "/uploads/1758882653289-2zb6e0.png",
+    "link": "/categorias/bomboniere",
+    "active": true,
+    "order": 7
+  },
+  {
+    "id": "cat-1758882692964",
+    "name": "Brinquedos",
+    "image": "/uploads/1758882691213-zjwpwe.png",
+    "link": "/categorias/brinquedos",
+    "active": true,
+    "order": 8
+  },
+  {
+    "id": "cat-1758882724024",
+    "name": "Colecionáveis",
+    "image": "/uploads/1758882703417-plp8cn.png",
+    "link": "/categorias/colecionaveis",
+    "active": true,
+    "order": 9
+  },
+  {
+    "id": "cat-1758882750201",
+    "name": "Eletrônicos",
+    "image": "/uploads/1758882748921-7qse0e.png",
+    "link": "/categorias/eletronicos",
+    "active": true,
+    "order": 10
+  },
+  {
+    "id": "cat-1758882798352",
+    "name": "Figurinhas",
+    "image": "/uploads/1758882793676-vfdk1e.png",
+    "link": "/categorias/figurinhas",
+    "active": true,
+    "order": 11
+  },
+  {
+    "id": "cat-1758882829294",
+    "name": "Informática",
+    "image": "/uploads/1758882815362-q9188x.png",
+    "link": "/categorias/informatica",
+    "active": true,
+    "order": 12
+  },
+  {
+    "id": "cat-1758882853044",
+    "name": "Jornais",
+    "image": "/uploads/1758882844223-i6bomg.png",
+    "link": "/categorias/jornais",
+    "active": true,
+    "order": 13
+  },
+  {
+    "id": "cat-1758882897397",
+    "name": "Mangás & Gibis",
+    "image": "/uploads/1758882883042-5mbvdf.png",
+    "link": "/categorias/mangas-e-gibis",
+    "active": true,
+    "order": 14
+  }
+]

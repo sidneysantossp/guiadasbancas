@@ -1,0 +1,62 @@
+[
+  {
+    "id": "prod-1759043100415",
+    "banca_id": "banca-1758901610179",
+    "category_id": "cat-1758882798352",
+    "name": "O SHOW DA LUNA 2025 - Kit Com 12 Envelopes",
+    "slug": "o-show-da-luna-2025-kit-com-12-envelopes",
+    "description": "A menina mais esperta e curiosa do mundo infantil agora tem um livro ilustrado para colecionar todas as suas perguntas! Luna, Júpiter e seu furão Cláudio se divertem e ilustram as 40 páginas e 216 cromos do primeiro Livro Ilustrado Oficial de O Show da Luna, mostrando suas aventuras e descobertas, propondo atividades e estimulando a inventividade da criançada. A coleção inclui cromos especiais de efeito metalizado e ainda um incrível jogo de tabuleiro encartado no álbum, para destacar e brincar. E, claro, não ficaram de fora as canções dos episódios que já conhecemos de cor!",
+    "images": [
+      "/uploads/1759043100297-j1qvsc.png",
+      "/uploads/1759052305008-mxz6cy.png"
+    ],
+    "price": 67.9,
+    "discount_percent": 10,
+    "stock_qty": 500,
+    "track_stock": true,
+    "featured": true,
+    "active": true,
+    "created_at": "2025-09-28T07:05:00.415Z",
+    "updated_at": "2025-09-28T11:10:59.658Z",
+    "rating_avg": 0,
+    "reviews_count": 0,
+    "sob_encomenda": true,
+    "pre_venda": true,
+    "pronta_entrega": true,
+    "description_full": "Menina mais esperta e curiosa do mundo infantil agora tem um livro ilustrado para colecionar todas as suas perguntas! Luna, Júpiter e seu furão Cláudio se divertem e ilustram as 40 páginas e 216 cromos do primeiro Livro Ilustrado Oficial de O Show da Luna, mostrando suas aventuras e descobertas, propondo atividades e estimulando a inventividade da criançada. A coleção inclui cromos especiais de efeito metalizado e ainda um incrível jogo de tabuleiro encartado no álbum, para destacar e brincar. E, claro, não ficaram de fora as canções dos episódios que já conhecemos de cor!",
+    "specifications": "{\"Volume\":\"23\",\"Quantidade\":\"12 PCT\"}",
+    "gallery_images": [],
+    "allow_reviews": true
+  },
+  {
+    "id": "prod-1759040628235",
+    "banca_id": "banca-1758901610179",
+    "category_id": "cat-1758882897397",
+    "name": "Chico Bento: Viola (Graphic MSP) - Capa Dura",
+    "slug": "chico-bento-viola-graphic-msp-capa-dura",
+    "description": "Chico Bento descobre que seu avô Firmino, que ele não conheceu, foi um grande violeiro. Fascinado para saber mais dessa história, ele recebe a Viola dele, que tem apenas um par de cordas! Então, mais do que aprender a tocar o instrumento, o menino vai estabelecer uma conexão sem volta com suas origens.\n\nEm sua terceira Graphic MSP com o clássico personagem de Maurício de Sousa, Orlandeli esbanja sensibilidade e alma caipira.",
+    "images": [
+      "/uploads/1759040628104-3oias7.png"
+    ],
+    "price": 69.9,
+    "discount_percent": 5,
+    "stock_qty": 50,
+    "track_stock": false,
+    "active": true,
+    "created_at": "2025-09-28T06:23:48.235Z",
+    "updated_at": "2025-09-28T09:07:57.884Z",
+    "rating_avg": 0,
+    "reviews_count": 0,
+    "featured": true,
+    "sob_encomenda": false,
+    "pre_venda": false,
+    "pronta_entrega": true,
+    "description_full": "<div>Descobre que seu avô Firmino, que ele não conheceu, foi um grande violeiro. Fascinado para saber mais dessa história, ele recebe a Viola dele, que tem apenas um par de cordas! Então, mais do que aprender a tocar o instrumento, o menino vai estabelecer uma conexão sem volta com suas origens.</div><div><br></div><div>Em sua terceira Graphic MSP com o clássico personagem de Maurício de Sousa, Orlandeli esbanja sensibilidade e alma caipira.</div>",
+    "specifications": "{\"Tipo de Capa\":\"Dura\"}",
+    "gallery_images": [
+      "/uploads/1759050477766-6di530.png",
+      "/uploads/1759050477798-aop97q.png"
+    ],
+    "allow_reviews": true
+  }
+]
