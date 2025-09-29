@@ -20,12 +20,14 @@ const VendorSignupBanner = dynamic(() => import("@/components/VendorSignupBanner
 export default function HomePage() {
   return (
     <div className="">{/* full-bleed, colado na navbar */}
-      {/* Mobile: small icon scroller below search */}
+      {/* Hero com espaçamento reduzido da navbar */}
+      <div className="-mt-4 md:-mt-6">
+        <FullBanner />
+      </div>
+      {/* Mobile: small icon scroller below hero */}
       <MobileCategoryScroller />
       {/* Desktop sticky bar */}
       <MiniCategoryBar />
-      {/* Hero after the mobile scroller */}
-      <FullBanner />
       {/* Trust badges under hero (ecommerce style, centered) */}
       <div className="py-3">
         <div className="container-max">

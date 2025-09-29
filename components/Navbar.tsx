@@ -414,7 +414,7 @@ useEffect(() => {
 
   return (
     <>
-    <header className="md:border-b md:border-gray-200 md:shadow-sm">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white md:border-b md:border-gray-200 md:shadow-sm">
       {/* Top bar: Logo + Localização */}
       <div className="container-max py-2 flex items-center justify-between">
         {/* Logo (hidden no mobile) */}

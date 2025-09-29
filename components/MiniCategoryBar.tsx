@@ -104,7 +104,7 @@ export default function MiniCategoryBar({ targetId = "buy-by-category" }: Props)
 
   return (
     <div
-      className={`hidden md:block md:fixed md:top-0 md:left-0 md:right-0 z-40 border-b border-gray-200 bg-white/85 backdrop-blur supports-[backdrop-filter]:bg-white/60 shadow-sm transition-transform duration-300 ${
+      className={`hidden md:block md:fixed md:top-0 md:left-0 md:right-0 z-30 border-b border-gray-200 bg-white/85 backdrop-blur supports-[backdrop-filter]:bg-white/60 shadow-sm transition-transform duration-300 ${
         visible ? "md:translate-y-0" : "md:-translate-y-full md:pointer-events-none"
       }`}
     >

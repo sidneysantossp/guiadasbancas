@@ -291,7 +291,7 @@ export default function FullBanner() {
   const showCta2 = Boolean(slide?.cta2Text?.trim() && slide?.cta2Link?.trim());
 
   return (
-    <section className="relative w-full z-20 mb-6 py-3 sm:py-4">
+    <section className="relative w-full z-10 mb-6 py-3 sm:py-4">
       <div 
         className="relative w-full overflow-hidden fb-h"
         style={{ height: `${mobileHeight}px` }}
@@ -332,7 +332,7 @@ export default function FullBanner() {
           <div className="absolute inset-0 bg-black/20 pointer-events-none" />
 
           {/* Content */}
-          <div className="relative z-10 h-full w-full px-0 pt-6 pb-6 sm:pt-8 sm:pb-12">
+          <div className="relative z-20 h-full w-full px-0 pt-6 pb-6 sm:pt-8 sm:pb-12">
             <div className="flex h-full w-full items-center">
               <div className="w-full text-white">
                 <div className="container-max px-4 sm:px-6 md:px-10">
@@ -350,8 +350,8 @@ export default function FullBanner() {
                           href={slide.cta1Link as Route}
                           className={
                             slide.cta1Style === "primary"
-                              ? "inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-base font-bold text-[#ff5c00] shadow-xl hover:bg-white/95 hover:scale-105 transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
-                              : "inline-flex items-center justify-center rounded-xl border-2 border-white/90 bg-transparent px-5 py-3 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/10 hover:border-white transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
+                              ? "relative z-50 inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-base font-bold text-[#ff5c00] shadow-xl hover:bg-white/95 hover:scale-105 transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
+                              : "relative z-50 inline-flex items-center justify-center rounded-xl border-2 border-white/90 bg-transparent px-5 py-3 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/10 hover:border-white transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
                           }
                         >
                           {slide.cta1Text}
@@ -362,8 +362,8 @@ export default function FullBanner() {
                           href={slide.cta2Link as Route}
                           className={
                             slide.cta2Style === "primary"
-                              ? "inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-base font-bold text-[#ff5c00] shadow-xl hover:bg-white/95 hover:scale-105 transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
-                              : "inline-flex items-center justify-center rounded-xl border-2 border-white/90 bg-transparent px-5 py-3 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/10 hover:border-white transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
+                              ? "relative z-50 inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-base font-bold text-[#ff5c00] shadow-xl hover:bg-white/95 hover:scale-105 transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
+                              : "relative z-50 inline-flex items-center justify-center rounded-xl border-2 border-white/90 bg-transparent px-5 py-3 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/10 hover:border-white transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
                           }
                         >
                           {slide.cta2Text}
@@ -383,7 +383,7 @@ export default function FullBanner() {
               <button
                 onClick={() => go(-1)}
                 aria-label="Anterior"
-                className="absolute z-30 left-4 top-1/2 -translate-y-1/2 hidden md:grid place-items-center h-12 w-12 rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white/30 hover:scale-110 transition-all duration-200 shadow-lg"
+                className="absolute z-40 left-4 top-1/2 -translate-y-1/2 hidden md:grid place-items-center h-12 w-12 rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white/30 hover:scale-110 transition-all duration-200 shadow-lg"
               >
                 <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M15 18l-6-6 6-6"/>
@@ -392,7 +392,7 @@ export default function FullBanner() {
               <button
                 onClick={() => go(1)}
                 aria-label="Próximo"
-                className="absolute z-30 right-4 top-1/2 -translate-y-1/2 hidden md:grid place-items-center h-12 w-12 rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white/30 hover:scale-110 transition-all duration-200 shadow-lg"
+                className="absolute z-40 right-4 top-1/2 -translate-y-1/2 hidden md:grid place-items-center h-12 w-12 rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white/30 hover:scale-110 transition-all duration-200 shadow-lg"
               >
                 <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M9 6l6 6-6 6"/>
@@ -403,7 +403,7 @@ export default function FullBanner() {
 
           {/* Dots */}
           {config.showDots && slides.length > 1 && (
-            <div className="absolute z-30 bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
+            <div className="absolute z-40 bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
               {slides.map((s, i) => (
                 <button
                   key={s.id}
@@ -417,7 +417,7 @@ export default function FullBanner() {
 
           {/* Coupon Card - bottom-right overlay (dinâmico) */}
           {coupon && (
-            <div className="absolute right-3 bottom-3 md:right-6 md:bottom-6 z-20">
+            <div className="absolute right-3 bottom-3 md:right-6 md:bottom-6 z-30">
               <button
                 type="button"
                 onClick={async ()=>{ try { await navigator.clipboard.writeText(coupon.code); setCopied(true); setTimeout(()=>setCopied(false), 1200); } catch {} }}
