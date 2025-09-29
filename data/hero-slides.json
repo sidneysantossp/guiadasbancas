@@ -1,7 +1,7 @@
 [
   {
     "id": "slide-1",
-    "title": "Encontre uma Banca perto de você!",
+    "title": "Fale com o seu Jornaleiro !",
     "description": "Compre Jornais, Revistas, Papelaria, Tabacaria e muito mais direto com o Jornaleiro pertinho de você!",
     "imageUrl": "https://storage.caosplanejado.com/uploads/2024/09/Banca-Capa.webp",
     "imageAlt": "Banca de jornal com revistas e jornais ao fundo",
@@ -10,8 +10,8 @@
     "cta1Text": " Peça agora online!",
     "cta1Link": "/bancas-perto-de-mim",
     "cta1Style": "primary",
-    "cta2Text": "Sou jornaleiro",
-    "cta2Link": "/jornaleiro",
+    "cta2Text": "",
+    "cta2Link": "",
     "cta2Style": "outline",
     "active": true,
     "order": 1
