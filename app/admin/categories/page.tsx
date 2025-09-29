@@ -32,11 +32,25 @@ export default function AdminCategoriesPage() {
   const filtered = useMemo(() => rows.filter(r => !q || r.name.toLowerCase().includes(q.toLowerCase())), [rows, q]);
 
   const columns: Column<any>[] = [
-    { key: "name", header: "Nome", render: (r) => <span className="font-medium">{r.name}</span> },
-    { key: "slug", header: "Slug", render: (r) => <span className="text-gray-500">/{r.slug}</span> },
+    { key: "name", header: "Nome", render: (r) => (
+      <Link href={`/admin/categories/${r.id}` as Route} className="font-medium text-[#ff5c00] hover:underline">
+        {r.name}
+      </Link>
+    ) },
+    { key: "slug", header: "Slug", render: (r) => <span className="text-gray-500">{r.slug}</span> },
     { key: "order", header: "Ordem" },
     { key: "active", header: "Status", render: (r) => (
       <StatusBadge label={r.active ? 'Ativa' : 'Inativa'} tone={r.active ? 'emerald' : 'gray'} />
+    ) },
+    { key: "actions", header: "Ações", render: (r) => (
+      <div className="flex gap-2">
+        <Link
+          href={`/admin/categories/${r.id}` as Route}
+          className="text-sm text-blue-600 hover:text-blue-800"
+        >
+          Editar
+        </Link>
+      </div>
     ) },
   ];
 
