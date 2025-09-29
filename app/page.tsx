@@ -20,8 +20,8 @@ const VendorSignupBanner = dynamic(() => import("@/components/VendorSignupBanner
 export default function HomePage() {
   return (
     <div className="">{/* full-bleed, colado na navbar */}
-      {/* Hero com espaçamento reduzido da navbar */}
-      <div className="-mt-4 md:-mt-6">
+      {/* Hero com espaçamento ajustado da navbar */}
+      <div className="mt-2 md:-mt-2">
         <FullBanner />
       </div>
       {/* Mobile: small icon scroller below hero */}

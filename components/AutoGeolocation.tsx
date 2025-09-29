@@ -72,7 +72,7 @@ export default function AutoGeolocation({ onLocationUpdate }: AutoGeolocationPro
         }
       );
     }
-  }, [hasRequested, isRequesting, onLocationUpdate]);
+  }, [hasRequested, isRequesting]); // Removido onLocationUpdate da dependência
 
   // Este componente não renderiza nada visível
   return null;

@@ -15,6 +15,7 @@ import { loadStoredLocation, UserLocation } from "@/lib/location";
 import { Hedvig_Letters_Serif } from "next/font/google";
 import { shippingConfig } from "@/components/shippingConfig";
 import FreeShippingProgress from "@/components/FreeShippingProgress";
+import { useEffect as useEffectBranding, useState as useStateBranding } from "react";
 
 const hedvig = Hedvig_Letters_Serif({ subsets: ["latin"] });
 
@@ -176,6 +177,7 @@ export default function Navbar() {
   const [notifEnabled, setNotifEnabled] = useState<boolean>(false);
   const [notifCount, setNotifCount] = useState<number>(0);
   const [notifPulse, setNotifPulse] = useState<boolean>(false);
+  const [branding, setBranding] = useState<{logoUrl: string; logoAlt: string; siteName: string} | null>(null);
 
   const onSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -409,6 +411,22 @@ useEffect(() => {
   }
 }, [pathname, inDashboard]);
 
+  // Carregar configurações de branding
+  useEffect(() => {
+    const loadBranding = async () => {
+      try {
+        const response = await fetch('/api/admin/branding');
+        const result = await response.json();
+        if (result.success) {
+          setBranding(result.data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar branding:', error);
+      }
+    };
+    loadBranding();
+  }, []);
+
   // UF atual baseada na localização armazenada
   const ufQuery = (loc?.state || 'sp').toLowerCase();
 
@@ -419,21 +437,33 @@ useEffect(() => {
       <div className="container-max py-2 flex items-center justify-between">
         {/* Logo (hidden no mobile) */}
         <Link href="/" className="hidden md:flex items-center gap-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            className="h-8 w-8 text-[var(--color-primary)]"
-            aria-hidden
-            fill="currentColor"
-          >
-            <rect x="3" y="4" width="18" height="16" rx="2" ry="2" opacity="0.15" />
-            <rect x="6" y="7" width="12" height="2" rx="1" />
-            <rect x="6" y="11" width="9" height="2" rx="1" />
-            <rect x="6" y="15" width="6" height="2" rx="1" />
-          </svg>
-          <span className={`text-lg tracking-wide lowercase ${hedvig.className} text-black`}>
-            <span className="font-bold text-[#ff5c00]">g</span>uia das bancas
-          </span>
+          {branding?.logoUrl ? (
+            <Image
+              src={branding.logoUrl}
+              alt={branding.logoAlt || "Logo"}
+              width={120}
+              height={40}
+              className="h-8 w-auto max-w-[120px] object-contain"
+            />
+          ) : (
+            <>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className="h-8 w-8 text-[var(--color-primary)]"
+                aria-hidden
+                fill="currentColor"
+              >
+                <rect x="3" y="4" width="18" height="16" rx="2" ry="2" opacity="0.15" />
+                <rect x="6" y="7" width="12" height="2" rx="1" />
+                <rect x="6" y="11" width="9" height="2" rx="1" />
+                <rect x="6" y="15" width="6" height="2" rx="1" />
+              </svg>
+              <span className={`text-lg tracking-wide lowercase ${hedvig.className} text-black`}>
+                <span className="font-bold text-[#ff5c00]">g</span>uia das bancas
+              </span>
+            </>
+          )}
         </Link>
 
         {/* Notificações e Localização (direita) */}
