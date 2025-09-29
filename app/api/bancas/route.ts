@@ -1,15 +1,44 @@
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
+import { supabase } from "@/lib/supabase";
 
-const BANCAS_PATH = path.join(process.cwd(), "data", "bancas.json");
-type StoreBanca = { id: string; name: string; address?: string; lat?: number; lng?: number; cover: string; avatar?: string; description?: string; categories?: string[]; active: boolean; order: number };
+type StoreBanca = { 
+  id: string; 
+  name: string; 
+  address?: string; 
+  lat?: number; 
+  lng?: number; 
+  cover: string; 
+  avatar?: string; 
+  description?: string; 
+  categories?: string[]; 
+  active: boolean; 
+  order: number; 
+};
 
 async function readStore(): Promise<StoreBanca[]> {
   try {
-    const raw = await fs.readFile(BANCAS_PATH, "utf-8");
-    const parsed = JSON.parse(raw || "[]");
-    return Array.isArray(parsed) ? parsed : [];
+    const { data, error } = await supabase
+      .from('bancas')
+      .select('*')
+      .order('name');
+
+    if (error || !data) {
+      return [];
+    }
+
+    return data.map(banca => ({
+      id: banca.id,
+      name: banca.name,
+      address: banca.address,
+      lat: banca.lat,
+      lng: banca.lng,
+      cover: banca.cover_image || '',
+      avatar: banca.cover_image || '',
+      description: banca.address,
+      categories: banca.categories || [],
+      active: true, // Assumindo que todas as bancas no DB são ativas
+      order: 0
+    }));
   } catch {
     return [];
   }
@@ -22,20 +51,49 @@ export async function GET(req: Request) {
     const lng = url.searchParams.get("lng");
     const radiusKm = url.searchParams.get("radiusKm");
 
-    let list = (await readStore()).filter((b) => b.active).sort((a, b) => a.order - b.order);
+    let query = supabase
+      .from('bancas')
+      .select('*');
 
+    // Se temos coordenadas e raio, aplicar filtro geográfico
     if (lat && lng && radiusKm) {
       const la = parseFloat(lat);
       const ln = parseFloat(lng);
       const r = parseFloat(radiusKm);
+      
       if (!Number.isNaN(la) && !Number.isNaN(ln) && !Number.isNaN(r)) {
         const degLat = r / 111; // approx degrees per km
         const degLng = r / (111 * Math.cos((la * Math.PI) / 180));
-        list = list.filter(
-          (b) => typeof b.lat === 'number' && typeof b.lng === 'number' && b.lat >= la - degLat && b.lat <= la + degLat && b.lng >= ln - degLng && b.lng <= ln + degLng
-        );
+        
+        query = query
+          .gte('lat', la - degLat)
+          .lte('lat', la + degLat)
+          .gte('lng', ln - degLng)
+          .lte('lng', ln + degLng);
       }
     }
+
+    const { data, error } = await query.order('name');
+
+    if (error) {
+      console.error('Erro ao buscar bancas:', error);
+      return NextResponse.json([]);
+    }
+
+    // Transformar para o formato esperado
+    const list = data?.map(banca => ({
+      id: banca.id,
+      name: banca.name,
+      address: banca.address,
+      lat: banca.lat,
+      lng: banca.lng,
+      cover: banca.cover_image || '',
+      avatar: banca.cover_image || '',
+      description: banca.address,
+      categories: banca.categories || [],
+      active: true,
+      order: 0
+    })) || [];
 
     return NextResponse.json(list);
   } catch (e: any) {

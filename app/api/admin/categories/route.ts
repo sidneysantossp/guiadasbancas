@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export type AdminCategory = {
   id: string;
@@ -11,21 +10,33 @@ export type AdminCategory = {
   order: number;
 };
 
-const CATS_PATH = path.join(process.cwd(), "data", "categories.json");
-
 async function readCategories(): Promise<AdminCategory[]> {
   try {
-    const raw = await fs.readFile(CATS_PATH, "utf-8");
-    const parsed = JSON.parse(raw || "[]");
-    return Array.isArray(parsed) ? parsed : [];
+    const { data, error } = await supabaseAdmin
+      .from('categories')
+      .select('*')
+      .order('order', { ascending: true });
+
+    if (error || !data) {
+      return [];
+    }
+
+    return data.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      image: cat.image || '',
+      link: cat.link,
+      active: cat.active,
+      order: cat.order
+    }));
   } catch {
     return [];
   }
 }
 
 async function writeCategories(items: AdminCategory[]) {
-  await fs.mkdir(path.dirname(CATS_PATH), { recursive: true });
-  await fs.writeFile(CATS_PATH, JSON.stringify(items, null, 2), "utf-8");
+  // Não usado mais - mantido para compatibilidade
+  console.warn('writeCategories deprecated - use individual category operations');
 }
 
 function verifyAdminAuth(request: NextRequest) {
