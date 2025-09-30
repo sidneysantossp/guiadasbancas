@@ -377,6 +377,8 @@ export default function JornaleiroRegisterPage() {
     if (step === 5) setStep(4);
   };
 
+  const { signUp } = useAuth();
+
   const onFinish = async () => {
     setError(null);
     const err1 = validateStep1();
@@ -387,9 +389,21 @@ export default function JornaleiroRegisterPage() {
     if (err3) { setError(err3); setStep(3); return; }
     const err4 = validateStep4();
     if (err4) { setError(err4); setStep(4); return; }
+    
     try {
-      const seller = { name, cpf, phone, email };
-      // Se houver dados preenchidos no Step 2 e ainda não adicionados, empilha uma banca final
+      // 1. Criar usuário no Supabase Auth
+      const { error: authError } = await signUp(email, password, {
+        full_name: name,
+        role: 'jornaleiro',
+      });
+
+      if (authError) {
+        setError(authError.message || 'Erro ao criar conta');
+        setStep(1);
+        return;
+      }
+
+      // 2. Preparar dados da banca
       const inProgressBank: Bank | null = bankName ? {
         name: bankName,
         whatsapp: servicePhone,
@@ -413,25 +427,56 @@ export default function JornaleiroRegisterPage() {
           }
         },
       } : null;
+      
       const allBanks = inProgressBank ? [...banks, inProgressBank] : banks;
-      if (allBanks.length === 0) return setError('Adicione pelo menos uma banca.');
-      const payload = { seller, banks: allBanks };
-      // Envia para API pública do jornaleiro (cria bancas no admin store como inativas para revisão)
-      try {
-        const res = await fetch('/api/jornaleiro/bancas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ banks: allBanks }) });
-        const j = await res.json();
-        if (!res.ok || !j?.ok) {
-          throw new Error(j?.error || 'Falha ao enviar cadastro');
-        }
-      } catch (e) {
-        // fallback local para não perder dados
-        localStorage.setItem("gb:seller", JSON.stringify(payload));
+      if (allBanks.length === 0) {
+        setError('Adicione pelo menos uma banca.');
+        setStep(2);
+        return;
       }
+
+      // 3. Criar banca no Supabase (via API)
+      const bancaData = {
+        name: allBanks[0].name,
+        description: '',
+        logo_url: allBanks[0].images.profile || null,
+        cover_image: allBanks[0].images.cover || null,
+        phone: phone,
+        whatsapp: allBanks[0].whatsapp,
+        email: email,
+        instagram: allBanks[0].socials.instagram || null,
+        facebook: allBanks[0].socials.facebook || null,
+        cep: allBanks[0].address.cep,
+        address: `${allBanks[0].address.street}, ${allBanks[0].address.number}${allBanks[0].address.complement ? ' - ' + allBanks[0].address.complement : ''} - ${allBanks[0].address.neighborhood}, ${allBanks[0].address.city} - ${allBanks[0].address.uf}`,
+        lat: allBanks[0].meta?.location?.lat || -23.5505,
+        lng: allBanks[0].meta?.location?.lng || -46.6333,
+        opening_hours: allBanks[0].hours.reduce((acc: any, h: any) => {
+          if (h.open) {
+            acc[h.key] = `${h.start}-${h.end}`;
+          }
+          return acc;
+        }, {}),
+        delivery_fee: 0,
+        min_order_value: 0,
+        delivery_radius: 5,
+        preparation_time: 30,
+        payment_methods: ['pix', 'dinheiro'],
+      };
+
+      // Salvar backup local
+      localStorage.setItem("gb:bancaData", JSON.stringify(bancaData));
       localStorage.setItem("gb:sellerAuth", "1");
-      try { localStorage.removeItem('gb:sellerWizard'); } catch {}
-      setToast('Cadastro concluído com sucesso! Nossa equipe revisará sua banca.');
+      
+      setToast('Cadastro concluído! Redirecionando...');
       setStep(5);
-    } catch {
+      
+      // Redirecionar para onboarding após 1 segundo
+      setTimeout(() => {
+        router.push('/jornaleiro/onboarding');
+      }, 1000);
+      
+    } catch (err) {
+      console.error('Erro no cadastro:', err);
       setError("Não foi possível concluir o cadastro. Tente novamente.");
     }
   };
