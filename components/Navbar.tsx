@@ -16,8 +16,49 @@ import { Hedvig_Letters_Serif } from "next/font/google";
 import { shippingConfig } from "@/components/shippingConfig";
 import FreeShippingProgress from "@/components/FreeShippingProgress";
 import { useEffect as useEffectBranding, useState as useStateBranding } from "react";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 const hedvig = Hedvig_Letters_Serif({ subsets: ["latin"] });
+
+// Componente para links de Jornaleiro/Admin
+function JornaleiroAdminLinks({ onClose }: { onClose: () => void }) {
+  const { profile, loading } = useAuth();
+  const router = useRouter();
+
+  // Se ainda está carregando, não mostra nada
+  if (loading) return null;
+  
+  // Se não tem perfil ou é cliente, não mostra nada
+  if (!profile || profile.role === 'cliente') return null;
+
+  return (
+    <>
+      <div className="h-px bg-gray-100 my-1" />
+      {profile.role === 'jornaleiro' && (
+        <button 
+          className="w-full text-left px-3 py-2 text-[#ff5c00] hover:bg-orange-50 font-medium" 
+          onClick={() => { 
+            router.push('/jornaleiro/dashboard'); 
+            onClose(); 
+          }}
+        >
+          📊 Painel do Jornaleiro
+        </button>
+      )}
+      {profile.role === 'admin' && (
+        <button 
+          className="w-full text-left px-3 py-2 text-blue-600 hover:bg-blue-50 font-medium" 
+          onClick={() => { 
+            router.push('/admin/dashboard'); 
+            onClose(); 
+          }}
+        >
+          ⚙️ Painel Admin
+        </button>
+      )}
+    </>
+  );
+}
 
 interface Category {
   slug: string;
@@ -693,20 +734,8 @@ useEffect(() => {
                         <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','perfil'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meu Perfil</button>
                         <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','favoritos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meus Favoritos</button>
                         <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','pedidos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Minhas compras</button>
-                        {/* Verificar se é jornaleiro logado */}
-                        {(() => {
-                          try {
-                            const sellerAuth = localStorage.getItem('gb:sellerAuth');
-                            return sellerAuth === '1' ? (
-                              <>
-                                <div className="h-px bg-gray-100 my-1" />
-                                <button className="w-full text-left px-3 py-2 text-[#ff5c00] hover:bg-orange-50 font-medium" onClick={()=>{ router.push('/jornaleiro/dashboard'); setAccountOpen(false); }}>Painel do Jornaleiro</button>
-                              </>
-                            ) : null;
-                          } catch {
-                            return null;
-                          }
-                        })()}
+                        {/* Verificar se é jornaleiro ou admin */}
+                        <JornaleiroAdminLinks onClose={() => setAccountOpen(false)} />
                         <div className="h-px bg-gray-100 my-1" />
                         <button className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50" onClick={()=>{ setAccountOpen(false); logout(); }}>Sair</button>
                       </div>

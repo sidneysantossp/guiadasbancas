@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import type { Route } from "next";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 function MinhaContaPageContent() {
   const router = useRouter();

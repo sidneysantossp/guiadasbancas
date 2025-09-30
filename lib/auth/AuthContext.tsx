@@ -46,16 +46,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Carregar perfil do usuário
   const loadProfile = async (userId: string) => {
     try {
+      console.log('👤 Carregando perfil para:', userId);
+      
       const { data, error } = await supabase
         .from("user_profiles")
         .select("*")
         .eq("id", userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro ao buscar perfil:', error);
+        
+        // Se o perfil não existe, tentar criar
+        if (error.code === 'PGRST116') {
+          console.log('🔧 Perfil não encontrado, aguardando trigger...');
+          // Aguardar um pouco para o trigger criar o perfil
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // Tentar buscar novamente
+          const { data: retryData, error: retryError } = await supabase
+            .from("user_profiles")
+            .select("*")
+            .eq("id", userId)
+            .single();
+          
+          if (retryError) {
+            console.error('❌ Erro após retry:', retryError);
+            setProfile(null);
+            return;
+          }
+          
+          console.log('✅ Perfil carregado após retry:', retryData);
+          setProfile(retryData);
+          return;
+        }
+        
+        setProfile(null);
+        return;
+      }
+      
+      console.log('✅ Perfil carregado:', data);
       setProfile(data);
     } catch (error) {
-      console.error("Erro ao carregar perfil:", error);
+      console.error("❌ Erro ao carregar perfil:", error);
       setProfile(null);
     }
   };
@@ -92,12 +125,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Login
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('🔐 Tentando login com:', email);
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      return { error };
+      
+      if (error) {
+        console.error('❌ Erro no login:', error);
+        return { error };
+      }
+      
+      console.log('✅ Login bem-sucedido:', data.user?.email);
+      return { error: null };
     } catch (error) {
+      console.error('❌ Exceção no login:', error);
       return { error: error as Error };
     }
   };

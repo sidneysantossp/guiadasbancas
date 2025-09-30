@@ -1,18 +1,106 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import WhatsAppTemplates from "@/components/admin/WhatsAppTemplates";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ToastProvider";
 
-type ConfigTab = "whatsapp" | "notifications" | "general";
+type ConfigTab = "whatsapp" | "notifications" | "general" | "delivery" | "payment";
 
 export default function ConfiguracoesPage() {
   const [activeTab, setActiveTab] = useState<ConfigTab>("whatsapp");
 
+  const { user } = useAuth();
+  const { show: showToast } = useToast();
+  const [banca, setBanca] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [deliveryConfig, setDeliveryConfig] = useState({
+    delivery_fee: 0,
+    min_order_value: 0,
+    delivery_radius: 5,
+    preparation_time: 30,
+  });
+  const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      loadBancaConfig();
+    }
+  }, [user]);
+
+  const loadBancaConfig = async () => {
+    try {
+      const { data } = await supabase
+        .from('bancas')
+        .select('*')
+        .eq('user_id', user!.id)
+        .single();
+      
+      if (data) {
+        setBanca(data);
+        setDeliveryConfig({
+          delivery_fee: data.delivery_fee || 0,
+          min_order_value: data.min_order_value || 0,
+          delivery_radius: data.delivery_radius || 5,
+          preparation_time: data.preparation_time || 30,
+        });
+        setPaymentMethods(data.payment_methods || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar configurações:', error);
+    }
+  };
+
+  const saveDeliveryConfig = async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('bancas')
+        .update(deliveryConfig)
+        .eq('user_id', user!.id);
+
+      if (error) throw error;
+      showToast('Configurações de entrega salvas!');
+    } catch (error) {
+      showToast('Erro ao salvar configurações');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const savePaymentMethods = async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('bancas')
+        .update({ payment_methods: paymentMethods })
+        .eq('user_id', user!.id);
+
+      if (error) throw error;
+      showToast('Formas de pagamento salvas!');
+    } catch (error) {
+      showToast('Erro ao salvar formas de pagamento');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const togglePaymentMethod = (method: string) => {
+    if (paymentMethods.includes(method)) {
+      setPaymentMethods(paymentMethods.filter(m => m !== method));
+    } else {
+      setPaymentMethods([...paymentMethods, method]);
+    }
+  };
+
   const tabs = [
-    { id: "whatsapp" as ConfigTab, label: "WhatsApp", icon: "📱" },
+    { id: "general" as ConfigTab, label: "Geral", icon: "⚙️" },
+    { id: "delivery" as ConfigTab, label: "Entrega", icon: "🚚" },
+    { id: "payment" as ConfigTab, label: "Pagamento", icon: "💳" },
     { id: "notifications" as ConfigTab, label: "Notificações", icon: "🔔" },
-    { id: "general" as ConfigTab, label: "Geral", icon: "⚙️" }
+    { id: "whatsapp" as ConfigTab, label: "WhatsApp", icon: "📱" },
   ];
 
   const NotificationsSettings = () => (
@@ -89,6 +177,147 @@ export default function ConfiguracoesPage() {
           Notificações serão silenciadas fora do horário de funcionamento
         </p>
       </div>
+    </div>
+  );
+
+  const DeliverySettings = () => (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold">Configurações de Entrega</h3>
+        <p className="text-sm text-gray-600">
+          Configure as opções de entrega da sua banca.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Taxa de Entrega (R$)</label>
+          <input
+            type="number"
+            step="0.01"
+            value={deliveryConfig.delivery_fee}
+            onChange={(e) => setDeliveryConfig({ ...deliveryConfig, delivery_fee: parseFloat(e.target.value) || 0 })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Valor cobrado por entrega. Use 0 para frete grátis.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Valor Mínimo do Pedido (R$)</label>
+          <input
+            type="number"
+            step="0.01"
+            value={deliveryConfig.min_order_value}
+            onChange={(e) => setDeliveryConfig({ ...deliveryConfig, min_order_value: parseFloat(e.target.value) || 0 })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Valor mínimo para aceitar pedidos. Use 0 para sem mínimo.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Raio de Entrega (km)</label>
+          <input
+            type="number"
+            step="0.5"
+            value={deliveryConfig.delivery_radius}
+            onChange={(e) => setDeliveryConfig({ ...deliveryConfig, delivery_radius: parseFloat(e.target.value) || 5 })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Distância máxima para entregas a partir da sua banca.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Tempo de Preparo (minutos)</label>
+          <input
+            type="number"
+            step="5"
+            value={deliveryConfig.preparation_time}
+            onChange={(e) => setDeliveryConfig({ ...deliveryConfig, preparation_time: parseInt(e.target.value) || 30 })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Tempo estimado para preparar os pedidos.
+          </p>
+        </div>
+
+        <button
+          onClick={saveDeliveryConfig}
+          disabled={loading}
+          className="w-full bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] text-white font-semibold py-3 px-4 rounded-lg hover:opacity-95 disabled:opacity-50"
+        >
+          {loading ? 'Salvando...' : 'Salvar Configurações de Entrega'}
+        </button>
+      </div>
+    </div>
+  );
+
+  const PaymentSettings = () => (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold">Formas de Pagamento</h3>
+        <p className="text-sm text-gray-600">
+          Selecione as formas de pagamento que sua banca aceita.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {[
+          { id: 'pix', label: 'PIX', icon: '💱' },
+          { id: 'dinheiro', label: 'Dinheiro', icon: '💵' },
+          { id: 'debito', label: 'Cartão de Débito', icon: '💳' },
+          { id: 'credito', label: 'Cartão de Crédito', icon: '💳' },
+          { id: 'vale', label: 'Vale Alimentação/Refeição', icon: '🍽️' },
+        ].map((method) => (
+          <div key={method.id} className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{method.icon}</span>
+              <div>
+                <div className="font-medium">{method.label}</div>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={paymentMethods.includes(method.id)}
+                onChange={() => togglePaymentMethod(method.id)}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex gap-2">
+          <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
+          <div className="text-sm text-blue-800">
+            <strong>Dica:</strong> Oferecer mais formas de pagamento aumenta suas chances de venda!
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={savePaymentMethods}
+        disabled={loading || paymentMethods.length === 0}
+        className="w-full bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] text-white font-semibold py-3 px-4 rounded-lg hover:opacity-95 disabled:opacity-50"
+      >
+        {loading ? 'Salvando...' : 'Salvar Formas de Pagamento'}
+      </button>
+
+      {paymentMethods.length === 0 && (
+        <p className="text-sm text-red-600 text-center">
+          Selecione pelo menos uma forma de pagamento
+        </p>
+      )}
     </div>
   );
 
@@ -243,6 +472,8 @@ export default function ConfiguracoesPage() {
             <WhatsAppTemplates />
           </div>
         )}
+        {activeTab === "delivery" && <DeliverySettings />}
+        {activeTab === "payment" && <PaymentSettings />}
         {activeTab === "notifications" && <NotificationsSettings />}
         {activeTab === "general" && <GeneralSettings />}
       </div>
