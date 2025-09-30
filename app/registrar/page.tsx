@@ -53,7 +53,7 @@ export default function RegisterPage() {
       <div className="max-w-md w-full">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
+          <Link href={("/" as Route)} className="inline-block">
             <div className="text-4xl font-bold text-orange-600">
               Guia das Bancas
             </div>
@@ -180,7 +180,7 @@ export default function RegisterPage() {
           {/* Link para Login */}
           <div className="mt-6">
             <Link
-              href="/login"
+              href={("/login" as Route)}
               className="block w-full text-center px-4 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
             >
               Fazer Login
@@ -192,7 +192,7 @@ export default function RegisterPage() {
             <p className="text-sm text-gray-600">
               É jornaleiro?{" "}
               <Link
-                href="/jornaleiro/registrar"
+                href={("/jornaleiro/registrar" as Route)}
                 className="text-orange-600 hover:text-orange-700 font-medium"
               >
                 Cadastre sua banca aqui
@@ -204,12 +204,12 @@ export default function RegisterPage() {
         {/* Footer */}
         <p className="mt-8 text-center text-sm text-gray-600">
           Ao criar uma conta, você concorda com nossos{" "}
-          <Link href="/termos" className="text-orange-600 hover:text-orange-700">
+          <Link href={("/termos" as Route)} className="text-orange-600 hover:text-orange-700">
             Termos de Uso
           </Link>{" "}
           e{" "}
           <Link
-            href="/privacidade"
+            href={("/privacidade" as Route)}
             className="text-orange-600 hover:text-orange-700"
           >
             Política de Privacidade
