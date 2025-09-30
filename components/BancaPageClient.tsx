@@ -149,7 +149,7 @@ function ClosedBadge() {
   );
 }
 
-function ProductCard({ p, phone }: { p: ProdutoResumo; phone?: string }) {
+function ProductCard({ p, phone, bancaId }: { p: ProdutoResumo; phone?: string; bancaId: string }) {
   const [liked, setLiked] = useState(false);
   const { addToCart, items } = useCart();
   const { show } = useToast();
@@ -194,7 +194,7 @@ function ProductCard({ p, phone }: { p: ProdutoResumo; phone?: string }) {
         </div>
         {/* Ícone flutuante de carrinho sob a imagem */}
         <button
-          onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: banca.id }, 1); show(<span>Adicionado ao carrinho.</span>); } }}
+          onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: bancaId }, 1); show(<span>Adicionado ao carrinho.</span>); } }}
           aria-label="Adicionar ao carrinho"
           disabled={outOfStock}
           className={`absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border ${outOfStock ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed' : 'border-gray-200 bg-white shadow hover:bg-gray-50'}`}
@@ -265,7 +265,7 @@ function ProductCard({ p, phone }: { p: ProdutoResumo; phone?: string }) {
           {/* Ações: botão carrinho laranja + botão Whats verde */}
           <div className="flex flex-col gap-1">
             <button
-              onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: banca.id }, 1); show(<span>Adicionado ao carrinho.</span>); } }}
+              onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: bancaId }, 1); show(<span>Adicionado ao carrinho.</span>); } }}
               disabled={outOfStock}
               className={`w-full rounded px-2.5 py-1 text-[11px] font-semibold ${outOfStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#ff5c00] text-white hover:opacity-95'}`}
             >
@@ -1336,7 +1336,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         <>
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {visibleProducts.map((p) => (
-              <ProductCard key={p.id} p={p} phone={banca.phone} />
+              <ProductCard key={p.id} p={p} phone={banca.phone} bancaId={banca.id} />
             ))}
           </div>
           {/* Loader / sentinela para infinite scroll */}
