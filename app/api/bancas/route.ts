@@ -17,6 +17,8 @@ type StoreBanca = {
 
 async function readStore(): Promise<StoreBanca[]> {
   try {
+    if (!supabase) return [];
+    
     const { data, error } = await supabase
       .from('bancas')
       .select('*')
@@ -26,7 +28,7 @@ async function readStore(): Promise<StoreBanca[]> {
       return [];
     }
 
-    return data.map(banca => ({
+    return (data as any[]).map((banca: any) => ({
       id: banca.id,
       name: banca.name,
       address: banca.address,
@@ -46,6 +48,10 @@ async function readStore(): Promise<StoreBanca[]> {
 
 export async function GET(req: Request) {
   try {
+    if (!supabase) {
+      return NextResponse.json([]);
+    }
+
     const url = new URL(req.url);
     const lat = url.searchParams.get("lat");
     const lng = url.searchParams.get("lng");
@@ -81,7 +87,7 @@ export async function GET(req: Request) {
     }
 
     // Transformar para o formato esperado
-    const list = data?.map(banca => ({
+    const list = (data as any[] || []).map((banca: any) => ({
       id: banca.id,
       name: banca.name,
       address: banca.address,
@@ -93,7 +99,7 @@ export async function GET(req: Request) {
       categories: banca.categories || [],
       active: true,
       order: 0
-    })) || [];
+    }));
 
     return NextResponse.json(list);
   } catch (e: any) {
