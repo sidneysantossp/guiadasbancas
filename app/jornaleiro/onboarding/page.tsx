@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Route } from "next";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -15,7 +16,7 @@ export default function JornaleiroOnboardingPage() {
     if (!loading && user && profile?.role === "jornaleiro") {
       createBanca();
     } else if (!loading && !user) {
-      router.push("/login");
+      router.push(("/login" as Route));
     }
   }, [user, profile, loading]);
 
@@ -64,7 +65,7 @@ export default function JornaleiroOnboardingPage() {
 
       // Redirecionar para dashboard
       setTimeout(() => {
-        router.push("/jornaleiro/dashboard");
+        router.push(("/jornaleiro/dashboard" as Route));
       }, 2000);
 
     } catch (error) {
@@ -132,7 +133,7 @@ export default function JornaleiroOnboardingPage() {
               Tentar Novamente
             </button>
             <button
-              onClick={() => router.push("/jornaleiro/registrar")}
+              onClick={() => router.push(("/jornaleiro/registrar" as Route))}
               className="w-full border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 transition-all"
             >
               Voltar ao Cadastro
