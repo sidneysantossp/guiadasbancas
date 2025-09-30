@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, FormEvent } from "react";
+import type { Route } from "next";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -43,7 +44,7 @@ export default function RegisterPage() {
       setError(error.message || "Erro ao criar conta");
       setLoading(false);
     } else {
-      router.push("/login?registered=true");
+      router.push(("/login?registered=true" as Route));
     }
   };
 
