@@ -5,18 +5,33 @@ import { createClient } from '@supabase/supabase-js'
 // Novas features devem usar MySQL (lib/mysql.ts) e NextAuth (lib/auth.ts)
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MzY1ODAwMCwiZXhwIjoxOTU5MjM0MDAwfQ.placeholder'
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+let supabase: ReturnType<typeof createClient>;
+let supabaseAdmin: ReturnType<typeof createClient>;
+
+try {
+  supabase = createClient(supabaseUrl, supabaseAnonKey)
+} catch (e) {
+  console.warn('Supabase client initialization failed (expected if not configured):', e);
+  supabase = null as any;
+}
 
 // Cliente para operações administrativas
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
+try {
+  supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  })
+} catch (e) {
+  console.warn('Supabase admin client initialization failed (expected if not configured):', e);
+  supabaseAdmin = null as any;
+}
+
+export { supabase, supabaseAdmin }
 
 // Tipos do banco de dados
 export interface Database {
