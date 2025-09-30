@@ -83,9 +83,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      // Após login bem-sucedido, redireciona baseado no role
+      // Se a URL já é absoluta e do mesmo domínio, usa ela
+      if (url.startsWith(baseUrl)) return url;
+      // Se é uma URL relativa, adiciona o baseUrl
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Caso contrário, volta para a home
+      return baseUrl;
+    },
   },
   pages: {
     signIn: "/jornaleiro",
+    error: "/jornaleiro", // Redireciona erros para a página de login
   },
   session: {
     strategy: "jwt",

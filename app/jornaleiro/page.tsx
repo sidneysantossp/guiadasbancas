@@ -31,18 +31,24 @@ export default function JornaleiroLoginPage() {
         redirect: false,
         email,
         password,
+        callbackUrl: "/jornaleiro/dashboard",
       });
 
       if (result?.error) {
+        console.error("❌ Erro no login:", result.error);
         setError("Email ou senha inválidos");
         setLoading(false);
         return;
       }
 
-      console.log("✅ Login bem-sucedido, redirecionando...");
-      // NextAuth vai atualizar a sessão automaticamente
-      router.push("/jornaleiro/dashboard");
+      if (result?.ok) {
+        console.log("✅ Login bem-sucedido, redirecionando...");
+        // Aguardar um pouco para a sessão ser atualizada
+        await new Promise(resolve => setTimeout(resolve, 500));
+        router.push("/jornaleiro/dashboard");
+      }
     } catch (err: any) {
+      console.error("❌ Exceção no login:", err);
       setError(err.message || "Erro ao fazer login");
       setLoading(false);
     }
