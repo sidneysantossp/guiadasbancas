@@ -344,7 +344,7 @@ export default function Navbar() {
   // Notifications: sync permission and SW messages
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    setNotifEnabled(Notification?.permission === 'granted');
+    setNotifEnabled(typeof Notification !== 'undefined' && Notification?.permission === 'granted');
     if ('serviceWorker' in navigator) {
       const onMsg = (e: MessageEvent) => {
         if (e?.data?.type === 'PUSH_RECEIVED') {
