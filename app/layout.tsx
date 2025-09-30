@@ -8,6 +8,7 @@ import AppFooter from "@/components/AppFooter";
 import FloatingCart from "@/components/FloatingCart";
 import { CartProvider } from "@/components/CartContext";
 import { ToastProvider } from "@/components/ToastProvider";
+import { AuthProvider } from "@/lib/auth/AuthContext";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -18,14 +19,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR">
       <body>
-        <ToastProvider>
-          <CartProvider>
-            {!shouldHideNavbar && <Navbar />}
-            <main>{children}</main>
-            {!shouldHideNavbar && <AppFooter />}
-            {!shouldHideNavbar && <FloatingCart />}
-          </CartProvider>
-        </ToastProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <CartProvider>
+              {!shouldHideNavbar && <Navbar />}
+              <main>{children}</main>
+              {!shouldHideNavbar && <AppFooter />}
+              {!shouldHideNavbar && <FloatingCart />}
+            </CartProvider>
+          </ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );

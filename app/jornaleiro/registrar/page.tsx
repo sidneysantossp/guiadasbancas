@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchViaCEP, ViaCEP } from "@/lib/viacep";
 import { maskCEP, maskCPF, maskPhoneBR } from "@/lib/masks";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export default function JornaleiroRegisterPage() {
   const router = useRouter();
