@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { promises as fs } from "fs";
+import path from "path";
 
 export type AdminCategory = {
   id: string;
@@ -10,33 +11,39 @@ export type AdminCategory = {
   order: number;
 };
 
+const CATS_PATH = path.join(process.cwd(), "data", "categories.json");
+
+async function ensureDataDir() {
+  const dir = path.dirname(CATS_PATH);
+  try { await fs.mkdir(dir, { recursive: true }); } catch {}
+}
+
 async function readCategories(): Promise<AdminCategory[]> {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('categories')
-      .select('*')
-      .order('order', { ascending: true });
-
-    if (error || !data) {
-      return [];
-    }
-
-    return data.map(cat => ({
-      id: cat.id,
-      name: cat.name,
-      image: cat.image || '',
-      link: cat.link,
-      active: cat.active,
-      order: cat.order
-    }));
+    await ensureDataDir();
+    const raw = await fs.readFile(CATS_PATH, "utf-8").catch(()=>"[]");
+    const parsed = JSON.parse(raw || "[]");
+    const items = Array.isArray(parsed) ? parsed : [];
+    // normalizar campos
+    return items.map((c: any, i: number) => ({
+      id: String(c.id ?? `cat-${Date.now()}-${i}`),
+      name: String(c.name ?? ""),
+      image: String(c.image ?? ""),
+      link: String(c.link ?? ""),
+      active: Boolean(c.active ?? true),
+      order: Number(c.order ?? (i+1)),
+    } as AdminCategory));
   } catch {
     return [];
   }
 }
 
 async function writeCategories(items: AdminCategory[]) {
-  // Não usado mais - mantido para compatibilidade
-  console.warn('writeCategories deprecated - use individual category operations');
+  await ensureDataDir();
+  const normalized = [...items]
+    .sort((a,b)=> (a.order||0)-(b.order||0))
+    .map((c, i) => ({ ...c, order: i+1 }));
+  await fs.writeFile(CATS_PATH, JSON.stringify(normalized, null, 2), "utf-8");
 }
 
 function verifyAdminAuth(request: NextRequest) {
@@ -64,9 +71,9 @@ export async function POST(request: NextRequest) {
       id: `cat-${Date.now()}`,
       name: (data.name || "").toString(),
       image: (data.image || "").toString(),
-      link: (data.link || "").toString(),
+      link: (data.link || "").toString().trim(),
       active: Boolean(data.active ?? true),
-      order: items.length + 1,
+      order: (items.length + 1),
     };
     const updated = [...items, newItem];
     await writeCategories(updated);
@@ -87,15 +94,17 @@ export async function PUT(request: NextRequest) {
 
     if (type === "bulk") {
       // Expect full list for reordering/edits
-      await writeCategories(data as AdminCategory[]);
-      return NextResponse.json({ success: true, data });
+      const list = (Array.isArray(data) ? data : []) as AdminCategory[];
+      await writeCategories(list);
+      return NextResponse.json({ success: true, data: list });
     }
 
     const idx = items.findIndex((c) => c.id === data?.id);
     if (idx === -1) return NextResponse.json({ success: false, error: "Categoria não encontrada" }, { status: 404 });
-    items[idx] = { ...items[idx], ...(data as AdminCategory) };
+    const updated = { ...items[idx], ...(data as AdminCategory) } as AdminCategory;
+    items[idx] = updated;
     await writeCategories(items);
-    return NextResponse.json({ success: true, data: items[idx] });
+    return NextResponse.json({ success: true, data: updated });
   } catch (e) {
     return NextResponse.json({ success: false, error: "Erro ao atualizar categoria" }, { status: 500 });
   }

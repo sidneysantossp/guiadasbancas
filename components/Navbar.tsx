@@ -482,16 +482,16 @@ useEffect(() => {
             <Image
               src={branding.logoUrl}
               alt={branding.logoAlt || "Logo"}
-              width={120}
-              height={40}
-              className="h-8 w-auto max-w-[120px] object-contain"
+              width={isHome ? 180 : 120}
+              height={isHome ? 60 : 40}
+              className={`${isHome ? 'h-12 max-w-[180px]' : 'h-8 max-w-[120px]'} w-auto object-contain`}
             />
           ) : (
             <>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
-                className="h-8 w-8 text-[var(--color-primary)]"
+                className={`${isHome ? 'h-10 w-10' : 'h-8 w-8'} text-[var(--color-primary)]`}
                 aria-hidden
                 fill="currentColor"
               >
@@ -500,7 +500,7 @@ useEffect(() => {
                 <rect x="6" y="11" width="9" height="2" rx="1" />
                 <rect x="6" y="15" width="6" height="2" rx="1" />
               </svg>
-              <span className={`text-lg tracking-wide lowercase ${hedvig.className} text-black`}>
+              <span className={`${isHome ? 'text-xl' : 'text-lg'} tracking-wide lowercase ${hedvig.className} text-black`}>
                 <span className="font-bold text-[#ff5c00]">g</span>uia das bancas
               </span>
             </>

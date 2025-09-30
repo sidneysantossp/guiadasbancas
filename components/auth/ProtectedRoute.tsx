@@ -1,8 +1,10 @@
 "use client";
 
-import { useAuth, UserRole } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useSession } from "next-auth/react";
+
+type UserRole = "admin" | "jornaleiro" | "cliente";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -13,35 +15,31 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({
   children,
   requiredRole,
-  redirectTo = "/login",
+  redirectTo = "/jornaleiro",
 }: ProtectedRouteProps) {
-  const { user, profile, loading } = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
-      // Não autenticado
-      if (!user) {
-        router.push(redirectTo);
-        return;
-      }
+    if (status === "loading") return;
 
-      // Autenticado mas sem permissão
-      if (requiredRole && profile?.role !== requiredRole) {
-        // Redirecionar para dashboard apropriado
-        if (profile?.role === "admin") {
-          router.push("/admin/dashboard");
-        } else if (profile?.role === "jornaleiro") {
-          router.push("/jornaleiro/dashboard");
-        } else {
-          router.push("/minha-conta");
-        }
-      }
+    // Não autenticado
+    if (status === "unauthenticated") {
+      router.push(redirectTo as any);
+      return;
     }
-  }, [user, profile, loading, requiredRole, redirectTo, router]);
+
+    const role = (session?.user as any)?.role as UserRole | undefined;
+    if (requiredRole && role && role !== requiredRole) {
+      // Redirecionar para dashboard apropriado
+      if (role === "admin") router.push("/admin/dashboard");
+      else if (role === "jornaleiro") router.push("/jornaleiro/dashboard");
+      else router.push("/minha-conta");
+    }
+  }, [status, session, requiredRole, redirectTo, router]);
 
   // Mostrar loading
-  if (loading) {
+  if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -53,7 +51,8 @@ export default function ProtectedRoute({
   }
 
   // Não autenticado ou sem permissão
-  if (!user || (requiredRole && profile?.role !== requiredRole)) {
+  const role = (session?.user as any)?.role as UserRole | undefined;
+  if (status !== "authenticated" || (requiredRole && role !== requiredRole)) {
     return null;
   }
 

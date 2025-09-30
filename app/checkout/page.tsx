@@ -481,10 +481,12 @@ export default function CheckoutPage() {
     // Enviar pedido ao endpoint mock
     try {
       const genTxn = () => `TXN-${Date.now()}`;
+      const firstBancaId = items.find(it => (it as any).banca_id)?.banca_id || undefined;
       const payload = {
         customer: { name, email, phone },
         address: { street, houseNumber, neighborhood, city, uf, complement, cep: destCEP },
-        items: items.map(it => ({ id: it.id, name: it.name, qty: it.qty, price: it.price, image: it.image })),
+        items: items.map(it => ({ id: it.id, name: it.name, qty: it.qty, price: it.price, image: it.image, banca_id: (it as any).banca_id })),
+        banca_id: firstBancaId,
         pricing: { subtotal, discount, shipping: shippingCost, total },
         shippingMethod: shipping,
         coupon: couponApplied,

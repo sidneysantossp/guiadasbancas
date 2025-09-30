@@ -79,15 +79,55 @@ export default function BrandingPage() {
     }
   };
 
-  const handleLogoUpload = (files: File[], previews: string[]) => {
-    if (previews.length > 0) {
-      setConfig(prev => ({ ...prev, logoUrl: previews[0] }));
+  const handleLogoUpload = async (files: File[], previews: string[]) => {
+    try {
+      if (!files || files.length === 0) return;
+      const fd = new FormData();
+      fd.append('file', files[0]);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer admin-token',
+        },
+        body: fd,
+      });
+      const json = await res.json();
+      if (res.ok && json.ok && json.url) {
+        setConfig(prev => ({ ...prev, logoUrl: json.url }));
+        toast.success('Logo enviada com sucesso');
+      } else {
+        setConfig(prev => ({ ...prev, logoUrl: previews[0] || prev.logoUrl }));
+        toast.error(json.error || 'Falha ao enviar logo');
+      }
+    } catch (e) {
+      setConfig(prev => ({ ...prev, logoUrl: previews[0] || prev.logoUrl }));
+      toast.error('Erro ao enviar logo');
     }
   };
 
-  const handleFaviconUpload = (files: File[], previews: string[]) => {
-    if (previews.length > 0) {
-      setConfig(prev => ({ ...prev, favicon: previews[0] }));
+  const handleFaviconUpload = async (files: File[], previews: string[]) => {
+    try {
+      if (!files || files.length === 0) return;
+      const fd = new FormData();
+      fd.append('file', files[0]);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer admin-token',
+        },
+        body: fd,
+      });
+      const json = await res.json();
+      if (res.ok && json.ok && json.url) {
+        setConfig(prev => ({ ...prev, favicon: json.url }));
+        toast.success('Favicon enviada com sucesso');
+      } else {
+        setConfig(prev => ({ ...prev, favicon: previews[0] || prev.favicon }));
+        toast.error(json.error || 'Falha ao enviar favicon');
+      }
+    } catch (e) {
+      setConfig(prev => ({ ...prev, favicon: previews[0] || prev.favicon }));
+      toast.error('Erro ao enviar favicon');
     }
   };
 

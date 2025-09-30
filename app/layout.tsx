@@ -8,8 +8,8 @@ import AppFooter from "@/components/AppFooter";
 import FloatingCart from "@/components/FloatingCart";
 import { CartProvider } from "@/components/CartContext";
 import { ToastProvider } from "@/components/ToastProvider";
-import { AuthProvider } from "@/lib/auth/AuthContext";
 import { Providers } from "@/components/Providers";
+import { AuthProvider } from "@/lib/auth/AuthContext";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();

@@ -194,7 +194,7 @@ function ProductCard({ p, phone }: { p: ProdutoResumo; phone?: string }) {
         </div>
         {/* Ícone flutuante de carrinho sob a imagem */}
         <button
-          onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image }, 1); show(<span>Adicionado ao carrinho.</span>); } }}
+          onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: banca.id }, 1); show(<span>Adicionado ao carrinho.</span>); } }}
           aria-label="Adicionar ao carrinho"
           disabled={outOfStock}
           className={`absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border ${outOfStock ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed' : 'border-gray-200 bg-white shadow hover:bg-gray-50'}`}
@@ -265,7 +265,7 @@ function ProductCard({ p, phone }: { p: ProdutoResumo; phone?: string }) {
           {/* Ações: botão carrinho laranja + botão Whats verde */}
           <div className="flex flex-col gap-1">
             <button
-              onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image }, 1); show(<span>Adicionado ao carrinho.</span>); } }}
+              onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: banca.id }, 1); show(<span>Adicionado ao carrinho.</span>); } }}
               disabled={outOfStock}
               className={`w-full rounded px-2.5 py-1 text-[11px] font-semibold ${outOfStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#ff5c00] text-white hover:opacity-95'}`}
             >

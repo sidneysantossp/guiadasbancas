@@ -1,10 +1,8 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import type { Route } from "next";
+import { signIn as nextSignIn, signOut as nextSignOut, useSession } from "next-auth/react";
 
 export type UserRole = "admin" | "jornaleiro" | "cliente";
 
@@ -22,9 +20,9 @@ export interface UserProfile {
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: { id: string; email: string; name?: string | null } | null;
   profile: UserProfile | null;
-  session: Session | null;
+  session: any;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, metadata: { full_name: string; role: UserRole }) => Promise<{ error: Error | null }>;
@@ -38,157 +36,61 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const { data: session, status } = useSession();
+  const [user, setUser] = useState<{ id: string; email: string; name?: string | null } | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Carregar perfil do usuário
-  const loadProfile = async (userId: string) => {
-    try {
-      console.log('👤 Carregando perfil para:', userId);
-      
-      const { data, error } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-
-      if (error) {
-        console.error('❌ Erro ao buscar perfil:', error);
-        
-        // Se o perfil não existe, tentar criar
-        if (error.code === 'PGRST116') {
-          console.log('🔧 Perfil não encontrado, aguardando trigger...');
-          // Aguardar um pouco para o trigger criar o perfil
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          // Tentar buscar novamente
-          const { data: retryData, error: retryError } = await supabase
-            .from("user_profiles")
-            .select("*")
-            .eq("id", userId)
-            .single();
-          
-          if (retryError) {
-            console.error('❌ Erro após retry:', retryError);
-            setProfile(null);
-            return;
-          }
-          
-          console.log('✅ Perfil carregado após retry:', retryData);
-          setProfile(retryData);
-          return;
-        }
-        
-        setProfile(null);
-        return;
-      }
-      
-      console.log('✅ Perfil carregado:', data);
-      setProfile(data);
-    } catch (error) {
-      console.error("❌ Erro ao carregar perfil:", error);
+  // Carregar perfil do usuário a partir da sessão NextAuth
+  useEffect(() => {
+    setLoading(status === "loading");
+    if (status === "authenticated" && session?.user) {
+      const u = session.user as any;
+      setUser({ id: u.id, email: u.email, name: u.name });
+      setProfile({
+        id: u.id,
+        role: (u.role as UserRole) || "cliente",
+        full_name: u.name ?? null,
+        phone: null,
+        avatar_url: (u.avatar_url as string) ?? null,
+        banca_id: (u.banca_id as string) ?? null,
+        active: true,
+        email_verified: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    } else if (status === "unauthenticated") {
+      setUser(null);
       setProfile(null);
     }
-  };
+  }, [status, session]);
 
-  // Inicializar sessão
+  // loading control initial
   useEffect(() => {
-    // Verificar sessão atual
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    // Escutar mudanças de autenticação
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      } else {
-        setProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    setLoading(status === "loading");
+  }, [status]);
 
   // Login
   const signIn = async (email: string, password: string) => {
-    try {
-      console.log('🔐 Tentando login com:', email);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) {
-        console.error('❌ Erro no login:', error);
-        return { error };
-      }
-      
-      console.log('✅ Login bem-sucedido:', data.user?.email);
-      return { error: null };
-    } catch (error) {
-      console.error('❌ Exceção no login:', error);
-      return { error: error as Error };
-    }
+    const res = await nextSignIn("credentials", { redirect: false, email, password });
+    if (res?.error) return { error: new Error(res.error) };
+    return { error: null };
   };
 
   // Registro
-  const signUp = async (
-    email: string,
-    password: string,
-    metadata: { full_name: string; role: UserRole }
-  ) => {
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: metadata,
-        },
-      });
-      return { error };
-    } catch (error) {
-      return { error: error as Error };
-    }
+  const signUp = async (_email: string, _password: string, _metadata: { full_name: string; role: UserRole }) => {
+    return { error: new Error("Not implemented in NextAuth layer") };
   };
 
   // Logout
   const signOut = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
+    await nextSignOut({ callbackUrl: "/" });
   };
 
   // Atualizar perfil
-  const updateProfile = async (updates: Partial<UserProfile>) => {
-    if (!user) return { error: new Error("Usuário não autenticado") };
-
-    try {
-      const { error } = await supabase
-        .from("user_profiles")
-        .update(updates)
-        .eq("id", user.id);
-
-      if (error) throw error;
-
-      // Recarregar perfil
-      await loadProfile(user.id);
-      return { error: null };
-    } catch (error) {
-      return { error: error as Error };
-    }
+  const updateProfile = async (_updates: Partial<UserProfile>) => {
+    return { error: new Error("Not implemented in NextAuth layer") };
   };
 
   const value = {
@@ -218,19 +120,23 @@ export function useAuth() {
 
 // Hook para proteger rotas
 export function useRequireAuth(requiredRole?: UserRole) {
-  const { user, profile, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push("/minha-conta" as Route);
-      } else if (requiredRole && profile?.role !== requiredRole) {
-        // Página de acesso negado ainda não existe; enviar para home
-        router.push("/" as Route);
+  const { data: session, status } = useSession();
+  const role = (session?.user as any)?.role as UserRole | undefined;
+  const loading = status === "loading";
+  const user = session?.user ? { id: (session.user as any).id, email: session.user.email! } : null;
+  const profile: UserProfile | null = session?.user
+    ? {
+        id: (session.user as any).id,
+        role: (role as UserRole) || "cliente",
+        full_name: (session.user as any).name ?? null,
+        phone: null,
+        avatar_url: (session.user as any).avatar_url ?? null,
+        banca_id: (session.user as any).banca_id ?? null,
+        active: true,
+        email_verified: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }
-    }
-  }, [user, profile, loading, requiredRole, router]);
-
+    : null;
   return { user, profile, loading };
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendOrderWhatsAppNotification, sendStatusWhatsAppUpdate, type OrderWhatsAppData } from "@/lib/whatsapp";
+import { auth } from "@/lib/auth";
 
 type OrderItem = {
   id: string;
@@ -36,6 +37,9 @@ let ORDERS: Order[] = [];
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await auth();
+    const userRole = (session?.user as any)?.role as string | undefined;
+    const userBancaId = (session?.user as any)?.banca_id as string | undefined;
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") || "";
     const q = (searchParams.get("q") || "").toLowerCase();
@@ -43,6 +47,7 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const sort = searchParams.get("sort") || "created_at";
     const order = searchParams.get("order") || "desc";
+    const bancaIdFilter = searchParams.get("banca_id") || "";
     
     // Filtrar pedidos
     let filtered = ORDERS.filter((r) =>
@@ -53,6 +58,13 @@ export async function GET(req: NextRequest) {
         r.customer_phone.includes(q)
       )
     );
+
+    // Escopo por banca: jornaleiro vê apenas os pedidos da própria banca
+    if (userRole === 'jornaleiro' && userBancaId) {
+      filtered = filtered.filter(r => r.banca_id === userBancaId);
+    } else if (bancaIdFilter) {
+      filtered = filtered.filter(r => r.banca_id === bancaIdFilter);
+    }
     
     // Ordenar
     filtered.sort((a, b) => {
@@ -90,6 +102,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await auth();
     const body = await req.json();
     const orderId = `ORD-${Date.now()}`;
     
@@ -120,14 +133,19 @@ export async function POST(req: NextRequest) {
     }));
     
     // Criar novo pedido
+    // Determinar banca
+    const sessionBancaId = (session?.user as any)?.banca_id as string | undefined;
+    const inferredBancaId = body.banca_id || items[0]?.banca_id || sessionBancaId || "unknown";
+    const inferredBancaName = body.banca_name || "Minha Banca";
+
     const newOrder: Order = {
       id: orderId,
       customer_name: customer.name || "Cliente",
       customer_phone: customer.phone || "",
       customer_email: customer.email || "",
       customer_address: fullAddress,
-      banca_id: "banca1", // TODO: pegar da banca real
-      banca_name: "Banca Principal", // TODO: pegar da banca real
+      banca_id: inferredBancaId,
+      banca_name: inferredBancaName,
       items: orderItems,
       subtotal: pricing.subtotal || 0,
       shipping_fee: pricing.shipping || 0,
