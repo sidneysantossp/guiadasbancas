@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
 import OrdersMetrics from "@/components/admin/OrdersMetrics";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 export default function JornaleiroDashboardPage() {
   const router = useRouter();
-  const [data, setData] = useState<any>(null);
+  const { user, profile } = useAuth();
+  const [banca, setBanca] = useState<any>(null);
   const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [metrics, setMetrics] = useState({
     pedidosHoje: 0,
@@ -19,54 +22,86 @@ export default function JornaleiroDashboardPage() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
 
   useEffect(() => {
+    if (user && profile?.role === 'jornaleiro') {
+      loadBancaData();
+    }
+  }, [user, profile]);
+
+  const loadBancaData = async () => {
     try {
-      const auth = localStorage.getItem("gb:sellerAuth");
-      if (auth !== "1") { router.replace("/jornaleiro" as any); return; }
-      const raw = localStorage.getItem("gb:seller");
-      setData(raw ? JSON.parse(raw) : null);
-    } catch {}
-  }, [router]);
-
-  useEffect(() => {
-    const loadMetrics = async () => {
-      try {
-        setLoadingMetrics(true);
-        const [ordersRes, productsRes] = await Promise.all([
-          fetch("/api/orders"),
-          fetch("/api/products"),
-        ]);
-        const ordersJson = await ordersRes.json();
-        const productsJson = await productsRes.json();
-        const orders = Array.isArray(ordersJson?.items) ? ordersJson.items : [];
-        const products = Array.isArray(productsJson?.items) ? productsJson.items : [];
-
-        const faturamentoHoje = orders.reduce((acc: number, o: any) => acc + Number(o.total || 0), 0);
-        const pedidosPendentes = orders.filter((o: any) => ["novo","confirmado","em_preparo"].includes(o.status)).length;
-        const produtosAtivos = products.filter((p: any) => p.active).length;
-
-        setMetrics({
-          pedidosHoje: orders.length,
-          faturamentoHoje,
-          pedidosPendentes,
-          produtosAtivos,
-        });
-        setRecentOrders(orders.slice(0, 5));
-      } catch {
-        // manter métricas em zero em caso de erro
-      } finally {
-        setLoadingMetrics(false);
-      }
-    };
-    loadMetrics();
-  }, []);
-
-  const logout = () => {
-    try { localStorage.removeItem("gb:sellerAuth"); } catch {}
-    router.replace("/jornaleiro" as any);
+      // Buscar banca do jornaleiro
+      const { data: bancaData } = await supabase
+        .from('bancas')
+        .select('*')
+        .eq('user_id', user!.id)
+        .single();
+      
+      setBanca(bancaData);
+    } catch (error) {
+      console.error('Erro ao carregar banca:', error);
+    }
   };
 
-  const seller = data?.seller || data;
-  const bank = data?.banks?.[0];
+  useEffect(() => {
+    if (user && banca) {
+      loadMetrics();
+    }
+  }, [user, banca]);
+
+  const loadMetrics = async () => {
+    try {
+      setLoadingMetrics(true);
+      
+      // Buscar pedidos da banca
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('banca_id', banca.id)
+        .order('created_at', { ascending: false });
+
+      // Buscar produtos da banca
+      const { data: products } = await supabase
+        .from('products')
+        .select('*')
+        .eq('banca_id', banca.id);
+
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      
+      const pedidosHoje = (orders || []).filter((o: any) => {
+        const orderDate = new Date(o.created_at);
+        orderDate.setHours(0, 0, 0, 0);
+        return orderDate.getTime() === hoje.getTime();
+      });
+
+      const faturamentoHoje = pedidosHoje.reduce((acc: number, o: any) => acc + Number(o.total || 0), 0);
+      const pedidosPendentes = (orders || []).filter((o: any) => 
+        ["novo","confirmado","em_preparo"].includes(o.status)
+      ).length;
+      const produtosAtivos = (products || []).filter((p: any) => {
+        if (p.track_stock) {
+          return (p.stock_qty || 0) > 0;
+        }
+        return true;
+      }).length;
+
+      setMetrics({
+        pedidosHoje: pedidosHoje.length,
+        faturamentoHoje,
+        pedidosPendentes,
+        produtosAtivos,
+      });
+      setRecentOrders((orders || []).slice(0, 5));
+    } catch (error) {
+      console.error('Erro ao carregar métricas:', error);
+    } finally {
+      setLoadingMetrics(false);
+    }
+  };
+
+  const sellerName = profile?.full_name || user?.email?.split('@')[0] || 'Jornaleiro';
+  const sellerEmail = user?.email || '';
+  const sellerPhone = profile?.phone || '';
 
   return (
     <div className="space-y-4">
@@ -107,38 +142,55 @@ export default function JornaleiroDashboardPage() {
             <h1 className="text-xl font-semibold">Dashboard do Jornaleiro</h1>
             <p className="mt-1 text-sm text-gray-600">Visão geral da sua banca e pedidos.</p>
           </div>
-          <button onClick={logout} className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50">Sair</button>
+          <Link href="/jornaleiro/configuracoes" className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50">Configurações</Link>
         </div>
         <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
             <div className="text-sm font-semibold">Seus dados</div>
             <div className="mt-1 text-sm">
-              <div><span className="text-gray-500">Nome:</span> {seller?.name || '-'}</div>
-              <div><span className="text-gray-500">Email:</span> {seller?.email || '-'}</div>
-              <div><span className="text-gray-500">WhatsApp:</span> {seller?.phone || '-'}</div>
-              <div><span className="text-gray-500">CPF:</span> {seller?.cpf || '-'}</div>
+              <div><span className="text-gray-500">Nome:</span> {sellerName}</div>
+              <div><span className="text-gray-500">Email:</span> {sellerEmail}</div>
+              <div><span className="text-gray-500">WhatsApp:</span> {sellerPhone || '-'}</div>
             </div>
           </div>
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
             <div className="text-sm font-semibold">Sua banca</div>
-            {!bank ? (
-              <div className="mt-2 text-sm">Nenhuma banca cadastrada.</div>
+            {!banca ? (
+              <div className="mt-2 text-sm text-gray-500">Nenhuma banca cadastrada.</div>
             ) : (
               <div className="mt-2 text-sm">
-                <div><span className="text-gray-500">Nome:</span> {bank?.name}</div>
-                <div><span className="text-gray-500">WhatsApp:</span> {bank?.whatsapp || '-'}</div>
-                <div><span className="text-gray-500">Endereço:</span> {bank?.address?.street}, {bank?.address?.number} - {bank?.address?.neighborhood}, {bank?.address?.city}/{bank?.address?.uf} - CEP {bank?.address?.cep}</div>
+                <div><span className="text-gray-500">Nome:</span> {banca.name}</div>
+                <div><span className="text-gray-500">WhatsApp:</span> {banca.whatsapp || '-'}</div>
+                <div><span className="text-gray-500">Endereço:</span> {banca.address}</div>
+                {banca.approved ? (
+                  <div className="mt-2 inline-flex items-center gap-1 text-xs text-green-600">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                    </svg>
+                    Banca aprovada
+                  </div>
+                ) : (
+                  <div className="mt-2 inline-flex items-center gap-1 text-xs text-amber-600">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                    </svg>
+                    Aguardando aprovação
+                  </div>
+                )}
               </div>
             )}
             <div className="mt-3">
-              <button className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-3 py-2 text-xs font-semibold text-white hover:opacity-95">Cadastrar nova banca</button>
+              <Link href="/jornaleiro/banca" className="inline-block rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-3 py-2 text-xs font-semibold text-white hover:opacity-95">
+                {banca ? 'Editar banca' : 'Cadastrar banca'}
+              </Link>
             </div>
           </div>
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
             <div className="text-sm font-semibold">Atalhos</div>
             <div className="mt-2 flex flex-col gap-2 text-sm">
-              <Link href={"/" as any} className="underline text-[#ff5c00]">Ver vitrine</Link>
-              <Link href={"/jornaleiro/registrar" as any} className="underline text-[#ff5c00]">Editar cadastro</Link>
+              <Link href="/" className="underline text-[#ff5c00]">Ver site</Link>
+              <Link href="/jornaleiro/produtos" className="underline text-[#ff5c00]">Meus produtos</Link>
+              <Link href="/jornaleiro/pedidos" className="underline text-[#ff5c00]">Meus pedidos</Link>
             </div>
           </div>
         </div>
