@@ -95,7 +95,11 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const data = body?.data as Partial<BrandingConfig>;
     
+    console.log('Branding PUT - received data:', JSON.stringify(data, null, 2));
+    
     const currentConfig = await readBranding();
+    console.log('Branding PUT - current config:', JSON.stringify(currentConfig, null, 2));
+    
     const updatedConfig: BrandingConfig = {
       ...currentConfig,
       ...data,
@@ -107,9 +111,17 @@ export async function PUT(request: NextRequest) {
       favicon: (data.favicon || currentConfig.favicon).toString(),
     };
 
+    console.log('Branding PUT - updated config:', JSON.stringify(updatedConfig, null, 2));
+
     await writeBranding(updatedConfig);
-    return NextResponse.json({ success: true, data: updatedConfig });
+    
+    // Verificar se salvou corretamente
+    const savedConfig = await readBranding();
+    console.log('Branding PUT - saved config:', JSON.stringify(savedConfig, null, 2));
+    
+    return NextResponse.json({ success: true, data: savedConfig });
   } catch (error) {
+    console.error('Branding PUT error:', error);
     return NextResponse.json({ success: false, error: "Erro ao salvar configurações" }, { status: 500 });
   }
 }
