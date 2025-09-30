@@ -103,7 +103,13 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create triggers for updated_at
+-- Create triggers for updated_at (drop if exists first)
+DROP TRIGGER IF EXISTS update_bancas_updated_at ON bancas;
+DROP TRIGGER IF EXISTS update_categories_updated_at ON categories;
+DROP TRIGGER IF EXISTS update_products_updated_at ON products;
+DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
+DROP TRIGGER IF EXISTS update_branding_updated_at ON branding;
+
 CREATE TRIGGER update_bancas_updated_at BEFORE UPDATE ON bancas FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_categories_updated_at BEFORE UPDATE ON categories FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -121,6 +127,17 @@ ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE branding ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Allow public read access on bancas" ON bancas;
+DROP POLICY IF EXISTS "Allow public read access on categories" ON categories;
+DROP POLICY IF EXISTS "Allow public read access on products" ON products;
+DROP POLICY IF EXISTS "Allow public read access on branding" ON branding;
+DROP POLICY IF EXISTS "Allow service role all access on bancas" ON bancas;
+DROP POLICY IF EXISTS "Allow service role all access on categories" ON categories;
+DROP POLICY IF EXISTS "Allow service role all access on products" ON products;
+DROP POLICY IF EXISTS "Allow service role all access on orders" ON orders;
+DROP POLICY IF EXISTS "Allow service role all access on branding" ON branding;
 
 -- Create policies for public access (adjust as needed)
 CREATE POLICY "Allow public read access on bancas" ON bancas FOR SELECT USING (true);

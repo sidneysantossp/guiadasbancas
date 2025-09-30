@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "NODE_OPTIONS=--dns-result-order=ipv4first next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "push:send": "node scripts/push-send.js"
+    "push:send": "node scripts/push-send.js",
+    "dev:normal": "next dev"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",

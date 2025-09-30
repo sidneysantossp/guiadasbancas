@@ -1,55 +1,78 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
+
+// Run this route on the Edge runtime to use the Web Fetch API (often bypasses local Node/undici issues)
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
     console.log('🔍 Testando conexão com Supabase...');
     
-    // Teste de conexão simples
-    const { data, error } = await supabaseAdmin
+    // Teste 1: Branding (que já funciona)
+    const { data: brandingData, error: brandingError } = await supabaseAdmin
       .from('branding')
       .select('*')
       .limit(1);
 
-    if (error) {
-      console.error('❌ Erro na conexão:', error);
-      return NextResponse.json({ 
-        success: false, 
-        error: error.message,
-        details: error 
-      }, { status: 500 });
-    }
+    // Teste 2: Categorias com cliente admin
+    const { data: categoriesAdmin, error: categoriesAdminError } = await supabaseAdmin
+      .from('categories')
+      .select('*')
+      .limit(5);
 
-    console.log('✅ Conexão bem-sucedida!');
-    
-    // Teste de inserção/atualização
-    const { data: upsertData, error: upsertError } = await supabaseAdmin
-      .from('branding')
-      .upsert({
-        logo_url: null,
-        logo_alt: 'Guia das Bancas',
-        site_name: 'Guia das Bancas',
-        primary_color: '#ff5c00',
-        secondary_color: '#ff7a33',
-        favicon: '/favicon.svg'
-      })
-      .select();
+    // Teste 3: Categorias com cliente público
+    const { data: categoriesPublic, error: categoriesPublicError } = await supabase
+      .from('categories')
+      .select('*')
+      .limit(5);
 
-    if (upsertError) {
-      console.error('❌ Erro na inserção:', upsertError);
-      return NextResponse.json({ 
-        success: false, 
-        error: upsertError.message,
-        details: upsertError 
-      }, { status: 500 });
-    }
+    // Teste 4: Bancas
+    const { data: bancasData, error: bancasError } = await supabase
+      .from('bancas')
+      .select('*')
+      .limit(5);
+
+    // Teste 5: Produtos
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('*')
+      .limit(5);
 
     return NextResponse.json({
       success: true,
-      message: 'Conexão com Supabase funcionando!',
-      data: {
-        existing: data,
-        upserted: upsertData
+      message: 'Teste de conexão Supabase',
+      tests: {
+        branding: {
+          success: !brandingError,
+          error: brandingError?.message,
+          count: brandingData?.length || 0,
+          data: brandingData
+        },
+        categories_admin: {
+          success: !categoriesAdminError,
+          error: categoriesAdminError?.message,
+          count: categoriesAdmin?.length || 0,
+          data: categoriesAdmin
+        },
+        categories_public: {
+          success: !categoriesPublicError,
+          error: categoriesPublicError?.message,
+          count: categoriesPublic?.length || 0,
+          data: categoriesPublic
+        },
+        bancas: {
+          success: !bancasError,
+          error: bancasError?.message,
+          count: bancasData?.length || 0,
+          data: bancasData
+        },
+        products: {
+          success: !productsError,
+          error: productsError?.message,
+          count: productsData?.length || 0,
+          data: productsData
+        }
       }
     });
 
