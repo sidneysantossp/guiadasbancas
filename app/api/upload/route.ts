@@ -22,31 +22,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "Arquivo inválido" }, { status: 400 });
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = new Uint8Array(arrayBuffer);
-
-    const originalName = (file as any).name || `upload-${Date.now()}`;
-    const extFromName = path.extname(originalName) || '';
-
-    let ext = extFromName.toLowerCase();
-    if (!ext) {
-      // tentar detectar de content-type
-      const ct = (file as any).type || '';
-      if (ct.includes('image/jpeg')) ext = '.jpg';
-      else if (ct.includes('image/png')) ext = '.png';
-      else if (ct.includes('image/webp')) ext = '.webp';
-      else if (ct.includes('image/gif')) ext = '.gif';
-      else ext = '';
+    // Verificar tamanho do arquivo (máximo 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      return NextResponse.json({ ok: false, error: "Arquivo muito grande. Máximo 2MB." }, { status: 400 });
     }
 
-    const dir = path.join(process.cwd(), 'public', 'uploads');
-    await fs.mkdir(dir, { recursive: true });
-    const fname = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
-    const full = path.join(dir, fname);
-    await fs.writeFile(full, buffer);
+    // Verificar tipo de arquivo
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json({ ok: false, error: "Tipo de arquivo não suportado. Use JPG, PNG, WebP ou GIF." }, { status: 400 });
+    }
 
-    const url = `/uploads/${fname}`;
-    return NextResponse.json({ ok: true, url });
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = new Uint8Array(arrayBuffer);
+    
+    // Converter para base64
+    const base64 = Buffer.from(buffer).toString('base64');
+    const dataUrl = `data:${file.type};base64,${base64}`;
+
+    return NextResponse.json({ ok: true, url: dataUrl });
   } catch (e) {
     console.error('upload error', e);
     return NextResponse.json({ ok: false, error: 'Erro ao fazer upload' }, { status: 500 });

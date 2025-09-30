@@ -60,7 +60,7 @@ async function ensureBrandingTable() {
   await dbQuery(
     `CREATE TABLE IF NOT EXISTS branding (
       id CHAR(36) NOT NULL PRIMARY KEY,
-      logo_url VARCHAR(500),
+      logo_url TEXT,
       logo_alt VARCHAR(255) NOT NULL DEFAULT 'Guia das Bancas',
       site_name VARCHAR(255) NOT NULL DEFAULT 'Guia das Bancas',
       primary_color VARCHAR(7) NOT NULL DEFAULT '#ff5c00',
