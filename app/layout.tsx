@@ -10,6 +10,7 @@ import { CartProvider } from "@/components/CartContext";
 import { ToastProvider } from "@/components/ToastProvider";
 import { Providers } from "@/components/Providers";
 import { AuthProvider } from "@/lib/auth/AuthContext";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -20,18 +21,20 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR">
       <body>
-        <Providers>
-          <AuthProvider>
-            <ToastProvider>
-              <CartProvider>
-                {!shouldHideNavbar && <Navbar />}
-                <main className={!shouldHideNavbar ? "pt-[140px] md:pt-[120px]" : ""}>{children}</main>
-                {!shouldHideNavbar && <AppFooter />}
-                {!shouldHideNavbar && <FloatingCart />}
-              </CartProvider>
-            </ToastProvider>
-          </AuthProvider>
-        </Providers>
+        <ErrorBoundary>
+          <Providers>
+            <AuthProvider>
+              <ToastProvider>
+                <CartProvider>
+                  {!shouldHideNavbar && <Navbar />}
+                  <main className={!shouldHideNavbar ? "pt-[140px] md:pt-[120px]" : ""}>{children}</main>
+                  {!shouldHideNavbar && <AppFooter />}
+                  {!shouldHideNavbar && <FloatingCart />}
+                </CartProvider>
+              </ToastProvider>
+            </AuthProvider>
+          </Providers>
+        </ErrorBoundary>
       </body>
     </html>
   );
