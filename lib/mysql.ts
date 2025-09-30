@@ -53,5 +53,5 @@ export async function getPool() {
 
 export async function dbQuery<T = any>(sql: string, params?: any[]): Promise<[T, mysql.FieldPacket[]]> {
   const p = await getPool();
-  return p.query<T>(sql, params) as Promise<[T, mysql.FieldPacket[]]>;
+  return p.query(sql, params) as any;
 }
