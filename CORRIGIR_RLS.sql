@@ -12,8 +12,10 @@ ALTER TABLE public.bancas DISABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Usuários podem ver próprio perfil" ON public.user_profiles;
 DROP POLICY IF EXISTS "Usuários podem atualizar próprio perfil" ON public.user_profiles;
 DROP POLICY IF EXISTS "Admins podem ver todos os perfis" ON public.user_profiles;
+DROP POLICY IF EXISTS "Sistema pode criar perfis" ON public.user_profiles;
 DROP POLICY IF EXISTS "Jornaleiros podem ver própria banca" ON public.bancas;
 DROP POLICY IF EXISTS "Jornaleiros podem atualizar própria banca" ON public.bancas;
+DROP POLICY IF EXISTS "Jornaleiros podem criar banca" ON public.bancas;
 DROP POLICY IF EXISTS "Todos podem ver bancas ativas" ON public.bancas;
 DROP POLICY IF EXISTS "Admins podem gerenciar bancas" ON public.bancas;
 

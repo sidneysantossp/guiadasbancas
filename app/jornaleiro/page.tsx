@@ -2,12 +2,12 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useSession, signIn } from "next-auth/react";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth/AuthContext";
 
 export default function JornaleiroLoginPage() {
   const router = useRouter();
-  const { user, profile, signIn, loading: authLoading } = useAuth();
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,10 +15,10 @@ export default function JornaleiroLoginPage() {
 
   // Se já está autenticado como jornaleiro, redireciona
   useEffect(() => {
-    if (!authLoading && user && profile?.role === 'jornaleiro') {
+    if (status === "authenticated" && session?.user?.role === "jornaleiro") {
       router.replace("/jornaleiro/dashboard");
     }
-  }, [user, profile, authLoading, router]);
+  }, [session, status, router]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -26,17 +26,22 @@ export default function JornaleiroLoginPage() {
     setLoading(true);
 
     try {
-      console.log('🔐 Tentando login jornaleiro:', email);
-      const { error: signInError } = await signIn(email, password);
+      console.log("🔐 Tentando login jornaleiro:", email);
+      const result = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+      });
 
-      if (signInError) {
-        setError(signInError.message || "Erro ao fazer login");
+      if (result?.error) {
+        setError("Email ou senha inválidos");
         setLoading(false);
         return;
       }
 
-      // Aguardar perfil carregar
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("✅ Login bem-sucedido, redirecionando...");
+      // NextAuth vai atualizar a sessão automaticamente
+      router.push("/jornaleiro/dashboard");
     } catch (err: any) {
       setError(err.message || "Erro ao fazer login");
       setLoading(false);
@@ -44,7 +49,7 @@ export default function JornaleiroLoginPage() {
   };
 
   // Se está carregando auth, mostra loading
-  if (authLoading) {
+  if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100">
         <div className="text-center">

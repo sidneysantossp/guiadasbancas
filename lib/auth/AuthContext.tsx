@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import type { Route } from "next";
 
 export type UserRole = "admin" | "jornaleiro" | "cliente";
 
@@ -223,9 +224,10 @@ export function useRequireAuth(requiredRole?: UserRole) {
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        router.push("/login");
+        router.push("/minha-conta" as Route);
       } else if (requiredRole && profile?.role !== requiredRole) {
-        router.push("/unauthorized");
+        // Página de acesso negado ainda não existe; enviar para home
+        router.push("/" as Route);
       }
     }
   }, [user, profile, loading, requiredRole, router]);
