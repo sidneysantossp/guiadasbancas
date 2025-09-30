@@ -6,6 +6,8 @@ import Link from "next/link";
 import type { Route } from "next";
 import ToastProvider from "@/components/admin/ToastProvider";
 import NotificationCenter from "@/components/admin/NotificationCenter";
+import { useAuth } from "@/lib/auth/AuthContext";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 const JOURNALEIRO_MENU: { label: string; href: Route; icon: string; disabled?: boolean }[] = [
   { label: "Dashboard", href: "/jornaleiro/dashboard" as Route, icon: "📊" },
@@ -37,50 +39,23 @@ export default function JornaleiroLayout({ children }: { children: React.ReactNo
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar");
+  const { user, profile, loading: authLoading, signOut } = useAuth();
+  const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding");
 
   useEffect(() => {
     if (isAuthRoute) {
       setLoading(false);
-      setSession(null);
       return;
     }
+    setLoading(authLoading);
+  }, [authLoading, isAuthRoute]);
 
-    try {
-      const auth = localStorage.getItem("gb:sellerAuth");
-      if (auth !== "1") {
-        router.replace("/jornaleiro");
-        return;
-      }
-      const raw = localStorage.getItem("gb:seller");
-      if (!raw) {
-        router.replace("/jornaleiro");
-        return;
-      }
-      setSession(JSON.parse(raw));
-    } catch {
-      router.replace("/jornaleiro");
-      return;
-    } finally {
-      setLoading(false);
-    }
-  }, [router, isAuthRoute]);
-
-  const logout = () => {
-    try {
-      localStorage.removeItem("gb:sellerAuth");
-      localStorage.removeItem("gb:seller");
-      localStorage.removeItem("gb:sellerToken");
-      // Remover também o login do site público
-      localStorage.removeItem("gb:user");
-      localStorage.removeItem("gb:userProfile");
-    } catch {}
-    router.replace("/jornaleiro");
+  const logout = async () => {
+    await signOut();
   };
 
-  const seller = session?.seller || session;
-  const sellerName = seller?.name || "Jornaleiro";
-  const sellerEmail = seller?.email || "jornaleiro@guiadasbancas.com";
+  const sellerName = profile?.full_name || user?.email?.split('@')[0] || "Jornaleiro";
+  const sellerEmail = user?.email || "jornaleiro@guiadasbancas.com";
 
   if (isAuthRoute) {
     return <ToastProvider>{children}</ToastProvider>;
@@ -101,6 +76,7 @@ export default function JornaleiroLayout({ children }: { children: React.ReactNo
 
   return (
     <ToastProvider>
+      <ProtectedRoute requiredRole="jornaleiro">
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white border-b border-gray-200 shadow-sm">
           <div className="flex items-center justify-between px-4 py-3">
@@ -222,6 +198,7 @@ export default function JornaleiroLayout({ children }: { children: React.ReactNo
           </main>
         </div>
       </div>
+      </ProtectedRoute>
     </ToastProvider>
   );
 }
