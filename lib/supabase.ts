@@ -1,35 +1,21 @@
 import { createClient } from '@supabase/supabase-js'
 
-// DEPRECATED: Migrado para MySQL + NextAuth
-// Este arquivo é mantido apenas para compatibilidade com código legado
-// Novas features devem usar MySQL (lib/mysql.ts) e NextAuth (lib/auth.ts)
+// Supabase configuration - ATIVO
+// Migrado de volta do MySQL para Supabase devido a problemas de conectividade
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MzY1ODAwMCwiZXhwIjoxOTU5MjM0MDAwfQ.placeholder'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://rgqlncxrzwgjreggrjcq.supabase.co'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJncWxuY3hyendnanJlZ2dyamNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyMjMyOTMsImV4cCI6MjA3NDc5OTI5M30.72R42d1a6qchq1KMZLyncBzfiIH7T_yS6BJRCC72mLc'
 
-let supabase: ReturnType<typeof createClient>;
-let supabaseAdmin: ReturnType<typeof createClient>;
-
-try {
-  supabase = createClient(supabaseUrl, supabaseAnonKey)
-} catch (e) {
-  console.warn('Supabase client initialization failed (expected if not configured):', e);
-  supabase = null as any;
-}
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Cliente para operações administrativas
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey
-try {
-  supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  })
-} catch (e) {
-  console.warn('Supabase admin client initialization failed (expected if not configured):', e);
-  supabaseAdmin = null as any;
-}
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJncWxuY3hyendnanJlZ2dyamNxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTIyMzI5MywiZXhwIjoyMDc0Nzk5MjkzfQ.bdkHUKuaDQ22lZqMmFMT_3P3L0VAK11mGlJ6YkU3d6s'
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+})
 
 export { supabase, supabaseAdmin }
 
