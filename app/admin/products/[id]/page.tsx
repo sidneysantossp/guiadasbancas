@@ -22,21 +22,27 @@ export default function AdminProductEditPage() {
         setLoading(true);
         setError(null);
         const id = String(params?.id || "");
-        const res = await fetch(`/api/products/${id}`);
+        const res = await fetch(`/api/admin/products/${id}`, {
+          headers: {
+            'Authorization': 'Bearer admin-token'
+          }
+        });
         if (!res.ok) throw new Error("Não foi possível carregar o produto.");
         const json = await res.json();
+        if (!json.success) throw new Error(json.error || "Erro ao carregar produto");
+        const productData = json.data;
         const mapped = {
-          id: json.id,
-          name: json.name || "",
-          description: json.description || "",
-          price: json.price ?? 0,
-          price_original: json.price_original ?? "",
-          category_id: json.category_id || "",
-          stock_qty: json.stock_qty ?? 0,
-          track_stock: Boolean(json.track_stock),
+          id: productData.id,
+          name: productData.name || "",
+          description: productData.description || "",
+          price: productData.price ?? 0,
+          price_original: productData.price_original ?? "",
+          category_id: productData.category_id || "",
+          stock_qty: productData.stock_qty ?? 0,
+          track_stock: Boolean(productData.track_stock),
         };
         setProduct(mapped);
-        setImages(Array.isArray(json.images) ? json.images : []);
+        setImages(Array.isArray(productData.images) ? productData.images : []);
       } catch (e: any) {
         setError(e?.message || "Erro ao carregar produto.");
       } finally {
@@ -83,7 +89,14 @@ export default function AdminProductEditPage() {
       const vr = validateProductUpdate(body as any);
       if (!vr.ok) throw new Error(vr.error);
       const id = String(params?.id || "");
-      const res = await fetch(`/api/products/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vr.data) });
+      const res = await fetch(`/api/admin/products/${id}`, { 
+        method: 'PUT', 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer admin-token'
+        }, 
+        body: JSON.stringify(vr.data) 
+      });
       if (!res.ok) throw new Error('Falha ao salvar produto.');
       toast.success('Produto atualizado com sucesso');
       router.push('/admin/products');
