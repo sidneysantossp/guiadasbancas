@@ -12,7 +12,7 @@ export async function GET() {
 
     // 2. Testar cada tabela principal
     const tablesToCheck = ['bancas', 'categories', 'products', 'orders', 'branding', 'user_profiles'];
-    const tableStatus = {};
+    const tableStatus: Record<string, any> = {};
 
     for (const tableName of tablesToCheck) {
       try {
@@ -29,7 +29,7 @@ export async function GET() {
         tableStatus[tableName] = {
           exists: false,
           count: 0,
-          error: e.message
+          error: e instanceof Error ? e.message : 'Unknown error'
         };
       }
     }
@@ -46,7 +46,7 @@ export async function GET() {
       
       bancasStructure = columns;
     } catch (e) {
-      bancasStructure = { error: e.message };
+      bancasStructure = { error: e instanceof Error ? e.message : 'Unknown error' };
     }
 
     return NextResponse.json({
@@ -62,8 +62,8 @@ export async function GET() {
     console.error('Debug error:', error);
     return NextResponse.json({
       success: false,
-      error: error.message,
-      stack: error.stack
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
     }, { status: 500 });
   }
 }
