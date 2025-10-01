@@ -40,6 +40,28 @@ export default function AdminProductsPage() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+    
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer admin-token'
+        }
+      });
+      
+      if (res.ok) {
+        // Recarregar a lista
+        fetchRows();
+      } else {
+        alert('Erro ao excluir produto');
+      }
+    } catch (error) {
+      alert('Erro ao excluir produto');
+    }
+  };
+
   useEffect(() => {
     fetchRows();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -94,6 +116,28 @@ export default function AdminProductsPage() {
         data={filtered}
         getId={(r)=>r.id}
         selectable
+        renderActions={(row) => (
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/admin/products/${row.id}`}
+              className="rounded bg-blue-500 px-2 py-1 text-xs text-white hover:bg-blue-600"
+            >
+              Ver
+            </Link>
+            <Link
+              href={`/admin/products/${row.id}/edit`}
+              className="rounded bg-green-500 px-2 py-1 text-xs text-white hover:bg-green-600"
+            >
+              Editar
+            </Link>
+            <button
+              onClick={() => handleDelete(row.id)}
+              className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+            >
+              Excluir
+            </button>
+          </div>
+        )}
       />
     </div>
   );
