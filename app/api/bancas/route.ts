@@ -48,7 +48,7 @@ async function readStore(): Promise<StoreBanca[]> {
 
 export async function GET(req: Request) {
   try {
-    if (!supabase) {
+    if (!supabaseAdmin) {
       return NextResponse.json([]);
     }
 
@@ -57,7 +57,7 @@ export async function GET(req: Request) {
     const lng = url.searchParams.get("lng");
     const radiusKm = url.searchParams.get("radiusKm");
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('bancas')
       .select('*');
 
