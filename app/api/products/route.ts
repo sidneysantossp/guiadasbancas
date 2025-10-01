@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { v4 as uuid } from "uuid";
 import type { Produto } from "@/types/admin";
-import { supabase, supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const active = searchParams.get("active");
     const bancaId = searchParams.get("banca_id") || "";
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('products')
       .select(`
         *,

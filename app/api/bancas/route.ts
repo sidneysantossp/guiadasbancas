@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 
 type StoreBanca = { 
   id: string; 
@@ -17,9 +17,9 @@ type StoreBanca = {
 
 async function readStore(): Promise<StoreBanca[]> {
   try {
-    if (!supabase) return [];
+    if (!supabaseAdmin) return [];
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('bancas')
       .select('*')
       .order('name');
