@@ -7,7 +7,7 @@ const MiniCategoryBar = dynamic(() => import("@/components/MiniCategoryBar"), { 
 const MobileCategoryScroller = dynamic(() => import("@/components/MobileCategoryScroller"), { ssr: false });
 const FeaturedBancas = dynamic(() => import("@/components/FeaturedBancas"), { ssr: false });
 const MostSearchedProducts = dynamic(() => import("@/components/MostSearchedProducts"), { ssr: false });
-const AdsHighlights = dynamic(() => import("@/components/AdsHighlights"), { ssr: false });
+const CampaignSection = dynamic(() => import("@/components/CampaignSection"), { ssr: false });
 const TrendingProducts = dynamic(() => import("@/components/TrendingProducts"), { ssr: false });
 const MiniBanners = dynamic(() => import("@/components/MiniBanners"), { ssr: false });
 const FavoritePicks = dynamic(() => import("@/components/FavoritePicks"), { ssr: false });
@@ -45,7 +45,7 @@ export default function HomePage() {
         <MostSearchedProducts />
       </div>
       <div className="py-6">
-        <AdsHighlights />
+        <CampaignSection />
       </div>
       <div className="py-6">
         <TrendingProducts />

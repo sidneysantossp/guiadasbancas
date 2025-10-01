@@ -51,13 +51,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Erro ao buscar campanhas' }, { status: 500 });
     }
 
-    // Incrementar impressões
+    // Incrementar impressões (fazemos isso de forma assíncrona para não afetar a performance)
     if (data && data.length > 0) {
       const campaignIds = data.map(c => c.id);
-      await supabaseAdmin
-        .from('campaigns')
-        .update({ impressions: supabaseAdmin.raw('impressions + 1') })
-        .in('id', campaignIds);
+      // Executar em background sem aguardar
+      (async () => {
+        try {
+          const { data: campaigns } = await supabaseAdmin
+            .from('campaigns')
+            .select('id, impressions')
+            .in('id', campaignIds);
+          
+          if (campaigns) {
+            for (const campaign of campaigns) {
+              try {
+                await supabaseAdmin
+                  .from('campaigns')
+                  .update({ 
+                    impressions: (campaign.impressions || 0) + 1,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', campaign.id);
+              } catch (error) {
+                // Ignorar erros de impressão
+              }
+            }
+          }
+        } catch (error) {
+          // Ignorar erros de impressão
+        }
+      })();
     }
 
     return NextResponse.json({
