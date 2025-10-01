@@ -102,15 +102,19 @@ export async function PUT(request: NextRequest) {
     // Preparar dados para atualização
     const updateData: any = {
       name: data.name,
-      address: data.address,
+      address: data.address || data.addressObj?.street,
       cep: data.addressObj?.cep || data.cep,
       lat: data.lat || data.location?.lat,
       lng: data.lng || data.location?.lng,
-      cover_image: data.cover || data.images?.cover,
+      cover_image: data.cover || data.images?.cover || data.avatar,
       categories: data.categories || [],
       active: data.active !== false,
       updated_at: new Date().toISOString()
     };
+
+    // Log para debug
+    console.log('Updating banca with data:', updateData);
+    console.log('Original data received:', data);
 
     // Remover campos undefined
     Object.keys(updateData).forEach(key => {

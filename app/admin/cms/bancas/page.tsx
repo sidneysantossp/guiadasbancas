@@ -144,24 +144,28 @@ export default function AdminBancasPage() {
         const j = await res.json();
         if (j?.success) {
           setItems(updated);
-          show('Banca atualizada com sucesso!', 'success');
+          console.log('Banca atualizada com sucesso!');
+          // Recarregar dados para garantir sincronização
+          setTimeout(() => {
+            fetchAll();
+          }, 1000);
         } else {
-          show(j?.error || 'Erro ao atualizar banca', 'error');
+          console.error('Erro ao atualizar banca:', j?.error);
         }
       } else {
         const res = await fetch('/api/admin/bancas', { method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer admin-token' }, body: JSON.stringify({ data }) });
         const j = await res.json();
         if (j?.success) {
           setItems((list)=> [...list, j.data]);
-          show('Banca criada com sucesso!', 'success');
+          console.log('Banca criada com sucesso!');
         } else {
-          show(j?.error || 'Erro ao criar banca', 'error');
+          console.error('Erro ao criar banca:', j?.error);
         }
       }
       setShowForm(false);
       setEditing(null);
     } catch (error) {
-      show('Erro de conexão', 'error');
+      console.error('Erro de conexão:', error);
     } finally { 
       setSaving(false); 
     }
