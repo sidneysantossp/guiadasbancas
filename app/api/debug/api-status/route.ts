@@ -13,7 +13,7 @@ export async function GET() {
       '/api/admin/branding'
     ];
 
-    const results = {};
+    const results: Record<string, any> = {};
 
     for (const api of apisToTest) {
       try {
@@ -38,7 +38,7 @@ export async function GET() {
         results[api] = {
           status: 'error',
           ok: false,
-          error: e.message
+          error: e instanceof Error ? e.message : 'Unknown error'
         };
       }
     }
@@ -53,7 +53,7 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
