@@ -51,8 +51,8 @@ async function readBancas(): Promise<AdminBanca[]> {
       avatar: banca.cover_image || '',
       description: banca.address,
       categories: banca.categories || [],
-      active: true,
-      order: 0,
+      active: banca.active !== false, // Usar valor real do banco
+      order: banca.order || 0,
       createdAt: banca.created_at
     }));
   } catch {
