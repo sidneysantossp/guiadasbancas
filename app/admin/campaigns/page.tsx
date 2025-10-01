@@ -59,6 +59,53 @@ export default function AdminCampaignsPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const toast = useToast();
 
+  const handleDelete = async (campaignId: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta campanha? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/campaigns/${campaignId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer admin-token' }
+      });
+
+      if (res.ok) {
+        toast.success('Campanha excluída com sucesso');
+        fetchCampaigns();
+      } else {
+        toast.error('Erro ao excluir campanha');
+      }
+    } catch (error) {
+      toast.error('Erro ao excluir campanha');
+    }
+  };
+
+  const handleArchive = async (campaignId: string) => {
+    try {
+      const res = await fetch(`/api/admin/campaigns/${campaignId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer admin-token'
+        },
+        body: JSON.stringify({
+          status: 'cancelled',
+          admin_message: 'Campanha arquivada pelo administrador'
+        })
+      });
+
+      if (res.ok) {
+        toast.success('Campanha arquivada com sucesso');
+        fetchCampaigns();
+      } else {
+        toast.error('Erro ao arquivar campanha');
+      }
+    } catch (error) {
+      toast.error('Erro ao arquivar campanha');
+    }
+  };
+
   const fetchCampaigns = async () => {
     try {
       setLoading(true);
@@ -137,9 +184,17 @@ export default function AdminCampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Campanhas Publicitárias</h1>
-        <p className="text-gray-600">Gerencie as campanhas dos jornaleiros</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Campanhas Publicitárias</h1>
+          <p className="text-gray-600">Gerencie as campanhas dos jornaleiros</p>
+        </div>
+        <Link
+          href="/admin/campaigns/create"
+          className="bg-[#ff5c00] text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-95"
+        >
+          Nova Campanha
+        </Link>
       </div>
 
       {/* Filtros */}
@@ -285,22 +340,61 @@ export default function AdminCampaignsPage() {
                   )}
 
                   {/* Ações */}
-                  {campaign.status === 'pending' && (
-                    <div className="flex gap-2 pt-2">
+                  <div className="flex gap-2 pt-2 border-t border-gray-200">
+                    {campaign.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleAction(campaign, 'approve')}
+                          className="flex items-center gap-1 bg-green-500 text-white px-3 py-1.5 rounded-md text-xs hover:bg-green-600"
+                          title="Aprovar campanha"
+                        >
+                          ✅ Aprovar
+                        </button>
+                        <button
+                          onClick={() => handleAction(campaign, 'reject')}
+                          className="flex items-center gap-1 bg-red-500 text-white px-3 py-1.5 rounded-md text-xs hover:bg-red-600"
+                          title="Rejeitar campanha"
+                        >
+                          ❌ Rejeitar
+                        </button>
+                      </>
+                    )}
+                    
+                    {/* Ações gerais sempre disponíveis */}
+                    <button
+                      onClick={() => window.open(`/produto/${campaign.products.id}`, '_blank')}
+                      className="flex items-center gap-1 bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs hover:bg-blue-600"
+                      title="Ver produto"
+                    >
+                      👁️ Ver
+                    </button>
+                    
+                    <button
+                      onClick={() => {/* TODO: Implementar edição */}}
+                      className="flex items-center gap-1 bg-yellow-500 text-white px-3 py-1.5 rounded-md text-xs hover:bg-yellow-600"
+                      title="Editar campanha"
+                    >
+                      ✏️ Editar
+                    </button>
+                    
+                    {(campaign.status === 'expired' || campaign.status === 'rejected') && (
                       <button
-                        onClick={() => handleAction(campaign, 'approve')}
-                        className="bg-green-500 text-white px-4 py-2 rounded-md text-sm hover:bg-green-600"
+                        onClick={() => handleArchive(campaign.id)}
+                        className="flex items-center gap-1 bg-gray-500 text-white px-3 py-1.5 rounded-md text-xs hover:bg-gray-600"
+                        title="Arquivar campanha"
                       >
-                        Aprovar
+                        📁 Arquivar
                       </button>
-                      <button
-                        onClick={() => handleAction(campaign, 'reject')}
-                        className="bg-red-500 text-white px-4 py-2 rounded-md text-sm hover:bg-red-600"
-                      >
-                        Rejeitar
-                      </button>
-                    </div>
-                  )}
+                    )}
+                    
+                    <button
+                      onClick={() => handleDelete(campaign.id)}
+                      className="flex items-center gap-1 bg-red-600 text-white px-3 py-1.5 rounded-md text-xs hover:bg-red-700"
+                      title="Excluir campanha"
+                    >
+                      🗑️ Excluir
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

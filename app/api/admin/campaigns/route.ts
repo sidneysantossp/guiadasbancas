@@ -82,3 +82,50 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500 });
   }
 }
+
+// POST - Criar campanha como admin
+export async function POST(request: NextRequest) {
+  try {
+    if (!verifyAdminAuth(request)) {
+      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { product_id, banca_id, duration_days, title, description, status = 'approved' } = body;
+
+    // Calcular datas
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(startDate.getDate() + duration_days);
+
+    const campaignData = {
+      product_id,
+      banca_id,
+      title: title || `Campanha Admin`,
+      description: description || '',
+      start_date: startDate.toISOString(),
+      end_date: endDate.toISOString(),
+      duration_days,
+      status, // Admin pode definir status diretamente
+      plan_type: 'free',
+      admin_message: status === 'approved' ? 'Campanha criada e aprovada pelo administrador' : null,
+      approved_at: status === 'approved' ? startDate.toISOString() : null
+    };
+
+    const { data, error } = await supabaseAdmin
+      .from('campaigns')
+      .insert(campaignData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Create admin campaign error:', error);
+      return NextResponse.json({ success: false, error: 'Erro ao criar campanha' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, data });
+  } catch (error) {
+    console.error('Create admin campaign API error:', error);
+    return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500 });
+  }
+}
