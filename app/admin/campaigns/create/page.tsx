@@ -45,11 +45,25 @@ export default function AdminCreateCampaignPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [bancaSearchTerm, setBancaSearchTerm] = useState('');
+  const [showBancaDropdown, setShowBancaDropdown] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.banca-dropdown')) {
+        setShowBancaDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const fetchData = async () => {
@@ -93,11 +107,24 @@ export default function AdminCreateCampaignPage() {
   };
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = !searchTerm || 
+                         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesBanca = !selectedBanca || product.banca_id === selectedBanca;
     return matchesSearch && matchesBanca;
   });
+
+  const filteredBancas = bancas.filter(banca => 
+    !bancaSearchTerm || banca.name.toLowerCase().includes(bancaSearchTerm.toLowerCase())
+  );
+
+  const selectedBancaName = bancas.find(b => b.id === selectedBanca)?.name || '';
+
+  const handleBancaSelect = (banca: Banca) => {
+    setSelectedBanca(banca.id);
+    setBancaSearchTerm(banca.name);
+    setShowBancaDropdown(false);
+  };
 
   const handleSubmit = async () => {
     if (!selectedProduct) {
@@ -174,18 +201,48 @@ export default function AdminCreateCampaignPage() {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                 />
               </div>
-              <div>
+              <div className="relative banca-dropdown">
                 <label className="block text-sm font-medium mb-1">Filtrar por banca:</label>
-                <select
-                  value={selectedBanca}
-                  onChange={(e) => setSelectedBanca(e.target.value)}
+                <input
+                  type="text"
+                  placeholder="Digite o nome da banca..."
+                  value={bancaSearchTerm}
+                  onChange={(e) => {
+                    setBancaSearchTerm(e.target.value);
+                    setShowBancaDropdown(true);
+                    if (!e.target.value) {
+                      setSelectedBanca('');
+                    }
+                  }}
+                  onFocus={() => setShowBancaDropdown(true)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                >
-                  <option value="">Todas as bancas</option>
-                  {bancas.map((banca) => (
-                    <option key={banca.id} value={banca.id}>{banca.name}</option>
-                  ))}
-                </select>
+                />
+                
+                {showBancaDropdown && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    <div className="p-2">
+                      <button
+                        onClick={() => {
+                          setSelectedBanca('');
+                          setBancaSearchTerm('');
+                          setShowBancaDropdown(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded"
+                      >
+                        Todas as bancas
+                      </button>
+                      {filteredBancas.map((banca) => (
+                        <button
+                          key={banca.id}
+                          onClick={() => handleBancaSelect(banca)}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                        >
+                          {banca.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -106,10 +106,10 @@ export async function POST(request: NextRequest) {
       start_date: startDate.toISOString(),
       end_date: endDate.toISOString(),
       duration_days,
-      status, // Admin pode definir status diretamente
+      status: 'active', // Campanhas do admin entram direto no ar
       plan_type: 'free',
-      admin_message: status === 'approved' ? 'Campanha criada e aprovada pelo administrador' : null,
-      approved_at: status === 'approved' ? startDate.toISOString() : null
+      admin_message: 'Campanha criada e aprovada pelo administrador',
+      approved_at: startDate.toISOString()
     };
 
     const { data, error } = await supabaseAdmin

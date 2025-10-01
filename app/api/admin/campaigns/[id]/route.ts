@@ -69,6 +69,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     };
 
     if (status === 'approved') {
+      updateData.status = 'active'; // Campanhas aprovadas ficam ativas automaticamente
       updateData.approved_at = new Date().toISOString();
       updateData.rejection_reason = null;
     } else if (status === 'rejected') {
