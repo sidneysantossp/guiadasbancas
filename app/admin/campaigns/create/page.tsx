@@ -71,25 +71,39 @@ export default function AdminCreateCampaignPage() {
       setLoading(true);
       
       // Buscar produtos
+      console.log('Buscando produtos...');
       const productsRes = await fetch('/api/admin/products', {
         headers: { 'Authorization': 'Bearer admin-token' }
       });
       const productsJson = await productsRes.json();
+      console.log('Produtos response:', productsJson);
       
       // Buscar bancas
+      console.log('Buscando bancas...');
       const bancasRes = await fetch('/api/admin/bancas', {
         headers: { 'Authorization': 'Bearer admin-token' }
       });
       const bancasJson = await bancasRes.json();
+      console.log('Bancas response:', bancasJson);
       
       if (productsJson.success) {
-        setProducts(productsJson.data.filter((p: Product) => p.active));
+        const activeProducts = productsJson.data.filter((p: Product) => p.active !== false);
+        console.log('Produtos ativos:', activeProducts.length);
+        setProducts(activeProducts);
+      } else {
+        console.error('Erro ao buscar produtos:', productsJson.error);
+        toast.error(`Erro ao buscar produtos: ${productsJson.error}`);
       }
       
       if (bancasJson.success) {
+        console.log('Bancas encontradas:', bancasJson.data.length);
         setBancas(bancasJson.data);
+      } else {
+        console.error('Erro ao buscar bancas:', bancasJson.error);
+        toast.error(`Erro ao buscar bancas: ${bancasJson.error}`);
       }
     } catch (error) {
+      console.error('Erro na requisição:', error);
       toast.error('Erro ao carregar dados');
     } finally {
       setLoading(false);

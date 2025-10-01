@@ -8,6 +8,37 @@ function verifyAdminAuth(request: NextRequest) {
   return Boolean(authHeader && authHeader === "Bearer admin-token");
 }
 
+// GET - Listar produtos para admin
+export async function GET(request: NextRequest) {
+  try {
+    if (!verifyAdminAuth(request)) {
+      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('products')
+      .select(`
+        *,
+        bancas (
+          id,
+          name,
+          cover_image
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Admin products error:', error);
+      return NextResponse.json({ success: false, error: 'Erro ao buscar produtos' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Admin products API error:', error);
+    return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500 });
+  }
+}
+
 // POST - Criar produto
 export async function POST(request: NextRequest) {
   try {
