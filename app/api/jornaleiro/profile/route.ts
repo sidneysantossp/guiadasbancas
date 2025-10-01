@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
+
+export const dynamic = 'force-dynamic';
 
 // Helper para pegar user_id do header de autenticação
 async function getUserFromRequest(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ") || !supabase) {
+  if (!authHeader?.startsWith("Bearer ") || !supabaseAdmin) {
     return null;
   }
 
   const token = authHeader.substring(7);
-  const { data: { user }, error } = await supabase.auth.getUser(token);
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
   
   if (error || !user) {
     return null;
@@ -30,12 +32,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!supabase) {
+    if (!supabaseAdmin) {
       return NextResponse.json({ error: "Serviço indisponível" }, { status: 503 });
     }
 
     // Buscar perfil do usuário
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from("user_profiles")
       .select("*")
       .eq("id", user.id)
@@ -57,7 +59,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Buscar banca associada
-    const { data: banca, error: bancaError } = await supabase
+    const { data: banca, error: bancaError } = await supabaseAdmin
       .from("bancas")
       .select("*")
       .eq("user_id", user.id)
@@ -82,7 +84,7 @@ export async function PUT(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request);
     
-    if (!user || !supabase) {
+    if (!user || !supabaseAdmin) {
       return NextResponse.json(
         { error: "Não autenticado" },
         { status: 401 }
@@ -93,7 +95,7 @@ export async function PUT(request: NextRequest) {
     const { profile: profileUpdates, banca: bancaUpdates } = body;
 
     // Buscar perfil atual
-    const { data: currentProfile } = await supabase
+    const { data: currentProfile } = await supabaseAdmin
       .from("user_profiles")
       .select("*")
       .eq("id", user.id)
@@ -108,7 +110,7 @@ export async function PUT(request: NextRequest) {
 
     // Atualizar perfil se houver dados
     if (profileUpdates) {
-      const { error: profileError } = await (supabase
+      const { error: profileError } = await (supabaseAdmin
         .from("user_profiles")
         .update({
           full_name: profileUpdates.full_name,
@@ -125,7 +127,7 @@ export async function PUT(request: NextRequest) {
     // Atualizar ou criar banca
     if (bancaUpdates) {
       // Verificar se já existe banca
-      const { data: existingBanca } = await (supabase
+      const { data: existingBanca } = await (supabaseAdmin
         .from("bancas")
         .select("id")
         .eq("user_id", user.id)
@@ -133,7 +135,7 @@ export async function PUT(request: NextRequest) {
 
       if (existingBanca) {
         // Atualizar banca existente
-        const { error: bancaError } = await (supabase
+        const { error: bancaError } = await (supabaseAdmin
           .from("bancas")
           .update({
             name: bancaUpdates.name,
@@ -163,7 +165,7 @@ export async function PUT(request: NextRequest) {
         }
       } else {
         // Criar nova banca
-        const { error: bancaError } = await (supabase
+        const { error: bancaError } = await (supabaseAdmin
           .from("bancas")
           .insert({
             user_id: user.id,
@@ -195,14 +197,14 @@ export async function PUT(request: NextRequest) {
         }
 
         // Atualizar perfil com banca_id
-        const { data: newBanca } = await (supabase
+        const { data: newBanca } = await (supabaseAdmin
           .from("bancas")
           .select("id")
           .eq("user_id", user.id)
           .single() as any);
 
         if (newBanca) {
-          await (supabase
+          await (supabaseAdmin
             .from("user_profiles")
             .update({ banca_id: (newBanca as any).id } as any)
             .eq("id", user.id) as any);
@@ -211,13 +213,13 @@ export async function PUT(request: NextRequest) {
     }
 
     // Buscar dados atualizados
-    const { data: updatedProfile } = await (supabase
+    const { data: updatedProfile } = await (supabaseAdmin
       .from("user_profiles")
       .select("*")
       .eq("id", user.id)
       .single() as any);
 
-    const { data: updatedBanca } = await (supabase
+    const { data: updatedBanca } = await (supabaseAdmin
       .from("bancas")
       .select("*")
       .eq("user_id", user.id)

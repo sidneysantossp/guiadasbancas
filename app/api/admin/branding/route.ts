@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+export const dynamic = 'force-dynamic';
+
 export type BrandingConfig = {
   logoUrl: string;
   logoAlt: string;
@@ -48,7 +50,9 @@ async function readBranding(): Promise<BrandingConfig> {
 
 async function writeBranding(config: BrandingConfig) {
   try {
-    // Usar upsert para simplificar - atualiza se existe, insere se não existe
+    console.log('Writing branding config:', config);
+    
+    // Tentar inserir primeiro (caso não exista)
     const brandingData = {
       id: '00000000-0000-0000-0000-000000000001', // ID fixo para singleton
       logo_url: config.logoUrl || null,
@@ -57,19 +61,47 @@ async function writeBranding(config: BrandingConfig) {
       primary_color: config.primaryColor,
       secondary_color: config.secondaryColor,
       favicon: config.favicon,
+      created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabaseAdmin
+    // Primeiro tentar inserir
+    let { data, error } = await supabaseAdmin
       .from('branding')
-      .upsert(brandingData, { 
-        onConflict: 'id',
-        ignoreDuplicates: false 
-      })
+      .insert(brandingData)
       .select();
 
+    // Se falhar por conflito, fazer update
+    if (error && error.code === '23505') { // Unique constraint violation
+      console.log('Record exists, updating...');
+      const updateData = {
+        id: brandingData.id,
+        logo_url: brandingData.logo_url,
+        logo_alt: brandingData.logo_alt,
+        site_name: brandingData.site_name,
+        primary_color: brandingData.primary_color,
+        secondary_color: brandingData.secondary_color,
+        favicon: brandingData.favicon,
+        updated_at: brandingData.updated_at
+      };
+      
+      const result = await supabaseAdmin
+        .from('branding')
+        .update(updateData)
+        .eq('id', brandingData.id)
+        .select();
+      
+      data = result.data;
+      error = result.error;
+    }
+
     if (error) {
-      console.error('Supabase upsert error:', error);
+      console.error('Supabase error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       throw error;
     }
 
