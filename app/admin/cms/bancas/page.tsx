@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import SimpleBancaForm from "@/components/admin/SimpleBancaForm";
 
 export type AdminBanca = {
   id: string;
@@ -34,9 +33,6 @@ export type AdminBanca = {
 export default function BancasPage() {
   const [items, setItems] = useState<AdminBanca[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<AdminBanca | null>(null);
   const [showPendingOnly, setShowPendingOnly] = useState(false);
   const [showFeaturedOnly, setShowFeaturedOnly] = useState(false);
   const [featuredFirst, setFeaturedFirst] = useState(false);
@@ -63,62 +59,11 @@ export default function BancasPage() {
   }, []);
 
   const onCreate = () => {
-    setEditing(null);
-    setShowForm(true);
+    window.location.href = '/admin/cms/bancas/new';
   };
 
   const onEdit = (banca: AdminBanca) => {
-    setEditing(banca);
-    setShowForm(true);
-  };
-
-  const onSubmit = async (data: Omit<AdminBanca,'id'|'order'> & { id?: string }) => {
-    setSaving(true);
-    try {
-      if (data.id) {
-        const updated = items.map((b) => b.id === data.id ? { ...b, ...data } as AdminBanca : b);
-        const res = await fetch('/api/admin/bancas', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer admin-token'
-          },
-          body: JSON.stringify({ data: updated.find(b => b.id === data.id) })
-        });
-        const j = await res.json();
-        if (j?.success) {
-          setItems(updated);
-          console.log('Banca atualizada com sucesso!');
-          setTimeout(() => {
-            fetchAll();
-          }, 1000);
-        } else {
-          console.error('Erro ao atualizar banca:', j?.error);
-        }
-      } else {
-        const res = await fetch('/api/admin/bancas', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer admin-token'
-          },
-          body: JSON.stringify({ data })
-        });
-        const j = await res.json();
-        if (j?.success) {
-          setItems((list) => [...list, j.data]);
-          console.log('Banca criada com sucesso!');
-        } else {
-          console.error('Erro ao criar banca:', j?.error);
-        }
-      }
-      setShowForm(false);
-      setEditing(null);
-    } catch (error) {
-      console.error('Erro de conexão:', error);
-    } finally {
-      setSaving(false);
-    }
+    window.location.href = `/admin/cms/bancas/${banca.id}`;
   };
 
   const filteredItems = useMemo(() => {
@@ -244,14 +189,6 @@ export default function BancasPage() {
         )}
       </div>
 
-      {showForm && (
-        <SimpleBancaForm
-          item={editing}
-          onCancel={() => { setShowForm(false); setEditing(null); }}
-          onSubmit={onSubmit}
-          saving={saving}
-        />
-      )}
     </div>
   );
 }
