@@ -99,7 +99,8 @@ SELECT
     7 as duration_days,
     'approved' as status
 FROM products p 
-WHERE p.featured = true 
+WHERE p.active = true 
+AND p.price > 0
 LIMIT 3
 ON CONFLICT DO NOTHING;
 
