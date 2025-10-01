@@ -20,6 +20,7 @@ interface Campaign {
   created_at: string;
   products: {
     id: string;
+    slug?: string;
     name: string;
     description: string;
     price: number;
@@ -31,6 +32,7 @@ interface Campaign {
     pronta_entrega: boolean;
     sob_encomenda: boolean;
     pre_venda: boolean;
+    active: boolean;
     bancas: {
       id: string;
       name: string;
@@ -65,7 +67,7 @@ export default function AdminCampaignsPage() {
     }
 
     try {
-      const res = await fetch(`/api/admin/campaigns/${campaignId}`, {
+      const res = await fetch(`/api/admin/campaigns/${campaignId}/delete`, {
         method: 'DELETE',
         headers: { 'Authorization': 'Bearer admin-token' }
       });
@@ -362,7 +364,7 @@ export default function AdminCampaignsPage() {
                     
                     {/* Ações gerais sempre disponíveis */}
                     <button
-                      onClick={() => window.open(`/produto/${campaign.products.id}`, '_blank')}
+                      onClick={() => window.open(`/produto/${campaign.products.slug || campaign.products.id}`, '_blank')}
                       className="flex items-center gap-1 bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs hover:bg-blue-600"
                       title="Ver produto"
                     >
@@ -370,7 +372,7 @@ export default function AdminCampaignsPage() {
                     </button>
                     
                     <button
-                      onClick={() => {/* TODO: Implementar edição */}}
+                      onClick={() => window.open(`/admin/campaigns/${campaign.id}/edit`, '_blank')}
                       className="flex items-center gap-1 bg-yellow-500 text-white px-3 py-1.5 rounded-md text-xs hover:bg-yellow-600"
                       title="Editar campanha"
                     >
