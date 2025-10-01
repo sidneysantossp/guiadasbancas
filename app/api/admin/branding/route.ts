@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { dbQuery } from "@/lib/mysql";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export type BrandingConfig = {
   logoUrl: string;
@@ -21,56 +21,76 @@ const DEFAULT_BRANDING: BrandingConfig = {
 
 async function readBranding(): Promise<BrandingConfig> {
   try {
-    await ensureBrandingTable();
-    const [rows] = await dbQuery<any>(`SELECT logo_url, logo_alt, site_name, primary_color, secondary_color, favicon FROM branding LIMIT 1`);
-    const row = Array.isArray(rows) && rows[0];
-    if (!row) return DEFAULT_BRANDING;
+    const { data, error } = await supabaseAdmin
+      .from('branding')
+      .select('logo_url, logo_alt, site_name, primary_color, secondary_color, favicon')
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      console.log('No branding config found, using default');
+      return DEFAULT_BRANDING;
+    }
+
     return {
-      logoUrl: row.logo_url || "",
-      logoAlt: row.logo_alt || "Guia das Bancas",
-      siteName: row.site_name || "Guia das Bancas",
-      primaryColor: row.primary_color || "#ff5c00",
-      secondaryColor: row.secondary_color || "#ff7a33",
-      favicon: row.favicon || "/favicon.svg",
+      logoUrl: data.logo_url || "",
+      logoAlt: data.logo_alt || "Guia das Bancas",
+      siteName: data.site_name || "Guia das Bancas",
+      primaryColor: data.primary_color || "#ff5c00",
+      secondaryColor: data.secondary_color || "#ff7a33",
+      favicon: data.favicon || "/favicon.svg",
     };
   } catch (e) {
+    console.error('Supabase error, using default branding:', e);
     return DEFAULT_BRANDING;
   }
 }
 
 async function writeBranding(config: BrandingConfig) {
-  await ensureBrandingTable();
-  const [rows] = await dbQuery<any>(`SELECT id FROM branding LIMIT 1`);
-  if (Array.isArray(rows) && rows.length > 0) {
-    const id = rows[0].id;
-    await dbQuery(
-      `UPDATE branding SET logo_url = ?, logo_alt = ?, site_name = ?, primary_color = ?, secondary_color = ?, favicon = ?, updated_at = NOW() WHERE id = ?`,
-      [config.logoUrl || null, config.logoAlt, config.siteName, config.primaryColor, config.secondaryColor, config.favicon, id]
-    );
-  } else {
-    await dbQuery(
-      `INSERT INTO branding (id, logo_url, logo_alt, site_name, primary_color, secondary_color, favicon, created_at, updated_at)
-       VALUES (UUID(), ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [config.logoUrl || null, config.logoAlt, config.siteName, config.primaryColor, config.secondaryColor, config.favicon]
-    );
+  try {
+    // Tentar atualizar primeiro
+    const { data: existingData } = await supabaseAdmin
+      .from('branding')
+      .select('id')
+      .limit(1)
+      .single();
+
+    const brandingData = {
+      logo_url: config.logoUrl || null,
+      logo_alt: config.logoAlt,
+      site_name: config.siteName,
+      primary_color: config.primaryColor,
+      secondary_color: config.secondaryColor,
+      favicon: config.favicon,
+      updated_at: new Date().toISOString()
+    };
+
+    if (existingData) {
+      // Atualizar registro existente
+      const { error } = await supabaseAdmin
+        .from('branding')
+        .update(brandingData)
+        .eq('id', existingData.id);
+      
+      if (error) throw error;
+    } else {
+      // Criar novo registro
+      const { error } = await supabaseAdmin
+        .from('branding')
+        .insert({
+          ...brandingData,
+          created_at: new Date().toISOString()
+        });
+      
+      if (error) throw error;
+    }
+  } catch (error) {
+    console.error('Error writing branding config:', error);
+    throw error;
   }
 }
 
-async function ensureBrandingTable() {
-  await dbQuery(
-    `CREATE TABLE IF NOT EXISTS branding (
-      id CHAR(36) NOT NULL PRIMARY KEY,
-      logo_url TEXT,
-      logo_alt VARCHAR(255) NOT NULL DEFAULT 'Guia das Bancas',
-      site_name VARCHAR(255) NOT NULL DEFAULT 'Guia das Bancas',
-      primary_color VARCHAR(7) NOT NULL DEFAULT '#ff5c00',
-      secondary_color VARCHAR(7) NOT NULL DEFAULT '#ff7a33',
-      favicon VARCHAR(500) DEFAULT '/favicon.svg',
-      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB`
-  );
-}
+// Função removida - tabela já existe no Supabase
 
 function verifyAdminAuth(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
