@@ -15,17 +15,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
     }
 
+    // Primeiro tentar buscar apenas produtos
     const { data, error } = await supabaseAdmin
       .from('products')
-      .select(`
-        *,
-        bancas (
-          id,
-          name,
-          cover_image
-        )
-      `)
-      .order('created_at', { ascending: false });
+      .select('*')
+      .order('name');
 
     if (error) {
       console.error('Admin products error:', error);
