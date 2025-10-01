@@ -48,14 +48,9 @@ async function readBranding(): Promise<BrandingConfig> {
 
 async function writeBranding(config: BrandingConfig) {
   try {
-    // Tentar atualizar primeiro
-    const { data: existingData } = await supabaseAdmin
-      .from('branding')
-      .select('id')
-      .limit(1)
-      .single();
-
+    // Usar upsert para simplificar - atualiza se existe, insere se não existe
     const brandingData = {
+      id: '00000000-0000-0000-0000-000000000001', // ID fixo para singleton
       logo_url: config.logoUrl || null,
       logo_alt: config.logoAlt,
       site_name: config.siteName,
@@ -65,25 +60,21 @@ async function writeBranding(config: BrandingConfig) {
       updated_at: new Date().toISOString()
     };
 
-    if (existingData) {
-      // Atualizar registro existente
-      const { error } = await supabaseAdmin
-        .from('branding')
-        .update(brandingData)
-        .eq('id', existingData.id);
-      
-      if (error) throw error;
-    } else {
-      // Criar novo registro
-      const { error } = await supabaseAdmin
-        .from('branding')
-        .insert({
-          ...brandingData,
-          created_at: new Date().toISOString()
-        });
-      
-      if (error) throw error;
+    const { data, error } = await supabaseAdmin
+      .from('branding')
+      .upsert(brandingData, { 
+        onConflict: 'id',
+        ignoreDuplicates: false 
+      })
+      .select();
+
+    if (error) {
+      console.error('Supabase upsert error:', error);
+      throw error;
     }
+
+    console.log('Branding config saved successfully:', data);
+    return data;
   } catch (error) {
     console.error('Error writing branding config:', error);
     throw error;
