@@ -7,12 +7,12 @@ interface Campaign {
   id: string;
   title: string;
   description: string;
-  start_date: string;
   end_date: string;
   impressions: number;
   clicks: number;
   products: {
     id: string;
+    slug?: string;
     name: string;
     description: string;
     price: number;
@@ -24,6 +24,7 @@ interface Campaign {
     pronta_entrega: boolean;
     sob_encomenda: boolean;
     pre_venda: boolean;
+    active: boolean;
     bancas: {
       id: string;
       name: string;
@@ -112,46 +113,34 @@ export default function CampaignSection() {
                   </div>
                 )}
 
-                {/* Badges de disponibilidade */}
-                <div className="absolute top-3 right-3 space-y-1">
-                  {campaign.products.pronta_entrega && (
-                    <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                      ✅
-                    </div>
-                  )}
-                  {campaign.products.sob_encomenda && (
-                    <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                      📋
-                    </div>
-                  )}
-                  {campaign.products.pre_venda && (
-                    <div className="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
-                      🔮
-                    </div>
-                  )}
-                </div>
+                {/* Badge de disponibilidade */}
+                {campaign.products.pronta_entrega && (
+                  <span className="absolute right-2 top-2 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-semibold px-2 py-[2px]">
+                    Pronta entrega
+                  </span>
+                )}
               </div>
 
               {/* Conteúdo */}
               <div className="p-4 space-y-3">
                 {/* Avaliações */}
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center">
-                    {[1,2,3,4,5].map((star) => (
-                      <span 
+                <div className="flex items-center gap-1">
+                  {[1,2,3,4,5].map((star) => {
+                    const filled = (campaign.products.rating_avg || 4.5) >= star - 0.001;
+                    return (
+                      <svg 
                         key={star} 
-                        className={`text-sm ${
-                          star <= (campaign.products.rating_avg || 4.5) 
-                            ? 'text-yellow-400' 
-                            : 'text-gray-300'
-                        }`}
+                        viewBox="0 0 24 24" 
+                        className={`h-3.5 w-3.5 ${filled ? 'text-amber-400' : 'text-gray-300'}`} 
+                        fill="currentColor" 
+                        aria-hidden
                       >
-                        ⭐
-                      </span>
-                    ))}
-                  </div>
-                  <span className="text-xs text-gray-500">
-                    ({campaign.products.reviews_count})
+                        <path d="M12 .587l3.668 7.431 8.2 1.193-5.934 5.787 1.402 8.168L12 18.896l-7.336 3.87 1.402-8.168L.132 9.211l8.2-1.193L12 .587z"/>
+                      </svg>
+                    );
+                  })}
+                  <span className="text-[12px] text-gray-500 ml-1">
+                    {(campaign.products.rating_avg || 4.5).toFixed(1)} ({campaign.products.reviews_count})
                   </span>
                 </div>
 
@@ -178,39 +167,33 @@ export default function CampaignSection() {
                 </div>
 
                 {/* Footer com banca e ações */}
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                <div className="flex items-center justify-between pt-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-gray-200 rounded-full overflow-hidden">
+                    <span className="inline-block h-5 w-5 rounded-full overflow-hidden bg-orange-100 ring-1 ring-black/5">
                       {campaign.products.bancas.cover_image ? (
-                        <img
-                          src={campaign.products.bancas.cover_image}
-                          alt={campaign.products.bancas.name}
-                          className="w-full h-full object-cover"
+                        <img 
+                          src={campaign.products.bancas.cover_image} 
+                          alt={campaign.products.bancas.name} 
+                          className="h-full w-full object-cover" 
                         />
                       ) : (
-                        <div className="w-full h-full bg-gray-300"></div>
+                        <svg viewBox="0 0 24 24" className="h-full w-full text-[#ff7a33]" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/>
+                        </svg>
                       )}
-                    </div>
-                    <span className="text-xs text-gray-600 truncate">
+                    </span>
+                    <span className="text-[12px] text-gray-700 truncate">
                       {campaign.products.bancas.name}
                     </span>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <button 
-                      className="text-gray-400 hover:text-red-500 transition-colors"
-                      title="Favoritar"
-                    >
-                      ❤️
-                    </button>
-                    <Link
-                      href={`/produto/${campaign.products.id}`}
-                      onClick={() => handleCampaignClick(campaign.id)}
-                      className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-medium hover:bg-orange-600 transition-colors"
-                    >
-                      🛒
-                    </Link>
-                  </div>
+                  <Link
+                    href={`/produto/${campaign.products.slug || campaign.products.id}`}
+                    onClick={() => handleCampaignClick(campaign.id)}
+                    className="rounded-md bg-[#ff5c00] px-2 py-1 text-[11px] font-semibold text-white hover:opacity-95"
+                  >
+                    Ver
+                  </Link>
                 </div>
               </div>
             </div>
