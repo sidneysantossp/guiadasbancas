@@ -79,30 +79,36 @@ $$ LANGUAGE plpgsql;
 ALTER TABLE campaigns DISABLE ROW LEVEL SECURITY;
 
 -- Inserir dados de exemplo (opcional)
-INSERT INTO campaigns (
-    product_id, 
-    banca_id, 
-    title, 
-    description, 
-    start_date, 
-    end_date, 
-    duration_days, 
-    status
-) 
-SELECT 
-    p.id as product_id,
-    p.banca_id,
-    'Promoção ' || p.name as title,
-    'Campanha promocional para ' || p.name as description,
-    NOW() as start_date,
-    NOW() + INTERVAL '7 days' as end_date,
-    7 as duration_days,
-    'approved' as status
-FROM products p 
-WHERE p.active = true 
-AND p.price > 0
-LIMIT 3
-ON CONFLICT DO NOTHING;
+-- Primeiro vamos verificar quais colunas existem na tabela products
+DO $$
+BEGIN
+    -- Tentar inserir campanhas de exemplo se a tabela products existir
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'products') THEN
+        INSERT INTO campaigns (
+            product_id, 
+            banca_id, 
+            title, 
+            description, 
+            start_date, 
+            end_date, 
+            duration_days, 
+            status
+        ) 
+        SELECT 
+            p.id as product_id,
+            p.banca_id,
+            'Promoção ' || p.name as title,
+            'Campanha promocional para ' || p.name as description,
+            NOW() as start_date,
+            NOW() + INTERVAL '7 days' as end_date,
+            7 as duration_days,
+            'approved' as status
+        FROM products p 
+        WHERE p.price > 0
+        LIMIT 3
+        ON CONFLICT DO NOTHING;
+    END IF;
+END $$;
 
 -- Verificar se a tabela foi criada
 SELECT 
