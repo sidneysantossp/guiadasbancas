@@ -142,15 +142,29 @@ export default function AdminBancasPage() {
         const updated = items.map((b)=> b.id===data.id ? { ...b, ...data } as AdminBanca : b);
         const res = await fetch('/api/admin/bancas', { method: 'PUT', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer admin-token' }, body: JSON.stringify({ data: updated.find(b=>b.id===data.id) }) });
         const j = await res.json();
-        if (j?.success) setItems(updated);
+        if (j?.success) {
+          setItems(updated);
+          show('Banca atualizada com sucesso!', 'success');
+        } else {
+          show(j?.error || 'Erro ao atualizar banca', 'error');
+        }
       } else {
         const res = await fetch('/api/admin/bancas', { method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer admin-token' }, body: JSON.stringify({ data }) });
         const j = await res.json();
-        if (j?.success) setItems((list)=> [...list, j.data]);
+        if (j?.success) {
+          setItems((list)=> [...list, j.data]);
+          show('Banca criada com sucesso!', 'success');
+        } else {
+          show(j?.error || 'Erro ao criar banca', 'error');
+        }
       }
       setShowForm(false);
       setEditing(null);
-    } finally { setSaving(false); }
+    } catch (error) {
+      show('Erro de conexão', 'error');
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   return (
