@@ -14,6 +14,7 @@ const JOURNALEIRO_MENU: { label: string; href: Route; icon: string; disabled?: b
   { label: "Minha Banca", href: "/jornaleiro/banca" as Route, icon: "🏪" },
   { label: "Pedidos", href: "/jornaleiro/pedidos" as Route, icon: "🧾" },
   { label: "Produtos", href: "/jornaleiro/produtos" as Route, icon: "📦" },
+  { label: "Campanhas", href: "/jornaleiro/campanhas" as Route, icon: "📢" },
   { label: "Distribuidores", href: "/jornaleiro/distribuidores" as Route, icon: "🚚" },
   { label: "Cupons", href: "/jornaleiro/coupons" as Route, icon: "🏷️" },
   { label: "Financeiro", href: "/jornaleiro/financeiro" as Route, icon: "💵", disabled: true },

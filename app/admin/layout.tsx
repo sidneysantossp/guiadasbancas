@@ -44,6 +44,7 @@ const ADMIN_MENU = [
   {
     section: "Marketing",
     items: [
+      { label: "Campanhas", href: "/admin/campaigns", icon: "📢" },
       { label: "Cupons", href: "/admin/coupons", icon: "🎫" },
       { label: "Banners", href: "/admin/banners", icon: "🖼️" },
       { label: "Newsletter", href: "/admin/newsletter", icon: "📧" },
