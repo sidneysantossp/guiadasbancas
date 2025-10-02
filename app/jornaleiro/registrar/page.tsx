@@ -467,13 +467,8 @@ export default function JornaleiroRegisterPage() {
       localStorage.setItem("gb:bancaData", JSON.stringify(bancaData));
       localStorage.setItem("gb:sellerAuth", "1");
       
-      setToast('Cadastro concluído! Redirecionando...');
+      setToast('Cadastro concluído com sucesso!');
       setStep(5);
-      
-      // Redirecionar para onboarding após 1 segundo
-      setTimeout(() => {
-        router.push('/jornaleiro/onboarding');
-      }, 1000);
       
     } catch (err) {
       console.error('Erro no cadastro:', err);
