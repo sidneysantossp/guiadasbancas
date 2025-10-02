@@ -2,7 +2,7 @@
   {
     "id": "cat-1758881018346",
     "name": "Papelaria",
-    "image": "https://admin.guiadasbancas.com.br/storage/app/public/category/2025-08-03-688fc60e3fbca.png",
+    "image": "/uploads/1758882106787-l3bq8r.png",
     "link": "/categorias/papelaria",
     "active": true,
     "order": 1
@@ -10,7 +10,7 @@
   {
     "id": "cat-1758881332118",
     "name": "Pet Shop",
-    "image": "https://admin.guiadasbancas.com.br/storage/app/public/category/2025-08-03-688fc799af9a5.png",
+    "image": "/uploads/1758881969147-c5a746.png",
     "link": "/categorias/pet-shop",
     "active": true,
     "order": 2

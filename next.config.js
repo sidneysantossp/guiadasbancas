@@ -45,10 +45,6 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'admin.guiadasbancas.com.br',
-      },
-      {
-        protocol: 'https',
         hostname: 'videos.openai.com',
       },
       {

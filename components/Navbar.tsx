@@ -848,9 +848,23 @@ useEffect(() => {
                       onClick={() => setMobileOpen(false)}
                       className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white p-2.5 hover:bg-gray-50 shadow-sm"
                     >
-                      <div className="relative h-8 w-8 rounded-xl overflow-hidden bg-gray-100 ring-1 ring-black/5">
+                      <div className="relative h-8 w-8 rounded-xl overflow-hidden bg-gray-100 ring-1 ring-black/5 flex-shrink-0">
                         {c.image ? (
-                          <Image src={c.image} alt={c.name} fill className="object-cover" />
+                          <Image 
+                            src={c.image} 
+                            alt={c.name} 
+                            width={32} 
+                            height={32} 
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const parent = target.parentElement;
+                              if (parent) {
+                                parent.innerHTML = `<div class="h-8 w-8 rounded-xl grid place-items-center bg-white"><span class="text-xs text-[#ff5c00] font-semibold">${c.name[0]}</span></div>`;
+                              }
+                            }}
+                          />
                         ) : (
                           <div className="h-8 w-8 rounded-xl grid place-items-center bg-white">
                             <span className="text-xs text-[#ff5c00] font-semibold">{c.name[0]}</span>
