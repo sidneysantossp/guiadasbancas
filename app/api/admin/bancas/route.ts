@@ -70,11 +70,13 @@ export async function GET(request: NextRequest) {
   const includeInactive = searchParams.get("all") === "true";
   const id = searchParams.get("id");
   const items = await readBancas();
+  // Para listagem sem filtro de id, respeite o active, a não ser que all=true
   const list = includeInactive ? items : items.filter((c) => c.active);
 
   // GET by ID
   if (id) {
-    const it = list.find((b) => b.id === id || b.id.endsWith(id));
+    // Ao buscar por ID, considerar TODAS (inclusive inativas) para evitar 404 indevido
+    const it = items.find((b) => b.id === id || b.id.endsWith(id));
     if (!it) return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
     return NextResponse.json({ success: true, data: it });
   }

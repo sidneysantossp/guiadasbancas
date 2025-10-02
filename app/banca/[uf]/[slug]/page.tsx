@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import BancaPageClient from "@/components/BancaPageClient";
+import { toBancaSlug } from "@/lib/slug";
 
 function unslugify(s: string) {
   try {
@@ -53,16 +54,34 @@ export async function generateMetadata({ params }: { params: { uf: string; slug:
 
 export default async function BancaSlugPage({ params }: { params: { uf: string; slug: string } }) {
   const { uf, slug } = params;
+  // 1) Resolver ID de forma robusta: buscar todas e casar pelo padrão slug(name)+'-'+id
+  let resolvedId: string | null = null;
+  try {
+    const base = process.env.NEXT_PUBLIC_SITE_URL || '';
+    const resAll = await fetch(`${base}/api/admin/bancas?all=true`, { cache: 'no-store' });
+    if (resAll.ok) {
+      const jAll = await resAll.json();
+      const list: Array<{ id:string; name:string }> = Array.isArray(jAll?.data) ? jAll.data : [];
+      for (const b of list) {
+        const s = `${toBancaSlug(b.name)}-${b.id}`;
+        if (s === slug) { resolvedId = b.id; break; }
+      }
+    }
+  } catch {}
+
+  // 2) Heurística antiga: tentar pegar último token se parecer com id numérico
   const parts = slug.split('-');
-  const possibleId = parts.length > 1 ? parts[parts.length - 1] : '';
-  const namePart = possibleId && /\d/.test(possibleId) ? slug.slice(0, slug.lastIndexOf('-' + possibleId)) : slug;
+  const tail = parts.length > 1 ? parts[parts.length - 1] : '';
+  const heuristicId = tail && /[0-9a-f]/i.test(tail) ? tail : '';
+  const namePart = heuristicId ? slug.slice(0, slug.lastIndexOf('-' + heuristicId)) : slug;
   const name = unslugify(namePart);
   const url = `https://guiadasbancas.com.br/banca/${uf}/${slug}`;
 
   // Tenta buscar dados reais da banca para JSON-LD
   let ld: any = null;
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/admin/bancas?id=${encodeURIComponent(possibleId || slug)}`, { cache: 'no-store' });
+    const targetId = resolvedId || heuristicId || slug;
+    const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/admin/bancas?id=${encodeURIComponent(targetId)}`, { cache: 'no-store' });
     if (res.ok) {
       const j = await res.json();
       const b = j?.data;
@@ -143,7 +162,7 @@ export default async function BancaSlugPage({ params }: { params: { uf: string; 
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
-      <BancaPageClient bancaId={possibleId || slug} />
+      <BancaPageClient bancaId={resolvedId || heuristicId || slug} />
     </>
   );
 }
