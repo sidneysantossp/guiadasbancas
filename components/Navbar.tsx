@@ -846,7 +846,7 @@ useEffect(() => {
                       key={c.key}
                       href={c.link as any}
                       onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white p-2.5 hover:bg-gray-50 shadow-sm"
+                      className="flex items-center gap-2 rounded-2xl bg-white p-2.5 hover:bg-gray-50"
                     >
                       <div className="relative h-8 w-8 rounded-xl overflow-hidden bg-gray-100 ring-1 ring-black/5 flex-shrink-0">
                         {c.image ? (
