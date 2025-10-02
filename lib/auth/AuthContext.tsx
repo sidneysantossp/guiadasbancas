@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn as nextSignIn, signOut as nextSignOut, useSession } from "next-auth/react";
+import { supabase } from "@/lib/supabase";
 
 export type UserRole = "admin" | "jornaleiro" | "cliente";
 
@@ -79,8 +80,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Registro
-  const signUp = async (_email: string, _password: string, _metadata: { full_name: string; role: UserRole }) => {
-    return { error: new Error("Not implemented in NextAuth layer") };
+  const signUp = async (email: string, password: string, metadata: { full_name: string; role: UserRole }) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: metadata.full_name,
+            role: metadata.role,
+          },
+        },
+      });
+
+      if (error) {
+        console.error('Supabase signUp error:', error);
+        return { error: new Error(error.message) };
+      }
+
+      if (!data.user) {
+        return { error: new Error('Falha ao criar usuário') };
+      }
+
+      return { error: null };
+    } catch (err) {
+      console.error('Exception in signUp:', err);
+      return { error: new Error('Erro inesperado ao criar conta') };
+    }
   };
 
   // Logout
