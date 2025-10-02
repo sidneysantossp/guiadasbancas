@@ -17,6 +17,7 @@ import { shippingConfig } from "@/components/shippingConfig";
 import FreeShippingProgress from "@/components/FreeShippingProgress";
 import { useEffect as useEffectBranding, useState as useStateBranding } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useCategories } from "@/lib/useCategories";
 
 const hedvig = Hedvig_Letters_Serif({ subsets: ["latin"] });
 
@@ -60,20 +61,6 @@ function JornaleiroAdminLinks({ onClose }: { onClose: () => void }) {
   );
 }
 
-interface Category {
-  slug: string;
-  name: string;
-  image?: string;
-  color?: string;
-  icon?: string;
-}
-
-const categories: Category[] = [
-  { slug: "gibis", name: "Gibis", color: "#ff5c00", icon: "📚" },
-  { slug: "revistas", name: "Revistas", color: "#0066cc", icon: "📖" },
-  { slug: "jornais", name: "Jornais", color: "#333333", icon: "📰" },
-  { slug: "livros", name: "Livros", color: "#8b5a2b", icon: "📗" },
-];
 
 function MiniCartDropdown({ onClose }: { onClose: () => void }) {
   const { items, totalCount, addToCart, removeFromCart } = useCart();
@@ -219,6 +206,7 @@ export default function Navbar() {
   const [notifCount, setNotifCount] = useState<number>(0);
   const [notifPulse, setNotifPulse] = useState<boolean>(false);
   const [branding, setBranding] = useState<{logoUrl: string; logoAlt: string; siteName: string} | null>(null);
+  const { items: categoryItems } = useCategories();
 
   const onSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -853,18 +841,20 @@ useEffect(() => {
             {catsOpen && (
               <div className="pt-2">
                 <div className="grid grid-cols-2 gap-2">
-                  {categories.map((c: Category) => (
+                  {categoryItems.map((c) => (
                     <Link
-                      key={c.slug}
-                      href={`/categorias?cat=${c.slug}`}
+                      key={c.key}
+                      href={c.link as any}
                       onClick={() => setMobileOpen(false)}
                       className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white p-2.5 hover:bg-gray-50 shadow-sm"
                     >
-                      <div className="h-8 w-8 rounded-xl overflow-hidden bg-gray-100 ring-1 ring-black/5">
+                      <div className="relative h-8 w-8 rounded-xl overflow-hidden bg-gray-100 ring-1 ring-black/5">
                         {c.image ? (
-                          <Image src={c.image} alt={c.name} width={32} height={32} className="h-8 w-8 object-cover" />
+                          <Image src={c.image} alt={c.name} fill className="object-cover" />
                         ) : (
-                          <div className={`h-8 w-8 ${c.color} rounded-xl grid place-items-center`}>{c.icon}</div>
+                          <div className="h-8 w-8 rounded-xl grid place-items-center bg-white">
+                            <span className="text-xs text-[#ff5c00] font-semibold">{c.name[0]}</span>
+                          </div>
                         )}
                       </div>
                       <span className="text-sm font-medium">{c.name}</span>
