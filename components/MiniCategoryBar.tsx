@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import SafeImage from "./SafeImage";
+import { useRef, useState, useEffect } from "react";
 import { useCategories } from "@/lib/useCategories";
 
 // Pequena barra de categorias que fica sticky no topo ao rolar a página
 
 type Props = { targetId?: string };
-
 export default function MiniCategoryBar({ targetId = "buy-by-category" }: Props) {
   const [visible, setVisible] = useState(false);
   const { items } = useCategories();
@@ -119,7 +118,7 @@ export default function MiniCategoryBar({ targetId = "buy-by-category" }: Props)
                 className="shrink-0 flex flex-col items-center gap-1 px-1"
               >
                 <div className="h-12 w-12 xl:h-14 xl:w-14 rounded-2xl grid place-items-center shadow-sm bg-white ring-1 ring-black/10 overflow-hidden">
-                  <Image src={c.image} alt={c.name} width={84} height={84} className="h-full w-full object-cover" />
+                  <SafeImage src={c.image} alt={c.name} width={84} height={84} className="h-full w-full object-cover" />
                 </div>
                 <span className="text-[11px] leading-3 text-gray-800 font-medium text-center">{c.name}</span>
               </Link>
