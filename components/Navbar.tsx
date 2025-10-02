@@ -839,35 +839,35 @@ useEffect(() => {
               <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${catsOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 6l6 6-6 6"/></svg>
             </button>
             {catsOpen && (
-              <div className="pt-2">
-                <div className="grid grid-cols-2 gap-2">
+              <div className="pt-1">
+                <div className="grid grid-cols-2 gap-1">
                   {categoryItems.map((c) => (
                     <Link
                       key={c.key}
                       href={c.link as any}
                       onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-2 rounded-2xl bg-white p-2.5 hover:bg-gray-50"
+                      className="flex items-center gap-2 rounded-2xl bg-white p-2 hover:bg-gray-50"
                     >
-                      <div className="relative h-8 w-8 rounded-xl overflow-hidden bg-gray-100 ring-1 ring-black/5 flex-shrink-0">
+                      <div className="relative h-7 w-7 rounded-xl overflow-hidden bg-gray-100 ring-1 ring-black/5 flex-shrink-0">
                         {c.image ? (
                           <Image 
                             src={c.image} 
                             alt={c.name} 
-                            width={32} 
-                            height={32} 
+                            width={28} 
+                            height={28} 
                             className="h-full w-full object-cover"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               target.style.display = 'none';
                               const parent = target.parentElement;
                               if (parent) {
-                                parent.innerHTML = `<div class="h-8 w-8 rounded-xl grid place-items-center bg-white"><span class="text-xs text-[#ff5c00] font-semibold">${c.name[0]}</span></div>`;
+                                parent.innerHTML = `<div class=\"h-7 w-7 rounded-xl grid place-items-center bg-white\"><span class=\"text-[11px] text-[#ff5c00] font-semibold\">${c.name[0]}</span></div>`;
                               }
                             }}
                           />
                         ) : (
-                          <div className="h-8 w-8 rounded-xl grid place-items-center bg-white">
-                            <span className="text-xs text-[#ff5c00] font-semibold">{c.name[0]}</span>
+                          <div className="h-7 w-7 rounded-xl grid place-items-center bg-white">
+                            <span className="text-[11px] text-[#ff5c00] font-semibold">{c.name[0]}</span>
                           </div>
                         )}
                       </div>
