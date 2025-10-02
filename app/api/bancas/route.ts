@@ -38,8 +38,8 @@ async function readStore(): Promise<StoreBanca[]> {
       avatar: banca.cover_image || '',
       description: banca.address,
       categories: banca.categories || [],
-      active: true, // Assumindo que todas as bancas no DB são ativas
-      order: 0
+      active: banca.active !== false,
+      order: banca.order || 0
     }));
   } catch {
     return [];
@@ -97,8 +97,8 @@ export async function GET(req: Request) {
       avatar: banca.cover_image || '',
       description: banca.address,
       categories: banca.categories || [],
-      active: true,
-      order: 0
+      active: banca.active !== false,
+      order: banca.order || 0
     }));
 
     return NextResponse.json(list);

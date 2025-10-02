@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readBancas, writeBancas, type AdminBanca } from "@/lib/server/bancasStore";
+import { supabaseAdmin } from "@/lib/supabase";
+import type { AdminBanca } from "@/app/api/admin/bancas/route";
 
 const SELLER_TOKEN = "seller-token";
 const SELLER_BANCA_MAP: Record<string, string> = {
@@ -15,46 +16,34 @@ function extractSellerId(request: NextRequest): string | null {
 }
 
 async function loadBancaForSeller(sellerId: string): Promise<AdminBanca | null> {
-  const bancaId = SELLER_BANCA_MAP[sellerId];
-  if (!bancaId) return null;
-  const items = await readBancas();
-  return items.find((b) => b.id === bancaId || b.id.endsWith(bancaId)) || null;
+  try {
+    const bancaId = SELLER_BANCA_MAP[sellerId];
+    if (!bancaId || !supabaseAdmin) return null;
+    const { data, error } = await supabaseAdmin
+      .from('bancas')
+      .select('*')
+      .eq('id', bancaId)
+      .single();
+    if (error || !data) return null;
+    return {
+      id: data.id,
+      name: data.name,
+      address: data.address,
+      lat: data.lat,
+      lng: data.lng,
+      cover: data.cover_image || '',
+      avatar: data.cover_image || '',
+      description: data.address,
+      categories: data.categories || [],
+      active: data.active !== false,
+      order: data.order || 0,
+      createdAt: data.created_at,
+    } as AdminBanca;
+  } catch {
+    return null;
+  }
 }
 
-function mergeBanca(existing: AdminBanca, incoming: Partial<AdminBanca>): AdminBanca {
-  return {
-    ...existing,
-    ...incoming,
-    cover: incoming.cover || incoming.images?.cover || existing.cover,
-    avatar: incoming.avatar || incoming.images?.avatar || existing.avatar,
-    images: {
-      ...existing.images,
-      ...incoming.images,
-    },
-    addressObj: {
-      ...existing.addressObj,
-      ...incoming.addressObj,
-    },
-    location: {
-      ...existing.location,
-      ...incoming.location,
-    },
-    contact: {
-      ...existing.contact,
-      ...incoming.contact,
-    },
-    socials: {
-      ...existing.socials,
-      ...incoming.socials,
-    },
-    hours: Array.isArray(incoming.hours) ? incoming.hours : existing.hours,
-    payments: Array.isArray(incoming.payments) ? incoming.payments : existing.payments,
-    gallery: Array.isArray(incoming.gallery) ? incoming.gallery : existing.gallery,
-    categories: Array.isArray(incoming.categories) ? incoming.categories : existing.categories,
-    lat: typeof incoming.lat === "number" ? incoming.lat : incoming.location?.lat ?? existing.lat,
-    lng: typeof incoming.lng === "number" ? incoming.lng : incoming.location?.lng ?? existing.lng,
-  };
-}
 
 export async function GET(request: NextRequest) {
   const sellerId = extractSellerId(request);
@@ -76,21 +65,52 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
   }
 
-  const items = await readBancas();
   const bancaId = SELLER_BANCA_MAP[sellerId];
-  const idx = items.findIndex((b) => b.id === bancaId || b.id.endsWith(bancaId));
-  if (idx === -1) {
+  if (!bancaId || !supabaseAdmin) {
     return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
   }
 
   try {
     const body = await request.json();
     const data = body?.data ?? body;
-    const updated = mergeBanca(items[idx], data);
-    items[idx] = updated;
-    await writeBancas(items);
-    return NextResponse.json({ success: true, data: updated });
+
+    // Preparar dados para atualização no Supabase
+    const updateData: any = {
+      name: data.name,
+      address: data.address || data.addressObj?.street,
+      cep: data.addressObj?.cep || data.cep,
+      lat: data.lat || data.location?.lat,
+      lng: data.lng || data.location?.lng,
+      cover_image: data.cover || data.images?.cover,
+      avatar: data.avatar || data.images?.avatar,
+      categories: data.categories || [],
+      active: data.active !== false,
+      featured: data.featured || false,
+      updated_at: new Date().toISOString()
+    };
+
+    // Remover campos undefined
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+
+    const { data: updatedData, error } = await supabaseAdmin
+      .from('bancas')
+      .update(updateData)
+      .eq('id', bancaId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Update banca error (jornaleiro):', error);
+      return NextResponse.json({ success: false, error: 'Erro ao atualizar banca' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, data: updatedData });
   } catch (e: any) {
+    console.error('Update banca API error (jornaleiro):', e);
     return NextResponse.json({ success: false, error: e?.message || "Erro ao atualizar banca" }, { status: 500 });
   }
 }
