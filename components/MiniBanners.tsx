@@ -29,7 +29,28 @@ export default function MiniBanners() {
 
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);
-  const items = useMemo(() => (BANNERS.length < 6 ? [...BANNERS, ...BANNERS].slice(0, 6) : BANNERS), []);
+  const [remote, setRemote] = useState<string[] | null>(null);
+
+  // Load from API with fallback
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/mini-banners', { cache: 'no-store' });
+        const j = await res.json();
+        const list: string[] = Array.isArray(j?.data)
+          ? (j.data as Array<{ image_url: string }>).map((it) => it.image_url).filter(Boolean)
+          : [];
+        if (list.length) setRemote(list);
+      } catch {
+        // silent fallback
+      }
+    })();
+  }, []);
+
+  const items = useMemo(() => {
+    const base = (remote && remote.length ? remote : BANNERS);
+    return base.length < 6 ? [...base, ...base].slice(0, 6) : base;
+  }, [remote]);
   const track = useMemo(() => [...items, ...items], [items]);
 
   useEffect(() => {

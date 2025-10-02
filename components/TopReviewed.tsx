@@ -11,6 +11,7 @@ type TopItem = {
   id: string;
   title: string;
   vendor: string;
+  description?: string;
   image: string;
   price: number;
   oldPrice?: number;
@@ -98,6 +99,9 @@ function Card({ p }: { p: TopItem }) {
       <div className="p-3">
         <div className="text-[13px] font-semibold leading-tight line-clamp-1">{p.title}</div>
         <div className="text-[12px] text-gray-600 line-clamp-1">{p.vendor}</div>
+        {p.description && (
+          <div className="text-[12px] text-gray-500 line-clamp-1">{p.description}</div>
+        )}
         <div className="mt-1"><RatingPill rating={p.rating} reviews={p.reviews} /></div>
         <div className="mt-2 flex items-baseline gap-2">
           <span className="text-[#ff5c00] font-extrabold">R$ {p.price.toFixed(2)}</span>
@@ -120,9 +124,89 @@ export default function TopReviewed() {
   }, []);
   // Mostrar 2 cards no mobile
   const perView = w < 640 ? 2 : w < 1024 ? 2 : 4;
+  
+  // Carregar produtos reais das categorias Eletrônicos/Informática
+  type ApiProduct = {
+    id: string; name: string; images?: string[]; price?: number; price_original?: number | null;
+    discount_percent?: number | null; rating_avg?: number | null; reviews_count?: number | null; active?: boolean; description?: string; banca_id?: string;
+  };
+  const [items, setItems] = useState<TopItem[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        setLoading(true);
+        // 1) Carregar categorias e obter IDs para eletronicos/informatica
+        const cRes = await fetch('/api/categories', { cache: 'no-store' });
+        const cj = await cRes.json();
+        const cats: Array<{ id: string; link?: string; name?: string }> = Array.isArray(cj?.data) ? cj.data : [];
+        const getIdBySlug = (slug: string) => cats.find(c => c.link?.endsWith(`/categorias/${slug}`))?.id;
+        const catEle = getIdBySlug('eletronicos');
+        const catInfo = getIdBySlug('informatica');
 
-  // Apenas cards (sem promo fixo)
-  const cards = useMemo(() => TOPS.map((p) => ({ type: "card" as const, p })), []);
+        const fetchByCat = async (cat?: string | null) => {
+          if (!cat) return [] as ApiProduct[];
+          const r = await fetch(`/api/products?category=${encodeURIComponent(cat)}&active=true`, { cache: 'no-store' });
+          const j = await r.json();
+          const list: ApiProduct[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
+          return list;
+        };
+
+        // 2) Carregar produtos e bancas para mapear nomes
+        const [listEle, listInfo, bRes] = await Promise.all([
+          fetchByCat(catEle),
+          fetchByCat(catInfo),
+          fetch('/api/bancas', { cache: 'no-store' })
+        ]);
+        const merged = [...listEle, ...listInfo];
+        // Dedupe by id
+        const seen = new Set<string>();
+        const dedup = merged.filter(p => { if (!p?.id || seen.has(p.id)) return false; seen.add(p.id); return true; });
+
+        let bancaMap: Record<string, { name: string }> = {};
+        try {
+          const bj = await bRes.json();
+          const bList: Array<{ id: string; name: string }> = Array.isArray(bj?.data) ? bj.data : [];
+          bancaMap = Object.fromEntries(bList.map(b => [b.id, { name: b.name }]));
+        } catch {}
+
+        // Ordenar: melhor avaliação desc, depois número de reviews desc, depois fallback
+        dedup.sort((a, b) => {
+          const ra = Number(a.rating_avg ?? 0);
+          const rb = Number(b.rating_avg ?? 0);
+          if (rb !== ra) return rb - ra;
+          const ca = Number(a.reviews_count ?? 0);
+          const cb = Number(b.reviews_count ?? 0);
+          if (cb !== ca) return cb - ca;
+          return 0;
+        });
+
+        const mapped: TopItem[] = dedup.slice(0, 8).map(p => ({
+          id: p.id,
+          title: p.name,
+          vendor: (p.banca_id && bancaMap[p.banca_id]?.name) || '',
+          description: p.description,
+          image: (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=1200&auto=format&fit=crop',
+          price: Number(p.price || 0),
+          oldPrice: p.price_original != null ? Number(p.price_original) : undefined,
+          rating: p.rating_avg ?? undefined,
+          reviews: p.reviews_count ?? undefined,
+          available: p.active !== false,
+          discountLabel: (typeof p.discount_percent === 'number' && p.discount_percent > 0) ? `-${Math.round(p.discount_percent)}%` : undefined,
+        }));
+
+        if (alive) setItems(mapped.length ? mapped : TOPS);
+      } catch {
+        if (alive) setItems(TOPS);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const cards = useMemo(() => (Array.isArray(items) && items.length ? items : TOPS).map((p) => ({ type: "card" as const, p })), [items]);
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);
   const loopCards = useMemo(() => [...cards, ...cards], [cards]);
@@ -134,15 +218,34 @@ export default function TopReviewed() {
     return () => clearInterval(id);
   }, []);
 
+  const next = () => {
+    setAnimating(true);
+    setIndex((i) => i + 1);
+  };
+  const prev = () => {
+    if (index === 0) {
+      // salto para o fim sem animação e depois voltar um
+      setAnimating(false);
+      setIndex(cards.length);
+      requestAnimationFrame(() => {
+        setAnimating(true);
+        setIndex(cards.length - 1);
+      });
+    } else {
+      setAnimating(true);
+      setIndex((i) => i - 1);
+    }
+  };
+
   return (
     <section className="w-full">
       <div className="container-max">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Image src="https://stackfood-react.6amtech.com/_next/static/media/best_foods.7a9b751b.svg" alt="Melhores avaliados" width={23} height={23} />
-            <h2 className="text-lg sm:text-xl font-semibold">Os mais bem Avaliados</h2>
+            <Image src="https://stackfood-react.6amtech.com/_next/static/media/best_foods.7a9b751b.svg" alt="Eletrônicos e Informática" width={23} height={23} />
+            <h2 className="text-lg sm:text-xl font-semibold">Eletrônicos e Informática</h2>
           </div>
-          <Link href="/buscar?q=melhor%20avaliados" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
+          <Link href="/categorias/informatica" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
         </div>
 
         <div className="relative">
@@ -168,6 +271,23 @@ export default function TopReviewed() {
               ))}
             </div>
           </div>
+          {/* Arrows */}
+          <button
+            type="button"
+            onClick={prev}
+            aria-label="Anterior"
+            className="absolute left-0 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-700 shadow rounded-full h-9 w-9 grid place-items-center"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <button
+            type="button"
+            onClick={next}
+            aria-label="Próximo"
+            className="absolute right-0 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-700 shadow rounded-full h-9 w-9 grid place-items-center"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
         </div>
       </div>
     </section>
@@ -223,6 +343,9 @@ function EnhancedCard({ p }: { p: TopItem }) {
           <div className="min-w-0">
             <div className="text-[13px] font-semibold leading-tight line-clamp-1">{p.title}</div>
             <div className="text-[12px] text-gray-600 line-clamp-1">{p.vendor}</div>
+            {p.description && (
+              <div className="text-[12px] text-gray-500 line-clamp-1">{p.description}</div>
+            )}
           </div>
           <ReadyBadge />
         </div>

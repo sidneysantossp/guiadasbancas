@@ -188,7 +188,7 @@ export default function FavoritePicks() {
         setLoading(true);
         // Futuro: usar histórico do usuário. Início: fallback para últimas novidades
         const [pRes, bRes] = await Promise.all([
-          fetch('/api/products?limit=6&sort=created_at&order=desc', { cache: 'no-store' }),
+          fetch('/api/products?limit=9&sort=created_at&order=desc', { cache: 'no-store' }),
           fetch('/api/admin/bancas', { cache: 'no-store' }),
         ]);
         let list: ApiProduct[] = [];
@@ -237,7 +237,7 @@ export default function FavoritePicks() {
     return () => { active = false; };
   }, []);
 
-  const data = useMemo(() => Array.isArray(items) ? items : [], [items]);
+  const data = useMemo(() => Array.isArray(items) ? items.slice(0, 9) : [], [items]);
 
   if (!loading && data.length === 0) return null;
 
@@ -255,7 +255,7 @@ export default function FavoritePicks() {
         {/* Grid 2 linhas x 3 colunas (6 cards) */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 9 }).map((_, i) => (
               <div key={i} className="rounded-2xl bg-gray-100 animate-pulse h-28"></div>
             ))}
           </div>

@@ -181,7 +181,7 @@ export default function NewBancaPage() {
           <div className="rounded-lg border border-gray-200 bg-white p-4">
             <h3 className="text-sm font-medium mb-3">Categorias</h3>
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {categories.map((category) => (
+              {categories.map((category: any) => (
                 <label key={category.id} className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"

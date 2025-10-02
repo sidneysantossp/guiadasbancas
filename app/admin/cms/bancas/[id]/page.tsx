@@ -185,6 +185,31 @@ export default function EditBancaPage() {
   // Verificar se CEP está preenchido corretamente
   const isCepValid = cep.length === 9;
 
+  // Navegação entre abas
+  const currentTabIndex = tabs.findIndex(tab => tab.id === activeTab);
+  const canGoNext = currentTabIndex < tabs.length - 1;
+
+  const goToNextTab = () => {
+    if (canGoNext) {
+      setActiveTab(tabs[currentTabIndex + 1].id);
+    }
+  };
+
+  // Botão reutilizável de "Próximo" para navegar entre abas
+  const TabNextButton = () => (
+    canGoNext ? (
+      <div className="pt-4 border-t border-gray-200 text-right">
+        <button
+          type="button"
+          onClick={goToNextTab}
+          className="px-4 py-2 text-sm font-medium text-white bg-[#ff5c00] rounded-md hover:opacity-90"
+        >
+          Próximo →
+        </button>
+      </div>
+    ) : null
+  );
+
   const updateHour = (index: number, field: string, value: any) => {
     setHours(prev => prev.map((hour, i) => 
       i === index ? { ...hour, [field]: value } : hour
@@ -304,29 +329,32 @@ export default function EditBancaPage() {
             <div className="p-6">
               {/* Aba Básico */}
               {activeTab === 'basico' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Nome da Banca</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
-                    />
-                  </div>
+                <>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Nome da Banca</label>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="text-sm font-medium">Descrição</label>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      rows={4}
-                      placeholder="Descrição da banca..."
-                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
-                    />
+                    <div>
+                      <label className="text-sm font-medium">Descrição</label>
+                      <textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        rows={4}
+                        placeholder="Descrição da banca..."
+                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
+                      />
+                    </div>
                   </div>
-                </div>
+                  <TabNextButton />
+                </>
               )}
 
               {/* Aba Endereço */}
@@ -499,6 +527,7 @@ export default function EditBancaPage() {
                       </div>
                     </div>
                   )}
+                  <TabNextButton />
                 </div>
               )}
 
@@ -550,6 +579,7 @@ export default function EditBancaPage() {
                       />
                     </div>
                   </div>
+                  <TabNextButton />
                 </div>
               )}
 
@@ -570,6 +600,7 @@ export default function EditBancaPage() {
                     placeholder="https://exemplo.com/avatar.jpg"
                     className="h-40 w-40 mx-auto"
                   />
+                  <TabNextButton />
                 </div>
               )}
 
@@ -609,6 +640,7 @@ export default function EditBancaPage() {
                       )}
                     </div>
                   ))}
+                  <TabNextButton />
                 </div>
               )}
 

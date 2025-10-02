@@ -68,7 +68,7 @@ export default function CampaignSection() {
   if (loading) {
     return (
       <section className="py-12 bg-gradient-to-r from-orange-50 to-red-50">
-        <div className="container mx-auto px-4">
+        <div className="container-max">
           <div className="text-center">Carregando ofertas...</div>
         </div>
       </section>
@@ -80,21 +80,18 @@ export default function CampaignSection() {
   }
 
   return (
-    <section 
-      className="py-12 relative bg-gradient-to-r from-orange-50 to-red-50"
-      style={{
-        backgroundImage: 'url(https://stackfood-react.6amtech.com/static/paidAdds.png)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      }}
-    >
-      {/* Overlay para melhor legibilidade */}
-      <div className="absolute inset-0 bg-white/80"></div>
-      
-      <div className="container mx-auto px-4 relative z-10">
+    <section className="bg-white">
+      <div 
+        className="container-max relative z-10 rounded-2xl px-3 sm:px-6 md:px-8 py-3"
+        style={{
+          backgroundImage: 'url(https://stackfood-react.6amtech.com/static/paidAdds.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-4">
           <div className="text-2xl">🔥</div>
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Ofertas Relâmpago</h2>

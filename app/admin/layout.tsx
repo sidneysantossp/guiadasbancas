@@ -47,6 +47,7 @@ const ADMIN_MENU = [
       { label: "Campanhas", href: "/admin/campaigns", icon: "📢" },
       { label: "Cupons", href: "/admin/coupons", icon: "🎫" },
       { label: "Banners", href: "/admin/banners", icon: "🖼️" },
+      { label: "Mini Banners", href: "/admin/cms/mini-banners", icon: "🧩" },
       { label: "Newsletter", href: "/admin/newsletter", icon: "📧" },
     ]
   },

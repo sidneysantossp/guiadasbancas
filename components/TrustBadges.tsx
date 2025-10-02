@@ -44,25 +44,8 @@ export default function TrustBadges({ className = "", variant = 'large' }: Props
 
     return (
       <>
-        {/* Mobile grid - all 4 in one row */}
-        <div className={`sm:hidden grid grid-cols-4 gap-1 items-center justify-items-center ${className}`}>
-          <div className="flex flex-col items-center gap-1 group relative" title="Compra Segura" aria-label="Compra Segura">
-            {IconCompraSegura}
-            <span className="font-medium text-gray-700 text-[9px] text-center leading-tight">Compra<br />Segura</span>
-          </div>
-          <div className="flex flex-col items-center gap-1 group relative" title="Responde Rápido" aria-label="Responde Rápido">
-            {IconBancaVerificada}
-            <span className="font-medium text-gray-700 text-[9px] text-center leading-tight">Responde<br />Rápido</span>
-          </div>
-          <div className="flex flex-col items-center gap-1 group relative" title="Pagamento Facilitado" aria-label="Pagamento Facilitado">
-            {IconPagamento}
-            <span className="font-medium text-gray-700 text-[9px] text-center leading-tight">Pagamento<br />Facilitado</span>
-          </div>
-          <div className="flex flex-col items-center gap-1 group relative" title="Pronta Entrega" aria-label="Pronta Entrega">
-            {IconProntaEntrega}
-            <span className="font-medium text-gray-700 text-[9px] text-center leading-tight">Pronta<br />Entrega</span>
-          </div>
-        </div>
+        {/* Mobile grid hidden as requested */}
+        <div className={`hidden ${className}`}></div>
         {/* Desktop grid */}
         <div className={wrap}>
           <div className={`${item} group relative`} title="Compra Segura" aria-label="Compra Segura">
@@ -105,33 +88,8 @@ export default function TrustBadges({ className = "", variant = 'large' }: Props
 
   return (
     <>
-      {/* Mobile slider (perfil) */}
-      <div className={`md:hidden relative overflow-hidden ${className}`} aria-roledescription="carousel">
-        <div className="flex transition-transform duration-500" style={{ width: `${slides.length * 100}%`, transform: `translateX(-${pIdx * (100 / slides.length)}%)` }}>
-          {slides.map((pair, s) => (
-            <div key={s} className="w-full flex-shrink-0 px-2" style={{ width: `${100 / slides.length}%` }}>
-              <div className="grid grid-cols-2 gap-3 items-stretch">
-                {pair.map((e, i) => (
-                  <div key={i} className={cardBase} title={e.label} aria-label={e.label}>
-                    <Image src={e.src} alt={e.label} width={24} height={24} className={iconCls} />
-                    {(() => {
-                      const [first, ...rest] = (e.label || '').split(' ');
-                      return (
-                        <span className={textCls}>
-                          <span className="block sm:inline">{first}</span>
-                          {rest.length > 0 && (
-                            <span className="block sm:inline"> {rest.join(' ')}</span>
-                          )}
-                        </span>
-                      );
-                    })()}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Mobile hidden as requested */}
+      <div className={`hidden ${className}`} aria-roledescription="carousel" />
       {/* Desktop grid (perfil) */}
       <div className={`hidden md:grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-2 w-full md:justify-items-start ${className}`}>
         {/* Compra Segura */}
