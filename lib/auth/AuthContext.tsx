@@ -82,24 +82,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Registro
   const signUp = async (email: string, password: string, metadata: { full_name: string; role: UserRole }) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: metadata.full_name,
-            role: metadata.role,
-          },
-        },
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          full_name: metadata.full_name,
+          role: metadata.role,
+        }),
       });
 
-      if (error) {
-        console.error('Supabase signUp error:', error);
-        return { error: new Error(error.message) };
-      }
+      const data = await response.json();
 
-      if (!data.user) {
-        return { error: new Error('Falha ao criar usuário') };
+      if (!response.ok || data.error) {
+        console.error('Signup API error:', data.error);
+        return { error: new Error(data.error || 'Erro ao criar conta') };
       }
 
       return { error: null };
