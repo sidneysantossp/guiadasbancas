@@ -82,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Registro
   const signUp = async (email: string, password: string, metadata: { full_name: string; role: UserRole }) => {
     try {
+      // 1. Criar usuário via API
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -98,6 +99,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!response.ok || data.error) {
         console.error('Signup API error:', data.error);
         return { error: new Error(data.error || 'Erro ao criar conta') };
+      }
+
+      // 2. Fazer login automático após criar conta
+      const loginResult = await nextSignIn("credentials", {
+        redirect: false,
+        email,
+        password,
+      });
+
+      if (loginResult?.error) {
+        console.warn('Login automático falhou após signup:', loginResult.error);
+        // Não retornar erro aqui, pois a conta foi criada com sucesso
       }
 
       return { error: null };
