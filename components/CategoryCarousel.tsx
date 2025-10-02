@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import SafeImage from "./SafeImage";
 import { useCategories } from "@/lib/useCategories";
 
 function useItemsPerView(length: number) {
@@ -78,7 +78,7 @@ export default function CategoryCarousel() {
                     }}
                   >
                     <div className={`relative h-24 w-24 sm:h-28 sm:w-28 md:h-28 md:w-28 rounded-[24px] sm:rounded-[28px] overflow-hidden shadow-sm transition-transform group-hover:-translate-y-0.5`}>
-                      <Image src={c.image!} alt={c.name} fill className="object-cover" />
+                      <SafeImage src={c.image} alt={c.name} fill className="object-cover" />
                     </div>
                     <div className="text-sm text-gray-800 font-medium text-center">{c.name}</div>
                   </Link>
