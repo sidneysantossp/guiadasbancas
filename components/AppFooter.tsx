@@ -74,8 +74,8 @@ export default function AppFooter() {
           <div>
             <div className="text-sm font-semibold text-white">Para o Jornaleiro</div>
             <ul className="mt-3 space-y-2 text-sm text-gray-300">
-              <li><Link href="#">Cadastre sua banca</Link></li>
-              <li><Link href="#">Planos e Preços</Link></li>
+              <li><Link href="/jornaleiro/registrar">Cadastre sua banca</Link></li>
+              <li><Link href="/jornaleiro">Fazer login</Link></li>
               <li><Link href="#">Central de ajuda</Link></li>
               <li><Link href="#">Termos para Parceiros</Link></li>
             </ul>
