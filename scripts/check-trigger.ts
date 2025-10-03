@@ -23,7 +23,7 @@ async function checkTrigger() {
       // Verificar se já tem perfil
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
-        .select('id')
+        .select('id, role')
         .eq('id', user.id)
         .single();
 
@@ -54,7 +54,7 @@ async function checkTrigger() {
           console.log(`   ✅ Perfil criado com sucesso!`);
         }
       } else {
-        console.log(`✅ Usuário com perfil: ${user.email} (role: ${profile.role || 'N/A'})`);
+        console.log(`✅ Usuário com perfil: ${user.email} (role: ${(profile as any).role || 'N/A'})`);
       }
     }
 
