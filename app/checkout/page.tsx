@@ -649,7 +649,7 @@ export default function CheckoutPage() {
                 {/* Seleção de endereço - SEMPRE aparece */}
                 <div className="mt-3 space-y-2">
                   <div className="text-sm font-semibold">
-                    {shipping === "retirada" ? "Endereço (opcional)" : "Endereço de entrega"}
+                    {shipping === "retirada" ? "Endereço (opcional)" : "Endereço"}
                   </div>
                   {shipping === "retirada" && (
                     <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded p-2">
