@@ -35,6 +35,51 @@ export default function JornaleiroRegisterPage() {
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Field-level errors (Step 1)
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    cpf?: string;
+    phone?: string;
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
+
+  const setErrorField = (k: keyof typeof fieldErrors, msg?: string) => setFieldErrors(prev => ({ ...prev, [k]: msg }));
+
+  // Field validators
+  const validateName = (v: string) => {
+    if (!v.trim()) return 'Informe seu nome completo.';
+    if (v.trim().length < 6) return 'Nome muito curto. Use nome e sobrenome.';
+    return undefined;
+  };
+  const validateCpf = (v: string) => {
+    const only = (v || '').replace(/\D/g, '');
+    if (!only) return 'Informe seu CPF.';
+    if (only.length !== 11) return 'CPF incompleto. Utilize 11 dígitos.';
+    return isValidCPF(v) ? undefined : 'CPF inválido. Verifique os dígitos.';
+  };
+  const validatePhone = (v: string) => {
+    const only = (v || '').replace(/\D/g, '');
+    if (!only) return 'Informe seu WhatsApp.';
+    if (only.length !== 11) return 'Número inválido. Use DDD + 9 dígitos.';
+    return undefined;
+  };
+  const validateEmailField = (v: string) => {
+    if (!v.trim()) return 'Informe seu email.';
+    return /[^\s@]+@[^\s@]+\.[^\s@]+/.test(v) ? undefined : 'Email inválido.';
+  };
+  const validatePasswordField = (v: string) => {
+    if (!v) return 'Crie uma senha.';
+    if (v.length < 6) return 'A senha deve ter pelo menos 6 caracteres.';
+    return undefined;
+  };
+  const validateConfirmField = (v: string, p: string) => {
+    if (!v) return 'Confirme sua senha.';
+    if (v !== p) return 'A confirmação não confere com a senha.';
+    return undefined;
+  };
+
   // Força da senha (0 a 4)
   const passwordScore = (s: string) => {
     let score = 0;
@@ -268,6 +313,13 @@ export default function JornaleiroRegisterPage() {
     fetchAndFillCep(only);
   }, [cep, lastCepFetched]);
 
+  // Prefill service phone on step 2 from step 1 phone
+  useEffect(() => {
+    if (step === 2 && !servicePhone && phone) {
+      setServicePhone(phone);
+    }
+  }, [step, servicePhone, phone]);
+
   // Lista de estados (sigla + nome)
   const STATES: { uf: string; name: string }[] = [
     { uf: 'AC', name: 'Acre' },
@@ -350,8 +402,14 @@ export default function JornaleiroRegisterPage() {
   const onNext = async () => {
     setError(null);
     if (step === 1) {
-      const err = validateStep1();
-      if (err) { setError(err); return; }
+      // Validate field-level and block next if any error
+      const e1 = validateName(name); setErrorField('name', e1);
+      const e2 = validateCpf(cpf); setErrorField('cpf', e2);
+      const e3 = validatePhone(phone); setErrorField('phone', e3);
+      const e4 = validateEmailField(email); setErrorField('email', e4);
+      const e5 = validatePasswordField(password); setErrorField('password', e5);
+      const e6 = validateConfirmField(confirmPassword, password); setErrorField('confirmPassword', e6);
+      if (e1 || e2 || e3 || e4 || e5 || e6) { return; }
       setStep(2);
       return;
     }
@@ -559,57 +617,92 @@ export default function JornaleiroRegisterPage() {
         )}
 
         {step === 1 && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="mt-4 grid grid-cols-1 gap-3">
             <div>
               <label className="text-[12px] text-gray-700">Nome completo</label>
-              <input className="input mt-1 w-full" value={name} onChange={(e)=>setName(e.target.value)} />
+              <input
+                className={`input mt-1 w-full ${fieldErrors.name ? 'border-rose-400' : ''}`}
+                value={name}
+                required
+                aria-invalid={!!fieldErrors.name}
+                onChange={(e)=>{ setName(e.target.value); if (fieldErrors.name) setErrorField('name'); }}
+                onBlur={()=> setErrorField('name', validateName(name))}
+              />
+              {fieldErrors.name && <div className="mt-1 text-[11px] text-rose-600">{fieldErrors.name}</div>}
             </div>
-            <div>
-              <label className="text-[12px] text-gray-700">CPF</label>
-              <div className="relative mt-1">
-                <input
-                  ref={cpfInputRef}
-                  className="input w-full pr-10"
-                  value={cpf}
-                  onChange={(e)=>setCpf(maskCPF(e.target.value))}
-                  onKeyDown={(e)=>{ if (e.key === 'Enter' && cpfValid) { e.preventDefault(); phoneInputRef.current?.focus(); } }}
-                  placeholder="000.000.000-00"
-                />
-                {cpfOnly.length === 11 && cpfValid && (
-                  <span className="pointer-events-none absolute inset-y-0 right-2 grid place-items-center text-emerald-600">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
-                  </span>
-                )}
+            {/* Linha: CPF e WhatsApp lado a lado */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[12px] text-gray-700">CPF</label>
+                <div className="relative mt-1">
+                  <input
+                    ref={cpfInputRef}
+                    className={`input w-full pr-10 ${fieldErrors.cpf ? 'border-rose-400' : ''}`}
+                    value={cpf}
+                    onChange={(e)=>setCpf(maskCPF(e.target.value))}
+                    onKeyDown={(e)=>{ if (e.key === 'Enter' && cpfValid) { e.preventDefault(); phoneInputRef.current?.focus(); } }}
+                    placeholder="000.000.000-00"
+                    required
+                    aria-invalid={!!fieldErrors.cpf}
+                    onBlur={()=> setErrorField('cpf', validateCpf(cpf))}
+                  />
+                  {cpfOnly.length === 11 && cpfValid && (
+                    <span className="pointer-events-none absolute inset-y-0 right-2 grid place-items-center text-emerald-600">
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+                    </span>
+                  )}
+                </div>
+                {fieldErrors.cpf ? (
+                  <div className="mt-1 text-[11px] text-rose-600">{fieldErrors.cpf}</div>
+                ) : (cpfOnly.length === 11 && !cpfValid && (
+                  <div className="mt-1 text-[11px] text-rose-600">CPF inválido. Verifique os dígitos informados.</div>
+                ))}
               </div>
-              {cpfOnly.length === 11 && !cpfValid && (
-                <div className="mt-1 text-[11px] text-rose-600">CPF inválido. Verifique os dígitos informados.</div>
-              )}
-            </div>
-            <div>
-              <label className="text-[12px] text-gray-700">Whatsapp</label>
-              <div className="relative">
-                <input ref={phoneInputRef} className="input mt-1 w-full pr-16" value={phone} onChange={(e)=>setPhone(maskPhoneBR(e.target.value))} placeholder="(00) 00000-0000" />
-                {phoneValid && (
-                  <span className="pointer-events-none absolute inset-y-0 right-2 grid place-items-center text-emerald-600">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
-                  </span>
-                )}
-                {!!phone && (
-                  <button
-                    type="button"
-                    aria-label="Limpar WhatsApp"
-                    className="absolute inset-y-0 right-8 grid place-items-center text-gray-400 hover:text-gray-600"
-                    onClick={() => { setPhone(""); setTimeout(()=>phoneInputRef.current?.focus(), 0); }}
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
-                  </button>
-                )}
+              <div>
+                <label className="text-[12px] text-gray-700">Whatsapp</label>
+                <div className="relative">
+                  <input
+                    ref={phoneInputRef}
+                    className={`input mt-1 w-full pr-16 ${fieldErrors.phone ? 'border-rose-400' : ''}`}
+                    value={phone}
+                    onChange={(e)=>{ setPhone(maskPhoneBR(e.target.value)); if (fieldErrors.phone) setErrorField('phone'); }}
+                    onBlur={()=> setErrorField('phone', validatePhone(phone))}
+                    placeholder="(00) 00000-0000"
+                    required
+                    aria-invalid={!!fieldErrors.phone}
+                  />
+                  {phoneValid && (
+                    <span className="pointer-events-none absolute inset-y-0 right-2 grid place-items-center text-emerald-600">
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+                    </span>
+                  )}
+                  {!!phone && (
+                    <button
+                      type="button"
+                      aria-label="Limpar WhatsApp"
+                      className="absolute inset-y-0 right-8 grid place-items-center text-gray-400 hover:text-gray-600"
+                      onClick={() => { setPhone(""); setTimeout(()=>phoneInputRef.current?.focus(), 0); }}
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                    </button>
+                  )}
+                </div>
+                {fieldErrors.phone && <div className="mt-1 text-[11px] text-rose-600">{fieldErrors.phone}</div>}
               </div>
             </div>
             <div>
               <label className="text-[12px] text-gray-700">Email</label>
               <div className="relative">
-                <input ref={emailInputRef} type="email" className="input mt-1 w-full pr-16" value={email} onChange={(e)=>setEmail(e.target.value)} />
+                <input
+                  ref={emailInputRef}
+                  type="email"
+                  className={`input mt-1 w-full pr-16 ${fieldErrors.email ? 'border-rose-400' : ''}`}
+                  value={email}
+                  onChange={(e)=>{ setEmail(e.target.value); if (fieldErrors.email) setErrorField('email'); }}
+                  onBlur={()=> setErrorField('email', validateEmailField(email))}
+                  required
+                  aria-invalid={!!fieldErrors.email}
+                />
                 {emailValid && (
                   <span className="pointer-events-none absolute inset-y-0 right-2 grid place-items-center text-emerald-600">
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
@@ -626,10 +719,19 @@ export default function JornaleiroRegisterPage() {
                   </button>
                 )}
               </div>
+              {fieldErrors.email && <div className="mt-1 text-[11px] text-rose-600">{fieldErrors.email}</div>}
             </div>
             <div className="relative">
               <label className="text-[12px] text-gray-700">Senha</label>
-              <input type={showPassword ? 'text' : 'password'} className="input mt-1 w-full pr-10" value={password} onChange={(e)=>setPassword(e.target.value)} />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className={`input mt-1 w-full pr-10 ${fieldErrors.password ? 'border-rose-400' : ''}`}
+                value={password}
+                onChange={(e)=>{ setPassword(e.target.value); if (fieldErrors.password) setErrorField('password'); }}
+                onBlur={()=> setErrorField('password', validatePasswordField(password))}
+                required
+                aria-invalid={!!fieldErrors.password}
+              />
               <button type="button" aria-label="Mostrar senha" onClick={()=>setShowPassword(v=>!v)} className="absolute right-2 top-[34px] text-gray-500 hover:text-black">
                 {showPassword ? (
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.74-1.73 2.1-3.64 3.95-5.22M9.9 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8-."></path><path d="M1 1l22 22"></path></svg>
@@ -653,7 +755,15 @@ export default function JornaleiroRegisterPage() {
             {password && (
               <div className="relative">
                 <label className="text-[12px] text-gray-700">Confirmar senha</label>
-                <input type={showConfirm ? 'text' : 'password'} className="input mt-1 w-full pr-10" value={confirmPassword} onChange={(e)=>setConfirmPassword(e.target.value)} />
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  className={`input mt-1 w-full pr-10 ${fieldErrors.confirmPassword ? 'border-rose-400' : ''}`}
+                  value={confirmPassword}
+                  onChange={(e)=>{ setConfirmPassword(e.target.value); if (fieldErrors.confirmPassword) setErrorField('confirmPassword'); }}
+                  onBlur={()=> setErrorField('confirmPassword', validateConfirmField(confirmPassword, password))}
+                  required
+                  aria-invalid={!!fieldErrors.confirmPassword}
+                />
                 <button type="button" aria-label="Mostrar confirmação" onClick={()=>setShowConfirm(v=>!v)} className="absolute right-2 top-[34px] text-gray-500 hover:text-black">
                   {showConfirm ? (
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.74-1.73 2.1-3.64 3.95-5.22M9.9 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8-."></path><path d="M1 1l22 22"></path></svg>
@@ -661,6 +771,7 @@ export default function JornaleiroRegisterPage() {
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
                   )}
                 </button>
+                {fieldErrors.confirmPassword && <div className="mt-1 text-[11px] text-rose-600">{fieldErrors.confirmPassword}</div>}
                 {/* Barra de força da confirmação */}
                 {confirmPassword && (() => {
                   const meta = scoreToMeta(passwordScore(confirmPassword));
@@ -680,71 +791,65 @@ export default function JornaleiroRegisterPage() {
 
         {step === 2 && (
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[12px] text-gray-700">CEP</label>
-              <div className="relative mt-1 inline-block w-full md:w-1/2">
-                <input
-                  className="input w-full border-[#ff5c00] bg-orange-50 pr-10 focus:border-[#ff5c00] focus:ring-[#ff5c00]/30"
-                  ref={cepInputRef}
-                  value={cep}
-                  onChange={(e)=>{ setCep(maskCEP(e.target.value)); if (cepError) setCepError(null); }}
-                  onBlur={onCepBlur}
-                  onKeyDown={(e)=>{ if (e.key === 'Enter') { if (cepReady) { e.preventDefault(); numberInputRef.current?.focus(); } } }}
-                  placeholder="00000-000"
-                />
-                {loadingCep && (
-                  <span className="pointer-events-none absolute inset-y-0 right-2 grid place-items-center text-[#ff5c00]">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="9" className="opacity-25" />
-                      <path d="M21 12a9 9 0 0 1-9 9" className="opacity-75" />
-                    </svg>
-                  </span>
-                )}
-                {!loadingCep && cepValid && (
-                  <span className="pointer-events-none absolute inset-y-0 right-2 grid place-items-center text-emerald-600">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
-                  </span>
-                )}
-                {!loadingCep && !!cep && (
-                  <button
-                    type="button"
-                    aria-label="Limpar CEP"
-                    className="absolute inset-y-0 right-8 grid place-items-center text-gray-400 hover:text-gray-600"
-                    onClick={() => {
-                      setCep("");
-                      setCepError(null);
-                      setStreet(""); setNeighborhood(""); setCity(""); setUf("");
-                      setNumber(""); setComplement("");
-                      setLastCepFetched("");
-                      setTimeout(()=>cepInputRef.current?.focus(), 0);
-                    }}
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
-                  </button>
-                )}
-              </div>
-              <div className="mt-1 text-[11px]">
-                {!cepError ? (
-                  <span className="text-gray-500">Digite o CEP completo para liberar os campos de endereço.</span>
-                ) : (
-                  <span className="text-rose-600">{cepError}</span>
-                )}
-              </div>
+            {/* Nome da banca acima do CEP */}
+            <div className="md:col-span-2">
+              <label className="text-[12px] text-gray-700">Nome da banca</label>
+              <input className="input mt-1 w-full" value={bankName} onChange={(e)=>setBankName(e.target.value)} />
             </div>
-            <div className="flex items-end justify-end md:col-span-2 -mt-2">
-              <button
-                type="button"
-                className="text-[12px] rounded-md border border-gray-300 bg-white px-3 py-1 hover:bg-gray-50"
-                onClick={() => {
-                  setCep(""); setCepError(null); setStreet(""); setNeighborhood(""); setCity(""); setUf(""); setNumber(""); setComplement(""); setLastCepFetched(""); setTimeout(()=>cepInputRef.current?.focus(), 0);
-                }}
-              >Limpar endereço</button>
-            </div>
-            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="md:col-span-3">
+            {/* Linha dedicada: CEP (esquerda) + Endereço (direita) alinhados */}
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3 items-end">
+              <div>
+                <label className="block text-[12px] text-gray-700">CEP</label>
+                <div className="relative mt-1 w-full">
+                  <input
+                    className="input w-full border-[#ff5c00] bg-orange-50 pr-10 focus:border-[#ff5c00] focus:ring-[#ff5c00]/30"
+                    ref={cepInputRef}
+                    value={cep}
+                    onChange={(e)=>{ setCep(maskCEP(e.target.value)); if (cepError) setCepError(null); }}
+                    onBlur={onCepBlur}
+                    onKeyDown={(e)=>{ if (e.key === 'Enter') { if (cepReady) { e.preventDefault(); numberInputRef.current?.focus(); } } }}
+                    placeholder="00000-000"
+                  />
+                  {loadingCep && (
+                    <span className="pointer-events-none absolute inset-y-0 right-2 grid place-items-center text-[#ff5c00]">
+                      <svg viewBox="0 0 24 24" className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="9" className="opacity-25" />
+                        <path d="M21 12a9 9 0 0 1-9 9" className="opacity-75" />
+                      </svg>
+                    </span>
+                  )}
+                  {!loadingCep && cepValid && (
+                    <span className="pointer-events-none absolute inset-y-0 right-2 grid place-items-center text-emerald-600">
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+                    </span>
+                  )}
+                  {!loadingCep && !!cep && (
+                    <button
+                      type="button"
+                      aria-label="Limpar CEP"
+                      className="absolute inset-y-0 right-8 grid place-items-center text-gray-400 hover:text-gray-600"
+                      onClick={() => {
+                        setCep("");
+                        setCepError(null);
+                        setStreet(""); setNeighborhood(""); setCity(""); setUf("");
+                        setNumber(""); setComplement("");
+                        setLastCepFetched("");
+                        setTimeout(()=>cepInputRef.current?.focus(), 0);
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
                 <label className="text-[12px] text-gray-700">Endereço</label>
                 <input className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={street} onChange={(e)=>setStreet(e.target.value)} disabled={!cepReady} />
               </div>
+            </div>
+
+            {/* Campos complementares de endereço */}
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="md:col-span-1">
                 <label className="text-[12px] text-gray-700">Número</label>
                 <input ref={numberInputRef} className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={number} onChange={(e)=>setNumber(e.target.value)} placeholder="Nº" disabled={!cepReady} />
@@ -772,29 +877,11 @@ export default function JornaleiroRegisterPage() {
               </div>
             </div>
             <div className="md:col-span-2">
-              <label className="text-[12px] text-gray-700">Nome da banca</label>
-              <input className="input mt-1 w-full" value={bankName} onChange={(e)=>setBankName(e.target.value)} />
-            </div>
-            
-            <div className="md:col-span-2">
               <label className="text-[12px] text-gray-700">WhatsApp de atendimento</label>
               <input className="input mt-1 w-full" placeholder="(00) 00000-0000" value={servicePhone} onChange={(e)=>setServicePhone(maskPhoneBR(e.target.value))} />
             </div>
 
-            {/* Geocodificar lat/lng */}
-            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-5 gap-3">
-              <div className="md:col-span-2">
-                <label className="text-[12px] text-gray-700">Latitude</label>
-                <input className="input mt-1 w-full" placeholder="-23.56" value={lat2} onChange={(e)=>setLat2(e.target.value)} />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-[12px] text-gray-700">Longitude</label>
-                <input className="input mt-1 w-full" placeholder="-46.65" value={lng2} onChange={(e)=>setLng2(e.target.value)} />
-              </div>
-              <div className="md:col-span-1 flex items-end">
-                <button type="button" onClick={geocodeAddress} className="w-full text-[12px] rounded-md border border-gray-300 bg-white px-3 py-2 hover:bg-gray-50">Geocodificar</button>
-              </div>
-            </div>
+            {/* Geolocalização oculta nesta etapa (mantida apenas em memória) */}
             
           </div>
         )}

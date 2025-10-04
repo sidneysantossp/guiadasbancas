@@ -23,46 +23,20 @@ export default function NotificationCenter() {
 
   useEffect(() => {
     loadNotifications();
-    // Simular verificação periódica de novas notificações
-    const interval = setInterval(checkNewNotifications, 30000); // 30 segundos
-    return () => clearInterval(interval);
+    // Verificação periódica desabilitada para produção
+    // const interval = setInterval(checkNewNotifications, 30000);
+    // return () => clearInterval(interval);
   }, []);
 
   const loadNotifications = async () => {
     try {
       setLoading(true);
-      // Simulação de API - em produção seria /api/notifications
-      const mockNotifications: Notification[] = [
-        {
-          id: "notif-1",
-          type: "new_order",
-          title: "Novo Pedido Recebido",
-          message: "Pedido #ORD-001 de João Silva - R$ 33,50",
-          timestamp: new Date().toISOString(),
-          read: false,
-          order_id: "ORD-001",
-          priority: "high"
-        },
-        {
-          id: "notif-2",
-          type: "status_change",
-          title: "Pedido Entregue",
-          message: "Pedido #ORD-002 foi marcado como entregue",
-          timestamp: new Date(Date.now() - 3600000).toISOString(),
-          read: false,
-          order_id: "ORD-002",
-          priority: "medium"
-        },
-        {
-          id: "notif-3",
-          type: "system",
-          title: "Sistema Atualizado",
-          message: "Nova versão do sistema disponível com melhorias",
-          timestamp: new Date(Date.now() - 7200000).toISOString(),
-          read: true,
-          priority: "low"
-        }
-      ];
+      // Em produção, carregar notificações reais da API
+      // const response = await fetch('/api/notifications');
+      // const data = await response.json();
+      
+      // Por enquanto, sem notificações de demonstração
+      const mockNotifications: Notification[] = [];
       
       setNotifications(mockNotifications);
       setUnreadCount(mockNotifications.filter(n => !n.read).length);

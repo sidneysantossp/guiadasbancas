@@ -1,24 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { auth } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
-
-function verifySellerAuth(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  return Boolean(authHeader && authHeader.startsWith("Bearer "));
-}
 
 // GET - Listar campanhas do jornaleiro
 export async function GET(request: NextRequest) {
   try {
-    if (!verifySellerAuth(request)) {
+    const session = await auth();
+    
+    if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
     }
 
-    // TODO: Implementar autenticação real do jornaleiro
-    // Por enquanto, vamos buscar todas as campanhas
+    // Buscar banca_id do usuário
+    const { data: banca } = await supabaseAdmin
+      .from('bancas')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (!banca) {
+      return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+    }
+
     const { searchParams } = new URL(request.url);
-    const bancaId = searchParams.get('banca_id');
     const status = searchParams.get('status');
 
     let query = supabaseAdmin
@@ -52,11 +58,8 @@ export async function GET(request: NextRequest) {
           pre_venda
         )
       `)
+      .eq('banca_id', banca.id) // FILTRAR APENAS DA BANCA DO USUÁRIO
       .order('created_at', { ascending: false });
-
-    if (bancaId) {
-      query = query.eq('banca_id', bancaId);
-    }
 
     if (status) {
       query = query.eq('status', status);
@@ -83,12 +86,25 @@ export async function GET(request: NextRequest) {
 // POST - Criar nova campanha
 export async function POST(request: NextRequest) {
   try {
-    if (!verifySellerAuth(request)) {
+    const session = await auth();
+    
+    if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
     }
 
+    // Buscar banca_id do usuário
+    const { data: banca } = await supabaseAdmin
+      .from('bancas')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (!banca) {
+      return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+    }
+
     const body = await request.json();
-    const { product_id, banca_id, duration_days, title, description } = body;
+    const { product_id, duration_days, title, description } = body;
 
     // Calcular datas
     const startDate = new Date();
@@ -97,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     const campaignData = {
       product_id,
-      banca_id,
+      banca_id: banca.id,
       title: title || `Campanha para produto`,
       description: description || '',
       start_date: startDate.toISOString(),

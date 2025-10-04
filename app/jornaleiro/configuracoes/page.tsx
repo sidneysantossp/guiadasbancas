@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import WhatsAppTemplates from "@/components/admin/WhatsAppTemplates";
@@ -10,11 +10,170 @@ import { useToast } from "@/components/ToastProvider";
 
 type ConfigTab = "whatsapp" | "notifications" | "general" | "delivery" | "payment";
 
+type GeneralConfigType = {
+  name: string;
+  whatsapp: string;
+  description: string;
+  active: boolean;
+};
+
+type DeliveryConfigType = {
+  delivery_fee: number;
+  min_order_value: number;
+  delivery_radius: number;
+  preparation_time: number;
+};
+
+// Funções de máscara
+const formatPhone = (value: string) => {
+  const numbers = value.replace(/\D/g, '');
+  if (numbers.length <= 10) {
+    return numbers.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1)$2-$3');
+  }
+  return numbers.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1)$2-$3');
+};
+
+const formatCurrency = (value: string | number) => {
+  // Se o valor já é um número decimal, usa direto
+  if (typeof value === 'number') {
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  // Se é string, remove tudo exceto números e divide por 100
+  const numbers = value.toString().replace(/\D/g, '');
+  const amount = parseFloat(numbers) / 100;
+  return amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const parseCurrency = (value: string): number => {
+  const numbers = value.replace(/\D/g, '');
+  return parseFloat(numbers) / 100;
+};
+
+// Componente separado para evitar recriação
+const GeneralSettingsForm = memo(({ 
+  generalConfig, 
+  setGeneralConfig, 
+  deliveryConfig, 
+  setDeliveryConfig,
+  loading,
+  onSave
+}: {
+  generalConfig: GeneralConfigType;
+  setGeneralConfig: React.Dispatch<React.SetStateAction<GeneralConfigType>>;
+  deliveryConfig: DeliveryConfigType;
+  setDeliveryConfig: React.Dispatch<React.SetStateAction<DeliveryConfigType>>;
+  loading: boolean;
+  onSave: () => void;
+}) => (
+  <div className="space-y-6">
+    <div>
+      <h3 className="text-lg font-semibold">Configurações Gerais</h3>
+      <p className="text-sm text-gray-600">
+        Configurações básicas da sua conta e banca.
+      </p>
+    </div>
+
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium mb-1">Nome da Banca</label>
+        <input
+          type="text"
+          value={generalConfig.name}
+          onChange={(e) => setGeneralConfig({ ...generalConfig, name: e.target.value })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          placeholder="Nome da sua banca"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">WhatsApp da Banca</label>
+        <input
+          type="tel"
+          value={formatPhone(generalConfig.whatsapp || '')}
+          onChange={(e) => {
+            const numbers = e.target.value.replace(/\D/g, '');
+            setGeneralConfig({ ...generalConfig, whatsapp: numbers });
+          }}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          placeholder="(11)99999-9999"
+          maxLength={15}
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Digite apenas números (DDD + número). Este WhatsApp receberá notificações de novos pedidos.
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Descrição da Banca</label>
+        <textarea
+          rows={3}
+          value={generalConfig.description}
+          onChange={(e) => setGeneralConfig({ ...generalConfig, description: e.target.value })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          placeholder="Descreva sua banca..."
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Taxa de Entrega (R$)</label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+          <input
+            type="text"
+            value={formatCurrency(deliveryConfig.delivery_fee)}
+            onChange={(e) => {
+              const value = parseCurrency(e.target.value);
+              setDeliveryConfig({ ...deliveryConfig, delivery_fee: value });
+            }}
+            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md"
+            placeholder="0,00"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Raio de Entrega (km)</label>
+        <input
+          type="number"
+          step="0.1"
+          value={deliveryConfig.delivery_radius}
+          onChange={(e) => setDeliveryConfig({ ...deliveryConfig, delivery_radius: parseFloat(e.target.value) || 0 })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input 
+          type="checkbox" 
+          id="active" 
+          checked={generalConfig.active}
+          onChange={(e) => setGeneralConfig({ ...generalConfig, active: e.target.checked })}
+        />
+        <label htmlFor="active" className="text-sm">
+          Banca ativa (visível para clientes)
+        </label>
+      </div>
+    </div>
+
+    <div className="pt-4">
+      <button 
+        onClick={onSave}
+        disabled={loading}
+        className="w-full bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] text-white font-semibold py-3 px-4 rounded-lg hover:opacity-95 disabled:opacity-50"
+      >
+        {loading ? 'Salvando...' : 'Salvar Configurações'}
+      </button>
+    </div>
+  </div>
+));
+
+GeneralSettingsForm.displayName = 'GeneralSettingsForm';
+
 export default function ConfiguracoesPage() {
   const [activeTab, setActiveTab] = useState<ConfigTab>("whatsapp");
 
   const { user } = useAuth();
-  const { show: showToast } = useToast();
+  const toast = useToast();
   const [banca, setBanca] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [deliveryConfig, setDeliveryConfig] = useState({
@@ -24,6 +183,12 @@ export default function ConfiguracoesPage() {
     preparation_time: 30,
   });
   const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
+  const [generalConfig, setGeneralConfig] = useState<GeneralConfigType>({
+    name: '',
+    whatsapp: '',
+    description: '',
+    active: true,
+  });
 
   useEffect(() => {
     if (user) {
@@ -33,11 +198,21 @@ export default function ConfiguracoesPage() {
 
   const loadBancaConfig = async () => {
     try {
-      const { data } = await supabase
+      console.log('Carregando configurações para user:', user?.id);
+      
+      const { data, error } = await supabase
         .from('bancas')
         .select('*')
         .eq('user_id', user!.id)
         .single();
+      
+      console.log('Dados carregados:', { data, error });
+      
+      if (error) {
+        console.error('Erro ao carregar:', error);
+        toast.error('Erro ao carregar configurações da banca');
+        return;
+      }
       
       if (data) {
         setBanca(data);
@@ -48,9 +223,16 @@ export default function ConfiguracoesPage() {
           preparation_time: data.preparation_time || 30,
         });
         setPaymentMethods(data.payment_methods || []);
+        setGeneralConfig({
+          name: data.name || '',
+          whatsapp: data.whatsapp || '',
+          description: data.description || '',
+          active: data.active !== false,
+        });
       }
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
+      toast.error('Erro ao carregar configurações');
     }
   };
 
@@ -63,9 +245,9 @@ export default function ConfiguracoesPage() {
         .eq('user_id', user!.id);
 
       if (error) throw error;
-      showToast('Configurações de entrega salvas!');
+      toast.success('Configurações de entrega salvas!');
     } catch (error) {
-      showToast('Erro ao salvar configurações');
+      toast.error('Erro ao salvar configurações');
     } finally {
       setLoading(false);
     }
@@ -80,9 +262,9 @@ export default function ConfiguracoesPage() {
         .eq('user_id', user!.id);
 
       if (error) throw error;
-      showToast('Formas de pagamento salvas!');
+      toast.success('Formas de pagamento salvas!');
     } catch (error) {
-      showToast('Erro ao salvar formas de pagamento');
+      toast.error('Erro ao salvar formas de pagamento');
     } finally {
       setLoading(false);
     }
@@ -96,12 +278,62 @@ export default function ConfiguracoesPage() {
     }
   };
 
+  const saveGeneralConfig = async () => {
+    try {
+      setLoading(true);
+      
+      if (!user?.id) {
+        toast.error('Usuário não identificado. Faça login novamente.');
+        return;
+      }
+
+      console.log('Salvando configurações:', {
+        user_id: user.id,
+        generalConfig,
+        deliveryConfig
+      });
+
+      const { data, error } = await supabase
+        .from('bancas')
+        .update({
+          name: generalConfig.name,
+          whatsapp: generalConfig.whatsapp,
+          description: generalConfig.description,
+          active: generalConfig.active,
+          delivery_fee: deliveryConfig.delivery_fee,
+          delivery_radius: deliveryConfig.delivery_radius,
+        })
+        .eq('user_id', user.id)
+        .select();
+
+      console.log('Resultado do save:', { data, error });
+
+      if (error) {
+        console.error('Erro detalhado:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        toast.error('Nenhuma banca encontrada para este usuário');
+        return;
+      }
+
+      toast.success('Configurações gerais salvas com sucesso!');
+      await loadBancaConfig(); // Recarrega os dados
+    } catch (error: any) {
+      console.error('Erro ao salvar:', error);
+      toast.error(`Erro ao salvar: ${error?.message || 'Erro desconhecido'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const tabs = [
-    { id: "general" as ConfigTab, label: "Geral", icon: "⚙️" },
-    { id: "delivery" as ConfigTab, label: "Entrega", icon: "🚚" },
-    { id: "payment" as ConfigTab, label: "Pagamento", icon: "💳" },
-    { id: "notifications" as ConfigTab, label: "Notificações", icon: "🔔" },
-    { id: "whatsapp" as ConfigTab, label: "WhatsApp", icon: "📱" },
+    { id: "general" as ConfigTab, label: "Geral", icon: "fa-regular fa-circle-dot" },
+    { id: "delivery" as ConfigTab, label: "Entrega", icon: "fa-regular fa-paper-plane" },
+    { id: "payment" as ConfigTab, label: "Pagamento", icon: "fa-regular fa-credit-card" },
+    { id: "notifications" as ConfigTab, label: "Notificações", icon: "fa-regular fa-bell" },
+    { id: "whatsapp" as ConfigTab, label: "WhatsApp", icon: "fa-brands fa-whatsapp" },
   ];
 
   const NotificationsSettings = () => (
@@ -193,13 +425,19 @@ export default function ConfiguracoesPage() {
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Taxa de Entrega (R$)</label>
-          <input
-            type="number"
-            step="0.01"
-            value={deliveryConfig.delivery_fee}
-            onChange={(e) => setDeliveryConfig({ ...deliveryConfig, delivery_fee: parseFloat(e.target.value) || 0 })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-          />
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+            <input
+              type="text"
+              value={formatCurrency(deliveryConfig.delivery_fee)}
+              onChange={(e) => {
+                const value = parseCurrency(e.target.value);
+                setDeliveryConfig({ ...deliveryConfig, delivery_fee: value });
+              }}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md"
+              placeholder="0,00"
+            />
+          </div>
           <p className="text-xs text-gray-500 mt-1">
             Valor cobrado por entrega. Use 0 para frete grátis.
           </p>
@@ -207,13 +445,19 @@ export default function ConfiguracoesPage() {
 
         <div>
           <label className="block text-sm font-medium mb-1">Valor Mínimo do Pedido (R$)</label>
-          <input
-            type="number"
-            step="0.01"
-            value={deliveryConfig.min_order_value}
-            onChange={(e) => setDeliveryConfig({ ...deliveryConfig, min_order_value: parseFloat(e.target.value) || 0 })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-          />
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+            <input
+              type="text"
+              value={formatCurrency(deliveryConfig.min_order_value)}
+              onChange={(e) => {
+                const value = parseCurrency(e.target.value);
+                setDeliveryConfig({ ...deliveryConfig, min_order_value: value });
+              }}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md"
+              placeholder="0,00"
+            />
+          </div>
           <p className="text-xs text-gray-500 mt-1">
             Valor mínimo para aceitar pedidos. Use 0 para sem mínimo.
           </p>
@@ -269,15 +513,15 @@ export default function ConfiguracoesPage() {
 
       <div className="space-y-3">
         {[
-          { id: 'pix', label: 'PIX', icon: '💱' },
-          { id: 'dinheiro', label: 'Dinheiro', icon: '💵' },
-          { id: 'debito', label: 'Cartão de Débito', icon: '💳' },
-          { id: 'credito', label: 'Cartão de Crédito', icon: '💳' },
-          { id: 'vale', label: 'Vale Alimentação/Refeição', icon: '🍽️' },
+          { id: 'pix', label: 'PIX', icon: 'fa-brands fa-pix' },
+          { id: 'dinheiro', label: 'Dinheiro', icon: 'fa-regular fa-money-bill-1' },
+          { id: 'debito', label: 'Cartão de Débito', icon: 'fa-regular fa-credit-card' },
+          { id: 'credito', label: 'Cartão de Crédito', icon: 'fa-regular fa-credit-card' },
+          { id: 'vale', label: 'Vale Alimentação/Refeição', icon: 'fa-regular fa-id-card' },
         ].map((method) => (
           <div key={method.id} className="flex items-center justify-between p-4 border rounded-lg">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">{method.icon}</span>
+              <i className={`${method.icon} text-2xl text-gray-600`}></i>
               <div>
                 <div className="font-medium">{method.label}</div>
               </div>
@@ -322,97 +566,6 @@ export default function ConfiguracoesPage() {
     </div>
   );
 
-  const GeneralSettings = () => (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold">Configurações Gerais</h3>
-        <p className="text-sm text-gray-600">
-          Configurações básicas da sua conta e banca.
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Nome da Banca</label>
-          <input
-            type="text"
-            defaultValue="Banca São Jorge"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">WhatsApp da Banca</label>
-          <input
-            type="tel"
-            defaultValue="11987654321"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-            placeholder="11999999999"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Digite apenas números (DDD + número). Este WhatsApp receberá notificações de novos pedidos.
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Descrição da Banca</label>
-          <textarea
-            rows={3}
-            defaultValue="Banca de jornal e revistas localizada no centro da cidade. Atendemos com qualidade há mais de 20 anos."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Taxa de Entrega (R$)</label>
-          <input
-            type="number"
-            step="0.01"
-            defaultValue="5.00"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Raio de Entrega (km)</label>
-          <input
-            type="number"
-            step="0.1"
-            defaultValue="5.0"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <input type="checkbox" id="active" defaultChecked />
-          <label htmlFor="active" className="text-sm">
-            Banca ativa (visível para clientes)
-          </label>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <input type="checkbox" id="delivery" defaultChecked />
-          <label htmlFor="delivery" className="text-sm">
-            Aceitar pedidos para entrega
-          </label>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <input type="checkbox" id="pickup" defaultChecked />
-          <label htmlFor="pickup" className="text-sm">
-            Aceitar pedidos para retirada
-          </label>
-        </div>
-      </div>
-
-      <div className="pt-4">
-        <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-          Salvar Configurações
-        </button>
-      </div>
-    </div>
-  );
-
   return (
     <div className="space-y-6">
       <div>
@@ -429,13 +582,13 @@ export default function ConfiguracoesPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                 activeTab === tab.id
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
-              <span className="mr-2">{tab.icon}</span>
+              <i className={tab.icon}></i>
               {tab.label}
             </button>
           ))}
@@ -476,7 +629,16 @@ export default function ConfiguracoesPage() {
         {activeTab === "delivery" && <DeliverySettings />}
         {activeTab === "payment" && <PaymentSettings />}
         {activeTab === "notifications" && <NotificationsSettings />}
-        {activeTab === "general" && <GeneralSettings />}
+        {activeTab === "general" && (
+          <GeneralSettingsForm
+            generalConfig={generalConfig}
+            setGeneralConfig={setGeneralConfig}
+            deliveryConfig={deliveryConfig}
+            setDeliveryConfig={setDeliveryConfig}
+            loading={loading}
+            onSave={saveGeneralConfig}
+          />
+        )}
       </div>
     </div>
   );

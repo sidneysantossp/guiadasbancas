@@ -11,40 +11,59 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        console.log("🔐 [AUTHORIZE] Iniciando...", credentials?.email);
+        
         if (!credentials?.email || !credentials?.password) {
+          console.log("❌ [AUTHORIZE] Credenciais vazias");
           return null;
         }
 
         try {
           // 1. Autenticar com Supabase Auth
+          console.log("🔐 [AUTHORIZE] Tentando signInWithPassword...");
           const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
             email: credentials.email as string,
             password: credentials.password as string,
           });
 
-          if (authError || !authData.user) {
-            console.log("❌ Autenticação Supabase falhou:", credentials.email, authError?.message);
+          if (authError) {
+            console.log("❌ [AUTHORIZE] Erro auth:", authError.message, authError);
             return null;
           }
 
+          if (!authData.user) {
+            console.log("❌ [AUTHORIZE] Auth OK mas sem user");
+            return null;
+          }
+
+          console.log("✅ [AUTHORIZE] Auth OK, user_id:", authData.user.id);
+
           // 2. Buscar perfil do usuário
+          console.log("🔐 [AUTHORIZE] Buscando perfil...");
           const { data: profile, error: profileError } = await supabaseAdmin
             .from('user_profiles')
             .select('*')
             .eq('id', authData.user.id)
             .single();
 
-          if (profileError || !profile) {
-            console.log("❌ Perfil não encontrado:", credentials.email);
+          if (profileError) {
+            console.log("❌ [AUTHORIZE] Erro ao buscar perfil:", profileError.message, profileError);
             return null;
           }
+
+          if (!profile) {
+            console.log("❌ [AUTHORIZE] Perfil não encontrado para user_id:", authData.user.id);
+            return null;
+          }
+
+          console.log("✅ [AUTHORIZE] Perfil encontrado:", { role: profile.role, active: profile.active, full_name: profile.full_name });
 
           if (!profile.active) {
-            console.log("❌ Usuário inativo:", credentials.email);
+            console.log("❌ [AUTHORIZE] Usuário inativo");
             return null;
           }
 
-          console.log("✅ Login bem-sucedido:", credentials.email, "| Role:", profile.role);
+          console.log("✅ [AUTHORIZE] Login completo! Role:", profile.role);
 
           // Retornar dados do usuário para o token
           return {
@@ -56,7 +75,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             avatar_url: profile.avatar_url,
           };
         } catch (error) {
-          console.error("❌ Erro no authorize:", error);
+          console.error("❌ [AUTHORIZE] Exception:", error);
           return null;
         }
       },

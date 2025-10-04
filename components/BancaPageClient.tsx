@@ -53,6 +53,7 @@ export type ProdutoResumo = {
   sob_encomenda?: boolean;
   pre_venda?: boolean;
   pronta_entrega?: boolean;
+  status?: string; // 'available', 'unavailable', 'hidden'
 };
 
 const FALLBACK_BANCA: BancaDetail = {
@@ -155,7 +156,12 @@ function ProductCard({ p, phone, bancaId }: { p: ProdutoResumo; phone?: string; 
   const { show } = useToast();
   const subtotal = items.reduce((s, it) => s + (it.price ?? 0) * it.qty, 0);
   const qualifies = shippingConfig.freeShippingEnabled || subtotal >= shippingConfig.freeShippingThreshold;
-  const outOfStock = Boolean(p.ready) && (p.stockQty != null) && (p.stockQty <= 0);
+  
+  // Produto está esgotado se:
+  // 1. Status explicitamente 'unavailable' OU
+  // 2. Tem controle de estoque E estoque <= 0 E status NÃO é 'available'
+  const outOfStock = p.status === 'unavailable' || 
+    (p.status !== 'available' && Boolean(p.ready) && (p.stockQty != null) && (p.stockQty <= 0));
   
   
   return (
@@ -461,6 +467,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             sob_encomenda: Boolean(item.sob_encomenda),
             pre_venda: Boolean(item.pre_venda),
             pronta_entrega: Boolean(item.pronta_entrega),
+            status: item.status || 'available',
           } satisfies ProdutoResumo;
         });
         if (active) setProdutos(mapped);
@@ -515,6 +522,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             sob_encomenda: Boolean(item.sob_encomenda),
             pre_venda: Boolean(item.pre_venda),
             pronta_entrega: Boolean(item.pronta_entrega),
+            status: item.status || 'available',
           } satisfies ProdutoResumo;
         });
         if (active) setProdutosDestaque(mapped);

@@ -6,6 +6,9 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Route } from "next";
 import ToastProvider from "@/components/admin/ToastProvider";
+import { Hedvig_Letters_Serif } from "next/font/google";
+
+const hedvig = Hedvig_Letters_Serif({ subsets: ["latin"] });
 
 const ADMIN_MENU = [
   {
@@ -74,6 +77,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [branding, setBranding] = useState<{ logoUrl?: string; logoAlt?: string } | null>(null);
+
+  // Carregar branding
+  useEffect(() => {
+    const loadBranding = async () => {
+      try {
+        const response = await fetch('/api/admin/branding');
+        const result = await response.json();
+        if (result.success && result.data) {
+          setBranding(result.data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar branding:', error);
+      }
+    };
+    loadBranding();
+  }, []);
 
   useEffect(() => {
     // Verificar autenticação admin apenas se não estiver na página de login
@@ -140,21 +160,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
             
             <Link href="/admin/dashboard" className="flex items-center gap-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                className="h-8 w-8 text-[#ff5c00]"
-                fill="currentColor"
-              >
-                <rect x="3" y="4" width="18" height="16" rx="2" ry="2" opacity="0.15" />
-                <rect x="6" y="7" width="12" height="2" rx="1" />
-                <rect x="6" y="11" width="9" height="2" rx="1" />
-                <rect x="6" y="15" width="6" height="2" rx="1" />
-              </svg>
-              <div>
-                <div className="text-lg font-bold text-[#ff5c00]">Admin</div>
-                <div className="text-xs text-gray-500 -mt-1">Guia das Bancas</div>
-              </div>
+              {branding?.logoUrl ? (
+                <Image
+                  src={branding.logoUrl}
+                  alt={branding.logoAlt || "Logo"}
+                  width={120}
+                  height={40}
+                  className="h-8 w-auto object-contain"
+                />
+              ) : (
+                <>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    className="h-8 w-8 text-[#ff5c00]"
+                    fill="currentColor"
+                  >
+                    <rect x="3" y="4" width="18" height="16" rx="2" ry="2" opacity="0.15" />
+                    <rect x="6" y="7" width="12" height="2" rx="1" />
+                    <rect x="6" y="11" width="9" height="2" rx="1" />
+                    <rect x="6" y="15" width="6" height="2" rx="1" />
+                  </svg>
+                  <span className={`text-lg tracking-wide lowercase ${hedvig.className} text-black`}>
+                    <span className="font-bold text-[#ff5c00]">g</span>uia das bancas
+                  </span>
+                </>
+              )}
             </Link>
           </div>
 

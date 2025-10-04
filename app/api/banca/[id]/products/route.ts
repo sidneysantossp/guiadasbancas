@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readProducts } from "@/lib/server/productsStore";
+import { supabaseAdmin } from "@/lib/supabase";
+
+const CATEGORIA_DISTRIBUIDORES_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
+const CATEGORIA_DISTRIBUIDORES_NOME = 'Diversos';
+const DEFAULT_PRODUCT_IMAGE = 'https://cdn1.staticpanvel.com.br/produtos/15/produto-sem-imagem.jpg';
 
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
@@ -8,42 +12,142 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       return NextResponse.json({ error: "ID da banca é obrigatório" }, { status: 400 });
     }
 
-    // Buscar todos os produtos
-    let items = await readProducts();
-    
-    // Fallback para dados legados se arquivo vazio
-    if (!items.length) {
-      const legacy = (globalThis as any).__PRODUCTS_STORE__ as any[] | undefined;
-      if (Array.isArray(legacy) && legacy.length) {
-        items = legacy as any;
-      }
+    const supabase = supabaseAdmin;
+
+    // 1. Buscar produtos próprios da banca
+    const { data: produtosProprios } = await supabase
+      .from('products')
+      .select(`
+        *,
+        categories!category_id(name)
+      `)
+      .eq('banca_id', bancaId)
+      .is('distribuidor_id', null);
+
+    // 2. Buscar TODOS os produtos de distribuidor
+    const { data: todosProdutosDistribuidor } = await supabase
+      .from('products')
+      .select(`
+        *,
+        categories!category_id(name)
+      `)
+      .not('distribuidor_id', 'is', null);
+
+    let produtosDistribuidor: any[] = [];
+
+    if (todosProdutosDistribuidor && todosProdutosDistribuidor.length > 0) {
+      // Buscar customizações desta banca (se houver)
+      const { data: customizacoes } = await supabase
+        .from('banca_produtos_distribuidor')
+        .select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty')
+        .eq('banca_id', bancaId);
+
+      // Mapear customizações por product_id
+      const customMap = new Map(
+        (customizacoes || []).map(c => [c.product_id, c])
+      );
+
+      // Aplicar customizações e filtrar desabilitados
+      produtosDistribuidor = todosProdutosDistribuidor
+        .map(produto => {
+          const custom = customMap.get(produto.id);
+          
+          // Garantir que há uma imagem
+          let images = produto.images || [];
+          if (!Array.isArray(images) || images.length === 0) {
+            images = [DEFAULT_PRODUCT_IMAGE];
+          }
+          
+          // Extrair nome da categoria (vem como objeto do join)
+          const categoryName = produto.categories?.name || CATEGORIA_DISTRIBUIDORES_NOME;
+          
+          // Se jornaleiro usa estoque próprio, usar custom_stock_qty
+          // Senão, usar stock_qty do distribuidor
+          const effectiveStock = custom?.custom_stock_enabled 
+            ? (custom?.custom_stock_qty ?? 0)
+            : produto.stock_qty;
+          
+          const customStatus = custom?.custom_status || 'available';
+          const { categories, ...produtoLimpo } = produto;
+          
+          return {
+            ...produtoLimpo,
+            images,
+            category_name: categoryName,
+            price: custom?.custom_price || produto.price,
+            stock_qty: effectiveStock, // Usar estoque efetivo (próprio ou distribuidor)
+            description: produto.description + (custom?.custom_description ? `\n\n${custom.custom_description}` : ''),
+            pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,
+            sob_encomenda: custom?.custom_sob_encomenda ?? produto.sob_encomenda,
+            pre_venda: custom?.custom_pre_venda ?? produto.pre_venda,
+            status: customStatus,
+            category_id: CATEGORIA_DISTRIBUIDORES_ID,
+            is_distribuidor: true,
+            active: true,
+            // Metadados para filtro
+            _enabled: !custom || custom.enabled !== false,
+            _effectiveStock: effectiveStock,
+            _customStatus: customStatus,
+          };
+        })
+        .filter(produto => {
+          const custom = customMap.get(produto.id);
+          
+          // 1. Deve estar habilitado (enabled !== false)
+          if (!produto._enabled) return false;
+          
+          // 2. Se NÃO tem customização, aceitar apenas se:
+          //    - Tem estoque do distribuidor > 0
+          if (!custom) {
+            return produto._effectiveStock > 0;
+          }
+          
+          // 3. Se TEM customização:
+          //    - Se tem estoque próprio ativado: verificar se qty > 0
+          //    - Se NÃO tem estoque próprio: verificar estoque do distribuidor
+          //    - OU status explicitamente 'available'
+          if (custom.custom_stock_enabled) {
+            return (custom.custom_stock_qty ?? 0) > 0;
+          }
+          
+          return produto._effectiveStock > 0 || custom.custom_status === 'available';
+        })
+        .map(({ _enabled, _effectiveStock, _customStatus, ...produto }) => produto);
     }
 
-    // Filtrar produtos da banca (múltiplas estratégias de match)
-    const produtos = items.filter((p: any) => {
-      if (!p || typeof p.banca_id !== 'string') return false;
-      
-      // Estratégias de match:
-      // 1. Igual exato
-      if (p.banca_id === bancaId) return true;
-      
-      // 2. Produto termina com bancaId (ex: "banca-123" termina com "123")
-      if (p.banca_id.endsWith(bancaId)) return true;
-      
-      // 3. bancaId termina com produto (ex: "banca-123" e produto "123")
-      if (bancaId.endsWith(p.banca_id)) return true;
-      
-      // 4. Contém o ID (mais permissivo)
-      if (p.banca_id.includes(bancaId) || bancaId.includes(p.banca_id)) return true;
-      
-      return false;
-    }).filter((p: any) => p.active !== false); // Só produtos ativos
+    // 3. Combinar produtos próprios + distribuidor (garantir imagem em todos)
+    const todosProdutos = [
+      ...(produtosProprios || []).map(p => {
+        let images = p.images || [];
+        if (!Array.isArray(images) || images.length === 0) {
+          images = [DEFAULT_PRODUCT_IMAGE];
+        }
+        // Extrair nome da categoria (vem como objeto do join)
+        const categoryName = p.categories?.name;
+        
+        // Remover objeto categories (nested) para evitar problemas no frontend
+        const { categories, ...produtoLimpo } = p;
+        
+        return { 
+          ...produtoLimpo, 
+          images, 
+          category_name: categoryName,
+          is_distribuidor: false, 
+          active: true 
+        };
+      }),
+      ...produtosDistribuidor,
+    ];
 
     return NextResponse.json({
       success: true,
       banca_id: bancaId,
-      total: produtos.length,
-      products: produtos
+      total: todosProdutos.length,
+      products: todosProdutos,
+      stats: {
+        proprios: produtosProprios?.length || 0,
+        distribuidores: produtosDistribuidor.length,
+      },
     });
 
   } catch (error: any) {

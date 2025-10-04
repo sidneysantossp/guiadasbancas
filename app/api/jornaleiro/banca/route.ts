@@ -1,30 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { auth } from "@/lib/auth";
 import type { AdminBanca } from "@/app/api/admin/bancas/route";
 
-const SELLER_TOKEN = "seller-token";
-const SELLER_BANCA_MAP: Record<string, string> = {
-  "seller-001": "banca-1758901610179",
-};
-
-function extractSellerId(request: NextRequest): string | null {
-  const authHeader = request.headers.get("authorization") || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
-  if (!token) return null;
-  if (token === SELLER_TOKEN) return "seller-001";
-  return null;
-}
-
-async function loadBancaForSeller(sellerId: string): Promise<AdminBanca | null> {
+async function loadBancaForUser(userId: string): Promise<AdminBanca | null> {
   try {
-    const bancaId = SELLER_BANCA_MAP[sellerId];
-    if (!bancaId || !supabaseAdmin) return null;
+    // Buscar banca pelo user_id
     const { data, error } = await supabaseAdmin
       .from('bancas')
       .select('*')
-      .eq('id', bancaId)
+      .eq('user_id', userId)
       .single();
-    if (error || !data) return null;
+    
+    if (error || !data) {
+      console.log("Banca não encontrada para user_id:", userId, error?.message);
+      return null;
+    }
+    
     return {
       id: data.id,
       name: data.name,
@@ -39,35 +31,35 @@ async function loadBancaForSeller(sellerId: string): Promise<AdminBanca | null> 
       order: data.order || 0,
       createdAt: data.created_at,
     } as AdminBanca;
-  } catch {
+  } catch (e) {
+    console.error("Erro ao carregar banca:", e);
     return null;
   }
 }
 
 
 export async function GET(request: NextRequest) {
-  const sellerId = extractSellerId(request);
-  if (!sellerId) {
+  // Usar NextAuth para pegar o usuário autenticado
+  const session = await auth();
+  
+  if (!session?.user?.id) {
     return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
   }
 
-  const banca = await loadBancaForSeller(sellerId);
+  const banca = await loadBancaForUser(session.user.id);
   if (!banca) {
-    return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+    return NextResponse.json({ success: false, error: "Banca não encontrada para este usuário" }, { status: 404 });
   }
 
   return NextResponse.json({ success: true, data: banca });
 }
 
 export async function PUT(request: NextRequest) {
-  const sellerId = extractSellerId(request);
-  if (!sellerId) {
+  // Usar NextAuth para pegar o usuário autenticado
+  const session = await auth();
+  
+  if (!session?.user?.id) {
     return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-  }
-
-  const bancaId = SELLER_BANCA_MAP[sellerId];
-  if (!bancaId || !supabaseAdmin) {
-    return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
   }
 
   try {
@@ -96,10 +88,11 @@ export async function PUT(request: NextRequest) {
       }
     });
 
+    // Atualizar banca pelo user_id
     const { data: updatedData, error } = await supabaseAdmin
       .from('bancas')
       .update(updateData)
-      .eq('id', bancaId)
+      .eq('user_id', session.user.id)
       .select()
       .single();
 

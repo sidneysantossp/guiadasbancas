@@ -3,23 +3,27 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import type { Route } from "next";
 import ToastProvider from "@/components/admin/ToastProvider";
 import NotificationCenter from "@/components/admin/NotificationCenter";
 import { useAuth } from "@/lib/auth/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { Hedvig_Letters_Serif } from "next/font/google";
 
-const JOURNALEIRO_MENU: { label: string; href: Route; icon: string; disabled?: boolean }[] = [
-  { label: "Dashboard", href: "/jornaleiro/dashboard" as Route, icon: "📊" },
-  { label: "Minha Banca", href: "/jornaleiro/banca" as Route, icon: "🏪" },
-  { label: "Pedidos", href: "/jornaleiro/pedidos" as Route, icon: "🧾" },
-  { label: "Produtos", href: "/jornaleiro/produtos" as Route, icon: "📦" },
-  { label: "Campanhas", href: "/jornaleiro/campanhas" as Route, icon: "📢" },
-  { label: "Distribuidores", href: "/jornaleiro/distribuidores" as Route, icon: "🚚" },
-  { label: "Cupons", href: "/jornaleiro/coupons" as Route, icon: "🏷️" },
-  { label: "Financeiro", href: "/jornaleiro/financeiro" as Route, icon: "💵", disabled: true },
-  { label: "Relatórios", href: "/jornaleiro/relatorios" as Route, icon: "📊" },
-  { label: "Configurações", href: "/jornaleiro/configuracoes" as Route, icon: "⚙️" },
+const hedvig = Hedvig_Letters_Serif({ subsets: ["latin"] });
+
+const JOURNALEIRO_MENU: { label: string; href: Route; icon: string; iconStyle?: string; disabled?: boolean }[] = [
+  { label: "Dashboard", href: "/jornaleiro/dashboard" as Route, icon: "house", iconStyle: "solid" },
+  { label: "Minha Banca", href: "/jornaleiro/banca" as Route, icon: "building", iconStyle: "regular" },
+  { label: "Pedidos", href: "/jornaleiro/pedidos" as Route, icon: "clipboard", iconStyle: "regular" },
+  { label: "Produtos", href: "/jornaleiro/produtos" as Route, icon: "clone", iconStyle: "regular" },
+  { label: "Catálogo Distribuidor", href: "/jornaleiro/catalogo-distribuidor" as Route, icon: "folder-open", iconStyle: "regular" },
+  { label: "Campanhas", href: "/jornaleiro/campanhas" as Route, icon: "comment-dots", iconStyle: "regular" },
+  { label: "Distribuidores", href: "/jornaleiro/distribuidores" as Route, icon: "address-card", iconStyle: "regular" },
+  { label: "Cupons", href: "/jornaleiro/coupons" as Route, icon: "id-card", iconStyle: "regular" },
+  { label: "Relatórios", href: "/jornaleiro/relatorios" as Route, icon: "chart-bar", iconStyle: "regular" },
+  { label: "Configurações", href: "/jornaleiro/configuracoes" as Route, icon: "circle-dot", iconStyle: "regular" },
 ];
 
 interface SellerSession {
@@ -27,48 +31,57 @@ interface SellerSession {
     id?: string;
     name?: string;
     email?: string;
-    phone?: string;
   };
   banks?: any[];
   [key: string]: any;
 }
 
-export default function JornaleiroLayout({ children }: { children: React.ReactNode }) {
+export default function JornaleiroLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [session, setSession] = useState<SellerSession | null>(null);
-  const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [session, setSession] = useState<SellerSession | null>(null);
+  const [branding, setBranding] = useState<{ logoUrl?: string; logoAlt?: string } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
-  const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding");
-
-  useEffect(() => {
-    if (isAuthRoute) {
-      setLoading(false);
-      return;
-    }
-    setLoading(authLoading);
-  }, [authLoading, isAuthRoute]);
+  const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
 
   const logout = async () => {
     await signOut();
   };
 
-  const sellerName = profile?.full_name || user?.email?.split('@')[0] || "Jornaleiro";
-  const sellerEmail = user?.email || "jornaleiro@guiadasbancas.com";
+  const sellerName = profile?.full_name || "Vendedor";
+  const sellerEmail = (user as any)?.email || "vendedor@example.com";
+
+  // Carregar branding
+  useEffect(() => {
+    const loadBranding = async () => {
+      try {
+        const response = await fetch('/api/admin/branding');
+        const result = await response.json();
+        if (result.success && result.data) {
+          setBranding(result.data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar branding:', error);
+      }
+    };
+    loadBranding();
+  }, []);
 
   if (isAuthRoute) {
     return <ToastProvider>{children}</ToastProvider>;
   }
 
-  if (loading) {
+  // Aguardar carregamento da autenticação
+  if (authLoading) {
     return (
       <ToastProvider>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff5c00] mx-auto"></div>
-            <p className="mt-2 text-sm text-gray-600">Carregando painel do jornaleiro...</p>
+            <p className="mt-2 text-sm text-gray-600">Carregando...</p>
           </div>
         </div>
       </ToastProvider>
@@ -77,7 +90,6 @@ export default function JornaleiroLayout({ children }: { children: React.ReactNo
 
   return (
     <ToastProvider>
-      <ProtectedRoute requiredRole="jornaleiro">
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white border-b border-gray-200 shadow-sm">
           <div className="flex items-center justify-between px-4 py-3">
@@ -92,20 +104,33 @@ export default function JornaleiroLayout({ children }: { children: React.ReactNo
                 </svg>
               </button>
 
-              <Link href={"/jornaleiro/dashboard"} className="flex items-center gap-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  className="h-8 w-8 text-[#ff5c00]"
-                  fill="currentColor"
-                >
-                  <rect x="3" y="4" width="18" height="16" rx="2" ry="2" opacity="0.12" />
-                  <path d="M7 8h5v2H7zM7 12h3v2H7zM7 16h5v2H7zM14 8h3v10h-3z" />
-                </svg>
-                <div>
-                  <div className="text-lg font-bold text-[#ff5c00]">Jornaleiro</div>
-                  <div className="text-xs text-gray-500 -mt-1">Guia das Bancas</div>
-                </div>
+              <Link href="/jornaleiro" className="flex items-center gap-2">
+                {branding?.logoUrl ? (
+                  <Image
+                    src={branding.logoUrl}
+                    alt={branding.logoAlt || "Logo"}
+                    width={120}
+                    height={40}
+                    className="h-8 w-auto object-contain"
+                  />
+                ) : (
+                  <>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      className="h-8 w-8 text-[#ff5c00]"
+                      fill="currentColor"
+                    >
+                      <rect x="3" y="4" width="18" height="16" rx="2" ry="2" opacity="0.15" />
+                      <rect x="6" y="7" width="12" height="2" rx="1" />
+                      <rect x="6" y="11" width="9" height="2" rx="1" />
+                      <rect x="6" y="15" width="6" height="2" rx="1" />
+                    </svg>
+                    <span className={`text-lg tracking-wide lowercase ${hedvig.className} text-black`}>
+                      <span className="font-bold text-[#ff5c00]">g</span>uia das bancas
+                    </span>
+                  </>
+                )}
               </Link>
             </div>
 
@@ -160,13 +185,22 @@ export default function JornaleiroLayout({ children }: { children: React.ReactNo
                   ? "flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-400 bg-gray-100 cursor-not-allowed"
                   : `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       isActive
-                        ? "bg-[#fff7f2] text-[#ff5c00] border-r-2 border-[#ff5c00]"
+                        ? "bg-[#fff7f2] text-[#ff5c00]"
                         : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                     }`;
 
+                // SVG customizado para home (outline)
+                const HomeIcon = () => (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                );
+
+                const iconClass = `fa-${item.iconStyle || 'solid'} fa-${item.icon} w-5`;
+                
                 return item.disabled ? (
                   <span key={item.href} className={classes}>
-                    <span className="text-lg">{item.icon}</span>
+                    {item.icon === 'house' ? <HomeIcon /> : <i className={iconClass}></i>}
                     {item.label}
                     <span className="ml-auto text-xs text-gray-400">Em breve</span>
                   </span>
@@ -177,7 +211,7 @@ export default function JornaleiroLayout({ children }: { children: React.ReactNo
                     onClick={() => setSidebarOpen(false)}
                     className={classes}
                   >
-                    <span className="text-lg">{item.icon}</span>
+                    {item.icon === 'house' ? <HomeIcon /> : <i className={iconClass}></i>}
                     {item.label}
                   </Link>
                 );
@@ -199,7 +233,6 @@ export default function JornaleiroLayout({ children }: { children: React.ReactNo
           </main>
         </div>
       </div>
-      </ProtectedRoute>
     </ToastProvider>
   );
 }
