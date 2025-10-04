@@ -44,6 +44,9 @@ interface BancaForm {
   payments: string[];
   categories: string[];
   hours: Array<{ key: string; label: string; open: boolean; start: string; end: string }>;
+  delivery_enabled: boolean;
+  free_shipping_threshold: number;
+  origin_cep?: string;
 }
 
 interface ViaCEPResponse {
@@ -102,6 +105,9 @@ export default function MinhaBancaPage() {
           payments: Array.isArray(banca.payments) ? banca.payments : [],
           categories: Array.isArray(banca.categories) ? banca.categories : [],
           hours: Array.isArray(banca.hours) ? banca.hours : DAYS.map((d) => ({ key: d.key, label: d.label, open: false, start: "08:00", end: "18:00" })),
+          delivery_enabled: Boolean(banca.delivery_enabled),
+          free_shipping_threshold: Number(banca.free_shipping_threshold) || 120,
+          origin_cep: banca.origin_cep || "",
         };
         setForm(mapped);
         setCoverImages(mapped.cover ? [mapped.cover] : []);
@@ -340,6 +346,9 @@ export default function MinhaBancaPage() {
           cover: coverUrl || undefined,
           avatar: avatarUrl || undefined,
         },
+        delivery_enabled: form.delivery_enabled || false,
+        free_shipping_threshold: form.free_shipping_threshold || 120,
+        origin_cep: form.origin_cep || "",
       };
 
       console.log('Enviando dados para API:', payload);
@@ -659,6 +668,106 @@ export default function MinhaBancaPage() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Entrega e Frete</h2>
+          <p className="text-sm text-gray-600 mt-1">Configure as opções de entrega da sua banca.</p>
+        </div>
+
+        {/* Toggle de habilitação de entrega */}
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.delivery_enabled}
+              onChange={(e) => updateField("delivery_enabled", e.target.checked)}
+              className="mt-1 rounded"
+            />
+            <div className="flex-1">
+              <div className="font-medium text-sm">Habilitar entrega</div>
+              <div className="text-xs text-gray-600 mt-1">
+                Quando habilitado, os clientes poderão escolher entre retirada na banca ou entrega no endereço.
+                Se desabilitado, apenas a opção "Retirar na banca" estará disponível.
+              </div>
+            </div>
+          </label>
+        </div>
+
+        {/* Campos de configuração de entrega (só aparecem se entrega habilitada) */}
+        {form.delivery_enabled && (
+          <div className="space-y-4 pl-4 border-l-2 border-[#ff5c00]">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex gap-2">
+                <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <div className="text-sm text-blue-800">
+                  <strong>Dica:</strong> Configure o frete grátis para incentivar compras maiores e aumentar suas vendas!
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="text-sm font-medium">CEP de origem</label>
+                <input
+                  type="text"
+                  value={form.origin_cep || ""}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 8);
+                    const formatted = val.length > 5 ? `${val.slice(0, 5)}-${val.slice(5)}` : val;
+                    updateField("origin_cep", formatted);
+                  }}
+                  placeholder="00000-000"
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">CEP da sua banca para cálculo de frete</p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Valor para frete grátis</label>
+                <div className="mt-1 flex items-center">
+                  <span className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                    R$
+                  </span>
+                  <input
+                    type="text"
+                    value={form.free_shipping_threshold ? String(form.free_shipping_threshold.toFixed(2)).replace(".", ",") : ""}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      const num = val ? parseInt(val, 10) / 100 : 0;
+                      updateField("free_shipping_threshold", num);
+                    }}
+                    placeholder="120,00"
+                    className="w-full rounded-r-md border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Compras acima deste valor têm frete grátis</p>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+              <div className="text-sm text-emerald-800">
+                <strong>✓ Entrega habilitada!</strong> Seus clientes poderão ver:
+                <ul className="mt-1 ml-4 list-disc text-xs space-y-1">
+                  <li>Barra de progresso para frete grátis na sua página</li>
+                  <li>Opções de entrega no checkout</li>
+                  <li>Cálculo de frete por CEP</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!form.delivery_enabled && (
+          <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
+            <div className="text-sm text-gray-600">
+              <strong>Entrega desabilitada.</strong> Seus clientes só poderão retirar produtos na banca.
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
