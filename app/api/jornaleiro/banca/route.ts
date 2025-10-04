@@ -66,6 +66,9 @@ async function loadBancaForUser(userId: string): Promise<any> {
       ctaUrl: '',
       active: data.active !== false,
       createdAt: data.created_at,
+      delivery_enabled: data.delivery_enabled || false,
+      free_shipping_threshold: data.free_shipping_threshold || 120,
+      origin_cep: data.origin_cep || '',
     };
     
     console.log("Retornando banca com imagens:", {
@@ -136,6 +139,9 @@ export async function PUT(request: NextRequest) {
       instagram: data.socials?.instagram,
       facebook: data.socials?.facebook,
       payment_methods: data.payments || [],
+      delivery_enabled: data.delivery_enabled !== undefined ? data.delivery_enabled : false,
+      free_shipping_threshold: data.free_shipping_threshold || 120,
+      origin_cep: data.origin_cep || null,
       updated_at: new Date().toISOString()
     };
 
