@@ -33,7 +33,7 @@ export default function FreeShippingProgress({
           <span>{pct}%</span>
         </div>
       )}
-      <div className={`${barH} mt-1 rounded-full bg-gray-200 overflow-hidden`}>
+      <div className={`${barH} mt-1 rounded-full bg-orange-50 overflow-hidden`}>
         <div
           className={`h-full ${qualifies ? "bg-emerald-500" : "bg-[#ff5c00]"}`}
           style={{ width: `${Math.min(100, (subtotal / Math.max(1, threshold)) * 100)}%` }}
