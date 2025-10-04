@@ -473,14 +473,24 @@ export default function CheckoutPage() {
       setSubmitting(false);
       return;
     }
-    // Validações de endereço
-    if (!isValidUF) {
-      show("UF inválida. Use 2 letras (ex.: SP)");
-      return;
-    }
-    if (!isValidHouseNumber) {
-      show("Número inválido. Informe um número ou 's/n'");
-      return;
+    
+    // Validações de endereço - SÓ exigir se NÃO for retirada
+    if (shipping !== "retirada") {
+      if (!isValidUF) {
+        show("UF inválida. Use 2 letras (ex.: SP)");
+        setSubmitting(false);
+        return;
+      }
+      if (!isValidHouseNumber) {
+        show("Número inválido. Informe um número ou 's/n'");
+        setSubmitting(false);
+        return;
+      }
+      if (!street || !neighborhood || !city || !uf) {
+        show("Preencha o endereço completo para entrega");
+        setSubmitting(false);
+        return;
+      }
     }
     // Aviso de troco insuficiente (não bloqueia)
     try {
@@ -509,7 +519,10 @@ export default function CheckoutPage() {
       const firstBancaId = items.find(it => (it as any).banca_id)?.banca_id || undefined;
       const payload = {
         customer: { name, email, phone },
-        address: { street, houseNumber, neighborhood, city, uf, complement, cep: destCEP },
+        // Endereço só é enviado se NÃO for retirada
+        address: shipping === "retirada" 
+          ? { street: "", houseNumber: "", neighborhood: "", city: "", uf: "", complement: "", cep: "" }
+          : { street, houseNumber, neighborhood, city, uf, complement, cep: destCEP },
         items: items.map(it => ({ id: it.id, name: it.name, qty: it.qty, price: it.price, image: it.image, banca_id: (it as any).banca_id })),
         banca_id: firstBancaId,
         pricing: { subtotal, discount, shipping: shippingCost, total },
@@ -910,13 +923,19 @@ export default function CheckoutPage() {
               <div className="font-medium truncate">{email || "-"}</div>
               <div className="text-gray-600">Telefone</div>
               <div className="font-medium truncate">{phone || "-"}</div>
-              <div className="text-gray-600">Endereço</div>
+              <div className="text-gray-600">{shipping === "retirada" ? "Retirada" : "Endereço"}</div>
               <div className="font-medium break-words">
-                {street ? street : "-"}{street && houseNumber ? ", " : ""}{houseNumber}
-                {(street || houseNumber) && (neighborhood || city || uf) ? "; " : ""}
-                {[neighborhood, city && `${city} - ${uf}`].filter(Boolean).join(", ")}
-                {destCEP ? ` (CEP: ${destCEP})` : ""}
-                {complement ? ` - Comp.: ${complement}` : ""}
+                {shipping === "retirada" ? (
+                  <span className="text-emerald-700">Retirar na banca</span>
+                ) : (
+                  <>
+                    {street ? street : "-"}{street && houseNumber ? ", " : ""}{houseNumber}
+                    {(street || houseNumber) && (neighborhood || city || uf) ? "; " : ""}
+                    {[neighborhood, city && `${city} - ${uf}`].filter(Boolean).join(", ")}
+                    {destCEP ? ` (CEP: ${destCEP})` : ""}
+                    {complement ? ` - Comp.: ${complement}` : ""}
+                  </>
+                )}
               </div>
               <div className="text-gray-600">Frete</div>
               <div className="font-medium">
