@@ -225,8 +225,23 @@ export default function CheckoutPage() {
     try {
       const raw = localStorage.getItem("gb:user");
       setIsLogged(!!raw);
-      setUserObj(raw ? JSON.parse(raw) : null);
+      const user = raw ? JSON.parse(raw) : null;
+      setUserObj(user);
+      
+      // Preencher dados do usuário logado automaticamente
+      if (user) {
+        if (user.name) setName(user.name);
+        if (user.email) setEmail(user.email);
+      }
+      
+      // Buscar telefone do perfil do usuário (salvo separadamente)
+      const profileRaw = localStorage.getItem("gb:userProfile");
+      if (profileRaw) {
+        const profile = JSON.parse(profileRaw);
+        if (profile.phone) setPhone(profile.phone);
+      }
     } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Se usuário logado e não há endereço salvo, força modo 'new'.
