@@ -32,7 +32,7 @@ interface Product {
 export default function EditarProdutoDistribuidorPage() {
   const params = useParams();
   const router = useRouter();
-  const { fetchAuth, bancaId } = useFetchAuth();
+  const fetchAuth = useFetchAuth();
   const toast = useToast();
 
   const [produto, setProduto] = useState<Product | null>(null);
