@@ -344,6 +344,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   const [produtos, setProdutos] = useState<ProdutoResumo[]>([]);
   const [produtosDestaque, setProdutosDestaque] = useState<ProdutoResumo[]>([]);
   const [categoriesMap, setCategoriesMap] = useState<Map<string, string>>(new Map());
+  const [deliveryEnabled, setDeliveryEnabled] = useState<boolean>(false);
   
   const [loadingProdutos, setLoadingProdutos] = useState(false);
   const [loadingDestaque, setLoadingDestaque] = useState(false);
@@ -444,7 +445,10 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           featured: Boolean(it.featured),
           ctaUrl: typeof it.ctaUrl === 'string' ? it.ctaUrl : undefined,
         };
-        if (active) setBanca(mapped);
+        if (active) {
+          setBanca(mapped);
+          setDeliveryEnabled(Boolean(it.delivery_enabled));
+        }
       } catch {
         if (active) setBanca(FALLBACK_BANCA);
       }
@@ -965,10 +969,12 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         </div>
       </div>
 
-      {/* Frete grátis (compacto) logo abaixo do banner */}
+      {/* Frete grátis (compacto) logo abaixo do banner - só aparece se entrega habilitada */}
+      {deliveryEnabled && (
       <div className="mt-2 rounded-xl border border-gray-200 bg-white p-2">
         <FreeShippingProgress subtotal={subtotal} />
       </div>
+      )}
 
       {/* Pagamento Facilitado, Compra Segura, Banca Verificada */}
       <div className="mt-3">

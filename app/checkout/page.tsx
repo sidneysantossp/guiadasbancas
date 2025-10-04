@@ -45,6 +45,8 @@ export default function CheckoutPage() {
   const [addressMode, setAddressMode] = useState<"primary" | "new">("primary");
   const [editingPhone, setEditingPhone] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState("");
+  const [deliveryEnabled, setDeliveryEnabled] = useState<boolean>(false);
+  const [loadingBancaConfig, setLoadingBancaConfig] = useState(true);
   type SavedAddress = {
     id: string;
     cep: string;
@@ -159,6 +161,29 @@ export default function CheckoutPage() {
       localStorage.setItem("gb:checkout:profile", JSON.stringify(payload));
     } catch {}
   }, [name, email, phone, destCEP, street, houseNumber, neighborhood, city, uf, complement, coupon, couponApplied, payment, paymentChange]);
+
+  // Buscar configuração de entrega da banca
+  useEffect(() => {
+    const fetchBancaConfig = async () => {
+      try {
+        setLoadingBancaConfig(true);
+        const firstItem = items[0];
+        if (firstItem?.banca_id) {
+          const res = await fetch(`/api/admin/bancas?id=${firstItem.banca_id}`);
+          if (res.ok) {
+            const data = await res.json();
+            const bancaData = data?.data;
+            setDeliveryEnabled(Boolean(bancaData?.delivery_enabled));
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao buscar configuração da banca:', e);
+      } finally {
+        setLoadingBancaConfig(false);
+      }
+    };
+    fetchBancaConfig();
+  }, [items]);
   const [shipOpts, setShipOpts] = useState<{ code: string; price: number; days: number }[]>([]);
   const [shipLoading, setShipLoading] = useState(false);
   const [shipError, setShipError] = useState<string | null>(null);
@@ -608,7 +633,8 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {/* Seleção de endereço */}
+                {/* Seleção de endereço - só aparece se entrega habilitada */}
+                {deliveryEnabled && (
                 <div className="mt-3 space-y-2">
                   <div className="text-sm font-semibold">Endereço de entrega</div>
                   {addresses.length > 0 && (
@@ -708,10 +734,13 @@ export default function CheckoutPage() {
                     </div>
                   )}
                 </div>
+                )}
               </>
             )}
           </div>
 
+          {/* Seção de entrega - só aparece se entrega habilitada */}
+          {deliveryEnabled && (
           <div>
             <h2 className="text-base font-semibold">Entrega</h2>
             <div className="mt-2 flex gap-2 items-center">
@@ -811,6 +840,7 @@ export default function CheckoutPage() {
               <div className="mt-2 text-[12px] text-emerald-700">Frete grátis {shippingConfig.freeShippingEnabled ? "(oferta da banca)" : "(atingiu a meta)"}. {qualifiesByThreshold ? `Meta: R$ ${shippingConfig.freeShippingThreshold.toFixed(2)}` : null}</div>
             )}
           </div>
+          )}
 
           <div>
             <h2 className="text-base font-semibold">Pagamento</h2>
