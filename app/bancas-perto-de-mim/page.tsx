@@ -72,6 +72,7 @@ export default function BancasPertoDeMimPage() {
   const [loc, setLoc] = useState<UserLocation | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [apiBancas, setApiBancas] = useState<any[] | null>(null);
+  const [categoriesMap, setCategoriesMap] = useState<Map<string, string>>(new Map());
   // Filtros
   const [maxKm, setMaxKm] = useState<number>(5); // 0..5 (5 = 5+)
   const [minStars, setMinStars] = useState<number>(0); // 0..5 (0 = qualquer)
@@ -81,6 +82,27 @@ export default function BancasPertoDeMimPage() {
   const [cep, setCep] = useState<string>("");
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState<string | null>(null);
+
+  // Carregar categorias da API
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/categories');
+        const json = await res.json();
+        if (json?.success && Array.isArray(json.data)) {
+          const map = new Map<string, string>();
+          for (const cat of json.data) {
+            if (cat?.id && cat?.name) {
+              map.set(String(cat.id), String(cat.name));
+            }
+          }
+          setCategoriesMap(map);
+        }
+      } catch (e) {
+        console.error('Erro ao carregar categorias:', e);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     const stored = loadStoredLocation();
@@ -419,7 +441,17 @@ export default function BancasPertoDeMimPage() {
               ["Lanches", "Tabacaria", "Presentes", "Utilidades"],
               ["Bebidas", "Guloseimas", "Jogos", "Ingressos"],
             ];
-            const categories = (b as any).categories && (b as any).categories.length ? (b as any).categories : fallbackCats[idx % fallbackCats.length];
+            // Mapear IDs para nomes de categorias
+            const rawCategories = (b as any).categories && (b as any).categories.length ? (b as any).categories : fallbackCats[idx % fallbackCats.length];
+            const categories = Array.isArray(rawCategories) 
+              ? rawCategories.map(c => {
+                  const str = String(c || '').trim();
+                  // Tentar mapear pelo categoriesMap primeiro (da API)
+                  if (categoriesMap.has(str)) return categoriesMap.get(str);
+                  // Senão, tentar normalizeCategory (do JSON estático)
+                  return normalizeCategory(c);
+                }).filter(Boolean)
+              : [];
             return (
               <BankCard
                 key={b.id}
