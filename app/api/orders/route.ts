@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendOrderWhatsAppNotification, sendStatusWhatsAppUpdate, type OrderWhatsAppData } from "@/lib/whatsapp";
 import { auth } from "@/lib/auth";
+import { supabaseAdmin } from "@/lib/supabase";
 
 type OrderItem = {
   id: string;
@@ -32,9 +33,6 @@ type Order = {
   estimated_delivery?: string;
 };
 
-// Array de pedidos - começa vazio, pedidos reais serão adicionados via POST
-let ORDERS: Order[] = [];
-
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
@@ -49,53 +47,82 @@ export async function GET(req: NextRequest) {
     const order = searchParams.get("order") || "desc";
     const bancaIdFilter = searchParams.get("banca_id") || "";
     
-    // Filtrar pedidos
-    let filtered = ORDERS.filter((r) =>
-      (!status || r.status === status) && 
-      (!q || 
-        `#${r.id}`.toLowerCase().includes(q) || 
-        r.customer_name.toLowerCase().includes(q) ||
-        r.customer_phone.includes(q)
-      )
-    );
+    // Buscar pedidos do Supabase
+    let query = supabaseAdmin
+      .from('orders')
+      .select(`
+        *,
+        bancas:banca_id (
+          id,
+          name,
+          address,
+          whatsapp
+        )
+      `, { count: 'exact' });
 
-    // Escopo por banca: jornaleiro vê apenas os pedidos da própria banca
-    if (userRole === 'jornaleiro' && userBancaId) {
-      filtered = filtered.filter(r => r.banca_id === userBancaId);
-    } else if (bancaIdFilter) {
-      filtered = filtered.filter(r => r.banca_id === bancaIdFilter);
+    // Filtrar por status
+    if (status) {
+      query = query.eq('status', status);
     }
-    
+
+    // Filtrar por banca (jornaleiro só vê pedidos da própria banca)
+    if (userRole === 'jornaleiro' && userBancaId) {
+      query = query.eq('banca_id', userBancaId);
+    } else if (bancaIdFilter) {
+      query = query.eq('banca_id', bancaIdFilter);
+    }
+
+    // Busca por texto
+    if (q) {
+      query = query.or(`id.ilike.%${q}%,customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%`);
+    }
+
     // Ordenar
-    filtered.sort((a, b) => {
-      let aVal: any = a[sort as keyof Order];
-      let bVal: any = b[sort as keyof Order];
-      
-      if (sort === "total" || sort === "subtotal") {
-        aVal = Number(aVal);
-        bVal = Number(bVal);
-      }
-      
-      if (order === "desc") {
-        return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
-      } else {
-        return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-      }
-    });
-    
+    query = query.order(sort, { ascending: order === 'asc' });
+
     // Paginar
-    const total = filtered.length;
     const offset = (page - 1) * limit;
-    const items = filtered.slice(offset, offset + limit);
+    query = query.range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error('[API/ORDERS/GET] Erro ao buscar pedidos:', error);
+      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    }
+
+    // Formatar dados para o formato esperado pelo frontend
+    const items = (data || []).map((order: any) => ({
+      id: order.id,
+      customer_name: order.customer_name,
+      customer_phone: order.customer_phone,
+      customer_email: order.customer_email,
+      customer_address: order.customer_address,
+      banca_id: order.banca_id,
+      banca_name: order.bancas?.name || 'Banca',
+      banca_address: order.bancas?.address || '',
+      banca_whatsapp: order.bancas?.whatsapp || '',
+      items: order.items,
+      subtotal: Number(order.subtotal),
+      shipping_fee: Number(order.shipping_fee),
+      total: Number(order.total),
+      status: order.status,
+      payment_method: order.payment_method,
+      notes: order.notes,
+      created_at: order.created_at,
+      updated_at: order.updated_at,
+      estimated_delivery: order.estimated_delivery
+    }));
   
     return NextResponse.json({ 
       items, 
-      total, 
+      total: count || 0, 
       page, 
       limit,
-      pages: Math.ceil(total / limit)
+      pages: Math.ceil((count || 0) / limit)
     });
   } catch (e: any) {
+    console.error('[API/ORDERS/GET] Erro:', e);
     return NextResponse.json({ ok: false, error: e?.message || "Erro ao buscar pedidos" }, { status: 500 });
   }
 }
@@ -132,66 +159,79 @@ export async function POST(req: NextRequest) {
       total_price: (item.price || 0) * (item.qty || 1)
     }));
     
-    // Criar novo pedido
-    // Determinar banca
+    // Determinar banca_id
     const sessionBancaId = (session?.user as any)?.banca_id as string | undefined;
-    const inferredBancaId = body.banca_id || items[0]?.banca_id || sessionBancaId || "unknown";
-    const inferredBancaName = body.banca_name || "Minha Banca";
+    const inferredBancaId = body.banca_id || items[0]?.banca_id || sessionBancaId;
 
-    const newOrder: Order = {
-      id: orderId,
-      customer_name: customer.name || "Cliente",
-      customer_phone: customer.phone || "",
-      customer_email: customer.email || "",
-      customer_address: fullAddress,
-      banca_id: inferredBancaId,
-      banca_name: inferredBancaName,
-      items: orderItems,
-      subtotal: pricing.subtotal || 0,
-      shipping_fee: pricing.shipping || 0,
-      total: pricing.total || 0,
-      status: "novo",
-      payment_method: body.payment || "pix",
-      notes: body.shippingMethod ? `Entrega: ${body.shippingMethod}` : "",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      estimated_delivery: ""
-    };
-    
-    // Adicionar ao array de pedidos
-    ORDERS.unshift(newOrder);
+    if (!inferredBancaId) {
+      return NextResponse.json({ ok: false, error: "Banca não identificada" }, { status: 400 });
+    }
+
+    // Buscar dados da banca no Supabase
+    const { data: banca, error: bancaError } = await supabaseAdmin
+      .from('bancas')
+      .select('id, name, address, whatsapp')
+      .eq('id', inferredBancaId)
+      .single();
+
+    if (bancaError || !banca) {
+      console.error('[API/ORDERS/POST] Erro ao buscar banca:', bancaError);
+      return NextResponse.json({ ok: false, error: "Banca não encontrada" }, { status: 404 });
+    }
+
+    // Criar pedido no Supabase
+    const { data: newOrder, error: orderError } = await supabaseAdmin
+      .from('orders')
+      .insert({
+        id: orderId,
+        customer_name: customer.name || "Cliente",
+        customer_phone: customer.phone || "",
+        customer_email: customer.email || "",
+        customer_address: fullAddress,
+        banca_id: inferredBancaId,
+        items: orderItems,
+        subtotal: pricing.subtotal || 0,
+        shipping_fee: pricing.shipping || 0,
+        total: pricing.total || 0,
+        status: "novo",
+        payment_method: body.payment || "pix",
+        notes: body.shippingMethod ? `Entrega: ${body.shippingMethod}` : ""
+      })
+      .select()
+      .single();
+
+    if (orderError || !newOrder) {
+      console.error('[API/ORDERS/POST] Erro ao criar pedido:', orderError);
+      return NextResponse.json({ ok: false, error: orderError?.message || "Erro ao criar pedido" }, { status: 500 });
+    }
     
     // Log em server para inspeção
-    // eslint-disable-next-line no-console
-    console.log("[NOVO PEDIDO CRIADO]", { orderId, customer: newOrder.customer_name, total: newOrder.total });
+    console.log("[NOVO PEDIDO CRIADO]", { orderId, customer: customer.name, total: pricing.total, banca: banca.name });
     
     // Enviar notificação WhatsApp para o jornaleiro (assíncrono)
     try {
       const whatsappData: OrderWhatsAppData = {
         orderId,
-        customerName: newOrder.customer_name,
-        customerPhone: newOrder.customer_phone,
-        items: newOrder.items.map(item => ({
+        customerName: customer.name || "Cliente",
+        customerPhone: customer.phone || "",
+        items: orderItems.map(item => ({
           name: item.product_name,
           quantity: item.quantity,
           price: item.unit_price
         })),
-        total: newOrder.total,
+        total: pricing.total || 0,
         shippingMethod: body.shippingMethod || 'Não especificado',
-        paymentMethod: newOrder.payment_method,
-        address: newOrder.customer_address,
-        notes: newOrder.notes
+        paymentMethod: body.payment || "pix",
+        address: fullAddress,
+        notes: body.shippingMethod ? `Entrega: ${body.shippingMethod}` : ""
       };
-      
-      // ID da banca (em produção, virá do pedido ou usuário logado)
-      const bancaId = 'banca-001'; // Simulação - em produção pegar do contexto
       
       // Enviar notificação usando instância centralizada (não aguarda para não bloquear a resposta)
       import('@/lib/whatsapp').then(({ whatsappService }) => {
-        whatsappService.sendOrderNotificationToJornaleiro(bancaId, whatsappData)
+        whatsappService.sendOrderNotificationToJornaleiro(inferredBancaId, whatsappData)
           .then((success: boolean) => {
             if (success) {
-              console.log(`[WHATSAPP] Notificação enviada para banca ${bancaId} - Pedido #${orderId}`);
+              console.log(`[WHATSAPP] Notificação enviada para ${banca.name} (${banca.whatsapp}) - Pedido #${orderId}`);
             } else {
               console.warn(`[WHATSAPP] Falha ao enviar notificação - Pedido #${orderId}`);
             }
@@ -206,7 +246,17 @@ export async function POST(req: NextRequest) {
       console.error('[WHATSAPP] Erro na configuração da notificação:', error);
     }
     
-    return NextResponse.json({ ok: true, orderId, data: newOrder }, { status: 200 });
+    // Retornar dados do pedido com informações da banca
+    return NextResponse.json({ 
+      ok: true, 
+      orderId, 
+      data: {
+        ...newOrder,
+        banca_name: banca.name,
+        banca_address: banca.address,
+        banca_whatsapp: banca.whatsapp
+      }
+    }, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Erro ao criar pedido" }, { status: 500 });
   }
@@ -216,22 +266,44 @@ export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
     const { id, status, notes, estimated_delivery } = body || {};
-    const idx = ORDERS.findIndex((o) => o.id === id);
-    if (idx === -1) return NextResponse.json({ ok: false, error: "Pedido não encontrado" }, { status: 404 });
     
-    // Atualizar campos
-    const oldStatus = ORDERS[idx].status;
-    if (status) ORDERS[idx].status = status;
-    if (notes !== undefined) ORDERS[idx].notes = notes;
-    if (estimated_delivery) ORDERS[idx].estimated_delivery = estimated_delivery;
-    ORDERS[idx].updated_at = new Date().toISOString();
+    // Buscar pedido atual no Supabase
+    const { data: currentOrder, error: fetchError } = await supabaseAdmin
+      .from('orders')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !currentOrder) {
+      return NextResponse.json({ ok: false, error: "Pedido não encontrado" }, { status: 404 });
+    }
+    
+    const oldStatus = currentOrder.status;
+    
+    // Atualizar pedido no Supabase
+    const updateData: any = {};
+    if (status) updateData.status = status;
+    if (notes !== undefined) updateData.notes = notes;
+    if (estimated_delivery) updateData.estimated_delivery = estimated_delivery;
+
+    const { data: updatedOrder, error: updateError } = await supabaseAdmin
+      .from('orders')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError || !updatedOrder) {
+      console.error('[API/ORDERS/PATCH] Erro ao atualizar pedido:', updateError);
+      return NextResponse.json({ ok: false, error: updateError?.message || "Erro ao atualizar pedido" }, { status: 500 });
+    }
     
     // Enviar notificação WhatsApp para o cliente se o status mudou
-    if (status && status !== oldStatus && ORDERS[idx].customer_phone) {
+    if (status && status !== oldStatus && updatedOrder.customer_phone) {
       try {
         sendStatusWhatsAppUpdate(
-          ORDERS[idx].id,
-          ORDERS[idx].customer_phone,
+          updatedOrder.id,
+          updatedOrder.customer_phone,
           status,
           estimated_delivery
         )
@@ -250,8 +322,9 @@ export async function PATCH(req: NextRequest) {
       }
     }
     
-    return NextResponse.json({ ok: true, data: ORDERS[idx] });
+    return NextResponse.json({ ok: true, data: updatedOrder });
   } catch (e: any) {
+    console.error('[API/ORDERS/PATCH] Erro:', e);
     return NextResponse.json({ ok: false, error: e?.message || "Erro ao atualizar pedido" }, { status: 500 });
   }
 }

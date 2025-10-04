@@ -178,6 +178,7 @@ export interface Database {
           customer_name: string
           customer_phone: string
           customer_email: string | null
+          customer_address: string | null
           items: any[]
           subtotal: number
           shipping_fee: number
@@ -195,6 +196,7 @@ export interface Database {
           customer_name: string
           customer_phone: string
           customer_email?: string | null
+          customer_address?: string | null
           items: any[]
           subtotal: number
           shipping_fee: number
@@ -212,6 +214,7 @@ export interface Database {
           customer_name?: string
           customer_phone?: string
           customer_email?: string | null
+          customer_address?: string | null
           items?: any[]
           subtotal?: number
           shipping_fee?: number
