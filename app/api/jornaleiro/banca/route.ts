@@ -31,7 +31,7 @@ async function loadBancaForUser(userId: string): Promise<any> {
       complement: ''
     };
     
-    return {
+    const result = {
       id: data.id,
       name: data.name || '',
       description: data.description || '',
@@ -45,6 +45,7 @@ async function loadBancaForUser(userId: string): Promise<any> {
       },
       cover: data.cover_image || '',
       avatar: data.cover_image || '',
+      cover_image: data.cover_image || '',
       images: {
         cover: data.cover_image || '',
         avatar: data.cover_image || ''
@@ -66,6 +67,14 @@ async function loadBancaForUser(userId: string): Promise<any> {
       active: data.active !== false,
       createdAt: data.created_at,
     };
+    
+    console.log("Retornando banca com imagens:", {
+      cover_image: result.cover_image,
+      cover: result.cover,
+      avatar: result.avatar
+    });
+    
+    return result;
   } catch (e) {
     console.error("Erro ao carregar banca:", e);
     return null;
@@ -157,8 +166,21 @@ export async function PUT(request: NextRequest) {
     }
 
     console.log('Banca atualizada com sucesso:', updatedData);
+    
+    // Retornar dados formatados para o frontend
+    const responseData = {
+      ...updatedData,
+      cover: updatedData.cover_image,
+      avatar: updatedData.cover_image,
+      images: {
+        cover: updatedData.cover_image,
+        avatar: updatedData.cover_image
+      }
+    };
+    
+    console.log('Retornando para o frontend:', responseData);
 
-    return NextResponse.json({ success: true, data: updatedData });
+    return NextResponse.json({ success: true, data: responseData });
   } catch (e: any) {
     console.error('Update banca API error (jornaleiro):', e);
     return NextResponse.json({ 

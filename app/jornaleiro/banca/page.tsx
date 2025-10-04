@@ -264,23 +264,34 @@ export default function MinhaBancaPage() {
   const uploadImages = async (sources: string[]) => {
     const uploaded: string[] = [];
     for (const src of sources) {
-      if (!src.startsWith("data:")) {
+      // Se já é uma URL válida (http/https), não precisa fazer upload
+      if (!src.startsWith("data:") && (src.startsWith("http://") || src.startsWith("https://"))) {
+        console.log('Imagem já é URL válida, mantendo:', src);
         uploaded.push(src);
         continue;
       }
-      const blob = await (await fetch(src)).blob();
-      const formData = new FormData();
-      formData.append("file", blob, `img-${Date.now()}.png`);
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        headers: { Authorization: `Bearer admin-token` },
-        body: formData,
-      });
-      const json = await res.json();
-      if (!res.ok || !json?.ok || !json.url) {
-        throw new Error("Falha no upload de imagem");
+      
+      // Se é data URL (base64), fazer upload
+      if (src.startsWith("data:")) {
+        console.log('Fazendo upload de imagem base64...');
+        const blob = await (await fetch(src)).blob();
+        const formData = new FormData();
+        formData.append("file", blob, `img-${Date.now()}.png`);
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer admin-token` },
+          body: formData,
+        });
+        const json = await res.json();
+        console.log('Resposta do upload:', json);
+        if (!res.ok || !json?.ok || !json.url) {
+          throw new Error("Falha no upload de imagem");
+        }
+        uploaded.push(json.url as string);
+      } else {
+        // Qualquer outra coisa, manter
+        uploaded.push(src);
       }
-      uploaded.push(json.url as string);
     }
     return uploaded;
   };
@@ -348,9 +359,32 @@ export default function MinhaBancaPage() {
       if (!res.ok) {
         throw new Error(json.error || "Falha ao salvar banca");
       }
+
+      if (json.data) {
+        console.log('Dados retornados pelo servidor:', json.data);
+        
+        // Atualizar form com os dados retornados
+        setForm((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            ...json.data,
+            cover: json.data.cover_image || json.data.cover || coverUrl,
+            avatar: json.data.cover_image || json.data.avatar || avatarUrl,
+            gallery: json.data.gallery || galleryUrls,
+            addressObj: prev.addressObj, // Manter addressObj do frontend
+            contact: prev.contact,
+            socials: prev.socials,
+          };
+        });
+
+        // Atualizar as imagens no estado
+        if (coverUrl) setCoverImages([coverUrl]);
+        if (avatarUrl) setAvatarImages([avatarUrl]);
+        if (galleryUrls.length > 0) setGalleryImages(galleryUrls);
+      }
       
-      setForm((prev) => (prev ? { ...prev, ...json.data, cover: json.data.cover, avatar: json.data.avatar, gallery: json.data.gallery } : prev));
-      toast.success("Dados da banca atualizados");
+      toast.success("Dados da banca atualizados com sucesso!");
       router.refresh();
     } catch (e: any) {
       console.error('Erro ao salvar banca:', e);
