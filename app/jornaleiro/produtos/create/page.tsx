@@ -17,6 +17,21 @@ interface CategoryOption {
   name: string;
 }
 
+// Funções de máscara
+const formatCurrency = (value: string | number) => {
+  if (typeof value === 'number') {
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  const numbers = value.toString().replace(/\D/g, '');
+  const amount = parseFloat(numbers) / 100;
+  return amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const parseCurrency = (value: string): number => {
+  const numbers = value.replace(/\D/g, '');
+  return parseFloat(numbers) / 100;
+};
+
 export default function SellerProductCreatePage() {
   const router = useRouter();
   const toast = useToast();
@@ -29,6 +44,8 @@ export default function SellerProductCreatePage() {
   const [descriptionFull, setDescriptionFull] = useState("");
   const [specifications, setSpecifications] = useState("");
   const [allowReviews, setAllowReviews] = useState(true);
+  const [price, setPrice] = useState("");
+  const [priceOriginal, setPriceOriginal] = useState("");
   const authHeaders = useMemo(() => {
     if (typeof window === "undefined") return {} as Record<string, string>;
     const token = window.localStorage.getItem("gb:sellerToken") || "seller-token";
@@ -82,8 +99,8 @@ export default function SellerProductCreatePage() {
         name: (fd.get("name") as string)?.trim(),
         description: (fd.get("description") as string) || "",
         category_id: (fd.get("category") as string)?.trim(),
-        price: Number(fd.get("price") || 0),
-        price_original: fd.get("price_original") ? Number(fd.get("price_original")) : undefined,
+        price: parseCurrency(price),
+        price_original: priceOriginal ? parseCurrency(priceOriginal) : undefined,
         discount_percent: fd.get("discount_percent") ? Number(fd.get("discount_percent")) : undefined,
         stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
         track_stock: Boolean(fd.get("track_stock")),
@@ -184,11 +201,30 @@ export default function SellerProductCreatePage() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-sm font-medium">Preço</label>
-                <input type="number" step="0.01" name="price" required className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
+                  <input
+                    type="text"
+                    value={formatCurrency(price)}
+                    onChange={(e) => setPrice(formatCurrency(e.target.value))}
+                    required
+                    className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
+                    placeholder="0,00"
+                  />
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium">Preço original</label>
-                <input type="number" step="0.01" name="price_original" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
+                  <input
+                    type="text"
+                    value={formatCurrency(priceOriginal)}
+                    onChange={(e) => setPriceOriginal(formatCurrency(e.target.value))}
+                    className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
+                    placeholder="0,00"
+                  />
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">

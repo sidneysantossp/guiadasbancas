@@ -67,6 +67,14 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'cdn1.staticpanvel.com.br',
       },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'rgqlncxrzwgjreggrjcq.supabase.co',
+      },
     ],
   },
   async redirects() {
