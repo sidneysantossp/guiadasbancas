@@ -163,6 +163,9 @@ export default function ConfiguracoesPage() {
     whatsapp: '',
     description: '',
     active: true,
+    delivery_enabled: false,
+    free_shipping_threshold: 120,
+    origin_cep: '',
   });
 
   useEffect(() => {
