@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import type { AdminBanca } from "@/app/api/admin/bancas/route";
 
-async function loadBancaForUser(userId: string): Promise<AdminBanca | null> {
+async function loadBancaForUser(userId: string): Promise<any> {
   try {
     // Buscar banca pelo user_id
     const { data, error } = await supabaseAdmin
@@ -17,20 +17,55 @@ async function loadBancaForUser(userId: string): Promise<AdminBanca | null> {
       return null;
     }
     
+    console.log("Dados carregados da banca:", data);
+    
+    // Parse do endereço completo para addressObj
+    const addressParts = (data.address || '').split(', ');
+    const addressObj = {
+      cep: data.cep || '',
+      street: addressParts[0] || '',
+      number: addressParts[1] || '',
+      neighborhood: addressParts[2] || '',
+      city: addressParts[3] || '',
+      uf: addressParts[4] || '',
+      complement: ''
+    };
+    
     return {
       id: data.id,
-      name: data.name,
-      address: data.address,
+      name: data.name || '',
+      description: data.description || '',
+      address: data.address || '',
+      addressObj: addressObj,
       lat: data.lat,
       lng: data.lng,
+      location: {
+        lat: data.lat,
+        lng: data.lng
+      },
       cover: data.cover_image || '',
       avatar: data.cover_image || '',
-      description: data.address,
+      images: {
+        cover: data.cover_image || '',
+        avatar: data.cover_image || ''
+      },
+      gallery: [],
       categories: data.categories || [],
+      contact: {
+        whatsapp: data.whatsapp || ''
+      },
+      socials: {
+        instagram: data.instagram || '',
+        facebook: data.facebook || '',
+        gmb: ''
+      },
+      payments: data.payment_methods || [],
+      hours: [],
+      featured: false,
+      ctaUrl: '',
       active: data.active !== false,
-      order: data.order || 0,
       createdAt: data.created_at,
-    } as AdminBanca;
+    };
   } catch (e) {
     console.error("Erro ao carregar banca:", e);
     return null;
@@ -81,12 +116,17 @@ export async function PUT(request: NextRequest) {
     // APENAS campos que existem na tabela bancas
     const updateData: any = {
       name: data.name,
+      description: data.description,
       address: fullAddress || data.address,
       cep: data.addressObj?.cep || data.cep,
       lat: data.location?.lat || data.lat,
       lng: data.location?.lng || data.lng,
       cover_image: data.images?.cover || data.cover,
       categories: data.categories || [],
+      whatsapp: data.contact?.whatsapp,
+      instagram: data.socials?.instagram,
+      facebook: data.socials?.facebook,
+      payment_methods: data.payments || [],
       updated_at: new Date().toISOString()
     };
 
