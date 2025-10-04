@@ -739,10 +739,26 @@ export default function CheckoutPage() {
             )}
           </div>
 
-          {/* Seção de entrega - só aparece se entrega habilitada */}
-          {deliveryEnabled && (
+          {/* Seção de entrega e retirada */}
           <div>
-            <h2 className="text-base font-semibold">Entrega</h2>
+            <h2 className="text-base font-semibold">Retirada {deliveryEnabled && 'e Entrega'}</h2>
+            
+            {/* Mensagem informativa quando entrega desabilitada */}
+            {!deliveryEnabled && (
+              <div className="mt-2 rounded-md bg-blue-50 border border-blue-200 p-3">
+                <div className="flex gap-2 items-start">
+                  <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <div className="text-sm text-blue-800">
+                    <strong>Apenas retirada:</strong> Esta banca não oferece serviço de entrega no momento. Você pode retirar seus produtos diretamente na banca.
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Cálculo de frete - só aparece se entrega habilitada */}
+            {deliveryEnabled && (
             <div className="mt-2 flex gap-2 items-center">
               <span className="text-sm text-gray-600">CEP: <span className="font-semibold">{destCEP || "--"}</span></span>
               <button
@@ -754,14 +770,17 @@ export default function CheckoutPage() {
                 {shipLoading ? "Consultando..." : "Calcular frete"}
               </button>
             </div>
-            {shipError && <div className="mt-2 text-[12px] text-red-600">{shipError}</div>}
-            {!shipError && cepTouched && !isValidCEP && (
+            )}
+            {deliveryEnabled && shipError && <div className="mt-2 text-[12px] text-red-600">{shipError}</div>}
+            {deliveryEnabled && !shipError && cepTouched && !isValidCEP && (
               <div className="mt-2 text-[12px] text-red-600">CEP inválido. Use o formato 00000-000.</div>
             )}
-            {/* Barra de progresso da meta de frete grátis */}
+            {/* Barra de progresso da meta de frete grátis - só se entrega habilitada */}
+            {deliveryEnabled && (
             <div className="mt-3">
               <FreeShippingProgress subtotal={subtotal} />
             </div>
+            )}
             <div className="mt-3">
               {/* Cupom */}
               <div>
@@ -804,15 +823,18 @@ export default function CheckoutPage() {
               </div>
             </div>
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+              {/* Opção Retirar na Banca - SEMPRE visível */}
               <label className={`flex items-center justify-between rounded-md border p-2 cursor-pointer ${shipping==="retirada"?"border-[#ff5c00] bg-[#fff7f2]":"border-gray-300 bg-white"}`}>
                 <span className="inline-flex items-center gap-2">
                   <img src="https://cdn-icons-png.flaticon.com/128/6503/6503227.png" alt="Retirar na banca" className="h-5 w-5 object-contain" loading="lazy" />
                   Retirar na banca
                 </span>
                 <input type="radio" name="ship" className="hidden" checked={shipping==="retirada"} onChange={()=>setShipping("retirada")} />
-                <span className="text-gray-700 font-semibold">R$ 0,00</span>
+                <span className="text-gray-700 font-semibold">Grátis</span>
               </label>
-              {shipOpts.map((s) => (
+              
+              {/* Opções de Entrega - só aparecem se deliveryEnabled */}
+              {deliveryEnabled && shipOpts.map((s) => (
                 <label key={s.code} className={`flex items-center justify-between rounded-md border p-2 cursor-pointer ${shipping===s.code?"border-[#ff5c00] bg-[#fff7f2]":"border-gray-300 bg-white"}`} title={s.code === 'MOTOBOY' ? 'Entre em contato para consultar preço e prazo' : (s.days ? `Prazo estimado: ${s.days} dia(s) útil(eis)` : undefined)}>
                   <span className="inline-flex items-center gap-2">
                     {s.code === 'MOTOBOY' && (
@@ -840,7 +862,6 @@ export default function CheckoutPage() {
               <div className="mt-2 text-[12px] text-emerald-700">Frete grátis {shippingConfig.freeShippingEnabled ? "(oferta da banca)" : "(atingiu a meta)"}. {qualifiesByThreshold ? `Meta: R$ ${shippingConfig.freeShippingThreshold.toFixed(2)}` : null}</div>
             )}
           </div>
-          )}
 
           <div>
             <h2 className="text-base font-semibold">Pagamento</h2>
