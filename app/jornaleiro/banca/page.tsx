@@ -585,7 +585,7 @@ export default function MinhaBancaPage() {
           <span className="text-xs text-gray-500">Informe horário de abertura e fechamento para cada dia</span>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {form.hours.map((day) => (
+          {(form.hours && form.hours.length > 0 ? form.hours : DAYS.map((d) => ({ key: d.key, label: d.label, open: false, start: "08:00", end: "18:00" }))).map((day) => (
             <div key={day.key} className="rounded-lg border border-gray-200 p-3">
               <div className="flex items-center justify-between text-sm font-semibold">
                 <span>{day.label}</span>
