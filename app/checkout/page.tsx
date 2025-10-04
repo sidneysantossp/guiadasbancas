@@ -698,7 +698,7 @@ export default function CheckoutPage() {
                     <div className={`rounded-md border p-2 ${addressMode==='new' ? 'border-[#ff5c00] bg-[#fff7f2]' : 'border-gray-300 bg-white'}`}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-sm font-medium">
-                          {addresses.length === 0 ? 'Adicionar endereço de entrega' : 'Novo endereço'}
+                          {addresses.length === 0 ? 'Informe seu CEP' : 'Novo endereço'}
                         </div>
                         {addresses.length > 0 && (
                           <button 
