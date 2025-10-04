@@ -133,7 +133,7 @@ export default function MinhaBancaPage() {
     if (!form) return;
     setCoverImages(form.cover ? [form.cover] : []);
     setAvatarImages(form.avatar ? [form.avatar] : []);
-    setGalleryImages(form.gallery);
+    setGalleryImages(Array.isArray(form.gallery) ? form.gallery : []);
   }, [form?.cover, form?.avatar, form?.gallery]);
 
   const updateField = <K extends keyof BancaForm>(key: K, value: BancaForm[K]) => {
@@ -289,28 +289,28 @@ export default function MinhaBancaPage() {
     if (!form) return;
     try {
       setSaving(true);
-      const [coverUrl] = await uploadImages(coverImages);
-      const [avatarUrl] = await uploadImages(avatarImages);
-      const galleryUrls = await uploadImages(galleryImages);
+      const [coverUrl] = await uploadImages(coverImages || []);
+      const [avatarUrl] = await uploadImages(avatarImages || []);
+      const galleryUrls = await uploadImages(galleryImages || []);
       const payload: Partial<BancaForm> & { images?: { cover?: string; avatar?: string } } = {
-        name: form.name,
-        description: form.description,
-        featured: form.featured,
-        ctaUrl: form.ctaUrl,
-        contact: form.contact,
-        socials: form.socials,
-        addressObj: form.addressObj,
+        name: form.name || '',
+        description: form.description || '',
+        featured: form.featured || false,
+        ctaUrl: form.ctaUrl || '',
+        contact: form.contact || {},
+        socials: form.socials || {},
+        addressObj: form.addressObj || {},
         location: {
-          lat: form.location.lat ? Number(form.location.lat) : undefined,
-          lng: form.location.lng ? Number(form.location.lng) : undefined,
+          lat: form.location?.lat ? Number(form.location.lat) : undefined,
+          lng: form.location?.lng ? Number(form.location.lng) : undefined,
         },
-        payments: form.payments,
-        categories: form.categories,
-        hours: form.hours,
-        gallery: galleryUrls,
+        payments: Array.isArray(form.payments) ? form.payments : [],
+        categories: Array.isArray(form.categories) ? form.categories : [],
+        hours: Array.isArray(form.hours) ? form.hours : [],
+        gallery: Array.isArray(galleryUrls) ? galleryUrls : [],
         images: {
-          cover: coverUrl,
-          avatar: avatarUrl,
+          cover: coverUrl || undefined,
+          avatar: avatarUrl || undefined,
         },
       };
 
