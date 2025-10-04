@@ -289,9 +289,26 @@ export default function MinhaBancaPage() {
     if (!form) return;
     try {
       setSaving(true);
-      const [coverUrl] = await uploadImages(coverImages || []);
-      const [avatarUrl] = await uploadImages(avatarImages || []);
-      const galleryUrls = await uploadImages(galleryImages || []);
+      
+      console.log('Imagens antes do upload:', {
+        coverImages,
+        avatarImages,
+        galleryImages
+      });
+      
+      const uploadedCover = await uploadImages(coverImages || []);
+      const uploadedAvatar = await uploadImages(avatarImages || []);
+      const uploadedGallery = await uploadImages(galleryImages || []);
+      
+      const coverUrl = uploadedCover[0] || form.cover;
+      const avatarUrl = uploadedAvatar[0] || form.avatar;
+      const galleryUrls = uploadedGallery.length > 0 ? uploadedGallery : form.gallery;
+      
+      console.log('URLs após upload:', {
+        coverUrl,
+        avatarUrl,
+        galleryUrls
+      });
       const payload: Partial<BancaForm> & { images?: { cover?: string; avatar?: string } } = {
         name: form.name || '',
         description: form.description || '',

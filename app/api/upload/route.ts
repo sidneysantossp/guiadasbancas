@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const runtime = 'nodejs';
 
@@ -22,9 +21,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "Arquivo inválido" }, { status: 400 });
     }
 
-    // Verificar tamanho do arquivo (máximo 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      return NextResponse.json({ ok: false, error: "Arquivo muito grande. Máximo 2MB." }, { status: 400 });
+    // Verificar tamanho do arquivo (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ ok: false, error: "Arquivo muito grande. Máximo 5MB." }, { status: 400 });
     }
 
     // Verificar tipo de arquivo
@@ -36,11 +35,43 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
     
-    // Converter para base64
-    const base64 = Buffer.from(buffer).toString('base64');
-    const dataUrl = `data:${file.type};base64,${base64}`;
+    // Gerar nome único para o arquivo
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(7);
+    const extension = file.type.split('/')[1];
+    const fileName = `${timestamp}-${random}.${extension}`;
+    const filePath = `bancas/${fileName}`;
 
-    return NextResponse.json({ ok: true, url: dataUrl });
+    console.log('Fazendo upload para Supabase Storage:', filePath);
+
+    // Upload para Supabase Storage
+    const { data, error } = await supabaseAdmin.storage
+      .from('images')
+      .upload(filePath, buffer, {
+        contentType: file.type,
+        upsert: false
+      });
+
+    if (error) {
+      console.error('Erro no upload Supabase:', error);
+      // Fallback: retornar base64 se o storage falhar
+      const base64 = Buffer.from(buffer).toString('base64');
+      const dataUrl = `data:${file.type};base64,${base64}`;
+      return NextResponse.json({ ok: true, url: dataUrl, fallback: true });
+    }
+
+    // Obter URL pública
+    const { data: publicUrlData } = supabaseAdmin.storage
+      .from('images')
+      .getPublicUrl(filePath);
+
+    console.log('Upload concluído:', publicUrlData.publicUrl);
+
+    return NextResponse.json({ 
+      ok: true, 
+      url: publicUrlData.publicUrl,
+      path: filePath
+    });
   } catch (e) {
     console.error('upload error', e);
     return NextResponse.json({ ok: false, error: 'Erro ao fazer upload' }, { status: 500 });
