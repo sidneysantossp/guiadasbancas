@@ -325,9 +325,14 @@ const CATEGORY_LOOKUP = (() => {
   return map;
 })();
 
-const normalizeCategory = (raw: any): string => {
+const normalizeCategory = (raw: any, dynamicMap?: Map<string, string>): string => {
   const value = typeof raw === "string" ? raw.trim() : String(raw || "").trim();
   if (!value) return "";
+  // Tentar mapear com dynamicMap primeiro (API)
+  if (dynamicMap && dynamicMap.has(value)) {
+    return dynamicMap.get(value) || value;
+  }
+  // Fallback para CATEGORY_LOOKUP (JSON estático)
   return CATEGORY_LOOKUP.get(value) ?? value;
 };
 
@@ -338,10 +343,32 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   const [banca, setBanca] = useState<BancaDetail>(FALLBACK_BANCA);
   const [produtos, setProdutos] = useState<ProdutoResumo[]>([]);
   const [produtosDestaque, setProdutosDestaque] = useState<ProdutoResumo[]>([]);
+  const [categoriesMap, setCategoriesMap] = useState<Map<string, string>>(new Map());
   
   const [loadingProdutos, setLoadingProdutos] = useState(false);
   const [loadingDestaque, setLoadingDestaque] = useState(false);
   const [highlightCoupon, setHighlightCoupon] = useState<null | { title: string; code: string; discountText: string; expiresAt?: string }>(null);
+
+  // Carregar categorias da API
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/categories');
+        const json = await res.json();
+        if (json?.success && Array.isArray(json.data)) {
+          const map = new Map<string, string>();
+          for (const cat of json.data) {
+            if (cat?.id && cat?.name) {
+              map.set(String(cat.id), String(cat.name));
+            }
+          }
+          setCategoriesMap(map);
+        }
+      } catch (e) {
+        console.error('Erro ao carregar categorias:', e);
+      }
+    })();
+  }, []);
   const { show } = useToast();
   const [hoursOpen, setHoursOpen] = useState(false);
   const hoursRef = useRef<HTMLDivElement | null>(null);
@@ -411,7 +438,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           hours: label,
           hoursArray: Array.isArray(it.hours) ? it.hours : undefined,
           socials: it.socials,
-          categories: Array.isArray(it.categories) ? it.categories.map((cat: any) => normalizeCategory(cat)).filter(Boolean) : undefined,
+          categories: Array.isArray(it.categories) ? it.categories.map((cat: any) => normalizeCategory(cat, categoriesMap)).filter(Boolean) : undefined,
           payments: Array.isArray(it.payments) ? it.payments : undefined,
           gallery: Array.isArray(it.gallery) ? it.gallery : undefined,
           featured: Boolean(it.featured),
@@ -461,7 +488,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             reviews: item.reviews_count,
             ready: Boolean(item.track_stock),
             stockQty,
-            category: normalizeCategory(categoryRaw),
+            category: normalizeCategory(categoryRaw, categoriesMap),
             discountPercent,
             couponCode,
             sob_encomenda: Boolean(item.sob_encomenda),
@@ -516,7 +543,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             reviews: item.reviews_count,
             ready: Boolean(item.track_stock),
             stockQty,
-            category: normalizeCategory(categoryRaw),
+            category: normalizeCategory(categoryRaw, categoriesMap),
             discountPercent,
             couponCode,
             sob_encomenda: Boolean(item.sob_encomenda),
@@ -699,8 +726,8 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
 
   // Categorias (dinâmicas) com chips em slider
   const allCategories = useMemo(() => {
-    const fromBanca = Array.isArray(banca.categories) ? banca.categories.map((c) => normalizeCategory(c)).filter(Boolean) : [];
-    const fromProducts = Array.from(new Set(produtos.map((p) => normalizeCategory(p.category)).filter(Boolean)));
+    const fromBanca = Array.isArray(banca.categories) ? banca.categories.map((c) => normalizeCategory(c, categoriesMap)).filter(Boolean) : [];
+    const fromProducts = Array.from(new Set(produtos.map((p) => normalizeCategory(p.category, categoriesMap)).filter(Boolean)));
     const combined = Array.from(new Set([...fromBanca, ...fromProducts]));
     if (combined.length > 0) return combined;
     try {
@@ -711,7 +738,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       if (names.length > 0) return names;
     } catch {}
     return [];
-  }, [banca.categories, produtos]);
+  }, [banca.categories, produtos, categoriesMap]);
   const [activeCategory, setActiveCategory] = useState<string>('Todos');
   const catScrollerRef = useRef<HTMLDivElement | null>(null);
   const [hasCatOverflow, setHasCatOverflow] = useState(false);
@@ -787,10 +814,10 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   const produtosFiltrados = useMemo(() => {
     const base = (!activeCategory || activeCategory === 'Todos')
       ? produtos
-      : produtos.filter(p => normalizeCategory(p.category).toLowerCase() === activeCategory.toLowerCase());
+      : produtos.filter(p => normalizeCategory(p.category, categoriesMap).toLowerCase() === activeCategory.toLowerCase());
     // Não filtrar sem estoque; a UI indicará 'Esgotado'
     return base;
-  }, [activeCategory, produtos]);
+  }, [activeCategory, produtos, categoriesMap]);
 
   // Paginação com carregamento incremental por página (30 itens/page)
   const pageSize = 30;
