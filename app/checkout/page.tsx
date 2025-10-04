@@ -561,8 +561,13 @@ export default function CheckoutPage() {
       }
       const lastOrder = {
         orderId: data.orderId,
+        orderNumber: data.orderNumber,
         status: 'processing',
         ...payload,
+        // Adicionar dados da banca retornados pela API
+        banca_name: data.data?.banca_name,
+        banca_address: data.data?.banca_address,
+        banca_whatsapp: data.data?.banca_whatsapp,
       };
       try {
         localStorage.setItem('gb:lastOrder', JSON.stringify(lastOrder));
