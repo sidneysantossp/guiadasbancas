@@ -45,7 +45,7 @@ export default function FloatingCart() {
   return (
     <>
       {/* Botão flutuante do carrinho */}
-      <div className={`fixed bottom-6 right-6 z-40 hidden md:block transition-all duration-300 ${
+      <div className={`fixed top-1/2 -translate-y-1/2 right-6 z-40 hidden md:block transition-all duration-300 ${
         totalCount > 0 ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
       }`}>
         <button
