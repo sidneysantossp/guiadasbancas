@@ -1,24 +1,31 @@
 # 🔥 AÇÃO NECESSÁRIA: Executar SQL no Supabase
 
-## ⚠️ IMPORTANTE: Execute este SQL AGORA no Supabase
+## ⚠️ IMPORTANTE: Execute estes SQLs AGORA no Supabase
 
-Para que os pedidos funcionem corretamente, você precisa adicionar o campo `customer_address` na tabela `orders`.
+Para que os pedidos funcionem corretamente, você precisa executar 2 migrações SQL:
 
 ### 📍 Como Executar:
 
 1. **Acesse o Supabase:** https://supabase.com/dashboard/project/rgqlncxrzwgjreggrjcq
 2. **Vá em:** SQL Editor (menu lateral)
-3. **Cole e execute este SQL:**
+3. **Cole e execute este SQL (COPIE TUDO):**
 
 ```sql
--- Adicionar campo customer_address na tabela orders
+-- ========================================
+-- MIGRAÇÃO 1: Adicionar customer_address
+-- ========================================
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_address TEXT;
-
--- Comentário
 COMMENT ON COLUMN orders.customer_address IS 'Endereço completo do cliente para entrega';
+
+-- ========================================
+-- MIGRAÇÃO 2: Adicionar order_number
+-- ========================================
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_number VARCHAR(50) UNIQUE;
+CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number);
+COMMENT ON COLUMN orders.order_number IS 'Número do pedido no formato ORD-timestamp (ex: ORD-1759613705412)';
 ```
 
-4. **Clique em:** RUN
+4. **Clique em:** RUN (botão verde)
 
 ### ✅ Como Verificar se Funcionou:
 
@@ -30,23 +37,27 @@ WHERE table_name = 'orders'
 ORDER BY ordinal_position;
 ```
 
-Deve aparecer `customer_address` com tipo `text` na lista.
+Deve aparecer:
+- `customer_address` com tipo `text`
+- `order_number` com tipo `character varying`
 
 ---
 
 ## 🎯 O que foi corrigido no código:
 
 ### ❌ ANTES (Problemas):
-1. Pedidos salvos em memória → **sumiam ao restart**
-2. Array local → **não aparece no painel**
-3. WhatsApp hardcoded → **'banca-001' fixo**
-4. Sem dados da banca → **endereço vazio**
+1. **Erro UUID:** `invalid input syntax for type uuid: "ORD-1759613705412"`
+2. Pedidos salvos em memória → **sumiam ao restart**
+3. Array local → **não aparece no painel**
+4. WhatsApp hardcoded → **'banca-001' fixo**
+5. Sem dados da banca → **endereço vazio**
 
 ### ✅ AGORA (Soluções):
-1. **Pedidos salvos no Supabase** → persistem permanentemente
-2. **GET busca do banco** → aparecem no painel do jornaleiro
-3. **WhatsApp usa banca_id real** → envia para número correto
-4. **JOIN com tabela bancas** → nome, endereço, telefone completos
+1. **UUID correto:** ID gerado automaticamente pelo Supabase, `order_number` para exibição
+2. **Pedidos salvos no Supabase** → persistem permanentemente
+3. **GET busca do banco** → aparecem no painel do jornaleiro
+4. **WhatsApp usa banca_id real** → envia para número correto
+5. **JOIN com tabela bancas** → nome, endereço, telefone completos
 
 ---
 
