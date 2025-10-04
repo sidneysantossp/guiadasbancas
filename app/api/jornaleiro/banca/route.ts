@@ -66,27 +66,38 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const data = body?.data ?? body;
 
+    console.log('Dados recebidos para atualização:', JSON.stringify(data, null, 2));
+
+    // Preparar endereço completo
+    const fullAddress = [
+      data.addressObj?.street,
+      data.addressObj?.number,
+      data.addressObj?.neighborhood,
+      data.addressObj?.city,
+      data.addressObj?.uf
+    ].filter(Boolean).join(', ');
+
     // Preparar dados para atualização no Supabase
+    // APENAS campos que existem na tabela bancas
     const updateData: any = {
       name: data.name,
-      address: data.address || data.addressObj?.street,
+      address: fullAddress || data.address,
       cep: data.addressObj?.cep || data.cep,
-      lat: data.lat || data.location?.lat,
-      lng: data.lng || data.location?.lng,
-      cover_image: data.cover || data.images?.cover,
-      avatar: data.avatar || data.images?.avatar,
+      lat: data.location?.lat || data.lat,
+      lng: data.location?.lng || data.lng,
+      cover_image: data.images?.cover || data.cover,
       categories: data.categories || [],
-      active: data.active !== false,
-      featured: data.featured || false,
       updated_at: new Date().toISOString()
     };
 
-    // Remover campos undefined
+    // Remover campos undefined ou null
     Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined) {
+      if (updateData[key] === undefined || updateData[key] === null || updateData[key] === '') {
         delete updateData[key];
       }
     });
+
+    console.log('Dados que serão atualizados no Supabase:', JSON.stringify(updateData, null, 2));
 
     // Atualizar banca pelo user_id
     const { data: updatedData, error } = await supabaseAdmin
@@ -98,12 +109,22 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error('Update banca error (jornaleiro):', error);
-      return NextResponse.json({ success: false, error: 'Erro ao atualizar banca' }, { status: 500 });
+      return NextResponse.json({ 
+        success: false, 
+        error: `Erro ao atualizar banca: ${error.message}`,
+        details: error 
+      }, { status: 500 });
     }
+
+    console.log('Banca atualizada com sucesso:', updatedData);
 
     return NextResponse.json({ success: true, data: updatedData });
   } catch (e: any) {
     console.error('Update banca API error (jornaleiro):', e);
-    return NextResponse.json({ success: false, error: e?.message || "Erro ao atualizar banca" }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: e?.message || "Erro ao atualizar banca",
+      stack: e?.stack
+    }, { status: 500 });
   }
 }

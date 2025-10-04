@@ -314,6 +314,8 @@ export default function MinhaBancaPage() {
         },
       };
 
+      console.log('Enviando dados para API:', payload);
+      
       const res = await fetch("/api/jornaleiro/banca", {
         method: "PUT",
         headers: {
@@ -322,12 +324,19 @@ export default function MinhaBancaPage() {
         },
         body: JSON.stringify({ data: payload }),
       });
-      if (!res.ok) throw new Error("Falha ao salvar banca");
+      
       const json = await res.json();
+      console.log('Resposta da API:', json);
+      
+      if (!res.ok) {
+        throw new Error(json.error || "Falha ao salvar banca");
+      }
+      
       setForm((prev) => (prev ? { ...prev, ...json.data, cover: json.data.cover, avatar: json.data.avatar, gallery: json.data.gallery } : prev));
       toast.success("Dados da banca atualizados");
       router.refresh();
     } catch (e: any) {
+      console.error('Erro ao salvar banca:', e);
       toast.error(e?.message || "Erro ao salvar banca");
     } finally {
       setSaving(false);
