@@ -117,34 +117,6 @@ const GeneralSettingsForm = memo(({
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Taxa de Entrega (R$)</label>
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
-          <input
-            type="text"
-            value={formatCurrency(deliveryConfig.delivery_fee)}
-            onChange={(e) => {
-              const value = parseCurrency(e.target.value);
-              setDeliveryConfig({ ...deliveryConfig, delivery_fee: value });
-            }}
-            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md"
-            placeholder="0,00"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">Raio de Entrega (km)</label>
-        <input
-          type="number"
-          step="0.1"
-          value={deliveryConfig.delivery_radius}
-          onChange={(e) => setDeliveryConfig({ ...deliveryConfig, delivery_radius: parseFloat(e.target.value) || 0 })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md"
-        />
-      </div>
-
       <div className="flex items-center gap-2">
         <input 
           type="checkbox" 
