@@ -15,6 +15,9 @@ type GeneralConfigType = {
   whatsapp: string;
   description: string;
   active: boolean;
+  delivery_enabled?: boolean;
+  free_shipping_threshold?: number;
+  origin_cep?: string;
 };
 
 type DeliveryConfigType = {
@@ -228,6 +231,9 @@ export default function ConfiguracoesPage() {
           whatsapp: data.whatsapp || '',
           description: data.description || '',
           active: data.active !== false,
+          delivery_enabled: data.delivery_enabled || false,
+          free_shipping_threshold: data.free_shipping_threshold || 120,
+          origin_cep: data.origin_cep || '',
         });
       }
     } catch (error) {
@@ -302,6 +308,9 @@ export default function ConfiguracoesPage() {
           active: generalConfig.active,
           delivery_fee: deliveryConfig.delivery_fee,
           delivery_radius: deliveryConfig.delivery_radius,
+          delivery_enabled: generalConfig.delivery_enabled || false,
+          free_shipping_threshold: generalConfig.free_shipping_threshold || 120,
+          origin_cep: generalConfig.origin_cep || null,
         })
         .eq('user_id', user.id)
         .select();
@@ -422,6 +431,79 @@ export default function ConfiguracoesPage() {
         </p>
       </div>
 
+      {/* Toggle principal para habilitar/desabilitar entrega */}
+      <div className="rounded-lg border-2 border-gray-200 bg-gray-50 p-4">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={generalConfig.delivery_enabled || false}
+            onChange={(e) => setGeneralConfig({ ...generalConfig, delivery_enabled: e.target.checked })}
+            className="mt-1 rounded"
+          />
+          <div className="flex-1">
+            <div className="font-semibold text-sm">Habilitar Entrega</div>
+            <div className="text-xs text-gray-600 mt-1">
+              Quando habilitado, os clientes poderão escolher entre retirada na banca ou entrega no endereço.
+              Se desabilitado, apenas a opção "Retirar na banca" estará disponível no checkout.
+            </div>
+          </div>
+        </label>
+      </div>
+
+      {generalConfig.delivery_enabled && (
+      <div className="space-y-4 border-l-4 border-[#ff5c00] pl-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex gap-2">
+            <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <div className="text-sm text-blue-800">
+              <strong>Dica:</strong> Configure o frete grátis para incentivar compras maiores!
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium mb-1">CEP de Origem</label>
+            <input
+              type="text"
+              value={generalConfig.origin_cep || ''}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                const formatted = val.length > 5 ? `${val.slice(0, 5)}-${val.slice(5)}` : val;
+                setGeneralConfig({ ...generalConfig, origin_cep: formatted });
+              }}
+              placeholder="00000-000"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              CEP da sua banca para cálculo de frete
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Valor para Frete Grátis</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+              <input
+                type="text"
+                value={generalConfig.free_shipping_threshold ? String(generalConfig.free_shipping_threshold.toFixed(2)).replace('.', ',') : ''}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  const num = val ? parseInt(val, 10) / 100 : 0;
+                  setGeneralConfig({ ...generalConfig, free_shipping_threshold: num });
+                }}
+                placeholder="120,00"
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Compras acima deste valor têm frete grátis
+            </p>
+          </div>
+        </div>
+
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Taxa de Entrega (R$)</label>
@@ -491,14 +573,35 @@ export default function ConfiguracoesPage() {
           </p>
         </div>
 
+        <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+          <div className="text-sm text-emerald-800">
+            <strong>✓ Entrega habilitada!</strong> Seus clientes poderão:
+            <ul className="mt-1 ml-4 list-disc text-xs space-y-1">
+              <li>Ver barra de progresso para frete grátis</li>
+              <li>Escolher entrega ou retirada no checkout</li>
+              <li>Calcular frete por CEP</li>
+            </ul>
+          </div>
+        </div>
+
         <button
-          onClick={saveDeliveryConfig}
+          onClick={saveGeneralConfig}
           disabled={loading}
           className="w-full bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] text-white font-semibold py-3 px-4 rounded-lg hover:opacity-95 disabled:opacity-50"
         >
           {loading ? 'Salvando...' : 'Salvar Configurações de Entrega'}
         </button>
       </div>
+      </div>
+      )}
+
+      {!generalConfig.delivery_enabled && (
+        <div className="rounded-lg bg-gray-100 border border-gray-200 p-4">
+          <div className="text-sm text-gray-600">
+            <strong>Entrega desabilitada.</strong> Seus clientes só poderão retirar produtos na banca.
+          </div>
+        </div>
+      )}
     </div>
   );
 
