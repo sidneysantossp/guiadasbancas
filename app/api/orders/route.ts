@@ -214,42 +214,61 @@ export async function POST(req: NextRequest) {
       banca: banca.name 
     });
     
-    // Enviar notificação WhatsApp para o jornaleiro (assíncrono)
-    try {
-      const whatsappData: OrderWhatsAppData = {
-        orderId: orderNumber, // Usar order_number para exibição
-        customerName: customer.name || "Cliente",
-        customerPhone: customer.phone || "",
-        items: orderItems.map(item => ({
-          name: item.product_name,
-          quantity: item.quantity,
-          price: item.unit_price
-        })),
-        total: pricing.total || 0,
-        shippingMethod: body.shippingMethod || 'Não especificado',
-        paymentMethod: body.payment || "pix",
-        address: fullAddress,
-        notes: body.shippingMethod ? `Entrega: ${body.shippingMethod}` : ""
-      };
-      
-      // Enviar notificação usando instância centralizada (não aguarda para não bloquear a resposta)
-      import('@/lib/whatsapp').then(({ whatsappService }) => {
-        whatsappService.sendOrderNotificationToJornaleiro(inferredBancaId, whatsappData)
-          .then((success: boolean) => {
-            if (success) {
-              console.log(`[WHATSAPP] Notificação enviada para ${banca.name} (${banca.whatsapp}) - Pedido #${orderNumber}`);
+    // Enviar notificação WhatsApp para o jornaleiro (simplificado)
+    if (banca.whatsapp) {
+      try {
+        // Formatar mensagem
+        const message = `🛒 *NOVO PEDIDO - ${banca.name}*\n\n` +
+          `📋 *Pedido:* #${orderNumber}\n` +
+          `👤 *Cliente:* ${customer.name || "Cliente"}\n` +
+          `📱 *Telefone:* ${customer.phone || ""}\n\n` +
+          `📦 *Produtos:*\n` +
+          orderItems.map((item, i) => 
+            `${i + 1}. ${item.product_name}\n   Qtd: ${item.quantity}x | Valor: R$ ${item.unit_price.toFixed(2)}`
+          ).join('\n') +
+          `\n\n💰 *Total:* R$ ${(pricing.total || 0).toFixed(2)}\n` +
+          `🚚 *Entrega:* ${body.shippingMethod || 'Não especificado'}\n` +
+          `💳 *Pagamento:* ${body.payment || 'pix'}\n` +
+          (fullAddress ? `📍 *Endereço:* ${fullAddress}\n` : '') +
+          (body.shippingMethod ? `📝 *Obs:* Entrega: ${body.shippingMethod}\n` : '') +
+          `\n⏰ *Recebido em:* ${new Date().toLocaleString('pt-BR')}\n` +
+          `\n✅ Acesse seu painel para gerenciar este pedido.`;
+        
+        // Enviar via Evolution API
+        const cleanPhone = banca.whatsapp.replace(/\D/g, '');
+        const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+        
+        const evolutionUrl = process.env.EVOLUTION_API_URL || 'https://api.auditseo.com.br';
+        const evolutionKey = process.env.EVOLUTION_API_KEY || '43F2839534E2-4231-9BA7-C8193BD064DF';
+        const instanceName = 'SDR_AUDITSEO';
+        
+        fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': evolutionKey
+          },
+          body: JSON.stringify({
+            number: formattedPhone,
+            text: message
+          })
+        })
+          .then(async (res) => {
+            if (res.ok) {
+              console.log(`[WHATSAPP] ✅ Notificação enviada para ${banca.name} (${formattedPhone}) - Pedido #${orderNumber}`);
             } else {
-              console.warn(`[WHATSAPP] Falha ao enviar notificação - Pedido #${orderNumber}`);
+              const error = await res.text();
+              console.warn(`[WHATSAPP] ❌ Falha ao enviar - Status ${res.status}: ${error}`);
             }
           })
           .catch((error: any) => {
-            console.error(`[WHATSAPP] Erro ao enviar notificação - Pedido #${orderNumber}:`, error);
+            console.error(`[WHATSAPP] ❌ Erro ao enviar - Pedido #${orderNumber}:`, error);
           });
-      }).catch((error: any) => {
-        console.error('[WHATSAPP] Erro ao importar serviço WhatsApp:', error);
-      });
-    } catch (error) {
-      console.error('[WHATSAPP] Erro na configuração da notificação:', error);
+      } catch (error) {
+        console.error('[WHATSAPP] Erro na configuração da notificação:', error);
+      }
+    } else {
+      console.warn(`[WHATSAPP] ⚠️ Banca ${banca.name} não tem WhatsApp configurado`);
     }
     
     // Retornar dados do pedido com informações da banca

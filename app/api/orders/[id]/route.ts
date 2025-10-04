@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
 
-// Importar tipos e dados do arquivo principal
 type OrderItem = {
   id: string;
   product_id: string;
@@ -13,12 +13,15 @@ type OrderItem = {
 
 type Order = {
   id: string;
+  order_number?: string;
   customer_name: string;
   customer_phone: string;
   customer_email?: string;
   customer_address?: string;
   banca_id: string;
-  banca_name: string;
+  banca_name?: string;
+  banca_address?: string;
+  banca_whatsapp?: string;
   items: OrderItem[];
   subtotal: number;
   shipping_fee: number;
@@ -31,8 +34,8 @@ type Order = {
   estimated_delivery?: string;
 };
 
-// Mock expandido com dados completos (duplicado temporariamente)
-const ORDERS: Order[] = [
+// Mock data removido - agora busca do Supabase
+const ORDERS_MOCK: Order[] = [
   {
     id: "ORD-001",
     customer_name: "João Silva",
@@ -142,7 +145,31 @@ export async function GET(
 ) {
   try {
     const { id } = params;
-    const order = ORDERS.find(o => o.id === id);
+    
+    console.log('[API/ORDERS/[ID]/GET] Buscando pedido:', id);
+    
+    // Buscar pedido do Supabase com JOIN da banca
+    const { data: order, error } = await supabaseAdmin
+      .from('orders')
+      .select(`
+        *,
+        bancas:banca_id (
+          id,
+          name,
+          address,
+          whatsapp
+        )
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.error('[API/ORDERS/[ID]/GET] Erro Supabase:', error);
+      return NextResponse.json(
+        { ok: false, error: "Pedido não encontrado" }, 
+        { status: 404 }
+      );
+    }
     
     if (!order) {
       return NextResponse.json(
@@ -151,8 +178,35 @@ export async function GET(
       );
     }
     
-    return NextResponse.json({ ok: true, data: order });
+    // Formatar resposta
+    const formattedOrder: Order = {
+      id: order.id,
+      order_number: order.order_number,
+      customer_name: order.customer_name,
+      customer_phone: order.customer_phone,
+      customer_email: order.customer_email,
+      customer_address: order.customer_address,
+      banca_id: order.banca_id,
+      banca_name: order.bancas?.name || '',
+      banca_address: order.bancas?.address || '',
+      banca_whatsapp: order.bancas?.whatsapp || '',
+      items: order.items || [],
+      subtotal: Number(order.subtotal),
+      shipping_fee: Number(order.shipping_fee),
+      total: Number(order.total),
+      status: order.status,
+      payment_method: order.payment_method,
+      notes: order.notes,
+      created_at: order.created_at,
+      updated_at: order.updated_at,
+      estimated_delivery: order.estimated_delivery
+    };
+    
+    console.log('[API/ORDERS/[ID]/GET] Pedido encontrado:', formattedOrder.order_number);
+    
+    return NextResponse.json({ ok: true, data: formattedOrder });
   } catch (e: any) {
+    console.error('[API/ORDERS/[ID]/GET] Erro:', e);
     return NextResponse.json(
       { ok: false, error: e?.message || "Erro ao buscar pedido" }, 
       { status: 500 }
