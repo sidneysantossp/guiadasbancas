@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     const body = await req.json();
-    const orderId = `ORD-${Date.now()}`;
+    const orderNumber = `ORD-${Date.now()}`;
     
     // Extrair dados do payload do checkout
     const customer = body.customer || {};
@@ -179,11 +179,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Banca não encontrada" }, { status: 404 });
     }
 
-    // Criar pedido no Supabase
+    // Criar pedido no Supabase (id será UUID gerado automaticamente)
     const { data: newOrder, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert({
-        id: orderId,
+        order_number: orderNumber,
         customer_name: customer.name || "Cliente",
         customer_phone: customer.phone || "",
         customer_email: customer.email || "",
@@ -206,12 +206,18 @@ export async function POST(req: NextRequest) {
     }
     
     // Log em server para inspeção
-    console.log("[NOVO PEDIDO CRIADO]", { orderId, customer: customer.name, total: pricing.total, banca: banca.name });
+    console.log("[NOVO PEDIDO CRIADO]", { 
+      id: newOrder.id, 
+      orderNumber, 
+      customer: customer.name, 
+      total: pricing.total, 
+      banca: banca.name 
+    });
     
     // Enviar notificação WhatsApp para o jornaleiro (assíncrono)
     try {
       const whatsappData: OrderWhatsAppData = {
-        orderId,
+        orderId: orderNumber, // Usar order_number para exibição
         customerName: customer.name || "Cliente",
         customerPhone: customer.phone || "",
         items: orderItems.map(item => ({
@@ -231,13 +237,13 @@ export async function POST(req: NextRequest) {
         whatsappService.sendOrderNotificationToJornaleiro(inferredBancaId, whatsappData)
           .then((success: boolean) => {
             if (success) {
-              console.log(`[WHATSAPP] Notificação enviada para ${banca.name} (${banca.whatsapp}) - Pedido #${orderId}`);
+              console.log(`[WHATSAPP] Notificação enviada para ${banca.name} (${banca.whatsapp}) - Pedido #${orderNumber}`);
             } else {
-              console.warn(`[WHATSAPP] Falha ao enviar notificação - Pedido #${orderId}`);
+              console.warn(`[WHATSAPP] Falha ao enviar notificação - Pedido #${orderNumber}`);
             }
           })
           .catch((error: any) => {
-            console.error(`[WHATSAPP] Erro ao enviar notificação - Pedido #${orderId}:`, error);
+            console.error(`[WHATSAPP] Erro ao enviar notificação - Pedido #${orderNumber}:`, error);
           });
       }).catch((error: any) => {
         console.error('[WHATSAPP] Erro ao importar serviço WhatsApp:', error);
@@ -249,7 +255,8 @@ export async function POST(req: NextRequest) {
     // Retornar dados do pedido com informações da banca
     return NextResponse.json({ 
       ok: true, 
-      orderId, 
+      orderId: newOrder.id, // UUID do banco
+      orderNumber: orderNumber, // Número de exibição
       data: {
         ...newOrder,
         banca_name: banca.name,

@@ -175,6 +175,7 @@ export interface Database {
       orders: {
         Row: {
           id: string
+          order_number: string | null
           customer_name: string
           customer_phone: string
           customer_email: string | null
@@ -193,6 +194,7 @@ export interface Database {
         }
         Insert: {
           id?: string
+          order_number?: string | null
           customer_name: string
           customer_phone: string
           customer_email?: string | null
@@ -211,6 +213,7 @@ export interface Database {
         }
         Update: {
           id?: string
+          order_number?: string | null
           customer_name?: string
           customer_phone?: string
           customer_email?: string | null
