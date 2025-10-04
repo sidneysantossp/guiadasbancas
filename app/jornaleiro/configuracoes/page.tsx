@@ -24,7 +24,6 @@ type DeliveryConfigType = {
   delivery_fee: number;
   min_order_value: number;
   delivery_radius: number;
-  preparation_time: number;
 };
 
 // Funções de máscara
@@ -145,17 +144,15 @@ const GeneralSettingsForm = memo(({
 GeneralSettingsForm.displayName = 'GeneralSettingsForm';
 
 export default function ConfiguracoesPage() {
-  const [activeTab, setActiveTab] = useState<ConfigTab>("whatsapp");
-
   const { user } = useAuth();
   const toast = useToast();
   const [banca, setBanca] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [deliveryConfig, setDeliveryConfig] = useState({
+  const [activeTab, setActiveTab] = useState<ConfigTab>("general");
+  const [deliveryConfig, setDeliveryConfig] = useState<DeliveryConfigType>({
     delivery_fee: 0,
     min_order_value: 0,
     delivery_radius: 5,
-    preparation_time: 30,
   });
   const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
   const [generalConfig, setGeneralConfig] = useState<GeneralConfigType>({
@@ -198,7 +195,6 @@ export default function ConfiguracoesPage() {
           delivery_fee: data.delivery_fee || 0,
           min_order_value: data.min_order_value || 0,
           delivery_radius: data.delivery_radius || 5,
-          preparation_time: data.preparation_time || 30,
         });
         setPaymentMethods(data.payment_methods || []);
         setGeneralConfig({
@@ -534,19 +530,6 @@ export default function ConfiguracoesPage() {
           </p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Tempo de Preparo (minutos)</label>
-          <input
-            type="number"
-            step="5"
-            value={deliveryConfig.preparation_time}
-            onChange={(e) => setDeliveryConfig({ ...deliveryConfig, preparation_time: parseInt(e.target.value) || 30 })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Tempo estimado para preparar os pedidos.
-          </p>
-        </div>
 
         <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
           <div className="text-sm text-emerald-800">
