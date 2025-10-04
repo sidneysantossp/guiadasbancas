@@ -646,10 +646,16 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {/* Seleção de endereço - só aparece se entrega habilitada */}
-                {deliveryEnabled && (
+                {/* Seleção de endereço - SEMPRE aparece */}
                 <div className="mt-3 space-y-2">
-                  <div className="text-sm font-semibold">Endereço de entrega</div>
+                  <div className="text-sm font-semibold">
+                    {shipping === "retirada" ? "Endereço (opcional)" : "Endereço de entrega"}
+                  </div>
+                  {shipping === "retirada" && (
+                    <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded p-2">
+                      💡 Você está retirando na banca. O endereço é opcional, mas você pode cadastrá-lo para futuras compras.
+                    </div>
+                  )}
                   {addresses.length > 0 && (
                     <div className="space-y-2">
                       {addresses.map((a) => (
@@ -747,7 +753,6 @@ export default function CheckoutPage() {
                     </div>
                   )}
                 </div>
-                )}
               </>
             )}
           </div>
