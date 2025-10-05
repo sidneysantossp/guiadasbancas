@@ -72,7 +72,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addToCart = useCallback((item: Omit<CartItem, "qty">, qty: number = 1): boolean => {
     // console.log('Adicionando ao carrinho:', item, 'quantidade:', qty);
     
-    let success = true;
+    let shouldBlock = false;
+    let alertInfo = { currentBanca: "", newBanca: "" };
     
     setItems((prev) => {
       // Se carrinho vazio, aceita qualquer produto
@@ -100,16 +101,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       
       if (item.banca_id && currentBancaId && item.banca_id !== currentBancaId) {
         // Produto de banca diferente - BLOQUEAR
-        success = false;
-        
-        // Mostrar modal ao usuário
-        if (typeof window !== 'undefined') {
-          const currentBancaName = prev[0].banca_name || 'outra banca';
-          const newBancaName = item.banca_name || 'esta banca';
-          
-          setAlertData({ currentBanca: currentBancaName, newBanca: newBancaName });
-          setShowAlert(true);
-        }
+        shouldBlock = true;
+        alertInfo = {
+          currentBanca: prev[0].banca_name || 'outra banca',
+          newBanca: item.banca_name || 'esta banca'
+        };
         
         return prev; // Não adiciona
       }
@@ -120,7 +116,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return [...prev, { ...item, qty: firstQty }];
     });
 
-    return success;
+    // Mostrar modal após atualizar state
+    if (shouldBlock) {
+      setAlertData(alertInfo);
+      setShowAlert(true);
+      return false;
+    }
+
+    return true;
   }, []);
 
   const removeFromCart = useCallback((id: string) => {
