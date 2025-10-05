@@ -367,7 +367,7 @@ export async function PATCH(req: NextRequest) {
             }
           }
 
-          message += `\n\n💬 Qualquer dúvida, fale conosco pelo WhatsApp da banca!`;
+          message += `\n\n💬 Qualquer dúvida, estamos à disposição!`;
 
           const cleanPhone = String(updatedOrder.customer_phone).replace(/\D/g, '');
           const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
