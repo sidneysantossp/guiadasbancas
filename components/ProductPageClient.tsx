@@ -587,7 +587,7 @@ export default function ProductPageClient({ productId }: { productId: string }) 
             </div>
             <button
               className="flex-1 rounded-lg bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] text-white font-semibold px-4 py-2 shadow hover:opacity-95"
-              onClick={() => { addToCart({ id: product.id, name: product.name, price: product.price, image: product.images[0], banca_id: product.vendor.id }, qty); show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>); }}
+              onClick={() => { addToCart({ id: product.id, name: product.name, price: product.price, image: product.images[0], banca_id: product.vendor.id, banca_name: product.vendor.name }, qty); show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>); }}
             >
               Adicionar ao carrinho
             </button>
