@@ -147,13 +147,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
   return (
     <CartContext.Provider value={value}>
       {children}
-      <AlertModal
-        isOpen={showAlert}
-        onClose={() => setShowAlert(false)}
-        title="Carrinho de outra banca"
-        type="warning"
-        message={`Seu carrinho já contém produtos de "${alertData.currentBanca}".\n\nPara adicionar produtos de "${alertData.newBanca}", você precisa:\n\n1. Finalizar o pedido atual, ou\n2. Esvaziar o carrinho`}
-      />
+      {isLoaded && (
+        <AlertModal
+          isOpen={showAlert}
+          onClose={() => setShowAlert(false)}
+          title="Carrinho de outra banca"
+          type="warning"
+          message={`Seu carrinho já contém produtos de "${alertData.currentBanca}".\n\nPara adicionar produtos de "${alertData.newBanca}", você precisa:\n\n1. Finalizar o pedido atual, ou\n2. Esvaziar o carrinho`}
+        />
+      )}
     </CartContext.Provider>
   );
 }
