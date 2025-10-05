@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState, ReactNode, useCallback, useEffect } from "react";
+import AlertModal from "./AlertModal";
 
 export type CartItem = {
   id: string;
@@ -27,6 +28,8 @@ const CartContext = createContext<CartContextType | null>(null);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertData, setAlertData] = useState({ currentBanca: "", newBanca: "" });
 
   // Load from localStorage once
   useEffect(() => {
@@ -99,17 +102,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         // Produto de banca diferente - BLOQUEAR
         success = false;
         
-        // Mostrar alerta ao usuário
+        // Mostrar modal ao usuário
         if (typeof window !== 'undefined') {
           const currentBancaName = prev[0].banca_name || 'outra banca';
           const newBancaName = item.banca_name || 'esta banca';
           
-          alert(
-            `⚠️ Seu carrinho já contém produtos de "${currentBancaName}".\n\n` +
-            `Para adicionar produtos de "${newBancaName}", você precisa:\n` +
-            `1. Finalizar o pedido atual, ou\n` +
-            `2. Esvaziar o carrinho`
-          );
+          setAlertData({ currentBanca: currentBancaName, newBanca: newBancaName });
+          setShowAlert(true);
         }
         
         return prev; // Não adiciona
@@ -142,7 +141,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     clearCart 
   }), [items, totalCount, currentBancaId, currentBancaName, addToCart, removeFromCart, clearCart]);
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider value={value}>
+      {children}
+      <AlertModal
+        isOpen={showAlert}
+        onClose={() => setShowAlert(false)}
+        title="Carrinho de outra banca"
+        type="warning"
+        message={`Seu carrinho já contém produtos de "${alertData.currentBanca}".\n\nPara adicionar produtos de "${alertData.newBanca}", você precisa:\n\n1. Finalizar o pedido atual, ou\n2. Esvaziar o carrinho`}
+      />
+    </CartContext.Provider>
+  );
 }
 
 export function useCart() {
