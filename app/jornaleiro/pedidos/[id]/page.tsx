@@ -45,14 +45,15 @@ type Order = {
 export default function OrderDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [notes, setNotes] = useState("");
   const [estimatedDelivery, setEstimatedDelivery] = useState("");
+  const [historyKey, setHistoryKey] = useState(0);
+  const [pixCode, setPixCode] = useState("");
+  const [sendingPix, setSendingPix] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
-  const [historyKey, setHistoryKey] = useState(0); // Para forçar reload do histórico
   const toast = useToast();
 
   const fetchOrder = async () => {
@@ -83,11 +84,7 @@ export default function OrderDetailsPage() {
 
   useEffect(() => {
     fetchOrder();
-    // Verificar se deve mostrar o comprovante automaticamente
-    if (searchParams.get('receipt') === 'true') {
-      setShowReceipt(true);
-    }
-  }, [params.id, searchParams]);
+  }, [params.id]);
 
   const updateStatus = async (newStatus: string) => {
     if (!order) return;
@@ -240,6 +237,62 @@ export default function OrderDetailsPage() {
       'saiu_para_entrega->entregue': 'Pedido entregue ao cliente'
     };
     return messages[`${oldStatus}->${newStatus}`] || `Status alterado de "${oldStatus}" para "${newStatus}"`;
+  };
+
+  const sendPixToCustomer = async () => {
+    if (!order || !pixCode.trim()) {
+      toast.error("Cole o código PIX antes de enviar");
+      return;
+    }
+
+    if (!order.customer_phone) {
+      toast.error("Cliente não tem telefone cadastrado");
+      return;
+    }
+
+    try {
+      setSendingPix(true);
+      
+      const response = await fetch('/api/whatsapp/send-pix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          customerPhone: order.customer_phone,
+          customerName: order.customer_name,
+          pixCode: pixCode.trim(),
+          total: order.total,
+          bancaName: order.banca_name
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success("✅ PIX enviado para o cliente!");
+        
+        // Registrar no histórico
+        await logNote(
+          order.id,
+          `PIX enviado para o cliente. Aguardando confirmação de pagamento.`,
+          order.banca_name,
+          'vendor'
+        );
+        
+        // Atualizar histórico
+        setHistoryKey(prev => prev + 1);
+        
+        // Limpar campo PIX
+        setPixCode("");
+      } else {
+        toast.error(`Erro: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('[Send PIX] Erro:', error);
+      toast.error("Erro ao enviar PIX");
+    } finally {
+      setSendingPix(false);
+    }
   };
 
   const advanceStatus = () => {
@@ -499,6 +552,57 @@ export default function OrderDetailsPage() {
               </div>
             </div>
           </div>
+
+          {/* PIX Copia e Cola - Só mostra se status for "novo" */}
+          {order.status === 'novo' && (
+            <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
+              <h2 className="font-semibold mb-3 flex items-center gap-2">
+                <span className="text-2xl">💳</span>
+                Enviar PIX para Cliente
+              </h2>
+              <p className="text-sm text-gray-700 mb-3">
+                1. Gere o PIX no app do seu banco<br />
+                2. Copie o código PIX Copia e Cola<br />
+                3. Cole aqui e envie para o cliente
+              </p>
+              <div className="space-y-3">
+                <textarea
+                  value={pixCode}
+                  onChange={(e) => setPixCode(e.target.value)}
+                  placeholder="Cole aqui o código PIX Copia e Cola gerado no app do seu banco..."
+                  className="w-full px-3 py-2 border rounded text-sm font-mono resize-none"
+                  rows={4}
+                  disabled={sendingPix}
+                />
+                <button
+                  onClick={sendPixToCustomer}
+                  disabled={sendingPix || !pixCode.trim()}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {sendingPix ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      Enviar PIX via WhatsApp
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-gray-700">
+                <strong>ℹ️ Atenção:</strong> Após enviar o PIX, aguarde o cliente fazer o pagamento e enviar o comprovante.
+                Só mude o status para <strong>"Confirmado"</strong> após receber o comprovante!
+              </div>
+            </div>
+          )}
 
           {/* Ações */}
           <div className="bg-white border rounded-lg p-4">
