@@ -59,52 +59,42 @@ export default function JornaleiroDashboardPage() {
   const loadMetrics = async () => {
     try {
       setLoadingMetrics(true);
-      console.log('[Dashboard] Carregando métricas para banca_id:', banca.id);
+      console.log('[Dashboard] Carregando métricas via API...');
       
-      // Buscar pedidos da banca
-      const { data: orders, error: ordersError } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('banca_id', banca.id)
-        .order('created_at', { ascending: false });
+      // Buscar pedidos via API (já filtra pela banca automaticamente)
+      const ordersRes = await fetch('/api/orders?limit=1000');
+      const ordersData = await ordersRes.json();
+      const orders = ordersData.items || [];
+      
+      console.log('[Dashboard] Pedidos encontrados:', orders.length);
 
-      if (ordersError) {
-        console.error('[Dashboard] Erro ao buscar pedidos:', ordersError);
-      } else {
-        console.log('[Dashboard] Pedidos encontrados:', orders?.length || 0);
-      }
-
-      // Buscar produtos da banca
-      const { data: products, error: productsError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('banca_id', banca.id);
-
-      if (productsError) {
-        console.error('[Dashboard] Erro ao buscar produtos:', productsError);
-      } else {
-        console.log('[Dashboard] Produtos encontrados:', products?.length || 0);
-      }
+      // Buscar produtos via API (já filtra pela banca automaticamente)
+      const productsRes = await fetch('/api/products?limit=1000');
+      const productsData = await productsRes.json();
+      const products = productsData.items || productsData.products || [];
+      
+      console.log('[Dashboard] Produtos encontrados:', products.length);
 
       // Calcular data de hoje no timezone local
       const hoje = new Date();
-      const hojeStr = hoje.toISOString().split('T')[0]; // YYYY-MM-DD
+      const hojeStart = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
       
-      console.log('[Dashboard] Data de hoje:', hojeStr);
+      console.log('[Dashboard] Data de hoje:', hojeStart.toISOString());
       
-      const pedidosHoje = (orders || []).filter((o: any) => {
-        const orderDateStr = o.created_at.split('T')[0]; // YYYY-MM-DD
-        return orderDateStr === hojeStr;
+      const pedidosHoje = orders.filter((o: any) => {
+        const orderDate = new Date(o.created_at);
+        return orderDate >= hojeStart;
       });
 
       console.log('[Dashboard] Pedidos hoje:', pedidosHoje.length);
 
       const faturamentoHoje = pedidosHoje.reduce((acc: number, o: any) => acc + Number(o.total || 0), 0);
-      const pedidosPendentes = (orders || []).filter((o: any) => 
-        ["novo","confirmado","em_preparo"].includes(o.status)
+      const pedidosPendentes = orders.filter((o: any) => 
+        !['entregue', 'cancelado'].includes(o.status)
       ).length;
-      // Produtos ativos: visíveis (não ocultos) e com estoque (se rastrear)
-      const produtosAtivos = (products || []).filter((p: any) => {
+      
+      // Produtos ativos: visíveis e com estoque (se rastrear)
+      const produtosAtivos = products.filter((p: any) => {
         // Se o produto está oculto/inativo, não conta
         if (p.is_hidden || p.status === 'inactive') {
           return false;
@@ -119,7 +109,7 @@ export default function JornaleiroDashboardPage() {
         return true;
       }).length;
       
-      console.log('[Dashboard] Produtos ativos:', produtosAtivos, 'de', products?.length || 0);
+      console.log('[Dashboard] Produtos ativos:', produtosAtivos, 'de', products.length);
 
       console.log('[Dashboard] Métricas calculadas:', {
         pedidosHoje: pedidosHoje.length,
@@ -134,7 +124,7 @@ export default function JornaleiroDashboardPage() {
         pedidosPendentes,
         produtosAtivos,
       });
-      setRecentOrders((orders || []).slice(0, 5));
+      setRecentOrders(orders.slice(0, 5));
     } catch (error) {
       console.error('[Dashboard] Erro ao carregar métricas:', error);
     } finally {
