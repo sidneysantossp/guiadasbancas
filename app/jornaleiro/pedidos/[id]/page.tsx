@@ -127,29 +127,47 @@ export default function OrderDetailsPage() {
         
         // Enviar notificação WhatsApp para o CLIENTE
         if (order.customer_phone) {
+          console.log('[Pedido] ===== ENVIANDO WHATSAPP PARA CLIENTE =====');
+          console.log('[Pedido] Telefone do cliente:', order.customer_phone);
+          console.log('[Pedido] Status novo:', newStatus);
+          console.log('[Pedido] ID do pedido:', order.id);
+          
           try {
+            const payload = {
+              orderId: order.id,
+              customerPhone: order.customer_phone,
+              newStatus,
+              estimatedDelivery: estimatedDelivery || order.estimated_delivery
+            };
+            
+            console.log('[Pedido] Payload sendo enviado:', JSON.stringify(payload, null, 2));
+            
             const clienteResponse = await fetch('/api/whatsapp/status-update', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                orderId: order.id,
-                customerPhone: order.customer_phone,
-                newStatus,
-                estimatedDelivery: estimatedDelivery || order.estimated_delivery
-              })
+              body: JSON.stringify(payload)
             });
             
+            console.log('[Pedido] Status da resposta:', clienteResponse.status);
+            
             const clienteResult = await clienteResponse.json();
+            console.log('[Pedido] Resposta da API:', clienteResult);
             
             if (clienteResult.success) {
-              console.log(`[WhatsApp] ✅ Cliente notificado: ${order.customer_phone}`);
+              console.log(`[Pedido] ✅ Cliente notificado: ${order.customer_phone}`);
               toast.success(`📱 Cliente notificado via WhatsApp`);
             } else {
-              console.warn(`[WhatsApp] ⚠️ Falha ao notificar cliente:`, clienteResult.message);
+              console.warn(`[Pedido] ⚠️ Falha ao notificar cliente:`, clienteResult.message);
+              toast.error(`❌ WhatsApp: ${clienteResult.message}`);
             }
           } catch (error) {
-            console.error('[WhatsApp] Erro ao notificar cliente:', error);
+            console.error('[Pedido] ===== ERRO AO NOTIFICAR CLIENTE =====');
+            console.error('[Pedido] Erro:', error);
+            toast.error(`❌ Erro ao enviar WhatsApp`);
           }
+        } else {
+          console.warn('[Pedido] ⚠️ Cliente não tem telefone cadastrado');
+          toast.error('⚠️ Cliente sem telefone cadastrado');
         }
         
         // Enviar notificação WhatsApp para o JORNALEIRO (confirmação)

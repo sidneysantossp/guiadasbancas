@@ -227,8 +227,15 @@ class WhatsAppService {
   // Enviar mensagem de status do pedido
   async sendStatusUpdate(orderId: string, customerPhone: string, newStatus: string, estimatedDelivery?: string): Promise<boolean> {
     try {
+      console.log('[WhatsAppService] ===== sendStatusUpdate INÍCIO =====');
+      console.log('[WhatsAppService] Parâmetros:', { orderId, customerPhone, newStatus, estimatedDelivery });
+      
       const cleanPhone = customerPhone.replace(/\D/g, '');
       const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+      
+      console.log('[WhatsAppService] Telefone original:', customerPhone);
+      console.log('[WhatsAppService] Telefone limpo:', cleanPhone);
+      console.log('[WhatsAppService] Telefone formatado:', formattedPhone);
 
       const statusMessages: Record<string, { emoji: string; title: string; message: string }> = {
         'novo': {
@@ -287,15 +294,23 @@ class WhatsAppService {
         month: '2-digit'
       })}_`;
 
+      console.log('[WhatsAppService] Mensagem formatada:', message);
+      console.log('[WhatsAppService] Chamando sendMessage...');
+
       const result = await this.sendMessage({
         number: formattedPhone,
         text: message
       });
 
+      console.log(`[WhatsAppService] sendMessage retornou: ${result ? 'TRUE (✅ enviado)' : 'FALSE (❌ falhou)'}`);
+
       if (result) {
-        console.log(`[WhatsApp] ✅ Status enviado para ${formattedPhone} - ${statusInfo.title}`);
+        console.log(`[WhatsAppService] ✅ Status enviado para ${formattedPhone} - ${statusInfo.title}`);
+      } else {
+        console.error(`[WhatsAppService] ❌ Falha ao enviar para ${formattedPhone}`);
       }
 
+      console.log('[WhatsAppService] ===== sendStatusUpdate FIM =====');
       return result;
     } catch (error) {
       console.error('Erro ao enviar atualização de status:', error);
