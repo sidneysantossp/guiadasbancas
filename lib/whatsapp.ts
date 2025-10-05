@@ -108,11 +108,18 @@ class WhatsAppService {
   // Enviar mensagem de texto
   async sendMessage(message: WhatsAppMessage): Promise<boolean> {
     try {
-      const isConnected = await this.checkConnection();
-      if (!isConnected) {
-        console.warn('WhatsApp não está conectado');
-        return false;
-      }
+      console.log('[WhatsAppService.sendMessage] Enviando para:', message.number);
+      
+      // REMOVIDO: checkConnection() - estava causando falsos negativos
+      // Vamos tentar enviar diretamente, a API retornará erro se não conectado
+      
+      const payload = {
+        number: message.number,
+        text: message.text
+      };
+      
+      console.log('[WhatsAppService.sendMessage] URL:', `${this.config.baseUrl}/message/sendText/${this.config.instanceName}`);
+      console.log('[WhatsAppService.sendMessage] Payload:', JSON.stringify(payload));
 
       const response = await fetch(`${this.config.baseUrl}/message/sendText/${this.config.instanceName}`, {
         method: 'POST',
@@ -120,20 +127,26 @@ class WhatsAppService {
           'Content-Type': 'application/json',
           'apikey': this.config.apiKey
         },
-        body: JSON.stringify({
-          number: message.number,
-          text: message.text
-        })
+        body: JSON.stringify(payload)
       });
 
+      console.log('[WhatsAppService.sendMessage] Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('[WhatsAppService.sendMessage] HTTP error:', response.status, errorText);
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
-      return result.key?.id ? true : false;
+      console.log('[WhatsAppService.sendMessage] Response data:', result);
+      
+      const success = result.key?.id ? true : false;
+      console.log(`[WhatsAppService.sendMessage] Resultado final: ${success ? 'SUCESSO ✅' : 'FALHOU ❌'}`);
+      
+      return success;
     } catch (error) {
-      console.error('Erro ao enviar mensagem WhatsApp:', error);
+      console.error('[WhatsAppService.sendMessage] Erro ao enviar mensagem WhatsApp:', error);
       return false;
     }
   }
