@@ -26,6 +26,8 @@ export type Product = {
   prontaEntrega?: boolean;
   sobEncomenda?: boolean;
   preVenda?: boolean;
+  bancaId?: string;
+  bancaName?: string;
 };
 
 
@@ -135,7 +137,18 @@ function FeaturedCard({ p }: { p: Product }) {
         </div>
         {/* Ícone flutuante de carrinho sob a imagem */}
         <button
-          onClick={(e) => { e.preventDefault(); addToCart({ id: p.id, name: p.name, price: p.price, image: p.image }, 1); show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>); }}
+          onClick={(e) => { 
+            e.preventDefault(); 
+            addToCart({ 
+              id: p.id, 
+              name: p.name, 
+              price: p.price, 
+              image: p.image,
+              banca_id: p.bancaId,
+              banca_name: p.bancaName
+            }, 1); 
+            show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>); 
+          }}
           aria-label="Adicionar ao carrinho"
           className="absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white shadow hover:bg-gray-50"
         >
@@ -181,7 +194,7 @@ function FeaturedCard({ p }: { p: Product }) {
           </div>
           {/* Botões no rodapé do card */}
           <div className="pt-2 flex flex-col gap-2">
-            <button className="w-full rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-3 py-2 text-xs font-semibold text-white shadow hover:opacity-95" onClick={(e)=>{ e.preventDefault(); addToCart({ id: p.id, name: p.name, price: p.price, image: p.image }, 1); show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>); }}>Comprar</button>
+            <button className="w-full rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-3 py-2 text-xs font-semibold text-white shadow hover:opacity-95" onClick={(e)=>{ e.preventDefault(); addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: p.bancaId, banca_name: p.bancaName }, 1); show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>); }}>Comprar</button>
             <button className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-[#ff5c00] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#ff5c00] leading-tight hover:bg-[#fff3ec] whitespace-nowrap">
               <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
               Comprar pelo WhatsApp
@@ -234,7 +247,19 @@ function SmallCard({ p }: { p: Product }) {
         </div>
         {/* Ícone flutuante de carrinho sob a imagem */}
         <button
-          onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image }, 1); show(<span>Adicionado ao carrinho.</span>); } }}
+          onClick={() => { 
+            if (!outOfStock) { 
+              addToCart({ 
+                id: p.id, 
+                name: p.name, 
+                price: p.price, 
+                image: p.image,
+                banca_id: p.bancaId,
+                banca_name: p.bancaName
+              }, 1); 
+              show(<span>Adicionado ao carrinho.</span>); 
+            } 
+          }}
           aria-label="Adicionar ao carrinho"
           disabled={outOfStock}
           className={`absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border ${outOfStock ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed' : 'border-gray-200 bg-white shadow hover:bg-gray-50'}`}
@@ -303,7 +328,19 @@ function SmallCard({ p }: { p: Product }) {
           {/* Ações: botão carrinho laranja + botão Whats verde */}
           <div className="flex flex-col gap-1">
             <button
-              onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image }, 1); show(<span>Adicionado ao carrinho.</span>); } }}
+              onClick={() => { 
+                if (!outOfStock) { 
+                  addToCart({ 
+                    id: p.id, 
+                    name: p.name, 
+                    price: p.price, 
+                    image: p.image,
+                    banca_id: p.bancaId,
+                    banca_name: p.bancaName
+                  }, 1); 
+                  show(<span>Adicionado ao carrinho.</span>); 
+                } 
+              }}
               disabled={outOfStock}
               className={`w-full rounded px-2.5 py-1 text-[11px] font-semibold ${outOfStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#ff5c00] text-white hover:opacity-95'}`}
             >
@@ -394,6 +431,8 @@ export default function MostSearchedProducts() {
             prontaEntrega: p.pronta_entrega ?? false,
             sobEncomenda: p.sob_encomenda ?? false,
             preVenda: p.pre_venda ?? false,
+            bancaId: p.banca_id,
+            bancaName: bancas[p.banca_id || '']?.name,
           };
         });
         
