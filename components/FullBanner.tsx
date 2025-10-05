@@ -179,10 +179,12 @@ export default function FullBanner() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    // Carregar slides da API
+    // Carregar slides da API (com cache habilitado)
     const loadSlides = async () => {
       try {
-        const response = await fetch('/api/admin/hero-slides', { cache: 'no-store' });
+        const response = await fetch('/api/admin/hero-slides', { 
+          next: { revalidate: 60 } as any // Cache de 60 segundos
+        });
         if (response.ok) {
           const result = await response.json();
           if (result.success) {
@@ -195,7 +197,9 @@ export default function FullBanner() {
             } else {
               // fallback: buscar config explicitamente
               try {
-                const cfgRes = await fetch('/api/admin/hero-slides?type=config', { cache: 'no-store' });
+                const cfgRes = await fetch('/api/admin/hero-slides?type=config', {
+                  next: { revalidate: 60 } as any
+                });
                 if (cfgRes.ok) {
                   const cfgJ = await cfgRes.json();
                   if (cfgJ?.success && cfgJ?.data) setConfig(cfgJ.data);
@@ -217,7 +221,9 @@ export default function FullBanner() {
     // Carregar cupom em destaque (global ou por banca no futuro)
     const loadCoupon = async () => {
       try {
-        const res = await fetch('/api/coupons/highlight', { cache: 'no-store' });
+        const res = await fetch('/api/coupons/highlight', {
+          next: { revalidate: 60 } as any
+        });
         if (!res.ok) return;
         const j = await res.json();
         if (j?.ok && j?.data) {

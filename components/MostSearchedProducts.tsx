@@ -332,8 +332,12 @@ export default function MostSearchedProducts() {
       try {
         setLoading(true);
         const [pRes, bRes] = await Promise.all([
-          fetch('/api/products/most-searched', { cache: 'no-store' }),
-          fetch('/api/admin/bancas', { cache: 'no-store' }),
+          fetch('/api/products/most-searched', { 
+            next: { revalidate: 60 } as any 
+          }),
+          fetch('/api/admin/bancas', { 
+            next: { revalidate: 60 } as any 
+          }),
         ]);
         
         let list: ApiProduct[] = [];
@@ -347,7 +351,9 @@ export default function MostSearchedProducts() {
         // Se não houver produtos mais buscados, busca os últimos produtos cadastrados
         if (list.length === 0) {
           try {
-            const latestRes = await fetch('/api/products?limit=8&sort=created_at&order=desc', { cache: 'no-store' });
+            const latestRes = await fetch('/api/products?limit=8&sort=created_at&order=desc', {
+              next: { revalidate: 60 } as any
+            });
             if (latestRes.ok) {
               const latestJson = await latestRes.json();
               list = Array.isArray(latestJson?.data) ? latestJson.data : [];

@@ -2,11 +2,14 @@ import FullBanner from "@/components/FullBanner";
 import TrustBadges from "@/components/TrustBadges";
 import dynamic from "next/dynamic";
 
-const CategoryCarousel = dynamic(() => import("@/components/CategoryCarousel"), { ssr: false });
-const MiniCategoryBar = dynamic(() => import("@/components/MiniCategoryBar"), { ssr: false });
-const MobileCategoryScroller = dynamic(() => import("@/components/MobileCategoryScroller"), { ssr: false });
-const FeaturedBancas = dynamic(() => import("@/components/FeaturedBancas"), { ssr: false });
-const MostSearchedProducts = dynamic(() => import("@/components/MostSearchedProducts"), { ssr: false });
+// Componentes com SSR habilitado (removido ssr: false)
+const CategoryCarousel = dynamic(() => import("@/components/CategoryCarousel"));
+const MiniCategoryBar = dynamic(() => import("@/components/MiniCategoryBar"));
+const MobileCategoryScroller = dynamic(() => import("@/components/MobileCategoryScroller"));
+const FeaturedBancas = dynamic(() => import("@/components/FeaturedBancas"));
+const MostSearchedProducts = dynamic(() => import("@/components/MostSearchedProducts"));
+
+// Componentes below-fold - lazy load
 const CampaignSection = dynamic(() => import("@/components/CampaignSection"), { ssr: false });
 const TrendingProducts = dynamic(() => import("@/components/TrendingProducts"), { ssr: false });
 const MiniBanners = dynamic(() => import("@/components/MiniBanners"), { ssr: false });
@@ -74,3 +77,9 @@ export default function HomePage() {
     </div>
   );
 }
+
+// Metadados para SEO
+export const metadata = {
+  title: 'Guia das Bancas - Encontre Revistas, Jornais e Muito Mais',
+  description: 'Descubra bancas próximas e compre online revistas, jornais, doces e muito mais!',
+};

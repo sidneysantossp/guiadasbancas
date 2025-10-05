@@ -97,7 +97,9 @@ function BancaCard({
     let alive = true;
     (async () => {
       try {
-        const res = await fetch(`/api/bancas/${id}/products`, { cache: 'no-store' });
+        const res = await fetch(`/api/bancas/${id}/products`, {
+          next: { revalidate: 60 } as any
+        });
         if (!res.ok) return;
         const j = await res.json();
         const list: any[] = Array.isArray(j?.data) ? j.data : [];
@@ -218,7 +220,9 @@ export default function FeaturedBancas() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/admin/bancas', { cache: 'no-store' });
+        const res = await fetch('/api/admin/bancas', { 
+          next: { revalidate: 60 } as any // Cache de 60 segundos
+        });
         if (!res.ok) throw new Error('fail');
         const j = await res.json();
         const list = Array.isArray(j?.data) ? (j.data as ApiBanca[]) : [];
