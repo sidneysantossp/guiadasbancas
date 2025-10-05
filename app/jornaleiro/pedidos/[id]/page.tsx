@@ -52,6 +52,7 @@ export default function OrderDetailsPage() {
   const [notes, setNotes] = useState("");
   const [estimatedDelivery, setEstimatedDelivery] = useState("");
   const [showReceipt, setShowReceipt] = useState(false);
+  const [historyKey, setHistoryKey] = useState(0); // Para forçar reload do histórico
   const toast = useToast();
 
   const fetchOrder = async () => {
@@ -146,6 +147,13 @@ export default function OrderDetailsPage() {
       }
       
       toast.success("Pedido atualizado com sucesso");
+      
+      // Pequeno delay para garantir que o histórico foi salvo
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Forçar reload do histórico
+      setHistoryKey(prev => prev + 1);
+      
       fetchOrder();
     } catch (e: any) {
       toast.error(e?.message || "Erro ao atualizar pedido");
@@ -368,7 +376,7 @@ export default function OrderDetailsPage() {
 
           {/* Histórico do Pedido */}
           <div className="bg-white border rounded-lg p-4">
-            <OrderHistory orderId={order.id} />
+            <OrderHistory key={historyKey} orderId={order.id} />
           </div>
 
           {/* Comprovante do Pedido */}
