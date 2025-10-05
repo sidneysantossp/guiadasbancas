@@ -23,7 +23,6 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('[OrderHistory useEffect] Componente montado/atualizado. OrderId:', orderId);
     loadHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
@@ -33,50 +32,30 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
       setLoading(true);
       setError(null);
       
-      console.log('[OrderHistory] Buscando histórico para pedido:', orderId);
       const response = await fetch(`/api/orders/${orderId}/history`);
       
-      console.log('[OrderHistory] Status da resposta:', response.status);
-      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[OrderHistory] Erro na resposta:', errorText);
         throw new Error('Erro ao carregar histórico');
       }
       
       const json = await response.json();
-      console.log('[OrderHistory] Dados recebidos:', json);
-      console.log('[OrderHistory] Tipo de json.data:', typeof json.data, 'É array?', Array.isArray(json.data));
-      
       const { data } = json;
       
-      if (!data) {
-        console.warn('[OrderHistory] ⚠️ json.data é undefined/null');
-      } else {
-        console.log('[OrderHistory] ✅ json.data tem', data.length, 'itens');
-      }
-      
       // Transformar dados do Supabase para o formato do componente
-      const formattedHistory: HistoryEntry[] = (data || []).map((item: any) => {
-        console.log('[OrderHistory] Formatando item:', item);
-        return {
-          id: item.id,
-          order_id: item.order_id,
-          action: item.action,
-          old_value: item.old_value,
-          new_value: item.new_value,
-          user_name: item.user_name,
-          timestamp: item.created_at,
-          details: item.details
-        };
-      });
+      const formattedHistory: HistoryEntry[] = (data || []).map((item: any) => ({
+        id: item.id,
+        order_id: item.order_id,
+        action: item.action,
+        old_value: item.old_value,
+        new_value: item.new_value,
+        user_name: item.user_name,
+        timestamp: item.created_at,
+        details: item.details
+      }));
       
-      console.log('[OrderHistory] ✅ Histórico formatado com', formattedHistory.length, 'entradas:', formattedHistory);
-      console.log('[OrderHistory] Chamando setHistory...');
       setHistory(formattedHistory);
-      console.log('[OrderHistory] ✅ setHistory concluído');
     } catch (error) {
-      console.error("[OrderHistory] Erro ao carregar histórico:", error);
+      console.error("Erro ao carregar histórico:", error);
       setError(error instanceof Error ? error.message : 'Erro desconhecido');
       setHistory([]);
     } finally {
@@ -179,7 +158,6 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
   }
 
   if (error) {
-    console.log('[OrderHistory RENDER] Renderizando estado de ERRO:', error);
     return (
       <div className="space-y-4">
         <h3 className="font-medium text-gray-900">Histórico do Pedido</h3>
@@ -198,9 +176,6 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
     );
   }
 
-  // Log de renderização
-  console.log('[OrderHistory RENDER] Renderizando com', history.length, 'entradas. Loading:', loading, 'Error:', error);
-
   return (
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900">
@@ -217,10 +192,7 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
             As mudanças de status e observações aparecerão aqui.
           </p>
           <button
-            onClick={() => {
-              console.log('[OrderHistory] Botão reload clicado');
-              loadHistory();
-            }}
+            onClick={loadHistory}
             className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
           >
             🔄 Recarregar histórico
@@ -229,9 +201,7 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
       ) : (
         <div className="flow-root">
           <ul className="-mb-8">
-            {history.map((entry, index) => {
-              console.log('[OrderHistory RENDER] Renderizando entrada', index, ':', entry);
-              return (
+            {history.map((entry, index) => (
             <li key={entry.id}>
               <div className="relative pb-8">
                 {index !== history.length - 1 && (
@@ -283,8 +253,7 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
                 </div>
               </div>
             </li>
-              );
-            })}
+            ))}
         </ul>
       </div>
       )}

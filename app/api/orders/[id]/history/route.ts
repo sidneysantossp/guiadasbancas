@@ -8,7 +8,6 @@ export async function GET(
 ) {
   try {
     const orderId = context.params.id;
-    console.log('[API Order History GET] Buscando histórico para pedido:', orderId);
 
     const { data, error } = await supabaseAdmin
       .from('order_history')
@@ -16,21 +15,14 @@ export async function GET(
       .eq('order_id', orderId)
       .order('created_at', { ascending: false });
 
-    console.log('[API Order History GET] Supabase response:', { data, error });
-
     if (error) {
-      console.error('[API Order History GET] Erro do Supabase:', error);
+      console.error('[API Order History] Erro ao buscar:', error);
       return NextResponse.json(
-        { 
-          error: 'Erro ao buscar histórico do pedido',
-          details: error.message,
-          hint: error.hint
-        },
+        { error: 'Erro ao buscar histórico do pedido' },
         { status: 500 }
       );
     }
 
-    console.log('[API Order History GET] Retornando', data?.length || 0, 'entradas');
     return NextResponse.json({ data: data || [] });
   } catch (error) {
     console.error('[API Order History GET] Erro inesperado:', error);
@@ -50,9 +42,6 @@ export async function POST(
     const orderId = context.params.id;
     const body = await req.json();
 
-    console.log('[API Order History POST] Criando entrada para pedido:', orderId);
-    console.log('[API Order History POST] Body:', body);
-
     const {
       action,
       old_value,
@@ -65,47 +54,35 @@ export async function POST(
 
     // Validações básicas
     if (!action || !new_value || !user_name || !user_role) {
-      console.error('[API Order History POST] Campos obrigatórios faltando');
       return NextResponse.json(
         { error: 'Campos obrigatórios: action, new_value, user_name, user_role' },
         { status: 400 }
       );
     }
 
-    const insertData = {
-      order_id: orderId,
-      action,
-      old_value,
-      new_value,
-      user_id,
-      user_name,
-      user_role,
-      details
-    };
-
-    console.log('[API Order History POST] Inserindo dados:', insertData);
-
     const { data, error } = await supabaseAdmin
       .from('order_history')
-      .insert(insertData)
+      .insert({
+        order_id: orderId,
+        action,
+        old_value,
+        new_value,
+        user_id,
+        user_name,
+        user_role,
+        details
+      })
       .select()
       .single();
 
-    console.log('[API Order History POST] Supabase response:', { data, error });
-
     if (error) {
-      console.error('[API Order History POST] Erro do Supabase:', error);
+      console.error('[API Order History] Erro ao criar:', error);
       return NextResponse.json(
-        { 
-          error: 'Erro ao registrar histórico',
-          details: error.message,
-          hint: error.hint
-        },
+        { error: 'Erro ao registrar histórico' },
         { status: 500 }
       );
     }
 
-    console.log('[API Order History POST] Entrada criada com sucesso:', data?.id);
     return NextResponse.json({ data });
   } catch (error) {
     console.error('[API Order History POST] Erro inesperado:', error);

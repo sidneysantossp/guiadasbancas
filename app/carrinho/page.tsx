@@ -3,19 +3,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/components/CartContext";
-import { useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { shippingConfig } from "@/components/shippingConfig";
 import FreeShippingProgress from "@/components/FreeShippingProgress";
 
 
 export default function CartPage() {
   const { items, totalCount, currentBancaName, addToCart, removeFromCart, clearCart } = useCart();
-  
-  // Debug: verificar se items têm banca_name
-  useEffect(() => {
-    console.log('Items no carrinho:', items);
-    console.log('currentBancaName:', currentBancaName);
-  }, [items, currentBancaName]);
 
   const totalPrice = useMemo(
     () => items.reduce((sum, it) => sum + (it.price ?? 0) * it.qty, 0),
