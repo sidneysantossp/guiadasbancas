@@ -29,42 +29,29 @@ export async function POST(req: NextRequest) {
 
     console.log('[WhatsApp Send PIX] Telefone formatado:', formattedPhone);
 
-    // Montar mensagem
-    const message = `
-🛒 *${bancaName || 'Banca'}*
+    // Montar mensagem - VERSÃO CURTA
+    const message = `*${bancaName || 'Banca'}*
 
-Olá, *${customerName}*! 👋
+Olá, ${customerName}!
 
-✅ *Recebemos o seu pedido #${orderId.substring(0, 8)}*
+✅ Recebemos seu pedido #${orderId.substring(0, 8)}
 
-💰 *Valor Total: R$ ${(total || 0).toFixed(2)}*
+💰 *Valor: R$ ${(total || 0).toFixed(2)}*
 
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━
 
-💳 *PARA CONFIRMAR SEU PEDIDO:*
+💳 *PARA CONFIRMAR:*
 
-1️⃣ Faça o pagamento via PIX usando o código abaixo:
+Pague via PIX com o código abaixo:
 
-\`\`\`${pixCode}\`\`\`
+${pixCode}
 
-2️⃣ *IMPORTANTE:* Após efetuar o pagamento, envie o comprovante aqui mesmo no WhatsApp para agilizarmos a confirmação!
+━━━━━━━━━━━━━━━━
 
-━━━━━━━━━━━━━━━━━━━━━━
+⚠️ *IMPORTANTE:*
+Após pagar, envie o comprovante aqui no WhatsApp para confirmarmos!
 
-📋 *Como pagar:*
-• Abra o app do seu banco
-• Escolha "PIX Copia e Cola"
-• Cole o código acima
-• Confirme o pagamento
-• Tire print do comprovante
-• Envie o comprovante aqui
-
-⏰ *Aguardamos seu pagamento!*
-
-Após a confirmação, iniciaremos a preparação do seu pedido.
-
-Qualquer dúvida, estamos à disposição! 😊
-    `.trim();
+Aguardamos seu pagamento! 😊`.trim();
 
     console.log('[WhatsApp Send PIX] Mensagem preparada, enviando...');
     console.log('[WhatsApp Send PIX] Tamanho da mensagem:', message.length, 'caracteres');
