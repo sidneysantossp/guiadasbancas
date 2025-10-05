@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sendOrderWhatsAppNotification, sendStatusWhatsAppUpdate, type OrderWhatsAppData } from "@/lib/whatsapp";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getWhatsAppConfig } from "@/lib/whatsapp-config";
 
 type OrderItem = {
   id: string;
@@ -214,58 +215,61 @@ export async function POST(req: NextRequest) {
       banca: banca.name 
     });
     
-    // Enviar notificação WhatsApp para o jornaleiro (simplificado)
+    // Enviar notificação WhatsApp para o jornaleiro (utilizando config centralizada)
     if (banca.whatsapp) {
       try {
-        // Formatar mensagem
-        const message = `🛒 *NOVO PEDIDO - ${banca.name}*\n\n` +
-          `📋 *Pedido:* #${orderNumber}\n` +
-          `👤 *Cliente:* ${customer.name || "Cliente"}\n` +
-          `📱 *Telefone:* ${customer.phone || ""}\n\n` +
-          `📦 *Produtos:*\n` +
-          orderItems.map((item, i) => 
-            `${i + 1}. ${item.product_name}\n   Qtd: ${item.quantity}x | Valor: R$ ${item.unit_price.toFixed(2)}`
-          ).join('\n') +
-          `\n\n💰 *Total:* R$ ${(pricing.total || 0).toFixed(2)}\n` +
-          `🚚 *Entrega:* ${body.shippingMethod || 'Não especificado'}\n` +
-          `💳 *Pagamento:* ${body.payment || 'pix'}\n` +
-          (fullAddress ? `📍 *Endereço:* ${fullAddress}\n` : '') +
-          (body.shippingMethod ? `📝 *Obs:* Entrega: ${body.shippingMethod}\n` : '') +
-          `\n⏰ *Recebido em:* ${new Date().toLocaleString('pt-BR')}\n` +
-          `\n✅ Acesse seu painel para gerenciar este pedido.`;
-        
-        // Enviar via Evolution API
-        const cleanPhone = banca.whatsapp.replace(/\D/g, '');
-        const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
-        
-        const evolutionUrl = process.env.EVOLUTION_API_URL || 'https://api.auditseo.com.br';
-        const evolutionKey = process.env.EVOLUTION_API_KEY || '43F2839534E2-4231-9BA7-C8193BD064DF';
-        const instanceName = 'SDR_AUDITSEO';
-        
-        fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': evolutionKey
-          },
-          body: JSON.stringify({
-            number: formattedPhone,
-            text: message
-          })
-        })
-          .then(async (res) => {
-            if (res.ok) {
-              console.log(`[WHATSAPP] ✅ Notificação enviada para ${banca.name} (${formattedPhone}) - Pedido #${orderNumber}`);
-            } else {
-              const error = await res.text();
-              console.warn(`[WHATSAPP] ❌ Falha ao enviar - Status ${res.status}: ${error}`);
-            }
-          })
-          .catch((error: any) => {
-            console.error(`[WHATSAPP] ❌ Erro ao enviar - Pedido #${orderNumber}:`, error);
+        const config = getWhatsAppConfig();
+
+        if (!config.isActive) {
+          console.warn(`[WHATSAPP] ⚠️ Integração inativa no painel. Pedido #${orderNumber}`);
+        } else if (!config.baseUrl || !config.apiKey || !config.instanceName) {
+          console.warn(`[WHATSAPP] ⚠️ Configuração incompleta (baseUrl/apiKey/instanceName). Pedido #${orderNumber}`);
+        } else {
+          // Formatar mensagem
+          const message = `🛒 *NOVO PEDIDO - ${banca.name}*\n\n` +
+            `📋 *Pedido:* #${orderNumber}\n` +
+            `👤 *Cliente:* ${customer.name || "Cliente"}\n` +
+            `📱 *Telefone:* ${customer.phone || ""}\n\n` +
+            `📦 *Produtos:*\n` +
+            orderItems.map((item, i) =>
+              `${i + 1}. ${item.product_name}\n   Qtd: ${item.quantity}x | Valor: R$ ${item.unit_price.toFixed(2)}`
+            ).join('\n') +
+            `\n\n💰 *Total:* R$ ${(pricing.total || 0).toFixed(2)}\n` +
+            `🚚 *Entrega:* ${body.shippingMethod || 'Não especificado'}\n` +
+            `💳 *Pagamento:* ${body.payment || 'pix'}\n` +
+            (fullAddress ? `📍 *Endereço:* ${fullAddress}\n` : '') +
+            (body.shippingMethod ? `📝 *Obs:* Entrega: ${body.shippingMethod}\n` : '') +
+            `\n⏰ *Recebido em:* ${new Date().toLocaleString('pt-BR')}\n` +
+            `\n✅ Acesse seu painel para gerenciar este pedido.`;
+
+          // Formatar telefone da banca
+          const cleanPhone = banca.whatsapp.replace(/\D/g, '');
+          const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+
+          const response = await fetch(`${config.baseUrl}/message/sendText/${config.instanceName}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': config.apiKey
+            },
+            body: JSON.stringify({
+              number: formattedPhone,
+              text: message
+            })
           });
+
+          if (!response.ok) {
+            const error = await response.text();
+            console.warn(`[WHATSAPP] ❌ Falha ao enviar (status ${response.status}) - Pedido #${orderNumber} -> ${error}`);
+          } else {
+            const payloadResp = await response.json().catch(() => null);
+            console.log(`[WHATSAPP] ✅ Notificação enviada para ${banca.name} (${formattedPhone}) - Pedido #${orderNumber}`, {
+              messageId: payloadResp?.key?.id
+            });
+          }
+        }
       } catch (error) {
-        console.error('[WHATSAPP] Erro na configuração da notificação:', error);
+        console.error('[WHATSAPP] ❌ Erro ao enviar notificação:', error);
       }
     } else {
       console.warn(`[WHATSAPP] ⚠️ Banca ${banca.name} não tem WhatsApp configurado`);
@@ -327,24 +331,60 @@ export async function PATCH(req: NextRequest) {
     // Enviar notificação WhatsApp para o cliente se o status mudou
     if (status && status !== oldStatus && updatedOrder.customer_phone) {
       try {
-        sendStatusWhatsAppUpdate(
-          updatedOrder.id,
-          updatedOrder.customer_phone,
-          status,
-          estimated_delivery
-        )
-          .then(success => {
-            if (success) {
-              console.log(`[WHATSAPP] Atualização de status enviada para cliente - Pedido #${id}`);
-            } else {
-              console.warn(`[WHATSAPP] Falha ao enviar atualização de status - Pedido #${id}`);
+        const config = getWhatsAppConfig();
+
+        if (!config.isActive) {
+          console.warn(`[WHATSAPP] ⚠️ Integração inativa para atualização de status. Pedido #${updatedOrder.order_number || updatedOrder.id}`);
+        } else if (!config.baseUrl || !config.apiKey || !config.instanceName) {
+          console.warn(`[WHATSAPP] ⚠️ Configuração incompleta (baseUrl/apiKey/instanceName) para atualização de status. Pedido #${updatedOrder.order_number || updatedOrder.id}`);
+        } else {
+          const statusMessages: Record<string, string> = {
+            confirmado: '✅ Seu pedido foi confirmado e já estamos preparando tudo!',
+            em_preparo: '📦 Seu pedido está em preparo neste momento!',
+            saiu_para_entrega: '🚚 Seu pedido saiu para entrega! Fique atento ao telefone.',
+            entregue: '🎉 Pedido entregue com sucesso! Obrigado pela preferência.'
+          };
+
+          let message = `📋 *Atualização do Pedido* ${updatedOrder.order_number ? `#${updatedOrder.order_number}` : ''}\n\n`;
+          message += statusMessages[status] || `Status atualizado para: ${status}`;
+
+          if (estimated_delivery) {
+            const deliveryDate = new Date(estimated_delivery);
+            if (!Number.isNaN(deliveryDate.getTime())) {
+              message += `\n\n⏰ *Previsão de entrega:* ${deliveryDate.toLocaleString('pt-BR')}`;
             }
-          })
-          .catch(error => {
-            console.error(`[WHATSAPP] Erro ao enviar atualização de status - Pedido #${id}:`, error);
+          }
+
+          message += `\n\n💬 Qualquer dúvida, fale conosco pelo WhatsApp da banca!`;
+
+          const cleanPhone = String(updatedOrder.customer_phone).replace(/\D/g, '');
+          const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+
+          const response = await fetch(`${config.baseUrl}/message/sendText/${config.instanceName}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': config.apiKey
+            },
+            body: JSON.stringify({
+              number: formattedPhone,
+              text: message
+            })
           });
+
+          if (!response.ok) {
+            const error = await response.text();
+            console.warn(`[WHATSAPP] ❌ Falha ao enviar atualização (status ${response.status}) - Pedido #${updatedOrder.order_number || updatedOrder.id} -> ${error}`);
+          } else {
+            const payloadResp = await response.json().catch(() => null);
+            console.log(`[WHATSAPP] ✅ Atualização enviada para cliente (${formattedPhone}) - Pedido #${updatedOrder.order_number || updatedOrder.id}`, {
+              messageId: payloadResp?.key?.id,
+              novoStatus: status
+            });
+          }
+        }
       } catch (error) {
-        console.error('[WHATSAPP] Erro na configuração da atualização:', error);
+        console.error('[WHATSAPP] ❌ Erro ao enviar atualização de status:', error);
       }
     }
     
