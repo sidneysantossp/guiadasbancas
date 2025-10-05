@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useMemo, useState } from "react";
+import { useCart } from "@/components/CartContext";
+import { useToast } from "@/components/ToastProvider";
 
 // Tipos
 type FavItem = {
@@ -120,20 +122,35 @@ function Stars({ value, count }: { value?: number | null; count?: number | null 
 
 function FavCard({ item }: { item: FavItem }) {
   const { id, name, vendorName, image, price, priceOriginal, discountPercent, ratingAvg, reviewsCount, available } = item;
+  const { addToCart } = useCart();
+  const { show } = useToast();
+  
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addToCart({ 
+      id, 
+      name, 
+      price, 
+      image 
+    }, 1);
+    show(<span>Adicionado ao carrinho!</span>);
+  };
+
   return (
-    <Link href={("/produto/" + slugify(name) + "-" + id) as Route} className="group block rounded-2xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+    <div className="group rounded-2xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       <div className="p-2 flex items-center gap-3">
-        {/* Imagem à esquerda com padding e badge */}
-        <div className="relative w-28 h-24 rounded-xl overflow-hidden shrink-0">
+        {/* Imagem à esquerda com padding e badge - clicável */}
+        <Link href={("/produto/" + slugify(name) + "-" + id) as Route} className="relative w-28 h-24 rounded-xl overflow-hidden shrink-0">
           <Image src={image} alt={name} fill className="object-contain bg-gray-50" />
           <DiscountBadge percent={discountPercent} />
-        </div>
+        </Link>
         {/* Conteúdo + coluna de ícones à direita */}
         <div className="flex-1 min-w-0 flex gap-2 items-center">
-          {/* Bloco de textos/preços */}
-          <div className="flex-1 min-w-0">
+          {/* Bloco de textos/preços - clicável */}
+          <Link href={("/produto/" + slugify(name) + "-" + id) as Route} className="flex-1 min-w-0">
             <div className="min-w-0">
-              <div className="text-[13px] font-semibold leading-tight line-clamp-2 break-words">{name}</div>
+              <div className="text-[13px] font-semibold leading-tight line-clamp-2 break-words hover:underline">{name}</div>
               {vendorName && <div className="text-[12px] text-gray-600 line-clamp-1">{vendorName}</div>}
               <div className="mt-1"><Stars value={ratingAvg} count={reviewsCount} /></div>
             </div>
@@ -155,20 +172,24 @@ function FavCard({ item }: { item: FavItem }) {
                 )}
               </div>
             )}
-          </div>
+          </Link>
           {/* Coluna de ícones alinhados verticalmente */}
           <div className="flex flex-col items-center justify-center gap-2 py-1 self-stretch">
             <button aria-label="Favoritar" className="w-9 h-9 grid place-items-center rounded-md border border-gray-300 hover:bg-gray-50"><HeartOutline /></button>
             <Link href={("/produto/" + slugify(name) + "-" + id) as Route} aria-label="Visualizar produto" className="w-9 h-9 grid place-items-center rounded-md border border-gray-300 hover:bg-gray-50">
               <EyeIcon />
             </Link>
-            <button aria-label="Adicionar ao carrinho" className="w-9 h-9 grid place-items-center rounded-md border border-[#ff5c00] hover:bg-[#fff3ec]">
+            <button 
+              onClick={handleAddToCart}
+              aria-label="Adicionar ao carrinho" 
+              className="w-9 h-9 grid place-items-center rounded-md border border-[#ff5c00] hover:bg-[#fff3ec]"
+            >
               <CartIcon />
             </button>
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 

@@ -3,13 +3,19 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/components/CartContext";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { shippingConfig } from "@/components/shippingConfig";
 import FreeShippingProgress from "@/components/FreeShippingProgress";
 
 
 export default function CartPage() {
-  const { items, totalCount, addToCart, removeFromCart, clearCart } = useCart();
+  const { items, totalCount, currentBancaName, addToCart, removeFromCart, clearCart } = useCart();
+  
+  // Debug: verificar se items têm banca_name
+  useEffect(() => {
+    console.log('Items no carrinho:', items);
+    console.log('currentBancaName:', currentBancaName);
+  }, [items, currentBancaName]);
 
   const totalPrice = useMemo(
     () => items.reduce((sum, it) => sum + (it.price ?? 0) * it.qty, 0),
@@ -54,9 +60,9 @@ export default function CartPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="inline-flex items-center rounded-md border border-gray-300 overflow-hidden">
-                    <button onClick={() => addToCart({ id: it.id, name: it.name, price: it.price, image: it.image }, -1)} className="px-2 py-1 text-sm">-</button>
+                    <button onClick={() => addToCart({ id: it.id, name: it.name, price: it.price, image: it.image, banca_id: it.banca_id, banca_name: it.banca_name }, -1)} className="px-2 py-1 text-sm">-</button>
                     <span className="px-3 py-1 text-sm font-semibold">{it.qty}</span>
-                    <button onClick={() => addToCart({ id: it.id, name: it.name, price: it.price, image: it.image }, 1)} className="px-2 py-1 text-sm">+</button>
+                    <button onClick={() => addToCart({ id: it.id, name: it.name, price: it.price, image: it.image, banca_id: it.banca_id, banca_name: it.banca_name }, 1)} className="px-2 py-1 text-sm">+</button>
                   </div>
                   <button onClick={() => removeFromCart(it.id)} className="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 hover:bg-gray-50" aria-label="Remover">
                     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M6 7h12v2H6V7zm2 3h8l-1 9H9L8 10zm3-7h2l1 2h5v2H5V5h5l1-2z"/></svg>
@@ -73,6 +79,20 @@ export default function CartPage() {
 
         {/* Resumo */}
         <aside className="rounded-2xl border border-gray-200 bg-white p-4 h-fit">
+          <h2 className="text-lg font-semibold mb-3">Resumo</h2>
+          
+          {currentBancaName && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 border border-gray-200">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-xs text-gray-500">Pedido de:</p>
+                <p className="text-sm font-semibold text-gray-900">{currentBancaName}</p>
+              </div>
+            </div>
+          )}
+          
           {/* Barra de progresso frete grátis */}
           <FreeShippingProgress subtotal={totalPrice} />
           <div className="flex items-center justify-between text-sm">
