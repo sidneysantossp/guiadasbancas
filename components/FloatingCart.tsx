@@ -7,7 +7,7 @@ import { useAuth } from "../hooks/useAuth";
 import Image from "next/image";
 
 export default function FloatingCart() {
-  const { items, totalCount, addToCart, removeFromCart } = useCart();
+  const { items, totalCount, currentBancaName, addToCart, removeFromCart } = useCart();
   const { isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
@@ -90,18 +90,28 @@ export default function FloatingCart() {
           <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl transform transition-transform">
             <div className="flex flex-col h-full">
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {totalCount} {totalCount === 1 ? 'Item' : 'Itens'} no seu carrinho
-                </h2>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    {totalCount} {totalCount === 1 ? 'Item' : 'Itens'} no seu carrinho
+                  </h2>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="p-2 hover:bg-gray-100 rounded-full"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                {currentBancaName && (
+                  <p className="text-sm text-gray-600 mt-2 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    Pedido de: <span className="font-semibold">{currentBancaName}</span>
+                  </p>
+                )}
               </div>
 
               {/* Lista de itens */}
