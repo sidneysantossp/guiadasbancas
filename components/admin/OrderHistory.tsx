@@ -179,6 +179,7 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
   }
 
   if (error) {
+    console.log('[OrderHistory RENDER] Renderizando estado de ERRO:', error);
     return (
       <div className="space-y-4">
         <h3 className="font-medium text-gray-900">Histórico do Pedido</h3>
