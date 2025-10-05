@@ -86,13 +86,15 @@ export default function JornaleiroDashboardPage() {
         console.log('[Dashboard] Produtos encontrados:', products?.length || 0);
       }
 
+      // Calcular data de hoje no timezone local
       const hoje = new Date();
-      hoje.setHours(0, 0, 0, 0);
+      const hojeStr = hoje.toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      console.log('[Dashboard] Data de hoje:', hojeStr);
       
       const pedidosHoje = (orders || []).filter((o: any) => {
-        const orderDate = new Date(o.created_at);
-        orderDate.setHours(0, 0, 0, 0);
-        return orderDate.getTime() === hoje.getTime();
+        const orderDateStr = o.created_at.split('T')[0]; // YYYY-MM-DD
+        return orderDateStr === hojeStr;
       });
 
       console.log('[Dashboard] Pedidos hoje:', pedidosHoje.length);
@@ -101,12 +103,23 @@ export default function JornaleiroDashboardPage() {
       const pedidosPendentes = (orders || []).filter((o: any) => 
         ["novo","confirmado","em_preparo"].includes(o.status)
       ).length;
+      // Produtos ativos: visíveis (não ocultos) e com estoque (se rastrear)
       const produtosAtivos = (products || []).filter((p: any) => {
+        // Se o produto está oculto/inativo, não conta
+        if (p.is_hidden || p.status === 'inactive') {
+          return false;
+        }
+        
+        // Se rastreia estoque, precisa ter estoque disponível
         if (p.track_stock) {
           return (p.stock_qty || 0) > 0;
         }
+        
+        // Se não rastreia estoque, está ativo
         return true;
       }).length;
+      
+      console.log('[Dashboard] Produtos ativos:', produtosAtivos, 'de', products?.length || 0);
 
       console.log('[Dashboard] Métricas calculadas:', {
         pedidosHoje: pedidosHoje.length,
