@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 type AlertModalProps = {
   isOpen: boolean;
@@ -11,9 +11,16 @@ type AlertModalProps = {
 };
 
 export default function AlertModal({ isOpen, onClose, title, message, type = "warning" }: AlertModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  // Garantir que só renderiza no cliente
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Fechar com ESC
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !mounted) return;
     
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -21,10 +28,12 @@ export default function AlertModal({ isOpen, onClose, title, message, type = "wa
     
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, mounted]);
 
   // Bloquear scroll do body quando modal aberto
   useEffect(() => {
+    if (!mounted) return;
+    
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
@@ -33,9 +42,9 @@ export default function AlertModal({ isOpen, onClose, title, message, type = "wa
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isOpen]);
+  }, [isOpen, mounted]);
 
-  if (!isOpen) return null;
+  if (!mounted || !isOpen) return null;
 
   const iconColors = {
     warning: "text-yellow-500",
