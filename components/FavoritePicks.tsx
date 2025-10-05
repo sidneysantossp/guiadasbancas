@@ -127,11 +127,6 @@ function FavCard({ item }: { item: FavItem }) {
         <div className="relative w-28 h-24 rounded-xl overflow-hidden shrink-0">
           <Image src={image} alt={name} fill className="object-contain bg-gray-50" />
           <DiscountBadge percent={discountPercent} />
-          {!available && (
-            <div className="absolute inset-0 bg-black/60 grid place-items-center">
-              <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-semibold text-gray-800">Not Available Now</span>
-            </div>
-          )}
         </div>
         {/* Conteúdo + coluna de ícones à direita */}
         <div className="flex-1 min-w-0 flex gap-2 items-center">
