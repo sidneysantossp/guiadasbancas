@@ -188,8 +188,12 @@ export default function FavoritePicks() {
         setLoading(true);
         // Futuro: usar histórico do usuário. Início: fallback para últimas novidades
         const [pRes, bRes] = await Promise.all([
-          fetch('/api/products?limit=9&sort=created_at&order=desc', { cache: 'no-store' }),
-          fetch('/api/admin/bancas', { cache: 'no-store' }),
+          fetch('/api/products?limit=6&sort=created_at&order=desc', {
+            next: { revalidate: 60 } as any
+          }),
+          fetch('/api/admin/bancas', {
+            next: { revalidate: 60 } as any
+          }),
         ]);
         let list: ApiProduct[] = [];
         if (pRes.ok) {
@@ -197,7 +201,9 @@ export default function FavoritePicks() {
           list = Array.isArray(pj?.data) ? pj.data : (Array.isArray(pj?.items) ? pj.items : []);
         }
         if (list.length === 0) {
-          const alt = await fetch('/api/products/most-searched', { cache: 'no-store' });
+          const alt = await fetch('/api/products/most-searched', {
+            next: { revalidate: 60 } as any
+          });
           if (alt.ok) {
             const aj = await alt.json();
             list = Array.isArray(aj?.data) ? aj.data : [];
@@ -237,7 +243,20 @@ export default function FavoritePicks() {
     return () => { active = false; };
   }, []);
 
-  const data = useMemo(() => Array.isArray(items) ? items.slice(0, 9) : [], [items]);
+  const data = useMemo(() => Array.isArray(items) ? items.slice(0, 6) : [], [items]);
+  const [scrollIndex, setScrollIndex] = useState(0);
+
+  const scrollNext = () => {
+    if (scrollIndex < data.length - 1) {
+      setScrollIndex(scrollIndex + 1);
+    }
+  };
+
+  const scrollPrev = () => {
+    if (scrollIndex > 0) {
+      setScrollIndex(scrollIndex - 1);
+    }
+  };
 
   if (!loading && data.length === 0) return null;
 
@@ -252,19 +271,85 @@ export default function FavoritePicks() {
           <Link href="/buscar?q=recomendados" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
         </div>
 
-        {/* Grid 2 linhas x 3 colunas (6 cards) */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 9 }).map((_, i) => (
+            {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="rounded-2xl bg-gray-100 animate-pulse h-28"></div>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {data.map((f) => (
-              <FavCard key={f.id} item={f} />
-            ))}
-          </div>
+          <>
+            {/* Mobile: Carrossel */}
+            <div className="sm:hidden relative">
+              <div className="overflow-hidden">
+                <div 
+                  className="flex transition-transform duration-300 ease-in-out gap-4"
+                  style={{ transform: `translateX(-${scrollIndex * 100}%)` }}
+                >
+                  {data.map((f) => (
+                    <div key={f.id} className="w-full flex-shrink-0">
+                      <FavCard item={f} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Setas de navegação */}
+              {data.length > 1 && (
+                <>
+                  <button
+                    onClick={scrollPrev}
+                    disabled={scrollIndex === 0}
+                    className={`absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all ${
+                      scrollIndex === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    aria-label="Anterior"
+                  >
+                    <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={scrollNext}
+                    disabled={scrollIndex === data.length - 1}
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all ${
+                      scrollIndex === data.length - 1 ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    aria-label="Próximo"
+                  >
+                    <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </>
+              )}
+
+              {/* Indicadores (dots) */}
+              {data.length > 1 && (
+                <div className="flex justify-center gap-2 mt-4">
+                  {data.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setScrollIndex(index)}
+                      className={`h-2 rounded-full transition-all ${
+                        index === scrollIndex 
+                          ? 'w-6 bg-[var(--color-primary)]' 
+                          : 'w-2 bg-gray-300'
+                      }`}
+                      aria-label={`Ir para item ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Desktop/Tablet: Grid 2x3 */}
+            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {data.map((f) => (
+                <FavCard key={f.id} item={f} />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </section>
