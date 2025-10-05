@@ -29,16 +29,24 @@ export default function JornaleiroDashboardPage() {
 
   const loadBancaData = async () => {
     try {
+      console.log('[Dashboard] Buscando banca para user_id:', user!.id);
+      
       // Buscar banca do jornaleiro
-      const { data: bancaData } = await supabase
+      const { data: bancaData, error } = await supabase
         .from('bancas')
         .select('*')
         .eq('user_id', user!.id)
         .single();
       
+      if (error) {
+        console.error('[Dashboard] Erro ao buscar banca:', error);
+        return;
+      }
+      
+      console.log('[Dashboard] Banca encontrada:', bancaData);
       setBanca(bancaData);
     } catch (error) {
-      console.error('Erro ao carregar banca:', error);
+      console.error('[Dashboard] Erro ao carregar banca:', error);
     }
   };
 
@@ -51,19 +59,32 @@ export default function JornaleiroDashboardPage() {
   const loadMetrics = async () => {
     try {
       setLoadingMetrics(true);
+      console.log('[Dashboard] Carregando métricas para banca_id:', banca.id);
       
       // Buscar pedidos da banca
-      const { data: orders } = await supabase
+      const { data: orders, error: ordersError } = await supabase
         .from('orders')
         .select('*')
         .eq('banca_id', banca.id)
         .order('created_at', { ascending: false });
 
+      if (ordersError) {
+        console.error('[Dashboard] Erro ao buscar pedidos:', ordersError);
+      } else {
+        console.log('[Dashboard] Pedidos encontrados:', orders?.length || 0);
+      }
+
       // Buscar produtos da banca
-      const { data: products } = await supabase
+      const { data: products, error: productsError } = await supabase
         .from('products')
         .select('*')
         .eq('banca_id', banca.id);
+
+      if (productsError) {
+        console.error('[Dashboard] Erro ao buscar produtos:', productsError);
+      } else {
+        console.log('[Dashboard] Produtos encontrados:', products?.length || 0);
+      }
 
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
@@ -73,6 +94,8 @@ export default function JornaleiroDashboardPage() {
         orderDate.setHours(0, 0, 0, 0);
         return orderDate.getTime() === hoje.getTime();
       });
+
+      console.log('[Dashboard] Pedidos hoje:', pedidosHoje.length);
 
       const faturamentoHoje = pedidosHoje.reduce((acc: number, o: any) => acc + Number(o.total || 0), 0);
       const pedidosPendentes = (orders || []).filter((o: any) => 
@@ -85,6 +108,13 @@ export default function JornaleiroDashboardPage() {
         return true;
       }).length;
 
+      console.log('[Dashboard] Métricas calculadas:', {
+        pedidosHoje: pedidosHoje.length,
+        faturamentoHoje,
+        pedidosPendentes,
+        produtosAtivos
+      });
+
       setMetrics({
         pedidosHoje: pedidosHoje.length,
         faturamentoHoje,
@@ -93,7 +123,7 @@ export default function JornaleiroDashboardPage() {
       });
       setRecentOrders((orders || []).slice(0, 5));
     } catch (error) {
-      console.error('Erro ao carregar métricas:', error);
+      console.error('[Dashboard] Erro ao carregar métricas:', error);
     } finally {
       setLoadingMetrics(false);
     }
