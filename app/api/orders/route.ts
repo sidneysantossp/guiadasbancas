@@ -225,12 +225,19 @@ export async function POST(req: NextRequest) {
         } else if (!config.baseUrl || !config.apiKey || !config.instanceName) {
           console.warn(`[WHATSAPP] ⚠️ Configuração incompleta (baseUrl/apiKey/instanceName). Pedido #${orderNumber}`);
         } else {
+          // Formatar telefone do cliente para WhatsApp
+          const customerCleanPhone = (customer.phone || '').replace(/\D/g, '');
+          const customerWhatsAppLink = customerCleanPhone 
+            ? `https://wa.me/55${customerCleanPhone.replace(/^55/, '')}`
+            : '';
+
           // Formatar mensagem
           const message = `🛒 *NOVO PEDIDO - ${banca.name}*\n\n` +
             `📋 *Pedido:* #${orderNumber}\n` +
             `👤 *Cliente:* ${customer.name || "Cliente"}\n` +
-            `📱 *Telefone:* ${customer.phone || ""}\n\n` +
-            `📦 *Produtos:*\n` +
+            `📱 *Telefone:* ${customer.phone || ""}\n` +
+            (customerWhatsAppLink ? `🔗 *WhatsApp:* ${customerWhatsAppLink}\n` : '') +
+            `\n📦 *Produtos:*\n` +
             orderItems.map((item, i) =>
               `${i + 1}. ${item.product_name}\n   Qtd: ${item.quantity}x | Valor: R$ ${item.unit_price.toFixed(2)}`
             ).join('\n') +
@@ -238,9 +245,14 @@ export async function POST(req: NextRequest) {
             `🚚 *Entrega:* ${body.shippingMethod || 'Não especificado'}\n` +
             `💳 *Pagamento:* ${body.payment || 'pix'}\n` +
             (fullAddress ? `📍 *Endereço:* ${fullAddress}\n` : '') +
-            (body.shippingMethod ? `📝 *Obs:* Entrega: ${body.shippingMethod}\n` : '') +
-            `\n⏰ *Recebido em:* ${new Date().toLocaleString('pt-BR')}\n` +
-            `\n✅ Acesse seu painel para gerenciar este pedido.`;
+            `\n⏰ *Recebido em:* ${new Date().toLocaleString('pt-BR')}\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `💳 *PRÓXIMOS PASSOS:*\n` +
+            `1️⃣ Clique no link do WhatsApp acima\n` +
+            `2️⃣ Envie o PIX para o cliente\n` +
+            `3️⃣ Aguarde o pagamento\n` +
+            `4️⃣ Confirme o pedido no painel\n\n` +
+            `✅ Acesse seu painel para gerenciar este pedido.`;
 
           // Formatar telefone da banca
           const cleanPhone = banca.whatsapp.replace(/\D/g, '');
