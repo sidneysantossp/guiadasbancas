@@ -23,6 +23,19 @@ function deslugify(slug: string) {
 
 async function getProductData(productId: string): Promise<ProdutoItem | null> {
   try {
+    // Primeiro tenta buscar do Supabase
+    const { supabaseAdmin } = await import("@/lib/supabase");
+    const { data } = await supabaseAdmin
+      .from('products')
+      .select('*')
+      .eq('id', productId)
+      .single();
+    
+    if (data) {
+      return data as ProdutoItem;
+    }
+
+    // Fallback para arquivo JSON local
     let items = await readProducts();
     if (!items.length) {
       const legacy = (globalThis as any).__PRODUCTS_STORE__ as ProdutoItem[] | undefined;
