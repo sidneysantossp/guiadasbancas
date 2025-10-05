@@ -3,16 +3,27 @@ import ProductPageClient from "@/components/ProductPageClient";
 import { readProducts, type ProdutoItem } from "@/lib/server/productsStore";
 
 function parseSlugId(slugId: string) {
-  // espera algo como "nome-do-produto-prod-123456789"; busca por "prod-" seguido de números
-  const m = slugId.match(/^(.*)-(prod-\d+)$/);
-  if (!m) {
-    // Se não encontrar o padrão "prod-", tenta pegar a última parte como ID
-    const parts = slugId.split('-');
-    const lastPart = parts[parts.length - 1];
-    const nameSlug = parts.slice(0, -1).join('-');
-    return { nameSlug, id: lastPart };
+  // Formato esperado: "nome-do-produto-UUID" onde UUID tem padrão xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  // Regex para UUID v4
+  const uuidPattern = /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i;
+  const match = slugId.match(uuidPattern);
+  
+  if (match) {
+    // Encontrou UUID no final
+    const id = match[1];
+    const nameSlug = slugId.substring(0, slugId.lastIndexOf(id) - 1); // -1 para remover o hífen antes do UUID
+    return { nameSlug, id };
   }
-  return { nameSlug: m[1], id: m[2] };
+  
+  // Fallback: tenta padrão antigo "prod-123456789"
+  const oldPattern = /^(.*)-(prod-\d+)$/;
+  const oldMatch = slugId.match(oldPattern);
+  if (oldMatch) {
+    return { nameSlug: oldMatch[1], id: oldMatch[2] };
+  }
+  
+  // Último fallback: assume que tudo é o ID (para URLs diretas tipo /produto/uuid)
+  return { nameSlug: '', id: slugId };
 }
 
 function deslugify(slug: string) {
