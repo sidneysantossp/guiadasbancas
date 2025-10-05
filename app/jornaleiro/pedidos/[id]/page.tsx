@@ -124,6 +124,58 @@ export default function OrderDetailsPage() {
           'vendor',
           getStatusChangeMessage(oldStatus, newStatus)
         );
+        
+        // Enviar notificação WhatsApp para o CLIENTE
+        if (order.customer_phone) {
+          try {
+            const clienteResponse = await fetch('/api/whatsapp/status-update', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                orderId: order.id,
+                customerPhone: order.customer_phone,
+                newStatus,
+                estimatedDelivery: estimatedDelivery || order.estimated_delivery
+              })
+            });
+            
+            const clienteResult = await clienteResponse.json();
+            
+            if (clienteResult.success) {
+              console.log(`[WhatsApp] ✅ Cliente notificado: ${order.customer_phone}`);
+              toast.success(`📱 Cliente notificado via WhatsApp`);
+            } else {
+              console.warn(`[WhatsApp] ⚠️ Falha ao notificar cliente:`, clienteResult.message);
+            }
+          } catch (error) {
+            console.error('[WhatsApp] Erro ao notificar cliente:', error);
+          }
+        }
+        
+        // Enviar notificação WhatsApp para o JORNALEIRO (confirmação)
+        try {
+          const jornaleiroResponse = await fetch('/api/whatsapp/jornaleiro-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderId: order.id,
+              bancaId: order.banca_id,
+              action: 'status_change',
+              oldStatus,
+              newStatus,
+              customerName: order.customer_name
+            })
+          });
+          
+          const jornaleiroResult = await jornaleiroResponse.json();
+          
+          if (jornaleiroResult.success) {
+            console.log(`[WhatsApp] ✅ Jornaleiro notificado`);
+            toast.success(`📱 Você recebeu confirmação via WhatsApp`);
+          }
+        } catch (error) {
+          console.error('[WhatsApp] Erro ao notificar jornaleiro:', error);
+        }
       }
       
       if (oldNotes !== notes && notes) {

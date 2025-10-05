@@ -230,26 +230,71 @@ class WhatsAppService {
       const cleanPhone = customerPhone.replace(/\D/g, '');
       const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
 
-      const statusMessages: Record<string, string> = {
-        'confirmado': '✅ Seu pedido foi confirmado e está sendo preparado!',
-        'em_preparo': '📦 Seu pedido está sendo preparado com carinho!',
-        'saiu_para_entrega': '🚚 Seu pedido saiu para entrega!',
-        'entregue': '🎉 Seu pedido foi entregue com sucesso!'
+      const statusMessages: Record<string, { emoji: string; title: string; message: string }> = {
+        'novo': {
+          emoji: '🆕',
+          title: 'Pedido Recebido',
+          message: 'Recebemos seu pedido com sucesso! Estamos analisando e em breve você receberá a confirmação.'
+        },
+        'confirmado': {
+          emoji: '✅',
+          title: 'Pedido Confirmado',
+          message: 'Seu pedido foi confirmado! Estamos separando os produtos para você.'
+        },
+        'em_preparo': {
+          emoji: '📦',
+          title: 'Pedido em Preparo',
+          message: 'Seu pedido está sendo preparado com carinho! Em breve estará pronto para entrega.'
+        },
+        'saiu_para_entrega': {
+          emoji: '🚚',
+          title: 'Saiu para Entrega',
+          message: 'Seu pedido saiu para entrega! Logo chegará no endereço informado.'
+        },
+        'entregue': {
+          emoji: '🎉',
+          title: 'Pedido Entregue',
+          message: 'Seu pedido foi entregue com sucesso! Esperamos que aproveite!'
+        }
       };
 
-      let message = `📋 *Atualização do Pedido #${orderId}*\n\n`;
-      message += statusMessages[newStatus] || `Status atualizado para: ${newStatus}`;
+      const statusInfo = statusMessages[newStatus] || {
+        emoji: '📋',
+        title: 'Status Atualizado',
+        message: `Status do pedido: ${newStatus}`
+      };
 
-      if (estimatedDelivery) {
-        message += `\n\n⏰ *Previsão de entrega:* ${new Date(estimatedDelivery).toLocaleString('pt-BR')}`;
+      let message = `${statusInfo.emoji} *${statusInfo.title}*\n\n`;
+      message += `📋 *Pedido:* #${orderId.substring(0, 8)}\n\n`;
+      message += `${statusInfo.message}`;
+
+      if (estimatedDelivery && newStatus !== 'entregue') {
+        const deliveryDate = new Date(estimatedDelivery);
+        message += `\n\n⏰ *Previsão de entrega:*\n${deliveryDate.toLocaleString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })}`;
       }
 
-      message += `\n\n💬 Dúvidas? Entre em contato conosco!`;
+      message += `\n\n💬 *Dúvidas?*\nEntre em contato com a banca!\n\n`;
+      message += `_Atualizado em: ${new Date().toLocaleString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit'
+      })}_`;
 
       const result = await this.sendMessage({
         number: formattedPhone,
         text: message
       });
+
+      if (result) {
+        console.log(`[WhatsApp] ✅ Status enviado para ${formattedPhone} - ${statusInfo.title}`);
+      }
 
       return result;
     } catch (error) {
