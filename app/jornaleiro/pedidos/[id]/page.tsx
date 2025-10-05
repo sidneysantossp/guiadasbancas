@@ -253,6 +253,16 @@ export default function OrderDetailsPage() {
     try {
       setSendingPix(true);
       
+      console.log('[Send PIX Frontend] Enviando requisição...');
+      console.log('[Send PIX Frontend] Dados:', {
+        orderId: order.id,
+        customerPhone: order.customer_phone,
+        customerName: order.customer_name,
+        pixCodeLength: pixCode.trim().length,
+        total: order.total,
+        bancaName: order.banca_name
+      });
+      
       const response = await fetch('/api/whatsapp/send-pix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -266,18 +276,32 @@ export default function OrderDetailsPage() {
         })
       });
 
+      console.log('[Send PIX Frontend] Status da resposta:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[Send PIX Frontend] Erro HTTP:', response.status, errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
+      }
+
       const result = await response.json();
+      console.log('[Send PIX Frontend] Resposta:', result);
 
       if (result.success) {
         toast.success("✅ PIX enviado para o cliente!");
         
         // Registrar no histórico
-        await logNote(
-          order.id,
-          `PIX enviado para o cliente. Aguardando confirmação de pagamento.`,
-          order.banca_name,
-          'vendor'
-        );
+        try {
+          await logNote(
+            order.id,
+            `PIX enviado para o cliente. Aguardando confirmação de pagamento.`,
+            order.banca_name,
+            'vendor'
+          );
+        } catch (historyError) {
+          console.error('[Send PIX] Erro ao registrar histórico:', historyError);
+          // Não bloquear o fluxo se falhar o histórico
+        }
         
         // Atualizar histórico
         setHistoryKey(prev => prev + 1);
@@ -285,11 +309,16 @@ export default function OrderDetailsPage() {
         // Limpar campo PIX
         setPixCode("");
       } else {
+        console.error('[Send PIX] API retornou falha:', result);
         toast.error(`Erro: ${result.message}`);
       }
     } catch (error) {
-      console.error('[Send PIX] Erro:', error);
-      toast.error("Erro ao enviar PIX");
+      console.error('[Send PIX Frontend] ===== ERRO =====');
+      console.error('[Send PIX Frontend] Erro:', error);
+      console.error('[Send PIX Frontend] Stack:', error instanceof Error ? error.stack : 'N/A');
+      
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao enviar PIX';
+      toast.error(errorMessage);
     } finally {
       setSendingPix(false);
     }
