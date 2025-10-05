@@ -67,14 +67,17 @@ Qualquer dúvida, estamos à disposição! 😊
     `.trim();
 
     console.log('[WhatsApp Send PIX] Mensagem preparada, enviando...');
+    console.log('[WhatsApp Send PIX] Tamanho da mensagem:', message.length, 'caracteres');
 
     // Enviar mensagem
+    console.log('[WhatsApp Send PIX] Chamando whatsappService.sendMessage...');
     const sent = await whatsappService.sendMessage({
       number: formattedPhone,
       text: message
     });
 
-    console.log(`[WhatsApp Send PIX] Resultado: ${sent ? 'SUCESSO ✅' : 'FALHOU ❌'}`);
+    console.log(`[WhatsApp Send PIX] Resultado do sendMessage: ${sent}`);
+    console.log(`[WhatsApp Send PIX] ${sent ? '✅ SUCESSO' : '❌ FALHOU'}`);
     console.log('[WhatsApp Send PIX] ===== FIM =====');
 
     if (sent) {
