@@ -20,6 +20,7 @@ type OrderHistoryProps = {
 export default function OrderHistory({ orderId }: OrderHistoryProps) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadHistory();
@@ -28,14 +29,23 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
   const loadHistory = async () => {
     try {
       setLoading(true);
+      setError(null);
       
+      console.log('[OrderHistory] Buscando histórico para pedido:', orderId);
       const response = await fetch(`/api/orders/${orderId}/history`);
       
+      console.log('[OrderHistory] Status da resposta:', response.status);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[OrderHistory] Erro na resposta:', errorText);
         throw new Error('Erro ao carregar histórico');
       }
       
-      const { data } = await response.json();
+      const json = await response.json();
+      console.log('[OrderHistory] Dados recebidos:', json);
+      
+      const { data } = json;
       
       // Transformar dados do Supabase para o formato do componente
       const formattedHistory: HistoryEntry[] = (data || []).map((item: any) => ({
@@ -49,9 +59,11 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
         details: item.details
       }));
       
+      console.log('[OrderHistory] Histórico formatado:', formattedHistory);
       setHistory(formattedHistory);
     } catch (error) {
-      console.error("Erro ao carregar histórico:", error);
+      console.error("[OrderHistory] Erro ao carregar histórico:", error);
+      setError(error instanceof Error ? error.message : 'Erro desconhecido');
       setHistory([]);
     } finally {
       setLoading(false);
@@ -152,13 +164,42 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
     );
   }
 
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <h3 className="font-medium text-gray-900">Histórico do Pedido</h3>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <p className="text-sm text-red-800">
+            Erro ao carregar histórico: {error}
+          </p>
+          <button
+            onClick={loadHistory}
+            className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900">Histórico do Pedido</h3>
       
-      <div className="flow-root">
-        <ul className="-mb-8">
-          {history.map((entry, index) => (
+      {history.length === 0 ? (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
+          <p className="text-sm text-gray-600">
+            Nenhuma atividade registrada ainda.
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            As mudanças de status e observações aparecerão aqui.
+          </p>
+        </div>
+      ) : (
+        <div className="flow-root">
+          <ul className="-mb-8">
+            {history.map((entry, index) => (
             <li key={entry.id}>
               <div className="relative pb-8">
                 {index !== history.length - 1 && (
@@ -213,6 +254,7 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
           ))}
         </ul>
       </div>
+      )}
     </div>
   );
 }
