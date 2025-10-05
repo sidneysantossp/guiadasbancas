@@ -29,60 +29,30 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
     try {
       setLoading(true);
       
-      // Simular dados de histórico
-      const mockHistory: HistoryEntry[] = [
-        {
-          id: "hist-1",
-          order_id: orderId,
-          action: "created",
-          new_value: "novo",
-          user_name: "Sistema",
-          timestamp: "2024-01-15T10:30:00Z",
-          details: "Pedido criado pelo cliente"
-        },
-        {
-          id: "hist-2",
-          order_id: orderId,
-          action: "status_change",
-          old_value: "novo",
-          new_value: "confirmado",
-          user_name: "Maria Alves",
-          timestamp: "2024-01-15T10:45:00Z",
-          details: "Pedido confirmado pelo jornaleiro"
-        },
-        {
-          id: "hist-3",
-          order_id: orderId,
-          action: "note_added",
-          new_value: "Cliente solicitou entrega após 14h",
-          user_name: "Maria Alves",
-          timestamp: "2024-01-15T10:46:00Z"
-        },
-        {
-          id: "hist-4",
-          order_id: orderId,
-          action: "delivery_updated",
-          old_value: "2024-01-15T15:00:00Z",
-          new_value: "2024-01-15T16:00:00Z",
-          user_name: "Maria Alves",
-          timestamp: "2024-01-15T11:00:00Z",
-          details: "Previsão de entrega atualizada"
-        },
-        {
-          id: "hist-5",
-          order_id: orderId,
-          action: "status_change",
-          old_value: "confirmado",
-          new_value: "em_preparo",
-          user_name: "Maria Alves",
-          timestamp: "2024-01-15T12:00:00Z",
-          details: "Iniciado preparo dos produtos"
-        }
-      ];
+      const response = await fetch(`/api/orders/${orderId}/history`);
       
-      setHistory(mockHistory.reverse()); // Mais recente primeiro
+      if (!response.ok) {
+        throw new Error('Erro ao carregar histórico');
+      }
+      
+      const { data } = await response.json();
+      
+      // Transformar dados do Supabase para o formato do componente
+      const formattedHistory: HistoryEntry[] = (data || []).map((item: any) => ({
+        id: item.id,
+        order_id: item.order_id,
+        action: item.action,
+        old_value: item.old_value,
+        new_value: item.new_value,
+        user_name: item.user_name,
+        timestamp: item.created_at,
+        details: item.details
+      }));
+      
+      setHistory(formattedHistory);
     } catch (error) {
       console.error("Erro ao carregar histórico:", error);
+      setHistory([]);
     } finally {
       setLoading(false);
     }
