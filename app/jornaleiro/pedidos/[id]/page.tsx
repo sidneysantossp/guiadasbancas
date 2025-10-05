@@ -8,6 +8,7 @@ import StatusBadge from "@/components/admin/StatusBadge";
 import OrderHistory from "@/components/admin/OrderHistory";
 import OrderReceipt from "@/components/admin/OrderReceipt";
 import { useToast } from "@/components/admin/ToastProvider";
+import { logStatusChange, logNote, logDeliveryUpdate } from "@/lib/orderHistory";
 
 const STATUS_FLOW = ["novo","confirmado","em_preparo","saiu_para_entrega","entregue"] as const;
 
@@ -90,6 +91,10 @@ export default function OrderDetailsPage() {
   const updateStatus = async (newStatus: string) => {
     if (!order) return;
     
+    const oldStatus = order.status;
+    const oldNotes = order.notes || "";
+    const oldDelivery = order.estimated_delivery || "";
+    
     try {
       setUpdating(true);
       const res = await fetch("/api/orders", {
@@ -108,6 +113,38 @@ export default function OrderDetailsPage() {
         return;
       }
       
+      // Registrar mudanças no histórico
+      if (oldStatus !== newStatus) {
+        await logStatusChange(
+          order.id,
+          oldStatus,
+          newStatus,
+          order.banca_name,
+          'vendor',
+          getStatusChangeMessage(oldStatus, newStatus)
+        );
+      }
+      
+      if (oldNotes !== notes && notes) {
+        await logNote(
+          order.id,
+          notes,
+          order.banca_name,
+          'vendor'
+        );
+      }
+      
+      if (oldDelivery !== estimatedDelivery && estimatedDelivery) {
+        await logDeliveryUpdate(
+          order.id,
+          oldDelivery,
+          estimatedDelivery,
+          order.banca_name,
+          'vendor',
+          'Previsão de entrega atualizada'
+        );
+      }
+      
       toast.success("Pedido atualizado com sucesso");
       fetchOrder();
     } catch (e: any) {
@@ -115,6 +152,16 @@ export default function OrderDetailsPage() {
     } finally {
       setUpdating(false);
     }
+  };
+  
+  const getStatusChangeMessage = (oldStatus: string, newStatus: string): string => {
+    const messages: Record<string, string> = {
+      'novo->confirmado': 'Pedido confirmado pelo jornaleiro',
+      'confirmado->em_preparo': 'Iniciado preparo dos produtos',
+      'em_preparo->saiu_para_entrega': 'Pedido saiu para entrega',
+      'saiu_para_entrega->entregue': 'Pedido entregue ao cliente'
+    };
+    return messages[`${oldStatus}->${newStatus}`] || `Status alterado de "${oldStatus}" para "${newStatus}"`;
   };
 
   const advanceStatus = () => {
