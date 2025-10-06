@@ -129,7 +129,7 @@ export default function AdminProductCreatePage() {
         venda_multiplos: Number(fd.get("venda_multiplos") || 1),
         categoria_mercos: (fd.get("categoria_mercos") as string)?.trim() || undefined,
         disponivel_todas_bancas: disponibilidadeTipo === 'todas',
-        banca_especifica_id: disponibilidadeTipo === 'especifica' ? bancaSelecionada : undefined,
+        banca_id: disponibilidadeTipo === 'especifica' && bancaSelecionada ? bancaSelecionada : null,
       };
 
       const vr = validateProductCreate(body as any);

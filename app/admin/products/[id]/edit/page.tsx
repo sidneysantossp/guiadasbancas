@@ -26,6 +26,9 @@ export default function AdminProductEditPage() {
   const toast = useToast();
   const productId = params.id as string;
   
+  console.log('🔍 Product ID from params:', productId);
+  console.log('🔍 Full params:', params);
+  
   const [product, setProduct] = useState<any>(null);
   const [images, setImages] = useState<string[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
@@ -146,10 +149,14 @@ export default function AdminProductEditPage() {
         venda_multiplos: Number(fd.get("venda_multiplos") || 1),
         categoria_mercos: (fd.get("categoria_mercos") as string)?.trim() || undefined,
         disponivel_todas_bancas: disponibilidadeTipo === 'todas',
-        banca_especifica_id: disponibilidadeTipo === 'especifica' ? bancaSelecionada : undefined,
+        banca_id: disponibilidadeTipo === 'especifica' && bancaSelecionada ? bancaSelecionada : null,
       };
 
-      const res = await fetch(`/api/admin/products/${productId}`, {
+      const apiUrl = `/api/admin/products/${productId}`;
+      console.log('🚀 Updating product at:', apiUrl);
+      console.log('📦 Body:', body);
+      
+      const res = await fetch(apiUrl, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -157,6 +164,8 @@ export default function AdminProductEditPage() {
         },
         body: JSON.stringify(body),
       });
+      
+      console.log('📡 Response status:', res.status);
 
       if (!res.ok) throw new Error("Erro ao atualizar produto");
       

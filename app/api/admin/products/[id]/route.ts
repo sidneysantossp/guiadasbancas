@@ -62,6 +62,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     const body = await request.json();
     
+    console.log('[UPDATE PRODUCT] ID:', params.id);
+    console.log('[UPDATE PRODUCT] Body:', JSON.stringify(body, null, 2));
+    
     const { data, error } = await supabaseAdmin
       .from('products')
       .update(body)
@@ -70,11 +73,22 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       .single();
 
     if (error) {
-      return NextResponse.json({ success: false, error: "Erro ao atualizar produto" }, { status: 500 });
+      console.error('[UPDATE PRODUCT] Supabase error:', error);
+      return NextResponse.json({ 
+        success: false, 
+        error: error.message || "Erro ao atualizar produto",
+        details: error 
+      }, { status: 500 });
     }
 
+    console.log('[UPDATE PRODUCT] Success');
     return NextResponse.json({ success: true, data });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: "Erro interno" }, { status: 500 });
+  } catch (error: any) {
+    console.error('[UPDATE PRODUCT] Exception:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || "Erro interno",
+      details: error.toString()
+    }, { status: 500 });
   }
 }
