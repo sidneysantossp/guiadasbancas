@@ -60,7 +60,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   // Carregar dados da banca
   useEffect(() => {
     const loadBancaData = async () => {
-      if (!user) return;
+      if (!user?.id || isAuthRoute) return;
       
       try {
         const { data, error } = await supabase
@@ -77,10 +77,8 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
       }
     };
     
-    if (user && !isAuthRoute) {
-      loadBancaData();
-    }
-  }, [user, isAuthRoute]);
+    loadBancaData();
+  }, [user?.id]);
 
   // Carregar branding
   useEffect(() => {
