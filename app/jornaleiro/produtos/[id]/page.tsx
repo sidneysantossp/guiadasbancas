@@ -104,6 +104,7 @@ export default function SellerProductEditPage() {
           category_id: p.category_id || "",
           stock_qty: p.stock_qty ?? 0,
           track_stock: Boolean(p.track_stock),
+          origem: p.origem || null, // Origem do produto (admin, mercos, etc)
           featured: Boolean(p.featured),
           active: Boolean(p.active),
           sob_encomenda: Boolean(p.sob_encomenda),
@@ -377,12 +378,40 @@ export default function SellerProductEditPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-sm font-medium">Estoque</label>
-                <input defaultValue={product.stock_qty} type="number" name="stock" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                <label className="text-sm font-medium">
+                  Estoque
+                  {product.origem && (
+                    <span className="ml-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                      🔒 Controlado pelo admin
+                    </span>
+                  )}
+                </label>
+                <input 
+                  defaultValue={product.stock_qty} 
+                  type="number" 
+                  name="stock" 
+                  disabled={!!product.origem}
+                  className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${
+                    product.origem 
+                      ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' 
+                      : 'border-gray-300'
+                  }`}
+                  title={product.origem ? 'Este produto é gerenciado pelo administrador' : ''}
+                />
               </div>
               <div className="flex items-end">
                 <label className="inline-flex items-center gap-2 text-sm">
-                  <input defaultChecked={product.track_stock} name="track_stock" type="checkbox" className="rounded" /> Controlar estoque
+                  <input 
+                    defaultChecked={product.track_stock} 
+                    name="track_stock" 
+                    type="checkbox" 
+                    disabled={!!product.origem}
+                    className={`rounded ${product.origem ? 'cursor-not-allowed opacity-50' : ''}`}
+                  /> 
+                  Controlar estoque
+                  {product.origem && (
+                    <span className="text-xs text-gray-500">(bloqueado)</span>
+                  )}
                 </label>
               </div>
             </div>
