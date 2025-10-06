@@ -34,8 +34,6 @@ export default function JornaleiroDashboardPage() {
 
   const loadBancaData = async () => {
     try {
-      console.log('[Dashboard] Buscando banca para user_id:', user!.id);
-      
       // Buscar banca do jornaleiro
       const { data: bancaData, error } = await supabase
         .from('bancas')
@@ -48,7 +46,6 @@ export default function JornaleiroDashboardPage() {
         return;
       }
       
-      console.log('[Dashboard] Banca encontrada:', bancaData);
       setBanca(bancaData);
     } catch (error) {
       console.error('[Dashboard] Erro ao carregar banca:', error);
@@ -56,42 +53,37 @@ export default function JornaleiroDashboardPage() {
   };
 
   useEffect(() => {
-    if (user && banca) {
+    if (user && banca?.id) {
       loadMetrics();
     }
-  }, [user, banca]);
+  }, [user?.id, banca?.id]);
 
   const loadMetrics = async () => {
     try {
       setLoadingMetrics(true);
-      console.log('[Dashboard] Carregando métricas via API...');
       
-      // Buscar pedidos via API (já filtra pela banca automaticamente)
-      const ordersRes = await fetch('/api/orders?limit=1000');
-      const ordersData = await ordersRes.json();
+      // Buscar pedidos e produtos em PARALELO para melhorar performance
+      const [ordersRes, productsRes] = await Promise.all([
+        fetch('/api/orders?limit=200'),
+        fetch('/api/products?limit=100')
+      ]);
+      
+      const [ordersData, productsData] = await Promise.all([
+        ordersRes.json(),
+        productsRes.json()
+      ]);
+      
       const orders = ordersData.items || [];
-      
-      console.log('[Dashboard] Pedidos encontrados:', orders.length);
-
-      // Buscar produtos via API (já filtra pela banca automaticamente)
-      const productsRes = await fetch('/api/products?limit=1000');
-      const productsData = await productsRes.json();
       const products = productsData.items || productsData.products || [];
-      
-      console.log('[Dashboard] Produtos encontrados:', products.length);
 
       // Calcular data de hoje no timezone local
       const hoje = new Date();
       const hojeStart = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
       
-      console.log('[Dashboard] Data de hoje:', hojeStart.toISOString());
-      
       const pedidosHoje = orders.filter((o: any) => {
         const orderDate = new Date(o.created_at);
         return orderDate >= hojeStart;
       });
-
-      console.log('[Dashboard] Pedidos hoje:', pedidosHoje.length);
 
       const faturamentoHoje = pedidosHoje.reduce((acc: number, o: any) => acc + Number(o.total || 0), 0);
       const pedidosPendentes = orders.filter((o: any) => 
@@ -130,15 +122,6 @@ export default function JornaleiroDashboardPage() {
         // Se não rastreia estoque, está ativo
         return true;
       }).length;
-      
-      console.log('[Dashboard] Produtos ativos:', produtosAtivos, 'de', products.length);
-
-      console.log('[Dashboard] Métricas calculadas:', {
-        pedidosHoje: pedidosHoje.length,
-        faturamentoHoje,
-        pedidosPendentes,
-        produtosAtivos
-      });
 
       setMetrics({
         pedidosHoje: pedidosHoje.length,
@@ -198,54 +181,67 @@ export default function JornaleiroDashboardPage() {
         </div>
       </div>
 
-      {/* Performance por Período - Gráfico de Barras */}
+      {/* Performance por Período - Gráfico de Barras Vertical */}
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold mb-6">Performance por Período</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <div className="flex items-end justify-around gap-8 h-64 px-4">
           {/* Hoje */}
-          <div className="space-y-3">
-            <div className="text-sm font-medium text-blue-600">Hoje</div>
-            <div className="text-3xl font-bold text-blue-700">{loadingMetrics ? "--" : performanceData.hoje.pedidos}</div>
-            <div className="text-sm text-gray-500">R$ {loadingMetrics ? "0.00" : performanceData.hoje.receita.toFixed(2)}</div>
-            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div className="flex flex-col items-center flex-1">
+            <div className="text-sm font-medium text-blue-600 mb-2">{loadingMetrics ? "--" : performanceData.hoje.pedidos}</div>
+            <div className="w-full flex flex-col justify-end items-center flex-1">
               <div 
-                className="bg-blue-500 h-3 rounded-full transition-all duration-500"
+                className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t-lg transition-all duration-500 flex items-start justify-center pt-2"
                 style={{ 
-                  width: `${performanceData.mes.pedidos > 0 
-                    ? Math.min((performanceData.hoje.pedidos / performanceData.mes.pedidos) * 100, 100) 
-                    : 0}%` 
+                  height: `${performanceData.mes.pedidos > 0 
+                    ? Math.max((performanceData.hoje.pedidos / performanceData.mes.pedidos) * 100, 5) 
+                    : 5}%` 
                 }}
-              ></div>
+              >
+                <span className="text-xs text-white font-semibold">{loadingMetrics ? "" : performanceData.hoje.pedidos}</span>
+              </div>
+            </div>
+            <div className="mt-2 text-center">
+              <div className="text-sm font-medium text-gray-700">Hoje</div>
+              <div className="text-xs text-gray-500">R$ {loadingMetrics ? "0.00" : performanceData.hoje.receita.toFixed(2)}</div>
             </div>
           </div>
 
           {/* Últimos 7 dias */}
-          <div className="space-y-3">
-            <div className="text-sm font-medium text-purple-600">Últimos 7 dias</div>
-            <div className="text-3xl font-bold text-purple-700">{loadingMetrics ? "--" : performanceData.semana.pedidos}</div>
-            <div className="text-sm text-gray-500">R$ {loadingMetrics ? "0.00" : performanceData.semana.receita.toFixed(2)}</div>
-            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div className="flex flex-col items-center flex-1">
+            <div className="text-sm font-medium text-purple-600 mb-2">{loadingMetrics ? "--" : performanceData.semana.pedidos}</div>
+            <div className="w-full flex flex-col justify-end items-center flex-1">
               <div 
-                className="bg-purple-500 h-3 rounded-full transition-all duration-500"
+                className="w-full bg-gradient-to-t from-purple-500 to-purple-400 rounded-t-lg transition-all duration-500 flex items-start justify-center pt-2"
                 style={{ 
-                  width: `${performanceData.mes.pedidos > 0 
-                    ? Math.min((performanceData.semana.pedidos / performanceData.mes.pedidos) * 100, 100) 
-                    : 0}%` 
+                  height: `${performanceData.mes.pedidos > 0 
+                    ? Math.max((performanceData.semana.pedidos / performanceData.mes.pedidos) * 100, 5) 
+                    : 5}%` 
                 }}
-              ></div>
+              >
+                <span className="text-xs text-white font-semibold">{loadingMetrics ? "" : performanceData.semana.pedidos}</span>
+              </div>
+            </div>
+            <div className="mt-2 text-center">
+              <div className="text-sm font-medium text-gray-700">Últimos 7 dias</div>
+              <div className="text-xs text-gray-500">R$ {loadingMetrics ? "0.00" : performanceData.semana.receita.toFixed(2)}</div>
             </div>
           </div>
 
           {/* Últimos 30 dias */}
-          <div className="space-y-3">
-            <div className="text-sm font-medium text-green-600">Últimos 30 dias</div>
-            <div className="text-3xl font-bold text-green-700">{loadingMetrics ? "--" : performanceData.mes.pedidos}</div>
-            <div className="text-sm text-gray-500">R$ {loadingMetrics ? "0.00" : performanceData.mes.receita.toFixed(2)}</div>
-            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div className="flex flex-col items-center flex-1">
+            <div className="text-sm font-medium text-green-600 mb-2">{loadingMetrics ? "--" : performanceData.mes.pedidos}</div>
+            <div className="w-full flex flex-col justify-end items-center flex-1">
               <div 
-                className="bg-green-500 h-3 rounded-full transition-all duration-500"
-                style={{ width: '100%' }}
-              ></div>
+                className="w-full bg-gradient-to-t from-green-500 to-green-400 rounded-t-lg transition-all duration-500 flex items-start justify-center pt-2"
+                style={{ height: '100%' }}
+              >
+                <span className="text-xs text-white font-semibold">{loadingMetrics ? "" : performanceData.mes.pedidos}</span>
+              </div>
+            </div>
+            <div className="mt-2 text-center">
+              <div className="text-sm font-medium text-gray-700">Últimos 30 dias</div>
+              <div className="text-xs text-gray-500">R$ {loadingMetrics ? "0.00" : performanceData.mes.receita.toFixed(2)}</div>
             </div>
           </div>
         </div>
@@ -278,10 +274,10 @@ export default function JornaleiroDashboardPage() {
         ) : (
           <div className="space-y-3 text-sm">
             {recentOrders.map((order) => (
-              <div key={order.id} className="flex items-center rounded-lg border border-gray-100 px-3 py-2">
+              <div key={order.id} className="flex items-center rounded-lg border border-gray-100 px-3 py-2 hover:bg-gray-50 transition-colors">
                 <div className="text-gray-900 font-medium mr-3">#{order.id}</div>
                 <div className="truncate text-gray-600">{order.customer_name || order.customer}</div>
-                <div className="ml-auto flex items-center gap-2">
+                <div className="ml-auto flex items-center gap-3">
                   <span className={`px-2 py-1 text-xs rounded-full ${
                     order.status === 'novo' ? 'bg-yellow-100 text-yellow-700' :
                     order.status === 'confirmado' ? 'bg-blue-100 text-blue-700' :
@@ -291,7 +287,17 @@ export default function JornaleiroDashboardPage() {
                   }`}>
                     {order.status}
                   </span>
-                  <span className="text-gray-500">R$ {Number(order.total || 0).toFixed(2)}</span>
+                  <span className="text-gray-500 min-w-[70px] text-right">R$ {Number(order.total || 0).toFixed(2)}</span>
+                  <Link 
+                    href={`/jornaleiro/pedidos/${order.id}` as Route}
+                    className="p-1.5 text-gray-400 hover:text-[#ff5c00] hover:bg-orange-50 rounded-md transition-colors"
+                    title="Ver detalhes"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </Link>
                 </div>
               </div>
             ))}
