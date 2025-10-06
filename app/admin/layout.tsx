@@ -42,6 +42,7 @@ const ADMIN_MENU = [
     items: [
       { label: "Produtos", href: "/admin/products", icon: "📦" },
       { label: "Categorias", href: "/admin/categories", icon: "🏷️" },
+      { label: "Distribuidores", href: "/admin/distribuidores", icon: "🚚" },
     ]
   },
   {
