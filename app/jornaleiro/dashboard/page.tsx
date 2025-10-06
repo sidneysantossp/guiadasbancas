@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
-import OrdersMetrics from "@/components/admin/OrdersMetrics";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 
 export default function JornaleiroDashboardPage() {
-  const router = useRouter();
   const { user, profile } = useAuth();
   const [banca, setBanca] = useState<any>(null);
   const [loadingMetrics, setLoadingMetrics] = useState(true);
@@ -245,18 +242,6 @@ export default function JornaleiroDashboardPage() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Métricas Detalhadas */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-lg font-semibold">Métricas de Vendas</h2>
-            <p className="text-sm text-gray-600">Acompanhe o desempenho detalhado dos seus pedidos.</p>
-          </div>
-          <Link href={"/jornaleiro/pedidos" as Route} className="text-[#ff5c00] text-sm font-medium">Gerenciar pedidos</Link>
-        </div>
-        <OrdersMetrics />
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
