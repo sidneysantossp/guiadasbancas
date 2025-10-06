@@ -16,13 +16,22 @@ export default function AdminProductsPage() {
   const fetchRows = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Buscando produtos admin...');
+      
       const res = await fetch('/api/admin/products', {
         headers: {
           'Authorization': 'Bearer admin-token'
         }
       });
+      
+      console.log('📡 Status da resposta:', res.status);
+      
       const json = await res.json();
+      console.log('📦 JSON recebido:', json);
+      
       const items = Array.isArray(json?.data) ? json.data : [];
+      console.log('📋 Total de produtos:', items.length);
+      
       // adaptar para colunas esperadas
       setRows(items.map((p: any) => ({
         id: p.id,
@@ -33,8 +42,10 @@ export default function AdminProductsPage() {
         active: true, // produtos sempre ativos por enquanto
         updatedAt: p.updated_at || "",
       })));
+      
+      console.log('✅ Produtos carregados com sucesso');
     } catch (e) {
-      console.error('Erro ao buscar produtos:', e);
+      console.error('❌ Erro ao buscar produtos:', e);
     } finally {
       setLoading(false);
     }

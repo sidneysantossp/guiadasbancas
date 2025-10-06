@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Teste API Products</title>
+  <style>
+    body { font-family: monospace; padding: 20px; }
+    pre { background: #f4f4f4; padding: 10px; overflow: auto; }
+    button { padding: 10px; margin: 5px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Teste API de Produtos</h1>
+  
+  <button onclick="testarAPIPublica()">Testar /api/products</button>
+  <button onclick="testarAPIAdmin()">Testar /api/admin/products</button>
+  <button onclick="verificarSupabase()">Verificar no Supabase direto</button>
+  
+  <h2>Resultado:</h2>
+  <pre id="resultado">Clique em um botão para testar...</pre>
+
+  <script>
+    async function testarAPIPublica() {
+      const el = document.getElementById('resultado');
+      el.textContent = 'Carregando /api/products...';
+      
+      try {
+        const res = await fetch('/api/products');
+        const json = await res.json();
+        el.textContent = JSON.stringify(json, null, 2);
+      } catch (error) {
+        el.textContent = 'Erro: ' + error.message;
+      }
+    }
+
+    async function testarAPIAdmin() {
+      const el = document.getElementById('resultado');
+      el.textContent = 'Carregando /api/admin/products...';
+      
+      try {
+        const res = await fetch('/api/admin/products', {
+          headers: {
+            'Authorization': 'Bearer admin-token'
+          }
+        });
+        const json = await res.json();
+        el.textContent = JSON.stringify(json, null, 2);
+      } catch (error) {
+        el.textContent = 'Erro: ' + error.message;
+      }
+    }
+
+    async function verificarSupabase() {
+      const el = document.getElementById('resultado');
+      el.textContent = 'Esta consulta deve ser feita diretamente no SQL Editor do Supabase:\n\n';
+      el.textContent += 'SELECT COUNT(*) FROM products;\n\n';
+      el.textContent += 'SELECT id, name, codigo_mercos, price FROM products LIMIT 5;';
+    }
+  </script>
+</body>
+</html>
