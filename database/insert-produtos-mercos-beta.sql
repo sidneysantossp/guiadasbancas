@@ -6,6 +6,16 @@
 -- Categoria: Diversos (aaaaaaaa-0000-0000-0000-000000000001)
 -- ============================================
 
+-- Primeiro execute este SQL para adicionar as colunas necessárias (se não existirem):
+-- Copie e cole no SQL Editor antes de inserir os produtos
+
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS codigo_mercos VARCHAR(50) UNIQUE;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS unidade_medida VARCHAR(10) DEFAULT 'UN';
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS venda_multiplos DECIMAL(10,2) DEFAULT 1.00;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS categoria_mercos VARCHAR(100);
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS disponivel_todas_bancas BOOLEAN DEFAULT false;
+
+-- Agora insira os produtos:
 INSERT INTO products (
   name,
   description,
@@ -13,16 +23,7 @@ INSERT INTO products (
   category_id,
   images,
   stock_qty,
-  track_stock,
-  active,
-  pronta_entrega,
-  sob_encomenda,
-  pre_venda,
-  codigo_mercos,
-  unidade_medida,
-  venda_multiplos,
-  categoria_mercos,
-  disponivel_todas_bancas
+  codigo_mercos
 ) VALUES
 -- 1. AKOTO001
 (
@@ -32,257 +33,44 @@ INSERT INTO products (
   'aaaaaaaa-0000-0000-0000-000000000001',
   ARRAY[]::text[],
   1327,
-  true,
-  true,
-  true,
-  false,
-  false,
-  'AKOTO001',
-  'UN',
-  1.00,
-  'Mangá',
-  true
+  'AKOTO001'
 ),
 
 -- 2. ADBEM001
-(
-  '100 BALAS: IRMAO LONO - EDICAO DE LUXO',
-  'HQ - 100 Balas: Irmão Lono - Edição de Luxo',
-  90.90,
-  'aaaaaaaa-0000-0000-0000-000000000001',
-  ARRAY[]::text[],
-  492,
-  true,
-  true,
-  true,
-  false,
-  false,
-  'ADBEM001',
-  'UN',
-  1.00,
-  'HQ',
-  true
-),
+('100 BALAS: IRMAO LONO - EDICAO DE LUXO', 'HQ - 100 Balas: Irmão Lono - Edição de Luxo', 90.90, 'aaaaaaaa-0000-0000-0000-000000000001', ARRAY[]::text[], 492, 'ADBEM001'),
 
 -- 3. ACBKA004
-(
-  '20TH CENTURY BOYS ED. DEFINITIVA - 04',
-  'Mangá - 20th Century Boys Edição Definitiva, Volume 04',
-  74.90,
-  'aaaaaaaa-0000-0000-0000-000000000001',
-  ARRAY[]::text[],
-  724,
-  true,
-  true,
-  true,
-  false,
-  false,
-  'ACBKA004',
-  'UN',
-  1.00,
-  'Mangá',
-  true
-),
+('20TH CENTURY BOYS ED. DEFINITIVA - 04', 'Mangá - 20th Century Boys Edição Definitiva, Volume 04', 74.90, 'aaaaaaaa-0000-0000-0000-000000000001', ARRAY[]::text[], 724, 'ACBKA004'),
 
 -- 4. ACBKA002
-(
-  '20TH CENTURY BOYS ED. DEFINITIVA - 2',
-  'Mangá - 20th Century Boys Edição Definitiva, Volume 02',
-  69.90,
-  'aaaaaaaa-0000-0000-0000-000000000001',
-  ARRAY[]::text[],
-  165,
-  true,
-  true,
-  true,
-  false,
-  false,
-  'ACBKA002',
-  'UN',
-  1.00,
-  'Mangá',
-  true
-),
+('20TH CENTURY BOYS ED. DEFINITIVA - 2', 'Mangá - 20th Century Boys Edição Definitiva, Volume 02', 69.90, 'aaaaaaaa-0000-0000-0000-000000000001', ARRAY[]::text[], 165, 'ACBKA002'),
 
 -- 5. ACBKA003
-(
-  '20TH CENTURY BOYS ED. DEFINITIVA - 3',
-  'Mangá - 20th Century Boys Edição Definitiva, Volume 03',
-  74.90,
-  'aaaaaaaa-0000-0000-0000-000000000001',
-  ARRAY[]::text[],
-  504,
-  true,
-  true,
-  true,
-  false,
-  false,
-  'ACBKA003',
-  'UN',
-  1.00,
-  'Mangá',
-  true
-),
+('20TH CENTURY BOYS ED. DEFINITIVA - 3', 'Mangá - 20th Century Boys Edição Definitiva, Volume 03', 74.90, 'aaaaaaaa-0000-0000-0000-000000000001', ARRAY[]::text[], 504, 'ACBKA003'),
 
 -- 6. AOITO001
-(
-  '8 BILHOES DE GENIOS N.1',
-  'HQ - 8 Bilhões de Gênios, Número 1',
-  129.90,
-  'aaaaaaaa-0000-0000-0000-000000000001',
-  ARRAY[]::text[],
-  423,
-  true,
-  true,
-  true,
-  false,
-  false,
-  'AOITO001',
-  'UN',
-  1.00,
-  'HQ',
-  true
-),
+('8 BILHOES DE GENIOS N.1', 'HQ - 8 Bilhões de Gênios, Número 1', 129.90, 'aaaaaaaa-0000-0000-0000-000000000001', ARRAY[]::text[], 423, 'AOITO001'),
 
 -- 7. ABELC001
-(
-  'A BELA CASA DE PRAIA VOL.01',
-  'HQ - A Bela Casa de Praia, Volume 01',
-  108.90,
-  'aaaaaaaa-0000-0000-0000-000000000001',
-  ARRAY[]::text[],
-  603,
-  true,
-  true,
-  true,
-  false,
-  false,
-  'ABELC001',
-  'UN',
-  1.00,
-  'HQ',
-  true
-),
+('A BELA CASA DE PRAIA VOL.01', 'HQ - A Bela Casa de Praia, Volume 01', 108.90, 'aaaaaaaa-0000-0000-0000-000000000001', ARRAY[]::text[], 603, 'ABELC001'),
 
 -- 8. ABELA002
-(
-  'A BELA CASA DO LAGO N.2',
-  'HQ - A Bela Casa do Lago, Número 2',
-  89.90,
-  'aaaaaaaa-0000-0000-0000-000000000001',
-  ARRAY[]::text[],
-  141,
-  true,
-  true,
-  true,
-  false,
-  false,
-  'ABELA002',
-  'UN',
-  1.00,
-  'HQ',
-  true
-),
+('A BELA CASA DO LAGO N.2', 'HQ - A Bela Casa do Lago, Número 2', 89.90, 'aaaaaaaa-0000-0000-0000-000000000001', ARRAY[]::text[], 141, 'ABELA002'),
 
 -- 9. ABRIG001
-(
-  'A BRIGADA DOS ENCAPOTADOS N.1',
-  'HQ - A Brigada dos Encapotados, Número 1',
-  144.90,
-  'aaaaaaaa-0000-0000-0000-000000000001',
-  ARRAY[]::text[],
-  829,
-  true,
-  true,
-  true,
-  false,
-  false,
-  'ABRIG001',
-  'UN',
-  1.00,
-  'HQ',
-  true
-),
+('A BRIGADA DOS ENCAPOTADOS N.1', 'HQ - A Brigada dos Encapotados, Número 1', 144.90, 'aaaaaaaa-0000-0000-0000-000000000001', ARRAY[]::text[], 829, 'ABRIG001'),
 
 -- 10. AECOF001
-(
-  'A CANCAO DA FENIX: ECO',
-  'HQ - A Canção da Fênix: Eco',
-  34.90,
-  'aaaaaaaa-0000-0000-0000-000000000001',
-  ARRAY[]::text[],
-  292,
-  true,
-  true,
-  true,
-  false,
-  false,
-  'AECOF001',
-  'UN',
-  1.00,
-  'HQ',
-  true
-),
+('A CANCAO DA FENIX: ECO', 'HQ - A Canção da Fênix: Eco', 34.90, 'aaaaaaaa-0000-0000-0000-000000000001', ARRAY[]::text[], 292, 'AECOF001'),
 
 -- 11. AHNIE002
-(
-  'A CASA ESTRANHA - 02',
-  'HQ - A Casa Estranha, Volume 02',
-  44.90,
-  'aaaaaaaa-0000-0000-0000-000000000001',
-  ARRAY[]::text[],
-  734,
-  true,
-  true,
-  true,
-  false,
-  false,
-  'AHNIE002',
-  'UN',
-  1.00,
-  'HQ',
-  true
-),
+('A CASA ESTRANHA - 02', 'HQ - A Casa Estranha, Volume 02', 44.90, 'aaaaaaaa-0000-0000-0000-000000000001', ARRAY[]::text[], 734, 'AHNIE002'),
 
 -- 12. AZRAE001
-(
-  'A ESPADA DE AZRAEL',
-  'HQ - A Espada de Azrael',
-  54.90,
-  'aaaaaaaa-0000-0000-0000-000000000001',
-  ARRAY[]::text[],
-  571,
-  true,
-  true,
-  true,
-  false,
-  false,
-  'AZRAE001',
-  'UN',
-  1.00,
-  'HQ',
-  true
-),
+('A ESPADA DE AZRAEL', 'HQ - A Espada de Azrael', 54.90, 'aaaaaaaa-0000-0000-0000-000000000001', ARRAY[]::text[], 571, 'AZRAE001'),
 
 -- 13. HBRCO012
-(
-  'A ESPADA SELVAGEM DE CON N.12',
-  'HQ - A Espada Selvagens de Conan, Número 12',
-  54.90,
-  'aaaaaaaa-0000-0000-0000-000000000001',
-  ARRAY[]::text[],
-  87,
-  true,
-  true,
-  true,
-  false,
-  false,
-  'HBRCO012',
-  'UN',
-  1.00,
-  'HQ',
-  true
-);
+('A ESPADA SELVAGENS DE CON N.12', 'HQ - A Espada Selvagens de Conan, Número 12', 54.90, 'aaaaaaaa-0000-0000-0000-000000000001', ARRAY[]::text[], 87, 'HBRCO012');
 
 -- ============================================
 -- VERIFICAÇÃO

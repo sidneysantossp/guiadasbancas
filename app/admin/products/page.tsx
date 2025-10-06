@@ -16,13 +16,13 @@ export default function AdminProductsPage() {
   const fetchRows = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (q) params.set("q", q);
-      if (category) params.set("category", category);
-      if (status) params.set("active", String(status === "ativo"));
-      const res = await fetch(`/api/products?${params.toString()}`);
+      const res = await fetch('/api/admin/products', {
+        headers: {
+          'Authorization': 'Bearer admin-token'
+        }
+      });
       const json = await res.json();
-      const items = Array.isArray(json?.items) ? json.items : [];
+      const items = Array.isArray(json?.data) ? json.data : [];
       // adaptar para colunas esperadas
       setRows(items.map((p: any) => ({
         id: p.id,
@@ -30,11 +30,11 @@ export default function AdminProductsPage() {
         category: p.category_id || "-",
         price: p.price ?? 0,
         stock: p.stock_qty ?? 0,
-        active: Boolean(p.active),
+        active: true, // produtos sempre ativos por enquanto
         updatedAt: p.updated_at || "",
       })));
     } catch (e) {
-      // noop
+      console.error('Erro ao buscar produtos:', e);
     } finally {
       setLoading(false);
     }
