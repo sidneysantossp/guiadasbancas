@@ -102,15 +102,24 @@ export default function AdminProductsPage() {
   };
 
   const filtered = useMemo(() => {
-    return rows.filter(r => (
-      (!q || r.name.toLowerCase().includes(q.toLowerCase())) &&
-      (!category || r.category === category) &&
-      (!status || (status === "ativo" ? r.active : !r.active)) &&
-      (!distribuidor || 
-        (distribuidor === "admin" && !r.distribuidor_id) ||
-        (distribuidor !== "admin" && r.distribuidor_id === distribuidor)
-      )
-    ));
+    return rows.filter(r => {
+      // Filtro de busca por nome
+      if (q && !r.name.toLowerCase().includes(q.toLowerCase())) return false;
+      
+      // Filtro de categoria
+      if (category && r.category !== category) return false;
+      
+      // Filtro de status
+      if (status && ((status === "ativo" && !r.active) || (status === "inativo" && r.active))) return false;
+      
+      // Filtro de distribuidor
+      if (distribuidor) {
+        if (distribuidor === "admin" && r.distribuidor_id) return false;
+        if (distribuidor !== "admin" && r.distribuidor_id !== distribuidor) return false;
+      }
+      
+      return true;
+    });
   }, [rows, q, category, status, distribuidor]);
 
   const columns: Column<any>[] = [
