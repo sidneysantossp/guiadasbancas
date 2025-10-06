@@ -85,7 +85,7 @@ export default function AdminProductsPage() {
     fetchRows();
     fetchDistribuidores();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, category, status, distribuidor]);
+  }, []);
 
   const fetchDistribuidores = async () => {
     try {
@@ -152,12 +152,12 @@ export default function AdminProductsPage() {
       render: (r) => (
         <div className="text-sm">
           {r.distribuidor_id ? (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-md">
-              🚚 {r.distribuidor_nome}
+            <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs">
+              {r.distribuidor_nome}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-700 rounded-md">
-              🏪 Guia das Bancas
+            <span className="inline-flex items-center px-2 py-1 bg-orange-50 text-orange-700 rounded-md text-xs">
+              Guia das Bancas
             </span>
           )}
         </div>
@@ -189,9 +189,9 @@ export default function AdminProductsPage() {
         </select>
         <select value={distribuidor} onChange={(e)=>setDistribuidor(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
           <option value="">Todos distribuidores</option>
-          <option value="admin">🏪 Guia das Bancas</option>
+          <option value="admin">Guia das Bancas</option>
           {distribuidores.map((d) => (
-            <option key={d.id} value={d.id}>🚚 {d.nome}</option>
+            <option key={d.id} value={d.id}>{d.nome}</option>
           ))}
         </select>
         <select value={status} onChange={(e)=>setStatus(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
