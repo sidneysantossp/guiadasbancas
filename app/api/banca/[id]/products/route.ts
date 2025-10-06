@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 const CATEGORIA_DISTRIBUIDORES_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
 const CATEGORIA_DISTRIBUIDORES_NOME = 'Diversos';
-const DEFAULT_PRODUCT_IMAGE = 'https://via.placeholder.com/400x600/e5e7eb/6b7280?text=PRODUTO+SEM+IMAGEM';
+const DEFAULT_PRODUCT_IMAGE = 'https://placehold.co/400x600/e5e7eb/6b7280.png';
 
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {

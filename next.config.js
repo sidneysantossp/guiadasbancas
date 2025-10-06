@@ -98,6 +98,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'arquivos.mercos.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+      },
     ],
   },
   // Headers de performance e segurança
