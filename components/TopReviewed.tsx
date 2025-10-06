@@ -147,7 +147,10 @@ export default function TopReviewed() {
 
         const fetchByCat = async (cat?: string | null) => {
           if (!cat) return [] as ApiProduct[];
-          const r = await fetch(`/api/products?category=${encodeURIComponent(cat)}&active=true`, { cache: 'no-store' });
+          const r = await fetch(`/api/products/public?category=${encodeURIComponent(cat)}&limit=12`, { 
+            next: { revalidate: 60 } as any 
+          });
+          if (!r.ok) return [] as ApiProduct[];
           const j = await r.json();
           const list: ApiProduct[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
           return list;

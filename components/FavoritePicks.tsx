@@ -204,10 +204,10 @@ export default function FavoritePicks() {
         setLoading(true);
         // Futuro: usar histórico do usuário. Início: fallback para últimas novidades
         const [pRes, bRes] = await Promise.all([
-          fetch('/api/products?limit=6&sort=created_at&order=desc', {
+          fetch('/api/products/public?limit=6&sort=created_at&order=desc', {
             next: { revalidate: 60 } as any
           }),
-          fetch('/api/admin/bancas', {
+          fetch('/api/bancas', {
             next: { revalidate: 60 } as any
           }),
         ]);

@@ -150,18 +150,13 @@ export default function TrendingProducts() {
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch('/api/products/most-searched', { cache: 'no-store' });
+        const res = await fetch('/api/products/public?limit=12&sort=created_at&order=desc', { 
+          next: { revalidate: 60 } as any 
+        });
         let list: ApiProduct[] = [];
         if (res.ok) {
           const j = await res.json();
-          list = Array.isArray(j?.data) ? j.data : [];
-        }
-        if (list.length === 0) {
-          const alt = await fetch('/api/products?limit=12&sort=created_at&order=desc', { cache: 'no-store' });
-          if (alt.ok) {
-            const jj = await alt.json();
-            list = Array.isArray(jj?.data) ? jj.data : (Array.isArray(jj?.items) ? jj.items : []);
-          }
+          list = Array.isArray(j?.data) ? j.data : (Array.isArray(j?.items) ? j.items : []);
         }
         const mapped: TrendProduct[] = list.map((p) => ({
           id: p.id,
