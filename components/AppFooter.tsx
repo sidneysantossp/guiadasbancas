@@ -41,9 +41,9 @@ export default function AppFooter() {
   return (
     <footer className="w-full border-t border-gray-800 bg-[#0b0c10] text-gray-300">
       <div className="container-max py-10">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-6 lg:gap-8">
           {/* Coluna 1: Logo + descrição + sociais */}
-          <div className="lg:col-span-2">
+          <div className="col-span-2 lg:col-span-2">
             <div className="flex items-center gap-2">
               <div className="h-9 w-9 rounded-lg bg-[#ff5c00] grid place-items-center text-white font-extrabold">GB</div>
               <div className="text-lg font-bold text-white">Guia das Bancas</div>

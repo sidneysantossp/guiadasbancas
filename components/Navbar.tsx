@@ -470,9 +470,9 @@ useEffect(() => {
             <Image
               src={branding.logoUrl}
               alt={branding.logoAlt || "Logo"}
-              width={100}
-              height={32}
-              className="h-8 w-auto object-contain md:h-10 md:max-w-[140px]"
+              width={140}
+              height={48}
+              className="h-12 w-auto object-contain md:h-12 md:max-w-[160px]"
               priority
             />
           ) : (
@@ -480,7 +480,7 @@ useEffect(() => {
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
-                className="h-8 w-8 text-[var(--color-primary)] md:h-10 md:w-10"
+                className="h-10 w-10 text-[var(--color-primary)] md:h-12 md:w-12"
                 aria-hidden
                 fill="currentColor"
               >
