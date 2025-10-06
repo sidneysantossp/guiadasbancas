@@ -10,6 +10,7 @@ import NotificationCenter from "@/components/admin/NotificationCenter";
 import { useAuth } from "@/lib/auth/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Hedvig_Letters_Serif } from "next/font/google";
+import { supabase } from "@/lib/supabase";
 
 const hedvig = Hedvig_Letters_Serif({ subsets: ["latin"] });
 
@@ -44,6 +45,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   const [session, setSession] = useState<SellerSession | null>(null);
   const [branding, setBranding] = useState<{ logoUrl?: string; logoAlt?: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [banca, setBanca] = useState<any>(null);
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
@@ -54,6 +56,31 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
   const sellerName = profile?.full_name || "Vendedor";
   const sellerEmail = (user as any)?.email || "vendedor@example.com";
+
+  // Carregar dados da banca
+  useEffect(() => {
+    const loadBancaData = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('bancas')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (data) {
+          setBanca(data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar banca:', error);
+      }
+    };
+    
+    if (user && !isAuthRoute) {
+      loadBancaData();
+    }
+  }, [user, isAuthRoute]);
 
   // Carregar branding
   useEffect(() => {
@@ -140,16 +167,20 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
               <NotificationCenter />
               
               {/* Voltar ao Site */}
-              <Link
-                href={`/banca/${session?.seller?.id || 'demo'}`}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-[#ff5c00] hover:bg-orange-50 rounded-md transition-colors"
-                title="Ver minha banca no site"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-1M14 6h4a2 2 0 012 2v4M7 14l3-3 3 3M14 10l3-3 3 3" />
-                </svg>
-                <span className="hidden sm:inline">Ver Banca</span>
-              </Link>
+              {banca?.slug && (
+                <Link
+                  href={`/banca/${banca.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-[#ff5c00] hover:bg-orange-50 rounded-md transition-colors"
+                  title="Ver minha banca no site"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-1M14 6h4a2 2 0 012 2v4M7 14l3-3 3 3M14 10l3-3 3 3" />
+                  </svg>
+                  <span className="hidden sm:inline">Ver Banca</span>
+                </Link>
+              )}
               
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-full bg-[#ff5c00] text-white grid place-items-center text-sm font-semibold">
