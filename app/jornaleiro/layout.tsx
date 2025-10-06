@@ -167,20 +167,27 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
               <NotificationCenter />
               
               {/* Voltar ao Site */}
-              {banca?.slug && (
-                <Link
-                  href={`/banca/${banca.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-[#ff5c00] hover:bg-orange-50 rounded-md transition-colors"
-                  title="Ver minha banca no site"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-1M14 6h4a2 2 0 012 2v4M7 14l3-3 3 3M14 10l3-3 3 3" />
-                  </svg>
-                  <span className="hidden sm:inline">Ver Banca</span>
-                </Link>
-              )}
+              <Link
+                href={banca?.slug ? `/banca/${banca.slug}` : `/banca/${banca?.id || '#'}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                  banca?.slug || banca?.id 
+                    ? 'text-gray-600 hover:text-[#ff5c00] hover:bg-orange-50 cursor-pointer' 
+                    : 'text-gray-400 cursor-not-allowed'
+                }`}
+                title={banca?.slug || banca?.id ? "Ver minha banca no site" : "Carregando..."}
+                onClick={(e) => {
+                  if (!banca?.slug && !banca?.id) {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-1M14 6h4a2 2 0 012 2v4M7 14l3-3 3 3M14 10l3-3 3 3" />
+                </svg>
+                <span className="hidden sm:inline">Ver Banca</span>
+              </Link>
               
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-full bg-[#ff5c00] text-white grid place-items-center text-sm font-semibold">
