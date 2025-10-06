@@ -16,11 +16,6 @@ export default function JornaleiroDashboardPage() {
     pedidosPendentes: 0,
     produtosAtivos: 0,
   });
-  const [performanceData, setPerformanceData] = useState({
-    hoje: { pedidos: 0, receita: 0 },
-    semana: { pedidos: 0, receita: 0 },
-    mes: { pedidos: 0, receita: 0 },
-  });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
 
   useEffect(() => {
@@ -87,23 +82,6 @@ export default function JornaleiroDashboardPage() {
         !['entregue', 'cancelado'].includes(o.status)
       ).length;
       
-      // Calcular últimos 7 e 30 dias
-      const semanaAgo = new Date(hojeStart.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const mesAgo = new Date(hojeStart.getTime() - 30 * 24 * 60 * 60 * 1000);
-      
-      const pedidosSemana = orders.filter((o: any) => {
-        const orderDate = new Date(o.created_at);
-        return orderDate >= semanaAgo;
-      });
-      
-      const pedidosMes = orders.filter((o: any) => {
-        const orderDate = new Date(o.created_at);
-        return orderDate >= mesAgo;
-      });
-      
-      const faturamentoSemana = pedidosSemana.reduce((acc: number, o: any) => acc + Number(o.total || 0), 0);
-      const faturamentoMes = pedidosMes.reduce((acc: number, o: any) => acc + Number(o.total || 0), 0);
-      
       // Produtos ativos: visíveis e com estoque (se rastrear)
       const produtosAtivos = products.filter((p: any) => {
         // Se o produto está oculto/inativo, não conta
@@ -125,12 +103,6 @@ export default function JornaleiroDashboardPage() {
         faturamentoHoje,
         pedidosPendentes,
         produtosAtivos,
-      });
-      
-      setPerformanceData({
-        hoje: { pedidos: pedidosHoje.length, receita: faturamentoHoje },
-        semana: { pedidos: pedidosSemana.length, receita: faturamentoSemana },
-        mes: { pedidos: pedidosMes.length, receita: faturamentoMes },
       });
       
       setRecentOrders(orders.slice(0, 5));
@@ -175,72 +147,6 @@ export default function JornaleiroDashboardPage() {
             {loadingMetrics ? "--" : metrics.produtosAtivos}
           </div>
           <div className="mt-1 text-xs text-gray-400">Itens visíveis na vitrine</div>
-        </div>
-      </div>
-
-      {/* Performance por Período - Gráfico de Barras Vertical */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold mb-6">Performance por Período</h2>
-        
-        <div className="flex items-end justify-around gap-8 h-64 px-4">
-          {/* Hoje */}
-          <div className="flex flex-col items-center flex-1">
-            <div className="text-sm font-medium text-blue-600 mb-2">{loadingMetrics ? "--" : performanceData.hoje.pedidos}</div>
-            <div className="w-full flex flex-col justify-end items-center flex-1">
-              <div 
-                className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t-lg transition-all duration-500 flex items-start justify-center pt-2"
-                style={{ 
-                  height: `${performanceData.mes.pedidos > 0 
-                    ? Math.max((performanceData.hoje.pedidos / performanceData.mes.pedidos) * 100, 5) 
-                    : 5}%` 
-                }}
-              >
-                <span className="text-xs text-white font-semibold">{loadingMetrics ? "" : performanceData.hoje.pedidos}</span>
-              </div>
-            </div>
-            <div className="mt-2 text-center">
-              <div className="text-sm font-medium text-gray-700">Hoje</div>
-              <div className="text-xs text-gray-500">R$ {loadingMetrics ? "0.00" : performanceData.hoje.receita.toFixed(2)}</div>
-            </div>
-          </div>
-
-          {/* Últimos 7 dias */}
-          <div className="flex flex-col items-center flex-1">
-            <div className="text-sm font-medium text-purple-600 mb-2">{loadingMetrics ? "--" : performanceData.semana.pedidos}</div>
-            <div className="w-full flex flex-col justify-end items-center flex-1">
-              <div 
-                className="w-full bg-gradient-to-t from-purple-500 to-purple-400 rounded-t-lg transition-all duration-500 flex items-start justify-center pt-2"
-                style={{ 
-                  height: `${performanceData.mes.pedidos > 0 
-                    ? Math.max((performanceData.semana.pedidos / performanceData.mes.pedidos) * 100, 5) 
-                    : 5}%` 
-                }}
-              >
-                <span className="text-xs text-white font-semibold">{loadingMetrics ? "" : performanceData.semana.pedidos}</span>
-              </div>
-            </div>
-            <div className="mt-2 text-center">
-              <div className="text-sm font-medium text-gray-700">Últimos 7 dias</div>
-              <div className="text-xs text-gray-500">R$ {loadingMetrics ? "0.00" : performanceData.semana.receita.toFixed(2)}</div>
-            </div>
-          </div>
-
-          {/* Últimos 30 dias */}
-          <div className="flex flex-col items-center flex-1">
-            <div className="text-sm font-medium text-green-600 mb-2">{loadingMetrics ? "--" : performanceData.mes.pedidos}</div>
-            <div className="w-full flex flex-col justify-end items-center flex-1">
-              <div 
-                className="w-full bg-gradient-to-t from-green-500 to-green-400 rounded-t-lg transition-all duration-500 flex items-start justify-center pt-2"
-                style={{ height: '100%' }}
-              >
-                <span className="text-xs text-white font-semibold">{loadingMetrics ? "" : performanceData.mes.pedidos}</span>
-              </div>
-            </div>
-            <div className="mt-2 text-center">
-              <div className="text-sm font-medium text-gray-700">Últimos 30 dias</div>
-              <div className="text-xs text-gray-500">R$ {loadingMetrics ? "0.00" : performanceData.mes.receita.toFixed(2)}</div>
-            </div>
-          </div>
         </div>
       </div>
 
