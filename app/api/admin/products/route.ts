@@ -15,27 +15,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
     }
 
-    // Buscar produtos com informações do distribuidor
-    const { data, error } = await supabaseAdmin
+    // Buscar produtos
+    const { data: products, error: productsError } = await supabaseAdmin
       .from('products')
-      .select(`
-        *,
-        distribuidores!distribuidor_id (
-          id,
-          nome
-        )
-      `)
+      .select('*')
       .order('name');
 
-    if (error) {
-      console.error('Admin products error:', error);
-      return NextResponse.json({ success: false, error: 'Erro ao buscar produtos' }, { status: 500 });
+    if (productsError) {
+      console.error('Admin products error:', productsError);
+      return NextResponse.json({ success: false, error: 'Erro ao buscar produtos', details: productsError }, { status: 500 });
     }
 
-    // Mapear dados para incluir nome do distribuidor
-    const mappedData = (data || []).map((product: any) => ({
+    // Buscar distribuidores
+    const { data: distribuidores } = await supabaseAdmin
+      .from('distribuidores')
+      .select('id, nome');
+
+    // Mapear produtos com nome do distribuidor
+    const distribuidoresMap = new Map((distribuidores || []).map(d => [d.id, d.nome]));
+    
+    const mappedData = (products || []).map((product: any) => ({
       ...product,
-      distribuidor_nome: product.distribuidores?.nome || null
+      distribuidor_nome: product.distribuidor_id ? distribuidoresMap.get(product.distribuidor_id) || null : null
     }));
 
     return NextResponse.json({ success: true, data: mappedData });

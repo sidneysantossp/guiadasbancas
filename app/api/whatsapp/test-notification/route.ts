@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { whatsappService } from "@/lib/whatsapp";
 
+export const dynamic = 'force-dynamic';
+
 /**
  * API de TESTE para verificar envio de WhatsApp
  * Acesse: /api/whatsapp/test-notification?phone=11999999999

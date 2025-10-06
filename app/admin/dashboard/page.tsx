@@ -23,12 +23,14 @@ export default function AdminDashboardPage() {
 
         const [ordersRes, productsRes] = await Promise.all([
           fetch('/api/orders'),
-          fetch('/api/products'),
+          fetch('/api/admin/products', {
+            headers: { 'Authorization': 'Bearer admin-token' }
+          }),
         ]);
         const ordersJson = await ordersRes.json();
         const productsJson = await productsRes.json();
         const orders = Array.isArray(ordersJson?.items) ? ordersJson.items : [];
-        const products = Array.isArray(productsJson?.items) ? productsJson.items : [];
+        const products = Array.isArray(productsJson?.data) ? productsJson.data : [];
 
         const today = new Date().toDateString();
         const pedidosHoje = orders.filter((o: any) => (o.createdAt || '').toString().toLowerCase().includes('hoje') || (o.createdAt || '').toString().toLowerCase().includes('agora') || new Date().toDateString() === today).length;

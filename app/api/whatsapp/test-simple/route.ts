@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { whatsappService } from "@/lib/whatsapp";
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Teste SUPER SIMPLES de envio WhatsApp
  * Acesse: /api/whatsapp/test-simple?phone=11999999999

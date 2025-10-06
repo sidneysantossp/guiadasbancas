@@ -29,11 +29,22 @@ export default function AdminProductsPage() {
       
       console.log('📡 Status da resposta:', res.status);
       
+      if (!res.ok) {
+        console.error('❌ Erro na resposta:', res.status, res.statusText);
+        const text = await res.text();
+        console.error('❌ Texto da resposta:', text);
+        setLoading(false);
+        return;
+      }
+      
       const json = await res.json();
       console.log('📦 JSON recebido:', json);
+      console.log('📦 JSON.data:', json?.data);
+      console.log('📦 É array?:', Array.isArray(json?.data));
       
       const items = Array.isArray(json?.data) ? json.data : [];
       console.log('📋 Total de produtos:', items.length);
+      console.log('📋 Primeiros itens:', items.slice(0, 2));
       
       // adaptar para colunas esperadas
       setRows(items.map((p: any) => ({

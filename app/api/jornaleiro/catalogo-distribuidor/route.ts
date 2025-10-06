@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auth } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/jornaleiro/catalogo-distribuidor
 // Lista todos os produtos de distribuidores com customizações da banca
 export async function GET(req: NextRequest) {

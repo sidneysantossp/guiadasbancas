@@ -8,7 +8,6 @@ const nextConfig = {
   // Configurações experimentais
   experimental: {
     typedRoutes: false,
-    optimizeCss: true, // Otimizar CSS
     optimizePackageImports: ['lucide-react', '@/components'], // Tree-shaking
   },
   
