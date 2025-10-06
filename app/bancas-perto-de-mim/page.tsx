@@ -443,14 +443,14 @@ export default function BancasPertoDeMimPage() {
             ];
             // Mapear IDs para nomes de categorias
             const rawCategories = (b as any).categories && (b as any).categories.length ? (b as any).categories : fallbackCats[idx % fallbackCats.length];
-            const categories = Array.isArray(rawCategories) 
+            const categories: string[] = Array.isArray(rawCategories) 
               ? rawCategories.map(c => {
                   const str = String(c || '').trim();
                   // Tentar mapear pelo categoriesMap primeiro (da API)
                   if (categoriesMap.has(str)) return categoriesMap.get(str);
                   // Senão, tentar normalizeCategory (do JSON estático)
                   return normalizeCategory(c);
-                }).filter(Boolean)
+                }).filter((cat): cat is string => Boolean(cat))
               : [];
             return (
               <BankCard
