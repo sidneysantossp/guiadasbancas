@@ -19,6 +19,11 @@ export default function JornaleiroDashboardPage() {
     pedidosPendentes: 0,
     produtosAtivos: 0,
   });
+  const [performanceData, setPerformanceData] = useState({
+    hoje: { pedidos: 0, receita: 0 },
+    semana: { pedidos: 0, receita: 0 },
+    mes: { pedidos: 0, receita: 0 },
+  });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
 
   useEffect(() => {
@@ -93,6 +98,23 @@ export default function JornaleiroDashboardPage() {
         !['entregue', 'cancelado'].includes(o.status)
       ).length;
       
+      // Calcular últimos 7 e 30 dias
+      const semanaAgo = new Date(hojeStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const mesAgo = new Date(hojeStart.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      const pedidosSemana = orders.filter((o: any) => {
+        const orderDate = new Date(o.created_at);
+        return orderDate >= semanaAgo;
+      });
+      
+      const pedidosMes = orders.filter((o: any) => {
+        const orderDate = new Date(o.created_at);
+        return orderDate >= mesAgo;
+      });
+      
+      const faturamentoSemana = pedidosSemana.reduce((acc: number, o: any) => acc + Number(o.total || 0), 0);
+      const faturamentoMes = pedidosMes.reduce((acc: number, o: any) => acc + Number(o.total || 0), 0);
+      
       // Produtos ativos: visíveis e com estoque (se rastrear)
       const produtosAtivos = products.filter((p: any) => {
         // Se o produto está oculto/inativo, não conta
@@ -124,6 +146,13 @@ export default function JornaleiroDashboardPage() {
         pedidosPendentes,
         produtosAtivos,
       });
+      
+      setPerformanceData({
+        hoje: { pedidos: pedidosHoje.length, receita: faturamentoHoje },
+        semana: { pedidos: pedidosSemana.length, receita: faturamentoSemana },
+        mes: { pedidos: pedidosMes.length, receita: faturamentoMes },
+      });
+      
       setRecentOrders(orders.slice(0, 5));
     } catch (error) {
       console.error('[Dashboard] Erro ao carregar métricas:', error);
@@ -169,6 +198,58 @@ export default function JornaleiroDashboardPage() {
         </div>
       </div>
 
+      {/* Performance por Período - Gráfico de Barras */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold mb-6">Performance por Período</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Hoje */}
+          <div className="space-y-3">
+            <div className="text-sm font-medium text-blue-600">Hoje</div>
+            <div className="text-3xl font-bold text-blue-700">{loadingMetrics ? "--" : performanceData.hoje.pedidos}</div>
+            <div className="text-sm text-gray-500">R$ {loadingMetrics ? "0.00" : performanceData.hoje.receita.toFixed(2)}</div>
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div 
+                className="bg-blue-500 h-3 rounded-full transition-all duration-500"
+                style={{ 
+                  width: `${performanceData.mes.pedidos > 0 
+                    ? Math.min((performanceData.hoje.pedidos / performanceData.mes.pedidos) * 100, 100) 
+                    : 0}%` 
+                }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Últimos 7 dias */}
+          <div className="space-y-3">
+            <div className="text-sm font-medium text-purple-600">Últimos 7 dias</div>
+            <div className="text-3xl font-bold text-purple-700">{loadingMetrics ? "--" : performanceData.semana.pedidos}</div>
+            <div className="text-sm text-gray-500">R$ {loadingMetrics ? "0.00" : performanceData.semana.receita.toFixed(2)}</div>
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div 
+                className="bg-purple-500 h-3 rounded-full transition-all duration-500"
+                style={{ 
+                  width: `${performanceData.mes.pedidos > 0 
+                    ? Math.min((performanceData.semana.pedidos / performanceData.mes.pedidos) * 100, 100) 
+                    : 0}%` 
+                }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Últimos 30 dias */}
+          <div className="space-y-3">
+            <div className="text-sm font-medium text-green-600">Últimos 30 dias</div>
+            <div className="text-3xl font-bold text-green-700">{loadingMetrics ? "--" : performanceData.mes.pedidos}</div>
+            <div className="text-sm text-gray-500">R$ {loadingMetrics ? "0.00" : performanceData.mes.receita.toFixed(2)}</div>
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div 
+                className="bg-green-500 h-3 rounded-full transition-all duration-500"
+                style={{ width: '100%' }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Métricas Detalhadas */}
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
