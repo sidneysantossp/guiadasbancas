@@ -37,6 +37,7 @@ export default function AdminProductCreatePage() {
   const [descriptionFull, setDescriptionFull] = useState("");
   const [specifications, setSpecifications] = useState("");
   const [allowReviews, setAllowReviews] = useState(true);
+  const [imageUrls, setImageUrls] = useState("");
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -73,7 +74,16 @@ export default function AdminProductCreatePage() {
       const fd = new FormData(e.currentTarget);
       const uploadedUrls: string[] = [];
       
-      // Upload das imagens principais
+      // Processar URLs de imagens diretas (do campo de texto)
+      if (imageUrls.trim()) {
+        const urls = imageUrls
+          .split(/[\n,]/) // Separa por vírgula ou quebra de linha
+          .map(url => url.trim())
+          .filter(url => url.length > 0);
+        uploadedUrls.push(...urls);
+      }
+      
+      // Upload das imagens principais (uploader)
       for (const src of images) {
         if (src.startsWith("data:")) {
           const blob = await (await fetch(src)).blob();
@@ -183,6 +193,20 @@ export default function AdminProductCreatePage() {
               onChange={setImages}
               maxImages={4}
             />
+          </div>
+          
+          <div className="pt-3 border-t border-gray-200">
+            <label className="text-sm font-medium text-gray-900">📎 URLs de Imagens (CSV/Import)</label>
+            <textarea
+              value={imageUrls}
+              onChange={(e) => setImageUrls(e.target.value)}
+              rows={3}
+              placeholder="Cole URLs de imagens aqui (uma por linha ou separadas por vírgula)&#10;Ex:&#10;https://exemplo.com/imagem1.jpg&#10;https://exemplo.com/imagem2.jpg"
+              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              💡 Útil para importação via CSV. Separe múltiplas URLs por vírgula ou quebra de linha.
+            </p>
           </div>
           
         </div>
