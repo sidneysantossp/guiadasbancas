@@ -94,11 +94,18 @@ function BancaCard({
   const [catBadges, setCatBadges] = useState<Array<{ name: string; icon: string }>>([]);
   const { items: allCats } = useCategories();
   useEffect(() => {
+    // OTIMIZAÇÃO: Usar dados mock primeiro para carregamento instantâneo
+    const mockData = COVER_BY_ID[id];
+    if (mockData) {
+      setCatBadges(mockData.categories);
+    }
+
+    // Carregar dados reais em background (não bloqueia renderização)
     let alive = true;
-    (async () => {
+    const loadRealData = async () => {
       try {
         const res = await fetch(`/api/bancas/${id}/products`, {
-          next: { revalidate: 60 } as any
+          next: { revalidate: 300 } // Cache por 5 minutos
         });
         if (!res.ok) return;
         const j = await res.json();
@@ -126,7 +133,11 @@ function BancaCard({
       } catch {
         // silencioso: mantém fallback
       }
-    })();
+    };
+    
+    // Executar após um pequeno delay para não bloquear renderização
+    setTimeout(loadRealData, 100);
+    
     return () => {
       alive = false;
     };

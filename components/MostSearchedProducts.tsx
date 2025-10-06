@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import { shippingConfig } from "@/components/shippingConfig";
+import { cachedFetch } from "@/lib/cache";
 
 export type Product = {
   id: string;
@@ -368,32 +369,24 @@ export default function MostSearchedProducts() {
     (async () => {
       try {
         setLoading(true);
-        const [pRes, bRes] = await Promise.all([
-          fetch('/api/products/most-searched', { 
-            next: { revalidate: 60 } as any 
-          }),
-          fetch('/api/admin/bancas', { 
-            next: { revalidate: 60 } as any 
-          }),
+        const [pData, bData] = await Promise.all([
+          cachedFetch('/api/products/most-searched', undefined, 300), // 5 min cache
+          cachedFetch('/api/admin/bancas', undefined, 600), // 10 min cache
         ]);
         
         let list: ApiProduct[] = [];
         
         // Tenta buscar produtos mais buscados primeiro
-        if (pRes.ok) {
-          const pj = await pRes.json();
-          list = Array.isArray(pj?.data) ? pj.data : [];
+        if (pData?.data) {
+          list = Array.isArray(pData.data) ? pData.data : [];
         }
         
         // Se não houver produtos mais buscados, busca os últimos produtos cadastrados
         if (list.length === 0) {
           try {
-            const latestRes = await fetch('/api/products?limit=8&sort=created_at&order=desc', {
-              next: { revalidate: 60 } as any
-            });
-            if (latestRes.ok) {
-              const latestJson = await latestRes.json();
-              list = Array.isArray(latestJson?.data) ? latestJson.data : [];
+            const latestData = await cachedFetch('/api/products?limit=8&sort=created_at&order=desc', undefined, 180);
+            if (latestData?.data) {
+              list = Array.isArray(latestData.data) ? latestData.data : [];
             }
           } catch (e) {
             console.log('Fallback para últimos produtos falhou:', e);
@@ -401,9 +394,8 @@ export default function MostSearchedProducts() {
         }
         
         let bancas: Record<string, ApiBanca> = {};
-        if (bRes.ok) {
-          const bj = await bRes.json();
-          const bList: ApiBanca[] = Array.isArray(bj?.data) ? bj.data : [];
+        if (bData?.data) {
+          const bList: ApiBanca[] = Array.isArray(bData.data) ? bData.data : [];
           bancas = Object.fromEntries(bList.map((b) => [b.id, b]));
         }
         

@@ -1,79 +1,154 @@
 import FullBanner from "@/components/FullBanner";
 import TrustBadges from "@/components/TrustBadges";
 import dynamic from "next/dynamic";
+import { Suspense } from "react";
 
-// Componentes com SSR habilitado (removido ssr: false)
-const CategoryCarousel = dynamic(() => import("@/components/CategoryCarousel"));
+// CRÍTICO: Apenas componentes above-fold carregam imediatamente
 const MiniCategoryBar = dynamic(() => import("@/components/MiniCategoryBar"));
 const MobileCategoryScroller = dynamic(() => import("@/components/MobileCategoryScroller"));
-const FeaturedBancas = dynamic(() => import("@/components/FeaturedBancas"));
-const MostSearchedProducts = dynamic(() => import("@/components/MostSearchedProducts"));
 
-// Componentes below-fold - lazy load
-const CampaignSection = dynamic(() => import("@/components/CampaignSection"), { ssr: false });
-const TrendingProducts = dynamic(() => import("@/components/TrendingProducts"), { ssr: false });
-const MiniBanners = dynamic(() => import("@/components/MiniBanners"), { ssr: false });
-const FavoritePicks = dynamic(() => import("@/components/FavoritePicks"), { ssr: false });
-const TopReviewed = dynamic(() => import("@/components/TopReviewed"), { ssr: false });
-const NewArrivals = dynamic(() => import("@/components/NewArrivals"), { ssr: false });
-const ReferralBanner = dynamic(() => import("@/components/ReferralBanner"), { ssr: false });
-const Newsletter = dynamic(() => import("@/components/Newsletter"), { ssr: false });
-const VendorSignupBanner = dynamic(() => import("@/components/VendorSignupBanner"), { ssr: false });
+// PRIORIDADE ALTA: Componentes visíveis no primeiro scroll
+const CategoryCarousel = dynamic(() => import("@/components/CategoryCarousel"), { 
+  ssr: false,
+  loading: () => <div className="h-32 bg-gray-100 animate-pulse rounded-lg" />
+});
+const FeaturedBancas = dynamic(() => import("@/components/FeaturedBancas"), { 
+  ssr: false,
+  loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" />
+});
+
+// LAZY: Componentes below-fold carregam sob demanda
+const MostSearchedProducts = dynamic(() => import("@/components/MostSearchedProducts"), { 
+  ssr: false,
+  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+});
+const CampaignSection = dynamic(() => import("@/components/CampaignSection"), { 
+  ssr: false,
+  loading: () => <div className="h-40 bg-gray-100 animate-pulse rounded-lg" />
+});
+const TrendingProducts = dynamic(() => import("@/components/TrendingProducts"), { 
+  ssr: false,
+  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+});
+const MiniBanners = dynamic(() => import("@/components/MiniBanners"), { 
+  ssr: false,
+  loading: () => <div className="h-32 bg-gray-100 animate-pulse rounded-lg" />
+});
+const FavoritePicks = dynamic(() => import("@/components/FavoritePicks"), { 
+  ssr: false,
+  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+});
+const TopReviewed = dynamic(() => import("@/components/TopReviewed"), { 
+  ssr: false,
+  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+});
+const NewArrivals = dynamic(() => import("@/components/NewArrivals"), { 
+  ssr: false,
+  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+});
+const ReferralBanner = dynamic(() => import("@/components/ReferralBanner"), { 
+  ssr: false,
+  loading: () => <div className="h-24 bg-gray-100 animate-pulse rounded-lg" />
+});
+const Newsletter = dynamic(() => import("@/components/Newsletter"), { 
+  ssr: false,
+  loading: () => <div className="h-32 bg-gray-100 animate-pulse rounded-lg" />
+});
+const VendorSignupBanner = dynamic(() => import("@/components/VendorSignupBanner"), { 
+  ssr: false,
+  loading: () => <div className="h-40 bg-gray-100 animate-pulse rounded-lg" />
+});
 
 export default function HomePage() {
   return (
     <div className="">{/* full-bleed, colado na navbar */}
-      {/* Hero: colado na navbar (sem margem extra) */}
+      {/* ABOVE FOLD: Carrega imediatamente */}
       <div className="mt-0">
         <FullBanner />
       </div>
-      {/* Mobile: small icon scroller below hero */}
       <MobileCategoryScroller />
-      {/* Desktop sticky bar */}
       <MiniCategoryBar />
-      {/* Trust badges under hero (ecommerce style, centered) */}
+      
+      {/* Trust badges - crítico para conversão */}
       <div className="py-3">
         <div className="container-max">
           <TrustBadges variant="ecom" className="md:justify-items-center max-w-6xl mx-auto" />
         </div>
       </div>
-      {/* Desktop: categories should appear below the hero */}
-      <div className="py-8 hidden md:block">
-        <CategoryCarousel />
-      </div>
-      <div className="py-6">
-        <FeaturedBancas />
-      </div>
-      <div className="py-6">
-        <MostSearchedProducts />
-      </div>
-      <div className="py-6">
-        <CampaignSection />
-      </div>
-      <div className="py-6">
-        <TrendingProducts />
-      </div>
-      <div className="py-6">
-        <MiniBanners />
-      </div>
-      <div className="py-6">
-        <FavoritePicks />
-      </div>
-      <div className="py-6">
-        <TopReviewed />
-      </div>
-      <div className="py-6">
-        <ReferralBanner />
-      </div>
-      <div className="py-6">
-        <NewArrivals />
-      </div>
-      <div className="py-6">
-        <VendorSignupBanner />
-      </div>
-      <div className="py-6">
-        <Newsletter />
-      </div>
+
+      {/* PRIORIDADE ALTA: Primeiro scroll */}
+      <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-8 hidden md:block">
+          <CategoryCarousel />
+        </div>
+      </Suspense>
+
+      <Suspense fallback={<div className="h-64 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-6">
+          <FeaturedBancas />
+        </div>
+      </Suspense>
+
+      {/* LAZY LOADING: Carrega conforme scroll */}
+      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-6">
+          <MostSearchedProducts />
+        </div>
+      </Suspense>
+
+      <Suspense fallback={<div className="h-40 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-6">
+          <CampaignSection />
+        </div>
+      </Suspense>
+
+      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-6">
+          <TrendingProducts />
+        </div>
+      </Suspense>
+
+      <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-6">
+          <MiniBanners />
+        </div>
+      </Suspense>
+
+      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-6">
+          <FavoritePicks />
+        </div>
+      </Suspense>
+
+      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-6">
+          <TopReviewed />
+        </div>
+      </Suspense>
+
+      <Suspense fallback={<div className="h-24 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-6">
+          <ReferralBanner />
+        </div>
+      </Suspense>
+
+      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-6">
+          <NewArrivals />
+        </div>
+      </Suspense>
+
+      <Suspense fallback={<div className="h-40 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-6">
+          <VendorSignupBanner />
+        </div>
+      </Suspense>
+
+      <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-6">
+          <Newsletter />
+        </div>
+      </Suspense>
     </div>
   );
 }
