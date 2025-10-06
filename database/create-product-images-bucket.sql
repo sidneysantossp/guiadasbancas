@@ -1,31 +1,96 @@
--- Criar bucket para imagens de produtos (se não existir)
--- Este bucket armazena imagens dos produtos uploadadas em massa
+-- ============================================
+-- CONFIGURAÇÃO DO BUCKET PRODUCT-IMAGES
+-- ============================================
+-- 
+-- ATENÇÃO: Políticas de Storage devem ser criadas via Dashboard do Supabase!
+-- Este arquivo contém apenas instruções, não execute o SQL diretamente.
+--
+-- ============================================
 
--- 1. Criar o bucket (executar no dashboard do Supabase Storage)
--- Não há comando SQL direto, mas pode ser feito via dashboard:
--- Storage > Create Bucket > Nome: 'product-images' > Public: true
+-- PASSO 1: CRIAR BUCKET
+-- ============================================
+-- 1. Acesse o Supabase Dashboard
+-- 2. Vá em: Storage > Create a new bucket
+-- 3. Configurações:
+--    - Name: product-images
+--    - Public bucket: ✅ MARCADO (importante!)
+--    - File size limit: 5 MB (padrão)
+--    - Allowed MIME types: image/* (ou deixar vazio)
+-- 4. Clique em "Create bucket"
 
--- 2. Criar política de acesso público para leitura
-CREATE POLICY "Public read access"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'product-images');
+-- PASSO 2: CONFIGURAR POLÍTICAS
+-- ============================================
+-- Após criar o bucket, configure as políticas:
 
--- 3. Criar política de upload para usuários autenticados admin
-CREATE POLICY "Admin upload access"
-ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'product-images' 
-  AND auth.role() = 'authenticated'
-);
+-- 1. Clique no bucket "product-images"
+-- 2. Vá na aba "Policies"
+-- 3. Clique em "New Policy"
 
--- 4. Criar política de delete para admin
-CREATE POLICY "Admin delete access"
-ON storage.objects FOR DELETE
-USING (
-  bucket_id = 'product-images'
-  AND auth.role() = 'authenticated'
-);
+-- POLÍTICA 1: Leitura Pública
+-- ============================================
+-- Name: Public read access
+-- Allowed operation: SELECT
+-- Policy definition (custom):
+--
+-- USING expression:
+-- bucket_id = 'product-images'
+--
+-- (Deixe WITH CHECK vazio para SELECT)
 
-COMMENT ON POLICY "Public read access" ON storage.objects IS 'Permite leitura pública das imagens de produtos';
-COMMENT ON POLICY "Admin upload access" ON storage.objects IS 'Permite upload de imagens apenas para usuários autenticados';
-COMMENT ON POLICY "Admin delete access" ON storage.objects IS 'Permite deletar imagens apenas para usuários autenticados';
+-- POLÍTICA 2: Upload para Autenticados
+-- ============================================
+-- Name: Authenticated users can upload
+-- Allowed operation: INSERT
+-- Policy definition (custom):
+--
+-- WITH CHECK expression:
+-- bucket_id = 'product-images' AND auth.role() = 'authenticated'
+--
+-- (Deixe USING vazio para INSERT)
+
+-- POLÍTICA 3: Update para Autenticados
+-- ============================================
+-- Name: Authenticated users can update
+-- Allowed operation: UPDATE
+-- Policy definition (custom):
+--
+-- USING expression:
+-- bucket_id = 'product-images' AND auth.role() = 'authenticated'
+--
+-- WITH CHECK expression:
+-- bucket_id = 'product-images' AND auth.role() = 'authenticated'
+
+-- POLÍTICA 4: Delete para Autenticados
+-- ============================================
+-- Name: Authenticated users can delete
+-- Allowed operation: DELETE
+-- Policy definition (custom):
+--
+-- USING expression:
+-- bucket_id = 'product-images' AND auth.role() = 'authenticated'
+--
+-- (Deixe WITH CHECK vazio para DELETE)
+
+-- ============================================
+-- ALTERNATIVA: BUCKET PÚBLICO SEM POLÍTICAS
+-- ============================================
+-- Se você marcou "Public bucket" na criação,
+-- o acesso de leitura já está liberado automaticamente.
+-- Você só precisa garantir que o upload funcione.
+--
+-- Para simplificar, você pode:
+-- 1. Criar bucket como PUBLIC
+-- 2. Adicionar apenas política de upload para authenticated users
+--
+-- Isso é suficiente para o sistema funcionar!
+
+-- ============================================
+-- VERIFICAÇÃO
+-- ============================================
+-- Para testar se está funcionando:
+-- 1. Tente acessar uma URL pública:
+--    https://[seu-projeto].supabase.co/storage/v1/object/public/product-images/test.jpg
+-- 2. Se retornar 404 (not found) = correto
+-- 3. Se retornar 403 (forbidden) = bucket não é público
+--
+-- ============================================
