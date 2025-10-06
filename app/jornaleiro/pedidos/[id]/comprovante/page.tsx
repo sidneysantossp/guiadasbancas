@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import OrderReceipt from "@/components/admin/OrderReceipt";
 
@@ -37,7 +37,6 @@ type Order = {
 
 export default function ComprovanteOrderPage() {
   const params = useParams();
-  const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -88,15 +87,15 @@ export default function ComprovanteOrderPage() {
       <div className="max-w-2xl mx-auto">
         {/* Header com botão voltar */}
         <div className="mb-6 flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
+          <Link
+            href={`/jornaleiro/pedidos/${params.id}`}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Voltar
-          </button>
+          </Link>
           
           <Link
             href="/jornaleiro/pedidos"
