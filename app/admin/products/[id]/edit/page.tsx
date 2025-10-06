@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 import { validateProductCreate } from "@/lib/validators/product";
 import ProductImageUploader from "@/components/admin/ProductImageUploader";
 import VideoTutorial from "@/components/admin/VideoTutorial";
@@ -126,30 +127,15 @@ export default function AdminProductEditPage() {
         }
       }
 
+      // VERSÃO SIMPLIFICADA - apenas campos que sabemos que existem
       const body = {
         name: (fd.get("name") as string)?.trim(),
         description: (fd.get("description") as string) || "",
-        category_id: (fd.get("category") as string)?.trim(),
         price: Number(fd.get("price") || 0),
-        price_original: fd.get("price_original") ? Number(fd.get("price_original")) : undefined,
-        discount_percent: fd.get("discount_percent") ? Number(fd.get("discount_percent")) : undefined,
         stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
         track_stock: Boolean(fd.get("track_stock")),
-        featured: Boolean(fd.get("featured")),
         images: uploadedUrls,
-        sob_encomenda: Boolean(fd.get("sob_encomenda")),
-        pre_venda: Boolean(fd.get("pre_venda")),
-        pronta_entrega: Boolean(fd.get("pronta_entrega")),
-        coupon_code: (fd.get("coupon_code") as string)?.trim() || undefined,
-        description_full: descriptionFull,
-        specifications: specifications,
-        allow_reviews: allowReviews,
-        codigo_mercos: (fd.get("codigo_mercos") as string)?.trim() || undefined,
-        unidade_medida: (fd.get("unidade_medida") as string)?.trim() || "UN",
-        venda_multiplos: Number(fd.get("venda_multiplos") || 1),
-        categoria_mercos: (fd.get("categoria_mercos") as string)?.trim() || undefined,
-        disponivel_todas_bancas: disponibilidadeTipo === 'todas',
-        banca_id: disponibilidadeTipo === 'especifica' && bancaSelecionada ? bancaSelecionada : null,
+        codigo_mercos: (fd.get("codigo_mercos") as string)?.trim() || null,
       };
 
       const apiUrl = `/api/admin/products/${productId}`;
@@ -194,9 +180,21 @@ export default function AdminProductEditPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">Editar produto</h1>
-        <p className="text-sm text-gray-600">Atualize as informações do produto.</p>
+      {/* Header com botão voltar */}
+      <div className="flex items-center gap-4">
+        <Link 
+          href="/admin/products"
+          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#ff5c00] transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Voltar
+        </Link>
+        <div>
+          <h1 className="text-xl font-semibold">Editar produto</h1>
+          <p className="text-sm text-gray-600">Atualize as informações do produto.</p>
+        </div>
       </div>
 
       <form onSubmit={onSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-4">

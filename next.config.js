@@ -94,6 +94,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'rgqlncxrzwgjreggrjcq.supabase.co',
       },
+      {
+        protocol: 'https',
+        hostname: 'arquivos.mercos.com',
+      },
     ],
   },
   // Headers de performance e segurança

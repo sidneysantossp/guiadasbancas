@@ -1,0 +1,12 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" fill="#F3F4F6"/>
+  <circle cx="100" cy="100" r="60" stroke="#9CA3AF" stroke-width="3" fill="none" stroke-dasharray="8 8"/>
+  <path d="M70 85L85 100L115 70L130 85V125H70V85Z" fill="#D1D5DB"/>
+  <circle cx="85" cy="75" r="8" fill="#D1D5DB"/>
+  <text x="100" y="160" text-anchor="middle" fill="#6B7280" font-family="system-ui" font-size="14" font-weight="500">
+    PRODUTO
+  </text>
+  <text x="100" y="180" text-anchor="middle" fill="#9CA3AF" font-family="system-ui" font-size="12">
+    SEM IMAGEM
+  </text>
+</svg>

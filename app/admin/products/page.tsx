@@ -43,6 +43,8 @@ export default function AdminProductsPage() {
         active: true, // produtos sempre ativos por enquanto
         updatedAt: p.updated_at || "",
         codigo_mercos: p.codigo_mercos || null,
+        images: p.images || [], // Array de imagens
+        thumbnail: (p.images && p.images.length > 0) ? p.images[0] : null, // Primeira imagem como thumb
       })));
       
       console.log('✅ Produtos carregados com sucesso');
@@ -89,7 +91,37 @@ export default function AdminProductsPage() {
   }, [rows, q, category, status]);
 
   const columns: Column<any>[] = [
-    { key: "name", header: "Nome", render: (r) => <span className="font-medium">{r.name}</span> },
+    { 
+      key: "thumbnail", 
+      header: "Imagem", 
+      render: (r) => (
+        <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 flex items-center justify-center">
+          <img 
+            src={r.thumbnail || '/images/no-image.svg'} 
+            alt={r.name || 'Produto sem imagem'}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = '/images/no-image.svg';
+            }}
+          />
+        </div>
+      )
+    },
+    { 
+      key: "name", 
+      header: "Nome", 
+      render: (r) => (
+        <div>
+          <span className="font-medium">{r.name}</span>
+          {r.codigo_mercos && (
+            <div className="text-xs text-gray-500 mt-1">
+              🏷️ {r.codigo_mercos}
+            </div>
+          )}
+        </div>
+      )
+    },
     { key: "category", header: "Categoria" },
     { key: "price", header: "Preço", render: (r) => <>R$ {Number(r.price||0).toFixed(2)}</> },
     { key: "stock", header: "Estoque" },
