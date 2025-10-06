@@ -37,16 +37,43 @@ type Order = {
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
+    
+    // SEGURANÇA: Verificar autenticação
+    if (!session?.user) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
     const userRole = (session?.user as any)?.role as string | undefined;
-    const userBancaId = (session?.user as any)?.banca_id as string | undefined;
+    const userId = (session?.user as any)?.id as string | undefined;
+    
+    // SEGURANÇA: Verificar role válido
+    if (!userRole || !['admin', 'jornaleiro'].includes(userRole)) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") || "";
     const q = (searchParams.get("q") || "").toLowerCase();
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 100); // Máximo 100
     const page = parseInt(searchParams.get("page") || "1");
     const sort = searchParams.get("sort") || "created_at";
     const order = searchParams.get("order") || "desc";
     const bancaIdFilter = searchParams.get("banca_id") || "";
+
+    // SEGURANÇA: Para jornaleiros, buscar banca_id do usuário
+    let userBancaId: string | undefined;
+    if (userRole === 'jornaleiro') {
+      const { data: bancaData } = await supabaseAdmin
+        .from('bancas')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+      
+      if (!bancaData) {
+        return NextResponse.json({ error: "Banca não encontrada" }, { status: 404 });
+      }
+      userBancaId = bancaData.id;
+    }
     
     // Buscar pedidos do Supabase
     let query = supabaseAdmin

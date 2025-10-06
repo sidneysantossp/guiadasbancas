@@ -3,17 +3,48 @@ import type { NextRequest } from "next/server";
 import { v4 as uuid } from "uuid";
 import type { Produto } from "@/types/admin";
 import { supabaseAdmin } from "@/lib/supabase";
+import { auth } from "@/lib/auth";
 
 const CATEGORIA_DISTRIBUIDORES_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
 const DEFAULT_PRODUCT_IMAGE = 'https://cdn1.staticpanvel.com.br/produtos/15/produto-sem-imagem.jpg';
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await auth();
+    
+    // SEGURANÇA: Verificar autenticação
+    if (!session?.user) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    const userRole = (session?.user as any)?.role as string | undefined;
+    const userId = (session?.user as any)?.id as string | undefined;
+    
+    // SEGURANÇA: Verificar role válido
+    if (!userRole || !['admin', 'jornaleiro'].includes(userRole)) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get("q") || "").toLowerCase();
     const category = searchParams.get("category") || "";
     const active = searchParams.get("active");
-    const bancaId = searchParams.get("banca_id") || "";
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100); // Máximo 100
+    let bancaId = searchParams.get("banca_id") || "";
+
+    // SEGURANÇA: Para jornaleiros, forçar filtro pela própria banca
+    if (userRole === 'jornaleiro') {
+      const { data: bancaData } = await supabaseAdmin
+        .from('bancas')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+      
+      if (!bancaData) {
+        return NextResponse.json({ error: "Banca não encontrada" }, { status: 404 });
+      }
+      bancaId = bancaData.id;
+    }
 
     let query = supabaseAdmin
       .from('products')
@@ -42,6 +73,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Aplicar limite
+    query = query.limit(limit);
+    
     const { data, error } = await query.order('created_at', { ascending: false});
     
     let allData = data || [];

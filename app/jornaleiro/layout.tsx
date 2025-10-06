@@ -46,6 +46,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   const [branding, setBranding] = useState<{ logoUrl?: string; logoAlt?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [banca, setBanca] = useState<any>(null);
+  const [bancaValidated, setBancaValidated] = useState(false);
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
@@ -57,28 +58,62 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   const sellerName = profile?.full_name || "Vendedor";
   const sellerEmail = (user as any)?.email || "vendedor@example.com";
 
-  // Carregar dados da banca
+  // VALIDAÇÃO DE SEGURANÇA: Verificar se usuário tem banca
   useEffect(() => {
-    const loadBancaData = async () => {
-      if (!user?.id || isAuthRoute) return;
-      
+    const validateUserAccess = async () => {
+      // Permitir rotas de autenticação
+      if (isAuthRoute) {
+        setBancaValidated(true);
+        return;
+      }
+
+      // Aguardar carregamento
+      if (authLoading) {
+        return;
+      }
+
+      // Usuário não autenticado
+      if (!user) {
+        router.push('/jornaleiro');
+        return;
+      }
+
+      // Verificar role
+      if (profile && profile.role !== 'jornaleiro') {
+        console.error('[Security] Usuário não é jornaleiro');
+        await signOut();
+        router.push('/jornaleiro');
+        return;
+      }
+
+      // Verificar se tem banca
       try {
-        const { data, error } = await supabase
+        const { data: bancaData, error } = await supabase
           .from('bancas')
-          .select('*')
+          .select('id, slug, name, user_id')
           .eq('user_id', user.id)
           .single();
-        
-        if (data) {
-          setBanca(data);
+
+        if (error || !bancaData) {
+          console.error('[Security] Usuário sem banca associada:', error);
+          await signOut();
+          router.push('/jornaleiro');
+          return;
         }
+
+        setBanca(bancaData);
+        setBancaValidated(true);
       } catch (error) {
-        console.error('Erro ao carregar banca:', error);
+        console.error('[Security] Erro ao validar banca:', error);
+        await signOut();
+        router.push('/jornaleiro');
       }
     };
-    
-    loadBancaData();
-  }, [user?.id]);
+
+    validateUserAccess();
+  }, [user?.id, profile?.role, authLoading, isAuthRoute]);
+
+  // Removido - banca já é carregada na validação de segurança
 
   // Carregar branding
   useEffect(() => {
@@ -100,8 +135,8 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     return <ToastProvider>{children}</ToastProvider>;
   }
 
-  // Aguardar carregamento da autenticação
-  if (authLoading) {
+  // Aguardar carregamento da autenticação e validação de banca
+  if (authLoading || !bancaValidated) {
     return (
       <ToastProvider>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -112,6 +147,11 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         </div>
       </ToastProvider>
     );
+  }
+
+  // SEGURANÇA: Bloquear acesso se não tiver banca válida
+  if (!banca) {
+    return null;
   }
 
   return (

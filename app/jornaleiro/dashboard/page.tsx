@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -54,10 +54,14 @@ export default function JornaleiroDashboardPage() {
     try {
       setLoadingMetrics(true);
       
-      // Buscar pedidos e produtos em PARALELO para melhorar performance
+      // Buscar pedidos e produtos em PARALELO com cache
       const [ordersRes, productsRes] = await Promise.all([
-        fetch('/api/orders?limit=200'),
-        fetch('/api/products?limit=100')
+        fetch('/api/orders?limit=50', { 
+          next: { revalidate: 30 } // Cache por 30 segundos
+        }),
+        fetch('/api/products?limit=50', { 
+          next: { revalidate: 60 } // Cache por 60 segundos
+        })
       ]);
       
       const [ordersData, productsData] = await Promise.all([
@@ -117,34 +121,38 @@ export default function JornaleiroDashboardPage() {
   const sellerEmail = user?.email || '';
   const sellerPhone = profile?.phone || '';
 
+  // Memoizar cálculos pesados
+  const memoizedMetrics = useMemo(() => metrics, [metrics]);
+  const memoizedRecentOrders = useMemo(() => recentOrders, [recentOrders]);
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="text-sm text-gray-500">Pedidos hoje</div>
           <div className="mt-1 text-3xl font-semibold text-gray-900">
-            {loadingMetrics ? "--" : metrics.pedidosHoje}
+            {loadingMetrics ? "--" : memoizedMetrics.pedidosHoje}
           </div>
           <div className="mt-1 text-xs text-gray-400">Total de pedidos recebidos nas últimas horas</div>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="text-sm text-gray-500">Faturamento hoje</div>
           <div className="mt-1 text-3xl font-semibold text-gray-900">
-            {loadingMetrics ? "--" : `R$ ${metrics.faturamentoHoje.toFixed(2)}`}
+            {loadingMetrics ? "--" : `R$ ${memoizedMetrics.faturamentoHoje.toFixed(2)}`}
           </div>
           <div className="mt-1 text-xs text-gray-400">Somatório dos pedidos do dia</div>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="text-sm text-gray-500">Pedidos pendentes</div>
-          <div className={`mt-1 text-3xl font-semibold ${metrics.pedidosPendentes > 0 ? "text-orange-600" : "text-gray-900"}`}>
-            {loadingMetrics ? "--" : metrics.pedidosPendentes}
+          <div className={`mt-1 text-3xl font-semibold ${memoizedMetrics.pedidosPendentes > 0 ? "text-orange-600" : "text-gray-900"}`}>
+            {loadingMetrics ? "--" : memoizedMetrics.pedidosPendentes}
           </div>
           <div className="mt-1 text-xs text-gray-400">Novos, confirmados e em preparo</div>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="text-sm text-gray-500">Produtos ativos</div>
           <div className="mt-1 text-3xl font-semibold text-gray-900">
-            {loadingMetrics ? "--" : metrics.produtosAtivos}
+            {loadingMetrics ? "--" : memoizedMetrics.produtosAtivos}
           </div>
           <div className="mt-1 text-xs text-gray-400">Itens visíveis na vitrine</div>
         </div>
@@ -160,11 +168,11 @@ export default function JornaleiroDashboardPage() {
         </div>
         {loadingMetrics ? (
           <div className="text-sm text-gray-500">Carregando pedidos...</div>
-        ) : recentOrders.length === 0 ? (
+        ) : memoizedRecentOrders.length === 0 ? (
           <div className="text-sm text-gray-500">Nenhum pedido encontrado.</div>
         ) : (
           <div className="space-y-3 text-sm">
-            {recentOrders.map((order) => (
+            {memoizedRecentOrders.map((order) => (
               <div key={order.id} className="flex items-center rounded-lg border border-gray-100 px-3 py-2 hover:bg-gray-50 transition-colors">
                 <div className="text-gray-900 font-medium mr-3">#{order.id}</div>
                 <div className="truncate text-gray-600">{order.customer_name || order.customer}</div>
