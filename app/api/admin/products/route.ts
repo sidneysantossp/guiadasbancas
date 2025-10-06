@@ -15,10 +15,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
     }
 
-    // Primeiro tentar buscar apenas produtos
+    // Buscar produtos com informações do distribuidor
     const { data, error } = await supabaseAdmin
       .from('products')
-      .select('*')
+      .select(`
+        *,
+        distribuidores!distribuidor_id (
+          id,
+          nome
+        )
+      `)
       .order('name');
 
     if (error) {
@@ -26,7 +32,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Erro ao buscar produtos' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data: data || [] });
+    // Mapear dados para incluir nome do distribuidor
+    const mappedData = (data || []).map((product: any) => ({
+      ...product,
+      distribuidor_nome: product.distribuidores?.nome || null
+    }));
+
+    return NextResponse.json({ success: true, data: mappedData });
   } catch (error) {
     console.error('Admin products API error:', error);
     return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500 });

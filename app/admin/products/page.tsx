@@ -10,7 +10,9 @@ export default function AdminProductsPage() {
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<string>("");
   const [status, setStatus] = useState<string>("");
+  const [distribuidor, setDistribuidor] = useState<string>("");
   const [rows, setRows] = useState<any[]>([]);
+  const [distribuidores, setDistribuidores] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchRows = async () => {
@@ -45,6 +47,8 @@ export default function AdminProductsPage() {
         codigo_mercos: p.codigo_mercos || null,
         images: p.images || [], // Array de imagens
         thumbnail: (p.images && p.images.length > 0) ? p.images[0] : null, // Primeira imagem como thumb
+        distribuidor_id: p.distribuidor_id || null,
+        distribuidor_nome: p.distribuidor_nome || "Guia das Bancas", // Nome do distribuidor ou padrão
       })));
       
       console.log('✅ Produtos carregados com sucesso');
@@ -79,16 +83,35 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     fetchRows();
+    fetchDistribuidores();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, category, status]);
+  }, [q, category, status, distribuidor]);
+
+  const fetchDistribuidores = async () => {
+    try {
+      const res = await fetch('/api/admin/distribuidores', {
+        headers: { 'Authorization': 'Bearer admin-token' }
+      });
+      const json = await res.json();
+      if (json.success) {
+        setDistribuidores(json.data || []);
+      }
+    } catch (e) {
+      console.error('Erro ao buscar distribuidores:', e);
+    }
+  };
 
   const filtered = useMemo(() => {
     return rows.filter(r => (
       (!q || r.name.toLowerCase().includes(q.toLowerCase())) &&
       (!category || r.category === category) &&
-      (!status || (status === "ativo" ? r.active : !r.active))
+      (!status || (status === "ativo" ? r.active : !r.active)) &&
+      (!distribuidor || 
+        (distribuidor === "admin" && !r.distribuidor_id) ||
+        (distribuidor !== "admin" && r.distribuidor_id === distribuidor)
+      )
     ));
-  }, [rows, q, category, status]);
+  }, [rows, q, category, status, distribuidor]);
 
   const columns: Column<any>[] = [
     { 
@@ -123,6 +146,23 @@ export default function AdminProductsPage() {
       )
     },
     { key: "category", header: "Categoria" },
+    { 
+      key: "distribuidor", 
+      header: "Distribuidor", 
+      render: (r) => (
+        <div className="text-sm">
+          {r.distribuidor_id ? (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-md">
+              🚚 {r.distribuidor_nome}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-700 rounded-md">
+              🏪 Guia das Bancas
+            </span>
+          )}
+        </div>
+      )
+    },
     { key: "price", header: "Preço", render: (r) => <>R$ {Number(r.price||0).toFixed(2)}</> },
     { key: "stock", header: "Estoque" },
     { key: "active", header: "Status", render: (r) => (
@@ -139,13 +179,20 @@ export default function AdminProductsPage() {
 
       <FiltersBar
         actions={<Link href="/admin/products/create" className="rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white hover:opacity-95">Novo Produto</Link>}
-        onReset={() => { setQ(""); setCategory(""); setStatus(""); }}
+        onReset={() => { setQ(""); setCategory(""); setStatus(""); setDistribuidor(""); }}
       >
         <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Buscar por nome..." className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"/>
         <select value={category} onChange={(e)=>setCategory(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
           <option value="">Todas categorias</option>
           <option value="Padaria">Padaria</option>
           <option value="Revistas">Revistas</option>
+        </select>
+        <select value={distribuidor} onChange={(e)=>setDistribuidor(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+          <option value="">Todos distribuidores</option>
+          <option value="admin">🏪 Guia das Bancas</option>
+          {distribuidores.map((d) => (
+            <option key={d.id} value={d.id}>🚚 {d.nome}</option>
+          ))}
         </select>
         <select value={status} onChange={(e)=>setStatus(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
           <option value="">Todos status</option>
