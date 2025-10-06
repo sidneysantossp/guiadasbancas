@@ -23,6 +23,7 @@ const JOURNALEIRO_MENU: { label: string; href: Route; icon: string; iconStyle?: 
   { label: "Distribuidores", href: "/jornaleiro/distribuidores" as Route, icon: "address-card", iconStyle: "regular" },
   { label: "Cupons", href: "/jornaleiro/coupons" as Route, icon: "id-card", iconStyle: "regular" },
   { label: "Relatórios", href: "/jornaleiro/relatorios" as Route, icon: "chart-bar", iconStyle: "regular" },
+  { label: "Academy", href: "/jornaleiro/academy" as Route, icon: "graduation-cap", iconStyle: "solid" },
   { label: "Configurações", href: "/jornaleiro/configuracoes" as Route, icon: "circle-dot", iconStyle: "regular" },
 ];
 

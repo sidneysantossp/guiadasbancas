@@ -63,6 +63,12 @@ const ADMIN_MENU = [
     ]
   },
   {
+    section: "Conteúdo",
+    items: [
+      { label: "Academy", href: "/admin/academy", icon: "🎓" },
+    ]
+  },
+  {
     section: "Configurações",
     items: [
       { label: "Plataforma", href: "/admin/settings", icon: "⚙️" },
