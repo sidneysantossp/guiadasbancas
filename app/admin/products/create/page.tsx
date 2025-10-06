@@ -17,11 +17,19 @@ interface CategoryOption {
   name: string;
 }
 
+interface BancaOption {
+  id: string;
+  name: string;
+}
+
 export default function AdminProductCreatePage() {
   const router = useRouter();
   const toast = useToast();
   const [images, setImages] = useState<string[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [bancas, setBancas] = useState<BancaOption[]>([]);
+  const [disponibilidadeTipo, setDisponibilidadeTipo] = useState<'todas' | 'especifica'>('todas');
+  const [bancaSelecionada, setBancaSelecionada] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [canFeature, setCanFeature] = useState(true);
@@ -42,7 +50,19 @@ export default function AdminProductCreatePage() {
         toast.error(e?.message || "Não foi possível carregar categorias");
       }
     };
+    const loadBancas = async () => {
+      try {
+        const res = await fetch("/api/admin/bancas", { cache: "no-store" });
+        const json = await res.json();
+        if (json?.success) {
+          setBancas((json.data as any[])?.map((b) => ({ id: b.id, name: b.name })) || []);
+        }
+      } catch (e: any) {
+        console.error(e?.message || "Não foi possível carregar bancas");
+      }
+    };
     loadCategories();
+    loadBancas();
   }, [toast]);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -93,6 +113,13 @@ export default function AdminProductCreatePage() {
         specifications: specifications,
         gallery_images: [],
         allow_reviews: allowReviews,
+        // Campos Mercos
+        codigo_mercos: (fd.get("codigo_mercos") as string)?.trim() || undefined,
+        unidade_medida: (fd.get("unidade_medida") as string)?.trim() || "UN",
+        venda_multiplos: Number(fd.get("venda_multiplos") || 1),
+        categoria_mercos: (fd.get("categoria_mercos") as string)?.trim() || undefined,
+        disponivel_todas_bancas: disponibilidadeTipo === 'todas',
+        banca_especifica_id: disponibilidadeTipo === 'especifica' ? bancaSelecionada : undefined,
       };
 
       const vr = validateProductCreate(body as any);
@@ -178,6 +205,101 @@ export default function AdminProductCreatePage() {
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Campos compatíveis com Mercos */}
+            <div className="pt-3 border-t border-gray-200">
+              <div className="text-sm font-semibold text-gray-900 mb-3">🔗 Dados Mercos (Opcional)</div>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Código Mercos</label>
+                  <input 
+                    name="codigo_mercos" 
+                    placeholder="Ex: AKOTO001"
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm uppercase"
+                    onChange={(e) => e.target.value = e.target.value.toUpperCase()}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Código único para vinculação de imagens</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Unidade</label>
+                    <select name="unidade_medida" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                      <option value="UN">UN - Unidade</option>
+                      <option value="CX">CX - Caixa</option>
+                      <option value="KG">KG - Quilograma</option>
+                      <option value="LT">LT - Litro</option>
+                      <option value="MT">MT - Metro</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Múltiplos</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      name="venda_multiplos" 
+                      defaultValue="1.00"
+                      placeholder="1.00"
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Categoria Mercos</label>
+                  <input 
+                    name="categoria_mercos" 
+                    placeholder="Ex: Planet Manga"
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Disponibilidade para Bancas */}
+            <div className="pt-3 border-t border-gray-200">
+              <div className="text-sm font-semibold text-gray-900 mb-3">🏪 Disponibilidade nas Bancas</div>
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="radio"
+                    name="disponibilidade"
+                    value="todas"
+                    checked={disponibilidadeTipo === 'todas'}
+                    onChange={() => setDisponibilidadeTipo('todas')}
+                    className="text-[#ff5c00]"
+                  />
+                  <div>
+                    <div className="text-sm font-medium">Todas as Bancas</div>
+                    <div className="text-xs text-gray-500">Produto ficará disponível automaticamente para todas</div>
+                  </div>
+                </label>
+                
+                <label className="flex items-start gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="radio"
+                    name="disponibilidade"
+                    value="especifica"
+                    checked={disponibilidadeTipo === 'especifica'}
+                    onChange={() => setDisponibilidadeTipo('especifica')}
+                    className="mt-0.5 text-[#ff5c00]"
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium mb-2">Banca Específica</div>
+                    {disponibilidadeTipo === 'especifica' && (
+                      <select 
+                        value={bancaSelecionada}
+                        onChange={(e) => setBancaSelecionada(e.target.value)}
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      >
+                        <option value="">Selecione uma banca</option>
+                        {bancas.map((b) => (
+                          <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </label>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
