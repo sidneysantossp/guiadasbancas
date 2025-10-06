@@ -50,13 +50,6 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
-  
-  // DEBUG: Log para verificar detecção de rota de auth
-  useEffect(() => {
-    console.log('[JornaleiroLayout] pathname:', pathname);
-    console.log('[JornaleiroLayout] isAuthRoute:', isAuthRoute);
-    console.log('[JornaleiroLayout] user:', user);
-  }, [pathname, isAuthRoute, user]);
 
   const logout = async () => {
     await signOut();
