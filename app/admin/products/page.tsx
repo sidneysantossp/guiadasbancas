@@ -10,7 +10,6 @@ export default function AdminProductsPage() {
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<string>("");
   const [status, setStatus] = useState<string>("");
-  const [showOnlyBeta, setShowOnlyBeta] = useState(false);
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -82,17 +81,12 @@ export default function AdminProductsPage() {
   }, [q, category, status]);
 
   const filtered = useMemo(() => {
-    return rows.filter(r => {
-      // Filtro de produtos beta (apenas com codigo_mercos)
-      if (showOnlyBeta && !r.codigo_mercos) return false;
-      
-      return (
-        (!q || r.name.toLowerCase().includes(q.toLowerCase())) &&
-        (!category || r.category === category) &&
-        (!status || (status === "ativo" ? r.active : !r.active))
-      );
-    });
-  }, [rows, q, category, status, showOnlyBeta]);
+    return rows.filter(r => (
+      (!q || r.name.toLowerCase().includes(q.toLowerCase())) &&
+      (!category || r.category === category) &&
+      (!status || (status === "ativo" ? r.active : !r.active))
+    ));
+  }, [rows, q, category, status]);
 
   const columns: Column<any>[] = [
     { key: "name", header: "Nome", render: (r) => <span className="font-medium">{r.name}</span> },
@@ -113,7 +107,7 @@ export default function AdminProductsPage() {
 
       <FiltersBar
         actions={<Link href="/admin/products/create" className="rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white hover:opacity-95">Novo Produto</Link>}
-        onReset={() => { setQ(""); setCategory(""); setStatus(""); setShowOnlyBeta(false); }}
+        onReset={() => { setQ(""); setCategory(""); setStatus(""); }}
       >
         <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Buscar por nome..." className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"/>
         <select value={category} onChange={(e)=>setCategory(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
@@ -126,15 +120,6 @@ export default function AdminProductsPage() {
           <option value="ativo">Ativo</option>
           <option value="inativo">Inativo</option>
         </select>
-        <label className="flex items-center gap-2 px-3 py-2 text-sm">
-          <input 
-            type="checkbox" 
-            checked={showOnlyBeta} 
-            onChange={(e) => setShowOnlyBeta(e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          <span>Apenas produtos beta (13)</span>
-        </label>
       </FiltersBar>
 
       {loading && <div className="p-4 text-sm text-gray-500">Carregando...</div>}
