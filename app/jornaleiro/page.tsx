@@ -15,13 +15,15 @@ export default function JornaleiroLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [branding, setBranding] = useState<{ logoUrl: string; logoAlt: string } | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
 
   // Se já está autenticado como jornaleiro, redireciona
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role === "jornaleiro") {
+      setRedirecting(true);
       router.replace("/jornaleiro/dashboard");
     }
-  }, [session, status, router]);
+  }, [status, session?.user?.role]);
 
   // Carregar branding para exibir a mesma logo da navbar
   useEffect(() => {
@@ -60,9 +62,8 @@ export default function JornaleiroLoginPage() {
 
       if (result?.ok) {
         console.log("✅ Login bem-sucedido, redirecionando...");
-        // Aguardar um pouco para a sessão ser atualizada
-        await new Promise(resolve => setTimeout(resolve, 500));
-        router.push("/jornaleiro/dashboard");
+        // Não fazer push manual, deixar o useEffect handle
+        // O useEffect vai detectar a mudança de sessão e redirecionar
       }
     } catch (err: any) {
       console.error("❌ Exceção no login:", err);
@@ -71,13 +72,13 @@ export default function JornaleiroLoginPage() {
     }
   };
 
-  // Se está carregando auth, mostra loading
-  if (status === "loading") {
+  // Se está carregando auth ou redirecionando, mostra loading
+  if (status === "loading" || redirecting) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando...</p>
+          <p className="mt-4 text-gray-600">{redirecting ? "Redirecionando..." : "Carregando..."}</p>
         </div>
       </div>
     );

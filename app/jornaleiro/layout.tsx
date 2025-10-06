@@ -74,7 +74,10 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
       // Usuário não autenticado
       if (!user) {
-        router.push('/jornaleiro');
+        // Só redirecionar se não estiver já na página de login
+        if (pathname !== '/jornaleiro') {
+          router.push('/jornaleiro');
+        }
         return;
       }
 
@@ -97,7 +100,9 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         if (error || !bancaData) {
           console.error('[Security] Usuário sem banca associada:', error);
           await signOut();
-          router.push('/jornaleiro');
+          if (pathname !== '/jornaleiro') {
+            router.push('/jornaleiro');
+          }
           return;
         }
 
