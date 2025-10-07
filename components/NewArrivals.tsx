@@ -63,27 +63,34 @@ function ItemsIcon() {
 
 function ArrivalCard({ a }: { a: Arrival }) {
   return (
-    <Link href={a.href as any} className="block rounded-2xl bg-white border border-[#ff5c00] overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+    <div className="w-full flex flex-col h-full rounded-2xl bg-white border border-[#ff5c00] overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       {/* Imagem com padding */}
       <div className="p-2">
         <div className="relative h-32 w-full rounded-xl overflow-hidden">
           <Image src={a.cover} alt={a.name} fill className="object-cover" />
         </div>
       </div>
-      <div className="px-3 pb-3">
-        <div className="flex items-center gap-2">
+      <div className="flex-1 flex flex-col px-3 pb-3">
+        <div className="flex items-center gap-2 mb-2">
           <div className="h-9 w-9 rounded-full overflow-hidden border-2 border-white shadow">
             <Image src={a.avatar} alt={a.name} width={36} height={36} className="h-full w-full object-cover" />
           </div>
           <div className="text-[13px] font-semibold leading-tight line-clamp-1">{a.name}</div>
         </div>
-        <div className="mt-2 flex items-center gap-2 flex-wrap">
+        <div className="mb-3 flex items-center gap-2 flex-wrap">
           <Chip><FeeIcon /> {a.feeLabel}</Chip>
           <Chip><DistanceIcon /> {a.distanceLabel}</Chip>
-          <Chip><ItemsIcon /> {a.itemsLabel}</Chip>
+        </div>
+        <div className="mt-auto">
+          <Link 
+            href={a.href as any} 
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#ff5c00] px-3 py-2 text-[12px] font-semibold text-white hover:bg-[#ff7a33] transition-colors"
+          >
+            Ver Banca
+          </Link>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -224,7 +231,7 @@ export default function NewArrivals() {
                 }}
               >
                 {track.map((a, i) => (
-                  <div key={`${a.id}-${i}`} style={{ flex: `0 0 calc(${100 / perView}% - 1rem)` }} className="shrink-0">
+                  <div key={`${a.id}-${i}`} style={{ flex: `0 0 calc(${100 / perView}% - 1rem)` }} className="shrink-0 flex">
                     <ArrivalCard a={a} />
                   </div>
                 ))}

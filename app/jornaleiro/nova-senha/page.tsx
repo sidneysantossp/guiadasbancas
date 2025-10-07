@@ -109,8 +109,9 @@ export default function NovaSenhaPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-center">
-          <Link href="/jornaleiro" className="text-sm text-orange-700 hover:underline">← Voltar ao login</Link>
+        <div className="mt-6 text-center space-y-2">
+          <Link href="/jornaleiro" className="block text-sm text-orange-700 hover:underline">← Voltar ao login</Link>
+          <Link href="/" className="block text-sm text-gray-500 hover:text-gray-700 underline">← Voltar para Home</Link>
         </div>
       </div>
     </div>

@@ -58,7 +58,7 @@ export default function DepartmentsMegaMenu() {
       {open && (
         <div
           role="menu"
-          className="absolute left-0 mt-3 w-[640px] rounded-xl border border-gray-200 bg-white shadow-lg z-50"
+          className="absolute left-0 mt-3 w-[960px] xl:w-[1100px] rounded-xl border border-gray-200 bg-white shadow-lg z-50"
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
         >
@@ -66,7 +66,7 @@ export default function DepartmentsMegaMenu() {
           <div className="px-5 pb-5">
             <Link
               href="/categorias"
-              className="w-full inline-flex items-center justify-center rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+              className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
               onClick={() => setOpen(false)}
             >
               Ver todos
@@ -80,9 +80,10 @@ export default function DepartmentsMegaMenu() {
 
 function MenuContent({ onClickItem }: { onClickItem: () => void }) {
   const { items } = useCategories();
+  const visible = items.filter((c) => c.name !== 'Diversos' && c.name !== 'Sem Categoria');
   return (
-    <div className="grid grid-cols-2 gap-x-8 gap-y-4 p-5">
-      {items.map((c) => (
+    <div className="grid grid-rows-3 grid-flow-col gap-x-8 gap-y-4 p-5">
+      {visible.map((c) => (
         <Link
           key={c.key}
           href={c.link as any}

@@ -1,8 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function ResetLocalPage() {
+  const router = useRouter();
+  const allowed = process.env.NEXT_PUBLIC_ALLOW_LOCAL_RESET === "true";
+  useEffect(() => {
+    if (!allowed) {
+      try { router.replace("/jornaleiro"); } catch {}
+    }
+  }, [allowed, router]);
+
+  if (!allowed) {
+    return null;
+  }
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);

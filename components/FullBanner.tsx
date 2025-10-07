@@ -297,9 +297,9 @@ export default function FullBanner() {
   const showCta2 = Boolean(slide?.cta2Text?.trim() && slide?.cta2Link?.trim());
 
   return (
-    <section className="relative w-full z-10 mb-6 py-2 sm:py-4 -mt-4 sm:mt-0">
+    <section className="relative w-full z-0 mb-3 pt-1 pb-1 sm:mb-6 sm:pt-0 sm:pb-4 mt-0 px-3 sm:px-0">
       <div 
-        className="relative w-full overflow-hidden fb-h"
+        className="relative w-full overflow-hidden fb-h rounded-2xl sm:rounded-none"
         style={{ height: `${mobileHeight}px` }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -325,7 +325,7 @@ export default function FullBanner() {
             alt={slide.imageAlt}
             fill
             priority
-            className="object-cover"
+            className="object-cover rounded-2xl"
             sizes="100vw"
           />
           {/* Gradient overlay */}
@@ -338,7 +338,7 @@ export default function FullBanner() {
           <div className="absolute inset-0 bg-black/20 pointer-events-none" />
 
           {/* Content */}
-          <div className="relative z-20 h-full w-full px-0 pt-6 pb-6 sm:pt-8 sm:pb-12">
+          <div className="relative z-20 h-full w-full px-0 pt-12 pb-12 sm:pt-16 sm:pb-16">
             <div className="flex h-full w-full items-center">
               <div className="w-full text-white">
                 <div className="container-max px-4 sm:px-6 md:px-10">
@@ -356,8 +356,8 @@ export default function FullBanner() {
                           href={slide.cta1Link as Route}
                           className={
                             slide.cta1Style === "primary"
-                              ? "relative z-50 inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-base font-bold text-[#ff5c00] shadow-xl hover:bg-white/95 hover:scale-105 transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
-                              : "relative z-50 inline-flex items-center justify-center rounded-xl border-2 border-white/90 bg-transparent px-5 py-3 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/10 hover:border-white transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
+                              ? "relative z-50 inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-base font-bold text-[#ff5c00] shadow-xl hover:bg-white/95 hover:scale-105 transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
+                              : "relative z-50 inline-flex items-center justify-center rounded-2xl border-2 border-white/90 bg-transparent px-5 py-3 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/10 hover:border-white transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
                           }
                         >
                           {slide.cta1Text}
@@ -368,8 +368,8 @@ export default function FullBanner() {
                           href={slide.cta2Link as Route}
                           className={
                             slide.cta2Style === "primary"
-                              ? "relative z-50 inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-base font-bold text-[#ff5c00] shadow-xl hover:bg-white/95 hover:scale-105 transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
-                              : "relative z-50 inline-flex items-center justify-center rounded-xl border-2 border-white/90 bg-transparent px-5 py-3 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/10 hover:border-white transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
+                              ? "relative z-50 inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-base font-bold text-[#ff5c00] shadow-xl hover:bg-white/95 hover:scale-105 transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
+                              : "relative z-50 inline-flex items-center justify-center rounded-2xl border-2 border-white/90 bg-transparent px-5 py-3 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/10 hover:border-white transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
                           }
                         >
                           {slide.cta2Text}

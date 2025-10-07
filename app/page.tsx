@@ -63,7 +63,7 @@ export default function HomePage() {
   return (
     <div className="">{/* full-bleed, colado na navbar */}
       {/* ABOVE FOLD: Carrega imediatamente */}
-      <div className="mt-0">
+      <div>
         <FullBanner />
       </div>
       <MobileCategoryScroller />

@@ -8,6 +8,7 @@ import { useToast } from "@/components/ToastProvider";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "@/components/CartContext";
 import DepartmentsMegaMenu from "@/components/DepartmentsMegaMenu";
+import BancasMegaMenu from "@/components/BancasMegaMenu";
 import LocationModal from "@/components/LocationModal";
 import SearchAutocomplete from "@/components/SearchAutocomplete";
 import AutoGeolocation from "@/components/AutoGeolocation";
@@ -579,13 +580,15 @@ useEffect(() => {
       )}
 
       {/* Main bar: Menu + Search + Actions */}
-      <div className="container-max py-3 flex items-center gap-4">
+      <div className="container-max py-1 md:py-3 flex items-center gap-4">
         {/* Menu desktop */}
         <nav className="hidden md:flex items-center gap-4 text-sm">
           <div className="py-2">
             <DepartmentsMegaMenu />
           </div>
-          <Link href={{ pathname: "/bancas-perto-de-mim", query: { uf: ufQuery } }} className="hover:text-[var(--color-primary)] py-2">Bancas</Link>
+          <div className="py-2">
+            <BancasMegaMenu />
+          </div>
           <Link href={"/promocoes" as any} className="hover:text-[var(--color-primary)] py-2">Promoções</Link>
           <Link href={"/pre-venda" as any} className="hover:text-[var(--color-primary)] py-2">Pré Venda</Link>
         </nav>
@@ -598,7 +601,7 @@ useEffect(() => {
         {/* Search (desktop). Mobile usa dropdown abaixo do header */}
         {!inDashboard && (
         <div className="hidden md:flex flex-1 justify-end">
-          <div className={`relative ml-auto transition-all duration-300 ease-in-out ${searchExpanded ? "w-full max-w-xl" : "w-10"}`}>
+          <div className={`relative ml-auto transition-all duration-300 ease-in-out ${searchExpanded ? "w-full max-w-lg" : "w-10"}`}>
             {searchExpanded ? (
               <div className="relative">
                 <SearchAutocomplete

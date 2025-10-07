@@ -16,6 +16,8 @@ const nextConfig = {
   
   // Otimização de imagens
   images: {
+    // Domínios explicitamente permitidos (compatibilidade com next/image)
+    domains: ['arquivos.mercos.com'],
     formats: ['image/avif', 'image/webp'], // Formatos modernos
     minimumCacheTTL: 60, // Cache de 60 segundos
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048], // Breakpoints otimizados
@@ -96,6 +98,7 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'arquivos.mercos.com',
+        pathname: '/**',
       },
       {
         protocol: 'https',

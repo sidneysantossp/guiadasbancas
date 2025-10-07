@@ -168,12 +168,6 @@ export default function JornaleiroLoginPage() {
               </div>
               <div className="mt-2 text-right">
                 <Link href="/jornaleiro/esqueci-senha" className="text-sm text-orange-700 hover:underline">Esqueci minha senha</Link>
-                {process.env.NEXT_PUBLIC_ALLOW_LOCAL_RESET === 'true' && (
-                  <>
-                    <span className="mx-2 text-gray-300">|</span>
-                    <Link href="/jornaleiro/reset-local" className="text-sm text-orange-700 hover:underline">Redefinir local (DEV)</Link>
-                  </>
-                )}
               </div>
             </div>
 
@@ -226,6 +220,11 @@ export default function JornaleiroLoginPage() {
           É cliente?{" "}
           <Link href="/minha-conta" className="text-orange-600 hover:text-orange-700 font-medium">
             Fazer login como cliente
+          </Link>
+        </p>
+        <p className="mt-3 text-center text-sm">
+          <Link href="/" className="text-gray-500 hover:text-gray-700 underline">
+            ← Voltar para Home
           </Link>
         </p>
       </div>

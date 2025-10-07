@@ -1002,6 +1002,11 @@ export default function JornaleiroRegisterPage() {
         )}
       </div>
     </section>
+    <div className="container-max mt-4 mb-10">
+      <p className="text-center text-sm">
+        <a href="/" className="text-gray-500 hover:text-gray-700 underline">← Voltar para Home</a>
+      </p>
+    </div>
     {toast && (
       <div className="fixed right-4 top-4 z-[60] rounded-md border border-gray-200 bg-white shadow px-3 py-2 text-sm text-gray-800">
         {toast}
