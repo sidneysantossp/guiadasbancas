@@ -61,7 +61,7 @@ async function loadBancaForUser(userId: string): Promise<any> {
         gmb: ''
       },
       payments: data.payment_methods || [],
-      hours: [],
+      hours: Array.isArray((data as any).hours) ? (data as any).hours : [],
       featured: false,
       ctaUrl: '',
       active: data.active !== false,
@@ -139,6 +139,7 @@ export async function PUT(request: NextRequest) {
       instagram: data.socials?.instagram,
       facebook: data.socials?.facebook,
       payment_methods: data.payments || [],
+      hours: Array.isArray(data?.hours) ? data.hours : undefined,
       delivery_enabled: data.delivery_enabled !== undefined ? data.delivery_enabled : false,
       free_shipping_threshold: data.free_shipping_threshold || 120,
       origin_cep: data.origin_cep || null,

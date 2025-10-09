@@ -27,7 +27,7 @@ const FALLBACK_ARRIVALS: Arrival[] = [
     feeLabel: "Entrega combinada",
     distanceLabel: "Próximo de você",
     itemsLabel: "Atualizando catálogo",
-    href: "/bancas",
+    href: "/bancas-perto-de-mim",
   },
 ];
 
@@ -67,7 +67,7 @@ function ArrivalCard({ a }: { a: Arrival }) {
       {/* Imagem com padding */}
       <div className="p-2">
         <div className="relative h-32 w-full rounded-xl overflow-hidden">
-          <Image src={a.cover} alt={a.name} fill className="object-cover" />
+          <Image src={a.cover} alt={a.name} fill className="object-cover" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" />
         </div>
       </div>
       <div className="flex-1 flex flex-col px-3 pb-3">
@@ -211,7 +211,7 @@ export default function NewArrivals() {
               </svg>
               <h2 className="text-[15px] sm:text-[16px] font-semibold"><span className="text-[#ff5c00]">Bancas</span> recém chegadas!</h2>
             </div>
-            <Link href={("/bancas" as Route)} className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
+            <Link href={("/bancas-perto-de-mim" as Route)} className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
           </div>
 
           <div className="relative">

@@ -52,7 +52,7 @@ function TrendCard({ p }: { p: TrendProduct }) {
       {/* Imagem com padding conforme referência */}
       <div className="p-2">
         <div className="relative h-40 w-full rounded-xl overflow-hidden">
-          <Image src={p.image} alt={p.name} fill className="object-contain bg-gray-50" />
+          <Image src={p.image} alt={p.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" className="object-contain bg-gray-50" />
           {/* Overlay sutil no hover */}
           <div className="pointer-events-none absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/5 transition" />
           {d > 0 && (

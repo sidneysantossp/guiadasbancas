@@ -174,7 +174,7 @@ export default function OfertasPageClient({ params }: { params: { uf: string; sl
         {visible.map((p) => (
           <div key={p.id} className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">
             <div className="relative h-36 w-full">
-              <Image src={p.image} alt={p.name} fill className="object-cover" />
+              <Image src={p.image} alt={p.name} fill className="object-cover" sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 16vw" />
               {p.discountPercent && (
                 <div className="absolute left-2 top-2">
                   <span className="inline-flex items-center rounded-full bg-rose-50 text-rose-600 px-2 py-[2px] text-[10px] font-semibold border border-rose-100">-{Math.round(p.discountPercent)}%</span>

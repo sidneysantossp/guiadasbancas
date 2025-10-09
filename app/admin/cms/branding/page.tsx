@@ -11,6 +11,10 @@ interface BrandingConfig {
   primaryColor: string;
   secondaryColor: string;
   favicon: string;
+  socialInstagram: string;
+  socialFacebook: string;
+  socialYoutube: string;
+  socialLinkedin: string;
 }
 
 export default function BrandingPage() {
@@ -23,7 +27,11 @@ export default function BrandingPage() {
     siteName: "Guia das Bancas",
     primaryColor: "#ff5c00",
     secondaryColor: "#ff7a33",
-    favicon: "/favicon.svg"
+    favicon: "/favicon.svg",
+    socialInstagram: "",
+    socialFacebook: "",
+    socialYoutube: "",
+    socialLinkedin: ""
   });
 
   useEffect(() => {
@@ -37,7 +45,14 @@ export default function BrandingPage() {
       const result = await response.json();
       
       if (result.success) {
-        setConfig(result.data);
+        setConfig(prev => ({
+          ...prev,
+          ...result.data,
+          socialInstagram: result.data?.socialInstagram ?? "",
+          socialFacebook: result.data?.socialFacebook ?? "",
+          socialYoutube: result.data?.socialYoutube ?? "",
+          socialLinkedin: result.data?.socialLinkedin ?? "",
+        }));
       } else {
         toast.error("Erro ao carregar configurações");
       }
@@ -280,6 +295,53 @@ export default function BrandingPage() {
           <p className="text-xs text-gray-500 mt-1">
             Ícone que aparece na aba do navegador. Recomendado: 32x32px, formato ICO ou PNG
           </p>
+        </div>
+
+        {/* Redes Sociais */}
+        <div className="border-t border-gray-200 pt-6">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Redes sociais (links oficiais)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Instagram</label>
+              <input
+                type="url"
+                value={config.socialInstagram}
+                onChange={(e) => setConfig((prev) => ({ ...prev, socialInstagram: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff5c00] focus:border-[#ff5c00]"
+                placeholder="https://instagram.com/guiadasbancas"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Facebook</label>
+              <input
+                type="url"
+                value={config.socialFacebook}
+                onChange={(e) => setConfig((prev) => ({ ...prev, socialFacebook: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff5c00] focus:border-[#ff5c00]"
+                placeholder="https://facebook.com/guiadasbancas"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">YouTube</label>
+              <input
+                type="url"
+                value={config.socialYoutube}
+                onChange={(e) => setConfig((prev) => ({ ...prev, socialYoutube: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff5c00] focus:border-[#ff5c00]"
+                placeholder="https://youtube.com/@guiadasbancas"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">LinkedIn</label>
+              <input
+                type="url"
+                value={config.socialLinkedin}
+                onChange={(e) => setConfig((prev) => ({ ...prev, socialLinkedin: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff5c00] focus:border-[#ff5c00]"
+                placeholder="https://linkedin.com/company/guiadasbancas"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Preview das Cores */}

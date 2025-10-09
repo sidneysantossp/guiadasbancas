@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BANCAS_MOCK } from "@/data/bancas";
 import homeCategories from "@/data/categories.json";
-import { haversineKm, loadStoredLocation, saveStoredLocation, UserLocation, formatCep, isValidCep, resolveCepToLocation, saveCoordsAsLocation } from "@/lib/location";
+import { haversineKm, loadStoredLocation, saveStoredLocation, UserLocation, formatCep, isValidCep, resolveCepToLocation, saveCoordsAsLocation, geocodeByAddressNominatim } from "@/lib/location";
 import BankCard from "@/components/BankCard";
 
 function isOpenNowDefault(now: Date = new Date()): boolean {
@@ -73,6 +73,7 @@ export default function BancasPertoDeMimPage() {
   const [geoError, setGeoError] = useState<string | null>(null);
   const [apiBancas, setApiBancas] = useState<any[] | null>(null);
   const [categoriesMap, setCategoriesMap] = useState<Map<string, string>>(new Map());
+  const [coordsOverride, setCoordsOverride] = useState<Map<string, { lat: number; lng: number }>>(new Map());
   // Filtros
   const [maxKm, setMaxKm] = useState<number>(5); // 0..5 (5 = 5+)
   const [minStars, setMinStars] = useState<number>(0); // 0..5 (0 = qualquer)
@@ -83,19 +84,30 @@ export default function BancasPertoDeMimPage() {
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState<string | null>(null);
 
-  // Carregar categorias da API
+  // Carregar categorias (públicas + admin como fallback) para cobrir todos os IDs
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/categories');
-        const json = await res.json();
-        if (json?.success && Array.isArray(json.data)) {
-          const map = new Map<string, string>();
-          for (const cat of json.data) {
+        const [pubRes, admRes] = await Promise.all([
+          fetch('/api/categories', { cache: 'no-store' }).catch(() => null),
+          fetch('/api/admin/categories?all=true', { cache: 'no-store' }).catch(() => null),
+        ]);
+
+        const pubJson = pubRes && pubRes.ok ? await pubRes.json() : { success: false, data: [] };
+        const admJson = admRes && admRes.ok ? await admRes.json() : { success: false, data: [] };
+
+        const map = new Map<string, string>();
+        const add = (list: any[]) => {
+          for (const cat of Array.isArray(list) ? list : []) {
             if (cat?.id && cat?.name) {
               map.set(String(cat.id), String(cat.name));
             }
           }
+        };
+        add(pubJson.data);
+        add(admJson.data);
+
+        if (map.size > 0) {
           setCategoriesMap(map);
         }
       } catch (e) {
@@ -149,6 +161,70 @@ export default function BancasPertoDeMimPage() {
       }
     })();
   }, [loc]);
+
+  // Fallback: geocodificar endereço de bancas sem coordenadas para obter lat/lng aproximados
+  useEffect(() => {
+    if (!apiBancas || !apiBancas.length) return;
+    let active = true;
+    (async () => {
+      try {
+        const inBrazilBox = (lat: number, lng: number) => lat >= -35 && lat <= 5 && lng >= -75 && lng <= -30;
+        const toNum = (v: any) => (typeof v === 'number' ? v : (v != null ? Number(String(v).replace(',', '.')) : undefined));
+        const needsFix = apiBancas.filter((b: any) => {
+          const lat = toNum(b.lat ?? b.location?.lat);
+          const lng = toNum(b.lng ?? b.location?.lng);
+          if (typeof lat !== 'number' || typeof lng !== 'number') return true; // faltando
+          if (!inBrazilBox(lat, lng)) return true; // fora do BR
+          // se temos loc e a banca declara SP no endereço mas distância > 150km, provavelmente errado
+          if (loc && typeof loc.lat === 'number' && typeof loc.lng === 'number') {
+            try {
+              const d = haversineKm({ lat: loc.lat, lng: loc.lng }, { lat, lng });
+              const addrStr = String(b.address || '').toLowerCase();
+              // muito longe de SP => claramente errado
+              if (d > 150 && (addrStr.includes('são paulo') || addrStr.includes('sp'))) return true;
+              // dentro de SP, mas distância exagerada > 8 km para o contexto de "perto de mim"
+              const userCity = (loc.city || '').toLowerCase();
+              if (userCity && addrStr.includes(userCity) && d > 8) return true;
+            } catch {}
+          }
+          return false;
+        });
+        if (!needsFix.length) return;
+        const batch = needsFix.slice(0, 25);
+        const entries: Array<[string, { lat: number; lng: number }]> = [];
+        for (const b of batch) {
+          try {
+            let coords: { lat: number; lng: number } | null = null;
+            // Preferir CEP quando disponível e válido
+            if (b.cep && isValidCep(String(b.cep))) {
+              const loc = await resolveCepToLocation(String(b.cep));
+              coords = { lat: loc.lat, lng: loc.lng };
+            } else {
+              const addrStr = (b.address && String(b.address).trim()) || formatAddress(b.addressObj) || '';
+              if (!addrStr) { await new Promise((r)=> setTimeout(r, 120)); continue; }
+              const parts = [addrStr, 'Brasil'].filter(Boolean).join(', ');
+              const q = b.name ? `${b.name}, ${parts}` : parts;
+              const res = await geocodeByAddressNominatim(q);
+              if (res) coords = res;
+            }
+            if (coords && isFinite(coords.lat) && isFinite(coords.lng)) {
+              entries.push([b.id, { lat: coords.lat, lng: coords.lng }]);
+            }
+          } catch {}
+          // Throttle simples para respeitar o serviço de geocodificação
+          await new Promise((r)=> setTimeout(r, 200));
+        }
+        if (active && entries.length) {
+          setCoordsOverride((prev) => {
+            const next = new Map(prev);
+            for (const [id, c] of entries) next.set(id, c);
+            return next;
+          });
+        }
+      } catch {}
+    })();
+    return () => { active = false; };
+  }, [loc, apiBancas]);
 
   // persistência simples dos filtros
   useEffect(() => {
@@ -222,18 +298,48 @@ export default function BancasPertoDeMimPage() {
             const cover = b.cover || b.images?.cover;
             const avatar = b.avatar || b.images?.avatar;
             const { open, close } = summarizeHours(b.hours);
+            // Coordenadas seguras: usar override > valores do backend > b.location
+            let rawLat: any = (coordsOverride.get?.(b.id)?.lat ?? b.lat ?? b.location?.lat);
+            let rawLng: any = (coordsOverride.get?.(b.id)?.lng ?? b.lng ?? b.location?.lng);
+            // Corrigir strings e vírgulas
+            const normLat = typeof rawLat === 'number' ? rawLat : (rawLat != null ? Number(String(rawLat).replace(',', '.')) : undefined);
+            const normLng = typeof rawLng === 'number' ? rawLng : (rawLng != null ? Number(String(rawLng).replace(',', '.')) : undefined);
+            // Corrigir possível troca lat/lng
+            const inLat = typeof normLat === 'number' ? normLat : undefined;
+            const inLng = typeof normLng === 'number' ? normLng : undefined;
+            let fixedLat = inLat, fixedLng = inLng;
+            if (typeof inLat === 'number' && typeof inLng === 'number') {
+              const latOk = Math.abs(inLat) <= 90;
+              const lngOk = Math.abs(inLng) <= 180;
+              const altLatOk = Math.abs(inLng) <= 90;
+              const altLngOk = Math.abs(inLat) <= 180;
+              // Heurística Brasil: lat ~ [-35, 5], lng ~ [-75, -30]
+              const inBrazilBox = (lat: number, lng: number) => lat >= -35 && lat <= 5 && lng >= -75 && lng <= -30;
+              const curInBR = inBrazilBox(inLat, inLng);
+              const swappedInBR = inBrazilBox(inLng, inLat);
+              if (((!latOk || !lngOk) && altLatOk && altLngOk) || (!curInBR && swappedInBR)) {
+                fixedLat = inLng; fixedLng = inLat; // swap
+              }
+            }
             return {
             id: b.id,
             name: b.name,
             address: b.address || formatAddress(b.addressObj),
-            lat: typeof b.lat === 'number' ? b.lat : (b.location?.lat),
-            lng: typeof b.lng === 'number' ? b.lng : (b.location?.lng),
+            lat: fixedLat,
+            lng: fixedLng,
             rating: typeof b.rating === 'number' ? b.rating : 4.7,
             cover,
             avatar,
             openNow: open,
             close,
-            categories: Array.isArray(b.categories) ? b.categories.map((cat: any) => normalizeCategory(cat)).filter(Boolean) : [],
+            categories: Array.isArray(b.categories)
+              ? b.categories
+                  .map((cat: any) => {
+                    const id = String(cat ?? '').trim();
+                    return categoriesMap.get(id) ?? normalizeCategory(id);
+                  })
+                  .filter(Boolean)
+              : [],
             description: b.description || undefined,
             featured: Boolean(b.featured),
           };
@@ -263,12 +369,13 @@ export default function BancasPertoDeMimPage() {
         featured: b.featured,
       }))
       .sort((a, b) => (Number(b.featured) - Number(a.featured)) || (a.distance - b.distance));
-  }, [loc, apiBancas]);
+  }, [loc, apiBancas, categoriesMap, coordsOverride]);
 
   const visible = useMemo(() => {
     // aplica filtros
     const applyDistance = (d: number) => {
-      if (!isFinite(d)) return true; // sem localização, não filtra por distância
+      if (!loc) return true; // sem localização do usuário, não filtra
+      if (!isFinite(d)) return false; // com localização, ignorar bancas sem coordenadas
       if (maxKm >= 5) return true;   // 5 = 5+
       return d <= maxKm + 1e-9;
     };
@@ -302,13 +409,15 @@ export default function BancasPertoDeMimPage() {
       const cats = (banca as any).categories;
       if (Array.isArray(cats)) {
         cats.forEach((c: any) => {
-          const label = normalizeCategory(c);
+          const key = String(c ?? '').trim();
+          if (!key) return;
+          const label = categoriesMap.get(key) ?? normalizeCategory(key);
           if (label) set.add(label);
         });
       }
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
-  }, [ordered]);
+  }, [ordered, categoriesMap]);
 
   return (
     <section className="container-max pt-0 md:pt-5 pb-6">
@@ -395,6 +504,11 @@ export default function BancasPertoDeMimPage() {
       {loc && ordered.filter((b)=>b.distance <= 3).length === 0 && (
         <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
           Nenhuma banca encontrada dentro de 3 km. Mostrando outras próximas.
+          <button
+            type="button"
+            onClick={refreshGeo}
+            className="ml-2 underline font-semibold"
+          >Atualizar minha localização</button>
         </div>
       )}
 
@@ -436,22 +550,8 @@ export default function BancasPertoDeMimPage() {
         {/* Grid de resultados */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-3 gap-4">
           {visiblePage.map((b, idx) => {
-            const fallbackCats = [
-              ["Bebidas", "Recargas", "Conveniência", "Revistas"],
-              ["Lanches", "Tabacaria", "Presentes", "Utilidades"],
-              ["Bebidas", "Guloseimas", "Jogos", "Ingressos"],
-            ];
-            // Mapear IDs para nomes de categorias
-            const rawCategories = (b as any).categories && (b as any).categories.length ? (b as any).categories : fallbackCats[idx % fallbackCats.length];
-            const categories: string[] = Array.isArray(rawCategories) 
-              ? rawCategories.map(c => {
-                  const str = String(c || '').trim();
-                  // Tentar mapear pelo categoriesMap primeiro (da API)
-                  if (categoriesMap.has(str)) return categoriesMap.get(str);
-                  // Senão, tentar normalizeCategory (do JSON estático)
-                  return normalizeCategory(c);
-                }).filter((cat): cat is string => Boolean(cat))
-              : [];
+            // As categorias já vêm mapeadas do 'ordered', não precisa mapear novamente
+            const categories = Array.isArray((b as any).categories) ? (b as any).categories : [];
             return (
               <BankCard
                 key={b.id}

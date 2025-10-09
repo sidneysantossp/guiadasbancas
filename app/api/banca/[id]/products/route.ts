@@ -22,6 +22,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         categories!category_id(name)
       `)
       .eq('banca_id', bancaId)
+      .eq('active', true)
       .is('distribuidor_id', null);
 
     // 2. Buscar TODOS os produtos de distribuidor
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         *,
         categories!category_id(name)
       `)
+      .eq('active', true)
       .not('distribuidor_id', 'is', null);
 
     let produtosDistribuidor: any[] = [];

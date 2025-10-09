@@ -173,7 +173,7 @@ function ProductCard({ p, km }: { p: Product; km: number | null }) {
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition">
       <div className="relative h-56 sm:h-64 w-full group">
-        <Image src={p.image} alt={p.name} fill className="object-cover" />
+        <Image src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 16vw" className="object-cover" />
         {/* Link absoluto cobrindo a imagem */}
         <Link
           href={("/produto/" + slugify(p.name) + "-" + p.id) as Route}
@@ -243,7 +243,7 @@ function BancaCard({ b, km, loc, description }: { b: Banca; km: number | null; l
   return (
     <Link href={(buildBancaHref(b.name, b.id, loc) as Route)} className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition block">
       <div className="relative h-36 w-full">
-        <Image src={b.cover} alt={b.name} fill className="object-cover" />
+        <Image src={b.cover} alt={b.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 16vw" className="object-cover" />
         <div className="absolute left-2 bottom-2">{b.open ? <OpenBadge /> : <ClosedBadge />}</div>
       </div>
       <div className="p-3">

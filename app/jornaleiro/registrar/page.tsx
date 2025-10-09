@@ -171,13 +171,14 @@ export default function JornaleiroRegisterPage() {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
+  // Se já autenticado como jornaleiro, envia direto ao dashboard
   useEffect(() => {
-    // if already logged in, go dashboard
     try {
-      const auth = localStorage.getItem("gb:sellerAuth");
-      if (auth === "1") router.replace("/jornaleiro/dashboard" as any);
+      // Evita loops baseados em flags locais; confia apenas na sessão
+      // (se houver flags antigas, limpa)
+      localStorage.removeItem('gb:sellerAuth');
     } catch {}
-  }, [router]);
+  }, []);
 
   // CEP preenchido (8 dígitos)
   const cepReady = ((cep || "").replace(/\D/g, "").length === 8);
@@ -435,7 +436,13 @@ export default function JornaleiroRegisterPage() {
     if (step === 5) setStep(4);
   };
 
-  const { signUp } = useAuth();
+  const { signUp, signIn, profile } = useAuth();
+
+  useEffect(() => {
+    if (profile?.role === 'jornaleiro') {
+      router.replace('/jornaleiro/dashboard' as any);
+    }
+  }, [profile?.role, router]);
 
   const onFinish = async () => {
     setError(null);
@@ -449,6 +456,8 @@ export default function JornaleiroRegisterPage() {
     if (err4) { setError(err4); setStep(4); return; }
     
     try {
+      setToast('Criando sua conta...');
+      
       // 1. Criar usuário no Supabase Auth
       const { error: authError } = await signUp(email, password, {
         full_name: name,
@@ -460,6 +469,11 @@ export default function JornaleiroRegisterPage() {
         setStep(1);
         return;
       }
+
+      setToast('Conta criada! Autenticando...');
+
+      // Tentar autenticar explicitamente (reforço)
+      try { await signIn(email, password); } catch {}
 
       // 2. Preparar dados da banca
       const inProgressBank: Bank | null = bankName ? {
@@ -521,12 +535,17 @@ export default function JornaleiroRegisterPage() {
         payment_methods: ['pix', 'dinheiro'],
       };
 
-      // Salvar backup local
+      // Salvar backup local (apenas dados da banca)
       localStorage.setItem("gb:bancaData", JSON.stringify(bancaData));
-      localStorage.setItem("gb:sellerAuth", "1");
       
-      setToast('Cadastro concluído com sucesso!');
-      setStep(5);
+      setToast('✅ Cadastro concluído! Redirecionando...');
+      
+      // Aguardar um pouco para garantir que a sessão foi estabelecida
+      // e então redirecionar para onboarding (com fallback hard navigation)
+      setTimeout(() => {
+        try { router.push('/jornaleiro/onboarding'); } catch {}
+        try { window.location.assign('/jornaleiro/onboarding'); } catch {}
+      }, 1500);
       
     } catch (err) {
       console.error('Erro no cadastro:', err);

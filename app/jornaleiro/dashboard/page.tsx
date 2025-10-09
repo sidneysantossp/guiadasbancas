@@ -126,30 +126,30 @@ export default function JornaleiroDashboardPage() {
   const memoizedRecentOrders = useMemo(() => recentOrders, [recentOrders]);
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="space-y-4 overflow-x-hidden px-3 sm:px-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
+        <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
           <div className="text-sm text-gray-500">Pedidos hoje</div>
           <div className="mt-1 text-3xl font-semibold text-gray-900">
             {loadingMetrics ? "--" : memoizedMetrics.pedidosHoje}
           </div>
           <div className="mt-1 text-xs text-gray-400">Total de pedidos recebidos nas últimas horas</div>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
           <div className="text-sm text-gray-500">Faturamento hoje</div>
           <div className="mt-1 text-3xl font-semibold text-gray-900">
             {loadingMetrics ? "--" : `R$ ${memoizedMetrics.faturamentoHoje.toFixed(2)}`}
           </div>
           <div className="mt-1 text-xs text-gray-400">Somatório dos pedidos do dia</div>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
           <div className="text-sm text-gray-500">Pedidos pendentes</div>
           <div className={`mt-1 text-3xl font-semibold ${memoizedMetrics.pedidosPendentes > 0 ? "text-orange-600" : "text-gray-900"}`}>
             {loadingMetrics ? "--" : memoizedMetrics.pedidosPendentes}
           </div>
           <div className="mt-1 text-xs text-gray-400">Novos, confirmados e em preparo</div>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
           <div className="text-sm text-gray-500">Produtos ativos</div>
           <div className="mt-1 text-3xl font-semibold text-gray-900">
             {loadingMetrics ? "--" : memoizedMetrics.produtosAtivos}
@@ -158,22 +158,22 @@ export default function JornaleiroDashboardPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm overflow-x-auto">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold">Pedidos recentes</h2>
             <p className="text-sm text-gray-600">Acompanhe os últimos pedidos recebidos.</p>
           </div>
-          <Link href={"/jornaleiro/pedidos" as Route} className="text-[#ff5c00] text-sm font-medium">Ver todos</Link>
+          <Link href={("/jornaleiro/pedidos" as Route)} className="text-[#ff5c00] text-sm font-medium">Ver todos</Link>
         </div>
         {loadingMetrics ? (
           <div className="text-sm text-gray-500">Carregando pedidos...</div>
         ) : memoizedRecentOrders.length === 0 ? (
           <div className="text-sm text-gray-500">Nenhum pedido encontrado.</div>
         ) : (
-          <div className="space-y-3 text-sm">
+          <div className="space-y-3 text-sm min-w-0">
             {memoizedRecentOrders.map((order) => (
-              <div key={order.id} className="flex items-center rounded-lg border border-gray-100 px-3 py-2 hover:bg-gray-50 transition-colors">
+              <div key={order.id} className="flex items-center rounded-lg border border-gray-100 px-3 py-2 hover:bg-gray-50 transition-colors min-w-0">
                 <div className="text-gray-900 font-medium mr-3">#{order.id}</div>
                 <div className="truncate text-gray-600">{order.customer_name || order.customer}</div>
                 <div className="ml-auto flex items-center gap-3">

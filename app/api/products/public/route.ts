@@ -30,10 +30,11 @@ export async function GET(req: NextRequest) {
         category_id,
         banca_id,
         distribuidor_id,
-        created_at
+        created_at,
+        rating_avg,
+        reviews_count
       `)
-      .eq('active', true)
-      .not('images', 'is', null);
+      .eq('active', true);
 
     // Filtro de categoria
     if (category) {
@@ -70,12 +71,14 @@ export async function GET(req: NextRequest) {
       category_id: p.category_id,
       banca_id: p.banca_id,
       distribuidor_id: p.distribuidor_id,
-      active: true
+      rating_avg: p.rating_avg || null,
+      reviews_count: p.reviews_count || null
     }));
 
     return NextResponse.json({
       success: true,
-      items,
+      data: items, // Formato esperado pelo TrendingProducts
+      items, // Mantém compatibilidade
       total: items.length
     });
 

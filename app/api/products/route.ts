@@ -65,11 +65,10 @@ export async function GET(req: NextRequest) {
       query = query.eq('banca_id', bancaId);
     }
     if (active !== null) {
-      // Assumindo que produtos ativos são aqueles com estoque ou sem controle de estoque
       if (active === "true") {
-        query = query.or('track_stock.eq.false,stock_qty.gt.0');
-      } else {
-        query = query.eq('track_stock', true).eq('stock_qty', 0);
+        query = query.eq('active', true);
+      } else if (active === "false") {
+        query = query.eq('active', false);
       }
     }
 
@@ -163,7 +162,8 @@ export async function GET(req: NextRequest) {
       sob_encomenda: product.sob_encomenda,
       pre_venda: product.pre_venda,
       pronta_entrega: product.pronta_entrega,
-      active: product.track_stock ? (product.stock_qty || 0) > 0 : true,
+      // Preferir flag 'active' do banco; fallback para heurística antiga apenas se null/undefined
+      active: (product as any).active ?? (product.track_stock ? (product.stock_qty || 0) > 0 : true),
       created_at: product.created_at,
       updated_at: product.updated_at
     })) || [];

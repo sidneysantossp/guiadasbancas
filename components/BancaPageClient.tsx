@@ -170,7 +170,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
         {/* Wrapper com padding para a imagem, mantendo cantos arredondados internos */}
         <div className="absolute inset-0 p-2">
           <div className="relative h-full w-full rounded-[14px] overflow-hidden">
-            <Image src={p.image} alt={p.name} fill className="object-contain bg-gray-50" />
+            <Image src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-contain bg-gray-50" />
             {/* Link absoluto cobrindo a imagem para ir à página do produto */}
             <Link
               href={("/produto/" + slugify(p.name) + "-" + p.id) as Route}
@@ -872,7 +872,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     <section className="container-max pt-0 sm:pt-4 pb-28 sm:pb-32">
       {/* Capa + Header da Banca */}
       <div className="relative h-72 sm:h-72 w-full rounded-2xl overflow-hidden border border-gray-200">
-        <Image src={banca.cover} alt={banca.name} fill className="object-cover" />
+        <Image src={banca.cover} alt={banca.name} fill sizes="100vw" className="object-cover" />
         {banca.featured && (
           <div className="absolute left-3 top-3">
             <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 text-[#ff5c00] border border-orange-200 px-2 py-[2px] text-[10px] font-semibold shadow">
@@ -1216,7 +1216,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           <div className="mt-2 flex gap-3 overflow-x-auto pb-1">
             {banca.gallery.map((src, i) => (
               <div key={i} className="relative h-28 w-44 rounded-xl overflow-hidden border border-gray-200 shadow-sm shrink-0">
-                <Image src={src} alt={`${banca.name} - foto ${i+1}`} fill className="object-cover" />
+                <Image src={src} alt={`${banca.name} - foto ${i+1}`} fill sizes="176px" className="object-cover" />
               </div>
             ))}
           </div>
@@ -1280,7 +1280,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                 return (
                   <div key={p.id} className="min-w-[240px] snap-start rounded-xl bg-white border border-amber-100 shadow-sm overflow-hidden">
                     <div className="relative h-32 w-full bg-gray-50">
-                      <Image src={p.image} alt={p.name} fill className="object-contain" />
+                      <Image src={p.image} alt={p.name} fill sizes="240px" className="object-contain" />
                       {/* Ribbon de desconto */}
                       <div className="absolute left-0 top-0">
                         <div className="relative w-[110px] h-[0px]">

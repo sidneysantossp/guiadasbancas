@@ -8,9 +8,10 @@ export interface ImageUploaderProps {
   max?: number;
   value?: string[]; // urls atuais
   onChange?: (files: File[], previews: string[]) => void;
+  previewShape?: 'square' | 'circle';
 }
 
-export default function ImageUploader({ label = "Imagens", multiple = true, max = 8, value = [], onChange }: ImageUploaderProps) {
+export default function ImageUploader({ label = "Imagens", multiple = true, max = 8, value = [], onChange, previewShape = 'square' }: ImageUploaderProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [previews, setPreviews] = useState<string[]>(value);
   const [isDragging, setIsDragging] = useState(false);
@@ -121,9 +122,20 @@ export default function ImageUploader({ label = "Imagens", multiple = true, max 
           )}
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {previews.map((src, i) => (
-              <div key={i} className="relative group rounded-md overflow-hidden border">
+              <div
+                key={i}
+                className={
+                  previewShape === 'circle'
+                    ? "relative group rounded-full overflow-hidden border h-24 w-24 mx-auto"
+                    : "relative group rounded-md overflow-hidden border"
+                }
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="preview" className="w-full h-24 object-cover" />
+                <img
+                  src={src}
+                  alt="preview"
+                  className={previewShape === 'circle' ? 'h-24 w-24 object-cover' : 'w-full h-24 object-cover'}
+                />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                   <button type="button" onClick={()=>move(i, i-1)} className="text-white bg-black/40 rounded px-2 py-1 text-xs">◀︎</button>
                   <button type="button" onClick={()=>removeAt(i)} className="text-white bg-red-600 rounded px-2 py-1 text-xs">Remover</button>
@@ -132,8 +144,12 @@ export default function ImageUploader({ label = "Imagens", multiple = true, max 
               </div>
             ))}
             {previews.length < max && (
-              <div 
-                className="border-2 border-dashed border-gray-300 rounded-md h-24 flex items-center justify-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors"
+              <div
+                className={
+                  previewShape === 'circle'
+                    ? "border-2 border-dashed border-gray-300 rounded-full h-24 w-24 mx-auto flex items-center justify-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors"
+                    : "border-2 border-dashed border-gray-300 rounded-md h-24 flex items-center justify-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors"
+                }
                 onClick={onPick}
               >
                 <div className="text-center">

@@ -111,7 +111,7 @@ function FeaturedCard({ p }: { p: Product }) {
         {/* Wrapper com padding para a imagem, mantendo cantos arredondados internos */}
         <div className="absolute inset-0 p-2">
           <div className="relative h-full w-full rounded-[14px] overflow-hidden">
-            <Image src={p.image} alt={p.name} fill className="object-contain bg-gray-50" />
+            <Image src={p.image} alt={p.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-contain bg-gray-50" />
             {/* Link absoluto cobrindo a imagem para ir à página do produto */}
             <Link
               href={("/produto/" + slugify(p.name) + "-" + p.id) as Route}
@@ -218,7 +218,7 @@ function SmallCard({ p }: { p: Product }) {
         {/* Wrapper com padding para a imagem, mantendo cantos arredondados internos */}
         <div className="absolute inset-0 p-2">
           <div className="relative h-full w-full rounded-[14px] overflow-hidden">
-            <Image src={p.image} alt={p.name} fill className="object-contain bg-gray-50" />
+            <Image src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 25vw" className="object-contain bg-gray-50" />
             {/* Link absoluto cobrindo a imagem para ir à página do produto */}
             <Link
               href={("/produto/" + slugify(p.name) + "-" + p.id) as Route}

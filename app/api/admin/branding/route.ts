@@ -10,6 +10,10 @@ export type BrandingConfig = {
   primaryColor: string;
   secondaryColor: string;
   favicon: string;
+  socialInstagram: string;
+  socialFacebook: string;
+  socialYoutube: string;
+  socialLinkedin: string;
 };
 
 const DEFAULT_BRANDING: BrandingConfig = {
@@ -18,17 +22,20 @@ const DEFAULT_BRANDING: BrandingConfig = {
   siteName: "Guia das Bancas",
   primaryColor: "#ff5c00",
   secondaryColor: "#ff7a33",
-  favicon: "/favicon.svg"
+  favicon: "/favicon.svg",
+  socialInstagram: "",
+  socialFacebook: "",
+  socialYoutube: "",
+  socialLinkedin: ""
 };
 
 async function readBranding(): Promise<BrandingConfig> {
   try {
     const { data, error } = await supabaseAdmin
       .from('branding')
-      .select('logo_url, logo_alt, site_name, primary_color, secondary_color, favicon')
+      .select('logo_url, logo_alt, site_name, primary_color, secondary_color, favicon, social_instagram, social_facebook, social_youtube, social_linkedin')
       .limit(1)
       .single();
-
     if (error || !data) {
       console.log('No branding config found, using default');
       return DEFAULT_BRANDING;
@@ -41,13 +48,16 @@ async function readBranding(): Promise<BrandingConfig> {
       primaryColor: data.primary_color || "#ff5c00",
       secondaryColor: data.secondary_color || "#ff7a33",
       favicon: data.favicon || "/favicon.svg",
+      socialInstagram: data.social_instagram || "",
+      socialFacebook: data.social_facebook || "",
+      socialYoutube: data.social_youtube || "",
+      socialLinkedin: data.social_linkedin || "",
     };
   } catch (e) {
     console.error('Supabase error, using default branding:', e);
     return DEFAULT_BRANDING;
   }
 }
-
 async function writeBranding(config: BrandingConfig) {
   try {
     console.log('Writing branding config:', config);
@@ -61,6 +71,10 @@ async function writeBranding(config: BrandingConfig) {
       primary_color: config.primaryColor,
       secondary_color: config.secondaryColor,
       favicon: config.favicon,
+      social_instagram: config.socialInstagram || null,
+      social_facebook: config.socialFacebook || null,
+      social_youtube: config.socialYoutube || null,
+      social_linkedin: config.socialLinkedin || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -82,6 +96,10 @@ async function writeBranding(config: BrandingConfig) {
         primary_color: brandingData.primary_color,
         secondary_color: brandingData.secondary_color,
         favicon: brandingData.favicon,
+        social_instagram: brandingData.social_instagram,
+        social_facebook: brandingData.social_facebook,
+        social_youtube: brandingData.social_youtube,
+        social_linkedin: brandingData.social_linkedin,
         updated_at: brandingData.updated_at
       };
       
@@ -152,6 +170,10 @@ export async function PUT(request: NextRequest) {
       primaryColor: (data.primaryColor || currentConfig.primaryColor).toString(),
       secondaryColor: (data.secondaryColor || currentConfig.secondaryColor).toString(),
       favicon: (data.favicon || currentConfig.favicon).toString(),
+      socialInstagram: (data.socialInstagram ?? currentConfig.socialInstagram ?? "").toString(),
+      socialFacebook: (data.socialFacebook ?? currentConfig.socialFacebook ?? "").toString(),
+      socialYoutube: (data.socialYoutube ?? currentConfig.socialYoutube ?? "").toString(),
+      socialLinkedin: (data.socialLinkedin ?? currentConfig.socialLinkedin ?? "").toString(),
     };
 
     console.log('Branding PUT - updated config:', JSON.stringify(updatedConfig, null, 2));

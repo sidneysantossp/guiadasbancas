@@ -2,34 +2,39 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useCategories } from "@/lib/useCategories";
 
-export default function DepartmentsMegaMenu() {
-  const [open, setOpen] = useState(false);
+interface DepartmentsMegaMenuProps {
+  isActive: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+}
+
+export default function DepartmentsMegaMenu({ isActive, onOpen, onClose }: DepartmentsMegaMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (!ref.current) return;
-      if (!ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    if (open) document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [open]);
-
-  const scheduleClose = () => {
+  const scheduleClose = useCallback(() => {
     if (closeTimeout.current) clearTimeout(closeTimeout.current);
-    closeTimeout.current = setTimeout(() => setOpen(false), 200);
-  };
+    closeTimeout.current = setTimeout(() => onClose(), 200);
+  }, [onClose]);
 
-  const cancelClose = () => {
+  const cancelClose = useCallback(() => {
     if (closeTimeout.current) {
       clearTimeout(closeTimeout.current);
       closeTimeout.current = null;
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) onClose();
+    }
+    if (isActive) document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [isActive, onClose]);
 
   return (
     <div
@@ -37,17 +42,17 @@ export default function DepartmentsMegaMenu() {
       ref={ref}
       onMouseEnter={() => {
         cancelClose();
-        setOpen(true);
+        onOpen();
       }}
       onMouseLeave={scheduleClose}
     >
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        onFocus={() => setOpen(true)}
+        onClick={() => isActive ? onClose() : onOpen()}
+        onFocus={() => onOpen()}
         className="inline-flex items-center gap-1 text-sm font-medium hover:text-[var(--color-primary)]"
         aria-haspopup="menu"
-        aria-expanded={open}
+        aria-expanded={isActive}
       >
         Categorias
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -55,19 +60,19 @@ export default function DepartmentsMegaMenu() {
         </svg>
       </button>
 
-      {open && (
+      {isActive && (
         <div
           role="menu"
-          className="absolute left-0 mt-3 w-[960px] xl:w-[1100px] rounded-xl border border-gray-200 bg-white shadow-lg z-50"
+          className="absolute left-0 mt-3 w-[800px] xl:w-[900px] rounded-xl border border-gray-200 bg-white shadow-lg z-50"
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
         >
-          <MenuContent onClickItem={()=>setOpen(false)} />
+          <MenuContent onClickItem={onClose} />
           <div className="px-5 pb-5">
             <Link
               href="/categorias"
               className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
-              onClick={() => setOpen(false)}
+              onClick={onClose}
             >
               Ver todos
             </Link>
@@ -92,7 +97,7 @@ function MenuContent({ onClickItem }: { onClickItem: () => void }) {
         >
           <div className="relative h-10 w-10 rounded-md overflow-hidden ring-1 ring-black/10">
             {c.image ? (
-              <Image src={c.image} alt={c.name} fill className="object-cover" />
+              <Image src={c.image} alt={c.name} fill sizes="40px" className="object-cover" loading="lazy" />
             ) : (
               <div className="grid place-items-center h-full w-full bg-white">
                 <span className="text-xs text-[#ff5c00] font-semibold">{c.name[0]}</span>

@@ -16,6 +16,7 @@ export default function EditBancaPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   
   // Form fields
   const [name, setName] = useState("");
@@ -41,6 +42,13 @@ export default function EditBancaPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [loadingCep, setLoadingCep] = useState(false);
   const [activeTab, setActiveTab] = useState('basico');
+  // Dono da banca (jornaleiro) e reset de senha (admin)
+  const [ownerEmail, setOwnerEmail] = useState<string>("");
+  const [resetPwd, setResetPwd] = useState<string>("");
+  const [resetPwd2, setResetPwd2] = useState<string>("");
+  const [resetLoading, setResetLoading] = useState<boolean>(false);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [resetErr, setResetErr] = useState<string | null>(null);
   
   // Estados brasileiros
   const estados = [
@@ -128,6 +136,8 @@ export default function EditBancaPage() {
           setFeatured(banca.featured || false);
           setSelectedCategories(banca.categories || []);
           if (banca.hours) setHours(banca.hours);
+          // Email do jornaleiro (proprietário) quando disponível
+          if (banca.ownerEmail) setOwnerEmail(String(banca.ownerEmail));
         } else {
           setError("Banca não encontrada");
         }
@@ -179,6 +189,45 @@ export default function EditBancaPage() {
         setCity("");
         setUf("");
       }
+    }
+  };
+
+  // Resetar senha do jornaleiro (admin-only)
+  const onResetPassword = async () => {
+    setResetErr(null);
+    setResetMsg(null);
+    const email = ownerEmail.trim();
+    if (!email) {
+      setResetErr('Informe o e-mail do jornaleiro.');
+      return;
+    }
+    if (resetPwd.length < 6) {
+      setResetErr('A nova senha deve ter ao menos 6 caracteres.');
+      return;
+    }
+    if (resetPwd !== resetPwd2) {
+      setResetErr('As senhas não coincidem.');
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin-token' },
+        body: JSON.stringify({ email, password: resetPwd })
+      });
+      const j = await res.json().catch(()=>({}));
+      if (!res.ok || j?.error) {
+        setResetErr(j?.error || 'Falha ao resetar senha. Verifique se a função SQL reset está instalada e a variável ALLOW_LOCAL_RESET=true.');
+        return;
+      }
+      setResetMsg('Senha atualizada com sucesso. Avise o jornaleiro.');
+      setResetPwd('');
+      setResetPwd2('');
+    } catch (e) {
+      setResetErr('Erro de conexão ao resetar senha.');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -252,8 +301,10 @@ export default function EditBancaPage() {
       const json = await res.json();
       
       if (json?.success) {
-        alert('Banca atualizada com sucesso!');
-        router.push('/admin/cms/bancas');
+        setSuccess('Banca atualizada com sucesso!');
+        setTimeout(() => {
+          router.push('/admin/cms/bancas');
+        }, 1500);
       } else {
         setError(json?.error || 'Erro ao atualizar banca');
       }
@@ -293,8 +344,24 @@ export default function EditBancaPage() {
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <div className="text-sm text-red-800">{error}</div>
+        <div className="rounded-md bg-red-50 border border-red-200 p-4">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <div className="text-sm text-red-800 font-medium">{error}</div>
+          </div>
+        </div>
+      )}
+      
+      {success && (
+        <div className="rounded-md bg-green-50 border border-green-200 p-4">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <div className="text-sm text-green-800 font-medium">{success}</div>
+          </div>
         </div>
       )}
 
@@ -689,6 +756,58 @@ export default function EditBancaPage() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Resetar Senha do Jornaleiro (visível dentro da aba Configurações) */}
+                  <div className="border-t border-gray-200 pt-4">
+                    <h4 className="text-sm font-medium mb-2">Resetar senha do jornaleiro</h4>
+                    <p className="text-xs text-gray-500 mb-3">Use esta ação se o jornaleiro esqueceu a senha. Será aplicada imediatamente.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <label className="block">
+                        <span className="text-gray-700 text-sm">E-mail do jornaleiro</span>
+                        <input
+                          type="email"
+                          value={ownerEmail}
+                          onChange={(e)=>setOwnerEmail(e.target.value)}
+                          placeholder="email@banca.com"
+                          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-gray-700 text-sm">Nova senha</span>
+                        <input
+                          type="password"
+                          value={resetPwd}
+                          onChange={(e)=>setResetPwd(e.target.value)}
+                          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-gray-700 text-sm">Confirmar senha</span>
+                        <input
+                          type="password"
+                          value={resetPwd2}
+                          onChange={(e)=>setResetPwd2(e.target.value)}
+                          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                        />
+                      </label>
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          onClick={onResetPassword}
+                          disabled={resetLoading}
+                          className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                        >
+                          {resetLoading ? 'Aplicando...' : 'Aplicar nova senha'}
+                        </button>
+                      </div>
+                    </div>
+                    {resetErr && (
+                      <div className="mt-2 rounded-md bg-red-50 border border-red-200 p-2 text-xs text-red-700">{resetErr}</div>
+                    )}
+                    {resetMsg && (
+                      <div className="mt-2 rounded-md bg-green-50 border border-green-200 p-2 text-xs text-green-700">{resetMsg}</div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -764,6 +883,56 @@ export default function EditBancaPage() {
                 className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
               >
                 Cancelar
+              </button>
+            </div>
+          </div>
+
+          {/* Resetar Senha do Jornaleiro */}
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <h3 className="text-sm font-medium mb-2">Resetar senha do jornaleiro</h3>
+            <p className="text-xs text-gray-500 mb-3">Use esta ação se o jornaleiro esqueceu a senha. Será aplicada imediatamente.</p>
+            <div className="space-y-2 text-sm">
+              <label className="block">
+                <span className="text-gray-700">E-mail do jornaleiro</span>
+                <input
+                  type="email"
+                  value={ownerEmail}
+                  onChange={(e)=>setOwnerEmail(e.target.value)}
+                  placeholder="email@banca.com"
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="text-gray-700">Nova senha</span>
+                <input
+                  type="password"
+                  value={resetPwd}
+                  onChange={(e)=>setResetPwd(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="text-gray-700">Confirmar senha</span>
+                <input
+                  type="password"
+                  value={resetPwd2}
+                  onChange={(e)=>setResetPwd2(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              </label>
+              {resetErr && (
+                <div className="rounded-md bg-red-50 border border-red-200 p-2 text-xs text-red-700">{resetErr}</div>
+              )}
+              {resetMsg && (
+                <div className="rounded-md bg-green-50 border border-green-200 p-2 text-xs text-green-700">{resetMsg}</div>
+              )}
+              <button
+                type="button"
+                onClick={onResetPassword}
+                disabled={resetLoading}
+                className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                {resetLoading ? 'Aplicando...' : 'Aplicar nova senha'}
               </button>
             </div>
           </div>

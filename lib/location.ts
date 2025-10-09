@@ -6,6 +6,9 @@ export type UserLocation = {
   state?: string;
   street?: string;
   neighborhood?: string;
+  houseNumber?: string;
+  source?: 'geolocation' | 'cep' | 'manual' | 'ip';
+  accuracy?: 'precise' | 'approx';
 };
 
 export function formatCep(cep: string) {
@@ -19,7 +22,8 @@ export async function reverseGeocodeByCoords(lat: number, lng: number) {
   url.searchParams.set('format', 'json');
   url.searchParams.set('lat', String(lat));
   url.searchParams.set('lon', String(lng));
-  url.searchParams.set('zoom', '16');
+  // Zoom maior para tentar obter número e bairro
+  url.searchParams.set('zoom', '18');
   url.searchParams.set('addressdetails', '1');
   const res = await fetch(url.toString(), {
     headers: { "Accept-Language": "pt-BR", "User-Agent": "guiadasbancas/0.1" },
@@ -30,21 +34,26 @@ export async function reverseGeocodeByCoords(lat: number, lng: number) {
   const addr = data?.address || {};
   return {
     street: addr.road || addr.pedestrian || addr.residential || addr.cycleway || undefined,
-    neighborhood: addr.suburb || addr.neighbourhood || addr.quarter || addr.village || addr.town || undefined,
+    houseNumber: addr.house_number || undefined,
+    neighborhood: addr.suburb || addr.neighbourhood || addr.quarter || addr.city_district || addr.village || addr.town || undefined,
     city: addr.city || addr.town || addr.village || undefined,
     state: addr.state || addr.region || undefined,
+    cep: addr.postcode || undefined,
   } as Partial<UserLocation>;
 }
 
 export async function buildLocationFromCoords(lat: number, lng: number): Promise<UserLocation> {
   const rev = await reverseGeocodeByCoords(lat, lng);
   return {
-    cep: '',
+    cep: rev?.cep ? formatCep(String(rev.cep)) : '',
     lat, lng,
     city: rev?.city,
     state: rev?.state,
     street: rev?.street,
     neighborhood: rev?.neighborhood,
+    houseNumber: rev?.houseNumber,
+    source: 'geolocation',
+    accuracy: 'precise',
   };
 }
 
@@ -145,5 +154,7 @@ export async function resolveCepToLocation(cep: string): Promise<UserLocation> {
     state: data.state,
     street: data.street || data.address || undefined,
     neighborhood: data.neighborhood || data.district || undefined,
+    source: 'cep',
+    accuracy: 'approx',
   };
 }

@@ -350,14 +350,14 @@ export default function FullBanner() {
                     {slide.description}
                   </p>
                   {(showCta1 || showCta2) && (
-                    <div className="mt-5 flex flex-col sm:flex-row gap-3 sm:gap-4">
+                    <div className="mt-5 flex flex-row items-start gap-3 sm:gap-4">
                       {showCta1 && (
                         <Link
                           href={slide.cta1Link as Route}
                           className={
                             slide.cta1Style === "primary"
-                              ? "relative z-50 inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-base font-bold text-[#ff5c00] shadow-xl hover:bg-white/95 hover:scale-105 transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
-                              : "relative z-50 inline-flex items-center justify-center rounded-2xl border-2 border-white/90 bg-transparent px-5 py-3 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/10 hover:border-white transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
+                              ? "self-start relative z-50 inline-flex items-center justify-center rounded-md sm:rounded-2xl bg-white px-4 py-2.5 text-sm font-bold text-[#ff5c00] shadow-xl hover:bg-white/95 hover:scale-105 transition-all duration-200 min-w-[130px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
+                              : "self-start relative z-50 inline-flex items-center justify-center rounded-md sm:rounded-2xl border-2 border-white/90 bg-transparent px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/10 hover:border-white transition-all duration-200 min-w-[130px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
                           }
                         >
                           {slide.cta1Text}
@@ -368,8 +368,8 @@ export default function FullBanner() {
                           href={slide.cta2Link as Route}
                           className={
                             slide.cta2Style === "primary"
-                              ? "relative z-50 inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-base font-bold text-[#ff5c00] shadow-xl hover:bg-white/95 hover:scale-105 transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
-                              : "relative z-50 inline-flex items-center justify-center rounded-2xl border-2 border-white/90 bg-transparent px-5 py-3 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/10 hover:border-white transition-all duration-200 min-w-[160px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
+                              ? "self-start relative z-50 inline-flex items-center justify-center rounded-md sm:rounded-2xl bg-white px-4 py-2.5 text-sm font-bold text-[#ff5c00] shadow-xl hover:bg-white/95 hover:scale-105 transition-all duration-200 min-w-[130px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
+                              : "self-start relative z-50 inline-flex items-center justify-center rounded-md sm:rounded-2xl border-2 border-white/90 bg-transparent px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/10 hover:border-white transition-all duration-200 min-w-[130px] sm:px-7 sm:py-4 sm:text-lg sm:min-w-[200px]"
                           }
                         >
                           {slide.cta2Text}

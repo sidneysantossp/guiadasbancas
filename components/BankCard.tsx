@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { buildBancaHref } from "@/lib/slug";
 import { loadStoredLocation } from "@/lib/location";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export type Props = {
   id: string;
@@ -25,7 +25,10 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
   const badge = typeof distanceKm === "number"
     ? (distanceKm! > 3 ? "+3Km" : `${Math.max(1, Math.round(distanceKm!))}Km`)
     : undefined;
-  const loc = typeof window !== 'undefined' ? loadStoredLocation() : null;
+  const [loc, setLoc] = useState<any>(null);
+  useEffect(() => {
+    try { setLoc(loadStoredLocation()); } catch {}
+  }, []);
   const distanceLabel = typeof distanceKm === 'number' ? (distanceKm > 3 ? '+3Km' : `${Math.max(1, Math.round(distanceKm))}Km`) : undefined;
   const [coverSrc, setCoverSrc] = useState<string | undefined>(imageUrl);
   const [avatarSrc, setAvatarSrc] = useState<string | undefined>(profileImageUrl);
@@ -92,6 +95,11 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
             <Image src="https://cdn-icons-png.flaticon.com/128/2875/2875433.png" alt="Mapa" width={16} height={16} className="h-4 w-4 rounded-full object-contain" />
             Ver no Mapa
           </a>
+          {typeof distanceKm === 'number' && isFinite(distanceKm) && (
+            <span className="ml-2 text-[12px] text-gray-700" aria-label={`Distância ${distanceKm.toFixed(1)} km`}>
+              • {distanceKm > 3 ? `${distanceKm.toFixed(1)} km` : `${Math.round(distanceKm * 1000)} m`}
+            </span>
+          )}
         </div>
 
         {/* Categorias */}
@@ -108,10 +116,6 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
         {/* Ações */}
         <div className="mt-3">
           <Link href={(buildBancaHref(name, id, loc) as any)} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white hover:opacity-95">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <path d="M3 7h18M5 7v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7" />
-              <path d="M10 11h4m-7 0h.01m9.99 0H17" />
-            </svg>
             Ver Banca
           </Link>
         </div>

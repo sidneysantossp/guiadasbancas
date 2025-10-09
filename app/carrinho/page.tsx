@@ -41,7 +41,7 @@ export default function CartPage() {
               <div key={it.id} className="p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
                 <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-gray-50 border border-gray-200">
                   {it.image ? (
-                    <Image src={it.image} alt={it.name} fill className="object-cover" />
+                    <Image src={it.image} alt={it.name} fill sizes="64px" className="object-cover" />
                   ) : (
                     <div className="grid h-full w-full place-items-center text-gray-400 text-xs">Sem imagem</div>
                   )}

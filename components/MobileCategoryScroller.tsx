@@ -103,7 +103,7 @@ export default function MobileCategoryScroller() {
                 >
                   <div className={`relative h-16 w-16 rounded-2xl overflow-hidden shadow-lg shadow-black/10 transition-transform group-hover:-translate-y-0.5`}>
                     {c.image ? (
-                      <Image src={c.image} alt={c.name} fill className="object-cover" />
+                      <Image src={c.image} alt={c.name} fill sizes="64px" className="object-cover" />
                     ) : (
                       <div className="grid place-items-center h-full w-full bg-white">
                         <span className="text-xs text-[#ff5c00] font-semibold">{c.name[0]}</span>

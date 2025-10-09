@@ -38,27 +38,47 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           console.log("✅ [AUTHORIZE] Auth OK, user_id:", authData.user.id);
 
-          // 2. Buscar perfil do usuário
+          // 2. Buscar perfil do usuário (com retry para usuários recém-criados)
           console.log("🔐 [AUTHORIZE] Buscando perfil...");
-          const { data: profile, error: profileError } = await supabaseAdmin
-            .from('user_profiles')
-            .select('*')
-            .eq('id', authData.user.id)
-            .single();
+          let profile = null;
+          let attempts = 0;
+          const maxAttempts = 3;
+          
+          while (!profile && attempts < maxAttempts) {
+            attempts++;
+            console.log(`🔄 [AUTHORIZE] Tentativa ${attempts}/${maxAttempts}...`);
+            
+            const { data, error: profileError } = await supabaseAdmin
+              .from('user_profiles')
+              .select('*')
+              .eq('id', authData.user.id)
+              .single();
 
-          if (profileError) {
-            console.log("❌ [AUTHORIZE] Erro ao buscar perfil:", profileError.message, profileError);
-            return null;
+            if (data) {
+              profile = data;
+              break;
+            }
+
+            if (profileError && profileError.code !== 'PGRST116') { // PGRST116 = not found
+              console.log("❌ [AUTHORIZE] Erro ao buscar perfil:", profileError.message);
+              return null;
+            }
+
+            // Se não encontrou, aguardar 500ms antes de tentar novamente
+            if (attempts < maxAttempts) {
+              console.log("⏳ [AUTHORIZE] Perfil não encontrado, aguardando 500ms...");
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
           }
 
           if (!profile) {
-            console.log("❌ [AUTHORIZE] Perfil não encontrado para user_id:", authData.user.id);
+            console.log("❌ [AUTHORIZE] Perfil não encontrado após", maxAttempts, "tentativas");
             return null;
           }
 
           console.log("✅ [AUTHORIZE] Perfil encontrado:", { role: profile.role, active: profile.active, full_name: profile.full_name });
 
-          if (!profile.active) {
+          if (profile.active === false) {
             console.log("❌ [AUTHORIZE] Usuário inativo");
             return null;
           }

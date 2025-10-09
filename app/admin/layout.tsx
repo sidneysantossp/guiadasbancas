@@ -16,6 +16,7 @@ const ADMIN_MENU = [
     items: [
       { label: "Dashboard", href: "/admin/dashboard", icon: "📊" },
       { label: "Home Page", href: "/admin/cms/home", icon: "🏠" },
+      { label: "Vitrines", href: "/admin/cms/vitrines", icon: "⭐" },
       { label: "SEO", href: "/admin/cms/seo", icon: "🔍" },
       { label: "Branding", href: "/admin/cms/branding", icon: "🎨" },
       { label: "Header", href: "/admin/cms/header", icon: "📱" },
@@ -41,7 +42,7 @@ const ADMIN_MENU = [
     section: "Catálogo",
     items: [
       { label: "Produtos", href: "/admin/products", icon: "📦" },
-      { label: "Categorias", href: "/admin/categories", icon: "🏷️" },
+      { label: "Categorias", href: "/admin/cms/categories", icon: "🏷️" },
       { label: "Distribuidores", href: "/admin/distribuidores", icon: "🚚" },
     ]
   },
@@ -51,6 +52,7 @@ const ADMIN_MENU = [
       { label: "Campanhas", href: "/admin/campaigns", icon: "📢" },
       { label: "Cupons", href: "/admin/coupons", icon: "🎫" },
       { label: "Banners", href: "/admin/banners", icon: "🖼️" },
+      { label: "Vitrines", href: "/admin/cms/vitrines", icon: "⭐" },
       { label: "Mini Banners", href: "/admin/cms/mini-banners", icon: "🧩" },
       { label: "Newsletter", href: "/admin/newsletter", icon: "📧" },
     ]

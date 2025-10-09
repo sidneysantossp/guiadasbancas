@@ -18,13 +18,15 @@ const nextConfig = {
   images: {
     // Domínios explicitamente permitidos (compatibilidade com next/image)
     domains: ['arquivos.mercos.com'],
-    formats: ['image/avif', 'image/webp'], // Formatos modernos
-    minimumCacheTTL: 60, // Cache de 60 segundos
+    formats: ['image/avif', 'image/webp'], // Formatos modernos (AVIF primeiro = 30% menor)
+    minimumCacheTTL: 31536000, // Cache de 1 ano (imagens raramente mudam)
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048], // Breakpoints otimizados
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384], // Tamanhos de thumbnails
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    unoptimized: false, // Sempre otimizar
+    loader: 'default', // Usar otimizador do Next.js
     remotePatterns: [
       {
         protocol: 'https',
@@ -103,6 +105,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'placehold.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
       },
     ],
   },

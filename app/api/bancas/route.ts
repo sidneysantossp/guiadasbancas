@@ -22,6 +22,7 @@ async function readStore(): Promise<StoreBanca[]> {
     const { data, error } = await supabaseAdmin
       .from('bancas')
       .select('*')
+      .eq('active', true)
       .order('name');
 
     if (error || !data) {
@@ -59,7 +60,8 @@ export async function GET(req: Request) {
 
     let query = supabaseAdmin
       .from('bancas')
-      .select('*');
+      .select('*')
+      .eq('active', true);
 
     // Se temos coordenadas e raio, aplicar filtro geográfico
     if (lat && lng && radiusKm) {

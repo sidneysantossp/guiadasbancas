@@ -69,10 +69,10 @@ export default function HomePage() {
       <MobileCategoryScroller />
       <MiniCategoryBar />
       
-      {/* Trust badges - crítico para conversão */}
-      <div className="py-3">
+      {/* Trust badges - crítico para conversão (apenas mobile) */}
+      <div className="py-3 md:hidden">
         <div className="container-max">
-          <TrustBadges variant="ecom" className="md:justify-items-center max-w-6xl mx-auto" />
+          <TrustBadges variant="ecom" className="max-w-6xl mx-auto" />
         </div>
       </div>
 

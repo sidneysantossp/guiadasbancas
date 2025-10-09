@@ -22,14 +22,22 @@ function useItemsPerView(length: number) {
 
 export default function CategoryCarousel() {
   const { items } = useCategories();
-  const perView = useItemsPerView(items.length);
+  const filtered = items.filter((c) => {
+    const n = (c.name || '').trim().toLowerCase();
+    const link = (c.link || '').toLowerCase();
+    const byName = n === 'diversos' || n === 'sem categoria';
+    const byLink = link.includes('/diversos') || link.includes('/sem-categoria');
+    const byId = c.key === 'aaaaaaaa-0000-0000-0000-000000000001' || c.key === 'bbbbbbbb-0000-0000-0000-000000000001';
+    return !(byName || byLink || byId);
+  });
+  const perView = useItemsPerView(filtered.length);
   const [index, setIndex] = useState(0); // índice do primeiro item no trilho
   const [animating, setAnimating] = useState(true);
-  const hasEnough = items.length > perView;
-  const maxIndex = Math.max(0, items.length - perView);
+  const hasEnough = filtered.length > perView;
+  const maxIndex = Math.max(0, filtered.length - perView);
 
   // Trilho com itens duplicados para loop suave
-  const trackItems = useMemo(() => items, [items]);
+  const trackItems = useMemo(() => filtered, [filtered]);
 
   // Avança 1 item por vez com slide
   useEffect(() => {
@@ -85,7 +93,7 @@ export default function CategoryCarousel() {
                 ))}
               </div>
               {/* Desktop arrows */}
-              {items.length > perView && (
+              {filtered.length > perView && (
                 <>
                   <button
                     type="button"

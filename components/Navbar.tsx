@@ -1,22 +1,20 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { useCart } from "@/components/CartContext";
-import DepartmentsMegaMenu from "@/components/DepartmentsMegaMenu";
-import BancasMegaMenu from "@/components/BancasMegaMenu";
-import LocationModal from "@/components/LocationModal";
-import SearchAutocomplete from "@/components/SearchAutocomplete";
-import AutoGeolocation from "@/components/AutoGeolocation";
+import DepartmentsMegaMenu from "./DepartmentsMegaMenu";
+import LocationModal from "./LocationModal";
+import SearchAutocomplete from "./SearchAutocomplete";
+import AutoGeolocation from "./AutoGeolocation";
 import { loadStoredLocation, UserLocation } from "@/lib/location";
+import Link from "next/link";
+import { useCart } from "@/components/CartContext";
 import { Hedvig_Letters_Serif } from "next/font/google";
 import { shippingConfig } from "@/components/shippingConfig";
 import FreeShippingProgress from "@/components/FreeShippingProgress";
-import { useEffect as useEffectBranding, useState as useStateBranding } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useCategories } from "@/lib/useCategories";
 
@@ -82,7 +80,7 @@ function MiniCartDropdown({ onClose }: { onClose: () => void }) {
             <div key={it.id} className="p-3 flex items-center gap-3">
               <div className="relative h-12 w-12 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
                 {it.image ? (
-                  <Image src={it.image} alt={it.name} fill className="object-cover" />
+                  <Image src={it.image} alt={it.name} fill sizes="48px" className="object-cover" />
                 ) : null}
               </div>
               <div className="min-w-0 flex-1">
@@ -142,7 +140,7 @@ function MiniCartSheet({ onClose }: { onClose: () => void }) {
             items.map((it) => (
               <div key={it.id} className="p-4 flex items-center gap-3">
                 <div className="relative h-16 w-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
-                  {it.image ? <Image src={it.image} alt={it.name} fill className="object-cover" /> : null}
+                  {it.image ? <Image src={it.image} alt={it.name} fill sizes="64px" className="object-cover" /> : null}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold line-clamp-1">{it.name}</div>
@@ -190,7 +188,7 @@ export default function Navbar() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
   const isHome = pathname === "/";
-  const [searchExpanded, setSearchExpanded] = useState<boolean>(isHome);
+  const [searchExpanded, setSearchExpanded] = useState<boolean>(false);
   const { totalCount: cartCount } = useCart();
   const [cartOpen, setCartOpen] = useState(false);
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
@@ -206,8 +204,55 @@ export default function Navbar() {
   const [notifEnabled, setNotifEnabled] = useState<boolean>(false);
   const [notifCount, setNotifCount] = useState<number>(0);
   const [notifPulse, setNotifPulse] = useState<boolean>(false);
-  const [branding, setBranding] = useState<{logoUrl: string; logoAlt: string; siteName: string} | null>(null);
+  const [branding, setBranding] = useState<{logoUrl: string; logoAlt: string; siteName: string; socialInstagram?: string; socialFacebook?: string; socialYoutube?: string; socialLinkedin?: string} | null>(null);
   const { items: categoryItems } = useCategories();
+  const [activeMegaMenu, setActiveMegaMenu] = useState<'categories' | null>(null);
+
+  const socialLinks = useMemo(() => {
+    if (!branding) return [] as { key: string; href: string; label: string }[];
+    const entries = [
+      { key: "instagram", href: branding.socialInstagram ?? "", label: "Instagram" },
+      { key: "facebook", href: branding.socialFacebook ?? "", label: "Facebook" },
+      { key: "youtube", href: branding.socialYoutube ?? "", label: "YouTube" },
+      { key: "linkedin", href: branding.socialLinkedin ?? "", label: "LinkedIn" },
+    ];
+    return entries.filter((item) => typeof item.href === "string" && item.href.trim().length > 0);
+  }, [branding]);
+
+  // Evitar mismatch de hidratação: só renderizar blocos dinâmicos após montar no cliente
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const renderSocialIcon = (key: string) => {
+    switch (key) {
+      case "instagram":
+        return (
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+            <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7zm5 3.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 0 1 12 7.5zm0 2A2.5 2.5 0 1 0 14.5 12 2.5 2.5 0 0 0 12 9.5zm5.25-3.75a1.25 1.25 0 1 1-1.25 1.25 1.25 1.25 0 0 1 1.25-1.25z" />
+          </svg>
+        );
+      case "facebook":
+        return (
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+            <path d="M13 22V12h3.5l.5-4H13V6.5c0-1 .25-1.5 1.5-1.5H17V2.1c-.77-.1-2.02-.1-3.28-.1C10.95 2 9 3.66 9 6.2V8H6v4h3v10z" />
+          </svg>
+        );
+      case "youtube":
+        return (
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+            <path d="M21.6 7.2a2.5 2.5 0 0 0-1.76-1.77C18.14 5 12 5 12 5s-6.14 0-7.84.43A2.5 2.5 0 0 0 2.4 7.2 26.2 26.2 0 0 0 2 12a26.2 26.2 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.76 1.77C5.86 18.9 12 18.9 12 18.9s6.14 0 7.84-.43a2.5 2.5 0 0 0 1.76-1.77A26.2 26.2 0 0 0 22 12a26.2 26.2 0 0 0-.4-4.8zM10 15V9l5 3z" />
+          </svg>
+        );
+      case "linkedin":
+        return (
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+            <path d="M4.98 3.5a2 2 0 1 1-2 2 2 2 0 0 1 2-2zM3 8h4v12H3zm6 0h3.8v1.7h.05A4.18 4.18 0 0 1 17.5 8c3 0 3.5 2 3.5 4.6V20h-4v-6.2c0-1.5 0-3.4-2-3.4s-2.3 1.6-2.3 3.3V20H9z" />
+          </svg>
+        );
+      default:
+        return null;
+    }
+  };
 
   const onSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -269,31 +314,57 @@ export default function Navbar() {
     };
   }, []);
 
-  // Carrega usuário mock do localStorage
+  // Carrega usuário do localStorage e mantém em sincronia
+  useEffect(() => {
+    const readUserFromStorage = () => {
+      try {
+        const raw = localStorage.getItem("gb:user");
+        setUser(raw ? JSON.parse(raw) : null);
+      } catch { setUser(null); }
+      try {
+        const pr = localStorage.getItem('gb:userProfile');
+        if (pr) {
+          const p = JSON.parse(pr);
+          setProfileAvatar(p?.avatar || "");
+          setProfilePhone(p?.phone || "");
+        } else {
+          setProfileAvatar("");
+          setProfilePhone("");
+        }
+      } catch { setProfileAvatar(""); setProfilePhone(""); }
+    };
+
+    // Inicial
+    readUserFromStorage();
+
+    // Eventos de atualização
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "gb:user" || e.key === 'gb:userProfile') readUserFromStorage();
+    };
+    const onCustom = () => readUserFromStorage();
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("gb:user:changed" as any, onCustom as any);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("gb:user:changed" as any, onCustom as any);
+    };
+  }, []);
+
+  // Refresca usuário quando a rota muda (ex.: após login redireciona)
   useEffect(() => {
     try {
       const raw = localStorage.getItem("gb:user");
       setUser(raw ? JSON.parse(raw) : null);
-    } catch {}
-    try {
       const pr = localStorage.getItem('gb:userProfile');
       if (pr) {
         const p = JSON.parse(pr);
-        if (p?.avatar) setProfileAvatar(String(p.avatar));
-        if (p?.phone) setProfilePhone(String(p.phone));
+        setProfileAvatar(p?.avatar || "");
+        setProfilePhone(p?.phone || "");
       }
     } catch {}
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "gb:user") {
-        try { setUser(e.newValue ? JSON.parse(e.newValue) : null); } catch { setUser(null); }
-      }
-      if (e.key === 'gb:userProfile') {
-        try { const p = e.newValue ? JSON.parse(e.newValue) : null; setProfileAvatar(p?.avatar || ""); setProfilePhone(p?.phone || ""); } catch { setProfileAvatar(""); setProfilePhone(""); }
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  }, [pathname]);
 
   const logout = () => {
     try { localStorage.removeItem("gb:user"); } catch {}
@@ -421,6 +492,9 @@ export default function Navbar() {
 
 // Autofocus na busca ao entrar na Home no mobile e sincronizar título por rota
 useEffect(() => {
+  // Sincronizar searchExpanded com isHome (evita hidratação mismatch)
+  setSearchExpanded(pathname === '/');
+  
   // Autofocus somente em mobile e na Home
   if (typeof window !== 'undefined' && window.innerWidth < 768 && pathname === '/') {
     setTimeout(() => inputRef.current?.focus(), 0);
@@ -464,9 +538,10 @@ useEffect(() => {
     <>
     <header className="fixed top-0 left-0 right-0 z-50 bg-white md:border-b md:border-gray-200 md:shadow-sm">
       {/* Top bar: Logo + Notificações + Localização */}
-      <div className="container-max py-2 flex items-center justify-between">
+      <div className="container-max py-2">
+        <div className="flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2 -ml-5">
           {branding?.logoUrl ? (
             <Image
               src={branding.logoUrl}
@@ -477,78 +552,132 @@ useEffect(() => {
               priority
             />
           ) : (
-            <>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                className="h-12 w-12 text-[var(--color-primary)] md:h-12 md:w-12"
-                aria-hidden
-                fill="currentColor"
-              >
-                <rect x="3" y="4" width="18" height="16" rx="2" ry="2" opacity="0.15" />
-                <rect x="6" y="7" width="12" height="2" rx="1" />
-                <rect x="6" y="11" width="9" height="2" rx="1" />
-                <rect x="6" y="15" width="6" height="2" rx="1" />
-              </svg>
-              <span className={`hidden md:inline text-lg tracking-wide lowercase ${hedvig.className} text-black`}>
-                <span className="font-bold text-[#ff5c00]">g</span>uia das bancas
-              </span>
-            </>
+            // Placeholder invisível para evitar layout shift enquanto a marca carrega
+            <div className="h-14 w-[160px] md:h-12 md:w-[160px]" aria-hidden />
           )}
         </Link>
 
-        {/* Notificações e Localização (direita) */}
+        {/* Localização, Ícones Sociais e Notificações (direita) */}
         {!inDashboard && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Badge de geolocalização - Desktop (vem primeiro) */}
+            {mounted && (
+              <button
+                onClick={() => setLocOpen(true)}
+                className="hidden md:flex items-center gap-2 text-sm leading-none hover:text-[var(--color-primary)] rounded-full px-3 py-[2px] max-w-full border border-gray-300 hover:bg-gray-50"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4 text-[#ff5c00]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M12 21s-6-4.35-6-9a6 6 0 1 1 12 0c0 4.65-6 9-6 9z" />
+                  <circle cx="12" cy="12" r="2.5" />
+                </svg>
+                <span
+                  className="font-medium text-[11px] truncate max-w-xs"
+                  title={
+                    loc
+                      ? `${
+                          (loc.street
+                            ? `${loc.street}${loc.houseNumber ? ", " + loc.houseNumber : ""}`
+                            : (loc.neighborhood || ""))
+                        }${loc.city ? `, ${loc.city}` : ''}`
+                      : undefined
+                  }
+                >
+                  {loc ? (
+                    (loc.street
+                      ? `${loc.street}${loc.houseNumber ? ", " + loc.houseNumber : ""}`
+                      : (loc.neighborhood || loc.city || 'Localização')) + (loc.city ? `, ${loc.city}` : '')
+                  ) : (
+                    "Encontrar uma Banca próximo de mim"
+                  )}
+                </span>
+              </button>
+            )}
+
+            {/* Ícones Sociais (renderiza somente após mount para evitar mismatch SSR) */}
+            {mounted && socialLinks.length > 0 && (
+              <div className="flex items-center gap-2">
+                {socialLinks.map((item) => (
+                  <a
+                    key={item.key}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={item.label}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-[#ff5c00] hover:text-[#ff7a33] hover:border-[#ff7a33] transition-colors"
+                  >
+                    {renderSocialIcon(item.key)}
+                  </a>
+                ))}
+              </div>
+            )}
+            
             {/* Sino de notificações */}
             <button
               type="button"
               aria-label="Notificações"
               title="Ativar notificações"
               onClick={enableNotifications}
-              className="relative inline-flex items-center justify-center h-8 w-8 rounded-full text-[#ff5c00] hover:text-[#ff7a33] focus:outline-none focus:ring-2 focus:ring-[#ff7a33]/30"
+              className="relative inline-flex items-center justify-center h-9 w-9 rounded-full text-[#ff5c00] hover:text-[#ff7a33] focus:outline-none focus:ring-2 focus:ring-[#ff7a33]/30"
             >
               {notifPulse && (
                 <span className="absolute inset-0 rounded-full bg-[#ff7a33]/30 animate-ping"></span>
               )}
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a3.001 3.001 0 01-5.714 0M18 8a6 6 0 10-12 0c0 3.866-1.343 5.818-2.016 6.77a1 1 0 00.82 1.73h14.392a1 1 0 00.82-1.73C19.343 13.818 18 11.866 18 8z" />
               </svg>
               {(notifEnabled && notifCount > 0) && (
                 <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[10px] leading-[16px] text-center px-[3px]">{notifCount}</span>
               )}
             </button>
-            
-            {/* Badge de geolocalização */}
-            <button
-              onClick={() => setLocOpen(true)}
-              className="flex items-center gap-2 text-sm leading-none hover:text-[var(--color-primary)] rounded-full px-3 py-[2px] max-w-full border border-gray-300 hover:bg-gray-50"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                className="h-4 w-4 text-[#ff5c00]"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M12 21s-6-4.35-6-9a6 6 0 1 1 12 0c0 4.65-6 9-6 9z" />
-                <circle cx="12" cy="12" r="2.5" />
-              </svg>
-              <span
-                className="font-medium text-[12px] sm:text-[11px] truncate max-w:[55vw] sm:max-w-xs"
-                title={
-                  loc ? `${loc.neighborhood || loc.street || ''}, ${loc.city || ''}` : undefined
-                }
-              >
-                {loc ? (
-                  `${loc.neighborhood || loc.street || loc.city || 'Localização'}, ${loc.city || ''}`
-                ) : (
-                  "Encontrar uma Banca próximo de mim"
-                )}
-              </span>
-            </button>
           </div>
+        )}
+        </div>
+        
+        {/* Badge de geolocalização - Mobile (largura total) */}
+        {!inDashboard && mounted && (
+          <button
+            onClick={() => setLocOpen(true)}
+            className="md:hidden mt-2 w-full flex items-center justify-center gap-2 text-sm leading-none hover:text-[var(--color-primary)] rounded-full px-3 py-2 border border-gray-300 hover:bg-gray-50"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              className="h-4 w-4 text-[#ff5c00]"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M12 21s-6-4.35-6-9a6 6 0 1 1 12 0c0 4.65-6 9-6 9z" />
+              <circle cx="12" cy="12" r="2.5" />
+            </svg>
+            <span
+              className="font-medium text-[12px] truncate"
+              title={
+                loc
+                  ? `${
+                      (loc.street
+                        ? `${loc.street}${loc.houseNumber ? ", " + loc.houseNumber : ""}`
+                        : (loc.neighborhood || ""))
+                    }${loc.city ? `, ${loc.city}` : ''}`
+                  : undefined
+              }
+            >
+              {loc ? (
+                (loc.street
+                  ? `${loc.street}${loc.houseNumber ? ", " + loc.houseNumber : ""}`
+                  : (loc.neighborhood || loc.city || 'Localização')) + (loc.city ? `, ${loc.city}` : '')
+              ) : (
+                "Encontrar uma Banca próximo de mim"
+              )}
+            </span>
+          </button>
         )}
       </div>
 
@@ -584,13 +713,15 @@ useEffect(() => {
         {/* Menu desktop */}
         <nav className="hidden md:flex items-center gap-4 text-sm">
           <div className="py-2">
-            <DepartmentsMegaMenu />
+            <DepartmentsMegaMenu 
+              isActive={activeMegaMenu === 'categories'}
+              onOpen={() => setActiveMegaMenu('categories')}
+              onClose={() => setActiveMegaMenu(null)}
+            />
           </div>
-          <div className="py-2">
-            <BancasMegaMenu />
-          </div>
-          <Link href={"/promocoes" as any} className="hover:text-[var(--color-primary)] py-2">Promoções</Link>
-          <Link href={"/pre-venda" as any} className="hover:text-[var(--color-primary)] py-2">Pré Venda</Link>
+          <Link href={"/bancas-perto-de-mim" as Route} className="hover:text-[var(--color-primary)] py-2 font-medium">Bancas</Link>
+          <Link href={"/promocoes" as Route} className="hover:text-[var(--color-primary)] py-2 font-medium">Promoções</Link>
+          <Link href={"/pre-venda" as Route} className="hover:text-[var(--color-primary)] py-2 font-medium">Pré Venda</Link>
         </nav>
 
         {/* Toggle mobile (esquerda do input) — oculto no mobile, usamos o Bottom Nav */}
@@ -845,7 +976,14 @@ useEffect(() => {
             {catsOpen && (
               <div className="pt-1">
                 <div className="grid grid-cols-2 gap-1">
-                  {categoryItems.map((c) => (
+                  {categoryItems.filter((c) => {
+                    const n = (c.name || '').trim().toLowerCase();
+                    const link = (c.link || '').toLowerCase();
+                    const byName = n === 'diversos' || n === 'sem categoria';
+                    const byLink = link.includes('/diversos') || link.includes('/sem-categoria');
+                    const byId = c.key === 'aaaaaaaa-0000-0000-0000-000000000001' || c.key === 'bbbbbbbb-0000-0000-0000-000000000001';
+                    return !(byName || byLink || byId);
+                  }).map((c) => (
                     <Link
                       key={c.key}
                       href={c.link as any}

@@ -136,7 +136,7 @@ function EditAddressPageContent() {
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-full ring-1 ring-black/5 bg-gray-100 overflow-hidden relative">
               {profileAvatar ? (
-                <Image src={profileAvatar} alt="Avatar" fill className="object-cover" />
+                <Image src={profileAvatar} alt="Avatar" fill sizes="48px" className="object-cover" />
               ) : (
                 <div className="absolute inset-0 grid place-items-center text-orange-700 text-sm font-bold bg-orange-100">
                   {getInitials(user?.name || user?.email || '')}

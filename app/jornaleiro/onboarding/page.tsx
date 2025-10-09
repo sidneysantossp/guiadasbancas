@@ -7,24 +7,44 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function JornaleiroOnboardingPage() {
-  const { user, profile, loading } = useAuth();
   const router = useRouter();
+  const { user, profile, loading } = useAuth();
   const [status, setStatus] = useState<"loading" | "creating" | "success" | "error">("loading");
   const [message, setMessage] = useState("Configurando sua conta...");
 
   useEffect(() => {
-    if (!loading && user && profile?.role === "jornaleiro") {
-      createBanca();
-    } else if (!loading && !user) {
-      router.push(("/login" as Route));
-    }
-  }, [user, profile, loading]);
+    let cancelled = false;
+    // Poll por até 10s aguardando a sessão ficar disponível
+    const maxWaitMs = 10000;
+    const stepMs = 1000;
+    let waited = 0;
+
+    const tick = () => {
+      if (cancelled) return;
+      if (user && profile?.role === "jornaleiro") {
+        createBanca();
+        return;
+      }
+      if (waited >= maxWaitMs) {
+        // Timeout: voltar para login do jornaleiro
+        router.push(("/jornaleiro" as Route));
+        return;
+      }
+      // Atualiza mensagem e segue aguardando
+      setStatus("loading");
+      setMessage(`Aguardando autenticação... (${Math.floor(waited / 1000)}s)`);
+      waited += stepMs;
+      setTimeout(tick, stepMs);
+    };
+
+    if (!loading) tick();
+    return () => { cancelled = true; };
+  }, [user, profile, loading, router]);
 
   const createBanca = async () => {
     try {
       setStatus("creating");
       setMessage("Criando sua banca...");
-
       // Recuperar dados salvos no localStorage
       const bancaDataStr = localStorage.getItem("gb:bancaData");
       if (!bancaDataStr) {
@@ -34,6 +54,28 @@ export default function JornaleiroOnboardingPage() {
       }
 
       const bancaData = JSON.parse(bancaDataStr);
+
+      // Se já existe uma banca para este usuário, não criar novamente
+      const { data: existing, error: existingErr } = await supabase
+        .from("bancas")
+        .select("id")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+
+      if (existing?.id) {
+        // Garante vinculação no perfil
+        await supabase
+          .from("user_profiles")
+          .update({ banca_id: existing.id })
+          .eq("id", user!.id);
+
+        setStatus("success");
+        setMessage("Banca já existente. Redirecionando...");
+        setTimeout(() => {
+          router.push(("/jornaleiro/dashboard" as Route));
+        }, 1500);
+        return;
+      }
 
       // Criar banca no Supabase
       const { data, error } = await supabase

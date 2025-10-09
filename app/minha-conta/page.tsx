@@ -151,6 +151,8 @@ function MinhaContaPageContent() {
     const payload = { name: name || email.split("@")[0], email };
     try {
       localStorage.setItem("gb:user", JSON.stringify(payload));
+      // Dispara evento para Navbar/Componentes reagirem imediatamente
+      try { window.dispatchEvent(new Event('gb:user:changed')); } catch {}
       if (!localStorage.getItem("gb:userCreatedAt")) {
         const now = new Date().toISOString();
         localStorage.setItem("gb:userCreatedAt", now);
@@ -163,7 +165,8 @@ function MinhaContaPageContent() {
     if (fromCheckout) {
       router.push('/checkout');
     } else {
-      const redirect = localStorage.getItem("gb:redirectAfterLogin") || "/";
+      // Padrão: permanecer em Minha Conta
+      const redirect = localStorage.getItem("gb:redirectAfterLogin") || "/minha-conta";
       try { localStorage.removeItem("gb:redirectAfterLogin"); } catch {}
       router.push(redirect as any);
     }
@@ -171,6 +174,7 @@ function MinhaContaPageContent() {
 
   function logout() {
     try { localStorage.removeItem("gb:user"); } catch {}
+    try { window.dispatchEvent(new Event('gb:user:changed')); } catch {}
     setUser(null);
   }
 
@@ -183,7 +187,7 @@ function MinhaContaPageContent() {
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-full ring-1 ring-black/5 bg-gray-100 overflow-hidden relative">
                 {profileAvatar ? (
-                  <Image src={profileAvatar} alt="Avatar" fill className="object-cover" />
+                  <Image src={profileAvatar} alt="Avatar" fill sizes="48px" className="object-cover" />
                 ) : (
                   <div className="absolute inset-0 grid place-items-center text-orange-700 text-sm font-bold bg-orange-100">
                     {getInitials(user.name || user.email)}
@@ -207,7 +211,7 @@ function MinhaContaPageContent() {
                       <div key={p.id || p.slug || p.name} className="rounded-xl border border-gray-200 bg-white overflow-hidden">
                         <div className="flex items-center gap-3 p-3">
                           <div className="relative h-14 w-14 rounded-md overflow-hidden bg-gray-50 border border-gray-200 shrink-0">
-                            {p.image ? <Image src={p.image} alt={p.name || 'Produto'} fill className="object-cover" /> : null}
+                            {p.image ? <Image src={p.image} alt={p.name || 'Produto'} fill sizes="56px" className="object-cover" /> : null}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="text-sm font-semibold truncate">{p.name || 'Produto'}</div>
@@ -350,7 +354,7 @@ function MinhaContaPageContent() {
                                 {(o.items || []).slice(0,3).map((it: any, idx: number) => (
                                   <div key={idx} className="flex items-center gap-2">
                                     <div className="relative h-6 w-6 rounded-md overflow-hidden bg-gray-50 border border-gray-200">
-                                      {it.image ? <Image src={it.image} alt={it.name} fill className="object-cover" /> : null}
+                                      {it.image ? <Image src={it.image} alt={it.name} fill sizes="24px" className="object-cover" /> : null}
                                     </div>
                                     <div className="text-sm text-gray-800 line-clamp-1">{it.name} <span className="text-gray-500">x{it.qty}</span></div>
                                   </div>
@@ -389,7 +393,7 @@ function MinhaContaPageContent() {
                                 {(o.items || []).slice(0,3).map((it: any, idx: number) => (
                                   <div key={idx} className="flex items-center gap-2">
                                     <div className="relative h-6 w-6 rounded-md overflow-hidden bg-gray-50 border border-gray-200">
-                                      {it.image ? <Image src={it.image} alt={it.name} fill className="object-cover" /> : null}
+                                      {it.image ? <Image src={it.image} alt={it.name} fill sizes="24px" className="object-cover" /> : null}
                                     </div>
                                     <div className="text-sm text-gray-800 line-clamp-1">{it.name} <span className="text-gray-500">x{it.qty}</span></div>
                                   </div>
@@ -483,7 +487,7 @@ function MinhaContaPageContent() {
                           <div className="flex flex-col items-center gap-2">
                             <div className="relative h-28 w-28 rounded-lg overflow-hidden bg-white/70 border border-dashed border-gray-300 grid place-items-center">
                               {profileAvatar ? (
-                                <Image src={profileAvatar} alt="Avatar" fill className="object-cover" />
+                                <Image src={profileAvatar} alt="Avatar" fill sizes="112px" className="object-cover" />
                               ) : (
                                 <svg viewBox="0 0 64 64" className="h-16 w-16 text-gray-400" fill="currentColor">
                                   <rect x="14" y="10" width="36" height="44" rx="4"/>
@@ -552,6 +556,10 @@ function MinhaContaPageContent() {
                                 } catch {}
                                 try {
                                   localStorage.setItem('gb:userProfile', JSON.stringify({ phone: profilePhone, cpf: cpfDigits, avatar: profileAvatar }));
+                                } catch {}
+                                // Disparar evento para atualizar Navbar e outros componentes
+                                try {
+                                  window.dispatchEvent(new CustomEvent('gb:user:changed'));
                                 } catch {}
                                 setProfileMsg('Perfil salvo com sucesso');
                                 setEditMode(false);
@@ -707,16 +715,25 @@ function MinhaContaPageContent() {
         </div>
       )}
       
-      <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <form onSubmit={onSubmit} className="lg:col-span-2 rounded-2xl border border-gray-200 bg-white p-4 space-y-3">
+      <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <form onSubmit={onSubmit} className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
           {mode === "register" && (
-            <input className="input" placeholder="Nome completo" value={name} onChange={(e)=>setName(e.target.value)} />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo</label>
+              <input className="input" placeholder="Digite seu nome completo" value={name} onChange={(e)=>setName(e.target.value)} />
+            </div>
           )}
-          <input className="input" type="email" placeholder="E-mail" value={email} onChange={(e)=>setEmail(e.target.value)} required />
-          <input className="input" type="password" placeholder="Senha" value={password} onChange={(e)=>setPassword(e.target.value)} required />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+            <input className="input" type="email" placeholder="seu@email.com" value={email} onChange={(e)=>setEmail(e.target.value)} required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+            <input className="input" type="password" placeholder="Digite sua senha" value={password} onChange={(e)=>setPassword(e.target.value)} required />
+          </div>
           {error && <div className="text-[12px] text-red-600">{error}</div>}
           <div className="pt-1">
-            <button type="submit" className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95">
+            <button type="submit" className="w-full rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-3 text-sm font-semibold text-white shadow hover:opacity-95">
               {mode === "login" ? "Entrar" : "Registrar"}
             </button>
           </div>
@@ -728,13 +745,15 @@ function MinhaContaPageContent() {
             )}
           </div>
         </form>
-        <aside className="rounded-2xl border border-gray-200 bg-white p-4">
-          <h2 className="text-base font-semibold">Como funciona</h2>
-          <ul className="mt-2 list-disc pl-4 text-sm text-gray-700 space-y-1">
-            <li>Este é um login temporário, sem cadastro real.</li>
-            <li>Usamos seus dados apenas para simular o fluxo de compra.</li>
-            <li>Após autenticar, você será redirecionado para continuar o checkout.</li>
-          </ul>
+        <aside className="rounded-2xl border border-gray-200 bg-white overflow-hidden relative h-full min-h-[400px]">
+          <Image
+            src="https://rgqlncxrzwgjreggrjcq.supabase.co/storage/v1/object/public/images/bancas/loginpubli.jpg"
+            alt="Como funciona"
+            fill
+            className="object-cover"
+            sizes="(max-width: 1024px) 100vw, 50vw"
+            priority
+          />
         </aside>
       </div>
     </section>

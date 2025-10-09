@@ -8,6 +8,7 @@ type AdminCategory = {
   image: string;
   link: string;
   active: boolean;
+  visible: boolean;
   order: number;
 };
 
@@ -22,7 +23,7 @@ export default function AdminCategoriesPage() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/categories?all=true', { headers: { 'Authorization': 'Bearer admin-token' } });
+      const res = await fetch('/api/admin/categories/visibility', { headers: { 'Authorization': 'Bearer admin-token' } });
       const j = await res.json();
       if (j?.success) setItems(j.data);
     } finally { setLoading(false); }
@@ -51,6 +52,28 @@ export default function AdminCategoriesPage() {
       const res = await fetch('/api/admin/categories', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin-token' }, body: JSON.stringify({ type: 'bulk', data: updated }) });
       const j = await res.json();
       if (j?.success) setItems(updated);
+    } finally { setSaving(false); }
+  };
+
+  const onToggleVisible = async (id: string) => {
+    setSaving(true);
+    try {
+      const item = items.find(c => c.id === id);
+      if (!item) return;
+      
+      const res = await fetch('/api/admin/categories/visibility', { 
+        method: 'PATCH', 
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin-token' }, 
+        body: JSON.stringify({ id, visible: !item.visible }) 
+      });
+      const j = await res.json();
+      if (j?.success) {
+        setItems(prev => prev.map(c => c.id === id ? { ...c, visible: !c.visible } : c));
+        setMessage({ type: 'success', text: `Categoria ${!item.visible ? 'exibida' : 'ocultada'} no frontend` });
+        setTimeout(() => setMessage(null), 3000);
+      } else {
+        setMessage({ type: 'error', text: j?.error || 'Erro ao alterar visibilidade' });
+      }
     } finally { setSaving(false); }
   };
 
@@ -102,6 +125,12 @@ export default function AdminCategoriesPage() {
         </button>
       </div>
 
+      {message && (
+        <div className={`rounded-md px-4 py-3 text-sm ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+          {message.text}
+        </div>
+      )}
+
       <div className="rounded-lg border border-gray-200 bg-white">
         <div className="border-b border-gray-200 px-6 py-4">
           <h2 className="text-lg font-semibold">Categorias</h2>
@@ -123,6 +152,7 @@ export default function AdminCategoriesPage() {
                       <div className="text-xs text-gray-600 mt-0.5">Link: {c.link || <span className='text-red-600'>(vazio)</span>}</div>
                       <div className="mt-2 flex items-center gap-2">
                         <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${c.active? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{c.active? 'Ativa' : 'Inativa'}</span>
+                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${c.visible? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}`}>{c.visible? 'Visível' : 'Oculta'}</span>
                         <span className="text-xs text-gray-500">Ordem: {c.order}</span>
                       </div>
                     </div>
@@ -135,6 +165,9 @@ export default function AdminCategoriesPage() {
                       </button>
                       <button onClick={()=>onToggleActive(c.id)} className={`p-1 ${c.active? 'text-green-600 hover:text-green-800' : 'text-gray-400 hover:text-gray-600'}`} title={c.active? 'Desativar' : 'Ativar'}>
                         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg>
+                      </button>
+                      <button onClick={()=>onToggleVisible(c.id)} className={`p-1 ${c.visible? 'text-blue-600 hover:text-blue-800' : 'text-red-600 hover:text-red-800'}`} title={c.visible? 'Ocultar no frontend' : 'Exibir no frontend'}>
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">{c.visible ? <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></> : <><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.74-1.73 2.1-3.64 3.95-5.22"/><path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8-.74 1.73-2.1 3.64-3.95 5.22"/><path d="M1 1l22 22"/></>}</svg>
                       </button>
                       <button onClick={()=>onEdit(c)} className="p-1 text-blue-600 hover:text-blue-800" title="Editar">
                         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -171,6 +204,7 @@ function CategoryForm({ item, onSubmit, onCancel, saving }: { item: AdminCategor
   const [image, setImage] = useState(item?.image || "");
   const [link, setLink] = useState(item?.link || "");
   const [active, setActive] = useState<boolean>(item?.active ?? true);
+  const [visible, setVisible] = useState<boolean>(item?.visible ?? true);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -180,7 +214,7 @@ function CategoryForm({ item, onSubmit, onCancel, saving }: { item: AdminCategor
     setError(null);
     // validação simples: link interno
     const normalizedLink = link.trim().startsWith('/') ? link.trim() : ('/' + link.trim().replace(/^\/+/,'') );
-    onSubmit({ id: item?.id, name, image, link: normalizedLink, active });
+    onSubmit({ id: item?.id, name, image, link: normalizedLink, active, visible });
   };
 
   const onFileDrop = async (f: File) => {
@@ -264,11 +298,16 @@ function CategoryForm({ item, onSubmit, onCancel, saving }: { item: AdminCategor
               <p className="mt-1 text-xs text-gray-500">Sempre iniciar com "/". Ex: /categorias/revistas</p>
             </div>
 
-            <div>
+            <div className="space-y-3">
               <label className="flex items-center gap-2">
                 <input type="checkbox" className="rounded border-gray-300" checked={active} onChange={(e)=>setActive(e.target.checked)} />
                 <span className="text-sm">Categoria ativa</span>
               </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" className="rounded border-gray-300" checked={visible} onChange={(e)=>setVisible(e.target.checked)} />
+                <span className="text-sm">Visível no frontend</span>
+              </label>
+              <p className="text-xs text-gray-500">Categorias invisíveis não aparecem no site, mas permanecem no sistema.</p>
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-4 border-t">

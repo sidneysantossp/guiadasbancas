@@ -107,7 +107,7 @@ function AdCard({ ad }: { ad: AdItem }) {
   return (
     <div className="group overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
       <div className="relative h-40 sm:h-44 w-full">
-        <Image src={ad.image} alt={ad.title} fill className="object-cover" />
+        <Image src={ad.image} alt={ad.title} fill className="object-cover" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" />
         {ad.badgeText && (
           <span className="absolute top-3 left-3 rounded-xl bg-white/90 text-[#ff5c00] text-xs font-extrabold px-2 py-1 shadow">{ad.badgeText}</span>
         )}

@@ -11,6 +11,10 @@ type Props = { targetId?: string };
 export default function MiniCategoryBar({ targetId = "buy-by-category" }: Props) {
   const [visible, setVisible] = useState(false);
   const { items } = useCategories();
+  const filtered = items.filter((c) => {
+    const n = (c.name || '').trim().toLowerCase();
+    return n !== 'diversos' && n !== 'sem categoria';
+  });
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [pause, setPause] = useState(false);
@@ -36,7 +40,7 @@ export default function MiniCategoryBar({ targetId = "buy-by-category" }: Props)
     const chipW = first ? first.getBoundingClientRect().width : 72;
     const gap = 14; // md:gap-3.5 ~ 14px
     const visibleCount = Math.max(1, Math.floor(scroller.clientWidth / (chipW + gap)));
-    if (items.length <= visibleCount) return; // sem overflow, não auto-rola
+    if (filtered.length <= visibleCount) return; // sem overflow, não auto-rola
 
     const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     const animateTo = (targetLeft: number, duration = 600) => {
@@ -78,7 +82,7 @@ export default function MiniCategoryBar({ targetId = "buy-by-category" }: Props)
 
     const id = setInterval(() => { if (!pause) stepFn(); }, 3200);
     return () => clearInterval(id);
-  }, [items, pause]);
+  }, [filtered, pause]);
 
   // Pausar ao interagir (hover/wheel/touch)
   useEffect(() => {
@@ -111,7 +115,7 @@ export default function MiniCategoryBar({ targetId = "buy-by-category" }: Props)
         <div className="mx-auto max-w-[680px] xl:max-w-[760px] 2xl:max-w-[820px]">
           <div ref={scrollerRef} className="py-2 overflow-x-auto no-scrollbar">
             <div ref={trackRef} className="flex items-center gap-3.5">
-            {[...items, ...items].map((c, idx) => (
+            {[...filtered, ...filtered].map((c, idx) => (
               <Link
                 key={`${c.key}-${idx}`}
                 href={c.link as any}

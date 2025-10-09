@@ -7,6 +7,7 @@ export type AdminBanca = {
   id: string;
   name: string;
   address?: string;
+  cep?: string;
   lat?: number;
   lng?: number;
   cover: string;
@@ -28,6 +29,9 @@ export type AdminBanca = {
   active: boolean;
   order: number;
   createdAt?: string;
+  // Admin-only helper fields
+  user_id?: string | null;
+  ownerEmail?: string | null;
 };
 
 async function readBancas(): Promise<AdminBanca[]> {
@@ -45,15 +49,19 @@ async function readBancas(): Promise<AdminBanca[]> {
       id: banca.id,
       name: banca.name,
       address: banca.address,
-      lat: banca.lat,
-      lng: banca.lng,
+      cep: banca.cep,
+      lat: typeof banca.lat === 'number' ? banca.lat : (banca.lat != null ? parseFloat(banca.lat) : undefined),
+      lng: typeof banca.lng === 'number' ? banca.lng : (banca.lng != null ? parseFloat(banca.lng) : undefined),
       cover: banca.cover_image || '',
       avatar: banca.cover_image || '',
       description: banca.address,
+      addressObj: banca.addressObj || undefined,
+      location: banca.location || undefined,
       categories: banca.categories || [],
       active: banca.active !== false, // Usar valor real do banco
       order: banca.order || 0,
-      createdAt: banca.created_at
+      createdAt: banca.created_at,
+      user_id: banca.user_id || null
     }));
   } catch {
     return [];
@@ -78,7 +86,29 @@ export async function GET(request: NextRequest) {
     // Ao buscar por ID, considerar TODAS (inclusive inativas) para evitar 404 indevido
     const it = items.find((b) => b.id === id || b.id.endsWith(id));
     if (!it) return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
-    return NextResponse.json({ success: true, data: it });
+
+    // Enriquecer com email do jornaleiro (dono) quando possível
+    let ownerEmail: string | null = null;
+    try {
+      // Garantir que temos user_id; se não, buscar diretamente a banca
+      let ownerId = it.user_id as string | undefined;
+      if (!ownerId) {
+        const { data: rawBanca } = await supabaseAdmin
+          .from('bancas')
+          .select('user_id')
+          .eq('id', it.id)
+          .single();
+        ownerId = rawBanca?.user_id as string | undefined;
+      }
+      if (ownerId) {
+        const { data: userData, error: getErr } = await supabaseAdmin.auth.admin.getUserById(ownerId);
+        if (!getErr && userData?.user?.email) {
+          ownerEmail = userData.user.email;
+        }
+      }
+    } catch {}
+
+    return NextResponse.json({ success: true, data: { ...it, ownerEmail } });
   }
 
   return NextResponse.json({ success: true, data: list.sort((a,b)=>a.order-b.order) });
@@ -102,8 +132,8 @@ export async function POST(request: NextRequest) {
       name: data.name,
       address: data.address || '',
       cep: data.addressObj?.cep || '00000-000',
-      lat: data.lat || data.location?.lat || -23.5505,
-      lng: data.lng || data.location?.lng || -46.6333,
+      lat: (data.lat != null ? Number(data.lat) : (data.location?.lat != null ? Number(data.location.lat) : -23.5505)),
+      lng: (data.lng != null ? Number(data.lng) : (data.location?.lng != null ? Number(data.location.lng) : -46.6333)),
       cover_image: data.cover || data.images?.cover,
       categories: data.categories || [],
       active: data.active !== false,
@@ -147,10 +177,15 @@ export async function PUT(request: NextRequest) {
       name: data.name,
       address: data.address || data.addressObj?.street,
       cep: data.addressObj?.cep || data.cep,
-      lat: data.lat || data.location?.lat,
-      lng: data.lng || data.location?.lng,
+      lat: (data.lat != null ? Number(data.lat) : (data.location?.lat != null ? Number(data.location.lat) : undefined)),
+      lng: (data.lng != null ? Number(data.lng) : (data.location?.lng != null ? Number(data.location.lng) : undefined)),
       cover_image: data.cover || data.images?.cover,
-      avatar: data.avatar || data.images?.avatar,
+      description: data.description || null,
+      whatsapp: data.contact?.whatsapp || null,
+      facebook: data.socials?.facebook || null,
+      instagram: data.socials?.instagram || null,
+      gmb: data.socials?.gmb || null,
+      hours: data.hours || null,
       categories: data.categories || [],
       active: data.active !== false,
       featured: data.featured || false,

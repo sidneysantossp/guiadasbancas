@@ -18,6 +18,7 @@ export async function GET(
       .from('products')
       .select('*')
       .eq('banca_id', bancaId)
+      .eq('active', true)
       .is('distribuidor_id', null);
 
     // 2. Buscar produtos de distribuidor habilitados para esta banca
@@ -37,7 +38,8 @@ export async function GET(
       const { data: produtosBase } = await supabase
         .from('products')
         .select('*')
-        .in('id', productIds);
+        .in('id', productIds)
+        .eq('active', true);
 
       // Combinar dados base com customizações
       produtosDistribuidor = (produtosBase || []).map(produto => {

@@ -219,9 +219,15 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
                   <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-gray-900">
-                          {getActionLabel(entry.action)}
-                        </p>
+                        {(() => {
+                          const isSpecialNote = entry.action === 'note_added' && /Mensagem de boas|Confirmação de recebimento|Cópia do pedido/i.test(entry.new_value || '');
+                          const header = isSpecialNote ? (entry.new_value || getActionLabel(entry.action)) : getActionLabel(entry.action);
+                          return (
+                            <p className="text-sm font-medium text-gray-900">
+                              {header}
+                            </p>
+                          );
+                        })()}
                         {entry.action === "status_change" && (
                           <div className="flex items-center gap-1">
                             {entry.old_value && (
@@ -236,16 +242,30 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
                           </div>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {getActionDescription(entry)}
-                      </p>
+                      {/* Mobile: data e banca abaixo do título */}
+                      <div className="sm:hidden mt-1 text-xs text-gray-500">
+                        <div>{formatTimestamp(entry.timestamp)}</div>
+                        <div>{entry.user_name}</div>
+                      </div>
+                      {(() => {
+                        const isSpecialNote = entry.action === 'note_added' && /Mensagem de boas|Confirmação de recebimento|Cópia do pedido/i.test(entry.new_value || '');
+                        if (isSpecialNote) {
+                          // Evita duplicar o texto da nota; exibe detalhes se houver
+                          return entry.details ? (
+                            <p className="text-xs text-gray-500 mt-1">{entry.details}</p>
+                          ) : null;
+                        }
+                        return (
+                          <p className="text-sm text-gray-600 mt-1">{getActionDescription(entry)}</p>
+                        );
+                      })()}
                       {entry.details && entry.action !== "created" && (
                         <p className="text-xs text-gray-500 mt-1">
                           {entry.details}
                         </p>
                       )}
                     </div>
-                    <div className="whitespace-nowrap text-right text-sm text-gray-500">
+                    <div className="hidden sm:block whitespace-nowrap text-right text-sm text-gray-500">
                       <div>{formatTimestamp(entry.timestamp)}</div>
                       <div className="text-xs">{entry.user_name}</div>
                     </div>

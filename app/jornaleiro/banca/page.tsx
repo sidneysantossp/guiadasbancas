@@ -25,6 +25,36 @@ const PAYMENT_OPTIONS = [
   { value: "online", label: "Pagamento online" },
 ];
 
+const ESTADOS = [
+  { sigla: 'AC', nome: 'Acre' },
+  { sigla: 'AL', nome: 'Alagoas' },
+  { sigla: 'AP', nome: 'Amapá' },
+  { sigla: 'AM', nome: 'Amazonas' },
+  { sigla: 'BA', nome: 'Bahia' },
+  { sigla: 'CE', nome: 'Ceará' },
+  { sigla: 'DF', nome: 'Distrito Federal' },
+  { sigla: 'ES', nome: 'Espírito Santo' },
+  { sigla: 'GO', nome: 'Goiás' },
+  { sigla: 'MA', nome: 'Maranhão' },
+  { sigla: 'MT', nome: 'Mato Grosso' },
+  { sigla: 'MS', nome: 'Mato Grosso do Sul' },
+  { sigla: 'MG', nome: 'Minas Gerais' },
+  { sigla: 'PA', nome: 'Pará' },
+  { sigla: 'PB', nome: 'Paraíba' },
+  { sigla: 'PR', nome: 'Paraná' },
+  { sigla: 'PE', nome: 'Pernambuco' },
+  { sigla: 'PI', nome: 'Piauí' },
+  { sigla: 'RJ', nome: 'Rio de Janeiro' },
+  { sigla: 'RN', nome: 'Rio Grande do Norte' },
+  { sigla: 'RS', nome: 'Rio Grande do Sul' },
+  { sigla: 'RO', nome: 'Rondônia' },
+  { sigla: 'RR', nome: 'Roraima' },
+  { sigla: 'SC', nome: 'Santa Catarina' },
+  { sigla: 'SP', nome: 'São Paulo' },
+  { sigla: 'SE', nome: 'Sergipe' },
+  { sigla: 'TO', nome: 'Tocantins' },
+] as const;
+
 const TOKEN_KEY = "gb:sellerToken";
 const SELLER_DEFAULT_TOKEN = "seller-token";
 
@@ -63,6 +93,7 @@ export default function MinhaBancaPage() {
   const [saving, setSaving] = useState(false);
   const [loadingCep, setLoadingCep] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState<boolean>(false);
   const [form, setForm] = useState<BancaForm | null>(null);
   const [coverImages, setCoverImages] = useState<string[]>([]);
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
@@ -80,6 +111,11 @@ export default function MinhaBancaPage() {
       try {
         setLoading(true);
         const res = await fetch("/api/jornaleiro/banca", { headers: authHeaders, cache: "no-store" });
+        if (res.status === 404) {
+          setNotFound(true);
+          setForm(null);
+          return;
+        }
         if (!res.ok) throw new Error("Não foi possível carregar os dados da banca.");
         const json = await res.json();
         const banca = json?.data || {};
@@ -404,7 +440,33 @@ export default function MinhaBancaPage() {
     return <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600">{error}</div>;
   }
 
-  if (!form) return null;
+  if (notFound) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white p-6 text-center">
+        <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-orange-100 grid place-items-center text-orange-600">!</div>
+        <h2 className="text-lg font-semibold mb-1">Nenhuma banca encontrada</h2>
+        <p className="text-sm text-gray-600">Você ainda não possui uma banca vinculada à sua conta.</p>
+        <div className="mt-4 flex items-center justify-center gap-2">
+          <button
+            onClick={() => router.push('/jornaleiro/registrar')}
+            className="inline-flex items-center rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+          >
+            Cadastrar minha banca
+          </button>
+          <button
+            onClick={() => router.push('/jornaleiro/dashboard')}
+            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Voltar ao Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!form) {
+    return <div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-600">Preparando formulário...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -431,35 +493,18 @@ export default function MinhaBancaPage() {
               onChange={(html) => updateField("description", html)}
               placeholder="Conte um pouco sobre sua banca..."
             />
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.featured}
-                onChange={(e) => updateField("featured", e.target.checked)}
-                className="rounded"
-              />
-              Destacar minha banca na vitrine
-            </label>
-            <div>
-              <label className="text-sm font-medium">Link de destaque (CTA)</label>
-              <input
-                value={form.ctaUrl || ""}
-                onChange={(e) => updateField("ctaUrl", e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                placeholder="https://"
-              />
-            </div>
           </div>
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
           <div>
-            <label className="text-sm font-medium">Imagem de Perfil</label>
+            <label className="text-sm font-medium">Imagem de Perfil (aparece redonda no perfil)</label>
             <ImageUploader
               multiple={false}
               max={1}
               value={avatarImages}
               onChange={(_, previews) => setAvatarImages(previews)}
+              previewShape="circle"
             />
           </div>
           <div>
@@ -523,12 +568,15 @@ export default function MinhaBancaPage() {
             <div>
               <label className="text-sm font-medium">CEP</label>
               <div className="relative">
-                <input 
-                  value={formatCep(form.addressObj.cep || "")} 
-                  onChange={(e) => handleCepChange(e.target.value)} 
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm pr-10" 
+                <input
+                  value={form.addressObj.cep || ""}
+                  onChange={(e) => handleCepChange(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm pr-10"
                   placeholder="00000-000"
-                  maxLength={9}
+                  inputMode="numeric"
+                  pattern="\\d*"
+                  maxLength={8}
+                  autoComplete="postal-code"
                 />
                 {loadingCep && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5">
@@ -540,7 +588,7 @@ export default function MinhaBancaPage() {
                 )}
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Digite o CEP para buscar o endereço automaticamente
+                Digite o CEP (somente números) para buscar o endereço automaticamente
               </p>
             </div>
             <div>
@@ -565,19 +613,21 @@ export default function MinhaBancaPage() {
             </div>
             <div>
               <label className="text-sm font-medium">UF</label>
-              <input value={form.addressObj.uf || ""} onChange={(e) => updateAddress("uf", e.target.value)} maxLength={2} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm uppercase" />
+              <select
+                value={form.addressObj.uf || ""}
+                onChange={(e) => updateAddress("uf", e.target.value)}
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="">{form.addressObj.cep ? 'Selecione' : 'Selecione o estado'}</option>
+                {ESTADOS.map((e) => (
+                  <option key={e.sigla} value={e.sigla}>
+                    {e.sigla} - {e.nome}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium">Latitude</label>
-              <input value={form.location.lat || ""} onChange={(e) => updateLocation("lat", e.target.value)} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="-23.5" />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Longitude</label>
-              <input value={form.location.lng || ""} onChange={(e) => updateLocation("lng", e.target.value)} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="-46.6" />
-            </div>
-          </div>
+          {/* Campos de Latitude/Longitude ocultados conforme solicitação */}
         </div>
       </section>
 
@@ -663,24 +713,7 @@ export default function MinhaBancaPage() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-        <h2 className="text-lg font-semibold">Galeria de imagens</h2>
-        <p className="text-sm text-gray-600">Adicione fotos da banca para destacar sua vitrine.</p>
-        {galleryImages.length > 0 && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {galleryImages.map((src, idx) => (
-              <div key={idx} className="relative overflow-hidden rounded-lg border">
-                <Image src={src} alt="Foto da banca" width={300} height={200} className="h-32 w-full object-cover" />
-              </div>
-            ))}
-          </div>
-        )}
-        <ImageUploader
-          multiple
-          value={galleryImages}
-          onChange={(_, previews) => setGalleryImages(previews)}
-        />
-      </section>
+      {/* Galeria de imagens removida conforme solicitação */}
 
       <div className="flex justify-end">
         <button

@@ -88,7 +88,7 @@ function Card({ p }: { p: TopItem }) {
   return (
     <Link href={("/produto/" + p.id) as any} className="block rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <div className="relative h-36 w-full">
-        <Image src={p.image} alt={p.title} fill className="object-cover" />
+        <Image src={p.image} alt={p.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover" />
         <DiscountBadge text={p.discountLabel} />
         {!p.available && (
           <div className="absolute inset-0 bg-black/55 grid place-items-center">
@@ -125,7 +125,7 @@ export default function TopReviewed() {
   // Mostrar 2 cards no mobile
   const perView = w < 640 ? 2 : w < 1024 ? 2 : 4;
   
-  // Carregar produtos reais das categorias Eletrônicos/Informática
+  // Preferir vitrine curada pelo Admin (featured); fallback: categorias Eletrônicos/Informática
   type ApiProduct = {
     id: string; name: string; images?: string[]; price?: number; price_original?: number | null;
     discount_percent?: number | null; rating_avg?: number | null; reviews_count?: number | null; active?: boolean; description?: string; banca_id?: string;
@@ -137,35 +137,47 @@ export default function TopReviewed() {
     (async () => {
       try {
         setLoading(true);
-        // 1) Carregar categorias e obter IDs para eletronicos/informatica
-        const cRes = await fetch('/api/categories', { cache: 'no-store' });
-        const cj = await cRes.json();
-        const cats: Array<{ id: string; link?: string; name?: string }> = Array.isArray(cj?.data) ? cj.data : [];
-        const getIdBySlug = (slug: string) => cats.find(c => c.link?.endsWith(`/categorias/${slug}`))?.id;
-        const catEle = getIdBySlug('eletronicos');
-        const catInfo = getIdBySlug('informatica');
-
-        const fetchByCat = async (cat?: string | null) => {
-          if (!cat) return [] as ApiProduct[];
-          const r = await fetch(`/api/products/public?category=${encodeURIComponent(cat)}&limit=12`, { 
-            next: { revalidate: 60 } as any 
-          });
-          if (!r.ok) return [] as ApiProduct[];
-          const j = await r.json();
-          const list: ApiProduct[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
-          return list;
-        };
-
-        // 2) Carregar produtos e bancas para mapear nomes
-        const [listEle, listInfo, bRes] = await Promise.all([
-          fetchByCat(catEle),
-          fetchByCat(catInfo),
+        // 1) Tentar vitrine curada desta seção
+        const [curRes, bRes] = await Promise.all([
+          fetch('/api/featured-products?section=topreviewed_ei&limit=8', { next: { revalidate: 60 } as any }),
           fetch('/api/bancas', { cache: 'no-store' })
         ]);
-        const merged = [...listEle, ...listInfo];
-        // Dedupe by id
-        const seen = new Set<string>();
-        const dedup = merged.filter(p => { if (!p?.id || seen.has(p.id)) return false; seen.add(p.id); return true; });
+
+        let source: ApiProduct[] = [];
+        if (curRes.ok) {
+          const cj = await curRes.json();
+          source = Array.isArray(cj?.data) ? cj.data : [];
+        }
+
+        // 2) Se não houver curados, buscar pelas categorias Eletrônicos e Informática
+        if (!source.length) {
+          const cRes = await fetch('/api/categories', { cache: 'no-store' });
+          const cj = await cRes.json();
+          const cats: Array<{ id: string; link?: string; name?: string }> = Array.isArray(cj?.data) ? cj.data : [];
+          const getIdBySlug = (slug: string) => cats.find(c => c.link?.endsWith(`/categorias/${slug}`))?.id;
+          const catEle = getIdBySlug('eletronicos');
+          const catInfo = getIdBySlug('informatica');
+
+          const fetchByCat = async (cat?: string | null) => {
+            if (!cat) return [] as ApiProduct[];
+            const r = await fetch(`/api/products/public?category=${encodeURIComponent(cat)}&limit=12`, { 
+              next: { revalidate: 60 } as any 
+            });
+            if (!r.ok) return [] as ApiProduct[];
+            const j = await r.json();
+            const list: ApiProduct[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
+            return list;
+          };
+
+          const [listEle, listInfo] = await Promise.all([
+            fetchByCat(catEle),
+            fetchByCat(catInfo)
+          ]);
+          const merged = [...listEle, ...listInfo];
+          // Dedupe by id
+          const seen = new Set<string>();
+          source = merged.filter(p => { if (!p?.id || seen.has(p.id)) return false; seen.add(p.id); return true; });
+        }
 
         let bancaMap: Record<string, { name: string }> = {};
         try {
@@ -175,7 +187,7 @@ export default function TopReviewed() {
         } catch {}
 
         // Ordenar: melhor avaliação desc, depois número de reviews desc, depois fallback
-        dedup.sort((a, b) => {
+        source.sort((a, b) => {
           const ra = Number(a.rating_avg ?? 0);
           const rb = Number(b.rating_avg ?? 0);
           if (rb !== ra) return rb - ra;
@@ -185,7 +197,7 @@ export default function TopReviewed() {
           return 0;
         });
 
-        const mapped: TopItem[] = dedup.slice(0, 8).map(p => ({
+        const mapped: TopItem[] = source.slice(0, 8).map(p => ({
           id: p.id,
           title: p.name,
           vendor: (p.banca_id && bancaMap[p.banca_id]?.name) || '',
@@ -316,7 +328,7 @@ function EnhancedCard({ p }: { p: TopItem }) {
       {/* Imagem com padding + overlay de ações */}
       <div className="p-2">
         <div className="relative h-48 md:h-72 w-full rounded-xl overflow-hidden">
-          <Image src={p.image} alt={p.title} fill className="object-cover" />
+          <Image src={p.image} alt={p.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
           <DiscountBadge text={p.discountLabel} />
           {!p.available && (
             <div className="absolute inset-0 bg-black/55 grid place-items-center">

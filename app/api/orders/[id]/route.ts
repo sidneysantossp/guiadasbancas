@@ -32,6 +32,11 @@ type Order = {
   created_at: string;
   updated_at: string;
   estimated_delivery?: string;
+  discount?: number;
+  coupon_code?: string;
+  coupon_discount?: number;
+  tax?: number;
+  addons_total?: number;
 };
 
 // Mock data removido - agora busca do Supabase
@@ -199,7 +204,12 @@ export async function GET(
       notes: order.notes,
       created_at: order.created_at,
       updated_at: order.updated_at,
-      estimated_delivery: order.estimated_delivery
+      estimated_delivery: order.estimated_delivery,
+      discount: order.discount ? Number(order.discount) : 0,
+      coupon_code: order.coupon_code || null,
+      coupon_discount: order.coupon_discount ? Number(order.coupon_discount) : 0,
+      tax: order.tax ? Number(order.tax) : 0,
+      addons_total: order.addons_total ? Number(order.addons_total) : 0
     };
     
     console.log('[API/ORDERS/[ID]/GET] Pedido encontrado:', formattedOrder.order_number);

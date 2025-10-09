@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+function verifyAdminAuth(request: NextRequest) {
+  const authHeader = request.headers.get("authorization");
+  return Boolean(authHeader && authHeader === "Bearer admin-token");
+}
+
 export async function POST(req: NextRequest) {
   try {
+    if (!verifyAdminAuth(req)) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
     if (process.env.ALLOW_LOCAL_RESET !== "true") {
       return NextResponse.json({ error: "Local reset disabled" }, { status: 403 });
     }

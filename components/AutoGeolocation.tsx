@@ -14,14 +14,18 @@ export default function AutoGeolocation({ onLocationUpdate }: AutoGeolocationPro
   useEffect(() => {
     // Verificar se já temos localização armazenada
     const stored = loadStoredLocation();
+    let needUpgrade = false;
     if (stored) {
       onLocationUpdate?.(stored);
-      return;
+      // Se a localização armazenada não for precisa (ex.: via CEP/IP), tentar melhorar
+      const isPrecise = (stored as any)?.accuracy === 'precise' || (stored as any)?.source === 'geolocation';
+      needUpgrade = !isPrecise;
+      if (!needUpgrade) return; // já é precisa, não precisa pedir de novo
     }
 
     // Verificar se já solicitamos permissão nesta sessão
     const sessionRequested = sessionStorage.getItem('gb:geoRequested');
-    if (sessionRequested) {
+    if (sessionRequested && !needUpgrade) {
       return;
     }
 

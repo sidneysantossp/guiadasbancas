@@ -13,6 +13,7 @@ export type UICategory = {
 export function useCategories(): { items: UICategory[]; loading: boolean } {
   const [apiItems, setApiItems] = useState<UICategory[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
 
   useEffect(() => {
     let mounted = true;
@@ -36,10 +37,36 @@ export function useCategories(): { items: UICategory[]; loading: boolean } {
     return () => { mounted = false; };
   }, []);
 
+  // Detectar mobile para aplicar filtros específicos da UI
+  useEffect(() => {
+    const detect = () => {
+      try { setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768); } catch { setIsMobile(false); }
+    };
+    detect();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', detect);
+      return () => window.removeEventListener('resize', detect);
+    }
+  }, []);
+
   const items = useMemo<UICategory[]>(() => {
-    if (apiItems && apiItems.length > 0) return apiItems;
-    return fallbackCategories.map((c, i) => ({ key: `${c.slug}:${i}` , name: c.name, image: c.image || '', link: `/categorias?cat=${c.slug}` }));
-  }, [apiItems]);
+    const base = (apiItems && apiItems.length > 0)
+      ? apiItems
+      : fallbackCategories.map((c, i) => ({ key: `${c.slug}:${i}` , name: c.name, image: c.image || '', link: `/categorias?cat=${c.slug}` }));
+
+    if (!isMobile) return base;
+    // Mobile: remover categorias genéricas (case-insensitive e por link)
+    const DIVERSOS_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
+    const SEM_CATEGORIA_ID = 'bbbbbbbb-0000-0000-0000-000000000001';
+    return base.filter((c) => {
+      const n = (c.name || '').trim().toLowerCase();
+      const link = (c.link || '').toLowerCase();
+      const byName = n === 'diversos' || n === 'sem categoria';
+      const byLink = link.includes('/diversos') || link.includes('/sem-categoria');
+      const byId = c.key === DIVERSOS_ID || c.key === SEM_CATEGORIA_ID;
+      return !(byName || byLink || byId);
+    });
+  }, [apiItems, isMobile]);
 
   return { items, loading };
 }

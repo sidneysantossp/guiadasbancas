@@ -991,7 +991,7 @@ export default function CheckoutPage() {
               <div key={it.id} className="pt-3 first:pt-0 flex items-center gap-3">
                 <div className="relative h-14 w-14 rounded-lg overflow-hidden bg-gray-50 border border-gray-200">
                   {it.image ? (
-                    <Image src={it.image} alt={it.name} fill className="object-cover" />
+                    <Image src={it.image} alt={it.name} fill sizes="56px" className="object-cover" />
                   ) : null}
                 </div>
                 <div className="flex-1 min-w-0">

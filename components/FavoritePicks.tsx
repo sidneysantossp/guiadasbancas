@@ -142,7 +142,7 @@ function FavCard({ item }: { item: FavItem }) {
       <div className="p-2 flex items-center gap-3">
         {/* Imagem à esquerda com padding e badge - clicável */}
         <Link href={("/produto/" + slugify(name) + "-" + id) as Route} className="relative w-28 h-24 rounded-xl overflow-hidden shrink-0">
-          <Image src={image} alt={name} fill className="object-contain bg-gray-50" />
+          <Image src={image} alt={name} fill sizes="112px" className="object-contain bg-gray-50" />
           <DiscountBadge percent={discountPercent} />
         </Link>
         {/* Conteúdo + coluna de ícones à direita */}

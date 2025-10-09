@@ -37,7 +37,6 @@ type Order = {
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
-    
     // SEGURANÇA: Verificar autenticação
     if (!session?.user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
@@ -46,12 +45,13 @@ export async function GET(req: NextRequest) {
     const userRole = (session?.user as any)?.role as string | undefined;
     const userId = (session?.user as any)?.id as string | undefined;
     
-    // SEGURANÇA: Verificar role válido
-    if (!userRole || !['admin', 'jornaleiro'].includes(userRole)) {
+    // SEGURANÇA: Verificar role válido (cliente pode ver próprios pedidos)
+    if (!userRole || !['admin', 'jornaleiro', 'cliente'].includes(userRole)) {
       return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
+    const orderId = searchParams.get("id") || "";
     const status = searchParams.get("status") || "";
     const q = (searchParams.get("q") || "").toLowerCase();
     const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 100); // Máximo 100
@@ -59,6 +59,39 @@ export async function GET(req: NextRequest) {
     const sort = searchParams.get("sort") || "created_at";
     const order = searchParams.get("order") || "desc";
     const bancaIdFilter = searchParams.get("banca_id") || "";
+    const countPref = (searchParams.get("count") || "planned") as 'exact' | 'planned' | 'estimated';
+
+    // Se buscar por ID específico, retorna apenas esse pedido
+    if (orderId) {
+      const { data: singleOrder, error: singleError } = await supabaseAdmin
+        .from('orders')
+        .select('*, bancas:banca_id ( id, name, address, whatsapp )')
+        .eq('id', orderId)
+        .single();
+
+      if (singleError || !singleOrder) {
+        return NextResponse.json({ success: false, error: "Pedido não encontrado" }, { status: 404 });
+      }
+
+      // Verificar permissão: cliente só vê próprio pedido, jornaleiro só da própria banca
+      if (userRole === 'cliente' && singleOrder.user_id !== userId) {
+        return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
+      }
+
+      if (userRole === 'jornaleiro') {
+        const { data: bancaData } = await supabaseAdmin
+          .from('bancas')
+          .select('id')
+          .eq('user_id', userId)
+          .single();
+        
+        if (!bancaData || singleOrder.banca_id !== bancaData.id) {
+          return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
+        }
+      }
+
+      return NextResponse.json({ success: true, data: singleOrder });
+    }
 
     // SEGURANÇA: Para jornaleiros, buscar banca_id do usuário
     let userBancaId: string | undefined;
@@ -75,18 +108,12 @@ export async function GET(req: NextRequest) {
       userBancaId = bancaData.id;
     }
     
-    // Buscar pedidos do Supabase
+    // Buscar pedidos do Supabase (evitar join pesado para jornaleiro)
+    const selectForAdmin = `*, bancas:banca_id ( id, name, address, whatsapp )`;
+    const selectForJornaleiro = `*`;
     let query = supabaseAdmin
       .from('orders')
-      .select(`
-        *,
-        bancas:banca_id (
-          id,
-          name,
-          address,
-          whatsapp
-        )
-      `, { count: 'exact' });
+      .select(userRole === 'admin' ? selectForAdmin : selectForJornaleiro, { count: countPref });
 
     // Filtrar por status
     if (status) {
@@ -96,6 +123,9 @@ export async function GET(req: NextRequest) {
     // Filtrar por banca (jornaleiro só vê pedidos da própria banca)
     if (userRole === 'jornaleiro' && userBancaId) {
       query = query.eq('banca_id', userBancaId);
+    } else if (userRole === 'cliente' && userId) {
+      // Cliente só vê próprios pedidos
+      query = query.eq('user_id', userId);
     } else if (bancaIdFilter) {
       query = query.eq('banca_id', bancaIdFilter);
     }
@@ -139,16 +169,24 @@ export async function GET(req: NextRequest) {
       notes: order.notes,
       created_at: order.created_at,
       updated_at: order.updated_at,
-      estimated_delivery: order.estimated_delivery
+      estimated_delivery: order.estimated_delivery,
+      discount: order.discount ? Number(order.discount) : 0,
+      coupon_code: order.coupon_code || null,
+      coupon_discount: order.coupon_discount ? Number(order.coupon_discount) : 0,
+      tax: order.tax ? Number(order.tax) : 0,
+      addons_total: order.addons_total ? Number(order.addons_total) : 0
     }));
   
-    return NextResponse.json({ 
-      items, 
-      total: count || 0, 
-      page, 
-      limit,
-      pages: Math.ceil((count || 0) / limit)
-    });
+    return NextResponse.json(
+      { 
+        items, 
+        total: count || 0, 
+        page, 
+        limit,
+        pages: Math.ceil((count || 0) / limit)
+      },
+      { headers: { 'Cache-Control': 'private, max-age=10' } }
+    );
   } catch (e: any) {
     console.error('[API/ORDERS/GET] Erro:', e);
     return NextResponse.json({ ok: false, error: e?.message || "Erro ao buscar pedidos" }, { status: 500 });
@@ -242,6 +280,20 @@ export async function POST(req: NextRequest) {
       banca: banca.name 
     });
     
+    // Registrar histórico de criação do pedido
+    try {
+      await supabaseAdmin.from('order_history').insert({
+        order_id: newOrder.id,
+        action: 'created',
+        new_value: 'novo',
+        user_name: customer.name || 'Cliente',
+        user_role: 'customer',
+        details: 'Pedido criado pelo cliente via checkout'
+      });
+    } catch (err) {
+      console.warn('[ORDER HISTORY] Falha ao registrar criação do pedido:', err);
+    }
+    
     // Enviar notificação WhatsApp para o jornaleiro (utilizando config centralizada)
     if (banca.whatsapp) {
       try {
@@ -312,6 +364,93 @@ export async function POST(req: NextRequest) {
       }
     } else {
       console.warn(`[WHATSAPP] ⚠️ Banca ${banca.name} não tem WhatsApp configurado`);
+    }
+    // Registrar histórico: cópia enviada ao jornaleiro
+    try {
+      await supabaseAdmin.from('order_history').insert({
+        order_id: newOrder.id,
+        action: 'note_added',
+        new_value: 'Cópia do pedido enviada ao jornaleiro via WhatsApp',
+        user_name: 'Guia das Bancas',
+        user_role: 'system',
+        details: `Pedido encaminhado para a banca ${banca.name}`
+      });
+    } catch (err) {
+      console.warn('[ORDER HISTORY] Falha ao registrar log de cópia ao jornaleiro:', err);
+    }
+    
+    // 1) Enviar mensagem de boas-vindas para o CLIENTE via WhatsApp oficial da plataforma
+    try {
+      const config = getWhatsAppConfig();
+      if (!config.isActive) {
+        console.warn('[WHATSAPP] ⚠️ Integração inativa ao tentar enviar boas-vindas ao cliente');
+      } else if (!config.baseUrl || !config.apiKey || !config.instanceName) {
+        console.warn('[WHATSAPP] ⚠️ Configuração incompleta (baseUrl/apiKey/instanceName) para mensagem de boas-vindas');
+      } else if (customer.phone) {
+        const cleanCustomer = String(customer.phone).replace(/\D/g, '');
+        const customerNumber = cleanCustomer.startsWith('55') ? cleanCustomer : `55${cleanCustomer}`;
+
+        const welcomeMsg =
+          `👋 Olá ${customer.name || 'cliente'}!\n` +
+          `Bem-vindo ao *Guia das Bancas*. Recebemos seu pedido ${orderNumber ? `#${orderNumber}` : ''} ` +
+          `e já encaminhamos para a banca *${banca.name}*.\n` +
+          `Em breve você receberá a confirmação e atualizações do status por aqui.`;
+
+        const respWelcome = await fetch(`${config.baseUrl}/message/sendText/${config.instanceName}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: config.apiKey },
+          body: JSON.stringify({ number: customerNumber, text: welcomeMsg })
+        });
+        if (!respWelcome.ok) {
+          console.warn('[WHATSAPP] ❌ Falha ao enviar mensagem de boas-vindas ao cliente:', await respWelcome.text());
+        }
+
+        // Registrar histórico: Mensagem de boas-vindas enviada
+        await supabaseAdmin.from('order_history').insert({
+          order_id: newOrder.id,
+          action: 'note_added',
+          new_value: 'Mensagem de boas vindas enviada!',
+          user_name: 'Guia das Bancas',
+          user_role: 'system',
+          details: welcomeMsg
+        });
+      }
+    } catch (err) {
+      console.error('[WHATSAPP] Erro ao processar mensagem de boas-vindas:', err);
+    }
+
+    // 2) Mensagem de "pedido recebido" para o CLIENTE (logo após as boas-vindas)
+    try {
+      const config = getWhatsAppConfig();
+      if (config.isActive && config.baseUrl && config.apiKey && config.instanceName && customer.phone) {
+        const cleanCustomer = String(customer.phone).replace(/\D/g, '');
+        const customerNumber = cleanCustomer.startsWith('55') ? cleanCustomer : `55${cleanCustomer}`;
+
+        const receivedMsg =
+          `🛒 Seu pedido foi recebido pela banca *${banca.name}* e está em análise! ` +
+          `Em breve você receberá a confirmação e os próximos passos.`;
+
+        const respReceived = await fetch(`${config.baseUrl}/message/sendText/${config.instanceName}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: config.apiKey },
+          body: JSON.stringify({ number: customerNumber, text: receivedMsg })
+        });
+        if (!respReceived.ok) {
+          console.warn('[WHATSAPP] ❌ Falha ao enviar mensagem de pedido recebido ao cliente:', await respReceived.text());
+        }
+
+        // Registrar histórico: Confirmação de recebimento enviada
+        await supabaseAdmin.from('order_history').insert({
+          order_id: newOrder.id,
+          action: 'note_added',
+          new_value: 'Confirmação de recebimento enviada ao cliente',
+          user_name: banca.name,
+          user_role: 'vendor',
+          details: receivedMsg
+        });
+      }
+    } catch (err) {
+      console.error('[WHATSAPP] Erro ao processar mensagem de recebimento ao cliente:', err);
     }
     
     // Retornar dados do pedido com informações da banca

@@ -8,6 +8,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, password, full_name, role } = body;
 
+    console.log('📝 [SIGNUP] Iniciando cadastro:', { email, role, full_name });
+
     if (!email || !password || !full_name || !role) {
       return NextResponse.json(
         { error: 'Campos obrigatórios: email, password, full_name, role' },
@@ -16,6 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Criar usuário no Supabase Auth
+    console.log('🔐 [SIGNUP] Criando usuário no Auth...');
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -27,7 +30,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (authError) {
-      console.error('Erro ao criar usuário:', authError);
+      console.error('❌ [SIGNUP] Erro ao criar usuário:', authError);
       return NextResponse.json(
         { error: authError.message },
         { status: 400 }
@@ -35,13 +38,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (!authData.user) {
+      console.error('❌ [SIGNUP] Auth OK mas sem user');
       return NextResponse.json(
         { error: 'Falha ao criar usuário' },
         { status: 500 }
       );
     }
 
+    console.log('✅ [SIGNUP] Usuário criado:', authData.user.id);
+
     // 2. Criar perfil manualmente (caso o trigger não funcione)
+    console.log('👤 [SIGNUP] Criando perfil...');
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .insert({
@@ -49,15 +56,22 @@ export async function POST(request: NextRequest) {
         role: role,
         full_name: full_name,
         email_verified: true,
+        active: true, // Ativar o perfil imediatamente
       });
 
     if (profileError) {
       // Se o perfil já existe (trigger funcionou), ignorar erro
       if (profileError.code !== '23505') { // duplicate key
-        console.error('Erro ao criar perfil:', profileError);
+        console.error('❌ [SIGNUP] Erro ao criar perfil:', profileError);
+      } else {
+        console.log('ℹ️ [SIGNUP] Perfil já existe (trigger criou)');
       }
+    } else {
+      console.log('✅ [SIGNUP] Perfil criado manualmente');
     }
 
+    console.log('🎉 [SIGNUP] Cadastro completo!');
+    
     return NextResponse.json({
       success: true,
       user: {

@@ -12,22 +12,47 @@ export default function PedidoDetalhePage() {
   const [order, setOrder] = useState<any | null>(null);
 
   useEffect(() => {
-    try {
-      const rawOrders = localStorage.getItem("gb:orders");
-      let found: any | null = null;
-      if (rawOrders) {
-        const list = JSON.parse(rawOrders) as any[];
-        found = list.find((o) => o.orderId === orderId) || null;
-      }
-      if (!found) {
-        const raw = localStorage.getItem("gb:lastOrder");
-        if (raw) {
-          const o = JSON.parse(raw);
-          if (o?.orderId === orderId) found = o;
+    let active = true;
+    (async () => {
+      try {
+        // Primeiro tenta buscar do backend
+        const res = await fetch(`/api/orders?id=${encodeURIComponent(orderId)}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('gb:token') || ''}`,
+          },
+          cache: 'no-store',
+        });
+        
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data && active) {
+            setOrder(json.data);
+            return;
+          }
         }
+      } catch (e) {
+        console.error('Erro ao buscar pedido da API:', e);
       }
-      setOrder(found);
-    } catch {}
+
+      // Fallback: busca do localStorage
+      try {
+        const rawOrders = localStorage.getItem("gb:orders");
+        let found: any | null = null;
+        if (rawOrders) {
+          const list = JSON.parse(rawOrders) as any[];
+          found = list.find((o) => o.orderId === orderId) || null;
+        }
+        if (!found) {
+          const raw = localStorage.getItem("gb:lastOrder");
+          if (raw) {
+            const o = JSON.parse(raw);
+            if (o?.orderId === orderId) found = o;
+          }
+        }
+        if (active) setOrder(found);
+      } catch {}
+    })();
+    return () => { active = false; };
   }, [orderId]);
 
   const itens = useMemo(() => (order?.items ?? []) as any[], [order]);
@@ -184,7 +209,7 @@ export default function PedidoDetalhePage() {
                 <div key={idx} className="rounded-xl border border-gray-200 p-3">
                   <div className="flex items-center gap-3">
                     <div className="relative h-10 w-10 rounded-md overflow-hidden bg-gray-50 border border-gray-200">
-                      {it.image ? <Image src={it.image} alt={it.name} fill className="object-cover" /> : null}
+                      {it.image ? <Image src={it.image} alt={it.name} fill sizes="40px" className="object-cover" /> : null}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold truncate">{it.name}</div>

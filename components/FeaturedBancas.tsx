@@ -76,6 +76,7 @@ function BancaCard({
   uf,
   description,
   featured,
+  priority = false,
 }: {
   id: string;
   name: string;
@@ -87,6 +88,7 @@ function BancaCard({
   uf: string;
   description?: string;
   featured?: boolean;
+  priority?: boolean;
 }) {
   // carregar mini produtos reais desta banca (até 3)
   const [mini, setMini] = useState<Array<{ id: string; name: string; image: string; price: number }>>([]);
@@ -153,8 +155,18 @@ function BancaCard({
   }, []);
   return (
     <Link href={(buildBancaHref(name, id, uf) as Route)} className="block min-h-[22rem] rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-shadow overflow-hidden">
-      <div className="relative h-48 w-full">
-        <Image src={cover} alt={name} fill className="object-cover" />
+      <div className="relative h-48 w-full bg-gray-100">
+        <Image 
+          src={cover} 
+          alt={name} 
+          fill 
+          sizes="(max-width: 640px) 88vw, (max-width: 1024px) 45vw, 30vw"
+          className="object-cover" 
+          priority={priority}
+          loading={priority ? undefined : "lazy"}
+          placeholder="blur"
+          blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YzZjRmNiIvPjwvc3ZnPg=="
+        />
         {/* Removido badge de distância para não poluir a imagem */}
         {featured && (
           <div className="absolute left-2 top-2 z-10 inline-flex items-center rounded-full bg-orange-50 text-[#ff5c00] border border-orange-200 px-2 py-[2px] text-[11px]">Destaque</div>
@@ -193,7 +205,7 @@ function BancaCard({
               <span key={i} className="inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 px-2 py-0.5">
                 <span className="h-3 w-3 rounded-full overflow-hidden">
                   {/* pequeno bullet com a imagem */}
-                  <Image src={c.icon} alt={c.name} width={12} height={12} className="h-3 w-3 object-cover rounded-full" />
+                  <Image src={c.icon} alt={c.name} width={12} height={12} className="h-3 w-3 object-cover rounded-full" loading="lazy" />
                 </span>
                 <span className="text-[10px] font-medium">{c.name}</span>
               </span>
@@ -202,12 +214,12 @@ function BancaCard({
           <div className="flex gap-2">
             {(mini.length ? mini : []).slice(0, 3).map((p, i) => (
               <div key={p.id || i} className="relative inline-block h-8 w-8 rounded-lg border border-[#ff5c00]/50 overflow-hidden shadow-sm bg-white">
-                <Image src={p.image} alt={p.name} fill className="object-contain" />
+                <Image src={p.image} alt={p.name} fill sizes="32px" className="object-contain" loading="lazy" />
               </div>
             ))}
             {mini.length === 0 && categories.slice(0, 3).map((c, i) => (
               <div key={`ph-${i}`} className="relative inline-block h-8 w-8 rounded-lg border border-[#ff5c00]/50 overflow-hidden shadow-sm bg-white">
-                <Image src="https://cirandadoslivros.com.br/wp-content/uploads/2024/02/89918ml.jpg" alt={c.name} fill className="object-cover" />
+                <Image src="https://cirandadoslivros.com.br/wp-content/uploads/2024/02/89918ml.jpg" alt={c.name} fill sizes="32px" className="object-cover" loading="lazy" />
               </div>
             ))}
             {mini.length > 3 && (
@@ -344,7 +356,7 @@ export default function FeaturedBancas() {
       <div className="container-max relative rounded-2xl px-3 sm:px-6 md:px-8 py-3">
         {/* Background image clipped by rounded corners */}
         <div className="absolute inset-0 z-0 pointer-events-none select-none rounded-2xl overflow-hidden">
-          <Image src="https://stackfood-react.6amtech.com/static/paidAdds.png" alt="bg" fill className="object-cover" />
+          <Image src="https://stackfood-react.6amtech.com/static/paidAdds.png" alt="bg" fill sizes="100vw" className="object-cover" />
         </div>
         <div className="relative z-10 mb-4 flex items-center justify-between">
           <div>
@@ -360,7 +372,7 @@ export default function FeaturedBancas() {
               <div className="flex gap-4 snap-x snap-mandatory">
                 {normalized.map((b, i) => (
                   <div key={`${b.id}-${i}`} className="shrink-0 snap-start" style={{ flex: `0 0 calc(88%)` }}>
-                    <BancaCard {...b} uf={uf} description={DESCRIPTIONS[b.id as keyof typeof DESCRIPTIONS]} />
+                    <BancaCard {...b} uf={uf} description={DESCRIPTIONS[b.id as keyof typeof DESCRIPTIONS]} priority={i === 0} />
                   </div>
                 ))}
               </div>
@@ -390,7 +402,7 @@ export default function FeaturedBancas() {
                     className="shrink-0"
                     style={{ flex: `0 0 calc(${100 / perView}% - 2rem)` }}
                   >
-                    <BancaCard {...b} uf={uf} description={DESCRIPTIONS[b.id as keyof typeof DESCRIPTIONS]} />
+                    <BancaCard {...b} uf={uf} description={DESCRIPTIONS[b.id as keyof typeof DESCRIPTIONS]} priority={i < perView} />
                   </div>
                 ))}
               </div>

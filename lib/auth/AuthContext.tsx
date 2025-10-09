@@ -82,6 +82,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Registro
   const signUp = async (email: string, password: string, metadata: { full_name: string; role: UserRole }) => {
     try {
+      console.log('🔐 Iniciando signup para:', email);
+      
       // 1. Criar usuário via API
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
@@ -97,11 +99,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
 
       if (!response.ok || data.error) {
-        console.error('Signup API error:', data.error);
+        console.error('❌ Signup API error:', data.error);
         return { error: new Error(data.error || 'Erro ao criar conta') };
       }
 
-      // 2. Fazer login automático após criar conta
+      console.log('✅ Conta criada com sucesso! ID:', data.user?.id);
+
+      // 2. Aguardar 500ms para garantir que o usuário foi criado
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 3. Fazer login automático após criar conta
+      console.log('🔑 Tentando login automático...');
       const loginResult = await nextSignIn("credentials", {
         redirect: false,
         email,
@@ -109,13 +117,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (loginResult?.error) {
-        console.warn('Login automático falhou após signup:', loginResult.error);
-        // Não retornar erro aqui, pois a conta foi criada com sucesso
+        console.error('❌ Login automático falhou:', loginResult.error);
+        return { error: new Error('Conta criada, mas falha ao fazer login. Por favor, faça login manualmente.') };
+      }
+
+      if (loginResult?.ok) {
+        console.log('✅ Login automático bem-sucedido!');
       }
 
       return { error: null };
     } catch (err) {
-      console.error('Exception in signUp:', err);
+      console.error('💥 Exception in signUp:', err);
       return { error: new Error('Erro inesperado ao criar conta') };
     }
   };

@@ -40,6 +40,11 @@ type Order = {
   created_at: string;
   updated_at: string;
   estimated_delivery?: string;
+  discount?: number;
+  coupon_code?: string;
+  coupon_discount?: number;
+  tax?: number;
+  addons_total?: number;
 };
 
 export default function OrderDetailsPage() {
@@ -285,6 +290,12 @@ export default function OrderDetailsPage() {
     }
   };
 
+  const statusLabel = (s: string) => {
+    if (!s) return s;
+    if (s === 'novo') return 'Pedido Recebido';
+    return s.replace(/_/g, ' ');
+  };
+
   const openWhatsApp = () => {
     if (!order) return;
     const message = `Olá ${order.customer_name}! Seu pedido #${order.id} foi atualizado para: ${order.status}`;
@@ -325,21 +336,35 @@ export default function OrderDetailsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <Link 
-              href="/jornaleiro/pedidos"
-              className="text-gray-500 hover:text-gray-700"
-            >
-              ← Voltar
-            </Link>
-            <h1 className="text-xl font-semibold">Pedido #{order.id}</h1>
+          <div className="flex items-center justify-between sm:justify-start gap-2">
+            <div className="flex items-center gap-2">
+              <Link 
+                href="/jornaleiro/pedidos"
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ← Voltar
+              </Link>
+              {/* Desktop: mostra título com ID */}
+              <h1 className="hidden sm:block text-xl font-semibold">Pedido #{order.id}</h1>
+              {/* Mobile: mostra título sem ID */}
+              <h1 className="sm:hidden text-xl font-semibold">Pedido</h1>
+            </div>
+            {/* Mobile: badge alinhado à direita do título */}
+            <div className="sm:hidden">
+              <StatusBadge label={statusLabel(order.status)} tone={statusTone(order.status)} />
+            </div>
           </div>
           <p className="text-sm text-gray-600">
             Criado em {formatDate(order.created_at)}
           </p>
+          {/* Mobile: ID abaixo da data, pequeno */}
+          <p className="sm:hidden text-sm text-gray-500 break-all">#{order.id}</p>
         </div>
         <div className="flex items-center gap-3">
-          <StatusBadge label={order.status} tone={statusTone(order.status)} />
+          {/* Desktop: badge ao lado direito (ações) */}
+          <div className="hidden sm:block">
+            <StatusBadge label={statusLabel(order.status)} tone={statusTone(order.status)} />
+          </div>
           <div className="flex items-center gap-1">
             <button
               onClick={openWhatsApp}
@@ -474,20 +499,52 @@ export default function OrderDetailsPage() {
           {/* Resumo do Pedido */}
           <div className="bg-white border rounded-lg p-4">
             <h2 className="font-semibold mb-3">Resumo</h2>
-            <div className="space-y-2">
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span>R$ {order.subtotal.toFixed(2)}</span>
+                <span className="text-gray-700">Preço dos Itens</span>
+                <span className="font-medium">R$ {order.subtotal.toFixed(2)}</span>
               </div>
+              
+              {(order.addons_total && order.addons_total > 0) && (
+                <div className="flex justify-between">
+                  <span className="text-gray-700">Preço dos Adicionais</span>
+                  <span className="font-medium">R$ {order.addons_total.toFixed(2)}</span>
+                </div>
+              )}
+              
+              {(order.discount && order.discount > 0 && !order.coupon_code) && (
+                <div className="flex justify-between text-emerald-600">
+                  <span>Desconto</span>
+                  <span>(-) R$ {order.discount.toFixed(2)}</span>
+                </div>
+              )}
+              
+              {(order.coupon_code && order.coupon_discount && order.coupon_discount > 0) && (
+                <div className="flex justify-between text-emerald-600">
+                  <span>Desconto do Cupom</span>
+                  <span>(-) R$ {order.coupon_discount.toFixed(2)}</span>
+                </div>
+              )}
+              
+              {(order.tax && order.tax > 0) && (
+                <div className="flex justify-between">
+                  <span className="text-gray-700">Impostos (10%)</span>
+                  <span className="font-medium">(+) R$ {order.tax.toFixed(2)}</span>
+                </div>
+              )}
+              
               <div className="flex justify-between">
-                <span>Frete:</span>
-                <span>R$ {order.shipping_fee.toFixed(2)}</span>
+                <span className="text-gray-700">Taxa de Entrega</span>
+                <span className="font-medium">R$ {order.shipping_fee.toFixed(2)}</span>
               </div>
-              <hr />
-              <div className="flex justify-between font-semibold">
-                <span>Total:</span>
+              
+              <hr className="my-2" />
+              
+              <div className="flex justify-between font-semibold text-base">
+                <span>Total</span>
                 <span>R$ {order.total.toFixed(2)}</span>
               </div>
+              
               <div className="mt-3 pt-3 border-t">
                 <div className="text-sm text-gray-600">Pagamento:</div>
                 <div className="font-medium">{getPaymentMethodLabel(order.payment_method)}</div>

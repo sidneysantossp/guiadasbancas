@@ -288,7 +288,7 @@ function RelatedCarousel({ items }: { items: Array<{ id: string; name: string; i
                 <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-3 h-full">
                   {/* Imagem */}
                   <div className="relative h-36 w-full rounded-[14px] overflow-hidden group">
-                    <Image src={it.image} alt={it.name} fill className="object-cover" />
+                    <Image src={it.image} alt={it.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover" />
                     {/* Link absoluto cobrindo a imagem */}
                     <Link
                       href={("/produto/" + slugify(it.name) + "-" + it.id) as Route}
@@ -532,7 +532,7 @@ export default function ProductPageClient({ productId }: { productId: string }) 
         {/* Galeria */}
         <div>
           <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden border border-gray-200 bg-white">
-            <Image src={product.images[active]} alt={product.name} fill className="object-contain p-4" />
+            <Image src={product.images[active]} alt={product.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-contain p-4" />
             {product.ready && (
               <div className="absolute right-3 top-3"><ReadyBadge /></div>
             )}
@@ -540,7 +540,7 @@ export default function ProductPageClient({ productId }: { productId: string }) 
           <div className="mt-1 md:mt-3 grid grid-cols-5 gap-3">
             {product.images.map((src, i) => (
               <button key={i} onClick={() => setActive(i)} className={`relative h-16 rounded-xl overflow-hidden border bg-white ${active===i?"border-[var(--color-primary)]":"border-gray-200"}`}>
-                <Image src={src} alt={`thumb-${i}`} fill className="object-contain p-1" />
+                <Image src={src} alt={`thumb-${i}`} fill sizes="64px" className="object-contain p-1" />
               </button>
             ))}
           </div>

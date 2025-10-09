@@ -50,6 +50,12 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
+  // Permite acessar o dashboard e a página "Minha Banca" mesmo sem banca (renderiza CTA)
+  const allowedWithoutBanca = Boolean(
+    pathname?.startsWith('/jornaleiro/dashboard') ||
+    pathname?.startsWith('/jornaleiro/banca') ||
+    pathname?.startsWith('/jornaleiro/pedidos')
+  );
 
   const logout = async () => {
     await signOut();
@@ -78,6 +84,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         if (pathname !== '/jornaleiro') {
           router.push('/jornaleiro');
         }
+        setBancaValidated(true); // Liberar para não travar
         return;
       }
 
@@ -86,6 +93,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         console.error('[Security] Usuário não é jornaleiro');
         await signOut();
         router.push('/jornaleiro');
+        setBancaValidated(true); // Liberar para não travar
         return;
       }
 
@@ -98,10 +106,14 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           .single();
 
         if (error || !bancaData) {
-          console.error('[Security] Usuário sem banca associada:', error);
-          await signOut();
-          if (pathname !== '/jornaleiro') {
-            router.push('/jornaleiro');
+          console.warn('[Security] Usuário sem banca associada.');
+          // Permitir dashboard sem banca
+          setBanca(null);
+          setBancaValidated(true);
+          // Para rotas que exigem banca, redirecionar ao dashboard
+          const requiresBanca = !allowedWithoutBanca;
+          if (requiresBanca && pathname && !pathname.startsWith('/jornaleiro/dashboard')) {
+            router.push('/jornaleiro/dashboard');
           }
           return;
         }
@@ -110,13 +122,27 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         setBancaValidated(true);
       } catch (error) {
         console.error('[Security] Erro ao validar banca:', error);
-        await signOut();
-        router.push('/jornaleiro');
+        setBanca(null);
+        setBancaValidated(true);
+        if (pathname && !allowedWithoutBanca) {
+          router.push('/jornaleiro/dashboard');
+        }
       }
     };
 
     validateUserAccess();
   }, [user?.id, profile?.role, authLoading, isAuthRoute]);
+
+  // Timeout de segurança: se demorar mais de 5s, liberar mesmo assim
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!bancaValidated) {
+        console.warn('[Security] Timeout na validação, liberando acesso');
+        setBancaValidated(true);
+      }
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [bancaValidated]);
 
   // Removido - banca já é carregada na validação de segurança
 
@@ -154,8 +180,8 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     );
   }
 
-  // SEGURANÇA: Bloquear acesso se não tiver banca válida
-  if (!banca) {
+  // SEGURANÇA: Se não tiver banca, permitir dashboard, /jornaleiro/banca e /jornaleiro/pedidos; bloquear demais
+  if (!banca && !(pathname?.startsWith('/jornaleiro/dashboard') || pathname?.startsWith('/jornaleiro/banca') || pathname?.startsWith('/jornaleiro/pedidos'))) {
     return null;
   }
 
