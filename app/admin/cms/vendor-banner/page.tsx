@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import Image from "next/image";
 
@@ -11,6 +9,12 @@ type VendorBanner = {
   button_text: string;
   button_link: string;
   image_url: string;
+  background_color: string;
+  text_color: string;
+  button_color: string;
+  button_text_color: string;
+  overlay_opacity: number;
+  text_position: string;
   active: boolean;
 };
 
@@ -22,7 +26,13 @@ export default function VendorBannerAdminPage() {
     description: "Anuncie seus produtos, receba pedidos pelo WhatsApp e alcance clientes perto de você com o Guia das Bancas.",
     button_text: "Quero me cadastrar",
     button_link: "/jornaleiro/registrar",
-    image_url: "https://images.unsplash.com/photo-1521334726092-b509a19597d6?q=80&w=1600&auto=format&fit=crop",
+    image_url: "",
+    background_color: "#000000",
+    text_color: "#FFFFFF",
+    button_color: "#FF5C00",
+    button_text_color: "#FFFFFF",
+    overlay_opacity: 0.45,
+    text_position: "bottom-left",
     active: true
   });
   
@@ -433,16 +443,162 @@ export default function VendorBannerAdminPage() {
             </div>
           </div>
 
-          {/* Botão Salvar */}
-          <div className="pt-4 flex items-center gap-3">
-            <button
-              onClick={saveBanner}
-              disabled={saving}
-              className="inline-flex items-center gap-2 rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-            >
-              {saving && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
-              {saving ? 'Salvando...' : 'Salvar Banner'}
-            </button>
+          {/* Customização Avançada */}
+          <div className="pt-6 border-t border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">🎨 Customização Avançada</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Cores */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cor do Overlay
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={banner.background_color}
+                    onChange={(e) => setBanner(prev => ({ ...prev, background_color: e.target.value }))}
+                    className="w-12 h-8 rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={banner.background_color}
+                    onChange={(e) => setBanner(prev => ({ ...prev, background_color: e.target.value }))}
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-1 text-sm"
+                    placeholder="#000000"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cor do Texto
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={banner.text_color}
+                    onChange={(e) => setBanner(prev => ({ ...prev, text_color: e.target.value }))}
+                    className="w-12 h-8 rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={banner.text_color}
+                    onChange={(e) => setBanner(prev => ({ ...prev, text_color: e.target.value }))}
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-1 text-sm"
+                    placeholder="#FFFFFF"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cor do Botão
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={banner.button_color}
+                    onChange={(e) => setBanner(prev => ({ ...prev, button_color: e.target.value }))}
+                    className="w-12 h-8 rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={banner.button_color}
+                    onChange={(e) => setBanner(prev => ({ ...prev, button_color: e.target.value }))}
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-1 text-sm"
+                    placeholder="#FF5C00"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cor do Texto do Botão
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={banner.button_text_color}
+                    onChange={(e) => setBanner(prev => ({ ...prev, button_text_color: e.target.value }))}
+                    className="w-12 h-8 rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={banner.button_text_color}
+                    onChange={(e) => setBanner(prev => ({ ...prev, button_text_color: e.target.value }))}
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-1 text-sm"
+                    placeholder="#FFFFFF"
+                  />
+                </div>
+              </div>
+
+              {/* Opacidade do Overlay */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Opacidade do Overlay ({Math.round(banner.overlay_opacity * 100)}%)
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={banner.overlay_opacity}
+                  onChange={(e) => setBanner(prev => ({ ...prev, overlay_opacity: parseFloat(e.target.value) }))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Posição do Texto */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Posição do Texto
+                </label>
+                <select
+                  value={banner.text_position}
+                  onChange={(e) => setBanner(prev => ({ ...prev, text_position: e.target.value }))}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="bottom-left">Inferior Esquerda</option>
+                  <option value="bottom-center">Inferior Centro</option>
+                  <option value="center">Centro</option>
+                  <option value="top-left">Superior Esquerda</option>
+                  <option value="top-center">Superior Centro</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Botões de Ação */}
+          <div className="pt-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={saveBanner}
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {saving && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
+                {saving ? 'Salvando...' : 'Salvar Banner'}
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <a
+                href="/admin/cms/vendor-banner/analytics"
+                className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
+              >
+                📊 Ver Analytics
+              </a>
+              <a
+                href="/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-500"
+              >
+                👁️ Ver na Home
+              </a>
+            </div>
+          </div>
             
             {saving && (
               <button

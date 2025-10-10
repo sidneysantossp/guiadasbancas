@@ -82,7 +82,7 @@ const GeneralSettingsForm = memo(({
           type="text"
           value={generalConfig.name}
           onChange={(e) => setGeneralConfig({ ...generalConfig, name: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm sm:text-base"
           placeholder="Nome da sua banca"
         />
       </div>
@@ -96,7 +96,7 @@ const GeneralSettingsForm = memo(({
             const numbers = e.target.value.replace(/\D/g, '');
             setGeneralConfig({ ...generalConfig, whatsapp: numbers });
           }}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm sm:text-base"
           placeholder="(11)99999-9999"
           maxLength={15}
         />
@@ -111,7 +111,7 @@ const GeneralSettingsForm = memo(({
           rows={3}
           value={generalConfig.description}
           onChange={(e) => setGeneralConfig({ ...generalConfig, description: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm sm:text-base"
           placeholder="Descreva sua banca..."
         />
       </div>
@@ -133,7 +133,7 @@ const GeneralSettingsForm = memo(({
       <button 
         onClick={onSave}
         disabled={loading}
-        className="w-full bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] text-white font-semibold py-3 px-4 rounded-lg hover:opacity-95 disabled:opacity-50"
+        className="w-full bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] text-white font-semibold py-3 px-4 rounded-lg hover:opacity-95 disabled:opacity-50 text-sm sm:text-base"
       >
         {loading ? 'Salvando...' : 'Salvar Configurações'}
       </button>
@@ -628,7 +628,7 @@ export default function ConfiguracoesPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       <div>
         <h1 className="text-xl font-semibold">Configurações</h1>
         <p className="text-sm text-gray-600">
@@ -636,14 +636,43 @@ export default function ConfiguracoesPage() {
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
+      {/* Mobile: Cards clicáveis */}
+      <div className="sm:hidden grid grid-cols-2 gap-3">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`p-4 rounded-lg border-2 text-left transition-all ${
+              activeTab === tab.id
+                ? "border-blue-500 bg-blue-50 text-blue-700"
+                : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <i className={`${tab.icon} text-xl`}></i>
+              <div>
+                <div className="font-medium text-sm">{tab.label}</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {tab.id === "general" && "Dados básicos"}
+                  {tab.id === "delivery" && "Frete e entrega"}
+                  {tab.id === "payment" && "Formas de pagamento"}
+                  {tab.id === "notifications" && "Alertas e horários"}
+                  {tab.id === "whatsapp" && "Templates e API"}
+                </div>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Desktop: Tabs tradicionais */}
+      <div className="hidden sm:block border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${
                 activeTab === tab.id
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -657,7 +686,7 @@ export default function ConfiguracoesPage() {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white border rounded-lg p-6">
+      <div className="bg-white border rounded-lg p-4 sm:p-6">
         {activeTab === "whatsapp" && (
           <div className="space-y-6">
             {/* Link para configurações avançadas */}

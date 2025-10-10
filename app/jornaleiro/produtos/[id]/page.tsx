@@ -19,17 +19,39 @@ interface CategoryOption {
 
 // Funções de máscara
 const formatCurrency = (value: string | number) => {
+  if (!value && value !== 0) return '';
+  
   if (typeof value === 'number') {
+    if (isNaN(value)) return '';
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
+  
   const numbers = value.toString().replace(/\D/g, '');
+  if (!numbers) return '';
+  
   const amount = parseFloat(numbers) / 100;
+  if (isNaN(amount)) return '';
+  
   return amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const parseCurrency = (value: string): number => {
   const numbers = value.replace(/\D/g, '');
   return parseFloat(numbers) / 100;
+};
+
+// Função para calcular desconto baseado nos preços
+const calculateDiscountPercent = (originalPrice: number, salePrice: number): number => {
+  if (!originalPrice || originalPrice <= 0) return 0;
+  const discount = ((originalPrice - salePrice) / originalPrice) * 100;
+  return Math.max(0, Math.round(discount));
+};
+
+// Função para calcular preço de venda baseado no desconto
+const calculateSalePrice = (originalPrice: number, discountPercent: number): number => {
+  if (!originalPrice || originalPrice <= 0) return 0;
+  const discount = Math.max(0, Math.min(100, discountPercent));
+  return originalPrice * (1 - discount / 100);
 };
 
 export default function SellerProductEditPage() {
@@ -50,12 +72,27 @@ export default function SellerProductEditPage() {
   const [featuredCount, setFeaturedCount] = useState(0);
   const [descriptionFull, setDescriptionFull] = useState("");
   const [specifications, setSpecifications] = useState("");
-  const [allowReviews, setAllowReviews] = useState(true);
+  const [allowReviews, setAllowReviews] = useState(true); // Sempre ativo por padrão
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [price, setPrice] = useState("");
   const [priceOriginal, setPriceOriginal] = useState("");
+  const [discountPercent, setDiscountPercent] = useState(0);
+  const [hasCustomPrice, setHasCustomPrice] = useState(false); // Flag para saber se jornaleiro personalizou
+
+  // Função para atualizar preço de venda baseado no desconto
+  const updateSalePriceFromDiscount = (newDiscountPercent: number) => {
+    const originalPrice = parseCurrency(price);
+    const newSalePrice = calculateSalePrice(originalPrice, newDiscountPercent);
+    setPriceOriginal(formatCurrency(newSalePrice));
+  };
+
+  // Função para atualizar desconto baseado nos preços
+  const updateDiscountFromPrices = (originalPrice: number, salePrice: number) => {
+    const newDiscount = calculateDiscountPercent(originalPrice, salePrice);
+    setDiscountPercent(newDiscount);
+  };
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -113,10 +150,22 @@ export default function SellerProductEditPage() {
         });
         setImages(Array.isArray(p.images) ? p.images : []);
         setPrice(String(p.price || 0));
-        setPriceOriginal(String(p.price_original || ''));
+        
+        // Verificar se jornaleiro já personalizou o preço
+        const hasCustomization = p.price_original && p.price_original !== p.price;
+        setHasCustomPrice(hasCustomization);
+        
+        // Se não há customização, usar o preço do distribuidor como base
+        if (!hasCustomization) {
+          setPriceOriginal(String(p.price || 0));
+          setDiscountPercent(0);
+        } else {
+          setPriceOriginal(p.price_original && !isNaN(p.price_original) ? String(p.price_original) : '');
+          setDiscountPercent(p.discount_percent || 0);
+        }
         setDescriptionFull(p.description_full || "");
         setSpecifications(p.specifications || "");
-        setAllowReviews(Boolean(p.allow_reviews));
+        setAllowReviews(p.allow_reviews !== false); // Ativo por padrão, só desativa se explicitamente false
       } catch (e: any) {
         let message = e?.message || "Erro ao carregar produto.";
         if (e.name === 'AbortError') {
@@ -185,9 +234,10 @@ export default function SellerProductEditPage() {
       const body = {
         name: (fd.get("name") as string)?.trim(),
         description: (fd.get("description") as string) || "",
-        price: parseCurrency(price),
-        price_original: priceOriginal ? parseCurrency(priceOriginal) : undefined,
-        discount_percent: fd.get("discount_percent") ? Number(fd.get("discount_percent")) : undefined,
+        price: priceOriginal ? parseCurrency(priceOriginal) : parseCurrency(price), // Preço de venda (o que o jornaleiro definiu)
+        price_original: parseCurrency(price), // Preço original do distribuidor
+        discount_percent: discountPercent,
+        has_custom_price: hasCustomPrice, // Flag para indicar se foi personalizado
         stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
         track_stock: Boolean(fd.get("track_stock")),
         featured: Boolean(fd.get("featured")),
@@ -339,37 +389,83 @@ export default function SellerProductEditPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-sm font-medium">Preço</label>
+                <label className="text-sm font-medium">Preço do distribuidor</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
                   <input
                     type="text"
                     value={formatCurrency(price)}
-                    onChange={(e) => setPrice(formatCurrency(e.target.value))}
-                    required
-                    className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
+                    readOnly
+                    disabled
+                    className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 cursor-not-allowed"
                     placeholder="0,00"
                   />
                 </div>
+                <p className="text-xs text-gray-500 mt-1">Este preço não pode ser alterado</p>
               </div>
               <div>
-                <label className="text-sm font-medium">Preço original</label>
+                <label className="text-sm font-medium">Preço de venda</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
                   <input
                     type="text"
                     value={formatCurrency(priceOriginal)}
-                    onChange={(e) => setPriceOriginal(formatCurrency(e.target.value))}
+                    onChange={(e) => {
+                      const newPrice = formatCurrency(e.target.value);
+                      setPriceOriginal(newPrice);
+                      setHasCustomPrice(true); // Marcar que jornaleiro personalizou
+                      // Recalcular desconto baseado no novo preço de venda
+                      updateDiscountFromPrices(parseCurrency(price), parseCurrency(newPrice));
+                    }}
                     className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
                     placeholder="0,00"
                   />
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-xs text-gray-500">
+                    Este será o preço exibido na sua banca
+                    {hasCustomPrice && (
+                      <span className="ml-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                        ✓ Personalizado
+                      </span>
+                    )}
+                  </p>
+                  {hasCustomPrice && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPriceOriginal(price);
+                        setDiscountPercent(0);
+                        setHasCustomPrice(false);
+                      }}
+                      className="text-xs text-red-600 hover:text-red-800 underline"
+                    >
+                      Resetar
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-sm font-medium">Desconto (%)</label>
-                <input type="number" step="1" min={0} max={100} defaultValue={product.discount_percent} name="discount_percent" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                <input 
+                  type="number" 
+                  step="1" 
+                  min={0} 
+                  max={100} 
+                  value={discountPercent}
+                  onChange={(e) => {
+                    const newDiscount = Number(e.target.value);
+                    setDiscountPercent(newDiscount);
+                    setHasCustomPrice(true); // Marcar que jornaleiro personalizou
+                    // Recalcular preço de venda baseado no desconto
+                    updateSalePriceFromDiscount(newDiscount);
+                  }}
+                  name="discount_percent" 
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+                />
+                <p className="text-xs text-gray-500 mt-1">O preço de venda será ajustado automaticamente</p>
               </div>
               <div>
                 <label className="text-sm font-medium">Cupom</label>
@@ -480,6 +576,8 @@ export default function SellerProductEditPage() {
           <ReviewsManager
             allowReviews={allowReviews}
             onAllowReviewsChange={setAllowReviews}
+            readonly={true}
+            adminOnly={true}
           />
         </div>
       </form>

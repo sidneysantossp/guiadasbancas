@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/admin/ToastProvider";
 
 interface WhatsAppStatus {
@@ -15,6 +16,7 @@ interface WhatsAppStatus {
 }
 
 export default function WhatsAppConfigPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<WhatsAppStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [testPhone, setTestPhone] = useState("");
@@ -79,8 +81,19 @@ export default function WhatsAppConfigPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header com botão voltar */}
       <div>
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="text-sm font-medium">Voltar</span>
+          </button>
+        </div>
         <h1 className="text-2xl font-bold text-gray-900">Configurações WhatsApp</h1>
         <p className="text-gray-600 mt-1">
           Configure e monitore a integração com WhatsApp para notificações automáticas

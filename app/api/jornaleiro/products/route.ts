@@ -17,7 +17,23 @@ export async function GET(request: NextRequest) {
     .single();
 
   if (!banca) {
-    return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+    // Usuário sem banca: retornar apenas produtos do admin/distribuidor
+    const { data: produtosAdmin } = await supabaseAdmin
+      .from('products')
+      .select(`
+        *,
+        categories(name),
+        bancas(name)
+      `)
+      .not('distribuidor_id', 'is', null)
+      .eq('active', true)
+      .order('created_at', { ascending: false });
+
+    return NextResponse.json({ 
+      success: true, 
+      items: produtosAdmin || [], 
+      total: produtosAdmin?.length || 0
+    });
   }
 
   const { searchParams } = new URL(request.url);
@@ -26,10 +42,14 @@ export async function GET(request: NextRequest) {
   const active = searchParams.get("active");
   const featured = searchParams.get("featured");
 
-  // Buscar produtos apenas da banca do usuário
+  // Buscar produtos da banca do usuário
   let query = supabaseAdmin
     .from('products')
-    .select('*')
+    .select(`
+      *,
+      categories(name),
+      bancas(name)
+    `)
     .eq('banca_id', banca.id);
 
   if (q) query = query.ilike('name', `%${q}%`);
@@ -37,14 +57,73 @@ export async function GET(request: NextRequest) {
   if (active !== null) query = query.eq('active', active === 'true');
   if (featured !== null) query = query.eq('featured', featured === 'true');
 
-  const { data: items, error } = await query.order('created_at', { ascending: false });
+  const { data: produtosBanca, error } = await query.order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Erro ao buscar produtos:', error);
+    console.error('Erro ao buscar produtos da banca:', error);
     return NextResponse.json({ success: false, error: 'Erro ao buscar produtos' }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, items: items || [], total: items?.length || 0 });
+  // Buscar produtos do admin/distribuidor
+  const { data: produtosAdmin } = await supabaseAdmin
+    .from('products')
+    .select(`
+      *,
+      categories(name),
+      bancas(name)
+    `)
+    .not('distribuidor_id', 'is', null)
+    .eq('active', true)
+    .order('created_at', { ascending: false });
+
+  // Buscar customizações desta banca para produtos do admin
+  const { data: customizacoes } = await supabaseAdmin
+    .from('banca_produtos_distribuidor')
+    .select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda')
+    .eq('banca_id', banca.id);
+
+  // Mapear customizações por product_id
+  const customMap = new Map(
+    (customizacoes || []).map(c => [c.product_id, c])
+  );
+
+  // Aplicar customizações e filtrar produtos do admin
+  const produtosAdminCustomizados = (produtosAdmin || [])
+    .filter(produto => {
+      const custom = customMap.get(produto.id);
+      return !custom || custom.enabled !== false;
+    })
+    .map(produto => {
+      const custom = customMap.get(produto.id);
+      
+      return {
+        ...produto,
+        price: custom?.custom_price || produto.price,
+        description: produto.description + (custom?.custom_description ? `\n\n${custom.custom_description}` : ''),
+        pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,
+        sob_encomenda: custom?.custom_sob_encomenda ?? produto.sob_encomenda,
+        pre_venda: custom?.custom_pre_venda ?? produto.pre_venda,
+        is_distribuidor: true,
+      };
+    });
+
+  // Aplicar filtros nos produtos do admin
+  let produtosAdminFiltrados = produtosAdminCustomizados;
+  if (q) {
+    produtosAdminFiltrados = produtosAdminFiltrados.filter(p => 
+      p.name.toLowerCase().includes(q)
+    );
+  }
+  if (category) {
+    produtosAdminFiltrados = produtosAdminFiltrados.filter(p => 
+      p.category_id === category
+    );
+  }
+
+  // Combinar produtos da banca + produtos do admin
+  const allItems = [...(produtosBanca || []), ...produtosAdminFiltrados];
+
+  return NextResponse.json({ success: true, items: allItems, total: allItems.length });
 }
 
 export async function POST(request: NextRequest) {

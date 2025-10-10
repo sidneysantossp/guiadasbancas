@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { useCategories } from "@/lib/useCategories";
 
 interface DepartmentsMegaMenuProps {
@@ -14,6 +14,10 @@ interface DepartmentsMegaMenuProps {
 export default function DepartmentsMegaMenu({ isActive, onOpen, onClose }: DepartmentsMegaMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [preloaded, setPreloaded] = useState(false);
+  
+  // Pré-carregar dados no hover/focus
+  const { items, loading } = useCategories();
 
   const scheduleClose = useCallback(() => {
     if (closeTimeout.current) clearTimeout(closeTimeout.current);
@@ -42,6 +46,7 @@ export default function DepartmentsMegaMenu({ isActive, onOpen, onClose }: Depar
       ref={ref}
       onMouseEnter={() => {
         cancelClose();
+        if (!preloaded) setPreloaded(true);
         onOpen();
       }}
       onMouseLeave={scheduleClose}
@@ -49,8 +54,11 @@ export default function DepartmentsMegaMenu({ isActive, onOpen, onClose }: Depar
       <button
         type="button"
         onClick={() => isActive ? onClose() : onOpen()}
-        onFocus={() => onOpen()}
-        className="inline-flex items-center gap-1 text-sm font-medium hover:text-[var(--color-primary)]"
+        onFocus={() => {
+          if (!preloaded) setPreloaded(true);
+          onOpen();
+        }}
+        className="inline-flex items-center gap-1 text-sm font-medium text-white hover:text-white/90"
         aria-haspopup="menu"
         aria-expanded={isActive}
       >
@@ -84,7 +92,22 @@ export default function DepartmentsMegaMenu({ isActive, onOpen, onClose }: Depar
 }
 
 function MenuContent({ onClickItem }: { onClickItem: () => void }) {
-  const { items } = useCategories();
+  const { items, loading } = useCategories();
+  
+  // Mostrar loading state
+  if (loading) {
+    return (
+      <div className="grid grid-rows-3 grid-flow-col gap-x-8 gap-y-4 p-5">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 rounded-md p-2">
+            <div className="h-10 w-10 rounded-md bg-gray-200 animate-pulse" />
+            <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  
   const visible = items.filter((c) => c.name !== 'Diversos' && c.name !== 'Sem Categoria');
   return (
     <div className="grid grid-rows-3 grid-flow-col gap-x-8 gap-y-4 p-5">
@@ -97,7 +120,16 @@ function MenuContent({ onClickItem }: { onClickItem: () => void }) {
         >
           <div className="relative h-10 w-10 rounded-md overflow-hidden ring-1 ring-black/10">
             {c.image ? (
-              <Image src={c.image} alt={c.name} fill sizes="40px" className="object-cover" loading="lazy" />
+              <Image 
+                src={c.image} 
+                alt={c.name} 
+                fill 
+                sizes="40px" 
+                className="object-cover" 
+                loading="eager"
+                priority={true}
+                quality={75}
+              />
             ) : (
               <div className="grid place-items-center h-full w-full bg-white">
                 <span className="text-xs text-[#ff5c00] font-semibold">{c.name[0]}</span>

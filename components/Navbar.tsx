@@ -103,7 +103,6 @@ function MiniCartDropdown({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="p-3 space-y-2">
-        {/* Barra de progresso frete grátis */}
         <FreeShippingProgress subtotal={subtotal} size="sm" showHeader={false} />
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-600">Itens ({totalCount})</span>
@@ -198,14 +197,14 @@ export default function Navbar() {
   const [profilePhone, setProfilePhone] = useState<string>("");
   const hoverCloseTimer = useRef<number | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
-  const inDashboard = pathname.startsWith("/minha-conta");
+  const inDashboard = pathname.startsWith("/minha-conta") && user !== null;
   const [catsOpen, setCatsOpen] = useState<boolean>(true);
   const { show } = useToast();
   const [notifEnabled, setNotifEnabled] = useState<boolean>(false);
   const [notifCount, setNotifCount] = useState<number>(0);
   const [notifPulse, setNotifPulse] = useState<boolean>(false);
   const [branding, setBranding] = useState<{logoUrl: string; logoAlt: string; siteName: string; socialInstagram?: string; socialFacebook?: string; socialYoutube?: string; socialLinkedin?: string} | null>(null);
-  const { items: categoryItems } = useCategories();
+  const { items: categoryItems } = useCategories(); // Pré-carrega categorias na inicialização
   const [activeMegaMenu, setActiveMegaMenu] = useState<'categories' | null>(null);
 
   const socialLinks = useMemo(() => {
@@ -538,7 +537,7 @@ useEffect(() => {
     <>
     <header className="fixed top-0 left-0 right-0 z-50 bg-white md:border-b md:border-gray-200 md:shadow-sm">
       {/* Top bar: Logo + Notificações + Localização */}
-      <div className="container-max py-2">
+      <div className="container-max py-3">
         <div className="flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 -ml-5">
@@ -557,14 +556,14 @@ useEffect(() => {
           )}
         </Link>
 
-        {/* Localização, Ícones Sociais e Notificações (direita) */}
+        {/* Localização + Ícones Sociais + Notificações (direita) */}
         {!inDashboard && (
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Badge de geolocalização - Desktop (vem primeiro) */}
             {mounted && (
               <button
                 onClick={() => setLocOpen(true)}
-                className="hidden md:flex items-center gap-2 text-sm leading-none hover:text-[var(--color-primary)] rounded-full px-3 py-[2px] max-w-full border border-gray-300 hover:bg-gray-50"
+                className="hidden md:flex items-center gap-2 text-sm leading-none hover:text-[var(--color-primary)] rounded-full px-3 py-1 max-w-full border border-gray-300 hover:bg-gray-50"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -600,8 +599,8 @@ useEffect(() => {
               </button>
             )}
 
-            {/* Ícones Sociais (renderiza somente após mount para evitar mismatch SSR) */}
-            {mounted && socialLinks.length > 0 && (
+            {/* Ícones Sociais - COMENTADO para uso futuro */}
+            {/* {mounted && socialLinks.length > 0 && (
               <div className="flex items-center gap-2">
                 {socialLinks.map((item) => (
                   <a
@@ -616,7 +615,7 @@ useEffect(() => {
                   </a>
                 ))}
               </div>
-            )}
+            )} */}
             
             {/* Sino de notificações */}
             <button
@@ -709,32 +708,26 @@ useEffect(() => {
       )}
 
       {/* Main bar: Menu + Search + Actions */}
-      <div className="container-max py-1 md:py-3 flex items-center gap-4">
-        {/* Menu desktop */}
-        <nav className="hidden md:flex items-center gap-4 text-sm">
-          <div className="py-2">
-            <DepartmentsMegaMenu 
-              isActive={activeMegaMenu === 'categories'}
-              onOpen={() => setActiveMegaMenu('categories')}
-              onClose={() => setActiveMegaMenu(null)}
-            />
-          </div>
-          <Link href={"/bancas-perto-de-mim" as Route} className="hover:text-[var(--color-primary)] py-2 font-medium">Bancas</Link>
-          <Link href={"/promocoes" as Route} className="hover:text-[var(--color-primary)] py-2 font-medium">Promoções</Link>
-          <Link href={"/pre-venda" as Route} className="hover:text-[var(--color-primary)] py-2 font-medium">Pré Venda</Link>
-        </nav>
+      <div className="bg-[#ff5c00] text-white">
+        <div className="container-max py-1 md:py-3 flex items-center gap-4">
+          {/* Menu desktop */}
+          <nav className="hidden md:flex items-center gap-4 text-sm">
+            <div className="py-2">
+              <DepartmentsMegaMenu 
+                isActive={activeMegaMenu === 'categories'}
+                onOpen={() => setActiveMegaMenu('categories')}
+                onClose={() => setActiveMegaMenu(null)}
+              />
+            </div>
+            <Link href={"/bancas-perto-de-mim" as Route} className="py-2 font-medium text-white hover:text-white/90">Bancas</Link>
+            <Link href={"/promocoes" as Route} className="py-2 font-medium text-white hover:text-white/90">Promoções</Link>
+            <Link href={"/pre-venda" as Route} className="py-2 font-medium text-white hover:text-white/90">Pré Venda</Link>
+          </nav>
 
-        {/* Toggle mobile (esquerda do input) — oculto no mobile, usamos o Bottom Nav */}
-        {!inDashboard && (
-        <span className="hidden" />
-        )}
-
-        {/* Search (desktop). Mobile usa dropdown abaixo do header */}
-        {!inDashboard && (
-        <div className="hidden md:flex flex-1 justify-end">
-          <div className={`relative ml-auto transition-all duration-300 ease-in-out ${searchExpanded ? "w-full max-w-lg" : "w-10"}`}>
-            {searchExpanded ? (
-              <div className="relative">
+          {/* Search (desktop). Mobile usa dropdown abaixo do header */}
+          {!inDashboard && (
+            <div className="hidden md:flex flex-1 justify-end">
+              <div className="relative w-full max-w-lg ml-auto">
                 <SearchAutocomplete
                   query={q}
                   onQueryChange={setQ}
@@ -752,122 +745,105 @@ useEffect(() => {
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.3-4.3" /></svg>
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className={`flex items-center gap-3 ${inDashboard ? 'ml-auto' : ''}`}>
+            {!inDashboard && <span className="hidden" />}
+            {inDashboard && user ? (
+              <div className="hidden md:block relative" id="account-menu" onMouseEnter={()=>setAccountOpen(true)} onMouseLeave={()=>setAccountOpen(false)}>
+                <button
+                  className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-gray-50"
+                >
+                  <span className="relative inline-block h-6 w-6 rounded-full overflow-hidden bg-orange-100 ring-1 ring-black/5">
+                    {profileAvatar ? (
+                      <img src={profileAvatar} alt="Avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="h-full w-full text-white" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>
+                    )}
+                  </span>
+                </button>
+                {accountOpen && (
+                  <div className="absolute right-0 z-40 mt-2 w-56 rounded-2xl border border-gray-200 bg-white shadow-xl">
+                    <div className="py-1 text-sm">
+                      <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','perfil'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meu Perfil</button>
+                      <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','favoritos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meus Favoritos</button>
+                      <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','pedidos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Minhas compras</button>
+                      <div className="h-px bg-gray-100 my-1" />
+                      <button className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50" onClick={()=>{ setAccountOpen(false); logout(); }}>Sair</button>
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
-              <button
-                type="button"
-                aria-label="Expandir busca"
-                onClick={() => {
-                  setSearchExpanded(true);
-                  requestAnimationFrame(() => inputRef.current?.focus());
-                }}
-                className="h-10 w-10 rounded-full border border-[#ffd7bd] bg-[#fff7f1] grid place-items-center text-[#ff5c00] hover:bg-[#ffece0]"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.3-4.3" /></svg>
-              </button>
+              <>
+                <div
+                  ref={cartRef}
+                  className="hidden md:block relative"
+                  onMouseEnter={() => {
+                    if (hoverCloseTimer.current) { clearTimeout(hoverCloseTimer.current as any); hoverCloseTimer.current = null; }
+                    setCartOpen(true);
+                  }}
+                  onMouseLeave={() => {
+                    if (hoverCloseTimer.current) { clearTimeout(hoverCloseTimer.current as any); }
+                    hoverCloseTimer.current = window.setTimeout(() => { setCartOpen(false); }, 280);
+                  }}
+                >
+                  <button type="button" aria-label="Abrir carrinho" onClick={() => { if (typeof window !== "undefined" && window.innerWidth < 768) { setCartSheetOpen(true); } else { setCartOpen((v) => !v); } }} className="relative inline-flex h-10 w-10 items-center justify-center text-white hover:text-white/90">
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+                      <path d="M7 4h-2l-1 2h2l3.6 7.6-1.35 2.45A1 1 0 0010.1 18h8.4v-2h-7.3l.9-1.6h5.8a1 1 0 00.9-.6L22 7H6.2zM7 20a2 2 0 102-2 2 2 0 00-2 2zm8 0a2 2 0 102-2 2 2 0 00-2 2z"/>
+                    </svg>
+                    {cartCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-[#ff5c00] text-white text-[11px] leading-[18px] text-center px-[3px]">{cartCount}</span>
+                    )}
+                  </button>
+                  {cartOpen && (<MiniCartDropdown onClose={() => setCartOpen(false)} />)}
+                </div>
+
+                <Link href="/jornaleiro" className="hidden md:inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#ff5c00] shadow hover:bg-gray-50">Sou Jornaleiro</Link>
+
+                {!user ? (
+                  <Link
+                    href="/minha-conta"
+                    className="hidden md:inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-black shadow-sm hover:bg-gray-50"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z" /></svg>
+                    Minha Conta
+                  </Link>
+                ) : (
+                  <div
+                    className="hidden md:inline-flex items-center gap-2 relative"
+                    id="account-menu"
+                    onMouseEnter={() => setAccountOpen(true)}
+                    onMouseLeave={() => setAccountOpen(false)}
+                  >
+                    <button onClick={()=>setAccountOpen(v=>!v)} className="inline-flex items-center justify-center rounded-full bg-white/20 w-10 h-10 text-sm font-medium text-white shadow-sm hover:bg-white/30">
+                      <span className="relative inline-block h-5 w-5 rounded-full overflow-hidden">
+                        {profileAvatar ? (
+                          <img src={profileAvatar} alt="Avatar" className="h-full w-full object-cover" />
+                        ) : (
+                          <svg viewBox="0 0 24 24" className="h-full w-full text-white" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>
+                        )}
+                      </span>
+                    </button>
+                    {accountOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-gray-200 bg-white shadow-xl z-40">
+                        <div className="py-1 text-sm">
+                          <button className="w-full text-left px-3 py-2 text-black hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','perfil'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meu Perfil</button>
+                          <button className="w-full text-left px-3 py-2 text-black hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','favoritos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meus Favoritos</button>
+                          <button className="w-full text-left px-3 py-2 text-black hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','pedidos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Minhas compras</button>
+                          <JornaleiroAdminLinks onClose={() => setAccountOpen(false)} />
+                          <div className="h-px bg-gray-100 my-1" />
+                          <button className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50" onClick={()=>{ setAccountOpen(false); logout(); }}>Sair</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
-        </div>
-        )}
-
-        {/* Actions */}
-        <div className={`flex items-center gap-3 ${inDashboard ? 'ml-auto' : ''}`}>
-          {/* Botão de busca (apenas mobile, fora do dashboard) */}
-          {!inDashboard && (
-            <span className="hidden" />
-          )}
-          {inDashboard && user ? (
-            <div className="hidden md:block relative" id="account-menu" onMouseEnter={()=>setAccountOpen(true)} onMouseLeave={()=>setAccountOpen(false)}>
-              <button
-                className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-gray-50"
-              >
-                <span className="relative inline-block h-6 w-6 rounded-full overflow-hidden bg-orange-100 ring-1 ring-black/5">
-                  {profileAvatar ? (
-                    <img src={profileAvatar} alt="Avatar" className="h-full w-full object-cover" />
-                  ) : (
-                    <svg viewBox="0 0 24 24" className="h-full w-full text-[#ff7a33]" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>
-                  )}
-                </span>
-                Olá, <span className="font-semibold truncate max-w-[120px]">{user.name}</span>
-              </button>
-              {accountOpen && (
-                <div className="absolute right-0 z-40 mt-2 w-56 rounded-2xl border border-gray-200 bg-white shadow-xl">
-                  <div className="py-1 text-sm">
-                    <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','perfil'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meu Perfil</button>
-                    <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','favoritos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meus Favoritos</button>
-                    <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','pedidos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Minhas compras</button>
-                    <div className="h-px bg-gray-100 my-1" />
-                    <button className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50" onClick={()=>{ setAccountOpen(false); logout(); }}>Sair</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              {/* Carrinho com dropdown (antes do Entrar) */}
-              <div
-                ref={cartRef}
-                className="hidden md:block relative"
-                onMouseEnter={() => {
-                  if (hoverCloseTimer.current) { clearTimeout(hoverCloseTimer.current as any); hoverCloseTimer.current = null; }
-                  setCartOpen(true);
-                }}
-                onMouseLeave={() => {
-                  if (hoverCloseTimer.current) { clearTimeout(hoverCloseTimer.current as any); }
-                  hoverCloseTimer.current = window.setTimeout(() => { setCartOpen(false); }, 280);
-                }}
-              >
-                <button type="button" aria-label="Abrir carrinho" onClick={() => { if (typeof window !== "undefined" && window.innerWidth < 768) { setCartSheetOpen(true); } else { setCartOpen((v) => !v); } }} className="relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 bg-white text-black hover:bg-gray-50">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-                    <path d="M7 4h-2l-1 2h2l3.6 7.6-1.35 2.45A1 1 0 0010.1 18h8.4v-2h-7.3l.9-1.6h5.8a1 1 0 00.9-.6L22 7H6.2zM7 20a2 2 0 102-2 2 2 0 00-2 2zm8 0a2 2 0 102-2 2 2 0 00-2 2z"/>
-                  </svg>
-                  {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-[#ff5c00] text-white text-[11px] leading-[18px] text-center px-[3px]">{cartCount}</span>
-                  )}
-                </button>
-                {cartOpen && (<MiniCartDropdown onClose={() => setCartOpen(false)} />)}
-              </div>
-
-              {/* Sou Jornaleiro (oculto no mobile) */}
-              <Link href="/jornaleiro" className="hidden md:inline-flex items-center rounded-lg bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95">Sou Jornaleiro</Link>
-
-              {/* Conta / Entrar */}
-              {!user ? (
-                <Link
-                  href="/minha-conta"
-                  className="hidden md:inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-black shadow-sm hover:bg-gray-50"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z" /></svg>
-                  Minha Conta
-                </Link>
-              ) : (
-                <div className="hidden md:inline-flex items-center gap-2 relative" id="account-menu">
-                  <button onClick={()=>setAccountOpen(v=>!v)} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-black shadow-sm hover:bg-gray-50">
-                    <span className="relative inline-block h-5 w-5 rounded-full overflow-hidden bg-orange-100 ring-1 ring-black/5">
-                      {profileAvatar ? (
-                        <img src={profileAvatar} alt="Avatar" className="h-full w-full object-cover" />
-                      ) : (
-                        <svg viewBox="0 0 24 24" className="h-full w-full text-[#ff7a33]" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>
-                      )}
-                    </span>
-                    Olá, <span className="font-semibold truncate max-w-[120px]">{user.name}</span>
-                  </button>
-                  {accountOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-gray-200 bg-white shadow-xl z-40">
-                      <div className="py-1 text-sm">
-                        <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','perfil'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meu Perfil</button>
-                        <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','favoritos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meus Favoritos</button>
-                        <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','pedidos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Minhas compras</button>
-                        {/* Verificar se é jornaleiro ou admin */}
-                        <JornaleiroAdminLinks onClose={() => setAccountOpen(false)} />
-                        <div className="h-px bg-gray-100 my-1" />
-                        <button className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50" onClick={()=>{ setAccountOpen(false); logout(); }}>Sair</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
         </div>
       </div>
       {/* Componente de geolocalização automática */}

@@ -185,7 +185,7 @@ export async function GET(req: NextRequest) {
         limit,
         pages: Math.ceil((count || 0) / limit)
       },
-      { headers: { 'Cache-Control': 'private, max-age=10' } }
+      { headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' } }
     );
   } catch (e: any) {
     console.error('[API/ORDERS/GET] Erro:', e);
@@ -261,7 +261,12 @@ export async function POST(req: NextRequest) {
         total: pricing.total || 0,
         status: "novo",
         payment_method: body.payment || "pix",
-        notes: body.shippingMethod ? `Entrega: ${body.shippingMethod}` : ""
+        notes: body.shippingMethod ? `Entrega: ${body.shippingMethod}` : "",
+        discount: pricing.discount || 0,
+        coupon_code: body.coupon || null,
+        coupon_discount: pricing.couponDiscount || 0,
+        tax: pricing.tax || 0,
+        addons_total: pricing.addons || 0
       })
       .select()
       .single();

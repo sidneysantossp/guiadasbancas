@@ -88,11 +88,13 @@ export default function JornaleiroPedidosPage() {
       if (q) params.set("q", q);
       if (paymentMethod) params.set("payment_method", paymentMethod);
       params.set("page", page.toString());
-      params.set("limit", "10");
+      params.set("limit", "20"); // Aumentado para reduzir paginação
       params.set("sort", "created_at");
       params.set("order", "desc");
       
-      const res = await fetch(`/api/orders?${params.toString()}`);
+      const res = await fetch(`/api/orders?${params.toString()}`, {
+        next: { revalidate: 15 } // Cache de 15 segundos
+      });
       const json = await res.json();
       setRows(Array.isArray(json?.items) ? json.items : []);
       setPagination({
@@ -224,21 +226,8 @@ export default function JornaleiroPedidosPage() {
     return s.replace(/_/g, ' ');
   };
 
+  // NOTA: Coluna de ID foi removida - não aparece mais na tabela
   const columns: Column<Order>[] = [
-    { 
-      key: "id", 
-      header: "Pedido", 
-      sortable: true,
-      hiddenOnMobile: true,
-      render: (row) => (
-        <Link 
-          href={`/jornaleiro/pedidos/${row.id}`}
-          className="font-mono text-blue-600 hover:text-blue-800 hover:underline"
-        >
-          #{row.id}
-        </Link>
-      )
-    },
     { 
       key: "customer_name", 
       header: "Cliente", 

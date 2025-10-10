@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "NODE_OPTIONS=--dns-result-order=ipv4first next dev",
+    "dev:fast": "NODE_OPTIONS=--dns-result-order=ipv4first next dev --turbo --experimental-https",
+    "dev:no-cache": "NODE_OPTIONS=--dns-result-order=ipv4first next dev --turbo",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

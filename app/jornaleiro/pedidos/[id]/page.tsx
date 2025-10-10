@@ -501,54 +501,51 @@ export default function OrderDetailsPage() {
             <h2 className="font-semibold mb-3">Resumo</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-700">Preço dos Itens</span>
+                <span className="text-gray-600">Preço dos Itens</span>
                 <span className="font-medium">R$ {order.subtotal.toFixed(2)}</span>
               </div>
               
-              {(order.addons_total && order.addons_total > 0) && (
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Preço dos Adicionais</span>
-                  <span className="font-medium">R$ {order.addons_total.toFixed(2)}</span>
-                </div>
-              )}
-              
-              {(order.discount && order.discount > 0 && !order.coupon_code) && (
-                <div className="flex justify-between text-emerald-600">
-                  <span>Desconto</span>
-                  <span>(-) R$ {order.discount.toFixed(2)}</span>
-                </div>
-              )}
-              
-              {(order.coupon_code && order.coupon_discount && order.coupon_discount > 0) && (
-                <div className="flex justify-between text-emerald-600">
-                  <span>Desconto do Cupom</span>
-                  <span>(-) R$ {order.coupon_discount.toFixed(2)}</span>
-                </div>
-              )}
-              
-              {(order.tax && order.tax > 0) && (
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Impostos (10%)</span>
-                  <span className="font-medium">(+) R$ {order.tax.toFixed(2)}</span>
-                </div>
-              )}
+              <div className="flex justify-between">
+                <span className="text-gray-600">Preço dos Adicionais</span>
+                <span className="font-medium">R$ {(order.addons_total || 0).toFixed(2)}</span>
+              </div>
               
               <div className="flex justify-between">
-                <span className="text-gray-700">Taxa de Entrega</span>
+                <span className="text-gray-600">Desconto</span>
+                <span className="text-emerald-700">(-) R$ {(order.discount || 0).toFixed(2)}</span>
+              </div>
+              
+              <div className="flex justify-between">
+                <span className="text-gray-600">Desconto do Cupom</span>
+                <span className="text-emerald-700">(-) R$ {(order.coupon_discount || 0).toFixed(2)}</span>
+              </div>
+              
+              <div className="flex justify-between">
+                <span className="text-gray-600">Taxa de Entrega</span>
                 <span className="font-medium">R$ {order.shipping_fee.toFixed(2)}</span>
               </div>
               
-              <hr className="my-2" />
+              <div className="h-px bg-gray-200 my-2" />
               
               <div className="flex justify-between font-semibold text-base">
                 <span>Total</span>
-                <span>R$ {order.total.toFixed(2)}</span>
+                <span className="font-extrabold">R$ {order.total.toFixed(2)}</span>
               </div>
-              
-              <div className="mt-3 pt-3 border-t">
-                <div className="text-sm text-gray-600">Pagamento:</div>
+            </div>
+            
+            {/* Informações adicionais */}
+            <div className="mt-4 pt-4 border-t space-y-3">
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Pagamento:</div>
                 <div className="font-medium">{getPaymentMethodLabel(order.payment_method)}</div>
               </div>
+              
+              {order.coupon_code && (
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Cupom de Desconto:</div>
+                  <div className="font-medium text-emerald-600">{order.coupon_code}</div>
+                </div>
+              )}
             </div>
           </div>
 

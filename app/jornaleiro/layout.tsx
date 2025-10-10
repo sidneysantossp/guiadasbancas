@@ -50,11 +50,13 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
-  // Permite acessar o dashboard e a página "Minha Banca" mesmo sem banca (renderiza CTA)
+  // Permite acessar o dashboard, banca, pedidos, produtos e configurações mesmo sem banca
   const allowedWithoutBanca = Boolean(
     pathname?.startsWith('/jornaleiro/dashboard') ||
     pathname?.startsWith('/jornaleiro/banca') ||
-    pathname?.startsWith('/jornaleiro/pedidos')
+    pathname?.startsWith('/jornaleiro/pedidos') ||
+    pathname?.startsWith('/jornaleiro/produtos') ||
+    pathname?.startsWith('/jornaleiro/configuracoes')
   );
 
   const logout = async () => {
@@ -64,7 +66,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   const sellerName = profile?.full_name || "Vendedor";
   const sellerEmail = (user as any)?.email || "vendedor@example.com";
 
-  // VALIDAÇÃO DE SEGURANÇA: Verificar se usuário tem banca
+  // VALIDAÇÃO DE SEGURANÇA: Verificar se usuário tem banca (com cache)
   useEffect(() => {
     const validateUserAccess = async () => {
       // Permitir rotas de autenticação
@@ -80,11 +82,10 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
       // Usuário não autenticado
       if (!user) {
-        // Só redirecionar se não estiver já na página de login
         if (pathname !== '/jornaleiro') {
           router.push('/jornaleiro');
         }
-        setBancaValidated(true); // Liberar para não travar
+        setBancaValidated(true);
         return;
       }
 
@@ -93,11 +94,22 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         console.error('[Security] Usuário não é jornaleiro');
         await signOut();
         router.push('/jornaleiro');
-        setBancaValidated(true); // Liberar para não travar
+        setBancaValidated(true);
         return;
       }
 
-      // Verificar se tem banca
+      // Cache da banca em sessionStorage para evitar múltiplas chamadas
+      const cachedBanca = sessionStorage.getItem(`gb:banca:${user.id}`);
+      if (cachedBanca) {
+        try {
+          const bancaData = JSON.parse(cachedBanca);
+          setBanca(bancaData);
+          setBancaValidated(true);
+          return;
+        } catch {}
+      }
+
+      // Verificar se tem banca (apenas se não tiver cache)
       try {
         const { data: bancaData, error } = await supabase
           .from('bancas')
@@ -107,10 +119,8 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
         if (error || !bancaData) {
           console.warn('[Security] Usuário sem banca associada.');
-          // Permitir dashboard sem banca
           setBanca(null);
           setBancaValidated(true);
-          // Para rotas que exigem banca, redirecionar ao dashboard
           const requiresBanca = !allowedWithoutBanca;
           if (requiresBanca && pathname && !pathname.startsWith('/jornaleiro/dashboard')) {
             router.push('/jornaleiro/dashboard');
@@ -118,6 +128,8 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           return;
         }
 
+        // Salvar no cache
+        sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(bancaData));
         setBanca(bancaData);
         setBancaValidated(true);
       } catch (error) {
@@ -133,27 +145,39 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     validateUserAccess();
   }, [user?.id, profile?.role, authLoading, isAuthRoute]);
 
-  // Timeout de segurança: se demorar mais de 5s, liberar mesmo assim
+  // Timeout de segurança: se demorar mais de 2s, liberar mesmo assim
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (!bancaValidated) {
         console.warn('[Security] Timeout na validação, liberando acesso');
         setBancaValidated(true);
       }
-    }, 5000);
+    }, 2000);
     return () => clearTimeout(timeout);
   }, [bancaValidated]);
 
   // Removido - banca já é carregada na validação de segurança
 
-  // Carregar branding
+  // Carregar branding (com cache)
   useEffect(() => {
     const loadBranding = async () => {
+      // Cache em sessionStorage
+      const cached = sessionStorage.getItem('gb:branding');
+      if (cached) {
+        try {
+          setBranding(JSON.parse(cached));
+          return;
+        } catch {}
+      }
+
       try {
-        const response = await fetch('/api/admin/branding');
+        const response = await fetch('/api/admin/branding', { 
+          next: { revalidate: 3600 } // Cache de 1 hora
+        });
         const result = await response.json();
         if (result.success && result.data) {
           setBranding(result.data);
+          sessionStorage.setItem('gb:branding', JSON.stringify(result.data));
         }
       } catch (error) {
         console.error('Erro ao carregar branding:', error);
@@ -180,9 +204,35 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     );
   }
 
-  // SEGURANÇA: Se não tiver banca, permitir dashboard, /jornaleiro/banca e /jornaleiro/pedidos; bloquear demais
-  if (!banca && !(pathname?.startsWith('/jornaleiro/dashboard') || pathname?.startsWith('/jornaleiro/banca') || pathname?.startsWith('/jornaleiro/pedidos'))) {
-    return null;
+  // SEGURANÇA: Se não tiver banca, mostrar mensagem de erro em vez de tela branca
+  if (!banca && !allowedWithoutBanca) {
+    return (
+      <ToastProvider>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Banca não encontrada</h1>
+            <p className="text-gray-600 mb-6">
+              Você precisa ter uma banca associada à sua conta para acessar esta página.
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={() => router.push('/jornaleiro/dashboard')}
+                className="w-full bg-[#ff5c00] text-white px-4 py-2 rounded-md hover:opacity-90"
+              >
+                Ir para Dashboard
+              </button>
+              <button
+                onClick={() => router.push('/jornaleiro/banca')}
+                className="w-full border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50"
+              >
+                Cadastrar Banca
+              </button>
+            </div>
+          </div>
+        </div>
+      </ToastProvider>
+    );
   }
 
   return (

@@ -10,30 +10,70 @@ export type UICategory = {
   link: string;
 };
 
+// Cache global para evitar múltiplas requisições
+let globalCache: UICategory[] | null = null;
+let cachePromise: Promise<UICategory[]> | null = null;
+
 export function useCategories(): { items: UICategory[]; loading: boolean } {
-  const [apiItems, setApiItems] = useState<UICategory[] | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [apiItems, setApiItems] = useState<UICategory[] | null>(globalCache);
+  const [loading, setLoading] = useState(!globalCache);
   const [isMobile, setIsMobile] = useState<boolean>(false);
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
+    
+    // Se já temos cache, usar imediatamente
+    if (globalCache) {
+      setApiItems(globalCache);
+      setLoading(false);
+      return;
+    }
+    
+    // Se já existe uma requisição em andamento, aguardar ela
+    if (cachePromise) {
+      cachePromise.then((data) => {
+        if (mounted) {
+          setApiItems(data);
+          setLoading(false);
+        }
+      });
+      return;
+    }
+    
+    // Criar nova requisição com cache otimizado
+    cachePromise = (async () => {
       try {
-        const res = await fetch('/api/categories', { cache: 'no-store' });
+        const res = await fetch('/api/categories', { 
+          cache: 'force-cache',
+          next: { revalidate: 300 } // Cache por 5 minutos
+        });
         if (!res.ok) throw new Error('failed');
         const j = await res.json();
         const data = Array.isArray(j?.data) ? j.data : [];
-        if (mounted) {
-          setApiItems(
-            data.map((c: any) => ({ key: c.id, name: c.name, image: c.image || '', link: c.link }))
-          );
-        }
+        const processedData = data.map((c: any) => ({ 
+          key: c.id, 
+          name: c.name, 
+          image: c.image || '', 
+          link: c.link 
+        }));
+        
+        // Salvar no cache global
+        globalCache = processedData;
+        return processedData;
       } catch {
-        if (mounted) setApiItems([]);
-      } finally {
-        if (mounted) setLoading(false);
+        const fallbackData: UICategory[] = [];
+        globalCache = fallbackData;
+        return fallbackData;
       }
     })();
+    
+    cachePromise.then((data) => {
+      if (mounted) {
+        setApiItems(data);
+        setLoading(false);
+      }
+    });
+    
     return () => { mounted = false; };
   }, []);
 

@@ -540,7 +540,15 @@ export default function CheckoutPage() {
           : { street, houseNumber, neighborhood, city, uf, complement, cep: destCEP },
         items: items.map(it => ({ id: it.id, name: it.name, qty: it.qty, price: it.price, image: it.image, banca_id: (it as any).banca_id })),
         banca_id: firstBancaId,
-        pricing: { subtotal, discount, shipping: shippingCost, total },
+        pricing: { 
+          subtotal, 
+          discount: 0, // desconto geral (não cupom)
+          couponDiscount: discount, // desconto do cupom
+          tax: 0, 
+          addons: 0, // adicionais (se houver no futuro)
+          shipping: shippingCost, 
+          total 
+        },
         shippingMethod: shipping,
         coupon: couponApplied,
         payment,
@@ -1004,15 +1012,23 @@ export default function CheckoutPage() {
           </div>
           <div className="mt-4 space-y-1 text-sm">
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Itens ({totalCount})</span>
+              <span className="text-gray-600">Preço dos Itens</span>
               <span className="font-semibold">R$ {subtotal.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Desconto</span>
-              <span className="font-semibold text-emerald-600">- R$ {discount.toFixed(2)}</span>
+              <span className="text-gray-600">Preço dos Adicionais</span>
+              <span className="font-semibold">R$ 0.00</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Frete</span>
+              <span className="text-gray-600">Desconto</span>
+              <span className="text-emerald-700">(-) R$ 0.00</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Desconto do Cupom</span>
+              <span className="text-emerald-700">(-) R$ {discount.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Taxa de Entrega</span>
               <span className="font-semibold">R$ {shippingCost.toFixed(2)}</span>
             </div>
             <div className="h-px bg-gray-200 my-1" />

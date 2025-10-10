@@ -1274,49 +1274,11 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                   </div>
                 </div>
               ) : (
-                produtosDestaque.map((p) => {
-                const oldPrice = p.priceOriginal || (p.discountPercent ? p.price / (1 - p.discountPercent / 100) : p.price);
-                const newPrice = p.price;
-                return (
-                  <div key={p.id} className="min-w-[240px] snap-start rounded-xl bg-white border border-amber-100 shadow-sm overflow-hidden">
-                    <div className="relative h-32 w-full bg-gray-50">
-                      <Image src={p.image} alt={p.name} fill sizes="240px" className="object-contain" />
-                      {/* Ribbon de desconto */}
-                      <div className="absolute left-0 top-0">
-                        <div className="relative w-[110px] h-[0px]">
-                          <span
-                            className="absolute -left-6 top-2 rotate-[-35deg] bg-rose-500 text-white text-[10px] font-bold px-6 py-1 shadow"
-                            style={{background: ui.rose.text}}
-                          >-{Math.round(p.discountPercent ?? 0)}% OFF</span>
-                        </div>
-                      </div>
-                      {/* Badge Pronta Entrega */}
-                      {p.ready && (
-                        <div className="absolute right-2 top-2">
-                          <span className="inline-flex items-center rounded-md bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold border border-emerald-100">
-                            Pronta Entrega
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-2">
-                      <div className="text-[13px] font-semibold line-clamp-1">{p.name}</div>
-                      <div className="mt-1 flex items-center gap-2">
-                        <span className="font-extrabold text-[14px]" style={{color: ui.brand.primary}}>R$ {newPrice.toFixed(2)}</span>
-                        <span className="text-[11px] text-gray-400 line-through">R$ {oldPrice.toFixed(2)}</span>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between">
-                        <span className="text-[11px] text-gray-500 flex items-center gap-1"><Stars value={p.rating ?? 4.5} /> ({p.reviews ?? 0})</span>
-                        <button
-                          onClick={() => { addToCart({ id: p.id, name: p.name, price: newPrice, image: p.image }, 1); show(<span>Adicionado ao carrinho.</span>); }}
-                          className="rounded-md px-2 py-1 text-[11px] font-semibold text-white hover:opacity-95"
-                          style={{background: ui.brand.primary}}
-                        >Adicionar</button>
-                      </div>
-                    </div>
+                produtosDestaque.map((p) => (
+                  <div key={p.id} className="min-w-[240px] snap-start">
+                    <ProductCard p={p} phone={banca.phone} bancaId={banca.id} bancaName={banca.name} />
                   </div>
-                );
-              })
+                ))
               )}
             </div>
           </div>

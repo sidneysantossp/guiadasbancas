@@ -3,9 +3,16 @@
 interface ReviewsManagerProps {
   allowReviews: boolean;
   onAllowReviewsChange: (allow: boolean) => void;
+  readonly?: boolean;
+  adminOnly?: boolean;
 }
 
-export default function ReviewsManager({ allowReviews, onAllowReviewsChange }: ReviewsManagerProps) {
+export default function ReviewsManager({ 
+  allowReviews, 
+  onAllowReviewsChange, 
+  readonly = false,
+  adminOnly = false 
+}: ReviewsManagerProps) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4">
       <div className="flex items-start gap-3">
@@ -22,12 +29,13 @@ export default function ReviewsManager({ allowReviews, onAllowReviewsChange }: R
           </p>
           
           <div className="space-y-3">
-            <label className="inline-flex items-center gap-3 cursor-pointer">
+            <label className={`inline-flex items-center gap-3 ${readonly ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
               <input
                 type="checkbox"
                 checked={allowReviews}
-                onChange={(e) => onAllowReviewsChange(e.target.checked)}
-                className="rounded text-[#ff5c00] focus:ring-[#ff5c00] w-4 h-4"
+                onChange={(e) => !readonly && onAllowReviewsChange(e.target.checked)}
+                disabled={readonly}
+                className={`rounded text-[#ff5c00] focus:ring-[#ff5c00] w-4 h-4 ${readonly ? 'opacity-50 cursor-not-allowed' : ''}`}
               />
               <div>
                 <div className="text-sm font-medium text-gray-900">
@@ -78,8 +86,11 @@ export default function ReviewsManager({ allowReviews, onAllowReviewsChange }: R
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
           </svg>
           <span>
-            Você pode alterar essa configuração a qualquer momento. 
-            Avaliações existentes não serão perdidas se desativar temporariamente.
+            {adminOnly ? (
+              "Esta configuração só pode ser alterada pelo administrador do sistema."
+            ) : (
+              "Você pode alterar essa configuração a qualquer momento. Avaliações existentes não serão perdidas se desativar temporariamente."
+            )}
           </span>
         </div>
       </div>

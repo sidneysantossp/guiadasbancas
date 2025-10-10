@@ -114,53 +114,39 @@ export default function JornaleiroProdutosPage() {
     } catch (e: any) {
       toast.error(e?.message || "Erro ao atualizar produto");
     } finally {
-      setSavingId(null);
     }
   };
 
   const columns: Column<ProdutoListItem>[] = [
     {
-      key: "thumb",
-      header: "",
+      key: "name",
+      header: "Produto",
       render: (r) => (
-        <div className="h-10 w-10 rounded-md overflow-hidden bg-gray-100 border border-gray-200">
-          {r.image ? (
-            <Image src={r.image} alt={r.name} width={40} height={40} className="h-full w-full object-cover" />
-          ) : (
-            <div className="h-full w-full grid place-items-center text-[10px] text-gray-400">—</div>
+        <div className="flex items-center gap-3">
+          {r.image && (
+            <Image
+              src={r.image}
+              alt={r.name}
+              width={40}
+              height={40}
+              className="rounded-md object-cover"
+            />
           )}
+          <div className="font-medium">{r.name}</div>
         </div>
       ),
-    },
-    { key: "name", header: "Produto", sortable: true, render: (r) => <span className="font-medium text-gray-900">{r.name}</span> },
-    { key: "category_name", header: "Categoria", sortable: true, render: (r) => r.category_name || "-" },
-    {
-      key: "price",
-      header: "Preço",
-      sortable: true,
-      sortAccessor: (r) => r.price,
-      render: (r) => `R$ ${r.price.toFixed(2)}`,
-      align: "right",
     },
     {
       key: "stock_qty",
       header: "Estoque",
-      sortable: true,
-      sortAccessor: (r) => r.stock_qty,
+      render: (r) => r.stock_qty.toString(),
       align: "right",
-    },
-    {
-      key: "active",
-      header: "Status",
-      render: (r) => (
-        <StatusBadge label={r.active ? "Ativo" : "Inativo"} tone={r.active ? "emerald" : "gray"} />
-      ),
     },
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4 overflow-x-hidden px-3 sm:px-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold">Produtos</h1>
           <p className="text-sm text-gray-600">Gerencie os itens disponíveis na sua banca.</p>
@@ -168,7 +154,7 @@ export default function JornaleiroProdutosPage() {
         <div>
           <Link
             href={("/jornaleiro/produtos/create") as Route}
-            className="inline-flex items-center rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95"
+            className="inline-flex items-center justify-center rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 w-full sm:w-auto"
           >
             Novo produto
           </Link>
@@ -182,31 +168,33 @@ export default function JornaleiroProdutosPage() {
           setStatus("");
         }}
       >
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar por nome ou SKU"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        >
-          <option value="">Todas categorias</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        >
-          <option value="">Todos status</option>
-          <option value="ativo">Ativo</option>
-          <option value="inativo">Inativo</option>
-        </select>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar por nome ou SKU"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">Todas categorias</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">Todos status</option>
+            <option value="ativo">Ativo</option>
+            <option value="inativo">Inativo</option>
+          </select>
+        </div>
       </FiltersBar>
 
       {loading && <div className="rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">Carregando produtos...</div>}
@@ -219,16 +207,28 @@ export default function JornaleiroProdutosPage() {
           <div className="flex items-center justify-end gap-2">
             <Link
               href={( `/jornaleiro/produtos/${row.id}` ) as Route}
-              className="rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-600 hover:bg-gray-50"
+              className="rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50 flex items-center justify-center"
+              title="Editar produto"
             >
-              Editar
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
             </Link>
             <button
               onClick={() => toggleActive(row)}
               disabled={savingId === row.id}
-              className="rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center"
+              title={row.active ? "Desativar produto" : "Ativar produto"}
             >
-              {row.active ? "Desativar" : "Ativar"}
+              {row.active ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
             </button>
           </div>
         )}

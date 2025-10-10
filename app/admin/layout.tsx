@@ -54,6 +54,7 @@ const ADMIN_MENU = [
       { label: "Banners", href: "/admin/banners", icon: "🖼️" },
       { label: "Vitrines", href: "/admin/cms/vitrines", icon: "⭐" },
       { label: "Mini Banners", href: "/admin/cms/mini-banners", icon: "🧩" },
+      { label: "Banner Jornaleiro", href: "/admin/cms/vendor-banner", icon: "📰" },
       { label: "Newsletter", href: "/admin/newsletter", icon: "📧" },
     ]
   },

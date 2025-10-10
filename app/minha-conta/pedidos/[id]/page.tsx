@@ -66,10 +66,8 @@ export default function PedidoDetalhePage() {
     const adicionais = Array.isArray(order?.items)
       ? order.items.reduce((s: number, it: any) => s + (Array.isArray(it.addons) ? it.addons.reduce((ss: number, ad: any) => ss + Number(ad?.price || 0), 0) * Number(it.qty || 1) : 0), 0)
       : 0;
-    const taxBase = Math.max(0, subtotal - (otherDiscount + cupomDiscount) + adicionais);
-    const tax = Math.round(taxBase * 0.10 * 100) / 100; // 10%
-    const total = Math.max(0, subtotal - (otherDiscount + cupomDiscount) + adicionais + tax + delivery);
-    return { subtotal, discount: otherDiscount, cupomDiscount, delivery, adicionais, tax, total };
+    const total = Math.max(0, subtotal - (otherDiscount + cupomDiscount) + adicionais + delivery);
+    return { subtotal, discount: otherDiscount, cupomDiscount, delivery, adicionais, total };
   }, [order]);
 
   const methodLabel = useMemo(() => {
@@ -232,7 +230,6 @@ export default function PedidoDetalhePage() {
             <div className="flex items-center justify-between"><span className="text-gray-600">Preço dos Adicionais</span><span className="font-medium">R$ {numbers.adicionais.toFixed(2)}</span></div>
             <div className="flex items-center justify-between"><span className="text-gray-600">Desconto</span><span className="text-emerald-700">(-) R$ {numbers.discount.toFixed(2)}</span></div>
             <div className="flex items-center justify-between"><span className="text-gray-600">Desconto do Cupom</span><span className="text-emerald-700">(-) R$ {numbers.cupomDiscount.toFixed(2)}</span></div>
-            <div className="flex items-center justify-between"><span className="text-gray-600">Impostos (10%)</span><span className="font-medium">(+) R$ {numbers.tax.toFixed(2)}</span></div>
             <div className="flex items-center justify-between"><span className="text-gray-600">Taxa de Entrega</span><span className="font-medium">R$ {numbers.delivery.toFixed(2)}</span></div>
             <div className="h-px bg-gray-200" />
             <div className="flex items-center justify-between text-base"><span className="font-semibold">Total</span><span className="font-extrabold">R$ {numbers.total.toFixed(2)}</span></div>

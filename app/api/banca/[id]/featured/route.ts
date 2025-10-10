@@ -24,22 +24,24 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     // 2. Buscar produtos de distribuidores com custom_featured = true
     const { data: customizacoes } = await supabase
       .from('banca_produtos_distribuidor')
-      .select('product_id, enabled, custom_price, custom_stock_enabled, custom_stock_qty')
+      .select('product_id, enabled, custom_price, custom_stock_enabled, custom_stock_qty, custom_featured')
       .eq('banca_id', bancaId)
-      .eq('custom_featured', true)
       .eq('enabled', true);
 
     let produtosDistribuidor: any[] = [];
 
-    if (customizacoes && customizacoes.length > 0) {
-      const productIds = customizacoes.map(c => c.product_id);
+    // Filtrar apenas customizações com featured = true
+    const customizacoesFeatured = (customizacoes || []).filter(c => c.custom_featured === true);
+    
+    if (customizacoesFeatured && customizacoesFeatured.length > 0) {
+      const productIds = customizacoesFeatured.map(c => c.product_id);
       
       const { data: produtos } = await supabase
         .from('products')
         .select('*, categories!category_id(name)')
         .in('id', productIds);
 
-      const customMap = new Map(customizacoes.map(c => [c.product_id, c]));
+      const customMap = new Map(customizacoesFeatured.map(c => [c.product_id, c]));
 
       produtosDistribuidor = (produtos || [])
         .map(produto => {

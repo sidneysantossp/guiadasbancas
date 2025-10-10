@@ -125,31 +125,52 @@ export default function JornaleiroDashboardPage() {
   const memoizedMetrics = useMemo(() => metrics, [metrics]);
   const memoizedRecentOrders = useMemo(() => recentOrders, [recentOrders]);
 
+  // Se não tem banca, mostrar CTA para cadastrar
+  if (!banca && !loadingMetrics) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+          <div className="text-6xl mb-4">🏪</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Cadastre sua Banca</h1>
+          <p className="text-gray-600 mb-6">
+            Para começar a vender, você precisa cadastrar sua banca com informações como nome, endereço e horário de funcionamento.
+          </p>
+          <Link
+            href="/jornaleiro/banca"
+            className="inline-block bg-[#ff5c00] text-white px-6 py-3 rounded-md hover:opacity-90 font-semibold"
+          >
+            Cadastrar Minha Banca
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4 overflow-x-hidden px-3 sm:px-0">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
-        <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
+    <div className="space-y-4 overflow-x-hidden px-3 sm:px-0 max-w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 justify-items-center sm:justify-items-stretch max-w-full">
+        <div className="w-full max-w-sm sm:max-w-none min-w-0 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
           <div className="text-sm text-gray-500">Pedidos hoje</div>
           <div className="mt-1 text-3xl font-semibold text-gray-900">
             {loadingMetrics ? "--" : memoizedMetrics.pedidosHoje}
           </div>
           <div className="mt-1 text-xs text-gray-400">Total de pedidos recebidos nas últimas horas</div>
         </div>
-        <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
+        <div className="w-full max-w-sm sm:max-w-none min-w-0 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
           <div className="text-sm text-gray-500">Faturamento hoje</div>
           <div className="mt-1 text-3xl font-semibold text-gray-900">
             {loadingMetrics ? "--" : `R$ ${memoizedMetrics.faturamentoHoje.toFixed(2)}`}
           </div>
           <div className="mt-1 text-xs text-gray-400">Somatório dos pedidos do dia</div>
         </div>
-        <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
+        <div className="w-full max-w-sm sm:max-w-none min-w-0 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
           <div className="text-sm text-gray-500">Pedidos pendentes</div>
           <div className={`mt-1 text-3xl font-semibold ${memoizedMetrics.pedidosPendentes > 0 ? "text-orange-600" : "text-gray-900"}`}>
             {loadingMetrics ? "--" : memoizedMetrics.pedidosPendentes}
           </div>
           <div className="mt-1 text-xs text-gray-400">Novos, confirmados e em preparo</div>
         </div>
-        <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
+        <div className="w-full max-w-sm sm:max-w-none min-w-0 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
           <div className="text-sm text-gray-500">Produtos ativos</div>
           <div className="mt-1 text-3xl font-semibold text-gray-900">
             {loadingMetrics ? "--" : memoizedMetrics.produtosAtivos}
@@ -158,7 +179,7 @@ export default function JornaleiroDashboardPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm overflow-x-auto">
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm overflow-x-auto max-w-full">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold">Pedidos recentes</h2>
@@ -173,10 +194,9 @@ export default function JornaleiroDashboardPage() {
         ) : (
           <div className="space-y-3 text-sm min-w-0">
             {memoizedRecentOrders.map((order) => (
-              <div key={order.id} className="flex items-center rounded-lg border border-gray-100 px-3 py-2 hover:bg-gray-50 transition-colors min-w-0">
-                <div className="text-gray-900 font-medium mr-3">#{order.id}</div>
-                <div className="truncate text-gray-600">{order.customer_name || order.customer}</div>
-                <div className="ml-auto flex items-center gap-3">
+              <div key={order.id} className="flex items-center rounded-lg border border-gray-100 px-3 py-2 hover:bg-gray-50 transition-colors min-w-0 max-w-full">
+                <div className="truncate text-gray-900 font-medium flex-1 min-w-0">{order.customer_name || order.customer}</div>
+                <div className="ml-auto flex items-center gap-2 sm:gap-3 flex-shrink-0">
                   <span className={`px-2 py-1 text-xs rounded-full ${
                     order.status === 'novo' ? 'bg-yellow-100 text-yellow-700' :
                     order.status === 'confirmado' ? 'bg-blue-100 text-blue-700' :

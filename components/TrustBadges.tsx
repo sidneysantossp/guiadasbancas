@@ -65,7 +65,7 @@ export default function TrustBadges({ className = "", variant = 'large' }: Props
     );
   }
   // Mobile (<= sm): mais compacto e ícone um pouco maior
-  const cardBase = `w-full flex items-center ${isLarge ? 'justify-center md:justify-start' : 'justify-center md:justify-start'} gap-2.5 sm:gap-3 md:gap-2 rounded-lg bg-white border border-gray-200 ${isLarge ? 'px-2.5 sm:px-4 md:px-3 py-1.5 sm:py-2.5 md:py-2' : 'px-2 sm:px-3 md:px-2 py-1.5 md:py-1'} text-sm`;
+  const cardBase = `w-full flex items-center ${isLarge ? 'justify-center md:justify-start' : 'justify-center md:justify-start'} gap-2.5 sm:gap-3 md:gap-2 rounded-lg bg-[#fffaf5] border border-[#ffe0c6] ${isLarge ? 'px-2.5 sm:px-4 md:px-3 py-1.5 sm:py-2.5 md:py-2' : 'px-2 sm:px-3 md:px-2 py-1.5 md:py-1'} text-sm`;
   const iconCls = `${isLarge ? 'h-6 w-6 sm:h-6 sm:w-6 md:h-5 md:w-5' : 'h-5 w-5 sm:h-5 sm:w-5 md:h-4 md:w-4'} object-contain`;
   const textCls = `font-medium text-gray-800 ${isLarge ? 'text-[13px] sm:text-[14px] md:text-[13px]' : 'text-[12px] sm:text-[13px] md:text-[11px] md:leading-tight'} text-center md:text-left`;
   const profileEntries = useMemo(() => ([

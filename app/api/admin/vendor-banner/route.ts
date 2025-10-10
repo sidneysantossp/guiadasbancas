@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from '@supabase/supabase-js';
 
-// Configuração padrão (funciona sem banco)
+// Configuração do Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Configuração padrão (fallback se não houver dados no Supabase)
 const defaultBanner = {
   title: "É jornaleiro?",
   subtitle: "Registre sua banca agora",
@@ -8,10 +15,72 @@ const defaultBanner = {
   button_text: "Quero me cadastrar",
   button_link: "/jornaleiro/registrar",
   image_url: "",
+  background_color: "#000000",
+  text_color: "#FFFFFF",
+  button_color: "#FF5C00",
+  button_text_color: "#FFFFFF",
+  overlay_opacity: 0.45,
+  text_position: "bottom-left",
   active: true
 };
 
-// Armazenamento temporário em memória (para desenvolvimento)
+// Sistema de cache robusto
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+  ttl: number; // Time to live em milliseconds
+}
+
+class BannerCache {
+  private cache: Map<string, CacheEntry> = new Map();
+  private readonly DEFAULT_TTL = 5 * 60 * 1000; // 5 minutos
+
+  set(key: string, data: any, ttl: number = this.DEFAULT_TTL): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl
+    });
+    console.log(`🗄️ Cache SET: ${key} (TTL: ${ttl}ms)`);
+  }
+
+  get(key: string): any | null {
+    const entry = this.cache.get(key);
+    
+    if (!entry) {
+      console.log(`🗄️ Cache MISS: ${key}`);
+      return null;
+    }
+
+    const now = Date.now();
+    const isExpired = (now - entry.timestamp) > entry.ttl;
+
+    if (isExpired) {
+      console.log(`🗄️ Cache EXPIRED: ${key}`);
+      this.cache.delete(key);
+      return null;
+    }
+
+    console.log(`🗄️ Cache HIT: ${key}`);
+    return entry.data;
+  }
+
+  clear(): void {
+    this.cache.clear();
+    console.log('🗄️ Cache CLEARED');
+  }
+
+  getStats(): { size: number; keys: string[] } {
+    return {
+      size: this.cache.size,
+      keys: Array.from(this.cache.keys())
+    };
+  }
+}
+
+const bannerCache = new BannerCache();
+
+// Armazenamento temporário em memória (fallback para desenvolvimento)
 let memoryBanner: any = null;
 
 // Função para debug - mostrar estado atual
@@ -25,55 +94,53 @@ function debugMemoryState() {
     } : null
   });
 }
-
-// Tentar conectar com Supabase se disponível
-let supabase: any = null;
-try {
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    const { createClient } = require("@supabase/supabase-js");
-    supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-  }
-} catch (error) {
-  console.log('Supabase não disponível, usando dados padrão');
-}
+// Supabase já configurado acima
 
 export async function GET() {
   try {
     console.log('📖 GET /api/admin/vendor-banner - CHAMADA RECEBIDA');
-    debugMemoryState();
+    console.log('🗄️ Cache stats:', bannerCache.getStats());
     
-    // Se há dados salvos em memória, usar eles
+    // Verificar cache primeiro
+    const cachedBanner = bannerCache.get('active_banner');
+    if (cachedBanner) {
+      console.log('📖 ✅ RETORNANDO DADOS DO CACHE:', JSON.stringify(cachedBanner, null, 2));
+      return NextResponse.json({ success: true, data: cachedBanner });
+    }
+    
+    // Tentar buscar do Supabase
+    try {
+      const { data: banners, error } = await supabase
+        .from('vendor_banners')
+        .select('*')
+        .eq('active', true)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('📖 Erro no Supabase:', error);
+        throw error;
+      }
+
+      if (banners && banners.length > 0) {
+        const banner = banners[0];
+        // Cachear por 2 minutos para GET requests
+        bannerCache.set('active_banner', banner, 2 * 60 * 1000);
+        console.log('📖 ✅ RETORNANDO DADOS DO SUPABASE (cached):', JSON.stringify(banner, null, 2));
+        return NextResponse.json({ success: true, data: banner });
+      }
+    } catch (supabaseError) {
+      console.error('📖 Erro ao acessar Supabase, tentando memória:', supabaseError);
+    }
+    
+    // Fallback para memória se Supabase falhar
     if (memoryBanner) {
-      console.log('📖 ✅ RETORNANDO DADOS DA MEMÓRIA:', JSON.stringify(memoryBanner, null, 2));
+      bannerCache.set('active_banner', memoryBanner, 1 * 60 * 1000); // Cache por 1 minuto
+      console.log('📖 ✅ RETORNANDO DADOS DA MEMÓRIA (cached):', JSON.stringify(memoryBanner, null, 2));
       return NextResponse.json({ success: true, data: memoryBanner });
     }
-
-    // Se Supabase disponível, tentar buscar dados
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('vendor_banner')
-          .select('*')
-          .single();
-
-        if (error) {
-          console.log('📖 Erro Supabase (usando padrão):', error.message);
-          return NextResponse.json({ success: true, data: defaultBanner });
-        }
-
-        console.log('📖 Dados do Supabase:', data);
-        return NextResponse.json({ success: true, data: data || defaultBanner });
-      } catch (dbError) {
-        console.log('📖 Erro de banco (usando padrão):', dbError);
-        return NextResponse.json({ success: true, data: defaultBanner });
-      }
-    }
-
-    // Se Supabase não disponível, retornar padrão
-    console.log('📖 Retornando dados padrão');
+    
+    console.log('📖 ⚠️ Nenhum dado encontrado, retornando padrão');
     return NextResponse.json({ success: true, data: defaultBanner });
   } catch (error) {
     console.error('📖 Erro interno:', error);
@@ -87,39 +154,87 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     console.log('📝 Dados recebidos COMPLETOS:', JSON.stringify(body, null, 2));
-    console.log('🖼️ URL da imagem recebida:', body.image_url);
-    console.log('📏 Tamanho da URL recebida:', body.image_url?.length);
-    console.log('🔍 Tipo da URL recebida:', typeof body.image_url);
     
-    const { title, subtitle, description, button_text, button_link, image_url, active } = body;
-    
-    console.log('🔍 Após destructuring - image_url:', image_url);
-
-    // Salvar em memória para desenvolvimento
-    memoryBanner = {
-      ...body,
-      id: `temp-${Date.now()}`,
-      updated_at: new Date().toISOString()
+    // Preparar dados para salvar
+    const bannerData = {
+      title: body.title || defaultBanner.title,
+      subtitle: body.subtitle || defaultBanner.subtitle,
+      description: body.description || defaultBanner.description,
+      button_text: body.button_text || defaultBanner.button_text,
+      button_link: body.button_link || defaultBanner.button_link,
+      image_url: body.image_url || '',
+      background_color: body.background_color || defaultBanner.background_color,
+      text_color: body.text_color || defaultBanner.text_color,
+      button_color: body.button_color || defaultBanner.button_color,
+      button_text_color: body.button_text_color || defaultBanner.button_text_color,
+      overlay_opacity: body.overlay_opacity || defaultBanner.overlay_opacity,
+      text_position: body.text_position || defaultBanner.text_position,
+      active: body.active !== undefined ? body.active : true
     };
-    
-    console.log('💾 Dados salvos na memória:', memoryBanner);
-    debugMemoryState();
+
+    let savedBanner = null;
+
+    // Tentar salvar no Supabase primeiro
+    try {
+      // Primeiro, desativar todos os banners existentes se este for ativo
+      if (bannerData.active) {
+        await supabase
+          .from('vendor_banners')
+          .update({ active: false })
+          .eq('active', true);
+      }
+
+      // Inserir novo banner
+      const { data, error } = await supabase
+        .from('vendor_banners')
+        .insert([bannerData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('💾 Erro ao salvar no Supabase:', error);
+        throw error;
+      }
+
+      savedBanner = data;
+      
+      // Limpar cache e adicionar novo dados
+      bannerCache.clear();
+      bannerCache.set('active_banner', savedBanner, 5 * 60 * 1000); // Cache por 5 minutos
+      
+      console.log('💾 ✅ Banner salvo no Supabase e cache atualizado:', JSON.stringify(savedBanner, null, 2));
+
+    } catch (supabaseError) {
+      console.error('💾 Erro no Supabase, salvando na memória:', supabaseError);
+      
+      // Fallback para memória
+      savedBanner = {
+        ...bannerData,
+        id: `temp-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      memoryBanner = savedBanner;
+      console.log('💾 ✅ Banner salvo na memória (fallback):', JSON.stringify(savedBanner, null, 2));
+    }
     
     const responseData = {
       success: true,
-      data: memoryBanner,
-      message: 'Banner salvo com sucesso! (salvo na memória)'
+      data: savedBanner,
+      message: savedBanner.id.startsWith('temp-') 
+        ? 'Banner salvo na memória (Supabase indisponível)' 
+        : 'Banner salvo no Supabase com sucesso!'
     };
     
     console.log('📤 Enviando resposta:', JSON.stringify(responseData, null, 2));
     const response = NextResponse.json(responseData);
     
-    // Adicionar headers CORS para debug
+    // Headers CORS
     response.headers.set('Access-Control-Allow-Origin', '*');
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     
-    console.log('📤 Response headers:', Object.fromEntries(response.headers.entries()));
     return response;
 
   } catch (error: any) {
