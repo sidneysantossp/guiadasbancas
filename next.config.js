@@ -8,7 +8,7 @@ const nextConfig = {
   // Configurações experimentais
   experimental: {
     typedRoutes: false,
-    optimizePackageImports: ['lucide-react', '@/components'], // Tree-shaking
+    // Removido optimizePackageImports que pode causar problemas de chunk
   },
   
   // Compressão
@@ -109,6 +109,14 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 's2-g1.glbimg.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.glbimg.com',
       },
     ],
   },

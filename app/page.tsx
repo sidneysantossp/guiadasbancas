@@ -3,10 +3,14 @@ import TrustBadges from "@/components/TrustBadges";
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
 
+const VendorBannerDynamic = dynamic(() => import("@/components/VendorBannerDynamic"), { 
+  ssr: false,
+  loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg mx-4" />
+});
+
 // CRÍTICO: Apenas componentes above-fold carregam imediatamente
 const MiniCategoryBar = dynamic(() => import("@/components/MiniCategoryBar"));
 const MobileCategoryScroller = dynamic(() => import("@/components/MobileCategoryScroller"));
-
 // PRIORIDADE ALTA: Componentes visíveis no primeiro scroll
 const CategoryCarousel = dynamic(() => import("@/components/CategoryCarousel"), { 
   ssr: false,
@@ -54,28 +58,22 @@ const Newsletter = dynamic(() => import("@/components/Newsletter"), {
   ssr: false,
   loading: () => <div className="h-32 bg-gray-100 animate-pulse rounded-lg" />
 });
-const VendorSignupBanner = dynamic(() => import("@/components/VendorSignupBanner"), { 
-  ssr: false,
-  loading: () => <div className="h-40 bg-gray-100 animate-pulse rounded-lg" />
-});
+// Import movido para o topo do arquivo
 
 export default function HomePage() {
   return (
     <div className="">{/* full-bleed, colado na navbar */}
-      {/* ABOVE FOLD: Carrega imediatamente */}
       <div>
         <FullBanner />
       </div>
       <MobileCategoryScroller />
       <MiniCategoryBar />
-      
-      {/* Trust badges - crítico para conversão (apenas mobile) */}
+      <TrustBadges variant="ecom" className="max-w-6xl mx-auto" />     {/* Trust badges - crítico para conversão (apenas mobile) */}
       <div className="py-3 md:hidden">
         <div className="container-max">
           <TrustBadges variant="ecom" className="max-w-6xl mx-auto" />
         </div>
       </div>
-
       {/* PRIORIDADE ALTA: Primeiro scroll */}
       <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
         <div className="py-8 hidden md:block">
@@ -138,11 +136,7 @@ export default function HomePage() {
         </div>
       </Suspense>
 
-      <Suspense fallback={<div className="h-40 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
-        <div className="py-6">
-          <VendorSignupBanner />
-        </div>
-      </Suspense>
+      <VendorBannerDynamic />
 
       <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
         <div className="py-6">
