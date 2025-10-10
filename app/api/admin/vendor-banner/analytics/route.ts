@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 
 // Configuração do Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+let supabase: any = null;
+
+// Só inicializar Supabase se as variáveis estiverem disponíveis
+if (supabaseUrl && supabaseServiceKey) {
+  supabase = createClient(supabaseUrl, supabaseServiceKey);
+}
 
 // POST - Registrar clique no banner
 export async function POST(request: NextRequest) {
@@ -22,8 +27,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Tentar incrementar contador no Supabase
-    try {
+    // Tentar incrementar contador no Supabase se disponível
+    if (supabase) {
+      try {
       // Primeiro, buscar o valor atual
       const { data: currentBanner } = await supabase
         .from('vendor_banners')
@@ -69,15 +75,23 @@ export async function POST(request: NextRequest) {
         message: 'Clique registrado com sucesso' 
       });
 
-    } catch (supabaseError) {
-      console.error('📊 Erro no Supabase:', supabaseError);
-      
-      // Fallback: apenas logar o clique
-      console.log('📊 ⚠️ Fallback: Clique registrado apenas no log para banner:', banner_id);
+      } catch (supabaseError) {
+        console.error('📊 Erro no Supabase:', supabaseError);
+        
+        // Fallback: apenas logar o clique
+        console.log('📊 ⚠️ Fallback: Clique registrado apenas no log para banner:', banner_id);
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Clique registrado (fallback)' 
+        });
+      }
+    } else {
+      console.log('📊 ⚠️ Supabase não configurado, apenas logando clique para banner:', banner_id);
       
       return NextResponse.json({ 
         success: true, 
-        message: 'Clique registrado (fallback)' 
+        message: 'Clique registrado (Supabase não disponível)' 
       });
     }
 
@@ -105,8 +119,9 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Buscar estatísticas do banner
-    try {
+    // Buscar estatísticas do banner se Supabase disponível
+    if (supabase) {
+      try {
       const { data: banner, error } = await supabase
         .from('vendor_banners')
         .select('id, title, click_count, created_at, updated_at')
@@ -156,13 +171,19 @@ export async function GET(request: NextRequest) {
         data: stats 
       });
 
-    } catch (supabaseError) {
-      console.error('📊 Erro no Supabase:', supabaseError);
-      
+      } catch (supabaseError) {
+        console.error('📊 Erro no Supabase:', supabaseError);
+        
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Erro ao obter estatísticas' 
+        }, { status: 500 });
+      }
+    } else {
       return NextResponse.json({ 
         success: false, 
-        error: 'Erro ao obter estatísticas' 
-      }, { status: 500 });
+        error: 'Supabase não configurado' 
+      }, { status: 503 });
     }
 
   } catch (error: any) {

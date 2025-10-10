@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from "react";
 import Image from "next/image";
 
@@ -599,19 +601,13 @@ export default function VendorBannerAdminPage() {
               </a>
             </div>
           </div>
-            
-            {saving && (
-              <button
-                onClick={() => {
-                  setSaving(false);
-                  setMessage({ type: 'error', text: 'Operação cancelada pelo usuário' });
-                }}
-                className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-            )}
-          </div>
+
+          {/* Mensagens de Status */}
+          {message && (
+            <div className={`rounded-md p-4 ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {message.text}
+            </div>
+          )}
         </div>
       </div>
     </div>

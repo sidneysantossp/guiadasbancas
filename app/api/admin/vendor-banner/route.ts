@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 
 // Configuração do Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+let supabase: any = null;
+
+// Só inicializar Supabase se as variáveis estiverem disponíveis
+if (supabaseUrl && supabaseServiceKey) {
+  supabase = createClient(supabaseUrl, supabaseServiceKey);
+}
 
 // Configuração padrão (fallback se não houver dados no Supabase)
 const defaultBanner = {
@@ -108,14 +113,15 @@ export async function GET() {
       return NextResponse.json({ success: true, data: cachedBanner });
     }
     
-    // Tentar buscar do Supabase
-    try {
-      const { data: banners, error } = await supabase
-        .from('vendor_banners')
-        .select('*')
-        .eq('active', true)
-        .order('updated_at', { ascending: false })
-        .limit(1);
+    // Tentar buscar do Supabase se disponível
+    if (supabase) {
+      try {
+        const { data: banners, error } = await supabase
+          .from('vendor_banners')
+          .select('*')
+          .eq('active', true)
+          .order('updated_at', { ascending: false })
+          .limit(1);
 
       if (error) {
         console.error('📖 Erro no Supabase:', error);
@@ -129,8 +135,11 @@ export async function GET() {
         console.log('📖 ✅ RETORNANDO DADOS DO SUPABASE (cached):', JSON.stringify(banner, null, 2));
         return NextResponse.json({ success: true, data: banner });
       }
-    } catch (supabaseError) {
-      console.error('📖 Erro ao acessar Supabase, tentando memória:', supabaseError);
+      } catch (supabaseError) {
+        console.error('📖 Erro ao acessar Supabase, tentando memória:', supabaseError);
+      }
+    } else {
+      console.log('📖 ⚠️ Supabase não configurado, usando fallback');
     }
     
     // Fallback para memória se Supabase falhar
@@ -174,8 +183,9 @@ export async function PUT(request: NextRequest) {
 
     let savedBanner = null;
 
-    // Tentar salvar no Supabase primeiro
-    try {
+    // Tentar salvar no Supabase primeiro se disponível
+    if (supabase) {
+      try {
       // Primeiro, desativar todos os banners existentes se este for ativo
       if (bannerData.active) {
         await supabase
@@ -204,10 +214,24 @@ export async function PUT(request: NextRequest) {
       
       console.log('💾 ✅ Banner salvo no Supabase e cache atualizado:', JSON.stringify(savedBanner, null, 2));
 
-    } catch (supabaseError) {
-      console.error('💾 Erro no Supabase, salvando na memória:', supabaseError);
+      } catch (supabaseError) {
+        console.error('💾 Erro no Supabase, salvando na memória:', supabaseError);
+        
+        // Fallback para memória
+        savedBanner = {
+          ...bannerData,
+          id: `temp-${Date.now()}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        memoryBanner = savedBanner;
+        console.log('💾 ✅ Banner salvo na memória (fallback):', JSON.stringify(savedBanner, null, 2));
+      }
+    } else {
+      console.log('💾 ⚠️ Supabase não configurado, salvando apenas na memória');
       
-      // Fallback para memória
+      // Salvar apenas na memória
       savedBanner = {
         ...bannerData,
         id: `temp-${Date.now()}`,
@@ -216,7 +240,8 @@ export async function PUT(request: NextRequest) {
       };
       
       memoryBanner = savedBanner;
-      console.log('💾 ✅ Banner salvo na memória (fallback):', JSON.stringify(savedBanner, null, 2));
+      bannerCache.set('active_banner', savedBanner, 5 * 60 * 1000);
+      console.log('💾 ✅ Banner salvo na memória:', JSON.stringify(savedBanner, null, 2));
     }
     
     const responseData = {
