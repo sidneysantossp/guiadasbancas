@@ -60,10 +60,10 @@ function TrendCard({ p }: { p: TrendProduct }) {
           )}
         </div>
       </div>
-      <div className="px-3 pb-3">
-        <div className="mt-0.5 flex items-center justify-between gap-2">
-          <div className="text-[13px] font-semibold leading-snug line-clamp-2 break-words">{p.name}</div>
-          <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[10px] font-semibold">
+      <div className="px-3 pb-3 text-center">
+        <div className="mt-0.5 flex flex-col items-center gap-2">
+          <div className="text-[13px] font-semibold leading-snug line-clamp-2 break-words text-center">{p.name}</div>
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[10px] font-semibold">
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden>
               <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/>
             </svg>
@@ -71,7 +71,7 @@ function TrendCard({ p }: { p: TrendProduct }) {
           </span>
         </div>
         {/* Estrelas e avaliações */}
-        <div className="mt-1 flex items-center gap-2 text-[#f59e0b]">
+        <div className="mt-1 flex items-center justify-center gap-2 text-[#f59e0b]">
           {(() => {
             const v = Math.max(0, Math.min(5, Number(p.ratingAvg ?? 0)));
             const full = Math.floor(v);
@@ -101,16 +101,16 @@ function TrendCard({ p }: { p: TrendProduct }) {
         </div>
         {/* Preço com De: quando promocional */}
         {typeof p.discountPercent === 'number' && p.discountPercent > 0 ? (
-          <div className="mt-1">
+          <div className="mt-1 text-center">
             <div className="text-[12px] text-gray-600">
               De: <span className="text-gray-400 line-through">R$ {((p.price) / (1 - (p.discountPercent || 0) / 100)).toFixed(2)}</span>
             </div>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline justify-center gap-2">
               <span className="text-[#ff5c00] font-bold">R$ {p.price.toFixed(2)}</span>
             </div>
           </div>
         ) : (
-          <div className="mt-1 flex items-baseline gap-2">
+          <div className="mt-1 flex items-baseline justify-center gap-2">
             <span className="text-[#ff5c00] font-bold">R$ {p.price.toFixed(2)}</span>
             {typeof p.priceOriginal === 'number' && p.priceOriginal > p.price && (
               <span className="text-gray-400 line-through text-[12px]">R$ {Number(p.priceOriginal).toFixed(2)}</span>
@@ -138,7 +138,7 @@ export default function TrendingProducts() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  const perView = w < 640 ? 1 : w < 1024 ? 2 : 4;
+  const perView = w < 640 ? 2 : w < 1024 ? 2 : 4;
 
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);

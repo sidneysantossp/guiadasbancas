@@ -83,16 +83,21 @@ export default function VendorBannerDynamic() {
         const data = await response.json();
         console.log('🎯 Dados recebidos:', JSON.stringify(data, null, 2));
         
-        if (data.success && data.data && data.data.active) {
-          console.log('🎯 ✅ Atualizando banner com dados da API!');
+        if (data.success && data.data) {
+          console.log('🎯 ✅ Dados válidos recebidos!');
+          console.log('🎯 Banner ativo?', data.data.active);
+          console.log('🎯 Título:', data.data.title);
+          console.log('🎯 Imagem:', data.data.image_url);
+          
           setBanner(data.data);
         } else {
-          console.log('🎯 ⚠️ Usando dados padrão');
+          console.log('🎯 ⚠️ Dados inválidos, usando padrão');
         }
       } catch (error) {
         console.error('🎯 ❌ Erro ao carregar banner:', error);
       } finally {
         setLoading(false);
+        console.log('🎯 Loading finalizado, banner será renderizado');
       }
     };
 
@@ -100,6 +105,7 @@ export default function VendorBannerDynamic() {
   }, []);
 
   if (loading) {
+    console.log('🎯 Renderizando loading...');
     return (
       <div className="py-6">
         <div className="container-max">
@@ -108,6 +114,14 @@ export default function VendorBannerDynamic() {
       </div>
     );
   }
+
+  // Não renderizar se banner não estiver ativo
+  if (!banner.active) {
+    console.log('🎯 Banner inativo, não renderizando');
+    return null;
+  }
+
+  console.log('🎯 Renderizando banner:', banner.title, '| Imagem:', banner.image_url ? 'SIM' : 'NÃO');
 
   // Função para determinar classes de posicionamento
   const getPositionClasses = (position: string) => {
@@ -129,13 +143,14 @@ export default function VendorBannerDynamic() {
   return (
     <div className="py-6">
       <div className="container-max">
+        
         <a 
           href={banner.button_link}
           onClick={handleClick}
           className="relative w-full overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-shadow block"
         >
           <div className="relative h-96 sm:h-64 md:h-72 w-full bg-gray-200">
-            {banner.image_url && (
+            {banner.image_url && banner.image_url.trim() !== '' && (
               <img
                 src={banner.image_url}
                 alt={banner.title}
@@ -144,6 +159,7 @@ export default function VendorBannerDynamic() {
                 onLoad={() => console.log('🎯 ✅ Imagem carregada:', banner.image_url)}
                 onError={(e) => {
                   console.log('🎯 ❌ Erro ao carregar imagem:', banner.image_url);
+                  console.log('🎯 ❌ Detalhes do erro:', e);
                 }}
               />
             )}

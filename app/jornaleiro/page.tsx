@@ -21,7 +21,7 @@ export default function JornaleiroLoginPage() {
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role === "jornaleiro") {
       setRedirecting(true);
-      router.replace("/jornaleiro/dashboard");
+      router.replace("/jornaleiro/academy");
     }
   }, [status, session?.user?.role]);
 
@@ -50,7 +50,7 @@ export default function JornaleiroLoginPage() {
         redirect: false,
         email,
         password,
-        callbackUrl: "/jornaleiro/dashboard",
+        callbackUrl: "/jornaleiro/academy",
       });
 
       if (result?.error) {

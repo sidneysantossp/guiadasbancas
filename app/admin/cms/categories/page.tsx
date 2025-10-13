@@ -23,13 +23,34 @@ export default function AdminCategoriesPage() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/categories/visibility', { headers: { 'Authorization': 'Bearer admin-token' } });
+      // Adicionar timestamp para evitar cache
+      const timestamp = new Date().getTime();
+      const res = await fetch(`/api/admin/categories/visibility?_t=${timestamp}`, { 
+        headers: { 
+          'Authorization': 'Bearer admin-token',
+          'Cache-Control': 'no-cache'
+        },
+        cache: 'no-store'
+      });
       const j = await res.json();
-      if (j?.success) setItems(j.data);
+      console.log('[fetchAll] Categorias carregadas:', j.data?.length);
+      console.log('[fetchAll] Dados completos:', j.data?.map((c: AdminCategory) => ({ 
+        name: c.name, 
+        visible: c.visible,
+        active: c.active 
+      })));
+      if (j?.success) {
+        console.log('[fetchAll] Atualizando estado com:', j.data);
+        setItems(j.data);
+      }
     } finally { setLoading(false); }
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  useEffect(() => {
+    console.log('[useEffect items] Estado atualizado:', items.map(c => ({ name: c.name, visible: c.visible })));
+  }, [items]);
 
   const onCreate = () => { setEditing(null); setShowForm(true); };
   const onEdit = (c: AdminCategory) => { setEditing(c); setShowForm(true); };
@@ -59,22 +80,38 @@ export default function AdminCategoriesPage() {
     setSaving(true);
     try {
       const item = items.find(c => c.id === id);
-      if (!item) return;
+      if (!item) {
+        console.error('Item não encontrado:', id);
+        setSaving(false);
+        return;
+      }
+      
+      const newVisible = !item.visible;
+      console.log('Alterando visibilidade:', { id, currentVisible: item.visible, newVisible });
       
       const res = await fetch('/api/admin/categories/visibility', { 
         method: 'PATCH', 
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin-token' }, 
-        body: JSON.stringify({ id, visible: !item.visible }) 
+        body: JSON.stringify({ id, visible: newVisible }) 
       });
+      
       const j = await res.json();
-      if (j?.success) {
-        setItems(prev => prev.map(c => c.id === id ? { ...c, visible: !c.visible } : c));
-        setMessage({ type: 'success', text: `Categoria ${!item.visible ? 'exibida' : 'ocultada'} no frontend` });
+      console.log('Resposta da API:', j);
+      
+      if (j?.success && j?.data) {
+        // Atualizar com os dados retornados da API
+        setItems(prev => prev.map(c => c.id === id ? { ...c, visible: j.data.visible } : c));
+        setMessage({ type: 'success', text: `Categoria ${j.data.visible ? 'exibida' : 'ocultada'} no frontend` });
         setTimeout(() => setMessage(null), 3000);
       } else {
         setMessage({ type: 'error', text: j?.error || 'Erro ao alterar visibilidade' });
       }
-    } finally { setSaving(false); }
+    } catch (error) {
+      console.error('Erro ao alternar visibilidade:', error);
+      setMessage({ type: 'error', text: 'Erro ao alternar visibilidade' });
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   const move = async (id: string, dir: 'up'|'down') => {
@@ -118,6 +155,9 @@ export default function AdminCategoriesPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gestão de Categorias</h1>
           <p className="text-gray-600">Crie, edite, reordene e ative/desative categorias exibidas no site.</p>
+          <p className="text-sm text-gray-500 mt-1">
+            💡 <strong>Visibilidade:</strong> Use o ícone de olho para controlar quais categorias aparecem na página /categorias
+          </p>
         </div>
         <button onClick={onCreate} className="inline-flex items-center gap-2 rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
@@ -151,8 +191,18 @@ export default function AdminCategoriesPage() {
                       <div className="font-semibold text-gray-900">{c.name}</div>
                       <div className="text-xs text-gray-600 mt-0.5">Link: {c.link || <span className='text-red-600'>(vazio)</span>}</div>
                       <div className="mt-2 flex items-center gap-2">
-                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${c.active? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{c.active? 'Ativa' : 'Inativa'}</span>
-                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${c.visible? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}`}>{c.visible? 'Visível' : 'Oculta'}</span>
+                        <span 
+                          className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${c.active? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                          title={c.active? 'Categoria ativa no sistema' : 'Categoria inativa'}
+                        >
+                          {c.active? 'Ativa' : 'Inativa'}
+                        </span>
+                        <span 
+                          className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${c.visible? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}`}
+                          title={c.visible? 'Aparece na página /categorias' : 'Oculta da página /categorias'}
+                        >
+                          {c.visible? '👁️ Visível' : '🚫 Oculta'}
+                        </span>
                         <span className="text-xs text-gray-500">Ordem: {c.order}</span>
                       </div>
                     </div>
@@ -298,17 +348,24 @@ function CategoryForm({ item, onSubmit, onCancel, saving }: { item: AdminCategor
               <p className="mt-1 text-xs text-gray-500">Sempre iniciar com "/". Ex: /categorias/revistas</p>
             </div>
 
-            <div className="space-y-3">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="rounded border-gray-300" checked={active} onChange={(e)=>setActive(e.target.checked)} />
-                <span className="text-sm">Categoria ativa</span>
+            <div className="space-y-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <div className="text-sm font-medium text-gray-700 mb-2">Configurações de Exibição</div>
+              <label className="flex items-start gap-3">
+                <input type="checkbox" className="rounded border-gray-300 mt-0.5" checked={active} onChange={(e)=>setActive(e.target.checked)} />
+                <div>
+                  <span className="text-sm font-medium text-gray-900 block">Categoria ativa</span>
+                  <span className="text-xs text-gray-500">Categoria habilitada no sistema</span>
+                </div>
               </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="rounded border-gray-300" checked={visible} onChange={(e)=>setVisible(e.target.checked)} />
-                <span className="text-sm">Visível no frontend</span>
+              <label className="flex items-start gap-3">
+                <input type="checkbox" className="rounded border-gray-300 mt-0.5" checked={visible} onChange={(e)=>setVisible(e.target.checked)} />
+                <div>
+                  <span className="text-sm font-medium text-gray-900 block">👁️ Visível na página /categorias</span>
+                  <span className="text-xs text-gray-500">Se desmarcado, a categoria não aparecerá na listagem pública</span>
+                </div>
               </label>
-              <p className="text-xs text-gray-500">Categorias invisíveis não aparecem no site, mas permanecem no sistema.</p>
             </div>
+            <p className="text-xs text-gray-500">Categorias invisíveis não aparecem no site, mas permanecem no sistema.</p>
 
             <div className="flex items-center justify-end gap-3 pt-4 border-t">
               <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Cancelar</button>

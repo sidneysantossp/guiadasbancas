@@ -1,12 +1,13 @@
 import FullBanner from "@/components/FullBanner";
-import TrustBadges from "@/components/TrustBadges";
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
 
-const VendorBannerDynamic = dynamic(() => import("@/components/VendorBannerDynamic"), { 
-  ssr: false,
-  loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg mx-4" />
-});
+// Banner de indicação com SSR desabilitado para evitar erros de hidratação
+const ReferralPlatformBannerWrapper = dynamic(
+  () => import("@/components/ReferralPlatformBannerWrapper"),
+  { ssr: false, loading: () => <div className="py-6"><div className="container-max"><div className="h-64 bg-gray-200 rounded-2xl"></div></div></div> }
+);
+
 
 // CRÍTICO: Apenas componentes above-fold carregam imediatamente
 const MiniCategoryBar = dynamic(() => import("@/components/MiniCategoryBar"));
@@ -58,6 +59,7 @@ const Newsletter = dynamic(() => import("@/components/Newsletter"), {
   ssr: false,
   loading: () => <div className="h-32 bg-gray-100 animate-pulse rounded-lg" />
 });
+
 // Import movido para o topo do arquivo
 
 export default function HomePage() {
@@ -68,12 +70,6 @@ export default function HomePage() {
       </div>
       <MobileCategoryScroller />
       <MiniCategoryBar />
-      <TrustBadges variant="ecom" className="max-w-6xl mx-auto" />     {/* Trust badges - crítico para conversão (apenas mobile) */}
-      <div className="py-3 md:hidden">
-        <div className="container-max">
-          <TrustBadges variant="ecom" className="max-w-6xl mx-auto" />
-        </div>
-      </div>
       {/* PRIORIDADE ALTA: Primeiro scroll */}
       <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
         <div className="py-8 hidden md:block">
@@ -136,7 +132,8 @@ export default function HomePage() {
         </div>
       </Suspense>
 
-      <VendorBannerDynamic />
+      {/* Banner de Indicação da Plataforma */}
+      <ReferralPlatformBannerWrapper />
 
       <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
         <div className="py-6">

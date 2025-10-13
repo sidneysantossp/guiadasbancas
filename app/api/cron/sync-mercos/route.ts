@@ -69,11 +69,19 @@ export async function POST(request: NextRequest) {
         const produtosMercos = await mercosApi.getAllProdutos(ultimaSincronizacao);
         console.log(`[CRON] Produtos recebidos (${distribuidor.nome}):`, produtosMercos.length);
 
+        // Limitar processamento no CRON para evitar timeout
+        const MAX_PRODUTOS_CRON = 30; // Menor limite para CRON
+        const produtosParaProcessar = produtosMercos.slice(0, MAX_PRODUTOS_CRON);
+        
+        if (produtosMercos.length > MAX_PRODUTOS_CRON) {
+          console.log(`[CRON] ⚠️ Limitando a ${MAX_PRODUTOS_CRON} produtos (total: ${produtosMercos.length})`);
+        }
+
         let produtosNovos = 0;
         let produtosAtualizados = 0;
 
-        // Processar produtos
-        for (const produtoMercos of produtosMercos) {
+        // Processar produtos (limitado)
+        for (const produtoMercos of produtosParaProcessar) {
           try {
             const { data: produtoExistente } = await supabase
               .from('products')

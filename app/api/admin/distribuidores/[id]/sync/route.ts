@@ -5,8 +5,43 @@ import { MercosAPI } from '@/lib/mercos-api';
 // Aumentar timeout para 60 segundos (máximo no Vercel Hobby)
 export const maxDuration = 60;
 
+// Configurações de sincronização
+const SYNC_CONFIG = {
+  MAX_PRODUTOS_POR_LOTE: 50, // Processar no máximo 50 produtos por vez
+  TIMEOUT_SAFETY_MARGIN: 10, // Parar 10s antes do timeout
+  MAX_EXECUTION_TIME: 50 * 1000, // 50 segundos em ms
+};
+
 // Categoria fallback para produtos sem categoria
 const CATEGORIA_SEM_CATEGORIA_ID = 'bbbbbbbb-0000-0000-0000-000000000001';
+
+// Função para garantir que a categoria fallback existe
+async function ensureFallbackCategory(supabase: any) {
+  const { data: categoria } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('id', CATEGORIA_SEM_CATEGORIA_ID)
+    .single();
+
+  if (!categoria) {
+    console.log('[SYNC] Criando categoria fallback...');
+    const { error } = await supabase
+      .from('categories')
+      .insert([{
+        id: CATEGORIA_SEM_CATEGORIA_ID,
+        name: 'Sem Categoria',
+        link: '/categorias/sem-categoria',
+        active: true,
+        order: 998
+      }]);
+    
+    if (error) {
+      console.error('[SYNC] Erro ao criar categoria fallback:', error);
+      throw new Error('Falha ao criar categoria fallback');
+    }
+    console.log('[SYNC] ✅ Categoria fallback criada');
+  }
+}
 
 export async function POST(
   request: NextRequest,
@@ -15,6 +50,9 @@ export async function POST(
   console.log(`[SYNC] ===== INICIANDO SINCRONIZAÇÃO (distribuidor: ${params.id}) =====`);
   try {
     const supabase = supabaseAdmin;
+    
+    // Garantir que a categoria fallback existe
+    await ensureFallbackCategory(supabase);
     
     // Verificar se é sincronização completa (force)
     const body = await request.json().catch(() => ({}));
@@ -70,22 +108,31 @@ export async function POST(
     
     console.log(`[SYNC] Produtos recebidos da API Mercos: ${produtosMercos.length}`);
 
-    // Limitar processamento para evitar timeout (máximo 100 produtos por vez)
-    const MAX_PRODUTOS_POR_SYNC = 100;
-    const produtosParaProcessar = produtosMercos.slice(0, MAX_PRODUTOS_POR_SYNC);
+    // Controle de tempo e lotes
+    const startTime = Date.now();
+    const produtosParaProcessar = produtosMercos.slice(0, SYNC_CONFIG.MAX_PRODUTOS_POR_LOTE);
     
-    if (produtosMercos.length > MAX_PRODUTOS_POR_SYNC) {
-      console.log(`[SYNC] ⚠️ Limitando processamento a ${MAX_PRODUTOS_POR_SYNC} produtos (total: ${produtosMercos.length})`);
+    if (produtosMercos.length > SYNC_CONFIG.MAX_PRODUTOS_POR_LOTE) {
+      console.log(`[SYNC] ⚠️ Limitando processamento a ${SYNC_CONFIG.MAX_PRODUTOS_POR_LOTE} produtos (total: ${produtosMercos.length})`);
+      console.log(`[SYNC] 💡 Execute novamente para processar os próximos ${produtosMercos.length - SYNC_CONFIG.MAX_PRODUTOS_POR_LOTE} produtos`);
     }
 
     let produtosNovos = 0;
     let produtosAtualizados = 0;
     const erros: string[] = [];
 
-    // Processar cada produto
+    // Processar cada produto com controle de tempo
     console.log(`[SYNC] Processando ${produtosParaProcessar.length} produtos...`);
     let processados = 0;
+    
     for (const produtoMercos of produtosParaProcessar) {
+      // Verificar se ainda temos tempo
+      const elapsedTime = Date.now() - startTime;
+      if (elapsedTime > SYNC_CONFIG.MAX_EXECUTION_TIME) {
+        console.log(`[SYNC] ⏰ Timeout preventivo atingido (${elapsedTime}ms). Parando processamento.`);
+        console.log(`[SYNC] 📊 Processados: ${processados}/${produtosParaProcessar.length}`);
+        break;
+      }
       try {
         processados++;
         
@@ -156,8 +203,8 @@ export async function POST(
     }
 
     // Adicionar aviso se produtos foram limitados
-    if (produtosMercos.length > MAX_PRODUTOS_POR_SYNC) {
-      erros.push(`⚠️ Foram recebidos ${produtosMercos.length} produtos, mas apenas ${MAX_PRODUTOS_POR_SYNC} foram processados nesta sincronização. Execute novamente para processar o restante.`);
+    if (produtosMercos.length > SYNC_CONFIG.MAX_PRODUTOS_POR_LOTE) {
+      erros.push(`⚠️ Foram recebidos ${produtosMercos.length} produtos, mas apenas ${SYNC_CONFIG.MAX_PRODUTOS_POR_LOTE} foram processados nesta sincronização. Execute novamente para processar o restante.`);
     }
 
     // Contar total de produtos do distribuidor

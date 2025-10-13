@@ -106,6 +106,9 @@ export async function GET() {
     console.log('📖 GET /api/admin/vendor-banner - CHAMADA RECEBIDA');
     console.log('🗄️ Cache stats:', bannerCache.getStats());
     
+    // Cache limpo para garantir dados atualizados
+    bannerCache.clear();
+    
     // Verificar cache primeiro
     const cachedBanner = bannerCache.get('active_banner');
     if (cachedBanner) {

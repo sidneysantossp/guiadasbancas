@@ -737,12 +737,22 @@ function MinhaContaPageContent() {
               {mode === "login" ? "Entrar" : "Registrar"}
             </button>
           </div>
-          <div className="text-[12px] text-gray-700">
-            {mode === "login" ? (
-              <>Não tem conta? <button type="button" onClick={()=>setMode("register")} className="underline">Crie agora</button></>
-            ) : (
-              <>Já tem conta? <button type="button" onClick={()=>setMode("login")} className="underline">Entrar</button></>
-            )}
+          <div className="text-[12px] text-gray-700 space-y-2">
+            <div>
+              {mode === "login" ? (
+                <>Não tem conta? <button type="button" onClick={()=>setMode("register")} className="underline">Crie agora</button></>
+              ) : (
+                <>Já tem conta? <button type="button" onClick={()=>setMode("login")} className="underline">Entrar</button></>
+              )}
+            </div>
+            <div className="pt-3 border-t border-gray-200">
+              <div className="text-sm text-gray-600">
+                É jornaleiro? 
+                <Link href="/jornaleiro" className="ml-1 text-[#ff5c00] font-semibold hover:underline">
+                  Cadastre sua banca aqui
+                </Link>
+              </div>
+            </div>
           </div>
         </form>
         <aside className="rounded-2xl border border-gray-200 bg-white overflow-hidden relative h-full min-h-[400px]">

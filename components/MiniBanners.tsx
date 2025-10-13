@@ -29,6 +29,7 @@ export default function MiniBanners() {
 
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
   const [remote, setRemote] = useState<string[] | null>(null);
 
   // Load from API with fallback
@@ -54,17 +55,36 @@ export default function MiniBanners() {
   const track = useMemo(() => [...items, ...items], [items]);
 
   useEffect(() => {
+    if (isPaused) return;
     const id = setInterval(() => {
       setIndex((i) => i + 1);
       setAnimating(true);
     }, 4000);
     return () => clearInterval(id);
-  }, []);
+  }, [isPaused]);
+
+  const maxIndex = Math.max(0, items.length - perView);
+  
+  const prev = () => {
+    const currentIndex = index % items.length;
+    const newIndex = currentIndex === 0 ? maxIndex : currentIndex - 1;
+    setIndex(newIndex);
+    setAnimating(true);
+    setIsPaused(true);
+    setTimeout(() => setIsPaused(false), 8000);
+  };
+  
+  const next = () => {
+    setIndex((i) => i + 1);
+    setAnimating(true);
+    setIsPaused(true);
+    setTimeout(() => setIsPaused(false), 8000);
+  };
 
   return (
     <section className="w-full">
       <div className="container-max">
-        <div className="relative">
+        <div className="relative md:px-6">
           <div className="overflow-hidden">
             <div
               className="flex gap-4"
@@ -99,6 +119,32 @@ export default function MiniBanners() {
                 </div>
               ))}
             </div>
+            
+            {/* Desktop arrows */}
+            {items.length > perView && (
+              <>
+                <button
+                  type="button"
+                  onClick={prev}
+                  aria-label="Anterior"
+                  className="hidden md:flex absolute -left-4 top-1/2 -translate-y-1/2 z-20 h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg hover:bg-gray-50 transition-all duration-200"
+                >
+                  <svg viewBox="0 0 24 24" className="h-6 w-6 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M15 18l-6-6 6-6"/>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={next}
+                  aria-label="Próximo"
+                  className="hidden md:flex absolute -right-4 top-1/2 -translate-y-1/2 z-20 h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg hover:bg-gray-50 transition-all duration-200"
+                >
+                  <svg viewBox="0 0 24 24" className="h-6 w-6 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M9 18l6-6-6-6"/>
+                  </svg>
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

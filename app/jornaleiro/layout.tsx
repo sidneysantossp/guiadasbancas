@@ -50,13 +50,15 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
-  // Permite acessar o dashboard, banca, pedidos, produtos e configurações mesmo sem banca
+  // Permite acessar o dashboard, banca, pedidos, produtos, configurações, academy e catálogo distribuidor mesmo sem banca
   const allowedWithoutBanca = Boolean(
     pathname?.startsWith('/jornaleiro/dashboard') ||
     pathname?.startsWith('/jornaleiro/banca') ||
     pathname?.startsWith('/jornaleiro/pedidos') ||
     pathname?.startsWith('/jornaleiro/produtos') ||
-    pathname?.startsWith('/jornaleiro/configuracoes')
+    pathname?.startsWith('/jornaleiro/configuracoes') ||
+    pathname?.startsWith('/jornaleiro/academy') ||
+    pathname?.startsWith('/jornaleiro/catalogo-distribuidor')
   );
 
   const logout = async () => {

@@ -230,7 +230,7 @@ function BuscarPageContent() {
                     href={`/produto/${product.name.toLowerCase().replace(/\s+/g, '-')}-prod-${product.id}`}
                     className="block bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
                   >
-                    <div className="relative h-40 bg-gray-100">
+                    <div className="relative h-32 sm:h-28 lg:h-24 bg-gray-100">
                       {product.images?.[0] ? (
                         <img
                           src={product.images[0]}
@@ -238,7 +238,7 @@ function BuscarPageContent() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-4xl text-gray-400">
+                        <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl text-gray-400">
                           📦
                         </div>
                       )}

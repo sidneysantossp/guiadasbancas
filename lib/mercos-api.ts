@@ -69,22 +69,52 @@ export class MercosAPI {
 
     while (hasMore) {
       const endpoint = `/produtos?alterado_apos=${dataInicial}`;
-      const response = await this.request<any>(endpoint);
       
-      const produtos = Array.isArray(response) ? response : [];
-      allProdutos = [...allProdutos, ...produtos];
+      // Fazer requisição e capturar headers
+      const url = `${this.baseUrl}${endpoint}`;
+      const headers = {
+        'ApplicationToken': this.config.applicationToken,
+        'CompanyToken': this.config.companyToken,
+        'Content-Type': 'application/json',
+      };
 
-      // Verificar se há mais páginas
-      const limitouRegistros = response.headers?.['MEUSPEDIDOS_LIMITOU_REGISTROS'] === '1';
+      const response = await fetch(url, { headers });
+
+      // Tratamento de throttling
+      if (response.status === 429) {
+        const throttleError = await response.json();
+        const waitTime = throttleError.tempo_ate_permitir_novamente * 1000;
+        
+        console.log(`Throttling detectado. Aguardando ${throttleError.tempo_ate_permitir_novamente}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue; // Tentar novamente
+      }
+
+      if (!response.ok) {
+        throw new Error(`Erro Mercos API: ${response.status}`);
+      }
+
+      const produtos = await response.json();
+      const produtosArray = Array.isArray(produtos) ? produtos : [];
+      allProdutos = [...allProdutos, ...produtosArray];
+
+      // CORREÇÃO CRÍTICA: Verificar headers corretamente
+      const limitouRegistros = response.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
       
-      if (limitouRegistros && produtos.length > 0) {
+      console.log(`[PAGINAÇÃO] Produtos recebidos: ${produtosArray.length}`);
+      console.log(`[PAGINAÇÃO] Header limitou: ${response.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS')}`);
+      console.log(`[PAGINAÇÃO] Requisições extras: ${response.headers.get('MEUSPEDIDOS_REQUISICOES_EXTRAS')}`);
+      
+      if (limitouRegistros && produtosArray.length > 0) {
         // Usar a última alteração do último produto para próxima requisição
-        const ultimoProduto = produtos[produtos.length - 1];
+        const ultimoProduto = produtosArray[produtosArray.length - 1];
         dataInicial = ultimoProduto.ultima_alteracao;
         
-        console.log(`Buscando próxima página... (${allProdutos.length} produtos até agora)`);
+        console.log(`[PAGINAÇÃO] Próxima página com alterado_apos: ${dataInicial}`);
+        console.log(`[PAGINAÇÃO] Total acumulado: ${allProdutos.length} produtos`);
       } else {
         hasMore = false;
+        console.log(`[PAGINAÇÃO] ✅ Paginação concluída. Total: ${allProdutos.length} produtos`);
       }
     }
 
@@ -108,18 +138,45 @@ export class MercosAPI {
 
     while (hasMore) {
       const endpoint = `/categorias?alterado_apos=${dataInicial}`;
-      const response = await this.request<any>(endpoint);
       
-      const categorias = Array.isArray(response) ? response : [];
-      allCategorias = [...allCategorias, ...categorias];
+      // Fazer requisição e capturar headers
+      const url = `${this.baseUrl}${endpoint}`;
+      const headers = {
+        'ApplicationToken': this.config.applicationToken,
+        'CompanyToken': this.config.companyToken,
+        'Content-Type': 'application/json',
+      };
 
-      const limitouRegistros = response.headers?.['MEUSPEDIDOS_LIMITOU_REGISTROS'] === '1';
+      const response = await fetch(url, { headers });
+
+      // Tratamento de throttling
+      if (response.status === 429) {
+        const throttleError = await response.json();
+        const waitTime = throttleError.tempo_ate_permitir_novamente * 1000;
+        
+        console.log(`Throttling detectado. Aguardando ${throttleError.tempo_ate_permitir_novamente}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Erro Mercos API: ${response.status}`);
+      }
+
+      const categorias = await response.json();
+      const categoriasArray = Array.isArray(categorias) ? categorias : [];
+      allCategorias = [...allCategorias, ...categoriasArray];
+
+      // CORREÇÃO CRÍTICA: Verificar headers corretamente
+      const limitouRegistros = response.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
       
-      if (limitouRegistros && categorias.length > 0) {
-        const ultimaCategoria = categorias[categorias.length - 1];
+      if (limitouRegistros && categoriasArray.length > 0) {
+        const ultimaCategoria = categoriasArray[categoriasArray.length - 1];
         dataInicial = ultimaCategoria.ultima_alteracao;
+        console.log(`[CATEGORIAS] Próxima página com alterado_apos: ${dataInicial}`);
       } else {
         hasMore = false;
+        console.log(`[CATEGORIAS] ✅ Paginação concluída. Total: ${allCategorias.length} categorias`);
       }
     }
 

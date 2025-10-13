@@ -204,12 +204,10 @@ export default function VendorBannerAdminPage() {
             <div className="relative h-96 sm:h-64 md:h-72 w-full">
               {(() => {
                 // Verificar se é uma URL válida de imagem
-                const isValidImageUrl = mounted && banner.image_url && 
-                  (banner.image_url.startsWith('https://') || banner.image_url.startsWith('http://')) &&
+                const isValidImageUrl = banner.image_url && 
                   banner.image_url.length > 15 &&
                   (banner.image_url.includes('.jpg') || banner.image_url.includes('.jpeg') || 
-                   banner.image_url.includes('.png') || banner.image_url.includes('.webp') ||
-                   banner.image_url.includes('unsplash.com') || banner.image_url.includes('picsum.photos'));
+                   banner.image_url.includes('.png') || banner.image_url.includes('.webp'));
                 
                 if (isValidImageUrl) {
                   return (
@@ -369,7 +367,7 @@ export default function VendorBannerAdminPage() {
                   ? 'border-green-300 bg-green-50' 
                   : 'border-gray-300'
               }`}
-              placeholder="Cole aqui: https://images.unsplash.com/photo-..."
+              placeholder="Cole aqui a URL da sua imagem: https://exemplo.com/imagem.jpg"
             />
             <div className="flex items-center justify-between text-xs mb-2">
               <span className="text-gray-500">
@@ -388,13 +386,14 @@ export default function VendorBannerAdminPage() {
             
             {/* URLs de exemplo */}
             <div className="mb-2">
-              <p className="text-xs text-gray-500 mb-1">🎯 URLs de exemplo (clique para usar):</p>
-              <div className="flex flex-wrap gap-1">
-                {[
-                  'https://images.unsplash.com/photo-1521334726092-b509a19597d6?q=80&w=1600',
-                  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1600',
-                  'https://picsum.photos/800/400'
-                ].map((url, index) => (
+              <p className="text-xs text-gray-500 mb-1">💡 Use suas próprias imagens hospedadas:</p>
+              <div className="text-xs text-gray-400">
+                <p>• Faça upload da imagem no seu servidor</p>
+                <p>• Use serviços como Cloudinary, AWS S3, etc.</p>
+                <p>• Certifique-se que a URL termina com .jpg, .png ou .webp</p>
+              </div>
+              <div className="flex flex-wrap gap-1 hidden">
+                {[].map((url, index) => (
                   <button
                     key={index}
                     onClick={() => setBanner(prev => ({ ...prev, image_url: url }))}

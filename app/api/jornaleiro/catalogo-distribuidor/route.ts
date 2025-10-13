@@ -35,10 +35,10 @@ export async function GET(req: NextRequest) {
       .single();
 
     if (!banca) {
-      console.error('[CATALOGO] Banca não encontrada para userId:', userId);
+      console.log('[CATALOGO] Banca não encontrada para userId:', userId, '- Retornando lista vazia');
       return NextResponse.json(
-        { success: false, error: 'Banca não encontrada' },
-        { status: 404 }
+        { success: true, data: [], message: 'Cadastre sua banca para ver o catálogo de produtos dos distribuidores' },
+        { status: 200 }
       );
     }
 

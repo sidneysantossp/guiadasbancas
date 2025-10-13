@@ -70,9 +70,9 @@ export default function JornaleiroOnboardingPage() {
           .eq("id", user!.id);
 
         setStatus("success");
-        setMessage("Banca já existente. Redirecionando...");
+        setMessage("Banca já existente. Redirecionando para a Academy...");
         setTimeout(() => {
-          router.push(("/jornaleiro/dashboard" as Route));
+          router.push(("/jornaleiro/academy" as Route));
         }, 1500);
         return;
       }
@@ -103,11 +103,11 @@ export default function JornaleiroOnboardingPage() {
       localStorage.removeItem("gb:bancaData");
 
       setStatus("success");
-      setMessage("Banca criada com sucesso! Redirecionando...");
+      setMessage("Banca criada com sucesso! Redirecionando para a Academy...");
 
-      // Redirecionar para dashboard
+      // Redirecionar para academy (vídeo de boas-vindas)
       setTimeout(() => {
-        router.push(("/jornaleiro/dashboard" as Route));
+        router.push(("/jornaleiro/academy" as Route));
       }, 2000);
 
     } catch (error) {

@@ -14,12 +14,30 @@ export const metadata: Metadata = {
 
 async function fetchCategories() {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/categories`, { cache: 'no-store' });
-    if (!res.ok) throw new Error('failed');
+    const url = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/categories`;
+    console.log('[fetchCategories] Buscando de:', url);
+    
+    const res = await fetch(url, { 
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    if (!res.ok) {
+      console.error('[fetchCategories] Resposta não OK:', res.status);
+      throw new Error('failed');
+    }
+    
     const j = await res.json();
+    console.log('[fetchCategories] Resposta:', j);
+    
     const list = Array.isArray(j?.data) ? j.data as Array<{ id:string; name:string; image:string; link:string; }> : [];
+    
+    console.log('[fetchCategories] Categorias encontradas:', list.length);
     return list.length ? list : null;
-  } catch {
+  } catch (err) {
+    console.error('[fetchCategories] Erro:', err);
     return null as any;
   }
 }
@@ -40,14 +58,12 @@ export default async function CategoriasPage() {
             href={(c.link as Route)}
             className="group flex flex-col items-center gap-2"
           >
-            <div className={`h-24 w-24 sm:h-28 sm:w-28 rounded-[24px] sm:rounded-[28px] grid place-items-center shadow transition-transform group-hover:scale-[1.02] group-hover:shadow-md bg-white`}>
-              <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-white grid place-items-center shadow-md overflow-hidden ring-1 ring-black/10">
-                {c.image ? (
-                  <Image src={c.image} alt={c.name} width={160} height={160} className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-xs text-[#ff5c00] font-semibold">{c.name[0]}</span>
-                )}
-              </div>
+            <div className={`h-24 w-24 sm:h-28 sm:w-28 rounded-[24px] sm:rounded-[28px] grid place-items-center shadow transition-transform group-hover:scale-[1.02] group-hover:shadow-md bg-white overflow-hidden`}>
+              {c.image ? (
+                <Image src={c.image} alt={c.name} width={112} height={112} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-xs text-[#ff5c00] font-semibold">{c.name[0]}</span>
+              )}
             </div>
             <div className="text-sm font-medium text-gray-800 text-center line-clamp-1">{c.name}</div>
           </Link>

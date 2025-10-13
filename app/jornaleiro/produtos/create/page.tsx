@@ -23,6 +23,9 @@ const formatCurrency = (value: string | number) => {
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   const numbers = value.toString().replace(/\D/g, '');
+  if (!numbers || numbers === '') {
+    return '';
+  }
   const amount = parseFloat(numbers) / 100;
   return amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
@@ -139,6 +142,16 @@ export default function SellerProductCreatePage() {
   return (
     <div className="space-y-4">
       <div>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-3"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Voltar para produtos
+        </button>
         <h1 className="text-xl font-semibold">Novo produto</h1>
         <p className="text-sm text-gray-600">Cadastre um novo item na sua banca.</p>
       </div>
@@ -200,7 +213,7 @@ export default function SellerProductCreatePage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-sm font-medium">Preço</label>
+                <label className="text-sm font-medium">Preço Sugerido</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
                   <input
@@ -214,7 +227,7 @@ export default function SellerProductCreatePage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium">Preço original</label>
+                <label className="text-sm font-medium">Preço de Venda</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
                   <input

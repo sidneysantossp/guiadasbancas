@@ -3,9 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { LoginRequiredModal } from "./LoginRequiredModal";
 
 // Tipos
 type FavItem = {
@@ -124,6 +126,8 @@ function FavCard({ item }: { item: FavItem }) {
   const { id, name, vendorName, image, price, priceOriginal, discountPercent, ratingAvg, reviewsCount, available } = item;
   const { addToCart } = useCart();
   const { show } = useToast();
+  const { user } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
   
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -135,6 +139,19 @@ function FavCard({ item }: { item: FavItem }) {
       image 
     }, 1);
     show(<span>Adicionado ao carrinho!</span>);
+  };
+
+  const handleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    
+    // TODO: Implementar lógica de adicionar aos favoritos
+    show(<span>Adicionado aos favoritos!</span>);
   };
 
   return (
@@ -175,7 +192,13 @@ function FavCard({ item }: { item: FavItem }) {
           </Link>
           {/* Coluna de ícones alinhados verticalmente */}
           <div className="flex flex-col items-center justify-center gap-2 py-1 self-stretch">
-            <button aria-label="Favoritar" className="w-9 h-9 grid place-items-center rounded-md border border-gray-300 hover:bg-gray-50"><HeartOutline /></button>
+            <button 
+              onClick={handleFavorite}
+              aria-label="Favoritar" 
+              className="w-9 h-9 grid place-items-center rounded-md border border-gray-300 hover:bg-gray-50 transition-all hover:border-[#ff5c00]"
+            >
+              <HeartOutline />
+            </button>
             <Link href={("/produto/" + slugify(name) + "-" + id) as Route} aria-label="Visualizar produto" className="w-9 h-9 grid place-items-center rounded-md border border-gray-300 hover:bg-gray-50">
               <EyeIcon />
             </Link>
@@ -189,6 +212,12 @@ function FavCard({ item }: { item: FavItem }) {
           </div>
         </div>
       </div>
+      
+      {/* Modal de login necessário */}
+      <LoginRequiredModal 
+        isOpen={showLoginModal} 
+        onClose={() => setShowLoginModal(false)} 
+      />
     </div>
   );
 }
@@ -261,6 +290,7 @@ export default function FavoritePicks() {
 
   const data = useMemo(() => Array.isArray(items) ? items.slice(0, 6) : [], [items]);
   const [scrollIndex, setScrollIndex] = useState(0);
+  const touchRef = useRef<{ startX: number; startY: number; active: boolean } | null>(null);
 
   const scrollNext = () => {
     if (scrollIndex < data.length - 1) {
@@ -271,6 +301,64 @@ export default function FavoritePicks() {
   const scrollPrev = () => {
     if (scrollIndex > 0) {
       setScrollIndex(scrollIndex - 1);
+    }
+  };
+
+  // Touch handlers para swipe
+  const onTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      active: true
+    };
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!touchRef.current?.active) return;
+    
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchRef.current.startX;
+    const deltaY = touch.clientY - touchRef.current.startY;
+    
+    // Se o movimento vertical for maior que horizontal, não interceptar (permitir scroll da página)
+    if (Math.abs(deltaY) > Math.abs(deltaX)) {
+      touchRef.current.active = false;
+      return;
+    }
+    
+    // Prevenir scroll da página se estamos fazendo swipe horizontal
+    if (Math.abs(deltaX) > 10) {
+      e.preventDefault();
+    }
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (!touchRef.current?.active) {
+      touchRef.current = null;
+      return;
+    }
+    
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchRef.current.startX;
+    const deltaY = touch.clientY - touchRef.current.startY;
+    
+    touchRef.current = null;
+    
+    // Só processar se o movimento horizontal for maior que vertical
+    if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+    
+    // Threshold mínimo para considerar um swipe
+    const threshold = 50;
+    
+    if (Math.abs(deltaX) > threshold) {
+      if (deltaX > 0) {
+        // Swipe para direita = anterior
+        scrollPrev();
+      } else {
+        // Swipe para esquerda = próximo
+        scrollNext();
+      }
     }
   };
 
@@ -301,6 +389,9 @@ export default function FavoritePicks() {
                 <div 
                   className="flex transition-transform duration-300 ease-in-out gap-4"
                   style={{ transform: `translateX(-${scrollIndex * 100}%)` }}
+                  onTouchStart={onTouchStart}
+                  onTouchMove={onTouchMove}
+                  onTouchEnd={onTouchEnd}
                 >
                   {data.map((f) => (
                     <div key={f.id} className="w-full flex-shrink-0">

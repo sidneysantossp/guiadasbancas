@@ -708,7 +708,7 @@ useEffect(() => {
       )}
 
       {/* Main bar: Menu + Search + Actions */}
-      <div className="bg-[#ff5c00] text-white">
+      <div className="hidden md:block bg-[#ff5c00] text-white">
         <div className="container-max py-1 md:py-3 flex items-center gap-4">
           {/* Menu desktop */}
           <nav className="hidden md:flex items-center gap-4 text-sm">
@@ -754,7 +754,7 @@ useEffect(() => {
             {inDashboard && user ? (
               <div className="hidden md:block relative" id="account-menu" onMouseEnter={()=>setAccountOpen(true)} onMouseLeave={()=>setAccountOpen(false)}>
                 <button
-                  className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-gray-50"
+                  className="inline-flex items-center gap-2 rounded-lg bg-white px-3 h-[42px] text-sm font-medium text-black hover:bg-gray-50"
                 >
                   <span className="relative inline-block h-6 w-6 rounded-full overflow-hidden bg-orange-100 ring-1 ring-black/5">
                     {profileAvatar ? (
@@ -790,8 +790,8 @@ useEffect(() => {
                     hoverCloseTimer.current = window.setTimeout(() => { setCartOpen(false); }, 280);
                   }}
                 >
-                  <button type="button" aria-label="Abrir carrinho" onClick={() => { if (typeof window !== "undefined" && window.innerWidth < 768) { setCartSheetOpen(true); } else { setCartOpen((v) => !v); } }} className="relative inline-flex h-10 w-10 items-center justify-center text-white hover:text-white/90">
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+                  <button type="button" aria-label="Abrir carrinho" onClick={() => { if (typeof window !== "undefined" && window.innerWidth < 768) { setCartSheetOpen(true); } else { setCartOpen((v) => !v); } }} className="relative inline-flex h-[42px] w-12 items-center justify-center text-white hover:text-white/90 rounded-md border border-white/20 hover:border-white/40 transition-colors">
+                    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="currentColor" aria-hidden>
                       <path d="M7 4h-2l-1 2h2l3.6 7.6-1.35 2.45A1 1 0 0010.1 18h8.4v-2h-7.3l.9-1.6h5.8a1 1 0 00.9-.6L22 7H6.2zM7 20a2 2 0 102-2 2 2 0 00-2 2zm8 0a2 2 0 102-2 2 2 0 00-2 2z"/>
                     </svg>
                     {cartCount > 0 && (
@@ -801,12 +801,12 @@ useEffect(() => {
                   {cartOpen && (<MiniCartDropdown onClose={() => setCartOpen(false)} />)}
                 </div>
 
-                <Link href="/jornaleiro" className="hidden md:inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#ff5c00] shadow hover:bg-gray-50">Sou Jornaleiro</Link>
+                <Link href="/jornaleiro" className="hidden md:inline-flex items-center rounded-lg bg-white px-4 h-[42px] text-sm font-semibold text-[#ff5c00] shadow hover:bg-gray-50">Sou Jornaleiro</Link>
 
                 {!user ? (
                   <Link
                     href="/minha-conta"
-                    className="hidden md:inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-black shadow-sm hover:bg-gray-50"
+                    className="hidden md:inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 h-[42px] text-sm font-medium text-black shadow-sm hover:bg-gray-50"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z" /></svg>
                     Minha Conta
@@ -818,8 +818,8 @@ useEffect(() => {
                     onMouseEnter={() => setAccountOpen(true)}
                     onMouseLeave={() => setAccountOpen(false)}
                   >
-                    <button onClick={()=>setAccountOpen(v=>!v)} className="inline-flex items-center justify-center rounded-full bg-white/20 w-10 h-10 text-sm font-medium text-white shadow-sm hover:bg-white/30">
-                      <span className="relative inline-block h-5 w-5 rounded-full overflow-hidden">
+                    <button onClick={()=>setAccountOpen(v=>!v)} className="inline-flex items-center justify-center rounded-full bg-white/20 w-[42px] h-[42px] text-sm font-medium text-white shadow-sm hover:bg-white/30">
+                      <span className="relative inline-block h-6 w-6 rounded-full overflow-hidden">
                         {profileAvatar ? (
                           <img src={profileAvatar} alt="Avatar" className="h-full w-full object-cover" />
                         ) : (

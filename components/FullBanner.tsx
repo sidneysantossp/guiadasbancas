@@ -297,7 +297,7 @@ export default function FullBanner() {
   const showCta2 = Boolean(slide?.cta2Text?.trim() && slide?.cta2Link?.trim());
 
   return (
-    <section className="relative w-full z-0 mb-3 pt-1 pb-1 sm:mb-6 sm:pt-0 sm:pb-4 mt-0 px-3 sm:px-0">
+    <section className="relative w-full z-0 mb-3 pt-1 pb-1 sm:mb-6 sm:pt-0 sm:pb-4 px-3 sm:px-0 mt-[50px] sm:mt-0">
       <div 
         className="relative w-full overflow-hidden fb-h rounded-2xl sm:rounded-none"
         style={{ height: `${mobileHeight}px` }}

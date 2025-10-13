@@ -70,14 +70,11 @@ INSERT INTO vendor_banners (title, subtitle, description, button_text, button_li
 SELECT 'É jornaleiro?', 'Registre sua banca agora', 'Anuncie seus produtos, receba pedidos pelo WhatsApp e alcance clientes perto de você com o Guia das Bancas.', 'Quero me cadastrar', '/jornaleiro/registrar', '', true
 WHERE NOT EXISTS (SELECT 1 FROM vendor_banners LIMIT 1);
 
--- Habilitar RLS (Row Level Security) se necessário
--- ALTER TABLE vendor_banners ENABLE ROW LEVEL SECURITY;
+-- DESABILITAR RLS para permitir acesso total (necessário para APIs serverless)
+ALTER TABLE vendor_banners DISABLE ROW LEVEL SECURITY;
 
--- Política para permitir acesso público de leitura
--- CREATE POLICY "Allow public read access" ON vendor_banners FOR SELECT USING (true);
-
--- Política para permitir acesso de admin
--- CREATE POLICY "Allow admin full access" ON vendor_banners FOR ALL USING (auth.role() = 'admin');
+-- Comentário: RLS desabilitado pois esta tabela precisa ser acessível pelas APIs
+-- sem autenticação para exibir o banner na home pública
 
 -- Comentários para documentação
 COMMENT ON TABLE vendor_banner IS 'Configurações do banner promocional do jornaleiro na home page';

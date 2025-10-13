@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { LoginRequiredModal } from "./LoginRequiredModal";
 
 // Mock de itens mais bem avaliados
 type TopItem = {
@@ -313,6 +315,8 @@ function EnhancedCard({ p }: { p: TopItem }) {
   const [fav, setFav] = useState(false);
   const { addToCart } = useCart();
   const { show } = useToast();
+  const { user } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
   // Badge de pronta entrega com raio
   const ReadyBadge = () => (
     <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[10px] font-semibold">

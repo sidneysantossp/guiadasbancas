@@ -223,3 +223,62 @@ export async function GET(
     );
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+    
+    console.log('[API/ORDERS/[ID]/DELETE] Excluindo pedido:', id);
+    
+    // Verificar se o pedido existe
+    const { data: existingOrder, error: checkError } = await supabaseAdmin
+      .from('orders')
+      .select('id')
+      .eq('id', id)
+      .single();
+    
+    if (checkError || !existingOrder) {
+      console.error('[API/ORDERS/[ID]/DELETE] Pedido não encontrado');
+      return NextResponse.json(
+        { ok: false, error: "Pedido não encontrado" }, 
+        { status: 404 }
+      );
+    }
+    
+    // Excluir histórico do pedido primeiro (se existir)
+    await supabaseAdmin
+      .from('order_history')
+      .delete()
+      .eq('order_id', id);
+    
+    // Excluir o pedido
+    const { error: deleteError } = await supabaseAdmin
+      .from('orders')
+      .delete()
+      .eq('id', id);
+    
+    if (deleteError) {
+      console.error('[API/ORDERS/[ID]/DELETE] Erro ao excluir:', deleteError);
+      return NextResponse.json(
+        { ok: false, error: "Erro ao excluir pedido" }, 
+        { status: 500 }
+      );
+    }
+    
+    console.log('[API/ORDERS/[ID]/DELETE] Pedido excluído com sucesso');
+    
+    return NextResponse.json({ 
+      ok: true, 
+      message: "Pedido excluído com sucesso" 
+    });
+  } catch (e: any) {
+    console.error('[API/ORDERS/[ID]/DELETE] Erro:', e);
+    return NextResponse.json(
+      { ok: false, error: e?.message || "Erro ao excluir pedido" }, 
+      { status: 500 }
+    );
+  }
+}

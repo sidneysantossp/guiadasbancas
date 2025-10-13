@@ -172,7 +172,7 @@ function ProductCard({ p, km }: { p: Product; km: number | null }) {
   const qualifies = shippingConfig.freeShippingEnabled || subtotal >= shippingConfig.freeShippingThreshold;
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition">
-      <div className="relative h-56 sm:h-64 w-full group">
+      <div className="relative h-40 sm:h-44 lg:h-36 w-full group">
         <Image src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 16vw" className="object-cover" />
         {/* Link absoluto cobrindo a imagem */}
         <Link
@@ -283,24 +283,93 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
   // Filtros (aba Bancas)
   const [maxKm, setMaxKm] = useState<number>(5);
   const [minStars, setMinStars] = useState<number>(0);
+  
+  // Estados para dados reais
+  const [products, setProducts] = useState<Product[]>([]);
+  const [bancas, setBancas] = useState<Banca[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     setLoc(loadStoredLocation());
   }, []);
 
+  // Buscar produtos e bancas reais
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Buscar produtos
+        const productsRes = await fetch(`/api/products/most-searched?category=${encodeURIComponent(slug)}&limit=50`);
+        if (productsRes.ok) {
+          const productsData = await productsRes.json();
+          if (productsData.data && Array.isArray(productsData.data)) {
+            const mappedProducts: Product[] = productsData.data.map((item: any) => ({
+              id: item.id,
+              name: item.name,
+              price: item.price || 0,
+              image: item.images?.[0] || item.image || '',
+              vendor: item.banca?.name || 'Banca',
+              vendorAvatar: item.banca?.avatar || '',
+              lat: item.banca?.lat || -23.5505,
+              lng: item.banca?.lng || -46.6333,
+              rating: item.rating_avg || 5,
+              reviews: item.reviews_count || 0,
+              ready: item.pronta_entrega || false,
+            }));
+            setProducts(mappedProducts);
+          }
+        }
+        
+        // Buscar bancas
+        const bancasRes = await fetch('/api/bancas');
+        if (bancasRes.ok) {
+          const bancasData = await bancasRes.json();
+          if (Array.isArray(bancasData)) {
+            const mappedBancas: Banca[] = bancasData.map((item: any) => ({
+              id: item.id,
+              name: item.name,
+              cover: item.cover || '',
+              avatar: item.avatar || '',
+              lat: item.lat || item.location?.lat || -23.5505,
+              lng: item.lng || item.location?.lng || -46.6333,
+              itemsCount: item.productsCount || 0,
+              rating: item.rating || 4.5,
+              reviews: item.reviewsCount || 0,
+              open: true,
+            }));
+            setBancas(mappedBancas);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao buscar dados:', error);
+        // Usar fallback em caso de erro
+        setProducts(MOCK_PRODUCTS);
+        setBancas(MOCK_BANCAS);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [slug]);
+
   const sortedProducts = useMemo(() => {
-    if (!loc) return MOCK_PRODUCTS.map((p) => ({ p, km: null as number | null }));
-    return [...MOCK_PRODUCTS]
+    const dataSource = products.length > 0 ? products : MOCK_PRODUCTS;
+    if (!loc) return dataSource.map((p) => ({ p, km: null as number | null }));
+    return [...dataSource]
       .map((p) => ({ p, km: haversineKm({ lat: loc.lat, lng: loc.lng }, { lat: p.lat, lng: p.lng }) }))
       .sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity));
-  }, [loc]);
+  }, [loc, products]);
 
   const sortedBancas = useMemo(() => {
-    if (!loc) return MOCK_BANCAS.map((b) => ({ b, km: null as number | null }));
-    return [...MOCK_BANCAS]
+    const dataSource = bancas.length > 0 ? bancas : MOCK_BANCAS;
+    if (!loc) return dataSource.map((b) => ({ b, km: null as number | null }));
+    return [...dataSource]
       .map((b) => ({ b, km: haversineKm({ lat: loc.lat, lng: loc.lng }, { lat: b.lat, lng: b.lng }) }))
       .sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity));
-  }, [loc]);
+  }, [loc, bancas]);
 
   // Descrições curtas temporárias
   const DESCRIPTIONS: Record<string, string> = {
@@ -321,9 +390,27 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
     return f.length > 0 ? f : sortedBancas;
   }, [sortedBancas, maxKm, minStars]);
 
+  if (!mounted) {
+    return (
+      <section className="container-max pt-3 pb-32">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-gray-600">Carregando...</div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="container-max pt-3 pb-32">
+      
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-gray-600">Carregando produtos...</div>
+        </div>
+      )}
 
+      {!loading && (
+        <>
       {/* Tabs */}
       <div className="mt-6 border-b border-gray-200">
         <div className="flex gap-6 text-sm">
@@ -387,6 +474,8 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
             .range-orange::-moz-range-thumb{width:16px;height:16px;background:#ff5c00;border:2px solid #fff;border-radius:9999px;box-shadow:0 0 0 1px #ffd7bd}
           `}</style>
         </>
+      )}
+      </>
       )}
     </section>
   );
