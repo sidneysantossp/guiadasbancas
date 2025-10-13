@@ -349,6 +349,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   const [loadingProdutos, setLoadingProdutos] = useState(false);
   const [loadingDestaque, setLoadingDestaque] = useState(false);
   const [highlightCoupon, setHighlightCoupon] = useState<null | { title: string; code: string; discountText: string; expiresAt?: string }>(null);
+  const [copiedCoupon, setCopiedCoupon] = useState(false);
 
   // Carregar categorias da API
   useEffect(() => {
@@ -950,6 +951,42 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             </a>
           )}
         </div>
+        
+        {/* Coupon Card - bottom-right overlay */}
+        {highlightCoupon && (
+          <div className="absolute right-3 bottom-3 md:right-6 md:bottom-6 z-30">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(highlightCoupon.code);
+                  setCopiedCoupon(true);
+                  setTimeout(() => setCopiedCoupon(false), 1200);
+                } catch {}
+              }}
+              className="group relative overflow-hidden rounded-2xl border border-white/30 bg-white/10 backdrop-blur-md text-white shadow-xl focus:outline-none focus:ring-2 focus:ring-white/40"
+              title="Clique para copiar o código"
+            >
+              <div className="pointer-events-none absolute -right-8 -bottom-8 h-24 w-24 rounded-full bg-white/10" />
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#ff7a33] text-white shadow ring-1 ring-black/10">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                    <path d="M3 7h18v4H3zM6 11v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-7" />
+                  </svg>
+                </div>
+                <div className="min-w-0 text-left">
+                  <div className="text-[11px] uppercase tracking-wide text-white/90">{highlightCoupon.title}</div>
+                  <div className="text-lg md:text-xl font-extrabold tracking-wider">{highlightCoupon.code}</div>
+                </div>
+              </div>
+              <div className="px-4 pb-3 text-[11px] text-white/90">
+                Use no checkout e ganhe <span className="font-semibold">{highlightCoupon.discountText}</span>
+                {copiedCoupon && <span className="ml-2 rounded bg-white/20 px-2 py-[2px] text-[10px]">Copiado!</span>}
+              </div>
+            </button>
+          </div>
+        )}
+        
         <div className="absolute left-4 bottom-4">
           <div className="flex items-center gap-3">
             <div className="h-14 w-14 rounded-full bg-white p-1 shadow ring-1 ring-black/5 overflow-hidden">
