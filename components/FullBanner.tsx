@@ -171,7 +171,7 @@ const normalizeSliderConfig = (raw: unknown): Partial<SliderConfig> => {
   return normalized;
 };
 
-export default function FullBanner() {
+export default function FullBanner({ bancaId }: { bancaId?: string }) {
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [config, setConfig] = useState<SliderConfig>(DEFAULT_CONFIG);
   const [index, setIndex] = useState(0);
@@ -218,10 +218,16 @@ export default function FullBanner() {
     };
 
     loadSlides();
-    // Carregar cupom em destaque (global ou por banca no futuro)
+    
+    // Carregar cupom em destaque apenas se tiver bancaId específico
     const loadCoupon = async () => {
+      if (!bancaId) {
+        // Se não tiver bancaId, não carrega cupom (não mostra na home geral)
+        return;
+      }
+      
       try {
-        const res = await fetch('/api/coupons/highlight', {
+        const res = await fetch(`/api/coupons/highlight?sellerId=${bancaId}`, {
           next: { revalidate: 60 } as any
         });
         if (!res.ok) return;
@@ -232,7 +238,7 @@ export default function FullBanner() {
       } catch {}
     };
     loadCoupon();
-  }, []);
+  }, [bancaId]);
 
   useEffect(() => {
     if (slides.length === 0) return;
