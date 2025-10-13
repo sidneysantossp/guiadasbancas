@@ -10,16 +10,30 @@ export default function SellerCouponCreatePage() {
   const [sellerId, setSellerId] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadingBanca, setLoadingBanca] = useState(true);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("gb:seller");
-      const seller = raw ? JSON.parse(raw) : null;
-      setSellerId(seller?.id || "seller-1");
-    } catch {
-      setSellerId("seller-1");
-    }
-  }, []);
+    // Buscar banca do jornaleiro via API autenticada
+    const fetchBanca = async () => {
+      try {
+        const res = await fetch("/api/jornaleiro/banca", { cache: 'no-store' });
+        const json = await res.json();
+        const banca = json?.data;
+        if (res.ok && banca?.id) {
+          setSellerId(banca.id);
+        } else {
+          toast.error("Banca não encontrada. Cadastre sua banca primeiro.");
+          router.push("/jornaleiro/banca");
+        }
+      } catch (err) {
+        console.error('Erro ao buscar banca:', err);
+        toast.error("Erro ao buscar dados da banca");
+      } finally {
+        setLoadingBanca(false);
+      }
+    };
+    fetchBanca();
+  }, [toast, router]);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -58,6 +72,17 @@ export default function SellerCouponCreatePage() {
       setSaving(false);
     }
   };
+
+  if (loadingBanca) {
+    return (
+      <section className="container-max py-6">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff5c00] mx-auto"></div>
+          <p className="mt-2 text-sm text-gray-600">Carregando...</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="container-max py-6">

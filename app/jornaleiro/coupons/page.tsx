@@ -25,13 +25,17 @@ export default function SellerCouponsPage() {
     // Obter ID real da banca via endpoint autenticado
     (async () => {
       try {
-        const token = typeof window !== 'undefined' ? (window.localStorage.getItem("gb:sellerToken") || "seller-token") : "seller-token";
-        const res = await fetch("/api/jornaleiro/banca", { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+        const res = await fetch("/api/jornaleiro/banca", { cache: 'no-store' });
         const json = await res.json();
         const banca = json?.data;
-        if (res.ok && banca?.id) setSellerId(banca.id);
-        else setSellerId("");
-      } catch {
+        if (res.ok && banca?.id) {
+          setSellerId(banca.id);
+        } else {
+          console.log('[Coupons] Sem banca encontrada');
+          setSellerId("");
+        }
+      } catch (err) {
+        console.error('[Coupons] Erro ao buscar banca:', err);
         setSellerId("");
       }
     })();

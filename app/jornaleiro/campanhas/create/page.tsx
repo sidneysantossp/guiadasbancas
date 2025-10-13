@@ -36,6 +36,7 @@ export default function CreateCampaignPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [apiMessage, setApiMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -45,15 +46,18 @@ export default function CreateCampaignPage() {
     try {
       setLoading(true);
       // Buscar produtos ativos do jornaleiro
-      const res = await fetch('/api/jornaleiro/products', {
-        headers: { 'Authorization': 'Bearer seller-token' }
-      });
+      const res = await fetch('/api/jornaleiro/products');
       const json = await res.json();
       
       if (json.success) {
-        setProducts(json.data.filter((p: Product) => p.active));
+        // A API retorna "items" ao invés de "data"
+        setProducts(json.items?.filter((p: Product) => p.active) || []);
+        setApiMessage(json.message || null);
+      } else {
+        toast.error(json.error || 'Erro ao carregar produtos');
       }
     } catch (error) {
+      console.error('Erro ao carregar produtos:', error);
       toast.error('Erro ao carregar produtos');
     } finally {
       setLoading(false);
@@ -140,13 +144,27 @@ export default function CreateCampaignPage() {
             ) : filteredProducts.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <div className="text-4xl mb-2">📦</div>
-                <p>Nenhum produto encontrado</p>
-                <Link
-                  href="/jornaleiro/produtos/create"
-                  className="text-blue-500 hover:text-blue-700 text-sm"
-                >
-                  Criar primeiro produto
-                </Link>
+                {apiMessage ? (
+                  <>
+                    <p className="mb-3">{apiMessage}</p>
+                    <Link
+                      href="/jornaleiro/banca"
+                      className="inline-block bg-[#ff5c00] text-white px-4 py-2 rounded-lg hover:opacity-90 text-sm font-medium"
+                    >
+                      Cadastrar Banca
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <p>Nenhum produto encontrado</p>
+                    <Link
+                      href="/jornaleiro/produtos/create"
+                      className="text-blue-500 hover:text-blue-700 text-sm"
+                    >
+                      Criar primeiro produto
+                    </Link>
+                  </>
+                )}
               </div>
             ) : (
               <div className="grid gap-3 max-h-96 overflow-y-auto">

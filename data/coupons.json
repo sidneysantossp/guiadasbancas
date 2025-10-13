@@ -1,1 +1,24 @@
-[]
+[
+  {
+    "id": "c_1760370185805",
+    "sellerId": "seller-1",
+    "title": "PRIMEIRA COMPRA",
+    "code": "PRIMEIRACOMPRA",
+    "discountText": "10",
+    "active": true,
+    "highlight": true,
+    "expiresAt": "2025-12-31",
+    "createdAt": "2025-10-13T15:43:05.805Z"
+  },
+  {
+    "id": "c_1760370442337",
+    "sellerId": "f916a149-c0a2-42f4-b5f8-7c9755d5995c",
+    "title": "Primeira Compra",
+    "code": "PRIMEIRACOMPRA",
+    "discountText": "12",
+    "active": true,
+    "highlight": true,
+    "expiresAt": "2025-12-31",
+    "createdAt": "2025-10-13T15:47:22.337Z"
+  }
+]

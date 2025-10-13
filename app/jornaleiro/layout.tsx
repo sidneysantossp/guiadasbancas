@@ -50,7 +50,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
-  // Permite acessar o dashboard, banca, pedidos, produtos, configurações, academy e catálogo distribuidor mesmo sem banca
+  // Permite acessar todas as páginas do jornaleiro mesmo sem banca (exceto rotas de autenticação)
   const allowedWithoutBanca = Boolean(
     pathname?.startsWith('/jornaleiro/dashboard') ||
     pathname?.startsWith('/jornaleiro/banca') ||
@@ -58,7 +58,11 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     pathname?.startsWith('/jornaleiro/produtos') ||
     pathname?.startsWith('/jornaleiro/configuracoes') ||
     pathname?.startsWith('/jornaleiro/academy') ||
-    pathname?.startsWith('/jornaleiro/catalogo-distribuidor')
+    pathname?.startsWith('/jornaleiro/catalogo-distribuidor') ||
+    pathname?.startsWith('/jornaleiro/distribuidores') ||
+    pathname?.startsWith('/jornaleiro/campanhas') ||
+    pathname?.startsWith('/jornaleiro/coupons') ||
+    pathname?.startsWith('/jornaleiro/relatorios')
   );
 
   const logout = async () => {
@@ -123,10 +127,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           console.warn('[Security] Usuário sem banca associada.');
           setBanca(null);
           setBancaValidated(true);
-          const requiresBanca = !allowedWithoutBanca;
-          if (requiresBanca && pathname && !pathname.startsWith('/jornaleiro/dashboard')) {
-            router.push('/jornaleiro/dashboard');
-          }
+          // Não faz redirect aqui - deixa a validação na renderização decidir
           return;
         }
 
@@ -138,9 +139,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         console.error('[Security] Erro ao validar banca:', error);
         setBanca(null);
         setBancaValidated(true);
-        if (pathname && !allowedWithoutBanca) {
-          router.push('/jornaleiro/dashboard');
-        }
+        // Não faz redirect aqui - deixa a validação na renderização decidir
       }
     };
 
@@ -207,6 +206,16 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   }
 
   // SEGURANÇA: Se não tiver banca, mostrar mensagem de erro em vez de tela branca
+  // Debug: verificar se a validação está correta
+  if (typeof window !== 'undefined') {
+    console.log('[Layout] Validação banca:', { 
+      hasBanca: !!banca, 
+      allowedWithoutBanca, 
+      pathname,
+      willBlock: !banca && !allowedWithoutBanca
+    });
+  }
+  
   if (!banca && !allowedWithoutBanca) {
     return (
       <ToastProvider>

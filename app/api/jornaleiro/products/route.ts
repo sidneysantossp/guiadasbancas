@@ -17,22 +17,13 @@ export async function GET(request: NextRequest) {
     .single();
 
   if (!banca) {
-    // Usuário sem banca: retornar apenas produtos do admin/distribuidor
-    const { data: produtosAdmin } = await supabaseAdmin
-      .from('products')
-      .select(`
-        *,
-        categories(name),
-        bancas(name)
-      `)
-      .not('distribuidor_id', 'is', null)
-      .eq('active', true)
-      .order('created_at', { ascending: false });
-
+    console.log('[API/JORNALEIRO/PRODUCTS] Usuário sem banca - retornando lista vazia');
+    // Usuário sem banca: retornar lista vazia com mensagem
     return NextResponse.json({ 
       success: true, 
-      items: produtosAdmin || [], 
-      total: produtosAdmin?.length || 0
+      items: [], 
+      total: 0,
+      message: 'Cadastre sua banca para ver seus produtos'
     });
   }
 
