@@ -870,7 +870,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   if (!banca) return null;
 
   return (
-    <section className="container-max pt-0 sm:pt-4 pb-28 sm:pb-32">
+    <section className="container-max pt-3 sm:pt-4 pb-28 sm:pb-32">
       {/* Capa + Header da Banca */}
       <div className="relative h-96 sm:h-72 w-full rounded-2xl overflow-hidden border border-gray-200">
         <Image src={banca.cover} alt={banca.name} fill sizes="100vw" className="object-cover" />
