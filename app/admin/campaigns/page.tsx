@@ -33,11 +33,11 @@ interface Campaign {
     sob_encomenda: boolean;
     pre_venda: boolean;
     active: boolean;
-    bancas: {
+    bancas?: {
       id: string;
       name: string;
       cover_image?: string;
-    };
+    } | null;
   };
 }
 
@@ -245,10 +245,12 @@ export default function AdminCampaignsPage() {
                         {campaign.products.name}
                       </h3>
                       <p className="text-sm text-gray-600">{campaign.products.description}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm text-gray-500">Banca:</span>
-                        <span className="text-sm font-medium">{campaign.products.bancas.name}</span>
-                      </div>
+                      {campaign.products.bancas && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-sm text-gray-500">Banca:</span>
+                          <span className="text-sm font-medium">{campaign.products.bancas.name}</span>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex items-center gap-2">

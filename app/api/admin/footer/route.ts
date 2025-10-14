@@ -94,7 +94,7 @@ function saveFooterData(footerData: FooterData): void {
   footerCache.timestamp = Date.now();
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     console.log('GET /api/admin/footer - Iniciando...');
     
@@ -102,7 +102,11 @@ export async function GET() {
     const footerData = loadFooterData();
     
     console.log('GET /api/admin/footer - Sucesso');
-    return NextResponse.json(footerData);
+    return NextResponse.json(footerData, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      }
+    });
   } catch (error) {
     console.error('Erro na API GET footer:', error);
     return NextResponse.json(getDefaultFooterData());
@@ -133,7 +137,8 @@ export async function PUT(request: NextRequest) {
     console.log('PUT /api/admin/footer - Sucesso');
     return NextResponse.json({ 
       success: true, 
-      message: 'Footer atualizado com sucesso (salvo em cache)' 
+      message: 'Footer atualizado com sucesso',
+      data: footerData
     });
   } catch (error) {
     console.error('Erro na API PUT footer:', error);
@@ -142,4 +147,9 @@ export async function PUT(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function POST(request: NextRequest) {
+  // Redirecionar POST para PUT
+  return PUT(request);
 }
