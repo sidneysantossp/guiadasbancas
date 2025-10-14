@@ -123,15 +123,7 @@ export default function AdminLoginPage() {
               {loading ? "Entrando..." : "Entrar"}
             </button>
           </form>
-
-          <div className="mt-6 text-center">
-            <div className="text-xs text-gray-500 bg-gray-50 rounded-md p-3">
-              <strong>Credenciais de teste:</strong><br />
-              Email: admin@guiadasbancas.com<br />
-              Senha: admin123
-            </div>
-          </div>
-
+          
           <div className="mt-4 text-center">
             <Link href="/" className="text-sm text-[#ff5c00] hover:underline">
               ← Voltar ao site
