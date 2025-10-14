@@ -10,7 +10,7 @@ interface Campaign {
   end_date: string;
   impressions: number;
   clicks: number;
-  products: {
+  products?: {
     id: string;
     slug?: string;
     name: string;
@@ -18,20 +18,22 @@ interface Campaign {
     price: number;
     price_original?: number;
     discount_percent?: number;
-    images: string[];
+    images?: string[];
     rating_avg?: number;
     reviews_count: number;
     pronta_entrega: boolean;
     sob_encomenda: boolean;
     pre_venda: boolean;
     active: boolean;
-    bancas: {
+    bancas?: {
       id: string;
       name: string;
       cover_image?: string;
-    };
-  };
+    } | null;
+  } | null;
 }
+
+type CampaignWithProduct = Campaign & { products: NonNullable<Campaign["products"]> };
 
 export default function CampaignSection() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -75,7 +77,13 @@ export default function CampaignSection() {
     );
   }
 
-  if (campaigns.length === 0) {
+  const campaignsWithProducts: CampaignWithProduct[] = campaigns.filter((campaign): campaign is CampaignWithProduct => {
+    if (!campaign.products) return false;
+    if (campaign.products.active === false) return false;
+    return true;
+  });
+
+  if (campaignsWithProducts.length === 0) {
     return null; // Não exibir a seção se não houver campanhas
   }
 
@@ -101,18 +109,18 @@ export default function CampaignSection() {
 
         {/* Grid de campanhas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {campaigns.map((campaign) => (
-            <div
-              key={campaign.id}
-              className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group"
-            >
-              {/* Imagem do produto */}
-              <div className="relative">
-                <img
-                  src={campaign.products.images[0] || '/placeholder-product.jpg'}
-                  alt={campaign.products.name}
-                  className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                />
+          {campaignsWithProducts.map((campaign) => (
+              <div
+                key={campaign.id}
+                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group"
+              >
+                {/* Imagem do produto */}
+                <div className="relative">
+                  <img
+                    src={campaign.products.images?.[0] || '/placeholder-product.jpg'}
+                    alt={campaign.products.name}
+                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
                 
                 {/* Badge de desconto */}
                 {campaign.products.discount_percent && (
@@ -178,11 +186,11 @@ export default function CampaignSection() {
                 <div className="flex items-center justify-between pt-2">
                   <div className="flex items-center gap-2">
                     <span className="inline-block h-5 w-5 rounded-full overflow-hidden bg-orange-100 ring-1 ring-black/5">
-                      {campaign.products.bancas.cover_image ? (
-                        <img 
-                          src={campaign.products.bancas.cover_image} 
-                          alt={campaign.products.bancas.name} 
-                          className="h-full w-full object-cover" 
+                      {campaign.products.bancas?.cover_image ? (
+                        <img
+                          src={campaign.products.bancas?.cover_image || '/placeholder-banca.jpg'}
+                          alt={campaign.products.bancas?.name || 'Banca'}
+                          className="h-full w-full object-cover"
                         />
                       ) : (
                         <svg viewBox="0 0 24 24" className="h-full w-full text-[#ff7a33]" fill="none" stroke="currentColor" strokeWidth="2">
@@ -191,7 +199,7 @@ export default function CampaignSection() {
                       )}
                     </span>
                     <span className="text-[12px] text-gray-700 truncate">
-                      {campaign.products.bancas.name}
+                      {campaign.products.bancas?.name || 'Banca não informada'}
                     </span>
                   </div>
                   
