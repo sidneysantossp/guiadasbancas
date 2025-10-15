@@ -119,7 +119,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
       try {
         const { data: bancaData, error } = await supabase
           .from('bancas')
-          .select('id, slug, name, user_id')
+          .select('id, slug, name, user_id, email, profile_image')
           .eq('user_id', user.id)
           .single();
 
@@ -320,12 +320,22 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
               </Link>
               
               <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-[#ff5c00] text-white grid place-items-center text-sm font-semibold">
-                  {sellerName?.charAt(0)?.toUpperCase() || "J"}
-                </div>
+                {banca?.profile_image ? (
+                  <Image
+                    src={banca.profile_image}
+                    alt={banca.name || sellerName}
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-[#ff5c00] text-white grid place-items-center text-sm font-semibold">
+                    {banca?.name?.charAt(0)?.toUpperCase() || sellerName?.charAt(0)?.toUpperCase() || "B"}
+                  </div>
+                )}
                 <div className="hidden sm:block">
-                  <div className="text-sm font-medium">{sellerName}</div>
-                  <div className="text-xs text-gray-500">{sellerEmail}</div>
+                  <div className="text-sm font-medium">{banca?.name || sellerName}</div>
+                  <div className="text-xs text-gray-500">{banca?.email || sellerEmail}</div>
                 </div>
               </div>
               <button
