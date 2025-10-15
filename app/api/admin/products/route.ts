@@ -55,42 +55,45 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     
+    // Validação básica
+    if (!body.name || body.name.trim() === '') {
+      return NextResponse.json({ success: false, error: "Nome do produto é obrigatório" }, { status: 400 });
+    }
+    
+    if (!body.price || isNaN(parseFloat(body.price))) {
+      return NextResponse.json({ success: false, error: "Preço do produto é obrigatório e deve ser um número válido" }, { status: 400 });
+    }
+    
     // Gerar slug a partir do nome
-    const slug = body.name?.toLowerCase()
+    const slug = body.name.toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
       .trim() || 'produto';
 
-    const productData = {
-      name: body.name,
-      slug: slug,
-      description: body.description,
-      description_full: body.description_full,
-      price: body.price,
-      price_original: body.price_original,
-      discount_percent: body.discount_percent,
-      category_id: body.category_id,
-      banca_id: body.banca_especifica_id || null, // Para banca específica
-      images: body.images || [],
-      gallery_images: body.gallery_images || [],
-      specifications: body.specifications,
-      stock_qty: body.stock_qty,
-      track_stock: body.track_stock || false,
-      sob_encomenda: body.sob_encomenda || false,
-      pre_venda: body.pre_venda || false,
-      pronta_entrega: body.pronta_entrega || true,
+    // Apenas campos essenciais que existem na tabela products
+    const productData: any = {
+      name: body.name.trim(),
+      description: body.description?.trim() || null,
+      price: parseFloat(body.price),
+      category_id: body.category_id || null,
+      banca_id: body.banca_id || body.banca_especifica_id || null,
+      images: Array.isArray(body.images) ? body.images : [],
+      stock_qty: body.stock_qty ? parseInt(body.stock_qty) : 0,
+      track_stock: Boolean(body.track_stock),
+      sob_encomenda: Boolean(body.sob_encomenda),
+      pre_venda: Boolean(body.pre_venda),
+      pronta_entrega: body.pronta_entrega !== false,
       active: body.active !== false,
-      featured: body.featured || false,
-      allow_reviews: body.allow_reviews !== false,
-      coupon_code: body.coupon_code,
       // Campos Mercos
-      codigo_mercos: body.codigo_mercos || null,
-      unidade_medida: body.unidade_medida || 'UN',
-      venda_multiplos: body.venda_multiplos || 1.00,
-      categoria_mercos: body.categoria_mercos || null,
-      disponivel_todas_bancas: body.disponivel_todas_bancas || false
+      codigo_mercos: body.codigo_mercos?.trim() || null,
+      unidade_medida: body.unidade_medida?.trim() || 'UN',
+      venda_multiplos: body.venda_multiplos ? parseFloat(body.venda_multiplos) : 1.00,
+      categoria_mercos: body.categoria_mercos?.trim() || null,
+      disponivel_todas_bancas: Boolean(body.disponivel_todas_bancas)
     };
+
+    console.log('[CREATE PRODUCT] Dados a inserir:', JSON.stringify(productData, null, 2));
 
     const { data, error } = await supabaseAdmin
       .from('products')
@@ -99,8 +102,14 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Erro ao criar produto:', error);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      console.error('[CREATE PRODUCT] Erro ao criar produto:', error);
+      return NextResponse.json({ 
+        success: false, 
+        error: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      }, { status: 500 });
     }
 
     // Se produto está disponível para todas as bancas, criar registros automáticos

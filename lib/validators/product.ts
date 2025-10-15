@@ -4,7 +4,7 @@ export type ValidationResult<T> = { ok: true; data: T } | { ok: false; error: st
 
 export function validateProductCreate(input: Partial<Produto>): ValidationResult<Partial<Produto>> {
   if (!input.name || !String(input.name).trim()) return { ok: false, error: "Nome é obrigatório" };
-  if (!input.category_id || !String(input.category_id).trim()) return { ok: false, error: "Categoria é obrigatória" };
+  // Categoria é opcional para produtos da homologação Mercos (aceita null, undefined ou string vazia)
   const price = Number(input.price ?? NaN);
   if (!Number.isFinite(price) || price <= 0) return { ok: false, error: "Preço deve ser maior que zero" };
   if (input.price_original != null) {

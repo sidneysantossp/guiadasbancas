@@ -43,8 +43,47 @@ export default function AdminProductEditPage() {
   const [specifications, setSpecifications] = useState("");
   const [allowReviews, setAllowReviews] = useState(true);
   const [imageUrls, setImageUrls] = useState("");
+  const [categorySelectRef, setCategorySelectRef] = useState<HTMLSelectElement | null>(null);
+
+  // Hook adicional para garantir que categoria nunca seja obrigatória
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const categorySelect = document.querySelector('select[name="category"]') as HTMLSelectElement;
+      if (categorySelect) {
+        categorySelect.removeAttribute('required');
+        categorySelect.required = false;
+      }
+    }, 100);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Hook para remover required assim que o select é renderizado
+  useEffect(() => {
+    if (categorySelectRef) {
+      categorySelectRef.removeAttribute('required');
+      console.log('✅ Required removido via ref');
+    }
+  }, [categorySelectRef]);
 
   useEffect(() => {
+    // Remover required do campo categoria (fix para cache do navegador)
+    const removeRequired = () => {
+      const categorySelect = document.querySelector('select[name="category"]') as HTMLSelectElement;
+      if (categorySelect) {
+        categorySelect.removeAttribute('required');
+        categorySelect.required = false;
+        console.log('✅ Atributo required removido do campo categoria');
+      }
+    };
+    
+    // Executar múltiplas vezes
+    removeRequired();
+    setTimeout(removeRequired, 100);
+    setTimeout(removeRequired, 500);
+    setTimeout(removeRequired, 1000);
+    setTimeout(removeRequired, 2000);
+    
     const loadData = async () => {
       try {
         // Carregar produto
@@ -84,6 +123,13 @@ export default function AdminProductEditPage() {
         router.push('/admin/products');
       } finally {
         setLoading(false);
+        // Remover required novamente após carregar dados
+        setTimeout(() => {
+          const categorySelect = document.querySelector('select[name="category"]');
+          if (categorySelect) {
+            categorySelect.removeAttribute('required');
+          }
+        }, 200);
       }
     };
 
@@ -92,11 +138,24 @@ export default function AdminProductEditPage() {
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    // Remover validação HTML5 do formulário
+    const form = e.currentTarget;
+    form.noValidate = true;
+    
+    // Remover required da categoria explicitamente
+    const categorySelect = form.querySelector('select[name="category"]') as HTMLSelectElement;
+    if (categorySelect) {
+      categorySelect.removeAttribute('required');
+      categorySelect.required = false;
+    }
+    
     setError(null);
     setSaving(true);
     
     try {
-      const fd = new FormData(e.currentTarget);
+      const fd = new FormData(form);
       const uploadedUrls: string[] = [];
       
       // Processar URLs de imagens diretas (do campo de texto)
@@ -131,6 +190,7 @@ export default function AdminProductEditPage() {
       const body = {
         name: (fd.get("name") as string)?.trim(),
         description: (fd.get("description") as string) || "",
+        category_id: (fd.get("category") as string)?.trim() || null,
         price: Number(fd.get("price") || 0),
         stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
         track_stock: Boolean(fd.get("track_stock")),
@@ -179,7 +239,7 @@ export default function AdminProductEditPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-version="2025-10-15-v2">
       {/* Header com botão voltar */}
       <div className="flex items-center gap-4">
         <Link 
@@ -197,7 +257,7 @@ export default function AdminProductEditPage() {
         </div>
       </div>
 
-      <form onSubmit={onSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <form onSubmit={onSubmit} noValidate className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
           <div>
             <label className="text-sm font-medium">Nome do Produto</label>
@@ -256,13 +316,29 @@ export default function AdminProductEditPage() {
           <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
             {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
             <div>
-              <label className="text-sm font-medium">Categoria</label>
-              <select name="category" required defaultValue={product.category_id || ""} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                <option value="">Selecione</option>
+              <label className="text-sm font-medium text-gray-900">Categoria (Opcional)</label>
+              <select 
+                ref={(el) => {
+                  if (el) {
+                    el.removeAttribute('required');
+                    el.required = false;
+                    setCategorySelectRef(el);
+                  }
+                }}
+                name="category" 
+                defaultValue={product.category_id || ""} 
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
+                required={false}
+                aria-required="false"
+              >
+                <option value="">-- Sem categoria --</option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
+              <p className="text-xs text-gray-500 mt-1">
+                💡 Deixe em branco se não se aplicar (para produtos da homologação Mercos)
+              </p>
             </div>
 
             <div className="pt-3 border-t border-gray-200">

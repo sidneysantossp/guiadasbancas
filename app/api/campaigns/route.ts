@@ -21,8 +21,10 @@ export async function GET(request: NextRequest) {
         end_date,
         impressions,
         clicks,
+        banca_id,
         products (
           id,
+          banca_id,
           name,
           description,
           price,
@@ -51,9 +53,65 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Erro ao buscar campanhas' }, { status: 500 });
     }
 
+    let enrichedData = data || [];
+
+    // Garantir que todas as campanhas possuam dados de banca
+    if (enrichedData.length > 0) {
+      const missingBancaIds = Array.from(new Set(
+        enrichedData
+          .map((campaign) => {
+            const productBancaId = campaign?.products?.banca_id as string | null | undefined;
+            return campaign?.products?.bancas ? null : (productBancaId || (campaign?.banca_id as string | null | undefined) || null);
+          })
+          .filter((id): id is string => Boolean(id))
+      ));
+
+      if (missingBancaIds.length > 0) {
+        const { data: bancasData, error: bancasError } = await supabaseAdmin
+          .from('bancas')
+          .select('id, name, cover_image, avatar')
+          .in('id', missingBancaIds);
+
+        if (!bancasError && bancasData) {
+          const bancaMap = new Map<string, { id: string; name: string; cover_image?: string | null; avatar?: string | null }>();
+          for (const banca of bancasData) {
+            if (banca?.id) {
+              bancaMap.set(banca.id, banca);
+            }
+          }
+
+          enrichedData = enrichedData.map((campaign) => {
+            if (!campaign?.products || campaign.products.bancas) return campaign;
+
+            const productBancaId = campaign.products.banca_id as string | undefined | null;
+            const fallbackBancaId = productBancaId || (campaign?.banca_id as string | undefined | null);
+
+            if (!fallbackBancaId) return campaign;
+
+            const bancaInfo = bancaMap.get(fallbackBancaId);
+            if (!bancaInfo) return campaign;
+
+            return {
+              ...campaign,
+              products: {
+                ...campaign.products,
+                bancas: {
+                  id: bancaInfo.id,
+                  name: bancaInfo.name,
+                  cover_image: bancaInfo.cover_image ?? bancaInfo.avatar ?? null,
+                },
+              },
+            };
+          });
+        } else if (bancasError) {
+          console.error('Erro ao buscar dados das bancas:', bancasError);
+        }
+      }
+    }
+
     // Incrementar impressões (fazemos isso de forma assíncrona para não afetar a performance)
-    if (data && data.length > 0) {
-      const campaignIds = data.map(c => c.id);
+    if (enrichedData.length > 0) {
+      const campaignIds = enrichedData.map(c => c.id);
       // Executar em background sem aguardar
       (async () => {
         try {
@@ -85,8 +143,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: data || [],
-      total: data?.length || 0
+      data: enrichedData,
+      total: enrichedData.length
     });
   } catch (error) {
     console.error('Campaigns API error:', error);

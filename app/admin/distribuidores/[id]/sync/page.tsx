@@ -12,6 +12,7 @@ export default function SyncDistribuidorPage() {
   const [syncing, setSyncing] = useState(false);
   const [result, setResult] = useState<MercosSyncResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [customTimestamp, setCustomTimestamp] = useState('');
 
   useEffect(() => {
     loadDistribuidor();
@@ -39,6 +40,13 @@ export default function SyncDistribuidorPage() {
     setResult(null);
 
     try {
+      const body: any = { force };
+      
+      // Adicionar timestamp customizado se informado
+      if (customTimestamp.trim() !== '') {
+        body.startTimestamp = customTimestamp.trim();
+      }
+
       const response = await fetch(
         `/api/admin/distribuidores/${params.id}/sync`,
         {
@@ -46,7 +54,7 @@ export default function SyncDistribuidorPage() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ force }),
+          body: JSON.stringify(body),
         }
       );
 
@@ -86,7 +94,7 @@ export default function SyncDistribuidorPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-8 max-w-4xl" data-page-version="v4-timestamp-forced">
       <div className="mb-8">
         <Link
           href="/admin/distribuidores"
@@ -121,7 +129,41 @@ export default function SyncDistribuidorPage() {
           </div>
         </div>
 
-        <div className="mb-8 space-y-4">
+        {/* CAMPO TIMESTAMP - SEMPRE VISÍVEL */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          .timestamp-field-container {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+          }
+        `}} />
+        
+        <div className="mb-8 space-y-4 timestamp-field-container" data-version="v4-timestamp-visible">
+          {/* Campo para timestamp customizado (homologação) - SEMPRE VISÍVEL */}
+          <div 
+            className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-6 shadow-lg timestamp-field-container" 
+            style={{ display: 'block', visibility: 'visible', minHeight: '200px' }}
+          >
+            <h3 className="text-base font-bold text-yellow-900 mb-3 flex items-center gap-2">
+              🔧 Homologação Mercos - Timestamp Customizado
+            </h3>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">
+              Timestamp inicial (alterado_apos):
+            </label>
+            <input
+              type="text"
+              value={customTimestamp}
+              onChange={(e) => setCustomTimestamp(e.target.value)}
+              placeholder="Ex: 2025-10-15T08:35:00 (deixe vazio para usar padrão)"
+              className="w-full px-4 py-3 border-2 border-yellow-300 rounded-md text-base font-mono bg-white focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
+              disabled={syncing}
+            />
+            <p className="text-sm text-gray-700 mt-2 bg-yellow-100 p-2 rounded">
+              💡 <strong>Para homologação:</strong> Use o timestamp fornecido pela Mercos ou a hora antes da criação do produto (ex: 2025-10-15T08:35:00)
+            </p>
+          </div>
+
           <button
             onClick={() => handleSync(false)}
             disabled={syncing}

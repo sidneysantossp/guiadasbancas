@@ -56,8 +56,15 @@ export async function POST(
     
     // Verificar se é sincronização completa (force)
     const body = await request.json().catch(() => ({}));
-    const forceComplete = body.force === true;
+    const forceComplete = body?.force === true;
+    const startTimestamp = typeof body?.startTimestamp === 'string' && body.startTimestamp.trim() !== ''
+      ? body.startTimestamp.trim()
+      : undefined;
+
     console.log(`[SYNC] Modo: ${forceComplete ? 'COMPLETO' : 'INCREMENTAL'}`);
+    if (startTimestamp) {
+      console.log(`[SYNC] Timestamp inicial informado manualmente: ${startTimestamp}`);
+    }
 
     // Buscar dados do distribuidor
     const { data: distribuidor, error: distError } = await supabase
@@ -97,14 +104,16 @@ export async function POST(
     console.log(`[SYNC] ✓ Conexão com Mercos OK`);
 
     // Buscar última sincronização (ou ignorar se force)
-    const ultimaSincronizacao = forceComplete ? undefined : (distribuidor.ultima_sincronizacao || undefined);
+    const ultimaSincronizacaoBase = forceComplete ? undefined : (distribuidor.ultima_sincronizacao || undefined);
+    const syncInitialTimestamp = startTimestamp ?? ultimaSincronizacaoBase;
 
     console.log(`[SYNC] Distribuidor: ${distribuidor.nome}`);
-    console.log(`[SYNC] Última sincronização: ${ultimaSincronizacao || 'nunca'}`);
+    console.log(`[SYNC] Última sincronização registrada: ${ultimaSincronizacaoBase || 'nunca'}`);
+    console.log(`[SYNC] Timestamp utilizado nesta execução: ${syncInitialTimestamp || 'padrão (2020-01-01T00:00:00)'}`);
 
     // Buscar produtos da API Mercos
     console.log(`[SYNC] Iniciando busca na API Mercos...`);
-    const produtosMercos = await mercosApi.getAllProdutos(ultimaSincronizacao);
+    const produtosMercos = await mercosApi.getAllProdutos(syncInitialTimestamp);
     
     console.log(`[SYNC] Produtos recebidos da API Mercos: ${produtosMercos.length}`);
 
