@@ -83,9 +83,14 @@ export async function GET(request: NextRequest) {
           }
 
           enrichedData = enrichedData.map((campaign) => {
-            if (!campaign?.products || campaign.products.bancas) return campaign;
+            // products deve ser sempre um array
+            const productsArray = Array.isArray(campaign?.products) ? campaign.products : [];
+            if (productsArray.length === 0) return campaign;
+            
+            const product = productsArray[0];
+            if (!product || product.bancas) return campaign;
 
-            const productBancaId = campaign.products.banca_id as string | undefined | null;
+            const productBancaId = product.banca_id as string | undefined | null;
             const fallbackBancaId = productBancaId || (campaign?.banca_id as string | undefined | null);
 
             if (!fallbackBancaId) return campaign;
@@ -93,16 +98,19 @@ export async function GET(request: NextRequest) {
             const bancaInfo = bancaMap.get(fallbackBancaId);
             if (!bancaInfo) return campaign;
 
+            // Atualizar o primeiro produto com dados da banca (bancas deve ser array)
+            const updatedProduct = {
+              ...product,
+              bancas: [{
+                id: bancaInfo.id,
+                name: bancaInfo.name,
+                cover_image: bancaInfo.cover_image ?? bancaInfo.avatar ?? null,
+              }],
+            };
+
             return {
               ...campaign,
-              products: {
-                ...campaign.products,
-                bancas: {
-                  id: bancaInfo.id,
-                  name: bancaInfo.name,
-                  cover_image: bancaInfo.cover_image ?? bancaInfo.avatar ?? null,
-                },
-              },
+              products: [updatedProduct, ...productsArray.slice(1)],
             };
           });
         } else if (bancasError) {
