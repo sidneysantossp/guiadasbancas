@@ -60,8 +60,10 @@ export async function GET(request: NextRequest) {
       const missingBancaIds = Array.from(new Set(
         enrichedData
           .map((campaign) => {
-            const productBancaId = campaign?.products?.banca_id as string | null | undefined;
-            return campaign?.products?.bancas ? null : (productBancaId || (campaign?.banca_id as string | null | undefined) || null);
+            // products é um array, não um objeto
+            const product = Array.isArray(campaign?.products) ? campaign.products[0] : campaign?.products;
+            const productBancaId = product?.banca_id as string | null | undefined;
+            return product?.bancas ? null : (productBancaId || (campaign?.banca_id as string | null | undefined) || null);
           })
           .filter((id): id is string => Boolean(id))
       ));
