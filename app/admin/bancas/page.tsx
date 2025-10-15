@@ -18,12 +18,18 @@ export default function AdminBancasPage() {
     const load = async () => {
       try {
         setLoading(true);
-        const res = await fetch('/api/bancas');
+        const res = await fetch('/api/admin/bancas?all=true');
         const json = await res.json();
-        const items = Array.isArray(json) ? json : [];
-        setRows(items.map((b: any) => ({ id: b.id, name: b.name, city: b.address?.split(',').pop()?.trim() || '—', status: b.active ? 'ativo' : 'pausado', updatedAt: '—' })));
+        const items = json.success && Array.isArray(json.data) ? json.data : [];
+        setRows(items.map((b: any) => ({ 
+          id: b.id, 
+          name: b.name, 
+          city: b.address?.split(',').pop()?.trim() || b.addressObj?.city || '—', 
+          status: b.active ? 'ativo' : 'pausado', 
+          updatedAt: b.createdAt ? new Date(b.createdAt).toLocaleDateString('pt-BR') : '—' 
+        })));
       } catch (e) {
-        // noop
+        console.error('Erro ao carregar bancas:', e);
       } finally {
         setLoading(false);
       }
