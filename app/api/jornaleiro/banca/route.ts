@@ -44,11 +44,12 @@ async function loadBancaForUser(userId: string): Promise<any> {
         lng: data.lng
       },
       cover: data.cover_image || '',
-      avatar: data.cover_image || '',
+      avatar: data.profile_image || data.cover_image || '',
       cover_image: data.cover_image || '',
+      profile_image: data.profile_image || '',
       images: {
         cover: data.cover_image || '',
-        avatar: data.cover_image || ''
+        avatar: data.profile_image || data.cover_image || ''
       },
       gallery: [],
       categories: data.categories || [],
@@ -134,6 +135,7 @@ export async function PUT(request: NextRequest) {
       lat: data.location?.lat || data.lat,
       lng: data.location?.lng || data.lng,
       cover_image: data.images?.cover || data.cover,
+      profile_image: data.images?.avatar || data.avatar, // Avatar redondo separado
       categories: data.categories || [],
       whatsapp: data.contact?.whatsapp,
       instagram: data.socials?.instagram,
@@ -178,10 +180,10 @@ export async function PUT(request: NextRequest) {
     const responseData = {
       ...updatedData,
       cover: updatedData.cover_image,
-      avatar: updatedData.cover_image,
+      avatar: updatedData.profile_image || updatedData.cover_image,
       images: {
         cover: updatedData.cover_image,
-        avatar: updatedData.cover_image
+        avatar: updatedData.profile_image || updatedData.cover_image
       }
     };
     
