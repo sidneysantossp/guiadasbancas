@@ -31,9 +31,9 @@ let sql = `-- SQL para importar produtos Brancaleone
 -- Fonte: ${path.basename(jsonFile)}
 
 -- 1. Criar distribuidor (se não existir)
-INSERT INTO distribuidores (name, active, created_at)
-VALUES ('Brancaleone Publicações', true, NOW())
-ON CONFLICT (name) DO NOTHING;
+INSERT INTO distribuidores (nome, application_token, company_token, ativo, created_at)
+VALUES ('Brancaleone Publicações', 'brancaleone-catalog', 'brancaleone-pub', true, NOW())
+ON CONFLICT (nome) DO NOTHING;
 
 -- 2. Inserir produtos
 `;
@@ -55,7 +55,7 @@ VALUES (
   '${description}',
   0.00,
   '["${image}"]'::jsonb,
-  (SELECT id FROM distribuidores WHERE name = 'Brancaleone Publicações' LIMIT 1),
+  (SELECT id FROM distribuidores WHERE nome = 'Brancaleone Publicações' LIMIT 1),
   true,
   999,
   NOW()

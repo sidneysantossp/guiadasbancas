@@ -55,18 +55,21 @@ async function importProducts() {
         'Prefer': 'resolution=merge-duplicates'
       },
       body: JSON.stringify({
-        name: 'Brancaleone Publicações',
-        active: true
+        nome: 'Brancaleone Publicações',
+        application_token: 'brancaleone-catalog',
+        company_token: 'brancaleone-pub',
+        ativo: true
       })
     });
 
     if (!distributorResponse.ok && distributorResponse.status !== 409) {
-      throw new Error(`Erro ao criar distribuidor: ${distributorResponse.status}`);
+      const errorText = await distributorResponse.text();
+      throw new Error(`Erro ao criar distribuidor: ${distributorResponse.status} - ${errorText}`);
     }
 
     // Buscar ID do distribuidor
     const distributorsResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/distribuidores?name=eq.Brancaleone Publicações&select=id`,
+      `${SUPABASE_URL}/rest/v1/distribuidores?nome=eq.Brancaleone Publicações&select=id`,
       {
         headers: {
           'apikey': SUPABASE_KEY,
