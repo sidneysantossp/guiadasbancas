@@ -1,0 +1,15 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "guiadasbancas.com.br"
+        }
+      ],
+      "destination": "https://www.guiadasbancas.com.br/:path*",
+      "permanent": true
+    }
+  ]
+}
