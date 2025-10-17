@@ -57,14 +57,31 @@ async function extractProducts() {
     // Pegar URLs de todos os produtos
     const productLinks = await page.evaluate(() => {
       const links = [];
-      const cards = document.querySelectorAll('[class*="card"] a, article a, [class*="product"] a');
       
-      cards.forEach(link => {
-        const href = link.href;
-        if (href && href.includes('/produto/') && !links.includes(href)) {
-          links.push(href);
+      // Tenta diferentes seletores para links
+      const selectors = [
+        'a[href*="/produto/"]',
+        'a[href*="/product/"]',
+        '[class*="card"] a',
+        'article a',
+        '[class*="product"] a',
+        'a'
+      ];
+      
+      for (const selector of selectors) {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(link => {
+          const href = link.href;
+          if (href && (href.includes('/produto') || href.includes('/product')) && !links.includes(href)) {
+            links.push(href);
+          }
+        });
+        
+        if (links.length > 0) {
+          console.log(`Encontrados ${links.length} links com seletor: ${selector}`);
+          break;
         }
-      });
+      }
       
       return links;
     });
