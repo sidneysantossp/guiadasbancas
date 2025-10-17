@@ -42,7 +42,7 @@ export default function AdminLoginPage() {
           return;
         }
         
-        setError("Credenciais inválidas. Use: admin@guiadasbancas.com / admin123");
+        setError("Credenciais inválidas. Verifique seu email e senha.");
       } catch {
         setError("Ocorreu um erro ao efetuar login.");
       } finally {
@@ -94,7 +94,7 @@ export default function AdminLoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00]"
-                placeholder="admin@guiadasbancas.com"
+                placeholder="Seu email"
               />
             </div>
 
@@ -108,7 +108,7 @@ export default function AdminLoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00]"
-                placeholder="admin123"
+                placeholder="Sua senha"
               />
             </div>
 
