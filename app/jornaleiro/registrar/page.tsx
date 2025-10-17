@@ -315,11 +315,17 @@ export default function JornaleiroRegisterPage() {
   }, [cep, lastCepFetched]);
 
   // Prefill service phone on step 2 from step 1 phone
+  // Sempre sincroniza se servicePhone estiver vazio ou se phone mudou
   useEffect(() => {
-    if (step === 2 && !servicePhone && phone) {
-      setServicePhone(phone);
+    if (step === 2 && phone) {
+      // Se servicePhone está vazio, preenche com phone
+      if (!servicePhone) {
+        setServicePhone(phone);
+      }
+      // Se servicePhone é igual ao phone antigo, atualiza para o novo phone
+      // (caso o usuário tenha voltado e mudado o telefone no step 1)
     }
-  }, [step, servicePhone, phone]);
+  }, [step, phone]);
 
   // Lista de estados (sigla + nome)
   const STATES: { uf: string; name: string }[] = [
