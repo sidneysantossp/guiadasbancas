@@ -38,13 +38,13 @@ async function extractProducts() {
     });
     
     console.log('⏳ Aguardando carregamento inicial (5s)...');
-    await page.waitForTimeout(5000);
+    await new Promise(resolve => setTimeout(resolve, 5000));
     
     console.log('📜 Fazendo scroll para carregar todos os produtos...');
     await autoScroll(page);
     
     console.log('⏳ Aguardando produtos carregarem (3s)...');
-    await page.waitForTimeout(3000);
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     console.log('🔍 Extraindo dados dos produtos...\n');
     
