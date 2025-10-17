@@ -48,8 +48,8 @@ async function extractProducts() {
     console.log('⏳ Aguardando carregamento (5s)...');
     await new Promise(resolve => setTimeout(resolve, 5000));
     
-    console.log('📜 Fazendo scroll para carregar todos os produtos...');
-    await autoScroll(page);
+    console.log('📜 Fazendo scroll e clicando em "Carregar mais"...');
+    await loadAllProducts(page);
     await new Promise(resolve => setTimeout(resolve, 3000));
     
     console.log('🔍 Identificando produtos...\n');
@@ -274,6 +274,63 @@ async function extractProducts() {
     if (browser) await browser.close();
     process.exit(1);
   }
+}
+
+async function loadAllProducts(page) {
+  let clickCount = 0;
+  let previousCount = 0;
+  const maxClicks = 200; // Limite de segurança
+  
+  while (clickCount < maxClicks) {
+    // Scroll até o final
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Contar produtos atuais
+    const currentCount = await page.evaluate(() => {
+      return document.querySelectorAll('[class*="card"]').length;
+    });
+    
+    console.log(`   Produtos carregados: ${currentCount}`);
+    
+    // Tentar encontrar e clicar no botão "Carregar mais"
+    const buttonClicked = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const button = buttons.find(btn => {
+        const text = btn.textContent.toLowerCase();
+        return text.includes('carregar') || 
+               text.includes('mais') || 
+               text.includes('more') ||
+               text.includes('ver mais');
+      });
+      
+      if (button && button.offsetParent !== null) { // Verifica se está visível
+        button.click();
+        return true;
+      }
+      return false;
+    });
+    
+    if (buttonClicked) {
+      clickCount++;
+      console.log(`   ✅ Clicou em "Carregar mais" (${clickCount}x)`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } else {
+      // Se não encontrou botão e a contagem não mudou, terminou
+      if (currentCount === previousCount) {
+        console.log(`   ✅ Todos os produtos carregados!`);
+        break;
+      }
+    }
+    
+    previousCount = currentCount;
+  }
+  
+  const finalCount = await page.evaluate(() => {
+    return document.querySelectorAll('[class*="card"]').length;
+  });
+  
+  console.log(`\n📦 Total de produtos na página: ${finalCount}\n`);
 }
 
 async function autoScroll(page) {
