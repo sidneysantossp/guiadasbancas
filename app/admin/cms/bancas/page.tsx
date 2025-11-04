@@ -40,7 +40,7 @@ export default function BancasPage() {
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/bancas', {
+      const res = await fetch('/api/admin/bancas?all=true', {
         headers: { 'Authorization': 'Bearer admin-token' }
       });
       const json = await res.json();

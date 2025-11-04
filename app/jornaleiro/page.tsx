@@ -16,6 +16,11 @@ export default function JornaleiroLoginPage() {
   const [error, setError] = useState("");
   const [branding, setBranding] = useState<{ logoUrl: string; logoAlt: string } | null>(null);
   const [redirecting, setRedirecting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Se já está autenticado como jornaleiro, redireciona
   useEffect(() => {
@@ -73,7 +78,7 @@ export default function JornaleiroLoginPage() {
   };
 
   // Se está carregando auth ou redirecionando, mostra loading
-  if (status === "loading" || redirecting) {
+  if (!mounted || status === "loading" || redirecting) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100">
         <div className="text-center">
@@ -85,148 +90,139 @@ export default function JornaleiroLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100 px-4">
-      <div className="max-w-md w-full">
-        {/* Card de Login */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          {/* Logo centralizada dentro do card */}
-          <div className="mb-6 text-center">
-            <Link href="/" className="inline-block">
-              {branding?.logoUrl ? (
-                <Image
-                  src={branding.logoUrl}
-                  alt={branding.logoAlt || "Logo"}
-                  width={180}
-                  height={60}
-                  className="h-12 w-auto object-contain"
-                  priority
-                />
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  className="h-10 w-10 mx-auto text-[#ff5c00]"
-                  aria-hidden
-                  fill="currentColor"
-                >
-                  <rect x="3" y="4" width="18" height="16" rx="2" ry="2" opacity="0.15" />
-                  <rect x="6" y="7" width="12" height="2" rx="1" />
-                  <rect x="6" y="11" width="9" height="2" rx="1" />
-                  <rect x="6" y="15" width="6" height="2" rx="1" />
-                </svg>
-              )}
-            </Link>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Login</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                placeholder="seu@email.com"
-              />
-            </div>
+    <div className="relative min-h-screen w-full overflow-hidden">
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage:
+            "url('https://as2.ftcdn.net/v2/jpg/11/20/53/79/1000_F_1120537938_14oq2ICAOJO5rajUWMqFQfV8hsqOnW8Q.jpg')",
+        }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/75 to-black/40" />
 
-            {/* Senha */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Senha
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pr-10 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="••••••••"
-                  aria-describedby="password-visibility-toggle"
-                />
-                <button
-                  type="button"
-                  id="password-visibility-toggle"
-                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                  onClick={() => setShowPassword(v => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-800"
-                >
-                  {showPassword ? (
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.74-1.73 2.1-3.64 3.95-5.22"/><path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8-."/><path d="M1 1l22 22"/></svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
-                  )}
-                </button>
-              </div>
-              <div className="mt-2 text-right">
-                <Link href="/jornaleiro/esqueci-senha" className="text-sm text-orange-700 hover:underline">Esqueci minha senha</Link>
-              </div>
-            </div>
-
-            {/* Erro */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-
-            {/* Botão de Login */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-3 px-4 rounded-lg hover:from-orange-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              {loading ? "Entrando..." : "Entrar"}
-            </button>
-          </form>
-
-          {/* Divisor */}
-          <div className="mt-6 relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">
-                Não tem uma conta?
-              </span>
-            </div>
-          </div>
-
-          {/* Link de Registro */}
-          <div className="mt-6">
-            <Link
-              href="/jornaleiro/registrar"
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 border border-orange-300 rounded-lg text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 transition-colors"
-            >
-              {/* Ícone minimalista */}
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 5v14M5 12h14" />
+      <div className="relative z-10 flex min-h-screen items-stretch">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-5 py-12 md:gap-12 md:py-20 md:flex-row md:items-center md:justify-between">
+          <div className="text-white md:max-w-xl md:order-1 order-1">
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1 text-sm font-semibold uppercase tracking-wide text-white/80">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+                <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v5a7 7 0 0 1-7 7H6a2 2 0 0 1-2-2Z" opacity="0.35" />
+                <path d="M7 10h5M7 13h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M6 4h12a2 2 0 0 1 2 2v3H4V6a2 2 0 0 1 2-2Z" />
               </svg>
-              Cadastrar minha banca
-            </Link>
+              Portal do Jornaleiro
+            </span>
+            <h1 className="mt-6 text-3xl font-bold leading-tight text-white sm:text-4xl md:text-5xl">
+              Você faz tudo pela sua banca. O Guia das Bancas faz por você também.
+            </h1>
+            <p className="mt-4 text-base text-white/85 sm:text-lg">
+              Gerencie pedidos, catálogo e campanhas em um só lugar. Acesse o portal exclusivo para parceiros e impulsione o seu negócio.
+            </p>
+          </div>
+
+          <div className="w-full max-w-md rounded-3xl bg-white/95 p-8 shadow-2xl backdrop-blur md:order-2 order-2">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Portal do Parceiro</h2>
+              <p className="text-sm text-gray-500">Gerencie sua banca de forma rápida e segura</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                  E-mail
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm shadow-sm focus:border-[#ff2d55] focus:outline-none focus:ring-2 focus:ring-[#ff2d55]/40"
+                  placeholder="voce@suabanca.com"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Senha
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-12 text-sm shadow-sm focus:border-[#ff2d55] focus:outline-none focus:ring-2 focus:ring-[#ff2d55]/40"
+                    placeholder="Digite sua senha"
+                    aria-describedby="password-visibility-toggle"
+                  />
+                  <button
+                    type="button"
+                    id="password-visibility-toggle"
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPassword ? (
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.74-1.73 2.1-3.64 3.95-5.22" />
+                        <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8-" />
+                        <path d="M1 1l22 22" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                <div className="text-right">
+                  <Link href="/jornaleiro/esqueci-senha" className="text-sm font-medium text-[#ff2d55] hover:underline">
+                    Esqueci minha senha
+                  </Link>
+                </div>
+              </div>
+
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-lg bg-gradient-to-r from-[#ff6a00] to-[#ff922b] px-4 py-3 text-base font-semibold text-white shadow-lg shadow-[#ff7a1f]/30 transition-all hover:from-[#ff7a1f] hover:to-[#ffad42] focus:outline-none focus:ring-2 focus:ring-[#ff7a1f]/60 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Entrando..." : "Continuar"}
+              </button>
+            </form>
+
+            <div className="mt-6 flex flex-col gap-3 text-center text-sm">
+              <Link href="/jornaleiro/esqueci-senha" className="font-medium text-[#ff2d55] hover:underline">
+                Preciso de ajuda para acessar
+              </Link>
+              <p className="text-gray-600">
+                Ainda não tem cadastro?
+                {" "}
+                <Link href="/jornaleiro/registrar" className="font-semibold text-[#ff2d55] hover:underline">
+                  Cadastre sua banca
+                </Link>
+              </p>
+              <p className="text-gray-500">
+                É cliente?
+                {" "}
+                <Link href="/minha-conta" className="font-medium text-[#ff2d55] hover:underline">
+                  Entrar como cliente
+                </Link>
+              </p>
+              <Link href="/" className="text-gray-400 hover:text-gray-600">
+                ← Voltar para a Home
+              </Link>
+            </div>
           </div>
         </div>
-
-        {/* Link para cliente */}
-        <p className="mt-8 text-center text-sm text-gray-600">
-          É cliente?{" "}
-          <Link href="/minha-conta" className="text-orange-600 hover:text-orange-700 font-medium">
-            Fazer login como cliente
-          </Link>
-        </p>
-        <p className="mt-3 text-center text-sm">
-          <Link href="/" className="text-gray-500 hover:text-gray-700 underline">
-            ← Voltar para Home
-          </Link>
-        </p>
       </div>
     </div>
   );

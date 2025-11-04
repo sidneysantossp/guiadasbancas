@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import ImageUploader from "@/components/admin/ImageUploader";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import { useToast } from "@/components/admin/ToastProvider";
+import { useSession } from "next-auth/react";
 
 const DAYS = [
   { key: "sun", label: "Domingo" },
@@ -55,9 +56,6 @@ const ESTADOS = [
   { sigla: 'TO', nome: 'Tocantins' },
 ] as const;
 
-const TOKEN_KEY = "gb:sellerToken";
-const SELLER_DEFAULT_TOKEN = "seller-token";
-
 interface BancaForm {
   id?: string;
   name: string;
@@ -99,18 +97,20 @@ export default function MinhaBancaPage() {
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [categoriesOptions, setCategoriesOptions] = useState<{ id: string; name: string }[]>([]);
-
-  const authHeaders = useMemo(() => {
-    if (typeof window === "undefined") return {};
-    const stored = window.localStorage.getItem(TOKEN_KEY) || SELLER_DEFAULT_TOKEN;
-    return { Authorization: `Bearer ${stored}` } as Record<string, string>;
-  }, []);
+  const { status } = useSession();
 
   useEffect(() => {
+    if (status !== "authenticated") {
+      if (status === "unauthenticated") {
+        setLoading(false);
+        setError("Sessão expirada. Faça login novamente.");
+      }
+      return;
+    }
     const load = async () => {
       try {
         setLoading(true);
-        const res = await fetch("/api/jornaleiro/banca", { headers: authHeaders, cache: "no-store" });
+        const res = await fetch("/api/jornaleiro/banca", { cache: "no-store", credentials: "include" });
         if (res.status === 404) {
           setNotFound(true);
           setForm(null);
@@ -152,7 +152,7 @@ export default function MinhaBancaPage() {
       }
     };
     load();
-  }, [authHeaders]);
+  }, [status]);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -386,8 +386,8 @@ export default function MinhaBancaPage() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          ...authHeaders,
         },
+        credentials: "include",
         body: JSON.stringify({ data: payload }),
       });
       
