@@ -17,6 +17,16 @@ import { shippingConfig } from "@/components/shippingConfig";
 import FreeShippingProgress from "@/components/FreeShippingProgress";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useCategories } from "@/lib/useCategories";
+import {
+  IconBell,
+  IconChevronDown,
+  IconMapPin,
+  IconBuildingStore,
+  IconSearch,
+  IconShoppingBag,
+  IconUserCircle,
+  IconUser,
+} from "@tabler/icons-react";
 
 const hedvig = Hedvig_Letters_Serif({ subsets: ["latin"] });
 
@@ -68,7 +78,7 @@ function MiniCartDropdown({ onClose }: { onClose: () => void }) {
   const qualifiesByThreshold = subtotal >= shippingConfig.freeShippingThreshold;
   const freeShippingActive = shippingConfig.freeShippingEnabled || qualifiesByThreshold;
   return (
-    <div className="absolute right-0 z-40 mt-2 w-80 rounded-2xl border border-gray-200 bg-white shadow-xl">
+    <div className="absolute right-0 top-full z-40 w-80 translate-y-6 rounded-2xl border border-gray-200 bg-white shadow-xl">
       <div className="p-3">
         <div className="text-sm font-semibold">Seu carrinho</div>
       </div>
@@ -532,255 +542,166 @@ useEffect(() => {
 
   // UF atual baseada na localização armazenada
   const ufQuery = (loc?.state || 'sp').toLowerCase();
+  const locationLinePrimary = loc ? 'Sua região' : 'Informe sua';
+  const locationLineSecondary = loc
+    ? (loc.street
+        ? `${loc.street}${loc.houseNumber ? `, ${loc.houseNumber}` : ''}`
+        : loc.neighborhood || loc.city || (loc.state ? loc.state.toUpperCase() : 'Localização'))
+    : 'Localização';
+  const locationTooltipParts = loc
+    ? [
+        loc.street ? `${loc.street}${loc.houseNumber ? `, ${loc.houseNumber}` : ''}` : '',
+        loc.neighborhood || '',
+        loc.city || '',
+        loc.state ? loc.state.toUpperCase() : '',
+      ].filter(Boolean)
+    : [];
+  const locationTooltip = locationTooltipParts.length > 0 ? locationTooltipParts.join(' • ') : undefined;
+  const accountGreeting = user?.name ? user.name.split(' ')[0] : null;
 
   return (
     <>
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white md:border-b md:border-gray-200 md:shadow-sm">
-      {/* Top bar: Logo + Notificações + Localização */}
-      <div className="container-max py-3">
-        <div className="flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 -ml-5">
-          {branding?.logoUrl ? (
-            <Image
-              src={branding.logoUrl}
-              alt={branding.logoAlt || "Logo"}
-              width={160}
-              height={56}
-              className="h-14 w-auto object-contain md:h-12 md:max-w-[160px]"
-              priority
-            />
-          ) : (
-            // Placeholder invisível para evitar layout shift enquanto a marca carrega
-            <div className="h-14 w-[160px] md:h-12 md:w-[160px]" aria-hidden />
-          )}
-        </Link>
-
-        {/* Localização + Ícones Sociais + Notificações (direita) */}
-        {!inDashboard && (
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Badge de geolocalização - Desktop (vem primeiro) */}
-            {mounted && (
-              <button
-                onClick={() => setLocOpen(true)}
-                className="hidden md:flex items-center gap-2 text-sm leading-none hover:text-[var(--color-primary)] rounded-full px-3 py-1 max-w-full border border-gray-300 hover:bg-gray-50"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4 text-[#ff5c00]"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M12 21s-6-4.35-6-9a6 6 0 1 1 12 0c0 4.65-6 9-6 9z" />
-                  <circle cx="12" cy="12" r="2.5" />
-                </svg>
-                <span
-                  className="font-medium text-[11px] truncate max-w-xs"
-                  title={
-                    loc
-                      ? `${
-                          (loc.street
-                            ? `${loc.street}${loc.houseNumber ? ", " + loc.houseNumber : ""}`
-                            : (loc.neighborhood || ""))
-                        }${loc.city ? `, ${loc.city}` : ''}`
-                      : undefined
-                  }
-                >
-                  {loc ? (
-                    (loc.street
-                      ? `${loc.street}${loc.houseNumber ? ", " + loc.houseNumber : ""}`
-                      : (loc.neighborhood || loc.city || 'Localização')) + (loc.city ? `, ${loc.city}` : '')
-                  ) : (
-                    "Encontrar uma Banca próximo de mim"
-                  )}
-                </span>
-              </button>
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm">
+      {/* Mobile: Top Bar with Logo */}
+      <div className="md:hidden border-b border-gray-100">
+        <div className="flex items-center justify-between pl-1 pr-4 py-3">
+          {/* Logo à esquerda */}
+          <Link href="/" className="flex items-center -ml-2">
+            {branding?.logoUrl ? (
+              <Image
+                src={branding.logoUrl}
+                alt={branding.logoAlt || "Logo"}
+                width={180}
+                height={54}
+                className="h-14 w-auto object-contain"
+                priority
+              />
+            ) : (
+              <div className="h-14 w-[180px]" aria-hidden />
             )}
+          </Link>
 
-            {/* Ícones Sociais - COMENTADO para uso futuro */}
-            {/* {mounted && socialLinks.length > 0 && (
-              <div className="flex items-center gap-2">
-                {socialLinks.map((item) => (
-                  <a
-                    key={item.key}
-                    href={item.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={item.label}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-[#ff5c00] hover:text-[#ff7a33] hover:border-[#ff7a33] transition-colors"
-                  >
-                    {renderSocialIcon(item.key)}
-                  </a>
-                ))}
-              </div>
-            )} */}
-            
-            {/* Sino de notificações */}
-            <button
-              type="button"
-              aria-label="Notificações"
-              title="Ativar notificações"
-              onClick={enableNotifications}
-              className="relative inline-flex items-center justify-center h-9 w-9 rounded-full text-[#ff5c00] hover:text-[#ff7a33] focus:outline-none focus:ring-2 focus:ring-[#ff7a33]/30"
+          {/* Atalho conta do usuário */}
+          <div className="flex items-center gap-1 pr-1">
+            <Link
+              href="/jornaleiro"
+              className="inline-flex items-center justify-center h-12 w-12 text-[#2f2f2f] hover:text-[#ff5c00]"
+              aria-label="Área do jornaleiro"
             >
-              {notifPulse && (
-                <span className="absolute inset-0 rounded-full bg-[#ff7a33]/30 animate-ping"></span>
-              )}
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a3.001 3.001 0 01-5.714 0M18 8a6 6 0 10-12 0c0 3.866-1.343 5.818-2.016 6.77a1 1 0 00.82 1.73h14.392a1 1 0 00.82-1.73C19.343 13.818 18 11.866 18 8z" />
-              </svg>
-              {(notifEnabled && notifCount > 0) && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[10px] leading-[16px] text-center px-[3px]">{notifCount}</span>
-              )}
-            </button>
+              <IconBuildingStore size={28} stroke={2} />
+            </Link>
+            <Link
+              href="/minha-conta"
+              className="inline-flex items-center justify-center h-12 w-12 text-[#2f2f2f] hover:text-[#ff5c00]"
+              aria-label="Minha conta"
+            >
+              <IconUser size={32} stroke={2} />
+            </Link>
           </div>
-        )}
         </div>
-        
-        {/* Badge de geolocalização - Mobile (largura total) */}
-        {!inDashboard && mounted && (
-          <button
-            onClick={() => setLocOpen(true)}
-            className="md:hidden mt-2 w-full flex items-center justify-center gap-2 text-sm leading-none hover:text-[var(--color-primary)] rounded-full px-3 py-2 border border-gray-300 hover:bg-gray-50"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              className="h-4 w-4 text-[#ff5c00]"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M12 21s-6-4.35-6-9a6 6 0 1 1 12 0c0 4.65-6 9-6 9z" />
-              <circle cx="12" cy="12" r="2.5" />
-            </svg>
-            <span
-              className="font-medium text-[12px] truncate"
-              title={
-                loc
-                  ? `${
-                      (loc.street
-                        ? `${loc.street}${loc.houseNumber ? ", " + loc.houseNumber : ""}`
-                        : (loc.neighborhood || ""))
-                    }${loc.city ? `, ${loc.city}` : ''}`
-                  : undefined
-              }
-            >
-              {loc ? (
-                (loc.street
-                  ? `${loc.street}${loc.houseNumber ? ", " + loc.houseNumber : ""}`
-                  : (loc.neighborhood || loc.city || 'Localização')) + (loc.city ? `, ${loc.city}` : '')
-              ) : (
-                "Encontrar uma Banca próximo de mim"
-              )}
-            </span>
-          </button>
-        )}
       </div>
 
-      {/* Busca mobile fixa no topo (aberta e largura total) */}
-      {!inDashboard && (
-        <div className="md:hidden border-t border-gray-100">
-          <div className="container-max py-2">
-            <form onSubmit={onSearch}>
-              <div className="relative">
-                <input
-                  ref={inputRef}
-                  className="input w-full pr-10"
-                  placeholder="Buscar produtos, categorias..."
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  aria-label="Buscar"
-                />
-                <button
-                  type="submit"
-                  aria-label="Buscar"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#ff5c00] hover:opacity-90"
-                >
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.3-4.3" /></svg>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Main bar: Menu + Search + Actions */}
-      <div className="hidden md:block bg-[#ff5c00] text-white">
-        <div className="container-max py-1 md:py-3 flex items-center gap-4">
-          {/* Menu desktop */}
-          <nav className="hidden md:flex items-center gap-4 text-sm">
-            <div className="py-2">
-              <DepartmentsMegaMenu 
-                isActive={activeMegaMenu === 'categories'}
-                onOpen={() => setActiveMegaMenu('categories')}
-                onClose={() => setActiveMegaMenu(null)}
+      {/* Desktop: main utility bar */}
+      <div className="hidden md:block border-b border-gray-100">
+        <div className="container-max flex items-center gap-8 py-4">
+          <Link href="/" className="flex items-center">
+            {branding?.logoUrl ? (
+              <Image
+                src={branding.logoUrl}
+                alt={branding.logoAlt || "Logo"}
+                width={156}
+                height={48}
+                className="h-12 w-auto object-contain"
+                priority
               />
-            </div>
-            <Link href={"/bancas-perto-de-mim" as Route} className="py-2 font-medium text-white hover:text-white/90">Bancas</Link>
-            <Link href={"/promocoes" as Route} className="py-2 font-medium text-white hover:text-white/90">Promoções</Link>
-            <Link href={"/pre-venda" as Route} className="py-2 font-medium text-white hover:text-white/90">Pré Venda</Link>
-          </nav>
-
-          {/* Search (desktop). Mobile usa dropdown abaixo do header */}
-          {!inDashboard && (
-            <div className="hidden md:flex flex-1 justify-end">
-              <div className="relative w-full max-w-lg ml-auto">
-                <SearchAutocomplete
-                  query={q}
-                  onQueryChange={setQ}
-                  onSelect={handleSearchSelect}
-                  onSubmit={handleSearchSubmit}
-                  placeholder="Buscar produtos, categorias..."
-                  className="input pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={handleSearchSubmit}
-                  aria-label="Buscar"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#ff5c00] hover:opacity-90"
-                >
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.3-4.3" /></svg>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className={`flex items-center gap-3 ${inDashboard ? 'ml-auto' : ''}`}>
-            {!inDashboard && <span className="hidden" />}
-            {inDashboard && user ? (
-              <div className="hidden md:block relative" id="account-menu" onMouseEnter={()=>setAccountOpen(true)} onMouseLeave={()=>setAccountOpen(false)}>
-                <button
-                  className="inline-flex items-center gap-2 rounded-lg bg-white px-3 h-[42px] text-sm font-medium text-black hover:bg-gray-50"
-                >
-                  <span className="relative inline-block h-6 w-6 rounded-full overflow-hidden bg-orange-100 ring-1 ring-black/5">
-                    {profileAvatar ? (
-                      <img src={profileAvatar} alt="Avatar" className="h-full w-full object-cover" />
-                    ) : (
-                      <svg viewBox="0 0 24 24" className="h-full w-full text-white" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>
-                    )}
-                  </span>
-                </button>
-                {accountOpen && (
-                  <div className="absolute right-0 z-40 mt-2 w-56 rounded-2xl border border-gray-200 bg-white shadow-xl">
-                    <div className="py-1 text-sm">
-                      <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','perfil'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meu Perfil</button>
-                      <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','favoritos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meus Favoritos</button>
-                      <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','pedidos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Minhas compras</button>
-                      <div className="h-px bg-gray-100 my-1" />
-                      <button className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50" onClick={()=>{ setAccountOpen(false); logout(); }}>Sair</button>
-                    </div>
-                  </div>
-                )}
-              </div>
             ) : (
-              <>
+              <div className="h-12 w-[156px]" aria-hidden />
+            )}
+          </Link>
+
+          {!inDashboard && (
+            <>
+              <form onSubmit={onSearch} className="flex-1 max-w-2xl">
+                <div className="relative">
+                  <IconSearch size={20} stroke={1.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <SearchAutocomplete
+                    query={q}
+                    onQueryChange={setQ}
+                    onSelect={handleSearchSelect}
+                    onSubmit={handleSearchSubmit}
+                    placeholder="O que você procura hoje?"
+                    className="w-full rounded-lg border border-gray-300 bg-white pl-11 pr-4 py-2.5 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00]"
+                  />
+                </div>
+              </form>
+
+              <div className="flex items-center gap-6 text-sm">
+                {mounted && (
+                  <button
+                    type="button"
+                    onClick={() => setLocOpen(true)}
+                    className="inline-flex items-center gap-2 text-gray-700 hover:text-[#ff5c00] transition-colors"
+                    title={locationTooltip}
+                  >
+                    <IconMapPin size={20} stroke={1.5} className="text-gray-600" />
+                    <span className="text-left leading-tight">
+                      <span className="block text-[10px] text-gray-500">{locationLinePrimary}</span>
+                      <span className="block text-xs font-medium text-gray-900 max-w-[120px] truncate">{locationLineSecondary}</span>
+                    </span>
+                    <IconChevronDown size={14} stroke={2} className="text-gray-400" />
+                  </button>
+                )}
+
+                {user ? (
+                  <div
+                    id="account-menu"
+                    onMouseEnter={() => setAccountOpen(true)}
+                    onMouseLeave={() => setAccountOpen(false)}
+                    className="relative inline-flex items-center"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setAccountOpen((v) => !v)}
+                      className="inline-flex items-center gap-2 text-gray-700 hover:text-[#ff5c00] transition-colors"
+                    >
+                      <IconUserCircle size={20} stroke={1.5} className="text-gray-600" />
+                      <span className="text-left leading-tight">
+                        <span className="block text-[10px] text-gray-500">Olá{accountGreeting ? `, ${accountGreeting}` : "!"}</span>
+                        <span className="block text-xs font-medium text-gray-900">Minha Conta</span>
+                      </span>
+                      <IconChevronDown size={14} stroke={2} className="text-gray-400" />
+                    </button>
+                    {accountOpen && (
+                      <div className="absolute right-0 top-full z-40 mt-3 w-56 rounded-2xl border border-gray-200 bg-white shadow-xl">
+                        <div className="py-1 text-sm">
+                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','perfil'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meu Perfil</button>
+                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','favoritos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meus Favoritos</button>
+                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','pedidos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Minhas compras</button>
+                          <JornaleiroAdminLinks onClose={() => setAccountOpen(false)} />
+                          <div className="h-px bg-gray-100 my-1" />
+                          <button className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50" onClick={()=>{ setAccountOpen(false); logout(); }}>Sair</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => router.push('/minha-conta')}
+                    className="inline-flex items-center gap-2 text-gray-700 hover:text-[#ff5c00] transition-colors"
+                  >
+                    <IconUserCircle size={20} stroke={1.5} className="text-gray-600" />
+                    <span className="text-left leading-tight">
+                      <span className="block text-[10px] text-gray-500">Olá! Entre na</span>
+                      <span className="block text-xs font-medium text-gray-900">Minha Conta</span>
+                    </span>
+                    <IconChevronDown size={14} stroke={2} className="text-gray-400" />
+                  </button>
+                )}
+
                 <div
                   ref={cartRef}
-                  className="hidden md:block relative"
+                  className="relative inline-flex items-center"
                   onMouseEnter={() => {
                     if (hoverCloseTimer.current) { clearTimeout(hoverCloseTimer.current as any); hoverCloseTimer.current = null; }
                     setCartOpen(true);
@@ -790,62 +711,167 @@ useEffect(() => {
                     hoverCloseTimer.current = window.setTimeout(() => { setCartOpen(false); }, 280);
                   }}
                 >
-                  <button type="button" aria-label="Abrir carrinho" onClick={() => { if (typeof window !== "undefined" && window.innerWidth < 768) { setCartSheetOpen(true); } else { setCartOpen((v) => !v); } }} className="relative inline-flex h-[42px] w-12 items-center justify-center text-white hover:text-white/90 rounded-md border border-white/20 hover:border-white/40 transition-colors">
-                    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="currentColor" aria-hidden>
-                      <path d="M7 4h-2l-1 2h2l3.6 7.6-1.35 2.45A1 1 0 0010.1 18h8.4v-2h-7.3l.9-1.6h5.8a1 1 0 00.9-.6L22 7H6.2zM7 20a2 2 0 102-2 2 2 0 00-2 2zm8 0a2 2 0 102-2 2 2 0 00-2 2z"/>
-                    </svg>
-                    {cartCount > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-[#ff5c00] text-white text-[11px] leading-[18px] text-center px-[3px]">{cartCount}</span>
-                    )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                        setCartSheetOpen(true);
+                      } else {
+                        setCartOpen((v) => !v);
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 text-gray-700 hover:text-[#ff5c00] transition-colors"
+                  >
+                    <span className="relative inline-flex">
+                      <IconShoppingBag size={20} stroke={1.5} className="text-gray-600" />
+                      {cartCount > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-[#ff5c00] text-[10px] font-semibold leading-[16px] text-center text-white">
+                          {cartCount}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-left leading-tight">
+                      <span className="block text-[10px] text-gray-500">Sua</span>
+                      <span className="block text-xs font-medium text-gray-900">Sacola</span>
+                    </span>
+                    <IconChevronDown size={14} stroke={2} className="text-gray-400" />
                   </button>
-                  {cartOpen && (<MiniCartDropdown onClose={() => setCartOpen(false)} />)}
+                  {cartOpen && <MiniCartDropdown onClose={() => setCartOpen(false)} />}
                 </div>
 
-                <Link href="/jornaleiro" className="hidden md:inline-flex items-center rounded-lg bg-white px-4 h-[42px] text-sm font-semibold text-[#ff5c00] shadow hover:bg-gray-50">Sou Jornaleiro</Link>
+                <button
+                  type="button"
+                  aria-label="Notificações"
+                  title="Ativar notificações"
+                  onClick={enableNotifications}
+                  className="relative inline-flex items-center justify-center text-gray-600 hover:text-[#ff5c00] transition-colors"
+                >
+                  {notifPulse && (
+                    <span className="absolute inset-0 rounded-full bg-[#ff7a33]/20 animate-ping" />
+                  )}
+                  <IconBell size={22} stroke={1.5} />
+                  {notifEnabled && notifCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-[10px] font-semibold leading-[16px] text-center text-white">
+                      {notifCount}
+                    </span>
+                  )}
+                </button>
 
-                {!user ? (
-                  <Link
-                    href="/minha-conta"
-                    className="hidden md:inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 h-[42px] text-sm font-medium text-black shadow-sm hover:bg-gray-50"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z" /></svg>
-                    Minha Conta
-                  </Link>
-                ) : (
-                  <div
-                    className="hidden md:inline-flex items-center gap-2 relative"
-                    id="account-menu"
-                    onMouseEnter={() => setAccountOpen(true)}
-                    onMouseLeave={() => setAccountOpen(false)}
-                  >
-                    <button onClick={()=>setAccountOpen(v=>!v)} className="inline-flex items-center justify-center rounded-full bg-white/20 w-[42px] h-[42px] text-sm font-medium text-white shadow-sm hover:bg-white/30">
-                      <span className="relative inline-block h-6 w-6 rounded-full overflow-hidden">
-                        {profileAvatar ? (
-                          <img src={profileAvatar} alt="Avatar" className="h-full w-full object-cover" />
-                        ) : (
-                          <svg viewBox="0 0 24 24" className="h-full w-full text-white" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>
-                        )}
-                      </span>
-                    </button>
-                    {accountOpen && (
-                      <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-gray-200 bg-white shadow-xl z-40">
-                        <div className="py-1 text-sm">
-                          <button className="w-full text-left px-3 py-2 text-black hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','perfil'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meu Perfil</button>
-                          <button className="w-full text-left px-3 py-2 text-black hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','favoritos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meus Favoritos</button>
-                          <button className="w-full text-left px-3 py-2 text-black hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','pedidos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Minhas compras</button>
-                          <JornaleiroAdminLinks onClose={() => setAccountOpen(false)} />
-                          <div className="h-px bg-gray-100 my-1" />
-                          <button className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50" onClick={()=>{ setAccountOpen(false); logout(); }}>Sair</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+                <Link
+                  href="/jornaleiro"
+                  className="inline-flex items-center justify-center text-gray-700 hover:text-[#ff5c00] transition-colors"
+                  aria-label="Área do jornaleiro"
+                >
+                  <IconBuildingStore size={22} stroke={1.8} className="text-current" />
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Badge de geolocalização - Mobile */}
+      {!inDashboard && mounted && (
+        <div className="md:hidden border-t border-gray-100 bg-gray-50">
+          <div className="px-4 py-2">
+            <button
+              onClick={() => setLocOpen(true)}
+              className="w-full flex items-center justify-between gap-2 text-sm text-gray-700 hover:text-[#ff5c00]"
+              title={locationTooltip}
+            >
+              <div className="flex items-center gap-2">
+                <IconMapPin size={18} stroke={1.6} className="text-[#ff5c00]" />
+                <span className="font-medium">
+                  {loc
+                    ? `${locationLineSecondary}${loc.city ? `, ${loc.city}` : ''}`
+                    : 'Informe sua localização'}
+                </span>
+              </div>
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Busca mobile */}
+      {!inDashboard && (
+        <div className="md:hidden border-t border-gray-100">
+          <div className="px-4 py-3">
+            <form onSubmit={onSearch}>
+              <div className="relative">
+                <IconSearch size={20} stroke={1.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  ref={inputRef}
+                  className="w-full rounded-lg border border-gray-300 bg-gray-50 pl-11 pr-4 py-3.5 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00] focus:bg-white"
+                  placeholder="O que você procura hoje?"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  aria-label="Buscar"
+                />
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Main bar: Horizontal Category Menu */}
+      {!inDashboard && (
+        <div className="hidden md:block">
+          <div className="container-max">
+            <nav className="flex items-center gap-1 text-sm overflow-x-auto scrollbar-hide">
+              <Link 
+                href={"/promocoes" as Route} 
+                className="whitespace-nowrap rounded-md px-4 py-1.5 font-medium text-white bg-black hover:bg-black/80 transition-colors"
+              >
+                {mounted ? (
+                  <span className="inline-flex items-center gap-1">
+                    November Black
+                    <span aria-hidden className="text-base leading-none">🔥</span>
+                  </span>
+                ) : (
+                  'Promoções'
+                )}
+              </Link>
+              <Link 
+                href={"/pre-venda" as Route} 
+                className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 hover:text-[#ff5c00] transition-colors"
+              >
+                Pré Venda
+              </Link>
+              <Link 
+                href={"/categorias" as Route} 
+                className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 hover:text-[#ff5c00] transition-colors"
+              >
+                Categorias
+              </Link>
+              <Link 
+                href={"/bancas-perto-de-mim" as Route} 
+                className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 hover:text-[#ff5c00] transition-colors"
+              >
+                Bancas
+              </Link>
+              <Link 
+                href={"/jornaleiro" as Route} 
+                className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 hover:text-[#ff5c00] transition-colors"
+              >
+                Jornaleiro
+              </Link>
+              <button
+                type="button"
+                className="ml-auto inline-flex items-center gap-1 px-2 py-3 text-gray-500 hover:text-gray-700"
+                aria-label="Ver mais categorias"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </nav>
+          </div>
+        </div>
+      )}
+
       {/* Componente de geolocalização automática */}
       <AutoGeolocation onLocationUpdate={handleLocationUpdate} />
     </header>
@@ -932,9 +958,15 @@ useEffect(() => {
               <span>Bancas</span>
             </Link>
             {/* Promoções */}
-            <Link href={"/promocoes" as any} onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-100">
-              <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#ff5c00]" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3-5.5-3-5.5 3 1-6.3L3 8.9 9 8z"/></svg>
-              <span>Promoções</span>
+            <Link href={"/promocoes" as any} onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white bg-black hover:bg-black/80">
+              {mounted ? (
+                <span className="inline-flex items-center gap-2">
+                  <span aria-hidden className="text-lg leading-none">🔥</span>
+                  <span>November Black</span>
+                </span>
+              ) : (
+                <span>Promoções</span>
+              )}
             </Link>
             {/* Pré Venda */}
             <Link href={"/pre-venda" as any} onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-100">
@@ -945,9 +977,11 @@ useEffect(() => {
             <button type="button" onClick={() => setCatsOpen(v=>!v)} className="w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-gray-100">
               <span className="inline-flex items-center gap-2">
                 <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#ff5c00]" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>
-                Categorias
+                <span>Categorias</span>
               </span>
-              <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${catsOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 6l6 6-6 6"/></svg>
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
             </button>
             {catsOpen && (
               <div className="pt-1">

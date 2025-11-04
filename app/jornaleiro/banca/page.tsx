@@ -123,7 +123,7 @@ export default function MinhaBancaPage() {
           id: banca.id,
           name: banca.name || "",
           description: banca.description || "",
-          cover: banca.cover || banca.images?.cover,
+          cover: banca.cover || banca.images?.cover_image || banca.images?.cover,
           avatar: banca.avatar || banca.images?.avatar,
           gallery: Array.isArray(banca.gallery) ? banca.gallery : [],
           featured: Boolean(banca.featured),
@@ -407,8 +407,8 @@ export default function MinhaBancaPage() {
           return {
             ...prev,
             ...json.data,
-            cover: json.data.cover_image || json.data.cover || coverUrl,
-            avatar: json.data.cover_image || json.data.avatar || avatarUrl,
+            cover: json.data.cover || json.data.cover_image || coverUrl,
+            avatar: json.data.avatar || json.data.avatar_image || avatarUrl,
             gallery: json.data.gallery || galleryUrls,
             addressObj: prev.addressObj, // Manter addressObj do frontend
             contact: prev.contact,
