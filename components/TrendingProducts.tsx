@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Route } from "next";
+import { useCart } from "@/components/CartContext";
+import { useToast } from "@/components/ToastProvider";
 
 export type TrendProduct = {
   id: string;
@@ -15,6 +17,57 @@ export type TrendProduct = {
   ratingAvg?: number | null;
   reviewsCount?: number | null;
 };
+
+const CATEGORY_SLUGS = [
+  "figurinhas",
+  "revistas",
+  "quadrinhos",
+  "jornais",
+  "papelaria",
+];
+
+const FALLBACK_PRODUCTS: TrendProduct[] = [
+  {
+    id: "fallback-figurinhas",
+    name: "Pacote Figurinhas Copa 2026 - Kit com 10 unidades",
+    image: "https://images.unsplash.com/photo-1511288590094-2540f81c77d1?q=80&w=1200&auto=format&fit=crop",
+    price: 24.9,
+    priceOriginal: 29.9,
+    discountPercent: 17,
+    ratingAvg: 4.8,
+    reviewsCount: 56,
+  },
+  {
+    id: "fallback-revistas",
+    name: "Revista Veja - Edição Semanal Especial",
+    image: "https://images.unsplash.com/photo-1516979187457-637abb4f9353?q=80&w=1200&auto=format&fit=crop",
+    price: 9.9,
+    priceOriginal: null,
+    discountPercent: null,
+    ratingAvg: 4.6,
+    reviewsCount: 34,
+  },
+  {
+    id: "fallback-quadrinhos",
+    name: "Turma da Mônica - Graphic MSP Edição Limitada",
+    image: "https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=1200&auto=format&fit=crop",
+    price: 32.5,
+    priceOriginal: 39.9,
+    discountPercent: 18,
+    ratingAvg: 4.9,
+    reviewsCount: 89,
+  },
+  {
+    id: "fallback-jornais",
+    name: "Assinatura Jornal Diário Popular - Final de Semana",
+    image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1200&auto=format&fit=crop",
+    price: 12.9,
+    priceOriginal: 15.9,
+    discountPercent: 19,
+    ratingAvg: 4.4,
+    reviewsCount: 21,
+  },
+];
 
 type ApiProduct = {
   id: string;
@@ -44,34 +97,72 @@ function slugify(text: string) {
 }
 
 function TrendCard({ p }: { p: TrendProduct }) {
-  const d = typeof p.discountPercent === 'number' && p.discountPercent > 0
-    ? Math.max(0, Math.min(90, Math.round(p.discountPercent)))
-    : (p.priceOriginal && p.priceOriginal > p.price ? Math.round((1 - p.price / (p.priceOriginal || 1)) * 100) : 0);
+  const { addToCart } = useCart();
+  const { show } = useToast();
+  const [favorite, setFavorite] = useState(false);
+
+  const price = p.price ?? 0;
+  const baseDiscount = typeof p.discountPercent === 'number' ? Math.round(p.discountPercent) : undefined;
+  const inferredDiscount = p.priceOriginal && p.priceOriginal > price ? Math.round((1 - price / p.priceOriginal) * 100) : 0;
+  const discount = typeof baseDiscount === 'number' ? Math.max(0, baseDiscount) : inferredDiscount;
+  const oldPrice = (p.priceOriginal && p.priceOriginal > price)
+    ? p.priceOriginal
+    : (discount > 0 ? price / (1 - discount / 100) : null);
+  const installment = price > 0 ? price / 10 : null;
+
+  const handleAddToCart = (event: React.MouseEvent) => {
+    event.preventDefault();
+    addToCart({ id: p.id, name: p.name, price: p.price, image: p.image }, 1);
+    show(<span>Adicionado ao carrinho.</span>);
+  };
+
   return (
-    <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="group block overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow border border-gray-200">
-      {/* Imagem com padding conforme referência */}
-      <div className="p-2">
-        <div className="relative h-40 w-full rounded-xl overflow-hidden">
-          <Image src={p.image} alt={p.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" className="object-contain bg-gray-50" />
-          {/* Overlay sutil no hover */}
-          <div className="pointer-events-none absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/5 transition" />
-          {d > 0 && (
-            <span className="absolute left-2 top-2 rounded-md bg-[#ff5c00] text-white text-[11px] font-semibold px-2 py-1 shadow">{d}% OFF</span>
-          )}
+    <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="group flex h-full flex-col rounded-[24px] border border-gray-200 bg-white shadow-[0_22px_60px_-32px_rgba(124,58,237,0.45)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_32px_90px_-40px_rgba(124,58,237,0.55)] overflow-hidden">
+      <div className="relative px-5 pt-6 pb-4">
+        {discount > 0 && (
+          <span className="absolute left-5 top-6 z-10 inline-flex items-center rounded-md bg-[#ff5c00] px-2.5 py-1 text-xs font-bold uppercase tracking-tight text-white shadow">
+            -{discount}%
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            setFavorite((prev) => !prev);
+          }}
+          className="absolute right-5 top-6 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#7c3aed]/30 bg-white text-[#7c3aed] shadow-sm transition hover:border-[#7c3aed] hover:bg-[#f6f0ff]"
+          aria-label={favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill={favorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8">
+            <path d="M12 21s-6.3-4.35-9-8.4C-0.6 7.2 2.4 2 6.9 2c2.1 0 3.9 1.2 5.1 3 1.2-1.8 3-3 5.1-3 4.5 0 7.5 5.1 3.9 10.6-2.7 4.05-9 8.4-9 8.4z" />
+          </svg>
+        </button>
+        <div className="relative mx-auto h-44 w-full max-w-[180px]">
+          <div className="absolute inset-0 rounded-[18px] bg-[#f7f5ff]" aria-hidden></div>
+          <Image
+            src={p.image}
+            alt={p.name}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
+            className="object-contain p-4"
+          />
+          <span className="pointer-events-none absolute inset-0" aria-hidden />
         </div>
       </div>
-      <div className="px-3 pb-3 text-center">
-        <div className="mt-0.5 flex flex-col items-center gap-2">
-          <div className="text-[13px] font-semibold leading-snug line-clamp-2 break-words text-center">{p.name}</div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[10px] font-semibold">
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden>
-              <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/>
-            </svg>
-            Pronta Entrega
+
+      <div className="flex flex-1 flex-col px-5 pb-6">
+        {(discount > 0) && (
+          <span className="inline-flex w-max items-center gap-1 rounded-full bg-black px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-white">
+            November Black
+            <span aria-hidden className="text-base leading-none">🔥</span>
           </span>
-        </div>
-        {/* Estrelas e avaliações */}
-        <div className="mt-1 flex items-center justify-center gap-2 text-[#f59e0b]">
+        )}
+
+        <h3 className="mt-3 text-sm font-extrabold uppercase leading-snug text-gray-900">
+          {p.name}
+        </h3>
+
+        <div className="mt-3 flex items-center gap-2 text-[#f59e0b]">
           {(() => {
             const v = Math.max(0, Math.min(5, Number(p.ratingAvg ?? 0)));
             const full = Math.floor(v);
@@ -92,38 +183,45 @@ function TrendCard({ p }: { p: TrendProduct }) {
               </span>
             );
           })()}
-          {(() => {
-            const count = Number(p.reviewsCount ?? 0);
-            return (
-              <span className="text-[11px] text-gray-500">{count} avaliação{count === 1 ? '' : 's'}</span>
-            );
-          })()}
+          <span className="text-[11px] text-gray-500">{Number(p.reviewsCount ?? 0)} avaliação{Number(p.reviewsCount ?? 0) === 1 ? '' : 's'}</span>
         </div>
-        {/* Preço com De: quando promocional */}
-        {typeof p.discountPercent === 'number' && p.discountPercent > 0 ? (
-          <div className="mt-1 text-center">
-            <div className="text-[12px] text-gray-600">
-              De: <span className="text-gray-400 line-through">R$ {((p.price) / (1 - (p.discountPercent || 0) / 100)).toFixed(2)}</span>
-            </div>
-            <div className="flex items-baseline justify-center gap-2">
-              <span className="text-[#ff5c00] font-bold">R$ {p.price.toFixed(2)}</span>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-1 flex items-baseline justify-center gap-2">
-            <span className="text-[#ff5c00] font-bold">R$ {p.price.toFixed(2)}</span>
-            {typeof p.priceOriginal === 'number' && p.priceOriginal > p.price && (
-              <span className="text-gray-400 line-through text-[12px]">R$ {Number(p.priceOriginal).toFixed(2)}</span>
-            )}
-          </div>
-        )}
-        <div className="mt-2 flex flex-col gap-2">
-          <button className="w-full rounded-md bg-[#ff5c00] px-3 py-2 text-[12px] font-semibold text-white hover:opacity-95">
-            Adicionar ao carrinho
+
+        <div className="mt-4 flex flex-col gap-1 text-gray-700">
+          {oldPrice && isFinite(oldPrice) && (
+            <span className="text-xs text-gray-500">
+              R$ <span className="line-through">{oldPrice.toFixed(2)}</span>
+            </span>
+          )}
+          <span className="text-xl font-extrabold text-[#ff5c00]">
+            R$ {price.toFixed(2)}
+          </span>
+          {installment && (
+            <span className="text-xs text-gray-600">10x R$ {Number(installment.toFixed(2)).toFixed(2)} sem juros</span>
+          )}
+        </div>
+
+        <div className="mt-auto flex flex-col gap-1 pt-6">
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            aria-label="Adicionar ao carrinho"
+            className="w-full rounded px-2.5 py-1 text-[11px] font-semibold bg-[#ff5c00] text-white hover:opacity-95"
+          >
+            Adicionar ao Carrinho
           </button>
-          <button className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-[#ff5c00] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#ff5c00] hover:bg-[#fff3ec] whitespace-nowrap">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              const message = encodeURIComponent(`Olá! Tenho interesse em ${p.name}.`);
+              if (typeof window !== "undefined") {
+                window.open(`https://wa.me/?text=${message}`, "_blank", "noopener,noreferrer");
+              }
+            }}
+            className="w-full inline-flex items-center justify-center gap-1.5 rounded border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15 px-2.5 py-1 text-[11px] font-semibold"
+          >
             <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
-            Comprar pelo WhatsApp
+            Comprar
           </button>
         </div>
       </div>
@@ -150,24 +248,52 @@ export default function TrendingProducts() {
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch('/api/products/public?limit=12&sort=created_at&order=desc', { 
-          next: { revalidate: 60 } as any 
-        });
-        let list: ApiProduct[] = [];
-        if (res.ok) {
-          const j = await res.json();
-          list = Array.isArray(j?.data) ? j.data : (Array.isArray(j?.items) ? j.items : []);
+        const [categoriesRes, ...rest] = await Promise.all([
+          fetch('/api/categories', { cache: 'no-store' }),
+        ]);
+
+        let categoryMap: Record<string, string> = {};
+        if (categoriesRes.ok) {
+          const cj = await categoriesRes.json();
+          const catList: Array<{ id: string; link?: string; name?: string }> = Array.isArray(cj?.data) ? cj.data : [];
+          categoryMap = Object.fromEntries(
+            catList.map(cat => {
+              const slugFromLink = cat.link?.split('/').pop() || '';
+              return [slugFromLink || cat.name?.toLowerCase() || '', cat.id];
+            })
+          );
         }
-        const mapped: TrendProduct[] = list.map((p) => ({
-          id: p.id,
-          name: p.name,
-          image: (p.images && p.images[0]) || "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=1200&auto=format&fit=crop",
-          price: Number(p.price || 0),
-          priceOriginal: p.price_original != null ? Number(p.price_original) : null,
-          discountPercent: p.discount_percent != null ? Number(p.discount_percent) : null,
-          ratingAvg: p.rating_avg ?? null,
-          reviewsCount: p.reviews_count ?? null,
-        }));
+
+        const fetchByCategory = async (slug: string) => {
+          const categoryId = categoryMap[slug];
+          if (!categoryId) return [] as ApiProduct[];
+          const r = await fetch(`/api/products/public?category=${encodeURIComponent(categoryId)}&limit=8&sort=created_at&order=desc`, {
+            next: { revalidate: 60 } as any,
+          });
+          if (!r.ok) return [] as ApiProduct[];
+          const j = await r.json();
+          return Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
+        };
+
+        const results = await Promise.all(CATEGORY_SLUGS.map(fetchByCategory));
+        const merged = results.flat();
+        const seen = new Set<string>();
+        const mapped: TrendProduct[] = merged
+          .filter(p => p?.id && !seen.has(p.id) && typeof p.price === 'number')
+          .map((p) => {
+            seen.add(p.id);
+            return {
+              id: p.id,
+              name: p.name,
+              image: (p.images && p.images[0]) || "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=1200&auto=format&fit=crop",
+              price: Number(p.price || 0),
+              priceOriginal: p.price_original != null ? Number(p.price_original) : null,
+              discountPercent: p.discount_percent != null ? Number(p.discount_percent) : null,
+              ratingAvg: p.rating_avg ?? null,
+              reviewsCount: p.reviews_count ?? null,
+            } as TrendProduct;
+          });
+
         if (active) setApiItems(mapped);
       } catch {
         if (active) setApiItems([]);
@@ -178,7 +304,7 @@ export default function TrendingProducts() {
     return () => { active = false; };
   }, []);
 
-  const items = useMemo(() => apiItems, [apiItems]);
+  const items = useMemo(() => (apiItems.length ? apiItems : FALLBACK_PRODUCTS), [apiItems]);
   const track = useMemo(() => [...items, ...items], [items]);
 
   useEffect(() => {

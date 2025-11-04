@@ -7,77 +7,140 @@ import Image from "next/image";
 import type { Route } from "next";
 import ToastProvider from "@/components/admin/ToastProvider";
 import { Hedvig_Letters_Serif } from "next/font/google";
+import {
+  IconLayoutDashboard,
+  IconHome,
+  IconStars,
+  IconSearch,
+  IconPalette,
+  IconLayoutNavbar,
+  IconBorderBottom,
+  IconFolders,
+  IconBuildingStore,
+  IconUsers,
+  IconUser,
+  IconClipboardList,
+  IconBox,
+  IconTags,
+  IconTruck,
+  IconSpeakerphone,
+  IconTicket,
+  IconPhoto,
+  IconLayoutGrid,
+  IconNews,
+  IconGift,
+  IconMail,
+  IconCoins,
+  IconChartLine,
+  IconClipboardCheck,
+  IconSchool,
+  IconSettings,
+  IconBrandWhatsapp,
+} from "@tabler/icons-react";
 
 const hedvig = Hedvig_Letters_Serif({ subsets: ["latin"] });
+
+const iconComponents = {
+  dashboard: IconLayoutDashboard,
+  home: IconHome,
+  sparkles: IconStars,
+  seo: IconSearch,
+  palette: IconPalette,
+  header: IconLayoutNavbar,
+  footer: IconBorderBottom,
+  folders: IconFolders,
+  store: IconBuildingStore,
+  users: IconUsers,
+  user: IconUser,
+  orders: IconClipboardList,
+  box: IconBox,
+  tags: IconTags,
+  truck: IconTruck,
+  megaphone: IconSpeakerphone,
+  ticket: IconTicket,
+  image: IconPhoto,
+  grid: IconLayoutGrid,
+  newspaper: IconNews,
+  gift: IconGift,
+  mail: IconMail,
+  coins: IconCoins,
+  chart: IconChartLine,
+  clipboard: IconClipboardCheck,
+  school: IconSchool,
+  settings: IconSettings,
+  brandWhatsapp: IconBrandWhatsapp,
+} as const;
+
+type IconKey = keyof typeof iconComponents;
 
 const ADMIN_MENU = [
   {
     section: "CMS",
     items: [
-      { label: "Dashboard", href: "/admin/dashboard", icon: "📊" },
-      { label: "Home Page", href: "/admin/cms/home", icon: "🏠" },
-      { label: "Vitrines", href: "/admin/cms/vitrines", icon: "⭐" },
-      { label: "SEO", href: "/admin/cms/seo", icon: "🔍" },
-      { label: "Branding", href: "/admin/cms/branding", icon: "🎨" },
-      { label: "Header", href: "/admin/cms/header", icon: "📱" },
-      { label: "Footer", href: "/admin/cms/footer", icon: "🦶" },
+      { label: "Dashboard", href: "/admin/dashboard", icon: "dashboard" as IconKey },
+      { label: "Home Page", href: "/admin/cms/home", icon: "home" as IconKey },
+      { label: "Vitrines", href: "/admin/cms/vitrines", icon: "sparkles" as IconKey },
+      { label: "SEO", href: "/admin/cms/seo", icon: "seo" as IconKey },
+      { label: "Branding", href: "/admin/cms/branding", icon: "palette" as IconKey },
+      { label: "Header", href: "/admin/cms/header", icon: "header" as IconKey },
+      { label: "Footer", href: "/admin/cms/footer", icon: "footer" as IconKey },
     ]
   },
   {
     section: "Gestão das Bancas",
     items: [
-      { label: "Cadastros", href: "/admin/gestao/bancas/cadastros", icon: "🗂️" },
+      { label: "Cadastros", href: "/admin/gestao/bancas/cadastros", icon: "folders" as IconKey },
     ]
   },
   {
     section: "Negócio",
     items: [
-      { label: "Bancas", href: "/admin/gestao/bancas/cadastros", icon: "🏪" },
-      { label: "Jornaleiros", href: "/admin/jornaleiros", icon: "👥" },
-      { label: "Usuários", href: "/admin/users", icon: "👤" },
-      { label: "Pedidos", href: "/admin/orders", icon: "📋" },
+      { label: "Bancas", href: "/admin/gestao/bancas/cadastros", icon: "store" as IconKey },
+      { label: "Jornaleiros", href: "/admin/jornaleiros", icon: "users" as IconKey },
+      { label: "Usuários", href: "/admin/users", icon: "user" as IconKey },
+      { label: "Pedidos", href: "/admin/orders", icon: "orders" as IconKey },
     ]
   },
   {
     section: "Catálogo",
     items: [
-      { label: "Produtos", href: "/admin/products", icon: "📦" },
-      { label: "Categorias", href: "/admin/cms/categories", icon: "🏷️" },
-      { label: "Distribuidores", href: "/admin/distribuidores", icon: "🚚" },
+      { label: "Produtos", href: "/admin/products", icon: "box" as IconKey },
+      { label: "Categorias", href: "/admin/cms/categories", icon: "tags" as IconKey },
+      { label: "Distribuidores", href: "/admin/distribuidores", icon: "truck" as IconKey },
     ]
   },
   {
     section: "Marketing",
     items: [
-      { label: "Campanhas", href: "/admin/campaigns", icon: "📢" },
-      { label: "Cupons", href: "/admin/coupons", icon: "🎫" },
-      { label: "Banners", href: "/admin/banners", icon: "🖼️" },
-      { label: "Vitrines", href: "/admin/cms/vitrines", icon: "⭐" },
-      { label: "Mini Banners", href: "/admin/cms/mini-banners", icon: "🧩" },
-      { label: "Banner Jornaleiro", href: "/admin/cms/vendor-banner", icon: "📰" },
-      { label: "Banner Indicação", href: "/admin/cms/referral-banner", icon: "🎁" },
-      { label: "Newsletter", href: "/admin/newsletter", icon: "📧" },
+      { label: "Campanhas", href: "/admin/campaigns", icon: "megaphone" as IconKey },
+      { label: "Cupons", href: "/admin/coupons", icon: "ticket" as IconKey },
+      { label: "Banners", href: "/admin/banners", icon: "image" as IconKey },
+      { label: "Vitrines", href: "/admin/cms/vitrines", icon: "store" as IconKey },
+      { label: "Mini Banners", href: "/admin/cms/mini-banners", icon: "grid" as IconKey },
+      { label: "Banner Jornaleiro", href: "/admin/cms/vendor-banner", icon: "newspaper" as IconKey },
+      { label: "Banner Indicação", href: "/admin/cms/referral-banner", icon: "gift" as IconKey },
+      { label: "Newsletter", href: "/admin/newsletter", icon: "mail" as IconKey },
     ]
   },
   {
     section: "Relatórios",
     items: [
-      { label: "Financeiro", href: "/admin/financial", icon: "💰" },
-      { label: "Analytics", href: "/admin/analytics", icon: "📈" },
-      { label: "Auditoria", href: "/admin/audit", icon: "🧾" },
+      { label: "Financeiro", href: "/admin/financial", icon: "coins" as IconKey },
+      { label: "Analytics", href: "/admin/analytics", icon: "chart" as IconKey },
+      { label: "Auditoria", href: "/admin/audit", icon: "clipboard" as IconKey },
     ]
   },
   {
     section: "Conteúdo",
     items: [
-      { label: "Academy", href: "/admin/academy", icon: "🎓" },
+      { label: "Academy", href: "/admin/academy", icon: "school" as IconKey },
     ]
   },
   {
     section: "Configurações",
     items: [
-      { label: "Plataforma", href: "/admin/settings", icon: "⚙️" },
-      { label: "WhatsApp", href: "/admin/configuracoes/whatsapp", icon: "📱" },
+      { label: "Plataforma", href: "/admin/settings", icon: "settings" as IconKey },
+      { label: "WhatsApp", href: "/admin/configuracoes/whatsapp", icon: "brandWhatsapp" as IconKey },
     ]
   }
 ];
@@ -249,21 +312,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     {section.section}
                   </h3>
                   <div className="space-y-1">
-                    {section.items.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href as Route}
-                        onClick={() => setSidebarOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                          pathname === item.href
-                            ? 'bg-[#fff7f2] text-[#ff5c00] border-r-2 border-[#ff5c00]'
-                            : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                        }`}
-                      >
-                        <span className="text-lg">{item.icon}</span>
-                        {item.label}
-                      </Link>
-                    ))}
+                    {section.items.map((item) => {
+                      const IconComponent = iconComponents[item.icon];
+                      const isActive = pathname === item.href;
+
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href as Route}
+                          onClick={() => setSidebarOpen(false)}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            isActive
+                              ? 'bg-[#fff7f2] text-[#ff5c00] border-r-2 border-[#ff5c00]'
+                              : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                          }`}
+                        >
+                          <IconComponent size={20} stroke={1.7} />
+                          {item.label}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
               ))}

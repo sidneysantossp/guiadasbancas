@@ -32,6 +32,12 @@ export default function DataTable<T>({ columns, data, getId, onSelectRows, selec
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(initialPageSize);
 
+  React.useEffect(() => {
+    if (!selectable) return;
+    setSelected([]);
+    onSelectRows?.([]);
+  }, [data, selectable, onSelectRows]);
+
   const toggleAll = () => {
     if (!selectable) return;
     if (selected.length === data.length) {

@@ -11,21 +11,52 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Hedvig_Letters_Serif } from "next/font/google";
 import { supabase } from "@/lib/supabase";
+import {
+  IconLayoutDashboard,
+  IconBuilding,
+  IconClipboardList,
+  IconPackage,
+  IconFolderOpen,
+  IconMessageDots,
+  IconUsers,
+  IconTicket,
+  IconChartBar,
+  IconSchool,
+  IconSettings,
+  IconHome,
+} from "@tabler/icons-react";
 
 const hedvig = Hedvig_Letters_Serif({ subsets: ["latin"] });
 
-const JOURNALEIRO_MENU: { label: string; href: Route; icon: string; iconStyle?: string; disabled?: boolean }[] = [
-  { label: "Dashboard", href: "/jornaleiro/dashboard" as Route, icon: "house", iconStyle: "solid" },
-  { label: "Minha Banca", href: "/jornaleiro/banca" as Route, icon: "building", iconStyle: "regular" },
-  { label: "Pedidos", href: "/jornaleiro/pedidos" as Route, icon: "clipboard", iconStyle: "regular" },
-  { label: "Produtos", href: "/jornaleiro/produtos" as Route, icon: "clone", iconStyle: "regular" },
-  { label: "Catálogo Distribuidor", href: "/jornaleiro/catalogo-distribuidor" as Route, icon: "folder-open", iconStyle: "regular" },
-  { label: "Campanhas", href: "/jornaleiro/campanhas" as Route, icon: "comment-dots", iconStyle: "regular" },
-  { label: "Distribuidores", href: "/jornaleiro/distribuidores" as Route, icon: "address-card", iconStyle: "regular" },
-  { label: "Cupons", href: "/jornaleiro/coupons" as Route, icon: "id-card", iconStyle: "regular" },
-  { label: "Relatórios", href: "/jornaleiro/relatorios" as Route, icon: "chart-bar", iconStyle: "regular" },
-  { label: "Academy", href: "/jornaleiro/academy" as Route, icon: "graduation-cap", iconStyle: "solid" },
-  { label: "Configurações", href: "/jornaleiro/configuracoes" as Route, icon: "circle-dot", iconStyle: "regular" },
+const journaleiroIconComponents = {
+  dashboard: IconLayoutDashboard,
+  home: IconHome,
+  banca: IconBuilding,
+  orders: IconClipboardList,
+  products: IconPackage,
+  catalog: IconFolderOpen,
+  campaigns: IconMessageDots,
+  distributors: IconUsers,
+  coupons: IconTicket,
+  reports: IconChartBar,
+  academy: IconSchool,
+  settings: IconSettings,
+} as const;
+
+type JournaleiroIconKey = keyof typeof journaleiroIconComponents;
+
+const JOURNALEIRO_MENU: { label: string; href: Route; icon: JournaleiroIconKey; disabled?: boolean }[] = [
+  { label: "Dashboard", href: "/jornaleiro/dashboard" as Route, icon: "dashboard" },
+  { label: "Minha Banca", href: "/jornaleiro/banca" as Route, icon: "banca" },
+  { label: "Pedidos", href: "/jornaleiro/pedidos" as Route, icon: "orders" },
+  { label: "Produtos", href: "/jornaleiro/produtos" as Route, icon: "products" },
+  { label: "Catálogo Distribuidor", href: "/jornaleiro/catalogo-distribuidor" as Route, icon: "catalog" },
+  { label: "Campanhas", href: "/jornaleiro/campanhas" as Route, icon: "campaigns" },
+  { label: "Distribuidores", href: "/jornaleiro/distribuidores" as Route, icon: "distributors" },
+  { label: "Cupons", href: "/jornaleiro/coupons" as Route, icon: "coupons" },
+  { label: "Relatórios", href: "/jornaleiro/relatorios" as Route, icon: "reports" },
+  { label: "Academy", href: "/jornaleiro/academy" as Route, icon: "academy" },
+  { label: "Configurações", href: "/jornaleiro/configuracoes" as Route, icon: "settings" },
 ];
 
 interface SellerSession {
@@ -47,6 +78,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   const [loading, setLoading] = useState(true);
   const [banca, setBanca] = useState<any>(null);
   const [bancaValidated, setBancaValidated] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
@@ -66,11 +98,43 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   );
 
   const logout = async () => {
+    // Limpar cache da banca antes de fazer logout
+    if (user?.id) {
+      sessionStorage.removeItem(`gb:banca:${user.id}`);
+    }
+    // Limpar também cache genérico de branding
+    sessionStorage.removeItem('gb:branding');
     await signOut();
   };
 
   const sellerName = profile?.full_name || "Vendedor";
   const sellerEmail = (user as any)?.email || "vendedor@example.com";
+
+  // Mounted state para evitar hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Limpar cache de bancas antigas quando user.id muda
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    // Limpar todos os caches de banca exceto o atual
+    const currentCacheKey = `gb:banca:${user.id}`;
+    const keysToRemove: string[] = [];
+    
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith('gb:banca:') && key !== currentCacheKey) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    keysToRemove.forEach(key => {
+      console.log('[Cache] Removendo cache antigo:', key);
+      sessionStorage.removeItem(key);
+    });
+  }, [user?.id]);
 
   // VALIDAÇÃO DE SEGURANÇA: Verificar se usuário tem banca (com cache)
   useEffect(() => {
@@ -88,6 +152,8 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
       // Usuário não autenticado
       if (!user) {
+        // Limpar cache quando não há usuário
+        sessionStorage.clear();
         if (pathname !== '/jornaleiro') {
           router.push('/jornaleiro');
         }
@@ -98,6 +164,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
       // Verificar role
       if (profile && profile.role !== 'jornaleiro') {
         console.error('[Security] Usuário não é jornaleiro');
+        sessionStorage.clear();
         await signOut();
         router.push('/jornaleiro');
         setBancaValidated(true);
@@ -105,31 +172,50 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
       }
 
       // Cache da banca em sessionStorage para evitar múltiplas chamadas
-      const cachedBanca = sessionStorage.getItem(`gb:banca:${user.id}`);
+      // IMPORTANTE: Usar chave específica do usuário para evitar conflito
+      const cacheKey = `gb:banca:${user.id}`;
+      const cachedBanca = sessionStorage.getItem(cacheKey);
       if (cachedBanca) {
         try {
           const bancaData = JSON.parse(cachedBanca);
-          setBanca(bancaData);
-          setBancaValidated(true);
-          return;
+          // Validar se o cache é mesmo deste usuário
+          if (bancaData.user_id === user.id) {
+            console.log('[Cache] Usando banca do cache para user:', user.id);
+            setBanca(bancaData);
+            setBancaValidated(true);
+            return;
+          } else {
+            // Cache inválido, remover
+            console.warn('[Cache] Cache inválido detectado, limpando...');
+            sessionStorage.removeItem(cacheKey);
+          }
         } catch {}
       }
 
       // Verificar se tem banca (apenas se não tiver cache)
       try {
+        console.log('[Banca] Buscando banca para user_id:', user.id);
         const { data: bancaData, error } = await supabase
           .from('bancas')
-          .select('id, slug, name, user_id, email, profile_image')
+          .select('id, slug, name, user_id, email, profile_image, uf')
           .eq('user_id', user.id)
           .single();
 
         if (error || !bancaData) {
-          console.warn('[Security] Usuário sem banca associada.');
+          console.warn('[Security] Usuário sem banca associada.', error?.message);
           setBanca(null);
           setBancaValidated(true);
           // Não faz redirect aqui - deixa a validação na renderização decidir
           return;
         }
+
+        console.log('[Banca] Banca encontrada:', {
+          id: bancaData.id,
+          name: bancaData.name,
+          user_id: bancaData.user_id,
+          slug: bancaData.slug,
+          uf: bancaData.uf
+        });
 
         // Salvar no cache
         sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(bancaData));
@@ -297,47 +383,74 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
               <NotificationCenter />
               
               {/* Voltar ao Site */}
-              <Link
-                href={banca?.slug ? `/banca/${banca.slug}` : `/banca/${banca?.id || '#'}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                  banca?.slug || banca?.id 
-                    ? 'text-gray-600 hover:text-[#ff5c00] hover:bg-orange-50 cursor-pointer' 
-                    : 'text-gray-400 cursor-not-allowed'
-                }`}
-                title={banca?.slug || banca?.id ? "Ver minha banca no site" : "Carregando..."}
-                onClick={(e) => {
-                  if (!banca?.slug && !banca?.id) {
-                    e.preventDefault();
-                  }
-                }}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-1M14 6h4a2 2 0 012 2v4M7 14l3-3 3 3M14 10l3-3 3 3" />
-                </svg>
-                <span className="hidden sm:inline">Ver Banca</span>
-              </Link>
+              {mounted && banca?.id && (
+                <Link
+                  href={(() => {
+                    if (banca.slug && banca.uf) {
+                      return `/banca/${banca.uf.toLowerCase()}/${banca.slug}`;
+                    }
+                    if (banca.slug) {
+                      return `/banca/${banca.slug}`;
+                    }
+                    return `/bancas/${banca.id}`;
+                  })()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors text-gray-600 hover:text-[#ff5c00] hover:bg-orange-50"
+                  title="Ver minha banca no site"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-1M14 6h4a2 2 0 012 2v4M7 14l3-3 3 3M14 10l3-3 3 3" />
+                  </svg>
+                  <span className="hidden sm:inline">Ver Banca</span>
+                </Link>
+              )}
               
-              <div className="flex items-center gap-2">
-                {banca?.profile_image ? (
-                  <Image
-                    src={banca.profile_image}
-                    alt={banca.name || sellerName}
-                    width={32}
-                    height={32}
-                    className="h-8 w-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-[#ff5c00] text-white grid place-items-center text-sm font-semibold">
-                    {banca?.name?.charAt(0)?.toUpperCase() || sellerName?.charAt(0)?.toUpperCase() || "B"}
+              {mounted && banca?.id ? (
+                <Link
+                  href={(() => {
+                    if (banca.slug && banca.uf) {
+                      return `/banca/${banca.uf.toLowerCase()}/${banca.slug}`;
+                    }
+                    if (banca.slug) {
+                      return `/banca/${banca.slug}`;
+                    }
+                    return `/bancas/${banca.id}`;
+                  })()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                  title="Ver perfil da banca no site"
+                >
+                  {banca?.profile_image ? (
+                    <Image
+                      src={banca.profile_image}
+                      alt={banca.name || sellerName}
+                      width={32}
+                      height={32}
+                      className="h-8 w-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-[#ff5c00] text-white grid place-items-center text-sm font-semibold">
+                      {banca?.name ? banca.name.charAt(0).toUpperCase() : sellerName?.charAt(0)?.toUpperCase() || "B"}
+                    </div>
+                  )}
+                  <div className="hidden sm:block">
+                    <div className="text-sm font-medium">{banca?.name || sellerName}</div>
+                    <div className="text-xs text-gray-500">{banca?.email || sellerEmail}</div>
                   </div>
-                )}
-                <div className="hidden sm:block">
-                  <div className="text-sm font-medium">{banca?.name || sellerName}</div>
-                  <div className="text-xs text-gray-500">{banca?.email || sellerEmail}</div>
+                </Link>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-[#ff5c00] text-white grid place-items-center text-sm font-semibold">
+                    {sellerName?.charAt(0)?.toUpperCase() || "B"}
+                  </div>
+                  <div className="hidden sm:block">
+                    <div className="text-sm font-medium">{sellerName}</div>
+                    <div className="text-xs text-gray-500">{sellerEmail}</div>
+                  </div>
                 </div>
-              </div>
+              )}
               <button
                 onClick={logout}
                 className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
@@ -359,6 +472,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           >
             <nav className="p-4 space-y-4">
               {JOURNALEIRO_MENU.map((item) => {
+                const IconComponent = journaleiroIconComponents[item.icon];
                 const isActive = pathname === item.href;
                 const classes = item.disabled
                   ? "flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-400 bg-gray-100 cursor-not-allowed"
@@ -368,44 +482,26 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
                         : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                     }`;
 
-                // SVG customizado para home (outline)
-                const HomeIcon = () => (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                  </svg>
-                );
+                const icon = <IconComponent size={20} stroke={1.7} />;
 
-                // SVG customizado para Academy
-                const AcademyIcon = () => (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
-                  </svg>
-                );
+                if (item.disabled) {
+                  return (
+                    <span key={item.href} className={classes}>
+                      {icon}
+                      {item.label}
+                      <span className="ml-auto text-xs text-gray-400">Em breve</span>
+                    </span>
+                  );
+                }
 
-                const iconClass = `fa-${item.iconStyle || 'solid'} fa-${item.icon} w-5`;
-                
-                const renderIcon = () => {
-                  if (item.icon === 'house') return <HomeIcon />;
-                  if (item.icon === 'graduation-cap') return <AcademyIcon />;
-                  return <i className={iconClass}></i>;
-                };
-                
-                return item.disabled ? (
-                  <span key={item.href} className={classes}>
-                    {renderIcon()}
-                    {item.label}
-                    <span className="ml-auto text-xs text-gray-400">Em breve</span>
-                  </span>
-                ) : (
+                return (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => setSidebarOpen(false)}
                     className={classes}
                   >
-                    {renderIcon()}
+                    {icon}
                     {item.label}
                   </Link>
                 );

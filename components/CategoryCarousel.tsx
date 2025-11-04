@@ -10,14 +10,13 @@ function useItemsPerView(length: number) {
   useEffect(() => {
     const onResize = () => setW(window.innerWidth);
     window.addEventListener("resize", onResize);
+    onResize();
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  // mobile
-  if (w < 640) return 2;
-  // tablet
-  if (w < 1024) return 4;
-  // desktop: exatamente 8 itens conforme solicitado (mínimo 8)
-  return Math.min(8, Math.max(1, length));
+  const isMobile = w < 640;
+  if (isMobile) return { perView: 2, isMobile: true };
+  if (w < 1024) return { perView: 4, isMobile: false };
+  return { perView: Math.min(8, Math.max(1, length)), isMobile: false };
 }
 
 export default function CategoryCarousel() {
@@ -30,11 +29,13 @@ export default function CategoryCarousel() {
     const byId = c.key === 'aaaaaaaa-0000-0000-0000-000000000001' || c.key === 'bbbbbbbb-0000-0000-0000-000000000001';
     return !(byName || byLink || byId);
   });
-  const perView = useItemsPerView(filtered.length);
+  const { perView, isMobile } = useItemsPerView(filtered.length);
   const [index, setIndex] = useState(0); // índice do primeiro item no trilho
   const [animating, setAnimating] = useState(true);
   const hasEnough = filtered.length > perView;
   const maxIndex = Math.max(0, filtered.length - perView);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / perView));
+  const showControls = filtered.length > 0;
 
   // Trilho com itens duplicados para loop suave
   const trackItems = useMemo(() => filtered, [filtered]);
@@ -52,8 +53,25 @@ export default function CategoryCarousel() {
     return () => clearInterval(id);
   }, [hasEnough, maxIndex]);
 
-  const prev = () => setIndex((i) => Math.max(0, i - 1));
-  const next = () => setIndex((i) => Math.min(maxIndex, i + 1));
+  useEffect(() => {
+    setIndex(0);
+  }, [perView, filtered.length]);
+
+  const prev = () => setIndex((i) => {
+    const next = Math.max(0, i - perView);
+    setAnimating(true);
+    return next;
+  });
+  const next = () => setIndex((i) => {
+    const nextIndex = Math.min(maxIndex, i + perView);
+    setAnimating(true);
+    return nextIndex;
+  });
+  const goToPage = (page: number) => {
+    const clamped = Math.max(0, Math.min(pageCount - 1, page));
+    setIndex(clamped * perView);
+    setAnimating(true);
+  };
 
   return (
     <section id="buy-by-category" className="w-full">
@@ -93,6 +111,46 @@ export default function CategoryCarousel() {
                 ))}
             </div>
           </div>
+            {showControls && (
+              <div className="mt-4 flex items-center justify-center gap-3 sm:hidden">
+                <button
+                  type="button"
+                  onClick={prev}
+                  className="h-9 w-9 rounded-full border border-[#5c4ad8]/30 text-[#5c4ad8] transition hover:bg-[#5c4ad8]/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={!hasEnough || index === 0}
+                  aria-label="Categorias anteriores"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                </button>
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: pageCount }).map((_, page) => {
+                    const isActive = Math.floor(index / perView) === page;
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => goToPage(page)}
+                        className={`h-2.5 rounded-full transition ${isActive ? "w-6 bg-[#5c4ad8]" : "w-2.5 bg-gray-300 hover:bg-gray-400"}`}
+                        aria-label={`Ir para página ${page + 1}`}
+                      />
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={next}
+                  className="h-9 w-9 rounded-full border border-[#5c4ad8]/30 text-[#5c4ad8] transition hover:bg-[#5c4ad8]/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={!hasEnough || index >= maxIndex}
+                  aria-label="Próximas categorias"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
+              </div>
+            )}
         </div>
         </div>
       </div>

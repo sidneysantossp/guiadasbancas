@@ -2,11 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import type { Route } from "next";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { LoginRequiredModal } from "./LoginRequiredModal";
 
 // Mock de itens mais bem avaliados
 type TopItem = {
@@ -83,6 +82,30 @@ function DiscountBadge({ text }: { text?: string }) {
   if (!text) return null;
   return (
     <span className="absolute left-2 top-2 rounded-md bg-[#1e73ff] text-white text-[11px] font-semibold px-2 py-1 shadow">{text}</span>
+  );
+}
+
+function Stars({ value, count }: { value?: number; count?: number }) {
+  const v = Math.max(0, Math.min(5, Number(value ?? 0)));
+  const full = Math.floor(v);
+  const half = v - full >= 0.5;
+  return (
+    <span className="inline-flex items-center gap-[2px] text-[#f59e0b]">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <svg key={i} viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden>
+          {i < full ? (
+            <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.786 1.402 8.164L12 18.896 4.664 23.16l1.402-8.164L.132 9.21l8.2-1.192L12 .587z" />
+          ) : i === full && half ? (
+            <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.786 1.402 8.164L12 18.896V.587z" />
+          ) : (
+            <path d="M22 9.21l-8.2-1.192L12 .587 10.2 8.018 2 9.21l5.934 5.786L6.532 23.16 12 18.896l5.468 4.264-1.402-8.164L22 9.21z" fillOpacity="0.25" />
+          )}
+        </svg>
+      ))}
+      {typeof count === "number" && (
+        <span className="ml-1 text-[11px] text-gray-500">{count} avaliação{count === 1 ? "" : "s"}</span>
+      )}
+    </span>
   );
 }
 
@@ -312,79 +335,92 @@ export default function TopReviewed() {
 }
 
 function EnhancedCard({ p }: { p: TopItem }) {
-  const [fav, setFav] = useState(false);
   const { addToCart } = useCart();
   const { show } = useToast();
-  const { user } = useAuth();
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  // Badge de pronta entrega com raio
-  const ReadyBadge = () => (
-    <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[10px] font-semibold">
-      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden>
-        <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/>
-      </svg>
-      Pronta Entrega
-    </span>
-  );
+  const outOfStock = p.available === false;
+  const productHref = (`/produto/${p.id}` as Route);
+
+  const hasDiscount = typeof p.oldPrice === "number" && p.oldPrice > p.price;
 
   return (
-    <div className="block rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      {/* Imagem com padding + overlay de ações */}
-      <div className="p-2">
-        <div className="relative h-48 md:h-72 w-full rounded-xl overflow-hidden">
-          <Image src={p.image} alt={p.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
-          <DiscountBadge text={p.discountLabel} />
-          {!p.available && (
-            <div className="absolute inset-0 bg-black/55 grid place-items-center">
-              <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-semibold text-gray-800">Not Available Now</span>
-            </div>
-          )}
-          {/* Overlay ações */}
-          <div className="absolute right-2 top-2 flex items-center gap-2">
-            {/* Visualizar */}
-            <Link href={("/produto/" + p.id) as any} className="backdrop-blur bg-white/60 hover:bg-white/80 h-8 w-8 rounded-md grid place-items-center shadow transition" aria-label="Visualizar">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 115-5 5 5 0 01-5 5zm0-8a3 3 0 103 3 3 3 0 00-3-3z"/></svg>
-            </Link>
-            {/* Favoritar */}
-            <button onClick={() => setFav((v)=>!v)} aria-pressed={fav} aria-label="Favoritar" className={`backdrop-blur h-8 w-8 rounded-md grid place-items-center shadow transition ${fav ? "bg-rose-500/90 text-white" : "bg-white/60 hover:bg-white/80 text-gray-700"}`}>
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M12 21s-6.7-4.4-9.2-7.7A5.6 5.6 0 0112 6.3a5.6 5.6 0 019.2 7C18.7 16.6 12 21 12 21z"/></svg>
-            </button>
-            {/* Adicionar ao carrinho */}
-            <button onClick={() => { addToCart({ id: p.id, name: p.title, price: p.price, image: p.image }, 1); show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as any)} className="underline font-semibold">Ver carrinho</Link></span>); }} aria-label="Adicionar ao carrinho" className="backdrop-blur bg-white/60 hover:bg-white/80 h-8 w-8 rounded-md grid place-items-center shadow transition">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M7 4h-2l-1 2h2l3.6 7.6-1.35 2.45A1 1 0 0010.1 18h8.4v-2h-7.3l.9-1.6h5.8a1 1 0 00.9-.6L22 7H6.2zM7 20a2 2 0 102-2 2 2 0 00-2 2zm8 0a2 2 0 102-2 2 2 0 00-2 2z"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-3 pb-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <div className="text-[13px] font-semibold leading-tight line-clamp-1">{p.title}</div>
-            <div className="text-[12px] text-gray-600 line-clamp-1">{p.vendor}</div>
-            {p.description && (
-              <div className="text-[12px] text-gray-500 line-clamp-1">{p.description}</div>
+    <div className="h-full rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">
+      <div className="relative w-full group h-48 sm:h-56">
+        <div className="absolute inset-0 p-2">
+          <div className="relative h-full w-full rounded-[14px] overflow-hidden">
+            <Image src={p.image} alt={p.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-contain bg-gray-50" />
+            <Link href={productHref} aria-label={`Ver detalhes de ${p.title}`} className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5c00]" />
+            <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/5 transition" />
+            <DiscountBadge text={p.discountLabel} />
+            {outOfStock && (
+              <span className="absolute right-2 top-2 z-10 inline-flex items-center rounded-md bg-rose-600 text-white px-2 py-[2px] text-[11px] font-semibold shadow">
+                Esgotado
+              </span>
             )}
           </div>
-          <ReadyBadge />
         </div>
-        <div className="mt-1 flex items-center gap-2">
-          <RatingPill rating={p.rating} reviews={p.reviews} />
-          <span className="text-[11px] text-gray-500">{(p.reviews ?? 1) * 25}+ avaliações</span>
-        </div>
-        <div className="mt-2 flex items-baseline gap-2">
-          <span className="text-[#ff5c00] font-extrabold">R$ {p.price.toFixed(2)}</span>
-          {typeof p.oldPrice === "number" && (
-            <span className="text-gray-400 line-through text-[12px]">R$ {p.oldPrice.toFixed(2)}</span>
+        <button
+          onClick={() => {
+            if (!outOfStock) {
+              addToCart({ id: p.id, name: p.title, price: p.price, image: p.image }, 1);
+              show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>);
+            }
+          }}
+          aria-label="Adicionar ao carrinho"
+          disabled={outOfStock}
+          className={`absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border ${outOfStock ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed' : 'border-gray-200 bg-white shadow hover:bg-gray-50'}`}
+        >
+          <Image src="https://cdn-icons-png.flaticon.com/128/4982/4982841.png" alt="Carrinho" width={20} height={20} className={`h-5 w-5 object-contain ${outOfStock ? 'opacity-60' : ''}`} />
+        </button>
+      </div>
+      <div className="p-2.5 flex flex-col flex-1">
+        <div className="flex flex-wrap gap-1">
+          {outOfStock ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 px-2 py-[2px] text-[10px] font-semibold">
+              Indisponível
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold">
+              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+              Pronta Entrega
+            </span>
           )}
         </div>
-        {/* Botões */}
-        <div className="mt-2 flex flex-col gap-2">
-          <button className="w-full rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-3 py-2 text-xs font-semibold text-white shadow hover:opacity-95" onClick={() => { addToCart({ id: p.id, name: p.title, price: p.price, image: p.image }, 1); show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as any)} className="underline font-semibold">Ver carrinho</Link></span>); }}>Adicionar ao carrinho</button>
-          <button className="w-full inline-flex items-center justify-center gap-1.5 rounded-md border border-[#ff5c00] bg-white px-3 py-0.5 text-xs font-semibold text-[#ff5c00] leading-tight hover:bg-[#fff3ec]">
-            <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
-            Comprar pelo WhatsApp
-          </button>
+        <Link href={productHref} className="mt-2 text-[13px] font-semibold hover:underline line-clamp-2">{p.title}</Link>
+        <div className="text-[12px] text-gray-600 line-clamp-1">{p.vendor}</div>
+        <div className="mt-1 flex items-center gap-2">
+          <Stars value={p.rating} count={p.reviews} />
+        </div>
+        <div className="mt-auto pt-2 flex flex-col gap-2">
+          <div className="flex flex-col gap-0.5">
+            {hasDiscount ? (
+              <>
+                <div className="text-[12px] text-gray-600">
+                  De: <span className="text-gray-400 line-through">R$ {p.oldPrice?.toFixed(2)}</span>
+                </div>
+                <div className="text-[18px] text-[#ff5c00] font-extrabold">Por: R$ {p.price.toFixed(2)}</div>
+              </>
+            ) : (
+              <div className="text-[18px] text-[#ff5c00] font-extrabold">R$ {p.price.toFixed(2)}</div>
+            )}
+          </div>
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={() => {
+                if (!outOfStock) {
+                  addToCart({ id: p.id, name: p.title, price: p.price, image: p.image }, 1);
+                  show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>);
+                }
+              }}
+              disabled={outOfStock}
+              className={`w-full rounded px-2.5 py-1 text-[11px] font-semibold ${outOfStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#ff5c00] text-white hover:opacity-95'}`}
+            >
+              {outOfStock ? 'Esgotado' : 'Adicionar ao Carrinho'}
+            </button>
+            <button className="w-full inline-flex items-center justify-center gap-1.5 rounded border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15 px-2.5 py-1 text-[11px] font-semibold">
+              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
+              Comprar
+            </button>
+          </div>
         </div>
       </div>
     </div>

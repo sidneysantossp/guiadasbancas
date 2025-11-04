@@ -281,7 +281,7 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
 
   const slide = slides[index];
   // Garantir que não usamos altura mobile muito baixa vinda do CMS (ex.: 360px)
-  const mobileHeight = Math.max(config.heightMobile ?? 0, 500);
+  const mobileHeight = Math.max(config.heightMobile ?? 0, 380);
   const onTouchEnd = (e: React.TouchEvent) => {
     const state = touchRef.current;
     touchRef.current = null;
@@ -303,9 +303,9 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
   const showCta2 = Boolean(slide?.cta2Text?.trim() && slide?.cta2Link?.trim());
 
   return (
-    <section className="relative w-full z-0 mb-3 pt-1 pb-1 sm:mb-6 sm:pt-0 sm:pb-4 px-3 sm:px-0 mt-[50px] sm:mt-0">
+    <section className="relative w-full z-0 mb-3 pt-1 pb-1 sm:mb-6 sm:pt-0 sm:pb-4 px-0 sm:px-0 mt-[50px] sm:mt-0">
       <div 
-        className="relative w-full overflow-hidden fb-h rounded-2xl sm:rounded-none"
+        className="relative w-full overflow-hidden fb-h"
         style={{ height: `${mobileHeight}px` }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -331,7 +331,7 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
             alt={slide.imageAlt}
             fill
             priority
-            className="object-cover rounded-2xl"
+            className="object-cover"
             sizes="100vw"
           />
           {/* Gradient overlay */}
@@ -344,7 +344,7 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
           <div className="absolute inset-0 bg-black/20 pointer-events-none" />
 
           {/* Content */}
-          <div className="relative z-20 h-full w-full px-0 pt-12 pb-12 sm:pt-16 sm:pb-16">
+          <div className="relative z-20 h-full w-full px-0 pt-8 pb-10 sm:pt-16 sm:pb-16">
             <div className="flex h-full w-full items-center">
               <div className="w-full text-white">
                 <div className="container-max px-4 sm:px-6 md:px-10">

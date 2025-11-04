@@ -10,6 +10,13 @@ type AdminCategory = {
   active: boolean;
   visible: boolean;
   order: number;
+  jornaleiro_status?: 'all' | 'specific' | 'inactive';
+  jornaleiro_bancas?: string[];
+};
+
+type AdminBancaOption = {
+  id: string;
+  name: string;
 };
 
 export default function AdminCategoriesPage() {
@@ -19,6 +26,13 @@ export default function AdminCategoriesPage() {
   const [editing, setEditing] = useState<AdminCategory | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [message, setMessage] = useState<{type:'success'|'error'; text:string}|null>(null);
+  const [bancas, setBancas] = useState<AdminBancaOption[]>([]);
+
+  const statusLabels: Record<'all'|'specific'|'inactive', string> = {
+    all: 'Ativa para jornaleiros',
+    specific: 'Ativa para jornaleiros específicos',
+    inactive: 'Inativa para jornaleiros',
+  };
 
   const fetchAll = async () => {
     setLoading(true);
@@ -51,6 +65,24 @@ export default function AdminCategoriesPage() {
   useEffect(() => {
     console.log('[useEffect items] Estado atualizado:', items.map(c => ({ name: c.name, visible: c.visible })));
   }, [items]);
+
+  useEffect(() => {
+    const fetchBancas = async () => {
+      try {
+        const res = await fetch('/api/admin/bancas?all=true', {
+          headers: { 'Authorization': 'Bearer admin-token', 'Cache-Control': 'no-cache' },
+          cache: 'no-store'
+        });
+        const j = await res.json();
+        if (j?.success && Array.isArray(j.data)) {
+          setBancas(j.data.map((b: any) => ({ id: b.id, name: b.name || 'Sem nome' })));
+        }
+      } catch (err) {
+        console.error('Erro ao carregar bancas:', err);
+      }
+    };
+    fetchBancas();
+  }, []);
 
   const onCreate = () => { setEditing(null); setShowForm(true); };
   const onEdit = (c: AdminCategory) => { setEditing(c); setShowForm(true); };
@@ -203,6 +235,17 @@ export default function AdminCategoriesPage() {
                         >
                           {c.visible? '👁️ Visível' : '🚫 Oculta'}
                         </span>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                            (c.jornaleiro_status ?? 'all') === 'inactive'
+                              ? 'bg-red-100 text-red-700'
+                              : (c.jornaleiro_status ?? 'all') === 'specific'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-emerald-100 text-emerald-700'
+                          }`}
+                        >
+                          {statusLabels[(c.jornaleiro_status ?? 'all') as 'all'|'specific'|'inactive']}
+                        </span>
                         <span className="text-xs text-gray-500">Ordem: {c.order}</span>
                       </div>
                     </div>
@@ -243,13 +286,14 @@ export default function AdminCategoriesPage() {
           onCancel={()=>{ setShowForm(false); setEditing(null); }}
           onSubmit={onSubmit}
           saving={saving}
+          bancas={bancas}
         />
       )}
     </div>
   );
 }
 
-function CategoryForm({ item, onSubmit, onCancel, saving }: { item: AdminCategory | null; onSubmit: (data: Omit<AdminCategory,'id'|'order'> & { id?: string }) => void; onCancel: () => void; saving: boolean; }) {
+function CategoryForm({ item, onSubmit, onCancel, saving, bancas }: { item: AdminCategory | null; onSubmit: (data: Omit<AdminCategory,'id'|'order'> & { id?: string; jornaleiroStatus: 'all'|'specific'|'inactive'; jornaleiroBancas: string[] }) => void; onCancel: () => void; saving: boolean; bancas: AdminBancaOption[]; }) {
   const [name, setName] = useState(item?.name || "");
   const [image, setImage] = useState(item?.image || "");
   const [link, setLink] = useState(item?.link || "");
@@ -258,13 +302,30 @@ function CategoryForm({ item, onSubmit, onCancel, saving }: { item: AdminCategor
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [jornaleiroStatus, setJornaleiroStatus] = useState<'all'|'specific'|'inactive'>(item?.jornaleiro_status ?? 'all');
+  const [selectedBancas, setSelectedBancas] = useState<string[]>(item?.jornaleiro_bancas ?? []);
+
+  useEffect(() => {
+    if (jornaleiroStatus !== 'specific' && selectedBancas.length > 0) {
+      setSelectedBancas([]);
+    }
+  }, [jornaleiroStatus]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     // validação simples: link interno
-    const normalizedLink = link.trim().startsWith('/') ? link.trim() : ('/' + link.trim().replace(/^\/+/,'') );
-    onSubmit({ id: item?.id, name, image, link: normalizedLink, active, visible });
+    const normalizedLink = link.trim().startsWith('/') ? link.trim() : ('/' + link.trim().replace(/^\/+/,'' ) );
+    onSubmit({
+      id: item?.id,
+      name,
+      image,
+      link: normalizedLink,
+      active,
+      visible,
+      jornaleiroStatus,
+      jornaleiroBancas: jornaleiroStatus === 'specific' ? selectedBancas : []
+    });
   };
 
   const onFileDrop = async (f: File) => {
@@ -364,6 +425,47 @@ function CategoryForm({ item, onSubmit, onCancel, saving }: { item: AdminCategor
                   <span className="text-xs text-gray-500">Se desmarcado, a categoria não aparecerá na listagem pública</span>
                 </div>
               </label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-900 block">Disponibilidade para Jornaleiros</label>
+                <select
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  value={jornaleiroStatus}
+                  onChange={(e)=>setJornaleiroStatus(e.target.value as 'all'|'specific'|'inactive')}
+                >
+                  <option value="all">Ativa para todos os jornaleiros</option>
+                  <option value="specific">Ativa apenas para jornaleiros específicos</option>
+                  <option value="inactive">Inativa para jornaleiros</option>
+                </select>
+                {jornaleiroStatus === 'specific' && (
+                  <div className="rounded-md border border-gray-200 bg-white p-3 max-h-40 overflow-y-auto space-y-2">
+                    {bancas.length === 0 && (
+                      <p className="text-xs text-gray-500">Nenhuma banca cadastrada.</p>
+                    )}
+                    {bancas.map((banca) => (
+                      <label key={banca.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="rounded"
+                          checked={selectedBancas.includes(banca.id)}
+                          onChange={(e)=>{
+                            setSelectedBancas((prev)=> {
+                              if (e.target.checked) {
+                                return Array.from(new Set([...prev, banca.id]));
+                              }
+                              return prev.filter((id)=>id !== banca.id);
+                            });
+                          }}
+                        />
+                        <span>{banca.name}</span>
+                      </label>
+                    ))}
+                    <p className="text-xs text-gray-500">Selecione as bancas que poderão associar esta categoria.</p>
+                  </div>
+                )}
+                {jornaleiroStatus === 'inactive' && (
+                  <p className="text-xs text-red-600">Jornaleiros não poderão utilizar esta categoria enquanto estiver inativa.</p>
+                )}
+              </div>
             </div>
             <p className="text-xs text-gray-500">Categorias invisíveis não aparecem no site, mas permanecem no sistema.</p>
 

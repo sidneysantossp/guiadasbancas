@@ -3,14 +3,19 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export const runtime = 'nodejs';
 
-function verifyAdminAuth(request: NextRequest) {
+const ALLOWED_TOKENS = new Set([
+  "Bearer admin-token",
+  "Bearer jornaleiro-token",
+]);
+
+function verifyUploadAuth(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  return Boolean(authHeader && authHeader === "Bearer admin-token");
+  return Boolean(authHeader && ALLOWED_TOKENS.has(authHeader));
 }
 
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
+    if (!verifyUploadAuth(request)) {
       return NextResponse.json({ ok: false, error: "Não autorizado" }, { status: 401 });
     }
 

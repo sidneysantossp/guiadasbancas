@@ -31,7 +31,8 @@ export default function ImageUploader({ label = "Imagens", multiple = true, max 
       reader.readAsDataURL(f);
     }));
     Promise.all(readers).then((urls) => {
-      const next = [...previews, ...urls].slice(0, max);
+      const combined = multiple ? [...urls, ...previews] : urls;
+      const next = combined.slice(0, max);
       setPreviews(next);
       onChange?.(files, next);
     });

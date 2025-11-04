@@ -16,6 +16,7 @@ interface Product {
   sincronizado_em: string | null;
   created_at: string;
   origem: string;
+  categoria_nome?: string;
 }
 
 export default function ProdutosDistribuidorPage() {
@@ -23,33 +24,68 @@ export default function ProdutosDistribuidorPage() {
   const [distribuidor, setDistribuidor] = useState<Distribuidor | null>(null);
   const [produtos, setProdutos] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [totalProdutos, setTotalProdutos] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadData();
+  }, [currentPage, itemsPerPage]);
+
+  // Recarregar quando a página ficar visível novamente
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadData();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  const loadData = async () => {
+  const loadData = async (forceRefresh = false) => {
+    if (forceRefresh) {
+      setRefreshing(true);
+    }
+    
     try {
-      // Buscar dados do distribuidor
-      const distResponse = await fetch(`/api/admin/distribuidores/${params.id}`);
+      // Buscar dados do distribuidor (com cache busting se forçado)
+      const distResponse = await fetch(
+        `/api/admin/distribuidores/${params.id}${forceRefresh ? `?t=${Date.now()}` : ''}`
+      );
       const distResult = await distResponse.json();
       
       if (distResult.success) {
         setDistribuidor(distResult.data);
       }
 
-      // Buscar produtos do distribuidor
-      const prodResponse = await fetch(`/api/admin/distribuidores/${params.id}/produtos`);
+      // Buscar produtos do distribuidor com paginação (com cache busting se forçado)
+      const offset = (currentPage - 1) * itemsPerPage;
+      const prodResponse = await fetch(
+        `/api/admin/distribuidores/${params.id}/produtos?limit=${itemsPerPage}&offset=${offset}${forceRefresh ? `&t=${Date.now()}` : ''}`
+      );
       const prodResult = await prodResponse.json();
       
       if (prodResult.success) {
+        console.log('[PRODUTOS-PAGE] Produtos recebidos:', prodResult.data?.length);
+        console.log('[PRODUTOS-PAGE] Primeiro produto:', prodResult.data?.[0]);
         setProdutos(prodResult.data);
+        setTotalProdutos(prodResult.total || 0);
+        setTotalPages(Math.ceil((prodResult.total || 0) / itemsPerPage));
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    loadData(true);
   };
 
   if (loading) {
@@ -76,15 +112,44 @@ export default function ProdutosDistribuidorPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Produtos Sincronizados</h1>
             <p className="text-gray-600 mt-2">
-              {distribuidor?.nome} • {produtos.length} produtos
+              {distribuidor?.nome} • <span className="font-semibold text-[#ff5c00]">{totalProdutos.toLocaleString('pt-BR')}</span> produtos sincronizados
             </p>
+            {totalProdutos > 0 && (
+              <p className="text-sm text-gray-500 mt-1">
+                Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalProdutos)} a {Math.min(currentPage * itemsPerPage, totalProdutos)} de {totalProdutos.toLocaleString('pt-BR')}
+              </p>
+            )}
           </div>
-          <Link
-            href={`/admin/distribuidores/${params.id}/sync`}
-            className="bg-[#ff5c00] text-white px-6 py-3 rounded-lg hover:bg-[#e05400] transition-colors"
-          >
-            Sincronizar Novamente
-          </Link>
+          <div className="flex gap-3">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {refreshing ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Atualizando...
+                </>
+              ) : (
+                <>
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Atualizar
+                </>
+              )}
+            </button>
+            <Link
+              href={`/admin/distribuidores/${params.id}/sync`}
+              className="bg-[#ff5c00] text-white px-6 py-3 rounded-lg hover:bg-[#e05400] transition-colors"
+            >
+              Sincronizar Novamente
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -129,6 +194,9 @@ export default function ProdutosDistribuidorPage() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Produto
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Categoria
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Preço
@@ -187,6 +255,11 @@ export default function ProdutosDistribuidorPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {produto.categoria_nome || 'Sem Categoria'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-semibold text-gray-900">
                         R$ {produto.price.toFixed(2)}
                       </div>
@@ -216,6 +289,100 @@ export default function ProdutosDistribuidorPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Paginação */}
+          {totalPages > 1 && (
+            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Anterior
+                </button>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Próxima
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div className="flex items-center gap-4">
+                  <p className="text-sm text-gray-700">
+                    Página <span className="font-medium">{currentPage}</span> de{' '}
+                    <span className="font-medium">{totalPages}</span>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="perPage" className="text-sm text-gray-700">
+                      Itens por página:
+                    </label>
+                    <select
+                      id="perPage"
+                      value={itemsPerPage}
+                      onChange={(e) => {
+                        setItemsPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="border-gray-300 rounded-md text-sm focus:ring-[#ff5c00] focus:border-[#ff5c00]"
+                    >
+                      <option value="25">25</option>
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                      <option value="200">200</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Anterior</span>
+                      ←
+                    </button>
+                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                            currentPage === pageNum
+                              ? 'z-10 bg-[#ff5c00] border-[#ff5c00] text-white'
+                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Próxima</span>
+                      →
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

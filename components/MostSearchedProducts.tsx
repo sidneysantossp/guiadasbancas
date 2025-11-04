@@ -213,7 +213,7 @@ function SmallCard({ p }: { p: Product }) {
   const outOfStock = Boolean(p.trackStock) && (p.stockQty != null) && (p.stockQty <= 0);
   
   return (
-    <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">
+    <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex h-full w-full flex-col flex-1">
       <div className="relative w-full group h-48 sm:h-56">
         {/* Wrapper com padding para a imagem, mantendo cantos arredondados internos */}
         <div className="absolute inset-0 p-2">
@@ -343,14 +343,14 @@ function SmallCard({ p }: { p: Product }) {
                 } 
               }}
               disabled={outOfStock}
-              className={`w-full rounded px-2.5 py-1 text-[11px] font-semibold ${outOfStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#ff5c00] text-white hover:opacity-95'}`}
+              className={`w-full rounded-md px-3 py-2 text-[12px] font-semibold ${outOfStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#ff5c00] text-white hover:bg-[#ff6f1f]'}`}
             >
               {outOfStock ? 'Esgotado' : 'Adicionar ao Carrinho'}
             </button>
             <button
-              className="w-full inline-flex items-center justify-center gap-1.5 rounded border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15 px-2.5 py-1 text-[11px] font-semibold"
+              className="w-full inline-flex items-center justify-center gap-1.5 rounded-md border border-[#5ad58a] bg-[#eafff3] text-[#1f9c4a] hover:bg-[#dcffe9] px-3 py-2 text-[12px] font-semibold"
             >
-              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
+              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={16} height={16} className="h-4 w-4 object-contain" />
               Comprar
             </button>
           </div>
@@ -444,6 +444,46 @@ export default function MostSearchedProducts() {
     return apiItems.slice(0, 8); // Limita a 8 produtos
   }, [apiItems]);
 
+  const [viewport, setViewport] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1024);
+  useEffect(() => {
+    const onResize = () => setViewport(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    onResize();
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const isMobile = viewport < 640;
+  const [slideIndex, setSlideIndex] = useState(0);
+  const mobileSlides = useMemo(() => {
+    const groups: Product[][] = [];
+    for (let i = 0; i < items.length; i += 2) {
+      groups.push(items.slice(i, i + 2));
+    }
+    return groups;
+  }, [items]);
+
+  useEffect(() => {
+    setSlideIndex(0);
+  }, [isMobile, mobileSlides.length]);
+
+  useEffect(() => {
+    if (!isMobile || mobileSlides.length <= 1) return;
+    const id = setInterval(() => {
+      setSlideIndex((current) => {
+        const next = current + 1;
+        return next >= mobileSlides.length ? 0 : next;
+      });
+    }, 5000);
+    return () => clearInterval(id);
+  }, [isMobile, mobileSlides.length]);
+
+  const goToSlide = (idx: number) => {
+    const total = mobileSlides.length;
+    if (total === 0) return;
+    const clamped = Math.max(0, Math.min(total - 1, idx));
+    setSlideIndex(clamped);
+  };
+
   // Não renderiza a seção se não houver produtos e não estiver carregando
   if (!loading && items.length === 0) {
     return null;
@@ -461,13 +501,62 @@ export default function MostSearchedProducts() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-2xl bg-gray-100 animate-pulse h-80"></div>
-            ))}
+          isMobile ? (
+            <div className="rounded-2xl bg-gray-100 h-[420px] animate-pulse" />
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 auto-rows-fr">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-2xl bg-gray-100 animate-pulse h-80"></div>
+              ))}
+            </div>
+          )
+        ) : isMobile ? (
+          <div className="relative">
+            <div className="overflow-hidden -mx-1">
+              <div
+                className="flex"
+                style={{
+                  transform: `translateX(-${slideIndex * 100}%)`,
+                  transition: "transform 500ms ease",
+                }}
+              >
+                {mobileSlides.map((group, slideIdx) => (
+                  <div key={slideIdx} className="w-full shrink-0 px-1">
+                    <div className="flex gap-2 items-stretch">
+                      {group.map((product) => (
+                        <div key={product.id} className="w-1/2 flex items-stretch">
+                          <SmallCard p={product} />
+                        </div>
+                      ))}
+                      {group.length === 1 && (
+                        <div className="w-1/2 flex items-stretch" aria-hidden>
+                          <div className="rounded-2xl border border-transparent flex-1" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {mobileSlides.length > 1 && (
+              <div className="mt-4 flex items-center justify-center gap-2">
+                {mobileSlides.map((_, idx) => {
+                  const active = idx === slideIndex;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => goToSlide(idx)}
+                      className={`h-2.5 rounded-full transition ${active ? "w-6 bg-[#5c4ad8]" : "w-2.5 bg-gray-300 hover:bg-gray-400"}`}
+                      aria-label={`Ir para produto ${idx + 1}`}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 auto-rows-fr">
             {items.map((p) => (
               <SmallCard key={p.id} p={p} />
             ))}

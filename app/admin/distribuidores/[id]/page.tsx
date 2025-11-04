@@ -189,15 +189,15 @@ export default function EditarDistribuidorPage() {
               }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff5c00] focus:border-transparent"
             >
-              <option value="https://sandbox.mercos.com/api/v1">
-                Sandbox (Testes)
-              </option>
               <option value="https://app.mercos.com/api/v1">
-                Produção
+                Produção (Dados reais)
+              </option>
+              <option value="https://sandbox.mercos.com/api/v1">
+                Sandbox (Homologação)
               </option>
             </select>
             <p className="text-sm text-gray-500 mt-1">
-              Use Sandbox para testes com tokens de homologação
+              Após homologação, utilize o ambiente de Produção com os tokens finais
             </p>
           </div>
 

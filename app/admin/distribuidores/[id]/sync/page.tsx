@@ -10,6 +10,11 @@ export default function SyncDistribuidorPage() {
   const router = useRouter();
   const [distribuidor, setDistribuidor] = useState<Distribuidor | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [syncingContinuous, setSyncingContinuous] = useState(false);
+  const [debugging, setDebugging] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+  const [debugResult, setDebugResult] = useState<any>(null);
+  const [continuousProgress, setContinuousProgress] = useState<any>(null);
   const [result, setResult] = useState<MercosSyncResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [customTimestamp, setCustomTimestamp] = useState('');
@@ -71,6 +76,222 @@ export default function SyncDistribuidorPage() {
       alert('Erro na sincronização');
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleContinuousSync = async () => {
+    if (!distribuidor) return;
+
+    setSyncingContinuous(true);
+    setContinuousProgress(null);
+    setResult(null);
+
+    try {
+      console.log('[UI] Iniciando sincronização ultra-rápida...');
+      
+      const response = await fetch(
+        `/api/admin/distribuidores/${params.id}/sync-fast`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      console.log('[UI] Status da resposta:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro na sincronização');
+      }
+
+      const data = await response.json();
+      console.log('[UI] Dados recebidos:', data);
+
+      if (data.success) {
+        const ignorados = data.data.produtos_ignorados || 0;
+        const novos = data.data.produtos_novos || 0;
+        
+        // Exibir resultado
+        setResult({
+          success: true,
+          produtos_novos: novos,
+          produtos_atualizados: ignorados, // Usar campo de atualizados para mostrar ignorados
+          produtos_total: data.data.produtos_total,
+          erros: data.data.erros || [],
+          ultima_sincronizacao: new Date().toISOString(),
+        });
+        
+        // Mostrar progresso
+        setContinuousProgress({
+          success: true,
+          completed: true,
+          message: `✅ Sincronização em ${data.data.tempo_execucao}! 
+          
+🆕 ${novos} produtos novos inseridos
+⏭️ ${ignorados} já existiam (ignorados)
+📦 Total no banco: ${data.data.total_no_banco} produtos
+
+${data.data.total_no_banco < 7700 ? '⚠️ Clique novamente para continuar até completar 7.701 produtos' : '✅ Sincronização completa!'}`,
+        });
+        
+        await loadDistribuidor();
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error: any) {
+      console.error('[UI] Erro na sincronização:', error);
+      setResult({
+        success: false,
+        produtos_novos: 0,
+        produtos_atualizados: 0,
+        produtos_total: 0,
+        erros: [error.message || 'Erro ao executar sincronização'],
+        ultima_sincronizacao: new Date().toISOString(),
+      });
+      alert('Erro na sincronização: ' + error.message);
+    } finally {
+      setSyncingContinuous(false);
+    }
+  };
+
+  const handleDebugSync = async () => {
+    if (!distribuidor) return;
+
+    setDebugging(true);
+    setDebugResult(null);
+
+    try {
+      const response = await fetch(
+        `/api/admin/distribuidores/${params.id}/sync-debug`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        const produtoNome = data.produto?.[0]?.name || 'Produto';
+        const acao = data.acao || 'processado';
+        
+        setDebugResult({
+          success: true,
+          message: `${data.message}\n\n✅ Produto ${acao}: ${produtoNome}\n📦 Total no banco: ${data.totalProdutos}`,
+          produto: data.produto?.[0],
+          totalProdutos: data.totalProdutos,
+          acao: acao,
+        });
+        await loadDistribuidor();
+      } else {
+        setDebugResult(data);
+      }
+    } catch (error) {
+      console.error('Erro no debug:', error);
+      setDebugResult({
+        success: false,
+        error: 'Erro ao executar debug',
+      });
+    } finally {
+      setDebugging(false);
+    }
+  };
+
+  const handleVerifySchema = async () => {
+    if (!distribuidor) return;
+
+    setDebugging(true);
+    setDebugResult(null);
+
+    try {
+      const response = await fetch(
+        `/api/admin/distribuidores/${params.id}/verify-schema`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const data = await response.json();
+      
+      // Formatar resultado para exibir
+      if (data.success) {
+        setDebugResult({
+          success: true,
+          message: 'Schema verificado com sucesso! ✅',
+          details: data,
+        });
+      } else {
+        setDebugResult(data);
+      }
+
+      if (data.success) {
+        await loadDistribuidor();
+      }
+    } catch (error) {
+      console.error('Erro na verificação:', error);
+      setDebugResult({
+        success: false,
+        error: 'Erro ao verificar schema',
+      });
+    } finally {
+      setDebugging(false);
+    }
+  };
+
+  const handleCleanupProducts = async () => {
+    if (!distribuidor) return;
+
+    const confirmed = window.confirm(
+      `⚠️ Tem certeza que deseja REMOVER todos os ${distribuidor.total_produtos} produtos deste distribuidor?\n\nIsso não pode ser desfeito!`
+    );
+
+    if (!confirmed) return;
+
+    setCleaning(true);
+    setDebugResult(null);
+
+    try {
+      const response = await fetch(
+        `/api/admin/distribuidores/${params.id}/cleanup-products`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setDebugResult({
+          success: true,
+          message: `✅ ${data.produtosRemovidos} produtos removidos com sucesso!`,
+          details: data,
+        });
+        await loadDistribuidor();
+      } else {
+        setDebugResult({
+          success: false,
+          error: data.error || 'Erro ao limpar produtos',
+          details: data,
+        });
+      }
+    } catch (error) {
+      console.error('Erro na limpeza:', error);
+      setDebugResult({
+        success: false,
+        error: 'Erro ao limpar produtos',
+      });
+    } finally {
+      setCleaning(false);
     }
   };
 
@@ -164,9 +385,71 @@ export default function SyncDistribuidorPage() {
             </p>
           </div>
 
+          <div className="grid grid-cols-3 gap-3">
+            <button
+              onClick={handleVerifySchema}
+              disabled={syncing || syncingContinuous || debugging || cleaning}
+              className="bg-purple-500 text-white px-4 py-3 rounded-lg hover:bg-purple-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-semibold"
+            >
+              {debugging ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                  Verificando...
+                </span>
+              ) : (
+                '🔍 Verificar'
+              )}
+            </button>
+            
+            <button
+              onClick={handleDebugSync}
+              disabled={syncing || syncingContinuous || debugging || cleaning}
+              className="bg-yellow-500 text-white px-4 py-3 rounded-lg hover:bg-yellow-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-semibold"
+            >
+              {debugging ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                  Testando...
+                </span>
+              ) : (
+                '🔧 Testar'
+              )}
+            </button>
+
+            <button
+              onClick={handleCleanupProducts}
+              disabled={syncing || syncingContinuous || debugging || cleaning}
+              className="bg-red-500 text-white px-4 py-3 rounded-lg hover:bg-red-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-semibold"
+            >
+              {cleaning ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                  Limpando...
+                </span>
+              ) : (
+                '🗑️ Limpar'
+              )}
+            </button>
+          </div>
+
+          <button
+            onClick={handleContinuousSync}
+            disabled={syncing || syncingContinuous || debugging}
+            className="w-full bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-lg font-semibold shadow-lg"
+          >
+            {syncingContinuous ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Sincronizando Todos (Completo)...
+              </span>
+            ) : (
+              '✨ Sincronizar Todos (Completo)'
+            )}
+          </button>
+
           <button
             onClick={() => handleSync(false)}
-            disabled={syncing}
+            disabled={syncing || syncingContinuous}
             className="w-full bg-[#ff5c00] text-white px-6 py-4 rounded-lg hover:bg-[#e05400] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-lg font-semibold"
           >
             {syncing ? (
@@ -175,23 +458,90 @@ export default function SyncDistribuidorPage() {
                 Sincronizando...
               </span>
             ) : (
-              'Sincronizar Produtos Novos/Alterados'
+              'Sincronizar Apenas Novos/Alterados'
             )}
           </button>
           
-          <button
-            onClick={() => handleSync(true)}
-            disabled={syncing}
-            className="w-full bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-lg font-semibold"
-          >
-            Sincronizar Todos (Completo)
-          </button>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <p className="text-sm text-gray-700">
+              <strong className="text-green-700">✨ Sincronizar Todos (Completo):</strong> Executa múltiplas sincronizações automaticamente até processar TODOS os produtos. Ideal para grandes volumes (7000+ produtos). Pode levar vários minutos.
+            </p>
+          </div>
           
-          <p className="text-sm text-gray-600 mt-2 text-center">
-            <strong>Incremental:</strong> Sincroniza apenas produtos novos ou alterados desde a última sincronização.<br />
-            <strong>Completo:</strong> Sincroniza todos os produtos novamente (use se houver inconsistências).
+          <p className="text-sm text-gray-600 text-center">
+            <strong>Sincronizar Apenas Novos/Alterados:</strong> Sincroniza apenas produtos novos ou alterados desde a última sincronização (mais rápido para atualizações).
           </p>
         </div>
+
+        {debugResult && (
+          <div className={`mb-4 border rounded-lg p-4 ${
+            debugResult.success 
+              ? 'bg-green-50 border-green-200' 
+              : 'bg-red-50 border-red-200'
+          }`}>
+            <h3 className={`text-sm font-semibold mb-2 ${
+              debugResult.success ? 'text-green-900' : 'text-red-900'
+            }`}>
+              {debugResult.success ? '✅ Teste bem-sucedido!' : '❌ Teste falhou'}
+            </h3>
+            <div className="text-sm space-y-1">
+              {debugResult.success ? (
+                <>
+                  <p className="text-green-800">
+                    • Produto inserido: <strong>{debugResult.produto?.[0]?.name}</strong>
+                  </p>
+                  <p className="text-green-800">
+                    • Total de produtos no banco: <strong>{debugResult.totalProdutos}</strong>
+                  </p>
+                  <p className="mt-2 text-green-700 bg-green-100 p-2 rounded">
+                    ✅ O banco de dados está funcionando corretamente! Se a sincronização completa falhar, verifique os logs no console.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-red-800 font-medium">Erro: {debugResult.error}</p>
+                  {debugResult.errorDetails && (
+                    <div className="mt-2 bg-red-100 p-2 rounded text-xs">
+                      <p><strong>Código:</strong> {debugResult.errorDetails.code}</p>
+                      <p><strong>Mensagem:</strong> {debugResult.errorDetails.message}</p>
+                      {debugResult.errorDetails.details && (
+                        <p><strong>Detalhes:</strong> {debugResult.errorDetails.details}</p>
+                      )}
+                      {debugResult.errorDetails.hint && (
+                        <p><strong>Dica:</strong> {debugResult.errorDetails.hint}</p>
+                      )}
+                    </div>
+                  )}
+                  {debugResult.details && (
+                    <details className="mt-2 bg-gray-100 p-2 rounded text-xs">
+                      <summary className="cursor-pointer font-medium">Ver detalhes completos</summary>
+                      <pre className="mt-2 overflow-auto">{JSON.stringify(debugResult.details, null, 2)}</pre>
+                    </details>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {continuousProgress && (
+          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-blue-900 mb-2">
+              📊 Detalhes da Sincronização Contínua
+            </h3>
+            <div className="text-sm text-blue-800 space-y-1">
+              <p>• Iterações executadas: <strong>{continuousProgress.iterations}</strong></p>
+              <p>• Status: <strong className={continuousProgress.completed ? 'text-green-600' : 'text-yellow-600'}>
+                {continuousProgress.completed ? '✅ Completo' : '⚠️ Parcial'}
+              </strong></p>
+              {continuousProgress.message && (
+                <p className="mt-2 text-blue-700">
+                  {continuousProgress.message}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {result && (
           <div className="space-y-4">

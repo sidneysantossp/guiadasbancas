@@ -90,8 +90,6 @@ function BancaCard({
   featured?: boolean;
   priority?: boolean;
 }) {
-  // carregar mini produtos reais desta banca (até 3)
-  const [mini, setMini] = useState<Array<{ id: string; name: string; image: string; price: number }>>([]);
   // badges reais de categorias derivadas dos produtos
   const [catBadges, setCatBadges] = useState<Array<{ name: string; icon: string }>>([]);
   const { items: allCats } = useCategories();
@@ -122,7 +120,6 @@ function BancaCard({
           }))
           .filter((p) => p.image);
         if (alive) {
-          setMini(mapped.slice(0, 3));
           // gerar badges de categorias a partir dos produtos
           const counts = new Map<string, number>();
           mapped.forEach(p => { if (p.category_id) counts.set(p.category_id, (counts.get(p.category_id) || 0) + 1); });
@@ -199,32 +196,21 @@ function BancaCard({
             Ver no Mapa
           </span>
         </div>
-        <div className="flex items-center justify-between text-xs text-gray-700">
+        <div className="text-xs text-gray-700">
           <div className="flex flex-wrap gap-1.5">
             {(catBadges.length ? catBadges : categories).slice(0, 3).map((c, i) => (
               <span key={i} className="inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 px-2 py-0.5">
                 <span className="h-3 w-3 rounded-full overflow-hidden">
-                  {/* pequeno bullet com a imagem */}
                   <Image src={c.icon} alt={c.name} width={12} height={12} className="h-3 w-3 object-cover rounded-full" loading="lazy" />
                 </span>
                 <span className="text-[10px] font-medium">{c.name}</span>
               </span>
             ))}
           </div>
-          <div className="flex gap-2">
-            {(mini.length ? mini : []).slice(0, 3).map((p, i) => (
-              <div key={p.id || i} className="relative inline-block h-8 w-8 rounded-lg border border-[#ff5c00]/50 overflow-hidden shadow-sm bg-white">
-                <Image src={p.image} alt={p.name} fill sizes="32px" className="object-contain" loading="lazy" />
-              </div>
-            ))}
-            {mini.length === 0 && categories.slice(0, 3).map((c, i) => (
-              <div key={`ph-${i}`} className="relative inline-block h-8 w-8 rounded-lg border border-[#ff5c00]/50 overflow-hidden shadow-sm bg-white">
-                <Image src="https://cirandadoslivros.com.br/wp-content/uploads/2024/02/89918ml.jpg" alt={c.name} fill sizes="32px" className="object-cover" loading="lazy" />
-              </div>
-            ))}
-            {mini.length > 3 && (
-              <div className="h-8 w-8 rounded-lg bg-gray-100 grid place-items-center text-[12px] text-gray-600 font-medium">+{mini.length - 3}</div>
-            )}
+          <div className="mt-3">
+            <span className="inline-flex w-full items-center justify-center rounded-full bg-[#ff5c00] px-4 py-2 text-[12px] font-semibold text-white shadow-sm hover:bg-[#ff7a33]">
+              Ver Banca
+            </span>
           </div>
         </div>
       </div>
@@ -321,11 +307,12 @@ export default function FeaturedBancas() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  const perView = w < 640 ? 1 : w < 1024 ? 2 : 3; // 3 por view no desktop
+  const perView = w < 640 ? 1 : w < 1024 ? 2 : 4; // 4 por view no desktop
   const isMobile = w < 768;
 
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);
+  const gapRem = 1.5;
   const normalized = useMemo(() => {
     const minCount = 6;
     if (rawItems.length >= minCount) return rawItems;
@@ -400,7 +387,7 @@ export default function FeaturedBancas() {
                   <div
                     key={`${b.id}-${i}`}
                     className="shrink-0"
-                    style={{ flex: `0 0 calc(${100 / perView}% - 2rem)` }}
+                    style={{ flex: `0 0 calc((100% - ${(perView - 1) * gapRem}rem) / ${perView})` }}
                   >
                     <BancaCard {...b} uf={uf} description={DESCRIPTIONS[b.id as keyof typeof DESCRIPTIONS]} priority={i < perView} />
                   </div>

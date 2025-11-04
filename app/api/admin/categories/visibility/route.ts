@@ -8,7 +8,7 @@ export async function GET() {
   try {
     const { data, error } = await supabaseAdmin
       .from('categories')
-      .select('id, name, image, link, order, active, visible')
+      .select('id, name, image, link, order, active, visible, jornaleiro_status, jornaleiro_bancas')
       .order('order', { ascending: true });
 
     if (error) {
@@ -30,18 +30,38 @@ export async function GET() {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, visible } = body;
+    const { id, visible, jornaleiroStatus, jornaleiroBancas } = body;
 
-    console.log('[API Visibility PATCH] Recebido:', { id, visible });
+    console.log('[API Visibility PATCH] Recebido:', { id, visible, jornaleiroStatus, jornaleiroBancas });
 
-    if (!id || typeof visible !== 'boolean') {
+    if (!id) {
       console.error('[API Visibility PATCH] Dados inválidos:', { id, visible });
-      return NextResponse.json({ success: false, error: "ID e visible são obrigatórios" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "ID é obrigatório" }, { status: 400 });
+    }
+
+    const updatePayload: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (typeof visible === 'boolean') {
+      updatePayload.visible = visible;
+    }
+
+    if (jornaleiroStatus) {
+      updatePayload.jornaleiro_status = jornaleiroStatus;
+    }
+
+    if (jornaleiroBancas !== undefined) {
+      updatePayload.jornaleiro_bancas = Array.isArray(jornaleiroBancas) ? jornaleiroBancas : [];
+    }
+
+    if (Object.keys(updatePayload).length === 1) {
+      return NextResponse.json({ success: false, error: "Nenhum campo para atualizar" }, { status: 400 });
     }
 
     const { data, error } = await supabaseAdmin
       .from('categories')
-      .update({ visible, updated_at: new Date().toISOString() })
+      .update(updatePayload)
       .eq('id', id)
       .select();
 

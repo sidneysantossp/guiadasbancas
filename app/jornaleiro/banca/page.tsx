@@ -169,10 +169,20 @@ export default function MinhaBancaPage() {
 
   useEffect(() => {
     if (!form) return;
-    setCoverImages(form.cover ? [form.cover] : []);
-    setAvatarImages(form.avatar ? [form.avatar] : []);
-    setGalleryImages(Array.isArray(form.gallery) ? form.gallery : []);
-  }, [form?.cover, form?.avatar, form?.gallery]);
+    if (categoriesOptions.length === 0) return;
+    if (Array.isArray(form.categories) && form.categories.length > 0) return;
+
+    setForm((prev) => {
+      if (!prev) return prev;
+      if (Array.isArray(prev.categories) && prev.categories.length > 0) return prev;
+      const allIds = categoriesOptions.map((option) => option.id).filter(Boolean);
+      if (allIds.length === 0) return prev;
+      return { ...prev, categories: allIds };
+    });
+  }, [categoriesOptions, form]);
+
+  // Removido useEffect que causava reset indevido das imagens ao mudar o form
+  // As imagens são inicializadas apenas no load inicial (linha 145-147)
 
   const updateField = <K extends keyof BancaForm>(key: K, value: BancaForm[K]) => {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
@@ -302,34 +312,44 @@ export default function MinhaBancaPage() {
   const uploadImages = async (sources: string[]) => {
     const uploaded: string[] = [];
     for (const src of sources) {
-      // Se já é uma URL válida (http/https), não precisa fazer upload
-      if (!src.startsWith("data:") && (src.startsWith("http://") || src.startsWith("https://"))) {
-        console.log('Imagem já é URL válida, mantendo:', src);
-        uploaded.push(src);
-        continue;
+      if (!src) continue;
+
+      const isHttpUrl = src.startsWith("http://") || src.startsWith("https://");
+      const isDataUrl = src.startsWith("data:");
+
+      // Evita re-upload quando já é URL válida (inclui supabase/storage)
+      if (!isDataUrl) {
+        if (isHttpUrl || src.startsWith("/uploads/")) {
+          uploaded.push(src);
+          continue;
+        }
       }
-      
-      // Se é data URL (base64), fazer upload
-      if (src.startsWith("data:")) {
-        console.log('Fazendo upload de imagem base64...');
+
+      if (isDataUrl) {
         const blob = await (await fetch(src)).blob();
         const formData = new FormData();
         formData.append("file", blob, `img-${Date.now()}.png`);
         const res = await fetch("/api/upload", {
           method: "POST",
-          headers: { Authorization: `Bearer admin-token` },
+          headers: { Authorization: `Bearer jornaleiro-token` },
           body: formData,
         });
         const json = await res.json();
-        console.log('Resposta do upload:', json);
         if (!res.ok || !json?.ok || !json.url) {
-          throw new Error("Falha no upload de imagem");
+          console.error('Falha no upload, usando base64:', json);
+          if (json?.url) {
+            uploaded.push(json.url as string);
+          } else {
+            throw new Error("Falha no upload de imagem");
+          }
+        } else {
+          uploaded.push(json.url as string);
         }
-        uploaded.push(json.url as string);
-      } else {
-        // Qualquer outra coisa, manter
-        uploaded.push(src);
+        continue;
       }
+
+      // Fallback: mantém como está
+      uploaded.push(src);
     }
     return uploaded;
   };
@@ -407,8 +427,8 @@ export default function MinhaBancaPage() {
           return {
             ...prev,
             ...json.data,
-            cover: json.data.cover || json.data.cover_image || coverUrl,
-            avatar: json.data.avatar || json.data.avatar_image || avatarUrl,
+            cover: json.data.cover_image || json.data.cover || coverUrl,
+            avatar: json.data.profile_image || json.data.avatar || avatarUrl,
             gallery: json.data.gallery || galleryUrls,
             addressObj: prev.addressObj, // Manter addressObj do frontend
             contact: prev.contact,
@@ -416,9 +436,12 @@ export default function MinhaBancaPage() {
           };
         });
 
-        // Atualizar as imagens no estado
-        if (coverUrl) setCoverImages([coverUrl]);
-        if (avatarUrl) setAvatarImages([avatarUrl]);
+        // Atualizar as imagens no estado após salvamento bem-sucedido
+        const finalCoverUrl = json.data.cover_image || json.data.cover || coverUrl;
+        const finalAvatarUrl = json.data.profile_image || json.data.avatar || avatarUrl;
+        
+        if (finalCoverUrl) setCoverImages([finalCoverUrl]);
+        if (finalAvatarUrl) setAvatarImages([finalAvatarUrl]);
         if (galleryUrls.length > 0) setGalleryImages(galleryUrls);
       }
       

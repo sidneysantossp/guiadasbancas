@@ -739,23 +739,25 @@ useEffect(() => {
                   {cartOpen && <MiniCartDropdown onClose={() => setCartOpen(false)} />}
                 </div>
 
-                <button
-                  type="button"
-                  aria-label="Notificações"
-                  title="Ativar notificações"
-                  onClick={enableNotifications}
-                  className="relative inline-flex items-center justify-center text-gray-600 hover:text-[#ff5c00] transition-colors"
-                >
-                  {notifPulse && (
-                    <span className="absolute inset-0 rounded-full bg-[#ff7a33]/20 animate-ping" />
-                  )}
-                  <IconBell size={22} stroke={1.5} />
-                  {notifEnabled && notifCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-[10px] font-semibold leading-[16px] text-center text-white">
-                      {notifCount}
-                    </span>
-                  )}
-                </button>
+                {mounted && (
+                  <button
+                    type="button"
+                    aria-label="Notificações"
+                    title="Ativar notificações"
+                    onClick={enableNotifications}
+                    className="relative inline-flex items-center justify-center text-gray-600 hover:text-[#ff5c00] transition-colors"
+                  >
+                    {notifPulse && (
+                      <span className="absolute inset-0 rounded-full bg-[#ff7a33]/20 animate-ping" />
+                    )}
+                    <IconBell size={22} stroke={1.5} />
+                    {notifEnabled && notifCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-[10px] font-semibold leading-[16px] text-center text-white">
+                        {notifCount}
+                      </span>
+                    )}
+                  </button>
+                )}
 
                 <Link
                   href="/jornaleiro"

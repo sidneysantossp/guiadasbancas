@@ -7,7 +7,6 @@ export const maxDuration = 60;
 
 // Configurações de sincronização
 const SYNC_CONFIG = {
-  MAX_PRODUTOS_POR_LOTE: 50, // Processar no máximo 50 produtos por vez
   TIMEOUT_SAFETY_MARGIN: 10, // Parar 10s antes do timeout
   MAX_EXECUTION_TIME: 50 * 1000, // 50 segundos em ms
 };
@@ -119,16 +118,12 @@ export async function POST(
 
     // Controle de tempo e lotes
     const startTime = Date.now();
-    const produtosParaProcessar = produtosMercos.slice(0, SYNC_CONFIG.MAX_PRODUTOS_POR_LOTE);
-    
-    if (produtosMercos.length > SYNC_CONFIG.MAX_PRODUTOS_POR_LOTE) {
-      console.log(`[SYNC] ⚠️ Limitando processamento a ${SYNC_CONFIG.MAX_PRODUTOS_POR_LOTE} produtos (total: ${produtosMercos.length})`);
-      console.log(`[SYNC] 💡 Execute novamente para processar os próximos ${produtosMercos.length - SYNC_CONFIG.MAX_PRODUTOS_POR_LOTE} produtos`);
-    }
+    const produtosParaProcessar = produtosMercos;
 
     let produtosNovos = 0;
     let produtosAtualizados = 0;
     const erros: string[] = [];
+    let atingiuLimiteTempo = false;
 
     // Processar cada produto com controle de tempo
     console.log(`[SYNC] Processando ${produtosParaProcessar.length} produtos...`);
@@ -140,6 +135,7 @@ export async function POST(
       if (elapsedTime > SYNC_CONFIG.MAX_EXECUTION_TIME) {
         console.log(`[SYNC] ⏰ Timeout preventivo atingido (${elapsedTime}ms). Parando processamento.`);
         console.log(`[SYNC] 📊 Processados: ${processados}/${produtosParaProcessar.length}`);
+        atingiuLimiteTempo = true;
         break;
       }
       try {
@@ -176,6 +172,7 @@ export async function POST(
           sob_encomenda: false,
           pre_venda: false,
           pronta_entrega: true,
+          ativo: produtoMercos.ativo && !produtoMercos.excluido, // Campo ativo estava faltando
         };
 
         if (produtoExistente) {
@@ -187,10 +184,19 @@ export async function POST(
             .eq('id', produtoExistente.id);
 
           if (error) {
-            console.error(`[SYNC] Erro ao atualizar produto ID ${produtoMercos.id}:`, error.message);
-            erros.push(`Erro ao atualizar produto ${produtoMercos.nome}: ${error.message}`);
+            console.error(`[SYNC] ❌ Erro ao atualizar produto ID ${produtoMercos.id}:`, {
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+              code: error.code,
+              produtoNome: produtoMercos.nome
+            });
+            erros.push(`Erro ao atualizar produto ${produtoMercos.nome}: ${error.message} (${error.code || 'N/A'})`);
           } else {
             produtosAtualizados++;
+            if (processados % 100 === 0) {
+              console.log(`[SYNC] ✓ Atualizado produto ${produtoMercos.id} - ${produtoMercos.nome}`);
+            }
           }
         } else {
           // Criar novo produto
@@ -200,20 +206,32 @@ export async function POST(
             .select();
 
           if (error) {
-            console.error(`[SYNC] Erro ao criar produto ID ${produtoMercos.id}:`, error.message);
-            erros.push(`Erro ao criar produto ${produtoMercos.nome}: ${error.message}`);
+            console.error(`[SYNC] ❌ Erro ao criar produto ID ${produtoMercos.id}:`, {
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+              code: error.code,
+              produtoNome: produtoMercos.nome,
+              produtoData: JSON.stringify(produtoData, null, 2)
+            });
+            erros.push(`Erro ao criar produto ${produtoMercos.nome}: ${error.message} (${error.code || 'N/A'})`);
           } else {
             produtosNovos++;
+            if (processados % 100 === 0) {
+              console.log(`[SYNC] ✓ Criado produto ${produtoMercos.id} - ${produtoMercos.nome}`);
+            }
           }
         }
       } catch (error: any) {
-        erros.push(`Erro ao processar produto ${produtoMercos.nome}: ${error.message}`);
+        console.error(`[SYNC] ❌ Exceção ao processar produto ${produtoMercos.id}:`, error);
+        erros.push(`Exceção ao processar produto ${produtoMercos.nome}: ${error.message}`);
       }
     }
 
-    // Adicionar aviso se produtos foram limitados
-    if (produtosMercos.length > SYNC_CONFIG.MAX_PRODUTOS_POR_LOTE) {
-      erros.push(`⚠️ Foram recebidos ${produtosMercos.length} produtos, mas apenas ${SYNC_CONFIG.MAX_PRODUTOS_POR_LOTE} foram processados nesta sincronização. Execute novamente para processar o restante.`);
+    // Adicionar aviso se houve interrupção por limite de tempo ou se ainda restam produtos
+    if (atingiuLimiteTempo || processados < produtosMercos.length) {
+      const restantes = produtosMercos.length - processados;
+      erros.push(`⚠️ Foram recebidos ${produtosMercos.length} produtos, mas apenas ${processados} foram processados nesta execução. Restam ${restantes} produtos para sincronizar. Execute novamente (ou utilize o timestamp inicial) até concluir tudo.`);
     }
 
     // Contar total de produtos do distribuidor

@@ -63,7 +63,9 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg grid place-items-center text-blue-600 text-lg">📦</div>
+            <div className="w-8 h-8 bg-blue-100 rounded-lg grid place-items-center text-blue-600 text-lg">
+              <i className="fa-solid fa-box-archive" aria-hidden="true" />
+            </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Produtos</p>
               <p className="text-2xl font-bold text-gray-900">{stats.totalProdutos}</p>
@@ -72,7 +74,9 @@ export default function AdminDashboardPage() {
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="w-8 h-8 bg-orange-100 rounded-lg grid place-items-center text-orange-600 text-lg">📋</div>
+            <div className="w-8 h-8 bg-orange-100 rounded-lg grid place-items-center text-orange-600 text-lg">
+              <i className="fa-solid fa-clipboard-list" aria-hidden="true" />
+            </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Pedidos Hoje</p>
               <p className="text-2xl font-bold text-gray-900">{stats.totalPedidosHoje}</p>
@@ -108,7 +112,9 @@ export default function AdminDashboardPage() {
               href="/admin/cms/home"
               className="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
             >
-              <span className="text-2xl mr-3">🏠</span>
+              <span className="text-2xl mr-3 text-[#ff5c00]">
+                <i className="fa-solid fa-house" aria-hidden="true" />
+              </span>
               <div>
                 <div className="font-medium text-gray-900">Gerenciar Home Page</div>
                 <div className="text-sm text-gray-600">Configure o slider principal e seções</div>

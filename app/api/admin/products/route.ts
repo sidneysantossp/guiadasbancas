@@ -31,13 +31,39 @@ export async function GET(request: NextRequest) {
       .from('distribuidores')
       .select('id, nome');
 
-    // Mapear produtos com nome do distribuidor
+    // Buscar categorias de bancas
+    const { data: categoriesBancas } = await supabaseAdmin
+      .from('categories')
+      .select('id, name');
+
+    // Buscar categorias de distribuidores
+    const { data: categoriesDistribuidores } = await supabaseAdmin
+      .from('distribuidor_categories')
+      .select('id, nome');
+
+    // Mapear produtos com nome do distribuidor e categoria
     const distribuidoresMap = new Map((distribuidores || []).map(d => [d.id, d.nome]));
+    const categoriasBancasMap = new Map((categoriesBancas || []).map(c => [c.id, c.name]));
+    const categoriasDistribuidoresMap = new Map((categoriesDistribuidores || []).map(c => [c.id, c.nome]));
     
-    const mappedData = (products || []).map((product: any) => ({
-      ...product,
-      distribuidor_nome: product.distribuidor_id ? distribuidoresMap.get(product.distribuidor_id) || null : null
-    }));
+    const mappedData = (products || []).map((product: any) => {
+      let categoriaNome = 'Sem Categoria';
+      
+      // Tentar buscar da categoria de bancas primeiro
+      if (product.category_id && categoriasBancasMap.has(product.category_id)) {
+        categoriaNome = categoriasBancasMap.get(product.category_id)!;
+      } 
+      // Senão, tentar buscar da categoria de distribuidores
+      else if (product.category_id && categoriasDistribuidoresMap.has(product.category_id)) {
+        categoriaNome = categoriasDistribuidoresMap.get(product.category_id)!;
+      }
+      
+      return {
+        ...product,
+        distribuidor_nome: product.distribuidor_id ? distribuidoresMap.get(product.distribuidor_id) || null : null,
+        categoria_nome: categoriaNome,
+      };
+    });
 
     return NextResponse.json({ success: true, data: mappedData });
   } catch (error) {

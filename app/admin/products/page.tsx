@@ -13,7 +13,10 @@ export default function AdminProductsPage() {
   const [distribuidor, setDistribuidor] = useState<string>("");
   const [rows, setRows] = useState<any[]>([]);
   const [distribuidores, setDistribuidores] = useState<any[]>([]);
+  const [categorias, setCategorias] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const fetchRows = async () => {
     try {
@@ -50,7 +53,8 @@ export default function AdminProductsPage() {
       setRows(items.map((p: any) => ({
         id: p.id,
         name: p.name,
-        category: p.category_id || "-",
+        category: p.categoria_nome || "Sem Categoria",
+        category_id: p.category_id || null,
         price: p.price ?? 0,
         stock: p.stock_qty ?? 0,
         active: true, // produtos sempre ativos por enquanto
@@ -67,6 +71,37 @@ export default function AdminProductsPage() {
       console.error('❌ Erro ao buscar produtos:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Tem certeza que deseja excluir ${selectedIds.length} produto(s)? Essa ação não poderá ser desfeita.`)) return;
+
+    try {
+      setBulkDeleting(true);
+      const res = await fetch('/api/admin/products/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer admin-token',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ids: selectedIds })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        alert(data?.error || 'Erro ao excluir produtos selecionados');
+        return;
+      }
+
+      setSelectedIds([]);
+      await fetchRows();
+    } catch (error) {
+      console.error('Erro no bulk delete:', error);
+      alert('Erro ao excluir produtos selecionados');
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -95,6 +130,7 @@ export default function AdminProductsPage() {
   useEffect(() => {
     fetchRows();
     fetchDistribuidores();
+    fetchCategorias();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -109,6 +145,20 @@ export default function AdminProductsPage() {
       }
     } catch (e) {
       console.error('Erro ao buscar distribuidores:', e);
+    }
+  };
+
+  const fetchCategorias = async () => {
+    try {
+      const res = await fetch('/api/admin/all-categories', {
+        headers: { 'Authorization': 'Bearer admin-token' }
+      });
+      const json = await res.json();
+      if (json.success) {
+        setCategorias(json.data || []);
+      }
+    } catch (e) {
+      console.error('Erro ao buscar categorias:', e);
     }
   };
 
@@ -165,7 +215,15 @@ export default function AdminProductsPage() {
         </div>
       )
     },
-    { key: "category", header: "Categoria" },
+    { 
+      key: "category", 
+      header: "Categoria",
+      render: (r) => (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+          {r.category}
+        </span>
+      )
+    },
     { 
       key: "distribuidor", 
       header: "Distribuidor", 
@@ -198,14 +256,36 @@ export default function AdminProductsPage() {
       </div>
 
       <FiltersBar
-        actions={<Link href="/admin/products/create" className="rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white hover:opacity-95">Novo Produto</Link>}
+        actions={(
+          <>
+            {selectedIds.length > 0 && (
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {bulkDeleting ? 'Excluindo...' : `Excluir Selecionados (${selectedIds.length})`}
+              </button>
+            )}
+            <Link
+              href="/admin/products/create"
+              className="rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white hover:opacity-95"
+            >
+              Novo Produto
+            </Link>
+          </>
+        )}
         onReset={() => { setQ(""); setCategory(""); setStatus(""); setDistribuidor(""); }}
       >
         <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Buscar por nome..." className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"/>
         <select value={category} onChange={(e)=>setCategory(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
           <option value="">Todas categorias</option>
-          <option value="Padaria">Padaria</option>
-          <option value="Revistas">Revistas</option>
+          {categorias.map((cat) => (
+            <option key={cat.id} value={cat.name}>
+              {cat.name}
+            </option>
+          ))}
         </select>
         <select value={distribuidor} onChange={(e)=>setDistribuidor(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
           <option value="">Todos distribuidores</option>
@@ -228,6 +308,7 @@ export default function AdminProductsPage() {
         data={filtered}
         getId={(r)=>r.id}
         selectable
+        onSelectRows={setSelectedIds}
         renderActions={(row) => (
           <div className="flex items-center gap-2">
             <Link

@@ -12,6 +12,12 @@ type FooterLink = {
   order: number;
 };
 
+type SimpleCategory = {
+  id: string;
+  name: string;
+  link: string;
+};
+
 type FooterData = {
   title: string;
   description: string;
@@ -30,7 +36,7 @@ type FooterData = {
 };
 
 function SocialIcon({ type, href }: { type: "instagram" | "facebook" | "twitter" | "youtube"; href?: string }) {
-  const common = "w-9 h-9 grid place-items-center rounded-full border border-gray-600 hover:bg-white/5 text-gray-300 transition-colors";
+  const common = "w-9 h-9 grid place-items-center rounded-full border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition-colors";
   
   if (!href) return null;
   
@@ -70,23 +76,53 @@ function SocialIcon({ type, href }: { type: "instagram" | "facebook" | "twitter"
 export default function AppFooter() {
   const [footerData, setFooterData] = useState<FooterData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  const [categories, setCategories] = useState<SimpleCategory[]>([]);
+  const [brandingLogo, setBrandingLogo] = useState<{ url: string; alt: string } | null>(null);
 
   useEffect(() => {
-    const loadFooterData = async () => {
+    let active = true;
+    (async () => {
       try {
-        const response = await fetch('/api/footer');
-        if (response.ok) {
-          const data = await response.json();
-          setFooterData(data);
+        const [footerRes, categoriesRes, brandingRes] = await Promise.all([
+          fetch('/api/footer'),
+          fetch('/api/categories'),
+          fetch('/api/admin/branding')
+        ]);
+
+        if (active && footerRes.ok) {
+          const footerJson = await footerRes.json();
+          setFooterData(footerJson);
+        }
+
+        if (categoriesRes.ok) {
+          const catJson = await categoriesRes.json();
+          const list: SimpleCategory[] = Array.isArray(catJson?.data)
+            ? catJson.data.map((c: any, index: number) => ({
+                id: c.id || String(index),
+                name: c.name || 'Categoria',
+                link: c.link || `/categorias/${c.id || ''}`
+              }))
+            : [];
+          if (active) setCategories(list);
+        }
+
+        if (brandingRes.ok) {
+          const brandingJson = await brandingRes.json();
+          if (brandingJson?.success && brandingJson?.data?.logoUrl) {
+            setBrandingLogo({
+              url: brandingJson.data.logoUrl,
+              alt: brandingJson.data.logoAlt || 'Guia das Bancas'
+            });
+          }
         }
       } catch (error) {
-        console.error('Erro ao carregar footer:', error);
+        console.error('Erro ao carregar footer ou categorias:', error);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
-    };
-
-    loadFooterData();
+    })();
+    return () => { active = false; };
   }, []);
 
   // Dados padrão enquanto carrega
@@ -103,18 +139,35 @@ export default function AppFooter() {
   };
 
   const data = footerData || defaultData;
+  const sections = [
+    { key: 'institucional', label: 'Institucional', links: data.links.institucional.map(link => ({ id: link.id, text: link.text, url: link.url })) },
+    { key: 'para_jornaleiro', label: 'Para o Jornaleiro', links: data.links.para_jornaleiro.map(link => ({ id: link.id, text: link.text, url: link.url })) },
+    { key: 'para_voce', label: 'Para você', links: data.links.para_voce.map(link => ({ id: link.id, text: link.text, url: link.url })) },
+    { key: 'atalhos', label: 'Atalhos', links: data.links.atalhos.map(link => ({ id: link.id, text: link.text, url: link.url })) },
+    ...(categories.length ? [{ key: 'categorias', label: 'Categorias', links: categories.map(cat => ({ id: cat.id, text: cat.name, url: cat.link })) }] : []),
+  ].filter(section => section.links.length > 0);
 
   return (
-    <footer className="w-full border-t border-gray-800 bg-[#0b0c10] text-gray-300">
+    <footer className="w-full border-t border-gray-200 bg-white text-gray-700">
       <div className="container-max py-10">
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-6 lg:gap-8">
           {/* Coluna 1: Logo + descrição + sociais */}
           <div className="col-span-2 lg:col-span-2">
-            <div className="flex items-center gap-2">
-              <div className="h-9 w-9 rounded-lg bg-[#ff5c00] grid place-items-center text-white font-extrabold">GB</div>
-              <div className="text-lg font-bold text-white">{data.title}</div>
+            <div className="flex items-center gap-3">
+              {brandingLogo ? (
+                <img
+                  src={brandingLogo.url}
+                  alt={brandingLogo.alt}
+                  className="h-9 w-auto"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="h-9 w-9 rounded-lg bg-[#ff5c00] grid place-items-center text-white font-extrabold" aria-label={data.title}>
+                  GB
+                </div>
+              )}
             </div>
-            <p className="mt-3 text-sm text-gray-400">
+            <p className="mt-3 text-sm text-gray-600">
               {data.description}
             </p>
             <div className="mt-4 flex items-center gap-2">
@@ -125,13 +178,12 @@ export default function AppFooter() {
             </div>
           </div>
 
-          {/* Coluna 2: Institucional */}
-          <div>
-            <div className="text-sm font-semibold text-white">Institucional</div>
-            <ul className="mt-3 space-y-2 text-sm text-gray-300">
+          <div className="hidden md:block">
+            <div className="text-sm font-semibold text-gray-900">Institucional</div>
+            <ul className="mt-3 space-y-2 text-sm text-gray-600">
               {data.links.institucional.map((link) => (
                 <li key={link.id}>
-                  <Link href={link.url as Route} className="hover:text-white transition-colors">
+                  <Link href={link.url as Route} className="hover:text-gray-900 transition-colors">
                     {link.text}
                   </Link>
                 </li>
@@ -139,13 +191,12 @@ export default function AppFooter() {
             </ul>
           </div>
 
-          {/* Coluna 3: Para o Jornaleiro */}
-          <div>
-            <div className="text-sm font-semibold text-white">Para o Jornaleiro</div>
-            <ul className="mt-3 space-y-2 text-sm text-gray-300">
+          <div className="hidden md:block">
+            <div className="text-sm font-semibold text-gray-900">Para o Jornaleiro</div>
+            <ul className="mt-3 space-y-2 text-sm text-gray-600">
               {data.links.para_jornaleiro.map((link) => (
                 <li key={link.id}>
-                  <Link href={link.url as Route} className="hover:text-white transition-colors">
+                  <Link href={link.url as Route} className="hover:text-gray-900 transition-colors">
                     {link.text}
                   </Link>
                 </li>
@@ -153,13 +204,12 @@ export default function AppFooter() {
             </ul>
           </div>
 
-          {/* Coluna 4: Para você */}
-          <div>
-            <div className="text-sm font-semibold text-white">Para você</div>
-            <ul className="mt-3 space-y-2 text-sm text-gray-300">
+          <div className="hidden md:block">
+            <div className="text-sm font-semibold text-gray-900">Para você</div>
+            <ul className="mt-3 space-y-2 text-sm text-gray-600">
               {data.links.para_voce.map((link) => (
                 <li key={link.id}>
-                  <Link href={link.url as Route} className="hover:text-white transition-colors">
+                  <Link href={link.url as Route} className="hover:text-gray-900 transition-colors">
                     {link.text}
                   </Link>
                 </li>
@@ -167,13 +217,12 @@ export default function AppFooter() {
             </ul>
           </div>
 
-          {/* Coluna 5: Atalhos */}
-          <div>
-            <div className="text-sm font-semibold text-white">Atalhos</div>
-            <ul className="mt-3 space-y-2 text-sm text-gray-300">
+          <div className="hidden md:block">
+            <div className="text-sm font-semibold text-gray-900">Atalhos</div>
+            <ul className="mt-3 space-y-2 text-sm text-gray-600">
               {data.links.atalhos.map((link) => (
                 <li key={link.id}>
-                  <Link href={link.url as Route} className="hover:text-white transition-colors">
+                  <Link href={link.url as Route} className="hover:text-gray-900 transition-colors">
                     {link.text}
                   </Link>
                 </li>
@@ -182,16 +231,81 @@ export default function AppFooter() {
           </div>
         </div>
 
+        {/* Mobile accordion */}
+        {sections.length > 0 && (
+          <div className="md:hidden mt-8 bg-white rounded-2xl p-4 shadow-sm">
+            <div className="text-center text-sm font-semibold text-gray-800">Links Úteis</div>
+            <div className="mt-3 space-y-2">
+              {sections.map((section) => {
+                const isOpen = openSection === section.key;
+                return (
+                  <div key={section.key} className="rounded-xl bg-white border border-gray-200">
+                    <button
+                      type="button"
+                      onClick={() => setOpenSection(isOpen ? null : section.key)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    >
+                      <span className="text-sm font-medium text-gray-900">{section.label}</span>
+                      <svg
+                        viewBox="0 0 24 24"
+                        className={`h-4 w-4 text-[#2740d7] transition-transform ${isOpen ? '-rotate-180' : 'rotate-0'}`}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </button>
+                    {isOpen && (
+                      <ul className="px-4 pb-4 space-y-2 text-sm text-gray-600">
+                        {section.links.map((link) => (
+                          <li key={link.id}>
+                            <Link href={link.url as Route} className="block rounded-md px-2 py-1 hover:bg-gray-100 hover:text-gray-900 transition">
+                              {link.text}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Payments & security */}
+        <div className="mt-8 grid gap-6 md:grid-cols-2">
+          <div className="flex flex-col items-center text-center gap-3">
+            <div className="text-sm font-semibold text-gray-800">Formas de Pagamento</div>
+            <img
+              src="https://res.cloudinary.com/beleza-na-web/image/upload/f_auto,fl_progressive,q_auto:eco,w_iw/dpr_2.0/v1/banner/2025_08_11_09_55_16_8/7f1cfcae-38fe-40e8-905b-ba12fbaa9610-pagamentos.png"
+              alt="Formas de pagamento"
+              className="w-full max-w-sm object-contain"
+              loading="lazy"
+            />
+          </div>
+          <div className="flex flex-col items-center text-center gap-3">
+            <div className="text-sm font-semibold text-gray-800">Segurança</div>
+            <img
+              src="https://res.cloudinary.com/beleza-na-web/image/upload/f_auto,fl_progressive,q_auto:eco,w_iw/dpr_2.0/v1/banner/2025_05_06_10_15_51_5/5de7d0ba-aa98-48b8-84f1-388f0e901606-security-blz.png"
+              alt="Selo de segurança"
+              className="w-full max-w-sm object-contain"
+              loading="lazy"
+            />
+          </div>
+        </div>
+
         {/* Divider */}
-        <div className="my-8 h-px bg-gray-800" />
+        <div className="my-8 h-px bg-gray-300" />
 
         {/* Bottom bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-400">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-600">
           <div>© {new Date().getFullYear()} {data.title}. Todos os direitos reservados.</div>
           <div className="flex items-center gap-4">
-            <Link href="/privacidade" className="hover:text-white transition-colors">Privacidade</Link>
-            <Link href="/termos-de-uso" className="hover:text-white transition-colors">Termos de uso</Link>
-            <Link href="/cookies" className="hover:text-white transition-colors">Cookies</Link>
+            <Link href="/privacidade" className="hover:text-gray-900 transition-colors">Privacidade</Link>
+            <Link href="/termos-de-uso" className="hover:text-gray-900 transition-colors">Termos de uso</Link>
+            <Link href="/cookies" className="hover:text-gray-900 transition-colors">Cookies</Link>
           </div>
         </div>
       </div>

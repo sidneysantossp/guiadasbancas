@@ -10,6 +10,8 @@ export type AdminCategory = {
   link: string; // internal route like /categoria/slug
   active: boolean;
   order: number;
+  jornaleiro_status?: 'all' | 'specific' | 'inactive';
+  jornaleiro_bancas?: string[] | null;
 };
 
 function verifyAdminAuth(request: NextRequest) {
@@ -69,6 +71,8 @@ export async function POST(request: NextRequest) {
       link: (inputData.link || "").toString().trim(),
       active: Boolean(inputData.active ?? true),
       order: maxOrder + 1,
+      jornaleiro_status: (inputData as any)?.jornaleiroStatus ?? 'all',
+      jornaleiro_bancas: Array.isArray((inputData as any)?.jornaleiroBancas) ? (inputData as any)?.jornaleiroBancas : [],
     };
     
     const { data, error } = await supabaseAdmin
@@ -136,6 +140,14 @@ export async function PUT(request: NextRequest) {
     if (inputData.link !== undefined) updateData.link = inputData.link;
     if (inputData.active !== undefined) updateData.active = inputData.active;
     if (inputData.order !== undefined) updateData.order = inputData.order;
+    if ((inputData as any)?.jornaleiroStatus !== undefined) {
+      updateData.jornaleiro_status = (inputData as any).jornaleiroStatus;
+    }
+    if ((inputData as any)?.jornaleiroBancas !== undefined) {
+      updateData.jornaleiro_bancas = Array.isArray((inputData as any).jornaleiroBancas)
+        ? (inputData as any).jornaleiroBancas
+        : [];
+    }
     
     const { data, error } = await supabaseAdmin
       .from('categories')

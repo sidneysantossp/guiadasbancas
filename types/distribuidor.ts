@@ -81,3 +81,11 @@ export interface MercosThrottleError {
   tempo_ate_permitir_novamente: number;
   limite_de_requisicoes: number;
 }
+
+export interface MercosError {
+  status?: number;
+  message: string;
+  details?: string;
+  code?: string;
+  timestamp?: string;
+}

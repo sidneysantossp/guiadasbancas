@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import FloatingCart from "@/components/FloatingCart";
+import CookieConsent from "@/components/CookieConsent";
 import { CartProvider } from "@/components/CartContext";
 import { ToastProvider } from "@/components/ToastProvider";
 import { Providers } from "@/components/Providers";
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   <main className={!shouldHideNavbar ? "pt-[140px] md:pt-[120px]" : ""}>{children}</main>
                   {!shouldHideNavbar && <AppFooter />}
                   {!shouldHideNavbar && <FloatingCart />}
+                  {!shouldHideNavbar && <CookieConsent />}
                 </CartProvider>
               </ToastProvider>
             </AuthProvider>
