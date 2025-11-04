@@ -136,7 +136,7 @@ export default function HomePage() {
       <ReferralPlatformBannerWrapper />
 
       <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
-        <div className="py-6">
+        <div className="pt-6 pb-0">
           <Newsletter />
         </div>
       </Suspense>
