@@ -500,7 +500,7 @@ export async function POST(
     
     // Tentar salvar o status de erro
     try {
-      await saveSyncStatus(supabase, {
+      await saveSyncStatus(supabaseAdmin, {
         totalProcessed: 0,
         lastProcessedId: null,
         lastProcessedDate: null,
