@@ -93,12 +93,16 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   const allowedWithoutBanca = false; // SEMPRE false para segurança
 
   const logout = async () => {
-    // Limpar cache da banca antes de fazer logout
+    console.log('[Logout] 🚪 Iniciando logout e limpeza completa...');
     if (user?.id) {
+      console.log('[Logout] Removendo cache da banca:', user.id);
       sessionStorage.removeItem(`gb:banca:${user.id}`);
     }
-    // Limpar também cache genérico de branding
-    sessionStorage.removeItem('gb:branding');
+    // 🚨 SEGURANÇA: Limpar TODO o sessionStorage no logout para prevenir vazamento
+    console.log('[Logout] Limpando TODO o sessionStorage...');
+    sessionStorage.clear();
+    localStorage.clear();
+    console.log('[Logout] Logout completo, redirecionando...');
     await signOut();
   };
 
@@ -115,8 +119,33 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     const onBancaUpdated = (e: any) => {
       try {
         const detail = e?.detail || {};
+        
+        // 🚨 SEGURANÇA CRÍTICA: Validar que os dados pertencem ao usuário atual
+        if (!user?.id) {
+          console.error('[Event] ❌ SEGURANÇA: Tentativa de atualizar banca sem usuário autenticado');
+          return;
+        }
+        
+        if (detail.user_id && detail.user_id !== user.id) {
+          console.error('[Event] 🚨 ALERTA DE SEGURANÇA: Tentativa de atualizar com dados de outro usuário!');
+          console.error('[Event] user_id esperado:', user.id);
+          console.error('[Event] user_id recebido:', detail.user_id);
+          return;
+        }
+        
+        // Validação adicional: se já temos banca carregada, verificar se o ID bate
+        if (banca?.id && detail.id && detail.id !== banca.id) {
+          console.error('[Event] 🚨 ALERTA: Tentativa de atualizar com banca diferente!');
+          console.error('[Event] banca_id atual:', banca.id);
+          console.error('[Event] banca_id recebido:', detail.id);
+          return;
+        }
+        
+        console.log('[Event] ✅ Atualização válida recebida, atualizando header');
         setBanca((prev: any) => ({ ...(prev || {}), ...detail }));
-      } catch {}
+      } catch (err) {
+        console.error('[Event] Erro ao processar atualização:', err);
+      }
     };
     if (typeof window !== 'undefined') {
       window.addEventListener('gb:banca:updated', onBancaUpdated as any);
@@ -126,7 +155,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         window.removeEventListener('gb:banca:updated', onBancaUpdated as any);
       }
     };
-  }, []);
+  }, [user?.id, banca?.id]);
 
   // Limpar cache de bancas antigas quando user.id muda
   useEffect(() => {

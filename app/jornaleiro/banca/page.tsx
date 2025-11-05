@@ -184,6 +184,13 @@ export default function MinhaBancaPage() {
     const load = async () => {
       try {
         setLoading(true);
+        console.log('\n========== [LOAD] Iniciando carregamento da banca ==========');
+        console.log('[LOAD] 🔐 Sessão atual:', {
+          user_id: session?.user?.id,
+          user_email: session?.user?.email,
+          user_name: session?.user?.name,
+        });
+        
         const res = await fetch("/api/jornaleiro/banca", { cache: "no-store", credentials: "include" });
         if (res.status === 404) {
           setNotFound(true);
@@ -196,6 +203,11 @@ export default function MinhaBancaPage() {
         
         console.log('\n========== [LOAD] Dados recebidos do backend ==========');
         console.log('📥 Banca raw:', banca);
+        console.log('🔍 Validação de segurança:', {
+          banca_user_id: banca.user_id,
+          session_user_id: session?.user?.id,
+          MATCH: banca.user_id === session?.user?.id ? '✅ OK' : '🚨 ERRO!'
+        });
         console.log('🖼️  Imagens recebidas:', {
           cover: banca.cover,
           avatar: banca.avatar,
@@ -571,7 +583,9 @@ export default function MinhaBancaPage() {
             window.dispatchEvent(new CustomEvent('gb:banca:updated', {
               detail: {
                 id: json.data?.id,
+                user_id: json.data?.user_id || session?.user?.id,
                 name: mappedAfter.name,
+                email: json.data?.email,
                 profile_image: finalAvatarBusted,
                 cover_image: finalCoverBusted,
               }
