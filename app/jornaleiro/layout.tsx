@@ -110,6 +110,24 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     setMounted(true);
   }, []);
 
+  // Ouvir atualizações da banca geradas pela página de edição para refletir no header em tempo real
+  useEffect(() => {
+    const onBancaUpdated = (e: any) => {
+      try {
+        const detail = e?.detail || {};
+        setBanca((prev: any) => ({ ...(prev || {}), ...detail }));
+      } catch {}
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('gb:banca:updated', onBancaUpdated as any);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('gb:banca:updated', onBancaUpdated as any);
+      }
+    };
+  }, []);
+
   // Limpar cache de bancas antigas quando user.id muda
   useEffect(() => {
     if (!user?.id) return;

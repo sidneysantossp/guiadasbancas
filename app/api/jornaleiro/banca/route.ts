@@ -340,11 +340,15 @@ export async function PUT(request: NextRequest) {
 
     console.log('Banca atualizada com sucesso:', updatedData);
     
+    // Reconstruir addressObj para manter consistência com o GET
+    const updatedAddressObj = parseAddressString(updatedData.address || '', updatedData.cep || '');
+
     // Retornar dados formatados para o frontend
     const responseData = {
       ...updatedData,
       cover: updatedData.cover_image,
       avatar: updatedData.profile_image,
+      addressObj: updatedAddressObj,
       images: {
         cover: updatedData.cover_image,
         avatar: updatedData.profile_image

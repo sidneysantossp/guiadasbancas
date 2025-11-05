@@ -97,6 +97,7 @@ export default function MinhaBancaPage() {
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [categoriesOptions, setCategoriesOptions] = useState<{ id: string; name: string }[]>([]);
+  const [formRevision, setFormRevision] = useState(0);
   const { data: session, status } = useSession();
 
   const withCacheBust = (url?: string, seed?: number | string) => {
@@ -104,6 +105,73 @@ export default function MinhaBancaPage() {
     const s = typeof seed !== 'undefined' ? seed : Date.now();
     return url.includes("?") ? `${url}&v=${s}` : `${url}?v=${s}`;
   };
+
+  const mapApiToForm = (banca: any): BancaForm => {
+    const versionSeed = banca?.updated_at || Date.now();
+    const mapped: BancaForm = {
+      id: banca?.id,
+      name: banca?.name || "",
+      description: banca?.description || "",
+      cover: withCacheBust(banca?.cover || banca?.cover_image || '', versionSeed),
+      avatar: withCacheBust(banca?.avatar || banca?.profile_image || '', versionSeed),
+      gallery: Array.isArray(banca?.gallery) ? banca.gallery : [],
+      featured: Boolean(banca?.featured),
+      ctaUrl: banca?.ctaUrl || "",
+      contact: banca?.contact || { whatsapp: banca?.whatsapp || "" },
+      socials: banca?.socials || {
+        instagram: banca?.instagram || "",
+        facebook: banca?.facebook || "",
+        gmb: banca?.gmb || "",
+      },
+      addressObj: banca?.addressObj || {},
+      location: {
+        lat: banca?.location?.lat != null ? String(banca.location.lat) : banca?.lat != null ? String(banca.lat) : "",
+        lng: banca?.location?.lng != null ? String(banca.location.lng) : banca?.lng != null ? String(banca.lng) : "",
+      },
+      payments: Array.isArray(banca?.payments) ? banca.payments : (Array.isArray(banca?.payment_methods) ? banca.payment_methods : []),
+      categories: Array.isArray(banca?.categories) ? banca.categories : [],
+      hours: Array.isArray(banca?.hours) && banca.hours.length > 0
+        ? banca.hours
+        : DAYS.map((d) => ({ key: d.key, label: d.label, open: false, start: "08:00", end: "18:00" })),
+    };
+    return mapped;
+  };
+
+  const reloadFromServer = async () => {
+    try {
+      const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}`, { cache: 'no-store', credentials: 'include' });
+      if (!res.ok) return;
+      const json = await res.json();
+      const banca = json?.data || {};
+      const mapped = mapApiToForm(banca);
+      setForm(mapped);
+      setCoverImages(mapped.cover ? [mapped.cover] : []);
+      setAvatarImages(mapped.avatar ? [mapped.avatar] : []);
+      setGalleryImages(mapped.gallery);
+      setFormRevision((r) => r + 1);
+      // Atualizar cache do header
+      try {
+        const uid = session?.user?.id || banca?.user_id;
+        if (uid) {
+          const cacheKey = `gb:banca:${uid}`;
+          const cached = sessionStorage.getItem(cacheKey);
+          const parsed = cached ? JSON.parse(cached) : {};
+          const nextCache = {
+            ...parsed,
+            id: banca?.id || parsed?.id,
+            name: banca?.name || parsed?.name,
+            email: banca?.email || parsed?.email,
+            user_id: uid,
+            profile_image: mapped.avatar || parsed?.profile_image,
+            cover_image: mapped.cover || parsed?.cover_image,
+            updated_at: banca?.updated_at || new Date().toISOString(),
+          };
+          sessionStorage.setItem(cacheKey, JSON.stringify(nextCache));
+        }
+      } catch {}
+    } catch {}
+  };
+
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -125,7 +193,6 @@ export default function MinhaBancaPage() {
         if (!res.ok) throw new Error("Não foi possível carregar os dados da banca.");
         const json = await res.json();
         const banca = json?.data || {};
-        const versionSeed = banca.updated_at || Date.now();
         
         console.log('\n========== [LOAD] Dados recebidos do backend ==========');
         console.log('📥 Banca raw:', banca);
@@ -137,28 +204,7 @@ export default function MinhaBancaPage() {
           images_cover: banca.images?.cover,
           images_avatar: banca.images?.avatar
         });
-        const mapped: BancaForm = {
-          id: banca.id,
-          name: banca.name || "",
-          description: banca.description || "",
-          cover: withCacheBust(banca.cover || banca.cover_image || '', versionSeed),
-          avatar: withCacheBust(banca.avatar || banca.profile_image || '', versionSeed),
-          gallery: Array.isArray(banca.gallery) ? banca.gallery : [],
-          featured: Boolean(banca.featured),
-          ctaUrl: banca.ctaUrl || "",
-          contact: banca.contact || {},
-          socials: banca.socials || {},
-          addressObj: banca.addressObj || {},
-          location: {
-            lat: banca.location?.lat != null ? String(banca.location.lat) : banca.lat != null ? String(banca.lat) : "",
-            lng: banca.location?.lng != null ? String(banca.location.lng) : banca.lng != null ? String(banca.lng) : "",
-          },
-          payments: Array.isArray(banca.payments) ? banca.payments : [],
-          categories: Array.isArray(banca.categories) ? banca.categories : [],
-          hours: Array.isArray(banca.hours) && banca.hours.length > 0 
-            ? banca.hours 
-            : DAYS.map((d) => ({ key: d.key, label: d.label, open: false, start: "08:00", end: "18:00" })),
-        };
+        const mapped: BancaForm = mapApiToForm(banca);
         console.log('✅ Valores mapeados:', {
           cover: mapped.cover,
           avatar: mapped.avatar
@@ -173,6 +219,7 @@ export default function MinhaBancaPage() {
         setCoverImages(mapped.cover ? [mapped.cover] : []);
         setAvatarImages(mapped.avatar ? [mapped.avatar] : []);
         setGalleryImages(mapped.gallery);
+        setFormRevision((r) => r + 1);
         
         console.log('========== [LOAD] FIM ==========\n');
       } catch (e: any) {
@@ -474,31 +521,18 @@ export default function MinhaBancaPage() {
           profile_image: json.data.profile_image
         });
         
-        // Atualizar form com os dados retornados
-        setForm((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            ...json.data,
-            cover: json.data.cover_image || json.data.cover || coverUrl,
-            avatar: json.data.profile_image || json.data.avatar || avatarUrl,
-            gallery: json.data.gallery || galleryUrls,
-            addressObj: prev.addressObj, // Manter addressObj do frontend
-            contact: prev.contact,
-            socials: prev.socials,
-          };
-        });
+        // Atualizar form com o mapeamento canônico do servidor
+        const mappedAfter = mapApiToForm(json.data);
+        setForm(mappedAfter);
+        setFormRevision((r) => r + 1);
 
         // Atualizar as imagens no estado após salvamento bem-sucedido
-        const versionSeed2 = json.data?.updated_at || Date.now();
-        const finalCoverUrl = json.data.cover_image || json.data.cover || coverUrl;
-        const finalAvatarUrl = json.data.profile_image || json.data.avatar || avatarUrl;
-        const finalCoverBusted = withCacheBust(finalCoverUrl, versionSeed2);
-        const finalAvatarBusted = withCacheBust(finalAvatarUrl, versionSeed2);
+        const finalCoverBusted = mappedAfter.cover;
+        const finalAvatarBusted = mappedAfter.avatar;
         
         console.log('✅ URLs finais após salvamento:', {
-          finalCoverUrl,
-          finalAvatarUrl
+          finalCoverUrl: finalCoverBusted,
+          finalAvatarUrl: finalAvatarBusted
         });
         
         console.log('📋 Atualizando estados de imagem:', {
@@ -508,7 +542,7 @@ export default function MinhaBancaPage() {
         
         if (finalCoverBusted) setCoverImages([finalCoverBusted]);
         if (finalAvatarBusted) setAvatarImages([finalAvatarBusted]);
-        if (galleryUrls.length > 0) setGalleryImages(galleryUrls);
+        if (Array.isArray(mappedAfter.gallery)) setGalleryImages(mappedAfter.gallery);
 
         try {
           const uid = session?.user?.id || json.data?.user_id;
@@ -529,12 +563,27 @@ export default function MinhaBancaPage() {
             sessionStorage.setItem(cacheKey, JSON.stringify(nextCache));
           }
         } catch {}
+
+        // Sucesso e evento para atualizar header em tempo real
+        toast.success("Dados da banca atualizados com sucesso!");
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('gb:banca:updated', {
+              detail: {
+                id: json.data?.id,
+                name: mappedAfter.name,
+                profile_image: finalAvatarBusted,
+                cover_image: finalCoverBusted,
+              }
+            }));
+          }
+        } catch {}
       }
       
-      console.log('========== [SAVE] FIM ==========\n');
+      console.log('========== [SAVE] FIM ==========');
       
-      toast.success("Dados da banca atualizados com sucesso!");
-      router.refresh();
+      // Recarregar do servidor para garantir consistência em todos os campos
+      reloadFromServer();
     } catch (e: any) {
       console.error('Erro ao salvar banca:', e);
       toast.error(e?.message || "Erro ao salvar banca");
@@ -599,6 +648,7 @@ export default function MinhaBancaPage() {
               />
             </div>
             <RichTextEditor
+              key={`desc-${formRevision}`}
               label="Descrição"
               value={form.description}
               onChange={(html) => updateField("description", html)}
