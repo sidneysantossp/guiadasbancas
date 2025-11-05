@@ -317,37 +317,23 @@ export async function POST(
     }
     console.log(`[FULL-SYNC] ✓ Conexão com Mercos OK`);
 
-    // Estado da sincronização
-    const state: SyncState = {
-      totalProcessed: 0,
-      lastProcessedId: null,
-      lastProcessedDate: null,
-      hasMore: true,
-      errors: [],
-      startTime: Date.now()
-    };
+    // Estado da sincronização já inicializado acima em `state`
 
     // Processar em lotes até terminar ou atingir o tempo limite
     while (state.hasMore && !isTimeoutReached(state.startTime, SYNC_CONFIG.MAX_EXECUTION_TIME)) {
       console.log(`[FULL-SYNC] Processando lote a partir do ID: ${state.lastProcessedId}, Data: ${state.lastProcessedDate}`);
-      
-      const result = await processBatch(
+
+      const nextState = await processBatch(
         supabase,
         mercosApi,
-        params.id,
-        state.lastProcessedId,
-        state.lastProcessedDate,
+        state,
         SYNC_CONFIG.BATCH_SIZE
       );
 
-      // Atualizar estado
-      state.totalProcessed += result.processed;
-      state.lastProcessedId = result.lastId;
-      state.lastProcessedId = result.lastDate;
-      state.hasMore = result.hasMore;
-      state.errors = [...state.errors, ...result.errors];
+      // Atualizar estado com o retorno do processBatch
+      state = nextState;
 
-      console.log(`[FULL-SYNC] Lote processado: ${result.processed} produtos (Total: ${state.totalProcessed})`);
+      console.log(`[FULL-SYNC] Lote processado. Total até agora: ${state.totalProcessed}`);
       
       // Adicionar delay entre lotes para evitar sobrecarga
       if (state.hasMore && !isTimeoutReached(state.startTime, SYNC_CONFIG.MAX_EXECUTION_TIME - 5)) {
@@ -411,10 +397,4 @@ export async function POST(
       { status: 500 }
     );
   }
-}
-
-// Função auxiliar para verificar se o tempo limite foi atingido
-function isTimeoutReached(startTime: number, maxSeconds: number): boolean {
-  const elapsedSeconds = (Date.now() - startTime) / 1000;
-  return elapsedSeconds >= maxSeconds - SYNC_CONFIG.TIMEOUT_SAFETY_MARGIN;
 }
