@@ -114,11 +114,22 @@ async function loadBancaForUser(userId: string): Promise<any> {
       MATCH: data.user_id === userId ? '✅ CORRETO' : '❌ ERRO: user_id não bate!'
     });
     
+    // 🚨 VALIDAÇÃO CRÍTICA: Garantir que o Supabase retornou a banca certa
+    if (data.user_id !== userId) {
+      console.error("[loadBancaForUser] 🚨🚨🚨 ERRO CRÍTICO: Supabase retornou banca de outro usuário!");
+      console.error("[loadBancaForUser] user_id esperado:", userId);
+      console.error("[loadBancaForUser] user_id retornado:", data.user_id);
+      console.error("[loadBancaForUser] BLOQUEANDO por segurança!");
+      return null;
+    }
+    
     // Parse robusto do endereço completo para addressObj
     const addressObj = parseAddressString(data.address || '', data.cep || '');
     
     const result = {
       id: data.id,
+      user_id: data.user_id, // 🚨 INCLUIR user_id para validação no frontend
+      email: data.email, // 🚨 INCLUIR email para validação
       name: data.name || '',
       description: data.description || '',
       address: data.address || '',
@@ -210,14 +221,36 @@ export async function GET(request: NextRequest) {
     user_autenticado: session.user.email
   });
   
-  // SEGURANÇA CRÍTICA: Verificar se os emails batem
+  // 🚨 SEGURANÇA CRÍTICA: BLOQUEAR se os dados não batem
   if (banca.email && session.user.email && banca.email !== session.user.email) {
     console.error('🚨🚨🚨 ALERTA DE SEGURANÇA: EMAIL NÃO BATE! 🚨🚨🚨');
     console.error('[SECURITY] Email do usuário autenticado:', session.user.email);
     console.error('[SECURITY] Email da banca retornada:', banca.email);
-    console.error('[SECURITY] user_id:', session.user.id);
+    console.error('[SECURITY] user_id da sessão:', session.user.id);
+    console.error('[SECURITY] user_id da banca:', banca.user_id);
     console.error('[SECURITY] banca_id:', banca.id);
-    console.error('🚨🚨🚨 POSSÍVEL VAZAMENTO DE DADOS! 🚨🚨🚨');
+    console.error('🚨🚨🚨 BLOQUEANDO ACESSO - VAZAMENTO DE DADOS DETECTADO! 🚨🚨🚨');
+    
+    // BLOQUEAR COMPLETAMENTE - NÃO RETORNAR DADOS DE OUTRA BANCA
+    return NextResponse.json({ 
+      success: false, 
+      error: "Erro de validação de segurança. Faça logout e login novamente.",
+      details: "EMAIL_MISMATCH"
+    }, { status: 403 });
+  }
+  
+  // Validação adicional: verificar user_id
+  if (banca.user_id && banca.user_id !== session.user.id) {
+    console.error('🚨🚨🚨 ALERTA DE SEGURANÇA: USER_ID NÃO BATE! 🚨🚨🚨');
+    console.error('[SECURITY] user_id esperado:', session.user.id);
+    console.error('[SECURITY] user_id da banca:', banca.user_id);
+    console.error('🚨🚨🚨 BLOQUEANDO ACESSO! 🚨🚨🚨');
+    
+    return NextResponse.json({ 
+      success: false, 
+      error: "Erro de validação de segurança. Faça logout e login novamente.",
+      details: "USER_ID_MISMATCH"
+    }, { status: 403 });
   }
   
   console.log('========== [API /jornaleiro/banca GET] FIM ==========\n');

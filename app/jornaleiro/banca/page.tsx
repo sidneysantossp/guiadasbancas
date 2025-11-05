@@ -206,8 +206,60 @@ export default function MinhaBancaPage() {
         console.log('🔍 Validação de segurança:', {
           banca_user_id: banca.user_id,
           session_user_id: session?.user?.id,
-          MATCH: banca.user_id === session?.user?.id ? '✅ OK' : '🚨 ERRO!'
+          banca_email: banca.email,
+          session_email: session?.user?.email,
+          USER_ID_MATCH: banca.user_id === session?.user?.id ? '✅ OK' : '🚨 ERRO!',
+          EMAIL_MATCH: banca.email === session?.user?.email ? '✅ OK' : '🚨 ERRO!'
         });
+        
+        // 🚨 SEGURANÇA CRÍTICA: BLOQUEAR se os dados não batem
+        if (banca.user_id && session?.user?.id && banca.user_id !== session.user.id) {
+          console.error('🚨🚨🚨 VAZAMENTO DE DADOS DETECTADO NO FRONTEND! 🚨🚨🚨');
+          console.error('[FRONTEND] user_id esperado:', session.user.id);
+          console.error('[FRONTEND] user_id recebido:', banca.user_id);
+          console.error('[FRONTEND] FORÇANDO LOGOUT IMEDIATO!');
+          
+          // Limpar tudo e forçar logout
+          sessionStorage.clear();
+          localStorage.clear();
+          
+          setError("Erro de segurança detectado. Você será desconectado.");
+          
+          // Aguardar 2 segundos e fazer logout
+          setTimeout(async () => {
+            try {
+              const { signOut } = await import('next-auth/react');
+              await signOut({ redirect: true, callbackUrl: '/jornaleiro?error=security_mismatch' });
+            } catch (e) {
+              window.location.href = '/jornaleiro?error=security_mismatch';
+            }
+          }, 2000);
+          
+          return;
+        }
+        
+        if (banca.email && session?.user?.email && banca.email !== session.user.email) {
+          console.error('🚨🚨🚨 EMAIL NÃO BATE - VAZAMENTO DETECTADO! 🚨🚨🚨');
+          console.error('[FRONTEND] email esperado:', session.user.email);
+          console.error('[FRONTEND] email recebido:', banca.email);
+          console.error('[FRONTEND] FORÇANDO LOGOUT IMEDIATO!');
+          
+          sessionStorage.clear();
+          localStorage.clear();
+          
+          setError("Erro de segurança detectado. Você será desconectado.");
+          
+          setTimeout(async () => {
+            try {
+              const { signOut } = await import('next-auth/react');
+              await signOut({ redirect: true, callbackUrl: '/jornaleiro?error=security_mismatch' });
+            } catch (e) {
+              window.location.href = '/jornaleiro?error=security_mismatch';
+            }
+          }, 2000);
+          
+          return;
+        }
         console.log('🖼️  Imagens recebidas:', {
           cover: banca.cover,
           avatar: banca.avatar,
