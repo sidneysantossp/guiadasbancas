@@ -178,23 +178,42 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
       if (cachedBanca) {
         try {
           const bancaData = JSON.parse(cachedBanca);
+          console.log('[Cache] 📦 Cache encontrado:', {
+            cache_key: cacheKey,
+            banca_name: bancaData.name,
+            banca_user_id: bancaData.user_id,
+            user_autenticado: user.id,
+            MATCH: bancaData.user_id === user.id
+          });
+          
           // Validar se o cache é mesmo deste usuário
           if (bancaData.user_id === user.id) {
-            console.log('[Cache] Usando banca do cache para user:', user.id);
+            console.log('[Cache] ✅ Cache válido, usando banca do cache');
             setBanca(bancaData);
             setBancaValidated(true);
             return;
           } else {
             // Cache inválido, remover
-            console.warn('[Cache] Cache inválido detectado, limpando...');
+            console.error('[Cache] ❌ Cache INVÁLIDO detectado!');
+            console.error('[Cache] Esperado user_id:', user.id);
+            console.error('[Cache] Cache tinha user_id:', bancaData.user_id);
+            console.error('[Cache] Limpando cache inválido...');
             sessionStorage.removeItem(cacheKey);
           }
-        } catch {}
+        } catch (e) {
+          console.error('[Cache] Erro ao parsear cache:', e);
+        }
       }
 
       // Verificar se tem banca (apenas se não tiver cache)
       try {
-        console.log('[Banca] Buscando banca para user_id:', user.id);
+        console.log('\n========== [Layout] Carregando banca ==========');
+        console.log('[Layout] 👤 Usuário autenticado:', {
+          user_id: user.id,
+          user_email: (user as any)?.email
+        });
+        console.log('[Layout] 🔍 Buscando banca para user_id:', user.id);
+        
         const { data: bancaData, error } = await supabase
           .from('bancas')
           .select('id, slug, name, user_id, email, profile_image, uf')
@@ -202,20 +221,32 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           .single();
 
         if (error || !bancaData) {
-          console.warn('[Security] Usuário sem banca associada.', error?.message);
+          console.warn('[Layout] ❌ Usuário sem banca associada.', error?.message);
           setBanca(null);
           setBancaValidated(true);
           // Não faz redirect aqui - deixa a validação na renderização decidir
           return;
         }
 
-        console.log('[Banca] Banca encontrada:', {
-          id: bancaData.id,
-          name: bancaData.name,
-          user_id: bancaData.user_id,
+        console.log('[Layout] ✅ Banca encontrada:', {
+          banca_id: bancaData.id,
+          banca_name: bancaData.name,
+          banca_user_id: bancaData.user_id,
+          banca_email: bancaData.email,
           slug: bancaData.slug,
           uf: bancaData.uf
         });
+        
+        // SEGURANÇA CRÍTICA: Verificar se os dados batem
+        if (bancaData.user_id !== user.id) {
+          console.error('🚨🚨🚨 ALERTA DE SEGURANÇA: user_id NÃO BATE! 🚨🚨🚨');
+          console.error('[SECURITY] user_id esperado:', user.id);
+          console.error('[SECURITY] user_id da banca:', bancaData.user_id);
+          console.error('[SECURITY] Forçando logout por segurança!');
+          sessionStorage.clear();
+          await signOut();
+          return;
+        }
 
         // Salvar no cache
         sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(bancaData));

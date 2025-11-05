@@ -5,6 +5,8 @@ import type { AdminBanca } from "@/app/api/admin/bancas/route";
 
 async function loadBancaForUser(userId: string): Promise<any> {
   try {
+    console.log('[loadBancaForUser] Buscando banca para user_id:', userId);
+    
     // Buscar banca pelo user_id
     const { data, error } = await supabaseAdmin
       .from('bancas')
@@ -13,11 +15,18 @@ async function loadBancaForUser(userId: string): Promise<any> {
       .single();
     
     if (error || !data) {
-      console.log("Banca não encontrada para user_id:", userId, error?.message);
+      console.error("[loadBancaForUser] ❌ Banca NÃO encontrada para user_id:", userId);
+      console.error("[loadBancaForUser] Erro Supabase:", error?.message, error?.code);
       return null;
     }
     
-    console.log("Dados carregados da banca:", data);
+    console.log("[loadBancaForUser] ✅ Banca encontrada:", {
+      banca_id: data.id,
+      banca_name: data.name,
+      banca_user_id: data.user_id,
+      email: data.email,
+      MATCH: data.user_id === userId ? '✅ CORRETO' : '❌ ERRO: user_id não bate!'
+    });
     
     // Parse do endereço completo para addressObj
     const addressParts = (data.address || '').split(', ');
@@ -87,18 +96,54 @@ async function loadBancaForUser(userId: string): Promise<any> {
 
 
 export async function GET(request: NextRequest) {
+  console.log('\n========== [API /jornaleiro/banca GET] INÍCIO ==========');
+  
   // Usar NextAuth para pegar o usuário autenticado
   const session = await auth();
   
+  console.log('[GET] 🔐 Sessão recebida:', {
+    existe: !!session,
+    user_existe: !!session?.user,
+    user_id: session?.user?.id,
+    user_email: session?.user?.email,
+    user_name: session?.user?.name
+  });
+  
   if (!session?.user?.id) {
+    console.error('[GET] ❌ ERRO: Usuário não autenticado');
     return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
   }
 
+  console.log('[GET] ✅ Usuário autenticado:', session.user.email);
+  console.log('[GET] 🔍 Buscando banca para user_id:', session.user.id);
+  
   const banca = await loadBancaForUser(session.user.id);
+  
   if (!banca) {
+    console.error('[GET] ❌ Banca não encontrada para user_id:', session.user.id);
+    console.error('[GET] Email do usuário:', session.user.email);
     return NextResponse.json({ success: false, error: "Banca não encontrada para este usuário" }, { status: 404 });
   }
 
+  console.log('[GET] ✅ Banca carregada:', {
+    banca_id: banca.id,
+    banca_name: banca.name,
+    banca_email: banca.email,
+    user_autenticado: session.user.email
+  });
+  
+  // SEGURANÇA CRÍTICA: Verificar se os emails batem
+  if (banca.email && session.user.email && banca.email !== session.user.email) {
+    console.error('🚨🚨🚨 ALERTA DE SEGURANÇA: EMAIL NÃO BATE! 🚨🚨🚨');
+    console.error('[SECURITY] Email do usuário autenticado:', session.user.email);
+    console.error('[SECURITY] Email da banca retornada:', banca.email);
+    console.error('[SECURITY] user_id:', session.user.id);
+    console.error('[SECURITY] banca_id:', banca.id);
+    console.error('🚨🚨🚨 POSSÍVEL VAZAMENTO DE DADOS! 🚨🚨🚨');
+  }
+  
+  console.log('========== [API /jornaleiro/banca GET] FIM ==========\n');
+  
   return NextResponse.json({ success: true, data: banca });
 }
 
@@ -106,14 +151,23 @@ export async function PUT(request: NextRequest) {
   // Usar NextAuth para pegar o usuário autenticado
   const session = await auth();
   
+  console.log('[PUT] Autenticando usuário...');
+  console.log('[PUT] Session:', session);
+  
   if (!session?.user?.id) {
+    console.error('[PUT] Usuário não autenticado');
     return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
   }
 
+  console.log('[PUT] Usuário autenticado com sucesso!');
+  console.log('[PUT] Recebendo dados para atualização...');
+  
   try {
     const body = await request.json();
     const data = body?.data ?? body;
-
+    
+    console.log('[PUT] Dados recebidos:', data);
+    
     console.log('Dados recebidos para atualização:', JSON.stringify(data, null, 2));
 
     // Preparar endereço completo
