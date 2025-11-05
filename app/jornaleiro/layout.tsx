@@ -26,7 +26,12 @@ import {
   IconHome,
 } from "@tabler/icons-react";
 
-const hedvig = Hedvig_Letters_Serif({ subsets: ["latin"] });
+const hedvig = Hedvig_Letters_Serif({
+  subsets: ["latin"],
+  display: "swap",
+  adjustFontFallback: false,
+  fallback: ["serif"],
+});
 
 const journaleiroIconComponents = {
   dashboard: IconLayoutDashboard,

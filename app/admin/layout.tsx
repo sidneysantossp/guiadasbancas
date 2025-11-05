@@ -38,7 +38,12 @@ import {
   IconBrandWhatsapp,
 } from "@tabler/icons-react";
 
-const hedvig = Hedvig_Letters_Serif({ subsets: ["latin"] });
+const hedvig = Hedvig_Letters_Serif({
+  subsets: ["latin"],
+  display: "swap",
+  adjustFontFallback: false,
+  fallback: ["serif"],
+});
 
 const iconComponents = {
   dashboard: IconLayoutDashboard,
