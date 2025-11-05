@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import type { AdminBanca } from "@/app/api/admin/bancas/route";
@@ -131,6 +133,7 @@ async function loadBancaForUser(userId: string): Promise<any> {
       avatar: data.profile_image || '',
       cover_image: data.cover_image || '',
       profile_image: data.profile_image || '',
+      updated_at: data.updated_at,
       images: {
         cover: data.cover_image || '',
         avatar: data.profile_image || ''

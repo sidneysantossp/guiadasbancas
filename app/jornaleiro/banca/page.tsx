@@ -97,7 +97,13 @@ export default function MinhaBancaPage() {
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [categoriesOptions, setCategoriesOptions] = useState<{ id: string; name: string }[]>([]);
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+
+  const withCacheBust = (url?: string, seed?: number | string) => {
+    if (!url) return "";
+    const s = typeof seed !== 'undefined' ? seed : Date.now();
+    return url.includes("?") ? `${url}&v=${s}` : `${url}?v=${s}`;
+  };
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -119,6 +125,7 @@ export default function MinhaBancaPage() {
         if (!res.ok) throw new Error("Não foi possível carregar os dados da banca.");
         const json = await res.json();
         const banca = json?.data || {};
+        const versionSeed = banca.updated_at || Date.now();
         
         console.log('\n========== [LOAD] Dados recebidos do backend ==========');
         console.log('📥 Banca raw:', banca);
@@ -134,8 +141,8 @@ export default function MinhaBancaPage() {
           id: banca.id,
           name: banca.name || "",
           description: banca.description || "",
-          cover: banca.cover || banca.cover_image || '',
-          avatar: banca.avatar || banca.profile_image || '',
+          cover: withCacheBust(banca.cover || banca.cover_image || '', versionSeed),
+          avatar: withCacheBust(banca.avatar || banca.profile_image || '', versionSeed),
           gallery: Array.isArray(banca.gallery) ? banca.gallery : [],
           featured: Boolean(banca.featured),
           ctaUrl: banca.ctaUrl || "",
@@ -483,8 +490,11 @@ export default function MinhaBancaPage() {
         });
 
         // Atualizar as imagens no estado após salvamento bem-sucedido
+        const versionSeed2 = json.data?.updated_at || Date.now();
         const finalCoverUrl = json.data.cover_image || json.data.cover || coverUrl;
         const finalAvatarUrl = json.data.profile_image || json.data.avatar || avatarUrl;
+        const finalCoverBusted = withCacheBust(finalCoverUrl, versionSeed2);
+        const finalAvatarBusted = withCacheBust(finalAvatarUrl, versionSeed2);
         
         console.log('✅ URLs finais após salvamento:', {
           finalCoverUrl,
@@ -492,13 +502,33 @@ export default function MinhaBancaPage() {
         });
         
         console.log('📋 Atualizando estados de imagem:', {
-          coverImages: finalCoverUrl ? [finalCoverUrl] : [],
-          avatarImages: finalAvatarUrl ? [finalAvatarUrl] : []
+          coverImages: finalCoverBusted ? [finalCoverBusted] : [],
+          avatarImages: finalAvatarBusted ? [finalAvatarBusted] : []
         });
         
-        if (finalCoverUrl) setCoverImages([finalCoverUrl]);
-        if (finalAvatarUrl) setAvatarImages([finalAvatarUrl]);
+        if (finalCoverBusted) setCoverImages([finalCoverBusted]);
+        if (finalAvatarBusted) setAvatarImages([finalAvatarBusted]);
         if (galleryUrls.length > 0) setGalleryImages(galleryUrls);
+
+        try {
+          const uid = session?.user?.id || json.data?.user_id;
+          if (uid) {
+            const cacheKey = `gb:banca:${uid}`;
+            const cached = sessionStorage.getItem(cacheKey);
+            const parsed = cached ? JSON.parse(cached) : {};
+            const nextCache = {
+              ...parsed,
+              id: json.data?.id || parsed?.id,
+              name: json.data?.name || parsed?.name,
+              email: json.data?.email || parsed?.email,
+              user_id: uid,
+              profile_image: finalAvatarBusted || parsed?.profile_image,
+              cover_image: finalCoverBusted || parsed?.cover_image,
+              updated_at: json.data?.updated_at || new Date().toISOString(),
+            };
+            sessionStorage.setItem(cacheKey, JSON.stringify(nextCache));
+          }
+        } catch {}
       }
       
       console.log('========== [SAVE] FIM ==========\n');
