@@ -179,6 +179,14 @@ export async function PUT(request: NextRequest) {
       data.addressObj?.uf
     ].filter(Boolean).join(', ');
 
+    // LOG: Verificar o que está sendo enviado
+    console.log('[PUT] 🖼️  Imagens recebidas:', {
+      cover_from_images: data.images?.cover,
+      cover_from_data: data.cover,
+      avatar_from_images: data.images?.avatar,
+      avatar_from_data: data.avatar
+    });
+
     // Preparar dados para atualização no Supabase
     // APENAS campos que existem na tabela bancas
     const updateData: any = {
@@ -188,8 +196,6 @@ export async function PUT(request: NextRequest) {
       cep: data.addressObj?.cep || data.cep,
       lat: data.location?.lat || data.lat,
       lng: data.location?.lng || data.lng,
-      cover_image: data.images?.cover || data.cover,
-      profile_image: data.images?.avatar || data.avatar, // Avatar redondo separado
       categories: data.categories || [],
       whatsapp: data.contact?.whatsapp,
       instagram: data.socials?.instagram,
@@ -202,10 +208,28 @@ export async function PUT(request: NextRequest) {
       updated_at: new Date().toISOString()
     };
 
-    // Remover campos undefined ou null
+    // CRÍTICO: Imagens são completamente independentes
+    // Só atualizar se foi explicitamente enviado (aceita string vazia também)
+    if (data.images?.cover !== undefined && data.images?.cover !== null) {
+      console.log('[PUT] ✅ Atualizando cover_image:', data.images.cover);
+      updateData.cover_image = data.images.cover || null; // null se vazio
+    } else {
+      console.log('[PUT] ⏭️  cover_image não foi enviado, mantendo valor existente');
+    }
+
+    if (data.images?.avatar !== undefined && data.images?.avatar !== null) {
+      console.log('[PUT] ✅ Atualizando profile_image:', data.images.avatar);
+      updateData.profile_image = data.images.avatar || null; // null se vazio
+    } else {
+      console.log('[PUT] ⏭️  profile_image não foi enviado, mantendo valor existente');
+    }
+
+    // Remover apenas campos básicos que são undefined/null (NÃO imagens)
     Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined || updateData[key] === null || updateData[key] === '') {
-        delete updateData[key];
+      if (key !== 'cover_image' && key !== 'profile_image') {
+        if (updateData[key] === undefined || updateData[key] === null || updateData[key] === '') {
+          delete updateData[key];
+        }
       }
     });
 

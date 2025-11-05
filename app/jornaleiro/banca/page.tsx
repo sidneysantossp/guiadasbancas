@@ -373,10 +373,20 @@ export default function MinhaBancaPage() {
       const avatarUrl = uploadedAvatar[0] || form.avatar;
       const galleryUrls = uploadedGallery.length > 0 ? uploadedGallery : form.gallery;
       
-      console.log('URLs após upload:', {
+      console.log('🖼️  URLs após upload:', {
         coverUrl,
         avatarUrl,
         galleryUrls
+      });
+      
+      console.log('🔍 Valores do form original:', {
+        form_cover: form.cover,
+        form_avatar: form.avatar
+      });
+      
+      console.log('✅ URLs finais que serão enviadas:', {
+        'images.cover': coverUrl,
+        'images.avatar': avatarUrl
       });
       const payload: Partial<BancaForm> & { images?: { cover?: string; avatar?: string } } = {
         name: form.name || '',
@@ -395,8 +405,10 @@ export default function MinhaBancaPage() {
         hours: Array.isArray(form.hours) ? form.hours : [],
         gallery: Array.isArray(galleryUrls) ? galleryUrls : [],
         images: {
-          cover: coverUrl || undefined,
-          avatar: avatarUrl || undefined,
+          // SEMPRE enviar ambas as URLs, mesmo que sejam as antigas
+          // Isso garante que o backend saiba exatamente o que fazer
+          cover: coverUrl || '',
+          avatar: avatarUrl || '',
         },
       };
 
