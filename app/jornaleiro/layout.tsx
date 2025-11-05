@@ -82,20 +82,10 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
-  // Permite acessar todas as páginas do jornaleiro mesmo sem banca (exceto rotas de autenticação)
-  const allowedWithoutBanca = Boolean(
-    pathname?.startsWith('/jornaleiro/dashboard') ||
-    pathname?.startsWith('/jornaleiro/banca') ||
-    pathname?.startsWith('/jornaleiro/pedidos') ||
-    pathname?.startsWith('/jornaleiro/produtos') ||
-    pathname?.startsWith('/jornaleiro/configuracoes') ||
-    pathname?.startsWith('/jornaleiro/academy') ||
-    pathname?.startsWith('/jornaleiro/catalogo-distribuidor') ||
-    pathname?.startsWith('/jornaleiro/distribuidores') ||
-    pathname?.startsWith('/jornaleiro/campanhas') ||
-    pathname?.startsWith('/jornaleiro/coupons') ||
-    pathname?.startsWith('/jornaleiro/relatorios')
-  );
+  
+  // SEGURANÇA CRÍTICA: Usuário sem banca NÃO pode acessar nenhuma rota do painel
+  // Apenas rotas de autenticação são permitidas
+  const allowedWithoutBanca = false; // SEMPRE false para segurança
 
   const logout = async () => {
     // Limpar cache da banca antes de fazer logout
@@ -216,15 +206,21 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         
         const { data: bancaData, error } = await supabase
           .from('bancas')
-          .select('id, slug, name, user_id, email, profile_image, uf')
+          .select('id, name, user_id, email, profile_image')
           .eq('user_id', user.id)
           .single();
 
         if (error || !bancaData) {
-          console.warn('[Layout] ❌ Usuário sem banca associada.', error?.message);
+          console.error('[Layout] ❌ SEGURANÇA: Usuário sem banca associada!', error?.message);
+          console.error('[Layout] Forçando logout por segurança...');
           setBanca(null);
           setBancaValidated(true);
-          // Não faz redirect aqui - deixa a validação na renderização decidir
+          
+          // SEGURANÇA CRÍTICA: Fazer logout imediato se não tiver banca
+          sessionStorage.clear();
+          localStorage.clear();
+          await signOut();
+          router.push('/jornaleiro?error=no_banca');
           return;
         }
 
@@ -232,9 +228,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           banca_id: bancaData.id,
           banca_name: bancaData.name,
           banca_user_id: bancaData.user_id,
-          banca_email: bancaData.email,
-          slug: bancaData.slug,
-          uf: bancaData.uf
+          banca_email: bancaData.email
         });
         
         // SEGURANÇA CRÍTICA: Verificar se os dados batem
@@ -333,19 +327,20 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     });
   }
   
-  if (!banca && !allowedWithoutBanca) {
+  // SEGURANÇA CRÍTICA: Se não tiver banca, bloquear TUDO
+  if (!banca && !isAuthRoute) {
     return (
       <ToastProvider>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-            <div className="text-6xl mb-4">⚠️</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Banca não encontrada</h1>
+            <div className="text-6xl mb-4">🚫</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h1>
             <p className="text-gray-600 mb-6">
-              Você precisa ter uma banca associada à sua conta para acessar esta página.
+              Sua conta não possui uma banca associada. Entre em contato com o administrador para configurar sua banca.
             </p>
             <div className="space-y-3">
               <button
-                onClick={() => router.push('/jornaleiro/dashboard')}
+                onClick={logout}
                 className="w-full bg-[#ff5c00] text-white px-4 py-2 rounded-md hover:opacity-90"
               >
                 Ir para Dashboard
@@ -416,15 +411,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
               {/* Voltar ao Site */}
               {mounted && banca?.id && (
                 <Link
-                  href={(() => {
-                    if (banca.slug && banca.uf) {
-                      return `/banca/${banca.uf.toLowerCase()}/${banca.slug}`;
-                    }
-                    if (banca.slug) {
-                      return `/banca/${banca.slug}`;
-                    }
-                    return `/bancas/${banca.id}`;
-                  })()}
+                  href={`/bancas/${banca.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors text-gray-600 hover:text-[#ff5c00] hover:bg-orange-50"
@@ -439,15 +426,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
               
               {mounted && banca?.id ? (
                 <Link
-                  href={(() => {
-                    if (banca.slug && banca.uf) {
-                      return `/banca/${banca.uf.toLowerCase()}/${banca.slug}`;
-                    }
-                    if (banca.slug) {
-                      return `/banca/${banca.slug}`;
-                    }
-                    return `/bancas/${banca.id}`;
-                  })()}
+                  href={`/bancas/${banca.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 hover:opacity-80 transition-opacity"
