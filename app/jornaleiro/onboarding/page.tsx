@@ -53,7 +53,41 @@ export default function JornaleiroOnboardingPage() {
         return;
       }
 
-      const bancaData = JSON.parse(bancaDataStr);
+      const saved = JSON.parse(bancaDataStr);
+
+      // Tentar recuperar os dados completos do wizard para normalizar campos
+      let wizard: any = null;
+      try {
+        const wizStr = localStorage.getItem('gb:sellerWizard');
+        wizard = wizStr ? JSON.parse(wizStr) : null;
+      } catch {}
+
+      const normalizedAddress = wizard
+        ? `${wizard.street || ''}, ${wizard.number || ''}${wizard.neighborhood ? ' - ' + wizard.neighborhood : ''}, ${wizard.city || ''}${wizard.uf ? ' - ' + wizard.uf : ''}`.replace(/\s+,/g, ',').replace(/,\s+,/g, ', ')
+        : (saved.address || '');
+
+      const bancaData = {
+        name: saved.name,
+        description: saved.description || '',
+        profile_image: saved.logo_url || saved.profile_image || wizard?.bankProfilePreview || wizard?.bankProfileUrl || null,
+        cover_image: saved.cover_image || wizard?.bankCoverPreview || wizard?.bankCoverUrl || null,
+        phone: saved.phone || wizard?.phone || null,
+        whatsapp: saved.whatsapp || wizard?.servicePhone || null,
+        email: saved.email || null,
+        instagram: saved.instagram || (wizard?.instagramHas === 'yes' ? (wizard?.instagramUrl || '').replace(/^@/, '') : null),
+        facebook: saved.facebook || (wizard?.facebookHas === 'yes' ? (wizard?.facebookUrl || '').replace(/^@/, '') : null),
+        cep: saved.cep || wizard?.cep || null,
+        address: normalizedAddress,
+        lat: saved.lat ?? (wizard?.lat2 ? Number(wizard.lat2) : -23.5505),
+        lng: saved.lng ?? (wizard?.lng2 ? Number(wizard.lng2) : -46.6333),
+        // Se tivermos os hours do wizard, usá-los; caso contrário, painel usa default
+        hours: Array.isArray(wizard?.hours) ? wizard.hours : undefined,
+        delivery_fee: 0,
+        min_order_value: 0,
+        delivery_radius: 5,
+        preparation_time: 30,
+        payment_methods: saved.payment_methods || ['pix', 'dinheiro'],
+      } as any;
 
       // Se já existe uma banca para este usuário, não criar novamente
       const { data: existing, error: existingErr } = await supabase

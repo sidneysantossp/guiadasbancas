@@ -3,6 +3,90 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import type { AdminBanca } from "@/app/api/admin/bancas/route";
 
+// Parser robusto de endereço brasileiro
+// Aceita formatos como:
+// - "Rua Exemplo, 1234 - Bairro, Cidade - SP"
+// - "Rua Exemplo, 1234, Bairro, Cidade, SP"
+// - "Rua Exemplo, 1234 - Bairro, Cidade/SP"
+// - "Rua Exemplo, 1234, Cidade - SP" (sem bairro)
+function parseAddressString(address: string, cep?: string) {
+  const result = {
+    cep: cep || "",
+    street: "",
+    number: "",
+    neighborhood: "",
+    city: "",
+    uf: "",
+    complement: "",
+  };
+
+  if (!address) return result;
+
+  // Normalizar espaços
+  const raw = address.replace(/\s+/g, " ").trim();
+
+  // Quebrar por vírgula respeitando o padrão principal
+  const parts = raw.split(",").map(p => p.trim());
+
+  // street sempre é o primeiro
+  result.street = parts[0] || "";
+
+  // Se houver segunda parte, pode conter "numero - bairro" ou apenas numero
+  if (parts[1]) {
+    const p1 = parts[1];
+    if (p1.includes(" - ")) {
+      const [num, neigh] = p1.split(" - ").map(s => s.trim());
+      result.number = num || "";
+      result.neighborhood = neigh || "";
+    } else {
+      result.number = p1;
+    }
+  }
+
+  // Terceira parte normalmente é "cidade - UF" ou apenas bairro (quando numero não trouxe o bairro)
+  if (parts[2]) {
+    const p2 = parts[2];
+    // Se ainda não temos bairro e a parte 2 parece bairro
+    const looksCityUf = /\b[A-Z]{2}\b/.test(p2) || p2.includes(" - ") || p2.includes("/");
+    if (!result.neighborhood && !looksCityUf) {
+      result.neighborhood = p2;
+    } else {
+      // Pode ser cidade - UF
+      const tmp = p2.replace("/", " - ");
+      const [cityMaybe, ufMaybe] = tmp.split(" - ").map(s => s.trim());
+      if (ufMaybe && /^[A-Z]{2}$/.test(ufMaybe)) {
+        result.city = cityMaybe || result.city;
+        result.uf = ufMaybe;
+      } else {
+        // Se não tem UF aqui, assumir como cidade
+        result.city = cityMaybe || result.city;
+      }
+    }
+  }
+
+  // Quarta parte (se existir) quase sempre é UF, ou cidade quando a terceira foi bairro
+  if (parts[3]) {
+    const p3 = parts[3];
+    const tmp = p3.replace("/", " - ");
+    const [maybeCity, maybeUf] = tmp.split(" - ").map(s => s.trim());
+    if (maybeUf && /^[A-Z]{2}$/.test(maybeUf)) {
+      result.city = result.city || maybeCity;
+      result.uf = maybeUf;
+    } else if (/^[A-Z]{2}$/.test(p3)) {
+      result.uf = p3;
+    } else if (!result.city) {
+      result.city = p3;
+    }
+  }
+
+  // Quinta parte pode sobrar UF em endereços com muitas vírgulas
+  if (parts[4] && /^[A-Z]{2}$/.test(parts[4])) {
+    result.uf = parts[4];
+  }
+
+  return result;
+}
+
 async function loadBancaForUser(userId: string): Promise<any> {
   try {
     console.log('[loadBancaForUser] Buscando banca para user_id:', userId);
@@ -28,17 +112,8 @@ async function loadBancaForUser(userId: string): Promise<any> {
       MATCH: data.user_id === userId ? '✅ CORRETO' : '❌ ERRO: user_id não bate!'
     });
     
-    // Parse do endereço completo para addressObj
-    const addressParts = (data.address || '').split(', ');
-    const addressObj = {
-      cep: data.cep || '',
-      street: addressParts[0] || '',
-      number: addressParts[1] || '',
-      neighborhood: addressParts[2] || '',
-      city: addressParts[3] || '',
-      uf: addressParts[4] || '',
-      complement: ''
-    };
+    // Parse robusto do endereço completo para addressObj
+    const addressObj = parseAddressString(data.address || '', data.cep || '');
     
     const result = {
       id: data.id,
@@ -170,13 +245,21 @@ export async function PUT(request: NextRequest) {
     
     console.log('Dados recebidos para atualização:', JSON.stringify(data, null, 2));
 
-    // Preparar endereço completo
-    const fullAddress = [
-      data.addressObj?.street,
+    // Normalizar endereço para o padrão: "Rua, Número - Bairro, Cidade - UF"
+    const numberNeighborhood = [
       data.addressObj?.number,
-      data.addressObj?.neighborhood,
+      data.addressObj?.neighborhood
+    ].filter(Boolean).join(' - ');
+
+    const cityUf = [
       data.addressObj?.city,
       data.addressObj?.uf
+    ].filter(Boolean).join(' - ');
+
+    const fullAddress = [
+      data.addressObj?.street,
+      numberNeighborhood || undefined,
+      cityUf || undefined
     ].filter(Boolean).join(', ');
 
     // LOG: Verificar o que está sendo enviado
