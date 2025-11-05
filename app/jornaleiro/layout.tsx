@@ -349,7 +349,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
               </button>
 
               <Link href="/jornaleiro" className="flex items-center gap-2">
-                {branding?.logoUrl ? (
+                {mounted && branding?.logoUrl ? (
                   <Image
                     src={branding.logoUrl}
                     alt={branding.logoAlt || "Logo"}
