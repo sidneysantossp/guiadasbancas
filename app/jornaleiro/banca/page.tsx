@@ -119,12 +119,23 @@ export default function MinhaBancaPage() {
         if (!res.ok) throw new Error("Não foi possível carregar os dados da banca.");
         const json = await res.json();
         const banca = json?.data || {};
+        
+        console.log('\n========== [LOAD] Dados recebidos do backend ==========');
+        console.log('📥 Banca raw:', banca);
+        console.log('🖼️  Imagens recebidas:', {
+          cover: banca.cover,
+          avatar: banca.avatar,
+          cover_image: banca.cover_image,
+          profile_image: banca.profile_image,
+          images_cover: banca.images?.cover,
+          images_avatar: banca.images?.avatar
+        });
         const mapped: BancaForm = {
           id: banca.id,
           name: banca.name || "",
           description: banca.description || "",
-          cover: banca.cover || banca.images?.cover_image || banca.images?.cover,
-          avatar: banca.avatar || banca.images?.avatar,
+          cover: banca.cover || banca.cover_image || '',
+          avatar: banca.avatar || banca.profile_image || '',
           gallery: Array.isArray(banca.gallery) ? banca.gallery : [],
           featured: Boolean(banca.featured),
           ctaUrl: banca.ctaUrl || "",
@@ -141,10 +152,22 @@ export default function MinhaBancaPage() {
             ? banca.hours 
             : DAYS.map((d) => ({ key: d.key, label: d.label, open: false, start: "08:00", end: "18:00" })),
         };
+        console.log('✅ Valores mapeados:', {
+          cover: mapped.cover,
+          avatar: mapped.avatar
+        });
+        
+        console.log('📋 Inicializando estados de imagem:', {
+          coverImages: mapped.cover ? [mapped.cover] : [],
+          avatarImages: mapped.avatar ? [mapped.avatar] : []
+        });
+        
         setForm(mapped);
         setCoverImages(mapped.cover ? [mapped.cover] : []);
         setAvatarImages(mapped.avatar ? [mapped.avatar] : []);
         setGalleryImages(mapped.gallery);
+        
+        console.log('========== [LOAD] FIM ==========\n');
       } catch (e: any) {
         setError(e?.message || "Erro ao carregar banca");
       } finally {
@@ -359,14 +382,19 @@ export default function MinhaBancaPage() {
     try {
       setSaving(true);
       
-      console.log('Imagens antes do upload:', {
+      console.log('\n========== [SAVE] Iniciando salvamento ==========');
+      console.log('🖼️  Imagens ANTES do upload:', {
         coverImages,
         avatarImages,
         galleryImages
       });
       
       const uploadedCover = await uploadImages(coverImages || []);
+      console.log('📤 Cover após upload:', uploadedCover);
+      
       const uploadedAvatar = await uploadImages(avatarImages || []);
+      console.log('📤 Avatar após upload:', uploadedAvatar);
+      
       const uploadedGallery = await uploadImages(galleryImages || []);
       
       const coverUrl = uploadedCover[0] || form.cover;
@@ -431,7 +459,13 @@ export default function MinhaBancaPage() {
       }
 
       if (json.data) {
-        console.log('Dados retornados pelo servidor:', json.data);
+        console.log('📥 Dados retornados pelo servidor:', json.data);
+        console.log('🖼️  Imagens retornadas:', {
+          cover: json.data.cover,
+          avatar: json.data.avatar,
+          cover_image: json.data.cover_image,
+          profile_image: json.data.profile_image
+        });
         
         // Atualizar form com os dados retornados
         setForm((prev) => {
@@ -452,10 +486,22 @@ export default function MinhaBancaPage() {
         const finalCoverUrl = json.data.cover_image || json.data.cover || coverUrl;
         const finalAvatarUrl = json.data.profile_image || json.data.avatar || avatarUrl;
         
+        console.log('✅ URLs finais após salvamento:', {
+          finalCoverUrl,
+          finalAvatarUrl
+        });
+        
+        console.log('📋 Atualizando estados de imagem:', {
+          coverImages: finalCoverUrl ? [finalCoverUrl] : [],
+          avatarImages: finalAvatarUrl ? [finalAvatarUrl] : []
+        });
+        
         if (finalCoverUrl) setCoverImages([finalCoverUrl]);
         if (finalAvatarUrl) setAvatarImages([finalAvatarUrl]);
         if (galleryUrls.length > 0) setGalleryImages(galleryUrls);
       }
+      
+      console.log('========== [SAVE] FIM ==========\n');
       
       toast.success("Dados da banca atualizados com sucesso!");
       router.refresh();
