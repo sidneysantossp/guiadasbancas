@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 // Schema de validação
 const bancaSchema = z.object({
@@ -28,12 +29,14 @@ export default function BancaV2Page() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [formKey, setFormKey] = useState<number>(() => Date.now());
+  const nameRef = useRef<HTMLInputElement | null>(null);
 
   // React Query - buscar dados
   const { data: bancaData, isLoading, error } = useQuery({
     queryKey: ['banca', session?.user?.id],
     queryFn: async () => {
-      const res = await fetch('/api/jornaleiro/banca', {
+      const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}` , {
         cache: 'no-store',
         credentials: 'include',
       });
@@ -44,6 +47,7 @@ export default function BancaV2Page() {
     enabled: status === 'authenticated',
     staleTime: 0, // Sempre buscar dados frescos
     refetchOnWindowFocus: true, // Revalidar ao voltar para a aba
+    refetchOnMount: 'always',
   });
 
   // React Hook Form
@@ -51,13 +55,15 @@ export default function BancaV2Page() {
     register,
     handleSubmit,
     reset,
+    setValue,
+    control,
     formState: { errors, isDirty },
   } = useForm<BancaFormData>({
     resolver: zodResolver(bancaSchema),
   });
 
-  // 🔥 CRITICAL: Reset form quando dados da API mudarem
-  useEffect(() => {
+  // 🔥 CRITICAL: Reset form quando dados da API mudarem (antes da pintura)
+  useLayoutEffect(() => {
     if (bancaData) {
       const formData = {
         name: bancaData.name || '',
@@ -72,9 +78,64 @@ export default function BancaV2Page() {
       };
       
       console.log('🔄 [V2] Resetando form com novos dados:', formData);
-      reset(formData);
+      reset(formData, { keepDirty: false, keepDirtyValues: false, keepValues: false });
+      // Forçar injeção de valores no DOM após o reset para contornar restauração do browser
+      queueMicrotask(() => {
+        try {
+          setValue('name', formData.name, { shouldDirty: false, shouldTouch: false });
+          if (nameRef.current) {
+            nameRef.current.value = formData.name;
+          }
+        } catch {}
+      });
+      // Reforço adicional por alguns ciclos curtos para derrotar extensões de autofill
+      let attempts = 0;
+      const maxAttempts = 10;
+      const timer = setInterval(() => {
+        attempts++;
+        const el = nameRef.current;
+        if (el && el.value !== formData.name) {
+          el.value = formData.name;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (attempts >= maxAttempts || (el && el.value === formData.name)) {
+          clearInterval(timer);
+        }
+      }, 50);
+      
+      setFormKey(Date.now());
     }
   }, [bancaData, reset]);
+
+  // 🔔 Realtime: ouvir alterações na tabela bancas para este user_id e sincronizar automaticamente
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const channel = supabase
+      .channel(`banca-realtime-${session.user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bancas',
+          filter: `user_id=eq.${session.user.id}`,
+        },
+        (payload) => {
+          console.log('📡 [V2] Realtime mudança detectada na banca:', payload.eventType);
+          // Invalidar query para buscar dados mais recentes
+          queryClient.invalidateQueries({ queryKey: ['banca'] });
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 [V2] Canal realtime status:', status);
+      });
+
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch {}
+    };
+  }, [session?.user?.id, queryClient]);
 
   // Mutation para salvar
   const saveMutation = useMutation({
@@ -105,6 +166,22 @@ export default function BancaV2Page() {
       
       // Invalidar query para forçar reload - o useEffect vai resetar o form automaticamente
       queryClient.invalidateQueries({ queryKey: ['banca'] });
+      
+      // Reset imediato com os dados retornados do servidor (mapeados para o formulário)
+      const r = response.data || {};
+      const mapped: BancaFormData = {
+        name: r.name || '',
+        description: r.description || '',
+        whatsapp: r.whatsapp || '',
+        instagram: r.instagram || '',
+        facebook: r.facebook || '',
+        cep: r.cep || '',
+        city: (r.address?.split(',')[1]?.trim()) || '',
+        street: (r.address?.split(',')[0]) || '',
+        number: '',
+      };
+      reset(mapped);
+      setFormKey(Date.now());
       
       // Disparar evento para atualizar header
       if (typeof window !== 'undefined') {
@@ -168,7 +245,7 @@ export default function BancaV2Page() {
         )}
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form key={formKey} onSubmit={handleSubmit(onSubmit)} className="space-y-6" autoComplete="off">
         {/* Nome da Banca */}
         <div className="rounded-xl border border-gray-200 bg-white p-6">
           <h2 className="mb-4 text-lg font-semibold">Informações Básicas</h2>
@@ -178,10 +255,25 @@ export default function BancaV2Page() {
               <label className="block text-sm font-medium text-gray-700">
                 Nome da Banca *
               </label>
-              <input
-                {...register('name')}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                placeholder="Digite o nome da sua banca"
+              <Controller
+                name="name"
+                control={control}
+                defaultValue={bancaData?.name || ''}
+                render={({ field }) => (
+                  <input
+                    key={`name-${bancaData?.updated_at || bancaData?.name || formKey}`}
+                    {...field}
+                    ref={(el) => { field.ref(el); nameRef.current = el; }}
+                    autoComplete="off"
+                    data-lpignore="true"
+                    data-1p-ignore
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    placeholder="Digite o nome da sua banca"
+                  />
+                )}
               />
               {errors.name && (
                 <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>
@@ -306,6 +398,8 @@ export default function BancaV2Page() {
             isDirty,
             isPending: saveMutation.isPending,
             bancaName: bancaData?.name,
+            rhfWatchName: (typeof window !== 'undefined') ? (document.querySelector('input[name="name"]') as HTMLInputElement | null)?.value : undefined,
+            domNameValue: nameRef.current?.value,
             errors: Object.keys(errors),
           }, null, 2)}
         </pre>

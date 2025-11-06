@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import type { AdminBanca } from "@/app/api/admin/bancas/route";
@@ -255,7 +256,17 @@ export async function GET(request: NextRequest) {
   
   console.log('========== [API /jornaleiro/banca GET] FIM ==========\n');
   
-  return NextResponse.json({ success: true, data: banca });
+  return NextResponse.json(
+    { success: true, data: banca },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store',
+      },
+    }
+  );
 }
 
 export async function PUT(request: NextRequest) {
@@ -390,7 +401,17 @@ export async function PUT(request: NextRequest) {
     
     console.log('Retornando para o frontend:', responseData);
 
-    return NextResponse.json({ success: true, data: responseData });
+    return NextResponse.json(
+      { success: true, data: responseData },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'Surrogate-Control': 'no-store',
+        },
+      }
+    );
   } catch (e: any) {
     console.error('Update banca API error (jornaleiro):', e);
     return NextResponse.json({ 
