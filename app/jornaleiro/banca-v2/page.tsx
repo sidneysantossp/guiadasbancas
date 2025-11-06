@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -53,18 +54,27 @@ export default function BancaV2Page() {
     formState: { errors, isDirty },
   } = useForm<BancaFormData>({
     resolver: zodResolver(bancaSchema),
-    values: bancaData ? {
-      name: bancaData.name || '',
-      description: bancaData.description || '',
-      whatsapp: bancaData.phone || '',
-      instagram: bancaData.instagram || '',
-      facebook: bancaData.facebook || '',
-      cep: bancaData.cep || '',
-      city: bancaData.address?.split(',')[1]?.trim() || '',
-      street: bancaData.address?.split(',')[0] || '',
-      number: '',
-    } : undefined,
   });
+
+  // 🔥 CRITICAL: Reset form quando dados da API mudarem
+  useEffect(() => {
+    if (bancaData) {
+      const formData = {
+        name: bancaData.name || '',
+        description: bancaData.description || '',
+        whatsapp: bancaData.phone || '',
+        instagram: bancaData.instagram || '',
+        facebook: bancaData.facebook || '',
+        cep: bancaData.cep || '',
+        city: bancaData.address?.split(',')[1]?.trim() || '',
+        street: bancaData.address?.split(',')[0] || '',
+        number: '',
+      };
+      
+      console.log('🔄 [V2] Resetando form com novos dados:', formData);
+      reset(formData);
+    }
+  }, [bancaData, reset]);
 
   // Mutation para salvar
   const saveMutation = useMutation({
@@ -91,11 +101,10 @@ export default function BancaV2Page() {
       return res.json();
     },
     onSuccess: (response) => {
-      // Invalidar query para forçar reload
-      queryClient.invalidateQueries({ queryKey: ['banca'] });
+      console.log('✅ [V2] Salvamento concluído:', response.data);
       
-      // Resetar form com novos dados
-      reset(response.data);
+      // Invalidar query para forçar reload - o useEffect vai resetar o form automaticamente
+      queryClient.invalidateQueries({ queryKey: ['banca'] });
       
       // Disparar evento para atualizar header
       if (typeof window !== 'undefined') {
