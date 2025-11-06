@@ -148,7 +148,11 @@ export default function MinhaBancaPage() {
       setCoverImages(mapped.cover ? [mapped.cover] : []);
       setAvatarImages(mapped.avatar ? [mapped.avatar] : []);
       setGalleryImages(mapped.gallery);
-      setFormRevision((r) => r + 1);
+      
+      // 🔥 Forçar re-renderização completa com timestamp
+      const newRevision = Date.now();
+      setFormRevision(newRevision);
+      console.log('[Upload Success] 🔄 Form revision:', newRevision);
       // Atualizar cache do header
       try {
         const uid = session?.user?.id || banca?.user_id;
@@ -283,7 +287,12 @@ export default function MinhaBancaPage() {
         setCoverImages(mapped.cover ? [mapped.cover] : []);
         setAvatarImages(mapped.avatar ? [mapped.avatar] : []);
         setGalleryImages(mapped.gallery);
-        setFormRevision((r) => r + 1);
+        
+        // 🔥 Forçar re-renderização completa com timestamp
+        const newRevision = Date.now();
+        setFormRevision(newRevision);
+        console.log('[LOAD] 🔄 Form revision atualizado para:', newRevision);
+        console.log('[LOAD] 📝 Novo valor do nome:', mapped.name);
         
         console.log('========== [LOAD] FIM ==========\n');
       } catch (e: any) {
@@ -588,7 +597,12 @@ export default function MinhaBancaPage() {
         // Atualizar form com o mapeamento canônico do servidor
         const mappedAfter = mapApiToForm(json.data);
         setForm(mappedAfter);
-        setFormRevision((r) => r + 1);
+        
+        // 🔥 Forçar re-renderização completa após salvamento
+        const newRevision = Date.now();
+        setFormRevision(newRevision);
+        console.log('[SAVE] 🔄 Form revision atualizado para:', newRevision);
+        console.log('[SAVE] 📝 Novo valor do nome:', mappedAfter.name);
 
         // Atualizar as imagens no estado após salvamento bem-sucedido
         const finalCoverBusted = mappedAfter.cover;
