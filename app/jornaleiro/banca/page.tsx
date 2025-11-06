@@ -707,7 +707,8 @@ export default function MinhaBancaPage() {
             <div>
               <label className="text-sm font-medium">Nome da Banca</label>
               <input
-                value={form.name}
+                key={`name-${formRevision}`}
+                value={form.name || ''}
                 onChange={(e) => updateField("name", e.target.value)}
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 placeholder="Nome da banca"
@@ -753,6 +754,7 @@ export default function MinhaBancaPage() {
             <div>
               <label className="text-sm font-medium">WhatsApp</label>
               <input
+                key={`whatsapp-${formRevision}`}
                 value={form.contact.whatsapp || ""}
                 onChange={(e) => updateContact("whatsapp", e.target.value)}
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -762,6 +764,7 @@ export default function MinhaBancaPage() {
             <div>
               <label className="text-sm font-medium">Instagram</label>
               <input
+                key={`instagram-${formRevision}`}
                 value={form.socials.instagram || ""}
                 onChange={(e) => updateSocial("instagram", e.target.value)}
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -771,6 +774,7 @@ export default function MinhaBancaPage() {
             <div>
               <label className="text-sm font-medium">Facebook</label>
               <input
+                key={`facebook-${formRevision}`}
                 value={form.socials.facebook || ""}
                 onChange={(e) => updateSocial("facebook", e.target.value)}
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -796,6 +800,7 @@ export default function MinhaBancaPage() {
               <label className="text-sm font-medium">CEP</label>
               <div className="relative">
                 <input
+                  key={`cep-${formRevision}`}
                   value={form.addressObj.cep || ""}
                   onChange={(e) => handleCepChange(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm pr-10"
