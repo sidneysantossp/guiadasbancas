@@ -142,7 +142,18 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         }
         
         console.log('[Event] ✅ Atualização válida recebida, atualizando header');
-        setBanca((prev: any) => ({ ...(prev || {}), ...detail }));
+        const updatedBanca = { ...(banca || {}), ...detail };
+        setBanca(updatedBanca);
+        
+        // 🔥 ATUALIZAR O CACHE IMEDIATAMENTE para refletir as mudanças
+        if (user?.id) {
+          try {
+            sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(updatedBanca));
+            console.log('[Event] 📦 Cache atualizado com novos dados');
+          } catch (e) {
+            console.error('[Event] Erro ao atualizar cache:', e);
+          }
+        }
       } catch (err) {
         console.error('[Event] Erro ao processar atualização:', err);
       }
