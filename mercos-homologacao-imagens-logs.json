@@ -1,0 +1,267 @@
+{
+  "homologacao": "IMAGEM DO PRODUTO - POST (ETAPA 2/2)",
+  "produto": {
+    "nome": "ba0a6217a86e4b9e",
+    "preco_tabela": 24.67,
+    "id_erp": "fcaa9cc4-d43d-4742-81cc-cc482ba894a0",
+    "id_mercos": 19969502,
+    "imagem_erp": "https://picsum.photos/800/600?random=99"
+  },
+  "etapas_realizadas": [
+    {
+      "etapa": 1,
+      "descricao": "Criação do produto no ERP",
+      "metodo": "POST",
+      "url": "http://localhost:3000/api/admin/products",
+      "status": 200,
+      "timestamp": "2025-10-15T13:03:55.439466+00:00",
+      "response": {
+        "success": true,
+        "data": {
+          "id": "e9e1b511-45ba-4fac-886a-3ce630ae97d5",
+          "name": "ba0a6217a86e4b9e",
+          "price": 24.67,
+          "mercos_id": null,
+          "images": []
+        }
+      }
+    },
+    {
+      "etapa": 2,
+      "descricao": "Envio do produto para Mercos",
+      "metodo": "POST",
+      "url": "https://sandbox.mercos.com/api/v1/produtos",
+      "headers": {
+        "ApplicationToken": "d39001ac-0b14-11f0-8ed7-6e1485be00f2",
+        "CompanyToken": "4b866744-a086-11f0-ada6-5e65486a6283",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "nome": "ba0a6217a86e4b9e",
+        "preco_tabela": 24.67,
+        "ativo": true,
+        "codigo": "ba0a6217a86e4b9e",
+        "unidade": "UN"
+      },
+      "status": 201,
+      "timestamp": "2025-10-15T13:04:15+00:00",
+      "response": {
+        "id": 19969502,
+        "produtos_grade": []
+      },
+      "response_headers": {
+        "meuspedidosid": "19969502",
+        "meuspedidosurl": "http://integracao.meuspedidos.com.br/api/v1/produtos/19969502"
+      }
+    },
+    {
+      "etapa": 3,
+      "descricao": "Confirmação do produto via GET",
+      "metodo": "GET",
+      "url": "https://sandbox.mercos.com/api/v1/produtos/19969502",
+      "status": 200,
+      "timestamp": "2025-10-15T13:04:32+00:00",
+      "response": {
+        "id": 19969502,
+        "nome": "ba0a6217a86e4b9e",
+        "codigo": "ba0a6217a86e4b9e",
+        "unidade": "UN",
+        "preco_tabela": 24.67,
+        "ultima_alteracao": "2025-10-15 10:12:52",
+        "ativo": true
+      }
+    },
+    {
+      "etapa": 4,
+      "descricao": "Sincronização do produto da Mercos para o ERP",
+      "metodo": "POST",
+      "url": "http://localhost:3000/api/admin/distribuidores/334bf663-9671-4d36-98fb-eb54bc60acb9/sync",
+      "body": {
+        "startTimestamp": "2025-10-15T10:00:00"
+      },
+      "status": 200,
+      "timestamp": "2025-10-15T13:20:35.515Z",
+      "response": {
+        "success": true,
+        "data": {
+          "produtos_novos": 1,
+          "produtos_atualizados": 0,
+          "produtos_total": 1,
+          "produtos_recebidos": 1,
+          "erros": []
+        }
+      }
+    },
+    {
+      "etapa": 5,
+      "descricao": "Adição de imagem ao produto no ERP",
+      "metodo": "PUT",
+      "url": "http://localhost:3000/api/admin/products/fcaa9cc4-d43d-4742-81cc-cc482ba894a0",
+      "body": {
+        "images": ["https://picsum.photos/800/600?random=99"]
+      },
+      "status": 200,
+      "timestamp": "2025-10-15T13:25:46.75941+00:00",
+      "response": {
+        "success": true,
+        "data": {
+          "id": "fcaa9cc4-d43d-4742-81cc-cc482ba894a0",
+          "name": "ba0a6217a86e4b9e",
+          "mercos_id": 19969502,
+          "images": ["https://picsum.photos/800/600?random=99"],
+          "price": 24.67
+        }
+      }
+    },
+    {
+      "etapa": 6,
+      "descricao": "TENTATIVA de anexar imagem via API Mercos - ENDPOINT NÃO DISPONÍVEL",
+      "metodo": "POST",
+      "url": "https://sandbox.mercos.com/api/v1/produtos/19969502/imagens",
+      "headers": {
+        "ApplicationToken": "d39001ac-0b14-11f0-8ed7-6e1485be00f2",
+        "CompanyToken": "4b866744-a086-11f0-ada6-5e65486a6283",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "url": "https://picsum.photos/800/600?random=99",
+        "principal": true
+      },
+      "status": 404,
+      "timestamp": "2025-10-15T13:24:09+00:00",
+      "erro": "Endpoint não disponível no ambiente sandbox",
+      "response_headers": {
+        "date": "Wed, 15 Oct 2025 13:24:09 GMT",
+        "content-type": "text/html; charset=utf-8",
+        "content-length": "6180",
+        "server": "gunicorn",
+        "vary": "Cookie, Accept-Encoding",
+        "x-frame-options": "SAMEORIGIN",
+        "strict-transport-security": "max-age=31536000",
+        "x-content-type-options": "nosniff"
+      },
+      "response_body": "<!DOCTYPE html>\n<html lang=\"pt-br\">\n<head>\n    <meta charset=\"utf-8\">\n    <title>Erro 404 - Mercos</title>\n</head>\n<body>\n    <div class=\"pagina\">\n        <div class=\"esquerda\">\n            <div class=\"containerConteudo\">\n                <div class=\"conteudo\">\n                    <div>\n                        <h1 class=\"titulo\">Página não encontrada</h1>\n                        <p class=\"texto\">Não encontramos o que você procurou, tente outro link.</p>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n</body>\n</html>",
+      "curl_command": "curl -i -X POST \"https://sandbox.mercos.com/api/v1/produtos/19969502/imagens\" -H \"ApplicationToken: d39001ac-0b14-11f0-8ed7-6e1485be00f2\" -H \"CompanyToken: 4b866744-a086-11f0-ada6-5e65486a6283\" -H \"Content-Type: application/json\" -d '{\"url\": \"https://picsum.photos/800/600?random=99\", \"principal\": true}'"
+    },
+    {
+      "etapa": "6b",
+      "descricao": "SEGUNDA TENTATIVA com campos corretos conforme documentação (produto_id + imagem_url)",
+      "metodo": "POST",
+      "url": "https://sandbox.mercos.com/api/v1/produtos/19969502/imagens",
+      "headers": {
+        "ApplicationToken": "d39001ac-0b14-11f0-8ed7-6e1485be00f2",
+        "CompanyToken": "4b866744-a086-11f0-ada6-5e65486a6283",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "produto_id": 19969502,
+        "imagem_url": "https://picsum.photos/800/600?random=99",
+        "principal": true
+      },
+      "status": 404,
+      "timestamp": "2025-10-15T13:57:19+00:00",
+      "erro": "Endpoint continua retornando 404 mesmo com campos corretos",
+      "documentacao_consultada": "https://mercos.docs.apiary.io/#reference/0/imagens-do-produto/incluir-uma-imagem",
+      "observacao": "Campos corrigidos conforme orientação do suporte: produto_id (em vez de omitido) e imagem_url (em vez de url). Endpoint continua indisponível no sandbox.",
+      "curl_command": "curl -i -X POST \"https://sandbox.mercos.com/api/v1/produtos/19969502/imagens\" -H \"ApplicationToken: d39001ac-0b14-11f0-8ed7-6e1485be00f2\" -H \"CompanyToken: 4b866744-a086-11f0-ada6-5e65486a6283\" -H \"Content-Type: application/json\" -d '{\"produto_id\": 19969502, \"imagem_url\": \"https://picsum.photos/800/600?random=99\", \"principal\": true}'"
+    },
+    {
+      "etapa": "6c",
+      "descricao": "TERCEIRA TENTATIVA com campos EXATOS da documentação oficial (ordem em vez de principal)",
+      "metodo": "POST",
+      "url": "https://sandbox.mercos.com/api/v1/produtos/19969502/imagens",
+      "headers": {
+        "ApplicationToken": "d39001ac-0b14-11f0-8ed7-6e1485be00f2",
+        "CompanyToken": "4b866744-a086-11f0-ada6-5e65486a6283",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "produto_id": 19969502,
+        "imagem_url": "https://picsum.photos/800/600?random=99",
+        "ordem": 1
+      },
+      "status": 404,
+      "timestamp": "2025-10-15T14:00:11+00:00",
+      "erro": "Endpoint continua retornando 404 mesmo com TODOS os campos corretos da documentação",
+      "documentacao_consultada": "https://mercos.docs.apiary.io/#reference/0/imagens-do-produto/incluir-uma-imagem",
+      "campos_conforme_documentacao": {
+        "produto_id": "Integer (obrigatório) - Identificador único do Produto na Mercos",
+        "imagem_url": "String: 500 - URL pública da imagem",
+        "ordem": "Integer - Ordem que as imagens serão exibidas na Mercos. Sendo 1 a imagem principal"
+      },
+      "observacao": "Todos os campos enviados EXATAMENTE conforme a documentação oficial da Mercos. Endpoint /api/v1/produtos/{id}/imagens NÃO ESTÁ DISPONÍVEL no ambiente sandbox.",
+      "curl_command": "curl -i -X POST \"https://sandbox.mercos.com/api/v1/produtos/19969502/imagens\" -H \"ApplicationToken: d39001ac-0b14-11f0-8ed7-6e1485be00f2\" -H \"CompanyToken: 4b866744-a086-11f0-ada6-5e65486a6283\" -H \"Content-Type: application/json\" -d '{\"produto_id\": 19969502, \"imagem_url\": \"https://picsum.photos/800/600?random=99\", \"ordem\": 1}'"
+    },
+    {
+      "etapa": 8,
+      "descricao": "✅ SUCESSO! Endpoint correto identificado pelo suporte da Mercos",
+      "metodo": "POST",
+      "url": "https://sandbox.mercos.com/api/v1/imagens_produto",
+      "headers": {
+        "ApplicationToken": "d39001ac-0b14-11f0-8ed7-6e1485be00f2",
+        "CompanyToken": "4b866744-a086-11f0-ada6-5e65486a6283",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "produto_id": 19969502,
+        "imagem_url": "https://picsum.photos/800/600?random=99",
+        "ordem": 1
+      },
+      "status": 201,
+      "timestamp": "2025-10-15T14:11:14+00:00",
+      "response_headers": {
+        "meuspedidosid": "1151294",
+        "meuspedidos_qtde_total_registros": "0"
+      },
+      "observacao": "IMAGEM ANEXADA COM SUCESSO! O endpoint correto é /api/v1/imagens_produto (não /api/v1/produtos/{id}/imagens como na documentação). ID da imagem criada: 1151294",
+      "curl_command": "curl -i -X POST \"https://sandbox.mercos.com/api/v1/imagens_produto\" -H \"ApplicationToken: d39001ac-0b14-11f0-8ed7-6e1485be00f2\" -H \"CompanyToken: 4b866744-a086-11f0-ada6-5e65486a6283\" -H \"Content-Type: application/json\" -d '{\"produto_id\": 19969502, \"imagem_url\": \"https://picsum.photos/800/600?random=99\", \"ordem\": 1}'"
+    },
+    {
+      "etapa": 7,
+      "descricao": "TENTATIVA de atualizar produto com imagem via PUT",
+      "metodo": "PUT",
+      "url": "https://sandbox.mercos.com/api/v1/produtos/19969502",
+      "body": {
+        "nome": "ba0a6217a86e4b9e",
+        "preco_tabela": 24.67,
+        "ativo": true,
+        "codigo": "ba0a6217a86e4b9e",
+        "unidade": "UN",
+        "url_imagem": "https://picsum.photos/800/600?random=99",
+        "imagem_url": "https://picsum.photos/800/600?random=99",
+        "foto": "https://picsum.photos/800/600?random=99"
+      },
+      "status": 200,
+      "timestamp": "2025-10-15T13:28:26+00:00",
+      "response": {
+        "id": 19969502,
+        "produtos_grade": []
+      },
+      "observacao": "API aceitou o PUT mas não retornou campos de imagem. Campos de imagem não são suportados via PUT."
+    }
+  ],
+  "conclusao": {
+    "status": "✅ COMPLETO COM SUCESSO",
+    "produto_criado": true,
+    "produto_sincronizado": true,
+    "imagem_adicionada_erp": true,
+    "imagem_enviada_mercos": true,
+    "imagem_id_mercos": 1151294,
+    "endpoint_correto": "POST /api/v1/imagens_produto",
+    "endpoint_documentacao_incorreto": "POST /api/v1/produtos/{id}/imagens",
+    "observacao_importante": "A documentação oficial da Mercos está desatualizada. O endpoint correto é /api/v1/imagens_produto, não /api/v1/produtos/{id}/imagens",
+    "endpoints_testados": [
+      "POST /api/v1/produtos/{id}/imagens - 404 Not Found (documentação desatualizada)",
+      "PUT /api/v1/produtos/{id} com campos de imagem - Aceito mas sem efeito",
+      "POST /api/v1/imagens_produto - 201 Created ✅ SUCESSO"
+    ]
+  },
+  "evidencias": {
+    "produto_no_erp": "Produto ba0a6217a86e4b9e com imagem visível na lista de produtos sincronizados",
+    "produto_na_mercos": "ID 19969502 confirmado via GET",
+    "prints_disponiveis": [
+      "Lista de produtos sincronizados mostrando ba0a6217a86e4b9e com imagem",
+      "Tentativa de POST para endpoint de imagens retornando 404"
+    ]
+  }
+}

@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Hedvig_Letters_Serif } from "next/font/google";
 import { supabase } from "@/lib/supabase";
+import { QueryProvider } from "@/app/providers/QueryProvider";
 import {
   IconLayoutDashboard,
   IconBuilding,
@@ -591,7 +592,9 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
           <main className="flex-1 min-h-screen">
             <div className="p-6">
-              {children}
+              <QueryProvider>
+                {children}
+              </QueryProvider>
             </div>
           </main>
         </div>

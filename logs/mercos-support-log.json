@@ -1,0 +1,59 @@
+{
+  "generated_at": "2025-10-14T19:22:04.207Z",
+  "environment": "sandbox",
+  "distributor_id": "54a00911-a75a-4787-95ff-d487435d7b82",
+  "requests": [
+    {
+      "type": "mercos_api",
+      "description": "Consulta direta ao produto informado na etapa 3/3",
+      "method": "GET",
+      "url": "https://sandbox.mercos.com/api/v1/produtos/19968928",
+      "headers": {
+        "ApplicationToken": "*** mascarado ***",
+        "CompanyToken": "*** mascarado ***"
+      },
+      "response_status": 200,
+      "response_body": {
+        "id": 19968928,
+        "nome": "28217f94cb6947c2",
+        "preco_tabela": 30.25,
+        "ultima_alteracao": "2025-10-13 15:07:03",
+        "ativo": true,
+        "excluido": false,
+        "multiplo": null,
+        "precos_especificos": false,
+        "produtos_grade": []
+      }
+    },
+    {
+      "type": "erp_sync",
+      "description": "Sincronização forçada executada via painel admin",
+      "method": "POST",
+      "url": "http://localhost:3000/api/admin/distribuidores/54a00911-a75a-4787-95ff-d487435d7b82/sync",
+      "request_headers": {
+        "Authorization": "Bearer <token-admin-mascarado>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "force": true
+      },
+      "response_status": 200,
+      "response_body": {
+        "success": true,
+        "data": {
+          "produtos_novos": 0,
+          "produtos_atualizados": 29,
+          "produtos_total": 29,
+          "produtos_recebidos": 29,
+          "erros": [],
+          "ultima_sincronizacao": "2025-10-14T19:22:04.207Z"
+        }
+      }
+    }
+  ],
+  "observations": [
+    "Os tokens foram mascarados por segurança. Substitua pelos valores reais ao enviar ao suporte, se necessário.",
+    "Os horários estão em UTC.",
+    "Este arquivo consolida as duas principais evidências solicitadas: resposta Mercos e resultado da sincronização do ERP."
+  ]
+}
