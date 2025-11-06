@@ -98,15 +98,22 @@ export default function JornaleiroOnboardingPage() {
 
       if (existing?.id) {
         // Garante vinculação no perfil
-        await supabase
+        console.log('[Onboarding] Banca já existe, vinculando ao perfil:', existing.id);
+        const { error: linkError } = await supabase
           .from("user_profiles")
           .update({ banca_id: existing.id })
           .eq("id", user!.id);
 
+        if (linkError) {
+          console.error('[Onboarding] ERRO ao vincular banca existente:', linkError);
+          throw new Error(`Erro ao vincular banca: ${linkError.message}`);
+        }
+
+        console.log('[Onboarding] Banca existente vinculada ao perfil!');
         setStatus("success");
-        setMessage("Banca já existente. Redirecionando para a Academy...");
+        setMessage("Você já possui uma banca cadastrada. Redirecionando...");
         setTimeout(() => {
-          router.push(("/jornaleiro/academy" as Route));
+          router.push(("/jornaleiro/dashboard" as Route));
         }, 1500);
         return;
       }
@@ -128,10 +135,18 @@ export default function JornaleiroOnboardingPage() {
       }
 
       // Atualizar perfil com banca_id
-      await supabase
+      console.log('[Onboarding] Atualizando user_profiles com banca_id:', data.id);
+      const { error: profileError } = await supabase
         .from("user_profiles")
         .update({ banca_id: data.id })
         .eq("id", user!.id);
+
+      if (profileError) {
+        console.error('[Onboarding] ❌ ERRO ao atualizar user_profiles:', profileError);
+        throw new Error(`Erro ao vincular banca ao perfil: ${profileError.message}`);
+      }
+      
+      console.log('[Onboarding] ✅ Banca criada e vinculada ao perfil com sucesso!');
 
       // Limpar localStorage
       localStorage.removeItem("gb:bancaData");
