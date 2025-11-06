@@ -46,7 +46,7 @@ export default function SessionDebugPage() {
           <p>✅ Sessão OK em cliente E servidor</p>
         ) : status === 'authenticated' && !serverSession?.authenticated ? (
           <p>🚨 Cliente tem sessão MAS servidor não reconhece (problema de cookie/JWT)</p>
-        ) : !status === 'authenticated' && serverSession?.authenticated ? (
+        ) : status !== 'authenticated' && serverSession?.authenticated ? (
           <p>⚠️ Servidor tem sessão MAS cliente não (problema de hydration)</p>
         ) : (
           <p>❌ Sem sessão em cliente E servidor</p>
