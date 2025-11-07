@@ -542,18 +542,18 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
         <div className="flex">
           <aside
-            className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-60 bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out`}
+            className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-60 bg-[#334257] border-r border-gray-200 transition-transform duration-300 ease-in-out`}
           >
             <nav className="p-4 space-y-4">
               {JOURNALEIRO_MENU.map((item) => {
                 const IconComponent = journaleiroIconComponents[item.icon];
                 const isActive = pathname === item.href;
                 const classes = item.disabled
-                  ? "flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-400 bg-gray-100 cursor-not-allowed"
+                  ? "flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-300 bg-white/5 cursor-not-allowed"
                   : `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       isActive
-                        ? "bg-[#fff7f2] text-[#ff5c00]"
-                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                        ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm"
+                        : "text-white hover:bg-white/10 hover:text-white"
                     }`;
 
                 const icon = <IconComponent size={20} stroke={1.7} />;

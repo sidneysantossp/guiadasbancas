@@ -115,6 +115,7 @@ export async function PUT(request: NextRequest) {
         .update({
           full_name: profileUpdates.full_name,
           phone: profileUpdates.phone,
+          cpf: profileUpdates.cpf,
           avatar_url: profileUpdates.avatar_url,
         } as any)
         .eq("id", user.id) as any);
