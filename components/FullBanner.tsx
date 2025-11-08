@@ -349,10 +349,10 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
               <div className="w-full text-white">
                 <div className="container-max px-4 sm:px-6 md:px-10">
                   <div className="max-w-2xl">
-                  <h1 className="whitespace-pre-line text-4xl sm:text-6xl md:text-6xl lg:text-7xl font-extrabold leading-tight drop-shadow-lg mb-5">
+                  <h1 className="whitespace-pre-line text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold leading-tight drop-shadow-lg mb-5">
                     {slide.title.replace(/\n/g, '\n')}
                   </h1>
-                  <p className="text-xl sm:text-2xl md:text-3xl text-white/95 drop-shadow-md leading-relaxed mb-7 sm:mb-9">
+                  <p className="text-base sm:text-lg md:text-xl text-white/95 drop-shadow-md leading-relaxed mb-7 sm:mb-9">
                     {slide.description}
                   </p>
                   {(showCta1 || showCta2) && (

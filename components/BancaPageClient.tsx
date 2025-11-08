@@ -1249,7 +1249,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       {/* Galeria de imagens */}
       {Array.isArray(banca.gallery) && banca.gallery.length > 0 && (
         <div className="mt-4">
-          <h2 className="text-lg sm:text-xl font-semibold">Galeria</h2>
+          <h2 className="text-base sm:text-lg font-semibold">Galeria</h2>
           <div className="mt-2 flex gap-3 overflow-x-auto pb-1">
             {banca.gallery.map((src, i) => (
               <div key={i} className="relative h-28 w-44 rounded-xl overflow-hidden border border-gray-200 shadow-sm shrink-0">
@@ -1269,7 +1269,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       {/* Ofertas e Promoções */}
       <div className="mt-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-2 whitespace-nowrap">
+          <h2 className="text-base sm:text-lg font-semibold flex items-center gap-2 whitespace-nowrap">
             <span className="text-[#ff5c00]">🔥</span> Ofertas e Promoções
           </h2>
         </div>
@@ -1323,7 +1323,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       </div>
 
       {/* Produtos da Banca */}
-      <h2 ref={productsTopRef} className="mt-8 mb-0 text-lg sm:text-xl font-semibold">Produtos desta Banca</h2>
+      <h2 ref={productsTopRef} className="mt-8 mb-0 text-base sm:text-lg font-semibold">Produtos desta Banca</h2>
 
       {/* Barra de chips (Todos fixo) + seta à direita + limpar filtro */}
       <div className="mt-0 sticky top-0 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-100 w-full max-w-full overflow-x-hidden">
