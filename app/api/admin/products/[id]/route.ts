@@ -34,22 +34,37 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 // DELETE - Excluir produto
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    console.log('[DELETE PRODUCT] ID:', params.id);
+    
     if (!verifyAdminAuth(request)) {
+      console.log('[DELETE PRODUCT] Auth failed');
       return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
     }
 
-    const { error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('products')
       .delete()
-      .eq('id', params.id);
+      .eq('id', params.id)
+      .select();
 
     if (error) {
-      return NextResponse.json({ success: false, error: "Erro ao excluir produto" }, { status: 500 });
+      console.error('[DELETE PRODUCT] Supabase error:', error);
+      return NextResponse.json({ 
+        success: false, 
+        error: error.message || "Erro ao excluir produto",
+        details: error
+      }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, message: "Produto excluído com sucesso" });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: "Erro interno" }, { status: 500 });
+    console.log('[DELETE PRODUCT] Success, deleted:', data);
+    return NextResponse.json({ success: true, message: "Produto excluído com sucesso", deleted: data });
+  } catch (error: any) {
+    console.error('[DELETE PRODUCT] Exception:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || "Erro interno",
+      details: error.toString()
+    }, { status: 500 });
   }
 }
 

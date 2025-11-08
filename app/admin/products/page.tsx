@@ -80,6 +80,7 @@ export default function AdminProductsPage() {
 
     try {
       setBulkDeleting(true);
+      console.log('[BULK DELETE] Excluindo produtos IDs:', selectedIds);
       const res = await fetch('/api/admin/products/bulk-delete', {
         method: 'POST',
         headers: {
@@ -89,17 +90,22 @@ export default function AdminProductsPage() {
         body: JSON.stringify({ ids: selectedIds })
       });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        alert(data?.error || 'Erro ao excluir produtos selecionados');
-        return;
-      }
+      console.log('[BULK DELETE] Response status:', res.status);
+      const data = await res.json().catch(() => null);
+      console.log('[BULK DELETE] Response data:', data);
 
-      setSelectedIds([]);
-      await fetchRows();
+      if (res.ok && data?.success) {
+        alert(`✅ ${data.deleted || selectedIds.length} produto(s) excluído(s) com sucesso!`);
+        setSelectedIds([]);
+        await fetchRows();
+      } else {
+        const errorMsg = data?.error || 'Erro ao excluir produtos selecionados';
+        console.error('[BULK DELETE] Error:', errorMsg);
+        alert('❌ ' + errorMsg);
+      }
     } catch (error) {
-      console.error('Erro no bulk delete:', error);
-      alert('Erro ao excluir produtos selecionados');
+      console.error('[BULK DELETE] Exception:', error);
+      alert('❌ Erro ao excluir produtos: ' + String(error));
     } finally {
       setBulkDeleting(false);
     }
@@ -109,6 +115,7 @@ export default function AdminProductsPage() {
     if (!confirm('Tem certeza que deseja excluir este produto?')) return;
     
     try {
+      console.log('[DELETE] Excluindo produto ID:', id);
       const res = await fetch(`/api/admin/products/${id}`, {
         method: 'DELETE',
         headers: {
@@ -116,14 +123,22 @@ export default function AdminProductsPage() {
         }
       });
       
-      if (res.ok) {
+      console.log('[DELETE] Response status:', res.status);
+      const data = await res.json().catch(() => null);
+      console.log('[DELETE] Response data:', data);
+      
+      if (res.ok && data?.success) {
+        alert('✅ Produto excluído com sucesso!');
         // Recarregar a lista
-        fetchRows();
+        await fetchRows();
       } else {
-        alert('Erro ao excluir produto');
+        const errorMsg = data?.error || 'Erro ao excluir produto';
+        console.error('[DELETE] Error:', errorMsg);
+        alert('❌ Erro ao excluir produto: ' + errorMsg);
       }
     } catch (error) {
-      alert('Erro ao excluir produto');
+      console.error('[DELETE] Exception:', error);
+      alert('❌ Erro ao excluir produto: ' + String(error));
     }
   };
 
