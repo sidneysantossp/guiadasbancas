@@ -18,6 +18,7 @@ export default function EditBancaPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
   
   // Form fields
   const [name, setName] = useState("");
@@ -33,6 +34,17 @@ export default function EditBancaPage() {
   const [lng, setLng] = useState("");
   const [cover, setCover] = useState("");
   const [avatar, setAvatar] = useState("");
+  
+  // Track changes in cover and avatar
+  const handleCoverChange = (url: string) => {
+    setCover(url);
+    setHasChanges(true);
+  };
+  
+  const handleAvatarChange = (url: string) => {
+    setAvatar(url);
+    setHasChanges(true);
+  };
   const [tpuUrl, setTpuUrl] = useState<string>("");
   const [whatsapp, setWhatsapp] = useState("");
   const [facebook, setFacebook] = useState("");
@@ -305,10 +317,9 @@ export default function EditBancaPage() {
       const json = await res.json();
       
       if (json?.success) {
-        setSuccess('Banca atualizada com sucesso!');
-        setTimeout(() => {
-          router.push('/admin/cms/bancas');
-        }, 1500);
+        setSuccess('✅ Alterações realizadas com sucesso!');
+        setHasChanges(false);
+        setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(json?.error || 'Erro ao atualizar banca');
       }
@@ -660,13 +671,13 @@ export default function EditBancaPage() {
                   <div>
                     <h4 className="text-sm font-medium mb-3">Avatar (imagem do perfil)</h4>
                     <div className="flex items-center gap-4">
-                      <ImageUploadDragDrop label="Avatar" value={avatar} onChange={setAvatar} placeholder="https://exemplo.com/avatar.jpg" className="h-24 w-24" />
+                      <ImageUploadDragDrop label="Avatar" value={avatar} onChange={handleAvatarChange} placeholder="https://exemplo.com/avatar.jpg" className="h-24 w-24" />
                     </div>
                   </div>
                   <div>
                     <h4 className="text-sm font-medium mb-3">Capa</h4>
                     <div>
-                      <ImageUploadDragDrop label="Capa" value={cover} onChange={setCover} placeholder="https://exemplo.com/capa.jpg" className="h-32 w-full" />
+                      <ImageUploadDragDrop label="Capa" value={cover} onChange={handleCoverChange} placeholder="https://exemplo.com/capa.jpg" className="h-32 w-full" />
                     </div>
                   </div>
                   <div>
@@ -888,7 +899,7 @@ export default function EditBancaPage() {
                 disabled={saving}
                 className="w-full rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {saving ? "Salvando..." : "Salvar"}
+                {saving ? "Salvando..." : "Salvar Alterações"}
               </button>
               <button
                 type="button"
