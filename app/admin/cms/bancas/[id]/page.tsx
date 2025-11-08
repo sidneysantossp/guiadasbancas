@@ -37,13 +37,17 @@ export default function EditBancaPage() {
   
   // Track changes in cover and avatar
   const handleCoverChange = (url: string) => {
+    console.log('handleCoverChange called with URL:', url);
     setCover(url);
     setHasChanges(true);
+    console.log('hasChanges set to true');
   };
   
   const handleAvatarChange = (url: string) => {
+    console.log('handleAvatarChange called with URL:', url);
     setAvatar(url);
     setHasChanges(true);
+    console.log('hasChanges set to true');
   };
   const [tpuUrl, setTpuUrl] = useState<string>("");
   const [whatsapp, setWhatsapp] = useState("");

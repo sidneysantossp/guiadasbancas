@@ -68,6 +68,7 @@ export default function ImageUploadDragDrop({
       const result = await response.json();
       
       if (result.ok && result.url) {
+        console.log('ImageUpload: Calling onChange with URL:', result.url);
         onChange(result.url);
       } else {
         alert('Erro ao fazer upload: ' + (result.error || 'Erro desconhecido'));
