@@ -7,6 +7,7 @@ import { fetchViaCEP, ViaCEP } from "@/lib/viacep";
 import { maskCEP, maskCPF, maskPhoneBR } from "@/lib/masks";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { supabaseAdmin } from "@/lib/supabase";
+import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
 
 export default function JornaleiroRegisterPage() {
   const router = useRouter();
@@ -145,6 +146,7 @@ export default function JornaleiroRegisterPage() {
   const [lng2, setLng2] = useState<string>("");
   const [bankCoverPreview, setBankCoverPreview] = useState<string>("");
   const [bankProfilePreview, setBankProfilePreview] = useState<string>("");
+  const [bankTpuUrl, setBankTpuUrl] = useState<string>("");
 
   // Socials
   const [gmbHas, setGmbHas] = useState<"yes" | "no">("no");
@@ -167,7 +169,7 @@ export default function JornaleiroRegisterPage() {
   ];
   const [hours, setHours] = useState<Day[]>(defaultHours);
   // Lista acumulada de bancas no wizard
-  type Bank = { name: string; whatsapp: string; images: { cover: string; profile: string }; address: { cep: string; street: string; number: string; complement: string; neighborhood: string; city: string; uf: string }; socials: { gmb: string; facebook: string; instagram: string }; hours: Day[]; meta?: { socialsSkipped?: boolean; socialsLinks?: { facebook?: string; instagram?: string }; location?: { lat?: number; lng?: number } } };
+  type Bank = { name: string; whatsapp: string; images: { cover: string; profile: string }; address: { cep: string; street: string; number: string; complement: string; neighborhood: string; city: string; uf: string }; socials: { gmb: string; facebook: string; instagram: string }; hours: Day[]; tpu_url?: string; meta?: { socialsSkipped?: boolean; socialsLinks?: { facebook?: string; instagram?: string }; location?: { lat?: number; lng?: number } } };
   const [banks, setBanks] = useState<Bank[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
@@ -234,6 +236,7 @@ export default function JornaleiroRegisterPage() {
       if (w.bankCoverUrl) { setBankCoverUrl(w.bankCoverUrl); setBankCoverPreview(w.bankCoverUrl); }
       if (w.bankProfileUrl) { setBankProfileUrl(w.bankProfileUrl); setBankProfilePreview(w.bankProfileUrl); }
       if (w.servicePhone) setServicePhone(w.servicePhone);
+      if (w.bankTpuUrl) setBankTpuUrl(w.bankTpuUrl);
       if (w.gmbHas) setGmbHas(w.gmbHas);
       if (w.gmbUrl) setGmbUrl(w.gmbUrl);
       if (w.facebookHas) setFacebookHas(w.facebookHas);
@@ -246,7 +249,7 @@ export default function JornaleiroRegisterPage() {
 
   // Salvar progresso do wizard
   useEffect(() => {
-    const payload = { step, name, cpf, phone, email, password, cep, street, number, complement, neighborhood, city, uf, bankName, bankCoverUrl: bankCoverPreview || bankCoverUrl, bankProfileUrl: bankProfilePreview || bankProfileUrl, servicePhone, gmbHas, gmbUrl, facebookHas, facebookUrl, instagramHas, instagramUrl, hours, banks };
+    const payload = { step, name, cpf, phone, email, password, cep, street, number, complement, neighborhood, city, uf, bankName, bankCoverUrl: bankCoverPreview || bankCoverUrl, bankProfileUrl: bankProfilePreview || bankProfileUrl, bankTpuUrl, servicePhone, gmbHas, gmbUrl, facebookHas, facebookUrl, instagramHas, instagramUrl, hours, banks };
     try { localStorage.setItem('gb:sellerWizard', JSON.stringify(payload)); } catch {}
   }, [step, name, cpf, phone, email, password, cep, street, number, complement, neighborhood, city, uf, bankName, bankCoverUrl, bankProfileUrl, bankCoverPreview, bankProfilePreview, servicePhone, gmbHas, gmbUrl, facebookHas, facebookUrl, instagramHas, instagramUrl, hours, banks]);
 
@@ -493,6 +496,7 @@ export default function JornaleiroRegisterPage() {
           instagram: instagramHas === 'yes' ? instagramUrl.replace(/^@/, '') : '',
         },
         hours,
+        tpu_url: bankTpuUrl || undefined,
         meta: {
           socialsSkipped,
           socialsLinks: {
@@ -539,6 +543,7 @@ export default function JornaleiroRegisterPage() {
         delivery_radius: 5,
         preparation_time: 30,
         payment_methods: ['pix', 'dinheiro'],
+        tpu_url: allBanks[0].tpu_url || null,
       };
 
       // Salvar backup local (apenas dados da banca)
@@ -904,6 +909,17 @@ export default function JornaleiroRegisterPage() {
             <div className="md:col-span-2">
               <label className="text-[12px] text-gray-700">WhatsApp de atendimento</label>
               <input className="input mt-1 w-full" placeholder="(00) 00000-0000" value={servicePhone} onChange={(e)=>setServicePhone(maskPhoneBR(e.target.value))} />
+            </div>
+
+            <div className="md:col-span-2">
+              <FileUploadDragDrop
+                label="Termo de Permissão de Uso (TPU) - PDF"
+                value={bankTpuUrl}
+                onChange={setBankTpuUrl}
+                accept="application/pdf"
+                role="jornaleiro"
+                className="h-24 w-full"
+              />
             </div>
 
             {/* Geolocalização oculta nesta etapa (mantida apenas em memória) */}

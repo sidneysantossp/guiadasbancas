@@ -12,6 +12,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Hedvig_Letters_Serif } from "next/font/google";
 import { supabase } from "@/lib/supabase";
 import { QueryProvider } from "@/app/providers/QueryProvider";
+import { buildBancaHref } from "@/lib/slug";
 import {
   IconLayoutDashboard,
   IconBuilding,
@@ -475,7 +476,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
               {/* Voltar ao Site */}
               {mounted && banca?.id && (
                 <Link
-                  href={`/bancas/${banca.id}`}
+                  href={buildBancaHref(banca?.name || 'banca', banca.id, (banca as any)?.addressObj?.uf)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors text-gray-600 hover:text-[#ff5c00] hover:bg-orange-50"
@@ -490,7 +491,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
               
               {mounted && banca?.id ? (
                 <Link
-                  href={`/bancas/${banca.id}`}
+                  href={buildBancaHref(banca?.name || 'banca', banca.id, (banca as any)?.addressObj?.uf)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -544,7 +545,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           <aside
             className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-60 bg-[#334257] border-r border-gray-200 transition-transform duration-300 ease-in-out`}
           >
-            <nav className="p-4 space-y-4">
+            <nav className="p-4 space-y-4 text-gray-100">
               {JOURNALEIRO_MENU.map((item) => {
                 const IconComponent = journaleiroIconComponents[item.icon];
                 const isActive = pathname === item.href;
@@ -553,7 +554,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
                   : `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       isActive
                         ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm"
-                        : "text-white hover:bg-white/10 hover:text-white"
+                        : "text-gray-100 hover:bg-white/10 hover:text-white"
                     }`;
 
                 const icon = <IconComponent size={20} stroke={1.7} />;
@@ -590,8 +591,8 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
             />
           )}
 
-          <main className="flex-1 min-h-screen">
-            <div className="p-6">
+          <main className="flex-1 min-h-screen overflow-x-hidden">
+            <div className="p-6 max-w-full overflow-x-hidden">
               <QueryProvider>
                 {children}
               </QueryProvider>

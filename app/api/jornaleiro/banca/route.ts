@@ -133,6 +133,7 @@ async function loadBancaForUser(userId: string): Promise<any> {
       email: data.email, // 🚨 INCLUIR email para validação
       name: data.name || '',
       description: data.description || '',
+      tpu_url: data.tpu_url || '',
       address: data.address || '',
       addressObj: addressObj,
       lat: data.lat,
@@ -322,6 +323,7 @@ export async function PUT(request: NextRequest) {
     const updateData: any = {
       name: data.name,
       description: data.description,
+      tpu_url: data.tpu_url,
       address: fullAddress || data.address,
       cep: data.addressObj?.cep || data.cep,
       lat: data.location?.lat || data.lat,

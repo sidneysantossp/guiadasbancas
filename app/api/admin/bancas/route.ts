@@ -25,6 +25,7 @@ export type AdminBanca = {
   featured?: boolean;
   ctaUrl?: string;
   description?: string;
+  tpu_url?: string;
   categories?: string[];
   active: boolean;
   order: number;
@@ -55,6 +56,7 @@ async function readBancas(): Promise<AdminBanca[]> {
       cover: banca.cover_image || '',
       avatar: banca.cover_image || '',
       description: banca.address,
+      tpu_url: banca.tpu_url || undefined,
       addressObj: banca.addressObj || undefined,
       location: banca.location || undefined,
       categories: banca.categories || [],
@@ -135,6 +137,7 @@ export async function POST(request: NextRequest) {
       lat: (data.lat != null ? Number(data.lat) : (data.location?.lat != null ? Number(data.location.lat) : -23.5505)),
       lng: (data.lng != null ? Number(data.lng) : (data.location?.lng != null ? Number(data.location.lng) : -46.6333)),
       cover_image: data.cover || data.images?.cover,
+      tpu_url: data.tpu_url || null,
       categories: data.categories || [],
       active: data.active !== false,
       created_at: new Date().toISOString(),
@@ -180,6 +183,7 @@ export async function PUT(request: NextRequest) {
       lat: (data.lat != null ? Number(data.lat) : (data.location?.lat != null ? Number(data.location.lat) : undefined)),
       lng: (data.lng != null ? Number(data.lng) : (data.location?.lng != null ? Number(data.location.lng) : undefined)),
       cover_image: data.cover || data.images?.cover,
+      tpu_url: data.tpu_url,
       description: data.description || null,
       whatsapp: data.contact?.whatsapp || null,
       facebook: data.socials?.facebook || null,

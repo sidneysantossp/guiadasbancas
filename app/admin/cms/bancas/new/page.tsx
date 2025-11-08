@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCategories } from "@/lib/useCategories";
+import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
 import { maskCEP, maskPhoneBR } from "@/lib/masks";
 
 export default function NewBancaPage() {
@@ -21,6 +22,7 @@ export default function NewBancaPage() {
   const [description, setDescription] = useState("");
   const [active, setActive] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [tpuUrl, setTpuUrl] = useState<string>("");
 
   const toggleCategory = (categoryId: string) => {
     setSelectedCategories(prev => 
@@ -41,6 +43,7 @@ export default function NewBancaPage() {
         address,
         cover,
         description,
+        tpu_url: tpuUrl || undefined,
         addressObj: { cep },
         contact: { whatsapp },
         categories: selectedCategories,
@@ -157,6 +160,17 @@ export default function NewBancaPage() {
               rows={4}
               placeholder="Descrição da banca..."
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
+            />
+          </div>
+
+          <div>
+            <FileUploadDragDrop
+              label="Termo de Permissão de Uso (TPU) - PDF"
+              value={tpuUrl}
+              onChange={setTpuUrl}
+              accept="application/pdf"
+              role="admin"
+              className="h-24 w-full"
             />
           </div>
         </div>

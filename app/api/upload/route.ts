@@ -32,9 +32,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar tipo de arquivo
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ ok: false, error: "Tipo de arquivo não suportado. Use JPG, PNG, WebP ou GIF." }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "Tipo de arquivo não suportado. Use JPG, PNG, WebP, GIF ou PDF." }, { status: 400 });
     }
 
     const arrayBuffer = await file.arrayBuffer();

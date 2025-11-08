@@ -80,6 +80,7 @@ export default function JornaleiroOnboardingPage() {
         address: normalizedAddress,
         lat: saved.lat ?? (wizard?.lat2 ? Number(wizard.lat2) : -23.5505),
         lng: saved.lng ?? (wizard?.lng2 ? Number(wizard.lng2) : -46.6333),
+        tpu_url: saved.tpu_url || wizard?.bankTpuUrl || null,
         // Se tivermos os hours do wizard, usá-los; caso contrário, painel usa default
         hours: Array.isArray(wizard?.hours) ? wizard.hours : undefined,
         delivery_fee: 0,

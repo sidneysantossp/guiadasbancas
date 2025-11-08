@@ -6,6 +6,7 @@ import { useCategories } from "@/lib/useCategories";
 import { maskCEP, maskPhoneBR } from "@/lib/masks";
 import { fetchViaCEP } from "@/lib/viacep";
 import ImageUploadDragDrop from "@/components/admin/ImageUploadDragDrop";
+import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
 
 export default function EditBancaPage() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function EditBancaPage() {
   const [lng, setLng] = useState("");
   const [cover, setCover] = useState("");
   const [avatar, setAvatar] = useState("");
+  const [tpuUrl, setTpuUrl] = useState<string>("");
   const [whatsapp, setWhatsapp] = useState("");
   const [facebook, setFacebook] = useState("");
   const [instagram, setInstagram] = useState("");
@@ -136,6 +138,7 @@ export default function EditBancaPage() {
           setFeatured(banca.featured || false);
           setSelectedCategories(banca.categories || []);
           if (banca.hours) setHours(banca.hours);
+          if (banca.tpu_url) setTpuUrl(banca.tpu_url);
           // Email do jornaleiro (proprietário) quando disponível
           if (banca.ownerEmail) setOwnerEmail(String(banca.ownerEmail));
         } else {
@@ -279,6 +282,7 @@ export default function EditBancaPage() {
         lng: lng ? Number(lng) : undefined,
         cover,
         avatar,
+        tpu_url: tpuUrl || undefined,
         description,
         addressObj: { cep, street, number, complement, neighborhood, city, uf },
         contact: { whatsapp },
@@ -652,21 +656,30 @@ export default function EditBancaPage() {
 
               {/* Aba Imagens */}
               {activeTab === 'imagens' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <ImageUploadDragDrop
-                    label="Imagem de Capa"
-                    value={cover}
-                    onChange={setCover}
-                    placeholder="https://exemplo.com/capa.jpg"
-                    className="h-40 w-full"
-                  />
-                  <ImageUploadDragDrop
-                    label="Imagem de Perfil/Avatar"
-                    value={avatar}
-                    onChange={setAvatar}
-                    placeholder="https://exemplo.com/avatar.jpg"
-                    className="h-40 w-40 mx-auto"
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-medium mb-3">Avatar (imagem do perfil)</h4>
+                    <div className="flex items-center gap-4">
+                      <ImageUploadDragDrop label="Avatar" value={avatar} onChange={setAvatar} placeholder="https://exemplo.com/avatar.jpg" className="h-24 w-24" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium mb-3">Capa</h4>
+                    <div>
+                      <ImageUploadDragDrop label="Capa" value={cover} onChange={setCover} placeholder="https://exemplo.com/capa.jpg" className="h-32 w-full" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium mb-3">Documento TPU (PDF)</h4>
+                    <FileUploadDragDrop
+                      label="Termo de Permissão de Uso (TPU) - PDF"
+                      value={tpuUrl}
+                      onChange={setTpuUrl}
+                      accept="application/pdf"
+                      role="admin"
+                      className="h-24 w-full"
+                    />
+                  </div>
                   <TabNextButton />
                 </div>
               )}

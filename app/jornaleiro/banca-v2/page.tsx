@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import ImageUploader from '@/components/admin/ImageUploader';
+import FileUploadDragDrop from '@/components/common/FileUploadDragDrop';
 import { IconUser, IconBuilding, IconClock, IconLink } from '@tabler/icons-react';
 
 // Constantes auxiliares
@@ -37,6 +38,7 @@ const PAYMENT_OPTIONS = [
 const bancaSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
   description: z.string().optional(),
+  tpu_url: z.string().optional(),
   contact: z.object({
     whatsapp: z.string().optional(),
   }).default({}),
@@ -169,6 +171,7 @@ export default function BancaV2Page() {
     defaultValues: {
       name: '',
       description: '',
+      tpu_url: '',
       contact: { whatsapp: '' },
       socials: { instagram: '', facebook: '', gmb: '' },
       addressObj: { cep: '', street: '', number: '', neighborhood: '', city: '', uf: '', complement: '' },
@@ -199,6 +202,7 @@ export default function BancaV2Page() {
       const formData = {
         name: bancaData.name || '',
         description: stripHtml(bancaData.description) || '',
+        tpu_url: bancaData.tpu_url || '',
         contact: {
           whatsapp: bancaData.contact?.whatsapp || bancaData.whatsapp || '',
         },
@@ -253,6 +257,7 @@ export default function BancaV2Page() {
       queueMicrotask(() => {
         try {
           setValue('name', formData.name, { shouldDirty: false, shouldTouch: false });
+          setValue('tpu_url', formData.tpu_url || '', { shouldDirty: false, shouldTouch: false });
           if (nameRef.current) {
             nameRef.current.value = formData.name;
           }
@@ -369,6 +374,7 @@ export default function BancaV2Page() {
           data: {
             name: data.name,
             description: stripHtml(data.description) || '',
+            tpu_url: data.tpu_url || '',
             contact: data.contact,
             socials: data.socials,
             addressObj: data.addressObj,
@@ -428,6 +434,7 @@ export default function BancaV2Page() {
       const mapped: BancaFormData = {
         name: r.name || '',
         description: stripHtml(r.description) || '',
+        tpu_url: r.tpu_url || '',
         contact: { whatsapp: r.whatsapp || '' },
         socials: {
           instagram: r.instagram || '',
@@ -518,7 +525,7 @@ export default function BancaV2Page() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Informações da Banca</h1>
@@ -531,50 +538,50 @@ export default function BancaV2Page() {
         )}
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 overflow-hidden relative z-30">
+        <div className="flex flex-wrap gap-3 text-center max-w-full min-w-0 overflow-x-visible items-stretch">
           <button
             type="button"
             onClick={() => setActiveTab('jornaleiro')}
-            className={`flex flex-col items-center gap-2 p-3 rounded-md transition-colors ${activeTab === 'jornaleiro' ? 'text-[#ff5c00]' : 'text-gray-600 hover:text-[#ff5c00]'}`}
+            className={`w-1/2 sm:w-1/4 min-w-0 flex flex-col items-center gap-2 p-3 rounded-md transition-colors ${activeTab === 'jornaleiro' ? 'text-[#ff5c00]' : 'text-gray-600 hover:text-[#ff5c00]'}`}
           >
-            <span className={`h-10 w-10 rounded-full grid place-items-center border ${activeTab === 'jornaleiro' ? 'bg-[#ff5c00] text-white border-orange-200 ring-4 ring-orange-100' : 'bg-white text-gray-600 border-gray-300'}`}>
+            <span className={`shrink-0 h-10 w-10 rounded-full grid place-items-center border ${activeTab === 'jornaleiro' ? 'bg-[#ff5c00] text-white border-orange-200 ring-4 ring-orange-100' : 'bg-white text-gray-600 border-gray-300'}`}>
               <IconUser size={18} />
             </span>
-            <span className={`text-sm ${activeTab === 'jornaleiro' ? 'font-semibold' : ''}`}>Jornaleiro</span>
+            <span className={`text-sm truncate max-w-[9rem] ${activeTab === 'jornaleiro' ? 'font-semibold' : ''}`}>Jornaleiro</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('banca')}
-            className={`flex flex-col items-center gap-2 p-3 rounded-md transition-colors ${activeTab === 'banca' ? 'text-[#ff5c00]' : 'text-gray-600 hover:text-[#ff5c00]'}`}
+            className={`w-1/2 sm:w-1/4 min-w-0 flex flex-col items-center gap-2 p-3 rounded-md transition-colors ${activeTab === 'banca' ? 'text-[#ff5c00]' : 'text-gray-600 hover:text-[#ff5c00]'}`}
           >
-            <span className={`h-10 w-10 rounded-full grid place-items-center border ${activeTab === 'banca' ? 'bg-[#ff5c00] text-white border-orange-200 ring-4 ring-orange-100' : 'bg-white text-gray-600 border-gray-300'}`}>
+            <span className={`shrink-0 h-10 w-10 rounded-full grid place-items-center border ${activeTab === 'banca' ? 'bg-[#ff5c00] text-white border-orange-200 ring-4 ring-orange-100' : 'bg-white text-gray-600 border-gray-300'}`}>
               <IconBuilding size={18} />
             </span>
-            <span className={`text-sm ${activeTab === 'banca' ? 'font-semibold' : ''}`}>Banca</span>
+            <span className={`text-sm truncate max-w-[9rem] ${activeTab === 'banca' ? 'font-semibold' : ''}`}>Banca</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('func')}
-            className={`flex flex-col items-center gap-2 p-3 rounded-md transition-colors ${activeTab === 'func' ? 'text-[#ff5c00]' : 'text-gray-600 hover:text-[#ff5c00]'}`}
+            className={`w-1/2 sm:w-1/4 min-w-0 flex flex-col items-center gap-2 p-3 rounded-md transition-colors ${activeTab === 'func' ? 'text-[#ff5c00]' : 'text-gray-600 hover:text-[#ff5c00]'}`}
           >
-            <span className={`h-10 w-10 rounded-full grid place-items-center border ${activeTab === 'func' ? 'bg-[#ff5c00] text-white border-orange-200 ring-4 ring-orange-100' : 'bg-white text-gray-600 border-gray-300'}`}>
+            <span className={`shrink-0 h-10 w-10 rounded-full grid place-items-center border ${activeTab === 'func' ? 'bg-[#ff5c00] text-white border-orange-200 ring-4 ring-orange-100' : 'bg-white text-gray-600 border-gray-300'}`}>
               <IconClock size={18} />
             </span>
-            <span className={`text-sm ${activeTab === 'func' ? 'font-semibold' : ''}`}>Funcionamento</span>
+            <span className={`text-sm truncate max-w-[9rem] ${activeTab === 'func' ? 'font-semibold' : ''}`}>Funcionamento</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('social')}
-            className={`flex flex-col items-center gap-2 p-3 rounded-md transition-colors ${activeTab === 'social' ? 'text-[#ff5c00]' : 'text-gray-600 hover:text-[#ff5c00]'}`}
+            className={`w-1/2 sm:w-1/4 min-w-0 flex flex-col items-center gap-2 p-3 rounded-md transition-colors ${activeTab === 'social' ? 'text-[#ff5c00]' : 'text-gray-600 hover:text-[#ff5c00]'}`}
           >
-            <span className={`h-10 w-10 rounded-full grid place-items-center border ${activeTab === 'social' ? 'bg-[#ff5c00] text-white border-orange-200 ring-4 ring-orange-100' : 'bg-white text-gray-600 border-gray-300'}`}>
+            <span className={`shrink-0 h-10 w-10 rounded-full grid place-items-center border ${activeTab === 'social' ? 'bg-[#ff5c00] text-white border-orange-200 ring-4 ring-orange-100' : 'bg-white text-gray-600 border-gray-300'}`}>
               <IconLink size={18} />
             </span>
-            <span className={`text-sm ${activeTab === 'social' ? 'font-semibold' : ''}`}>Social Midia</span>
+            <span className={`text-sm truncate max-w-[9rem] ${activeTab === 'social' ? 'font-semibold' : ''}`}>Social Midia</span>
           </button>
         </div>
       </div>
@@ -637,7 +644,7 @@ export default function BancaV2Page() {
 
       </div>
 
-      <form key={formKey} onSubmit={handleSubmit(onSubmit as any)} className="space-y-6" autoComplete="off">
+      <form key={formKey} onSubmit={handleSubmit(onSubmit as any)} className="space-y-6 max-w-full overflow-x-hidden" autoComplete="off">
         {/* Nome da Banca */}
         <div className={`${activeTab === 'banca' ? 'block' : 'hidden'} rounded-xl border border-gray-200 bg-white p-6`}>
           <h2 className="mb-4 text-lg font-semibold">Informações Básicas</h2>
@@ -726,6 +733,16 @@ export default function BancaV2Page() {
                 onChange={(_, previews) => setCoverImages(previews)}
               />
             </div>
+          </div>
+          <div className="mt-6">
+            <FileUploadDragDrop
+              label="Termo de Permissão de Uso (TPU) - PDF"
+              value={watch('tpu_url') as any}
+              onChange={(url) => setValue('tpu_url', url, { shouldDirty: true })}
+              accept="application/pdf"
+              role="jornaleiro"
+              className="h-24 w-full"
+            />
           </div>
         </div>
 
