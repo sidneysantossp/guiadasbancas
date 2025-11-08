@@ -38,18 +38,6 @@ export default function DataTable<T>({ columns, data, getId, onSelectRows, selec
     onSelectRows?.([]);
   }, [data, selectable, onSelectRows]);
 
-  const toggleAll = () => {
-    if (!selectable) return;
-    if (selected.length === data.length) {
-      setSelected([]);
-      onSelectRows?.([]);
-    } else {
-      const all = data.map(getId);
-      setSelected(all);
-      onSelectRows?.(all);
-    }
-  };
-
   const toggleOne = (id: string) => {
     if (!selectable) return;
     setSelected((prev) => {
@@ -95,6 +83,25 @@ export default function DataTable<T>({ columns, data, getId, onSelectRows, selec
   const end = start + pageSize;
   const pageRows = sorted.slice(start, end);
 
+  const toggleAll = () => {
+    if (!selectable) return;
+    // Check if all items on CURRENT PAGE are selected
+    const pageIds = pageRows.map(getId);
+    const allPageSelected = pageIds.every(id => selected.includes(id));
+    
+    if (allPageSelected) {
+      // Deselect all items from current page
+      const next = selected.filter(id => !pageIds.includes(id));
+      setSelected(next);
+      onSelectRows?.(next);
+    } else {
+      // Select all items from current page
+      const next = [...new Set([...selected, ...pageIds])];
+      setSelected(next);
+      onSelectRows?.(next);
+    }
+  };
+
   return (
     <div className="overflow-auto border border-gray-200 rounded-lg bg-white">
       <table className="min-w-full text-sm">
@@ -102,7 +109,13 @@ export default function DataTable<T>({ columns, data, getId, onSelectRows, selec
           <tr>
             {selectable && (
               <th className="px-3 py-2 text-left w-10">
-                <input type="checkbox" className="rounded" onChange={toggleAll} checked={selected.length>0 && selected.length===data.length} aria-label="Selecionar todos"/>
+                <input 
+                  type="checkbox" 
+                  className="rounded" 
+                  onChange={toggleAll} 
+                  checked={pageRows.length > 0 && pageRows.every(row => selected.includes(getId(row)))} 
+                  aria-label="Selecionar todos da página"
+                />
               </th>
             )}
             {columns.map((c) => (
