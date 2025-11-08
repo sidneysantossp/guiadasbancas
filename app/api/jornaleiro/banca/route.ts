@@ -337,6 +337,12 @@ export async function PUT(request: NextRequest) {
       delivery_enabled: data.delivery_enabled !== undefined ? data.delivery_enabled : false,
       free_shipping_threshold: data.free_shipping_threshold || 120,
       origin_cep: data.origin_cep || null,
+      // Cotista info
+      is_cotista: data.is_cotista !== undefined ? data.is_cotista : false,
+      cotista_id: data.cotista_id || null,
+      cotista_codigo: data.cotista_codigo || null,
+      cotista_razao_social: data.cotista_razao_social || null,
+      cotista_cnpj_cpf: data.cotista_cnpj_cpf || null,
       updated_at: new Date().toISOString()
     };
 

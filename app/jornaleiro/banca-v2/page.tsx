@@ -11,7 +11,8 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import ImageUploader from '@/components/admin/ImageUploader';
 import FileUploadDragDrop from '@/components/common/FileUploadDragDrop';
-import { IconUser, IconBuilding, IconClock, IconLink } from '@tabler/icons-react';
+import { IconUser, IconBuildingStore, IconClock, IconBrandWhatsapp } from '@tabler/icons-react';
+import CotistaSearch from '@/components/CotistaSearch';
 
 // Constantes auxiliares
 const ESTADOS = [
@@ -97,6 +98,8 @@ export default function BancaV2Page() {
   const [imagesChanged, setImagesChanged] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'jornaleiro' | 'banca' | 'func' | 'social'>('jornaleiro');
+  const [isCotista, setIsCotista] = useState(false);
+  const [selectedCotista, setSelectedCotista] = useState<any>(null);
 
   const withCacheBust = (url?: string, seed?: number | string) => {
     if (!url) return '';
@@ -255,6 +258,22 @@ export default function BancaV2Page() {
         setAvatarImages(avatar ? [withCacheBust(avatar, seed)] : []);
         setImagesChanged(false);
       } catch {}
+      
+      // Cotista
+      try {
+        const isCotistaValue = bancaData.is_cotista === true;
+        setIsCotista(isCotistaValue);
+        if (isCotistaValue && bancaData.cotista_id) {
+          setSelectedCotista({
+            id: bancaData.cotista_id,
+            codigo: bancaData.cotista_codigo || '',
+            razao_social: bancaData.cotista_razao_social || '',
+            cnpj_cpf: bancaData.cotista_cnpj_cpf || '',
+          });
+        } else {
+          setSelectedCotista(null);
+        }
+      } catch {}
       // Forçar injeção de valores no DOM após o reset para contornar restauração do browser
       queueMicrotask(() => {
         try {
@@ -393,6 +412,12 @@ export default function BancaV2Page() {
               cover: uploadedCover?.[0] ?? null,
               avatar: uploadedAvatar?.[0] ?? null,
             },
+            // Cotista info
+            is_cotista: isCotista,
+            cotista_id: selectedCotista?.id || null,
+            cotista_codigo: selectedCotista?.codigo || null,
+            cotista_razao_social: selectedCotista?.razao_social || null,
+            cotista_cnpj_cpf: selectedCotista?.cnpj_cpf || null,
           }
         }),
       });
@@ -642,6 +667,121 @@ export default function BancaV2Page() {
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
           </div>
+        </div>
+      </div>
+
+      {/* Cotista Section */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 mt-6">
+        <h2 className="mb-4 text-lg font-semibold">Informações de Cotista</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Cotistas têm acesso automático aos produtos dos distribuidores cadastrados. Caso não seja cotista, será necessário cadastrar produtos manualmente.
+        </p>
+        
+        <div className="space-y-4">
+          {/* Radio Button */}
+          <div className="flex items-start gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={!isCotista}
+                onChange={() => {
+                  setIsCotista(false);
+                  setSelectedCotista(null);
+                }}
+                className="h-4 w-4 text-[#ff5c00] focus:ring-[#ff5c00]"
+              />
+              <span className="text-sm text-gray-700">Não sou cotista</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={isCotista}
+                onChange={() => setIsCotista(true)}
+                className="h-4 w-4 text-[#ff5c00] focus:ring-[#ff5c00]"
+              />
+              <span className="text-sm text-gray-700">Sou cotista</span>
+            </label>
+          </div>
+
+          {/* Cotista Search */}
+          {isCotista && (
+            <div className="space-y-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Buscar Cotista
+                </label>
+                <CotistaSearch
+                  onSelect={(cotista) => setSelectedCotista(cotista)}
+                  selectedCnpjCpf={selectedCotista?.cnpj_cpf}
+                />
+              </div>
+
+              {/* Selected Cotista Info */}
+              {selectedCotista && (
+                <div className="bg-white rounded-lg border border-orange-300 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-900">✓ Cotista Selecionado</h3>
+                    <span className="text-xs font-semibold text-[#ff5c00] bg-orange-100 px-2 py-1 rounded">
+                      #{selectedCotista.codigo}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-gray-600">Razão Social:</span>
+                      <p className="font-medium text-gray-900">{selectedCotista.razao_social}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">CNPJ/CPF:</span>
+                      <p className="font-medium text-gray-900 font-mono">
+                        {selectedCotista.cnpj_cpf.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')}
+                      </p>
+                    </div>
+                    {selectedCotista.telefone && (
+                      <div>
+                        <span className="text-gray-600">Telefone:</span>
+                        <p className="font-medium text-gray-900">{selectedCotista.telefone}</p>
+                      </div>
+                    )}
+                    {(selectedCotista.cidade || selectedCotista.estado) && (
+                      <div>
+                        <span className="text-gray-600">Localização:</span>
+                        <p className="font-medium text-gray-900">
+                          {selectedCotista.cidade && selectedCotista.estado
+                            ? `${selectedCotista.cidade}/${selectedCotista.estado}`
+                            : selectedCotista.cidade || selectedCotista.estado}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-green-50 border border-green-200 rounded p-3 mt-3">
+                    <p className="text-xs text-green-800">
+                      ✅ Como cotista, você terá acesso automático ao catálogo de produtos dos distribuidores cadastrados na plataforma.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Warning if no cotista selected */}
+              {isCotista && !selectedCotista && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                  <p className="text-xs text-yellow-800">
+                    ⚠️ Selecione um cotista acima para vincular sua banca e ter acesso aos produtos dos distribuidores.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Non-cotista warning */}
+          {!isCotista && (
+            <div className="bg-blue-50 border border-blue-200 rounded p-3">
+              <p className="text-xs text-blue-800">
+                ℹ️ Como não-cotista, você precisará cadastrar seus produtos manualmente através do painel de produtos.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
