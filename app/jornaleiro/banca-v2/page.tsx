@@ -94,6 +94,7 @@ export default function BancaV2Page() {
   const sellerNameRef = useRef<HTMLInputElement | null>(null);
   const [coverImages, setCoverImages] = useState<string[]>([]);
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
+  const [imagesChanged, setImagesChanged] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'jornaleiro' | 'banca' | 'func' | 'social'>('jornaleiro');
 
@@ -252,6 +253,7 @@ export default function BancaV2Page() {
         const avatar = bancaData.profile_image || bancaData.avatar || '';
         setCoverImages(cover ? [withCacheBust(cover, seed)] : []);
         setAvatarImages(avatar ? [withCacheBust(avatar, seed)] : []);
+        setImagesChanged(false);
       } catch {}
       // Forçar injeção de valores no DOM após o reset para contornar restauração do browser
       queueMicrotask(() => {
@@ -477,6 +479,7 @@ export default function BancaV2Page() {
         const avatar = r.profile_image || r.avatar || '';
         setCoverImages(cover ? [withCacheBust(cover, seed)] : []);
         setAvatarImages(avatar ? [withCacheBust(avatar, seed)] : []);
+        setImagesChanged(false);
       } catch {}
       
       // Disparar evento para atualizar header
@@ -531,7 +534,7 @@ export default function BancaV2Page() {
           <h1 className="text-2xl font-bold">Informações da Banca</h1>
           <p className="text-sm text-gray-600">Gerencie os dados do jornaleiro, da banca, horários e redes sociais.</p>
         </div>
-        {isDirty && (
+        {(isDirty || imagesChanged) && (
           <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
             ⚠️ Alterações não salvas
           </span>
@@ -720,7 +723,10 @@ export default function BancaV2Page() {
                 multiple={false}
                 max={1}
                 value={avatarImages}
-                onChange={(_, previews) => setAvatarImages(previews)}
+                onChange={(_, previews) => {
+                  setAvatarImages(previews);
+                  setImagesChanged(true);
+                }}
                 previewShape="circle"
               />
             </div>
@@ -730,7 +736,10 @@ export default function BancaV2Page() {
                 multiple={false}
                 max={1}
                 value={coverImages}
-                onChange={(_, previews) => setCoverImages(previews)}
+                onChange={(_, previews) => {
+                  setCoverImages(previews);
+                  setImagesChanged(true);
+                }}
               />
             </div>
           </div>
@@ -1042,7 +1051,7 @@ export default function BancaV2Page() {
           <button
             type="button"
             onClick={() => reset()}
-            disabled={!isDirty || saveMutation.isPending}
+            disabled={(!isDirty && !imagesChanged) || saveMutation.isPending}
             className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             Descartar alterações
@@ -1050,7 +1059,7 @@ export default function BancaV2Page() {
 
           <button
             type="submit"
-            disabled={!isDirty || saveMutation.isPending}
+            disabled={(!isDirty && !imagesChanged) || saveMutation.isPending}
             className="rounded-md bg-purple-600 px-6 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
           >
             {saveMutation.isPending ? 'Salvando...' : 'Salvar alterações'}
