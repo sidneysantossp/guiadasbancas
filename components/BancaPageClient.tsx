@@ -975,11 +975,11 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                   </svg>
                 </div>
                 <div className="min-w-0 text-left">
-                  <div className="text-[9px] md:text-[11px] uppercase tracking-wide text-white/90">{highlightCoupon.title}</div>
-                  <div className="text-sm md:text-lg md:font-extrabold font-bold tracking-wider">{highlightCoupon.code}</div>
+                  <div className="text-[9px] md:text-[10px] uppercase tracking-wide text-white/90">{highlightCoupon.title}</div>
+                  <div className="text-xs md:text-base md:font-bold font-semibold tracking-wider">{highlightCoupon.code}</div>
                 </div>
               </div>
-              <div className="px-3 pb-2 md:px-4 md:pb-3 text-[9px] md:text-[11px] text-white/90">
+              <div className="px-3 pb-2 md:px-4 md:pb-3 text-[9px] md:text-[10px] text-white/90">
                 Use no checkout e ganhe <span className="font-semibold">{highlightCoupon.discountText}</span>
                 {copiedCoupon && <span className="ml-1 md:ml-2 rounded bg-white/20 px-1.5 md:px-2 py-[2px] text-[8px] md:text-[10px]">Copiado!</span>}
               </div>
@@ -995,7 +995,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
               </div>
             </div>
             <div>
-              <div className="text-lg sm:text-xl font-semibold text-white drop-shadow">{banca.name}</div>
+              <div className="text-base sm:text-lg font-semibold text-white drop-shadow">{banca.name}</div>
               <div className="mt-1 flex items-center gap-2">
                 {banca.open ? <OpenBadge /> : <ClosedBadge />}
                 <div className="inline-flex items-center gap-2 rounded-full bg-white/80 backdrop-blur px-2 py-[2px]">
