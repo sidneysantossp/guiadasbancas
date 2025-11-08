@@ -106,9 +106,9 @@ export default function CookieConsent() {
       <div className="absolute inset-0 bg-black/50 pointer-events-auto sm:hidden" aria-hidden />
       <div className="relative w-full pointer-events-auto sm:max-w-6xl sm:px-6 sm:pb-8">
         <div className="mx-auto w-full px-4 pb-6 sm:px-0 sm:pb-0">
-          <div className="rounded-2xl border border-[#ff5c00]/30 bg-white shadow-2xl sm:rounded-none sm:border-x-0 sm:border-b-0 sm:border-t sm:shadow-[0_-16px_48px_-24px_rgba(0,0,0,0.35)]">
+          <div className="rounded-2xl border border-[#ff5c00]/30 bg-white shadow-2xl sm:rounded-xl sm:border sm:shadow-[0_-16px_48px_-24px_rgba(0,0,0,0.35)]">
             <div className="hidden sm:block h-1 w-full bg-gradient-to-r from-[#ff6b18] via-[#ff5c00] to-[#ff7a33]" aria-hidden />
-            <div className="px-5 py-6 sm:px-8 sm:py-6">
+            <div className="px-4 py-4 sm:px-6 sm:py-4">
               <p className="text-sm text-gray-700 sm:max-w-4xl">
                 Ao clicar em "Aceitar todos os cookies", concorda com o armazenamento de cookies no seu dispositivo para
                 melhorar a navegação no site, analisar a utilização e ajudar nas nossas iniciativas de marketing. Para mais
@@ -120,7 +120,7 @@ export default function CookieConsent() {
               </p>
 
               {settingsOpen && (
-                <div className="mt-5 space-y-4 rounded-xl border border-[#ff5c00]/20 bg-[#fff4ec] p-4">
+                <div className="mt-4 space-y-3 rounded-xl border border-[#ff5c00]/20 bg-[#fff4ec] p-3">
                   <PreferencesItem
                     label="Cookies necessários"
                     description="Essenciais para o funcionamento do site e não podem ser desativados."
@@ -142,7 +142,7 @@ export default function CookieConsent() {
                 </div>
               )}
 
-              <div className="mt-6">{actionButtons}</div>
+              <div className="mt-4">{actionButtons}</div>
             </div>
           </div>
         </div>
