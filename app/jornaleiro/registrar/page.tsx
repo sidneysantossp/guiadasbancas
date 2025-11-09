@@ -889,8 +889,8 @@ export default function JornaleiroRegisterPage() {
                   </div>
 
                   <CotistaSearch
-                    value={selectedCotista}
-                    onChange={(cotista) => setSelectedCotista(cotista)}
+                    onSelect={(cotista) => setSelectedCotista(cotista)}
+                    selectedCnpjCpf={selectedCotista?.cnpj_cpf}
                   />
 
                   {selectedCotista && (
