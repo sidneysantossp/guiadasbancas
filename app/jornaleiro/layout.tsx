@@ -26,6 +26,7 @@ import {
   IconSchool,
   IconSettings,
   IconHome,
+  IconBell,
 } from "@tabler/icons-react";
 
 const hedvig = Hedvig_Letters_Serif({
@@ -46,6 +47,7 @@ const journaleiroIconComponents = {
   distributors: IconUsers,
   coupons: IconTicket,
   reports: IconChartBar,
+  notifications: IconBell,
   academy: IconSchool,
   settings: IconSettings,
 } as const;
@@ -55,6 +57,7 @@ type JournaleiroIconKey = keyof typeof journaleiroIconComponents;
 const JOURNALEIRO_MENU: { label: string; href: Route; icon: JournaleiroIconKey; disabled?: boolean }[] = [
   { label: "Dashboard", href: "/jornaleiro/dashboard" as Route, icon: "dashboard" },
   { label: "Minha Banca", href: "/jornaleiro/banca" as Route, icon: "banca" },
+  { label: "Notificações", href: "/jornaleiro/notificacoes" as Route, icon: "notifications" },
   { label: "Pedidos", href: "/jornaleiro/pedidos" as Route, icon: "orders" },
   { label: "Produtos", href: "/jornaleiro/produtos" as Route, icon: "products" },
   { label: "Catálogo Distribuidor", href: "/jornaleiro/catalogo-distribuidor/gerenciar" as Route, icon: "catalog" },
