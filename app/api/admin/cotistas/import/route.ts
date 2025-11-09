@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import * as XLSX from 'xlsx';
 
 export const runtime = 'nodejs'; // Force Node.js runtime for xlsx
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // 60 seconds timeout
 
 function verifyAdminAuth(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -52,6 +52,10 @@ export async function POST(request: NextRequest) {
       // Processar Excel
       try {
         console.log('[IMPORT COTISTAS] Processando como Excel');
+        
+        // Dynamic import of xlsx
+        const XLSX = await import('xlsx');
+        
         const workbook = XLSX.read(buffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
