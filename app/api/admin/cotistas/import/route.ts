@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import * as XLSX from 'xlsx';
 
 export const dynamic = "force-dynamic";
 
@@ -42,14 +43,36 @@ export async function POST(request: NextRequest) {
 
     // Ler conteúdo do arquivo
     const buffer = await file.arrayBuffer();
-    const text = new TextDecoder('utf-8').decode(buffer);
     
-    // Processar CSV
-    const lines = text.split('\n').filter(line => line.trim());
-    const headers = lines[0].split(/[,;\t]/).map(h => h.trim().toLowerCase());
+    let data: any[][] = [];
+    
+    // Detectar tipo de arquivo e processar
+    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.type.includes('spreadsheet')) {
+      // Processar Excel
+      console.log('[IMPORT COTISTAS] Processando como Excel');
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      data = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+    } else {
+      // Processar CSV
+      console.log('[IMPORT COTISTAS] Processando como CSV');
+      const text = new TextDecoder('utf-8').decode(buffer);
+      const lines = text.split('\n').filter(line => line.trim());
+      data = lines.map(line => line.split(/[,;\t]/).map(v => v.trim().replace(/^["']|["']$/g, '')));
+    }
+    
+    if (data.length === 0) {
+      return NextResponse.json({ 
+        success: false, 
+        error: "Arquivo vazio ou formato inválido" 
+      }, { status: 400 });
+    }
+    
+    const headers = data[0].map((h: any) => String(h).trim().toLowerCase());
     
     console.log('[IMPORT COTISTAS] Headers encontrados:', headers);
-    console.log('[IMPORT COTISTAS] Total de linhas:', lines.length - 1);
+    console.log('[IMPORT COTISTAS] Total de linhas:', data.length - 1);
 
     // Encontrar índices das colunas
     const findColumn = (names: string[]) => {
@@ -91,15 +114,27 @@ export async function POST(request: NextRequest) {
     const errorDetails: string[] = [];
 
     // Processar cada linha
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = 1; i < data.length; i++) {
       try {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        const values = line.split(/[,;\t]/).map(v => v.trim().replace(/^["']|["']$/g, ''));
+        const values = data[i].map((v: any) => {
+          if (v === null || v === undefined) return '';
+          return String(v).trim();
+        });
+        
+        if (values.every((v: string) => !v)) continue; // Pular linhas vazias
         
         const razaoSocial = values[idxRazaoSocial]?.trim();
-        const cnpjCpf = values[idxCnpjCpf]?.trim();
+        let cnpjCpf = values[idxCnpjCpf]?.trim();
+        
+        // Se CNPJ/CPF vier como número do Excel, formatar corretamente
+        if (cnpjCpf && /^\d+$/.test(cnpjCpf)) {
+          // Adicionar zeros à esquerda se necessário
+          if (cnpjCpf.length < 11) {
+            cnpjCpf = cnpjCpf.padStart(11, '0');
+          } else if (cnpjCpf.length > 11 && cnpjCpf.length < 14) {
+            cnpjCpf = cnpjCpf.padStart(14, '0');
+          }
+        }
 
         if (!razaoSocial || !cnpjCpf) {
           errorDetails.push(`Linha ${i + 1}: Razão Social ou CNPJ/CPF vazio`);
@@ -173,7 +208,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      total: lines.length - 1,
+      total: data.length - 1,
       imported,
       updated,
       errors,
