@@ -9,10 +9,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
   }
 
-  // Buscar banca_id do usuário
+  // Buscar banca_id e informações de cotista do usuário
   const { data: banca } = await supabaseAdmin
     .from('bancas')
-    .select('id')
+    .select('id, is_cotista, cotista_id')
     .eq('user_id', session.user.id)
     .single();
 
@@ -26,6 +26,9 @@ export async function GET(request: NextRequest) {
       message: 'Cadastre sua banca para ver seus produtos'
     });
   }
+
+  const isCotista = banca.is_cotista === true && banca.cotista_id;
+  console.log(`[JORNALEIRO/PRODUCTS] Banca ${banca.id} - É cotista: ${isCotista}`);
 
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") || "").toLowerCase();
@@ -55,17 +58,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Erro ao buscar produtos' }, { status: 500 });
   }
 
-  // Buscar produtos do admin/distribuidor
-  const { data: produtosAdmin } = await supabaseAdmin
-    .from('products')
-    .select(`
-      *,
-      categories(name),
-      bancas(name)
-    `)
-    .not('distribuidor_id', 'is', null)
-    .eq('active', true)
-    .order('created_at', { ascending: false });
+  // Buscar produtos de distribuidores SOMENTE se for cotista
+  let produtosAdmin: any[] = [];
+  
+  if (isCotista) {
+    const { data } = await supabaseAdmin
+      .from('products')
+      .select(`
+        *,
+        categories(name),
+        bancas(name)
+      `)
+      .not('distribuidor_id', 'is', null)
+      .eq('active', true)
+      .order('created_at', { ascending: false });
+    
+    produtosAdmin = data || [];
+    console.log(`[JORNALEIRO/PRODUCTS] Cotista - ${produtosAdmin.length} produtos de distribuidores encontrados`);
+  } else {
+    console.log(`[JORNALEIRO/PRODUCTS] Não-cotista - produtos de distribuidores NÃO disponíveis`);
+  }
 
   // Buscar customizações desta banca para produtos do admin
   const { data: customizacoes } = await supabaseAdmin
@@ -114,7 +126,16 @@ export async function GET(request: NextRequest) {
   // Combinar produtos da banca + produtos do admin
   const allItems = [...(produtosBanca || []), ...produtosAdminFiltrados];
 
-  return NextResponse.json({ success: true, items: allItems, total: allItems.length });
+  return NextResponse.json({ 
+    success: true, 
+    items: allItems, 
+    total: allItems.length,
+    is_cotista: isCotista,
+    stats: {
+      proprios: produtosBanca?.length || 0,
+      distribuidores: produtosAdminFiltrados.length
+    }
+  });
 }
 
 export async function POST(request: NextRequest) {

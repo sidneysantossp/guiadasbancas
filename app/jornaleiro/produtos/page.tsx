@@ -8,6 +8,7 @@ import FiltersBar from "@/components/admin/FiltersBar";
 import DataTable, { type Column } from "@/components/admin/DataTable";
 import StatusBadge from "@/components/admin/StatusBadge";
 import { useToast } from "@/components/admin/ToastProvider";
+import CotistaStatusAlert from "@/components/CotistaStatusAlert";
 
 type ProdutoListItem = {
   id: string;
@@ -32,6 +33,8 @@ export default function JornaleiroProdutosPage() {
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [isCotista, setIsCotista] = useState(false);
+  const [stats, setStats] = useState<{ proprios: number; distribuidores: number } | undefined>();
   const authHeaders = useMemo(() => {
     if (typeof window === "undefined") return {};
     const token = window.localStorage.getItem("gb:sellerToken") || "seller-token";
@@ -70,6 +73,11 @@ export default function JornaleiroProdutosPage() {
       const res = await fetch(`/api/jornaleiro/products?${params.toString()}`, { headers: authHeaders, cache: "no-store" });
       const json = await res.json();
       const items = Array.isArray(json?.items) ? json.items : (Array.isArray(json?.data) ? json.data : []);
+      
+      // Capturar informações de cotista
+      setIsCotista(json?.is_cotista === true);
+      setStats(json?.stats);
+      
       setRows(
         items.map((p: any) => ({
           id: p.id,
@@ -160,6 +168,9 @@ export default function JornaleiroProdutosPage() {
           </Link>
         </div>
       </div>
+
+      {/* Alerta de status de cotista */}
+      <CotistaStatusAlert isCotista={isCotista} stats={stats} />
 
       <FiltersBar
         onReset={() => {

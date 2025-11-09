@@ -14,6 +14,16 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     const supabase = supabaseAdmin;
 
+    // 0. Verificar se a banca é cotista
+    const { data: banca } = await supabase
+      .from('bancas')
+      .select('is_cotista, cotista_id')
+      .eq('id', bancaId)
+      .single();
+
+    const isCotista = banca?.is_cotista === true && banca?.cotista_id;
+    console.log(`[PRODUCTS] Banca ${bancaId} - É cotista: ${isCotista}`);
+
     // 1. Buscar produtos próprios da banca
     const { data: produtosProprios } = await supabase
       .from('products')
@@ -25,15 +35,24 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       .eq('active', true)
       .is('distribuidor_id', null);
 
-    // 2. Buscar TODOS os produtos de distribuidor
-    const { data: todosProdutosDistribuidor } = await supabase
-      .from('products')
-      .select(`
-        *,
-        categories!category_id(name)
-      `)
-      .eq('active', true)
-      .not('distribuidor_id', 'is', null);
+    // 2. Buscar produtos de distribuidor SOMENTE se for cotista
+    let todosProdutosDistribuidor: any[] = [];
+    
+    if (isCotista) {
+      const { data } = await supabase
+        .from('products')
+        .select(`
+          *,
+          categories!category_id(name)
+        `)
+        .eq('active', true)
+        .not('distribuidor_id', 'is', null);
+      
+      todosProdutosDistribuidor = data || [];
+      console.log(`[PRODUCTS] Cotista - ${todosProdutosDistribuidor.length} produtos de distribuidores encontrados`);
+    } else {
+      console.log(`[PRODUCTS] Não-cotista - produtos de distribuidores NÃO serão exibidos`);
+    }
 
     let produtosDistribuidor: any[] = [];
 
@@ -144,6 +163,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     return NextResponse.json({
       success: true,
       banca_id: bancaId,
+      is_cotista: isCotista,
       total: todosProdutos.length,
       products: todosProdutos,
       stats: {
