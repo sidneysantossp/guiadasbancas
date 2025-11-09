@@ -698,7 +698,7 @@ export default function JornaleiroRegisterPage() {
                 />
                 <div>
                   <span className="text-base font-semibold text-gray-900">Possuo Cota Ativa</span>
-                  <p className="text-sm text-gray-600 mt-1">Sua Banca com milhares de produtos disponíveis para começar a vender hoje!</p>
+                  <p className="text-sm text-gray-600 mt-1">Sua Banca com milhares de produtos disponíveis para começar a vender ainda hoje!</p>
                 </div>
               </label>
 
@@ -728,8 +728,7 @@ export default function JornaleiroRegisterPage() {
                     <div className="flex-1">
                       <h4 className="text-sm font-bold text-blue-900">Como encontrar seu cadastro</h4>
                       <p className="text-sm text-blue-800 mt-2">
-                        <strong>Busque seu cadastro de Cota Ativa</strong> pelo nome da empresa, CNPJ/CPF ou código.
-                        Ao identificar-se, você terá acesso automático a todos os produtos dos distribuidores cadastrados na plataforma.
+                        <strong>Busque seu cadastro de Cota Ativa</strong> pelo CNPJ/CPF ou código de cadastro.
                       </p>
                     </div>
                   </div>
