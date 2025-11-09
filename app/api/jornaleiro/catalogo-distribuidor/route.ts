@@ -45,10 +45,15 @@ export async function GET(req: NextRequest) {
     const bancaId = banca.id;
     console.log('[CATALOGO] Banca encontrada:', bancaId);
 
-    // Buscar todos os produtos de distribuidores
+    // Buscar todos os produtos de distribuidores com info do distribuidor e categoria
     const { data: produtos, error: prodError } = await supabase
       .from('products')
-      .select('id, name, description, price, stock_qty, images, mercos_id, distribuidor_id, track_stock, pronta_entrega, sob_encomenda, pre_venda, created_at')
+      .select(`
+        id, name, description, price, stock_qty, images, mercos_id, distribuidor_id, 
+        track_stock, pronta_entrega, sob_encomenda, pre_venda, created_at, category_id,
+        distribuidores:distribuidor_id(name),
+        categories:category_id(name)
+      `)
       .not('distribuidor_id', 'is', null)
       .order('created_at', { ascending: false });
 
@@ -75,8 +80,18 @@ export async function GET(req: NextRequest) {
     const produtosComCustom = produtos?.map(produto => {
       const custom = customMap.get(produto.id);
       
+      // Extrair nomes de objetos nested
+      const distribuidor_nome = (produto.distribuidores as any)?.name || null;
+      const category_name = (produto.categories as any)?.name || null;
+      
+      // Remover objetos nested para evitar problemas no frontend
+      const { distribuidores, categories, ...produtoLimpo } = produto as any;
+      
       return {
-        ...produto,
+        ...produtoLimpo,
+        // Nomes extraídos
+        distribuidor_nome,
+        category_name,
         // Dados de customização da banca
         enabled: custom?.enabled ?? true, // Por padrão todos habilitados
         custom_price: custom?.custom_price || null,
@@ -99,7 +114,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: produtosComCustom,
+      products: produtosComCustom,
+      data: produtosComCustom, // backward compatibility
       total: produtosComCustom.length,
     });
   } catch (error: any) {

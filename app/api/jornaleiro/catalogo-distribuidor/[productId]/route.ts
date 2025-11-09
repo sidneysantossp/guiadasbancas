@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auth } from '@/lib/auth';
 
+// PUT /api/jornaleiro/catalogo-distribuidor/:productId
+// Atualiza customizações de um produto (mesma lógica do PATCH)
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { productId: string } }
+) {
+  return PATCH(req, { params });
+}
+
 // PATCH /api/jornaleiro/catalogo-distribuidor/:productId
 // Atualiza customizações de um produto do catálogo distribuidor
 export async function PATCH(
@@ -64,6 +73,7 @@ export async function PATCH(
     const updateData: any = {};
 
     // Apenas campos permitidos para customização
+    if (body.enabled !== undefined) updateData.enabled = body.enabled;
     if (body.custom_price !== undefined) updateData.custom_price = body.custom_price;
     if (body.custom_description !== undefined) updateData.custom_description = body.custom_description;
     if (body.custom_status !== undefined) updateData.custom_status = body.custom_status;

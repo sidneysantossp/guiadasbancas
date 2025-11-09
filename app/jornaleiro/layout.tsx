@@ -57,7 +57,7 @@ const JOURNALEIRO_MENU: { label: string; href: Route; icon: JournaleiroIconKey; 
   { label: "Minha Banca", href: "/jornaleiro/banca" as Route, icon: "banca" },
   { label: "Pedidos", href: "/jornaleiro/pedidos" as Route, icon: "orders" },
   { label: "Produtos", href: "/jornaleiro/produtos" as Route, icon: "products" },
-  { label: "Catálogo Distribuidor", href: "/jornaleiro/catalogo-distribuidor" as Route, icon: "catalog" },
+  { label: "Catálogo Distribuidor", href: "/jornaleiro/catalogo-distribuidor/gerenciar" as Route, icon: "catalog" },
   { label: "Campanhas", href: "/jornaleiro/campanhas" as Route, icon: "campaigns" },
   { label: "Distribuidores", href: "/jornaleiro/distribuidores" as Route, icon: "distributors" },
   { label: "Cupons", href: "/jornaleiro/coupons" as Route, icon: "coupons" },
