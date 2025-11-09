@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import ImageUploader from '@/components/admin/ImageUploader';
 import FileUploadDragDrop from '@/components/common/FileUploadDragDrop';
-import { IconUser, IconBuildingStore, IconClock, IconBrandWhatsapp } from '@tabler/icons-react';
+import { IconUser, IconBuildingStore, IconClock, IconBrandWhatsapp, IconBuilding } from '@tabler/icons-react';
 import CotistaSearch from '@/components/CotistaSearch';
 
 // Constantes auxiliares
