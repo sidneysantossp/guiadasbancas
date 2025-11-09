@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useToast } from "@/components/admin/ToastProvider";
 
 type Product = {
@@ -28,6 +29,7 @@ export default function GerenciarCatalogoPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isCotista, setIsCotista] = useState<boolean | null>(null);
 
   // Form state
   const [customPrice, setCustomPrice] = useState<string>("");
@@ -39,6 +41,12 @@ export default function GerenciarCatalogoPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
+      
+      // Verificar se é cotista
+      const bancaRes = await fetch('/api/jornaleiro/banca');
+      const bancaJson = await bancaRes.json();
+      setIsCotista(bancaJson?.data?.is_cotista === true && bancaJson?.data?.cotista_id);
+      
       const res = await fetch('/api/jornaleiro/catalogo-distribuidor');
       const json = await res.json();
       
@@ -129,6 +137,31 @@ export default function GerenciarCatalogoPage() {
           Customize preços, estoque e disponibilidade dos produtos de distribuidores na sua banca
         </p>
       </div>
+
+      {/* Non-Cotista Alert */}
+      {isCotista === false && (
+        <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-yellow-600 text-2xl shrink-0">⚠️</span>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-yellow-900">
+                Você não é um cotista
+              </h3>
+              <p className="text-sm text-yellow-800 mt-1">
+                Para ter acesso ao catálogo completo de produtos dos distribuidores, você precisa se identificar como cotista.
+              </p>
+              <div className="mt-3">
+                <Link
+                  href="/jornaleiro/banca"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-[#ff5c00] hover:underline"
+                >
+                  → Vincular minha conta como cotista
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
