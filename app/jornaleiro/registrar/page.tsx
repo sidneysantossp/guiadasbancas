@@ -8,6 +8,7 @@ import { maskCEP, maskCPF, maskPhoneBR } from "@/lib/masks";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { supabaseAdmin } from "@/lib/supabase";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
+import CotistaSearch from "@/components/CotistaSearch";
 
 export default function JornaleiroRegisterPage() {
   const router = useRouter();
@@ -35,6 +36,15 @@ export default function JornaleiroRegisterPage() {
   const cpfInputRef = useRef<HTMLInputElement | null>(null);
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Cotista
+  const [isCotista, setIsCotista] = useState(false);
+  const [selectedCotista, setSelectedCotista] = useState<{
+    id: string;
+    codigo: string;
+    razao_social: string;
+    cnpj_cpf: string;
+  } | null>(null);
 
   // Field-level errors (Step 1)
   const [fieldErrors, setFieldErrors] = useState<{
@@ -244,14 +254,16 @@ export default function JornaleiroRegisterPage() {
       if (w.instagramHas) setInstagramHas(w.instagramHas);
       if (w.instagramUrl) setInstagramUrl(w.instagramUrl);
       if (Array.isArray(w.hours)) setHours(w.hours);
+      if (w.isCotista !== undefined) setIsCotista(w.isCotista);
+      if (w.selectedCotista) setSelectedCotista(w.selectedCotista);
     } catch {}
   }, []);
 
   // Salvar progresso do wizard
   useEffect(() => {
-    const payload = { step, name, cpf, phone, email, password, cep, street, number, complement, neighborhood, city, uf, bankName, bankCoverUrl: bankCoverPreview || bankCoverUrl, bankProfileUrl: bankProfilePreview || bankProfileUrl, bankTpuUrl, servicePhone, gmbHas, gmbUrl, facebookHas, facebookUrl, instagramHas, instagramUrl, hours, banks };
+    const payload = { step, name, cpf, phone, email, password, cep, street, number, complement, neighborhood, city, uf, bankName, bankCoverUrl: bankCoverPreview || bankCoverUrl, bankProfileUrl: bankProfilePreview || bankProfileUrl, bankTpuUrl, servicePhone, gmbHas, gmbUrl, facebookHas, facebookUrl, instagramHas, instagramUrl, hours, banks, isCotista, selectedCotista };
     try { localStorage.setItem('gb:sellerWizard', JSON.stringify(payload)); } catch {}
-  }, [step, name, cpf, phone, email, password, cep, street, number, complement, neighborhood, city, uf, bankName, bankCoverUrl, bankProfileUrl, bankCoverPreview, bankProfilePreview, servicePhone, gmbHas, gmbUrl, facebookHas, facebookUrl, instagramHas, instagramUrl, hours, banks]);
+  }, [step, name, cpf, phone, email, password, cep, street, number, complement, neighborhood, city, uf, bankName, bankCoverUrl, bankProfileUrl, bankCoverPreview, bankProfilePreview, servicePhone, gmbHas, gmbUrl, facebookHas, facebookUrl, instagramHas, instagramUrl, hours, banks, isCotista, selectedCotista]);
 
   // Auto-hide toast
   useEffect(() => {
@@ -544,6 +556,11 @@ export default function JornaleiroRegisterPage() {
         preparation_time: 30,
         payment_methods: ['pix', 'dinheiro'],
         tpu_url: allBanks[0].tpu_url || null,
+        is_cotista: isCotista,
+        cotista_id: selectedCotista?.id || null,
+        cotista_codigo: selectedCotista?.codigo || null,
+        cotista_razao_social: selectedCotista?.razao_social || null,
+        cotista_cnpj_cpf: selectedCotista?.cnpj_cpf || null,
       };
 
       // Salvar backup local (apenas dados da banca)
@@ -816,6 +833,89 @@ export default function JornaleiroRegisterPage() {
                 })()}
               </div>
             )}
+
+            {/* Seção de Cotista */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Você compra produtos através de distribuidores?</h3>
+              <p className="text-xs text-gray-600 mb-4">
+                Se você é cadastrado como cotista de algum distribuidor, você terá acesso automático ao catálogo completo de produtos.
+              </p>
+              
+              <div className="space-y-3">
+                <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all hover:bg-gray-50 ${!isCotista ? 'border-orange-500 bg-orange-50' : 'border-gray-200'}`}>
+                  <input
+                    type="radio"
+                    name="cotista"
+                    checked={!isCotista}
+                    onChange={() => {
+                      setIsCotista(false);
+                      setSelectedCotista(null);
+                    }}
+                    className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">Não sou cotista</span>
+                    <p className="text-xs text-gray-600 mt-0.5">Vou cadastrar meus produtos manualmente</p>
+                  </div>
+                </label>
+
+                <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all hover:bg-gray-50 ${isCotista ? 'border-orange-500 bg-orange-50' : 'border-gray-200'}`}>
+                  <input
+                    type="radio"
+                    name="cotista"
+                    checked={isCotista}
+                    onChange={() => setIsCotista(true)}
+                    className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">Sou cotista</span>
+                    <p className="text-xs text-gray-600 mt-0.5">Tenho acesso ao catálogo de distribuidores</p>
+                  </div>
+                </label>
+              </div>
+
+              {isCotista && (
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-600 text-lg shrink-0">ℹ️</span>
+                      <div className="flex-1">
+                        <p className="text-xs text-blue-800">
+                          <strong>Busque seu cadastro de cotista</strong> pelo nome, CNPJ/CPF ou código.
+                          Ao identificar-se, você terá acesso automático a todos os produtos dos distribuidores cadastrados na plataforma.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <CotistaSearch
+                    value={selectedCotista}
+                    onChange={(cotista) => setSelectedCotista(cotista)}
+                  />
+
+                  {selectedCotista && (
+                    <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="text-green-600 text-2xl shrink-0">✓</span>
+                        <div className="flex-1">
+                          <h4 className="text-sm font-semibold text-green-900">Cotista Selecionado</h4>
+                          <div className="mt-2 space-y-1 text-xs text-green-800">
+                            <p><strong>Código:</strong> {selectedCotista.codigo}</p>
+                            <p><strong>Razão Social:</strong> {selectedCotista.razao_social}</p>
+                            <p><strong>CNPJ/CPF:</strong> {selectedCotista.cnpj_cpf}</p>
+                          </div>
+                          <div className="mt-3 rounded-md bg-white border border-green-300 p-2">
+                            <p className="text-xs text-green-700">
+                              🎉 Ótimo! Você terá acesso automático ao catálogo completo de produtos dos distribuidores.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
