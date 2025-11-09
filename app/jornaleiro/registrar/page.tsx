@@ -688,6 +688,20 @@ export default function JornaleiroRegisterPage() {
             </div>
             
             <div className="space-y-3">
+              <label className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all hover:shadow-md ${isCotaAtiva ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
+                <input
+                  type="radio"
+                  name="cota_ativa"
+                  checked={isCotaAtiva}
+                  onChange={() => setIsCotaAtiva(true)}
+                  className="h-5 w-5 text-orange-600 focus:ring-orange-500"
+                />
+                <div>
+                  <span className="text-base font-semibold text-gray-900">Possuo Cota Ativa</span>
+                  <p className="text-sm text-gray-600 mt-1">Sua Banca com milhares de produtos disponíveis para começar a vender hoje!</p>
+                </div>
+              </label>
+
               <label className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all hover:shadow-md ${!isCotaAtiva ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
                 <input
                   type="radio"
@@ -701,21 +715,7 @@ export default function JornaleiroRegisterPage() {
                 />
                 <div>
                   <span className="text-base font-semibold text-gray-900">Não possuo Cota Ativa</span>
-                  <p className="text-sm text-gray-600 mt-1">Vou cadastrar meus produtos manualmente</p>
-                </div>
-              </label>
-
-              <label className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all hover:shadow-md ${isCotaAtiva ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
-                <input
-                  type="radio"
-                  name="cota_ativa"
-                  checked={isCotaAtiva}
-                  onChange={() => setIsCotaAtiva(true)}
-                  className="h-5 w-5 text-orange-600 focus:ring-orange-500"
-                />
-                <div>
-                  <span className="text-base font-semibold text-gray-900">Possuo Cota Ativa</span>
-                  <p className="text-sm text-gray-600 mt-1">Tenho acesso ao catálogo de distribuidores</p>
+                  <p className="text-sm text-gray-600 mt-1">Você cadastra os produtos da sua Banca absolutamente do zero.</p>
                 </div>
               </label>
             </div>
