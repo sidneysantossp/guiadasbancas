@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import * as XLSX from 'xlsx';
 
+export const runtime = 'nodejs'; // Force Node.js runtime for xlsx
 export const dynamic = "force-dynamic";
 
 function verifyAdminAuth(request: NextRequest) {
@@ -49,11 +50,20 @@ export async function POST(request: NextRequest) {
     // Detectar tipo de arquivo e processar
     if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.type.includes('spreadsheet')) {
       // Processar Excel
-      console.log('[IMPORT COTISTAS] Processando como Excel');
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      data = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+      try {
+        console.log('[IMPORT COTISTAS] Processando como Excel');
+        const workbook = XLSX.read(buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        data = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
+        console.log('[IMPORT COTISTAS] Excel processado, linhas:', data.length);
+      } catch (xlsxError: any) {
+        console.error('[IMPORT COTISTAS] Erro ao processar Excel:', xlsxError);
+        return NextResponse.json({ 
+          success: false, 
+          error: `Erro ao processar arquivo Excel: ${xlsxError.message}` 
+        }, { status: 400 });
+      }
     } else {
       // Processar CSV
       console.log('[IMPORT COTISTAS] Processando como CSV');
