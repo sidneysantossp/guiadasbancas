@@ -28,15 +28,21 @@ function isValidCnpjCpf(value: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('[IMPORT COTISTAS] === INÍCIO ===');
+  
   try {
+    console.log('[IMPORT COTISTAS] Verificando autenticação...');
     if (!verifyAdminAuth(request)) {
+      console.log('[IMPORT COTISTAS] Não autorizado');
       return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
     }
 
+    console.log('[IMPORT COTISTAS] Obtendo formData...');
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
     if (!file) {
+      console.log('[IMPORT COTISTAS] Arquivo não encontrado');
       return NextResponse.json({ success: false, error: "Arquivo não encontrado" }, { status: 400 });
     }
 
@@ -51,22 +57,35 @@ export async function POST(request: NextRequest) {
     if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.type.includes('spreadsheet')) {
       // Processar Excel
       try {
-        console.log('[IMPORT COTISTAS] Processando como Excel');
+        console.log('[IMPORT COTISTAS] 📊 Processando como Excel');
+        console.log('[IMPORT COTISTAS] Importando biblioteca xlsx...');
         
         // Dynamic import of xlsx
         const XLSX = await import('xlsx');
+        console.log('[IMPORT COTISTAS] ✅ Biblioteca xlsx importada');
         
+        console.log('[IMPORT COTISTAS] Lendo workbook...');
         const workbook = XLSX.read(buffer, { type: 'buffer' });
+        console.log('[IMPORT COTISTAS] ✅ Workbook lido. Sheets:', workbook.SheetNames);
+        
         const sheetName = workbook.SheetNames[0];
+        console.log('[IMPORT COTISTAS] Usando sheet:', sheetName);
+        
         const worksheet = workbook.Sheets[sheetName];
+        console.log('[IMPORT COTISTAS] Convertendo sheet para JSON...');
+        
         data = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
-        console.log('[IMPORT COTISTAS] Excel processado, linhas:', data.length);
+        console.log('[IMPORT COTISTAS] ✅ Excel processado, linhas:', data.length);
       } catch (xlsxError: any) {
-        console.error('[IMPORT COTISTAS] Erro ao processar Excel:', xlsxError);
+        console.error('[IMPORT COTISTAS] ❌ Erro ao processar Excel:', xlsxError);
+        console.error('[IMPORT COTISTAS] Error stack:', xlsxError.stack);
         return NextResponse.json({ 
           success: false, 
           error: `Erro ao processar arquivo Excel: ${xlsxError.message}` 
-        }, { status: 400 });
+        }, { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
       }
     } else {
       // Processar CSV
@@ -230,10 +249,18 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('[IMPORT COTISTAS] Exception:', error);
+    console.error('[IMPORT COTISTAS] ❌ EXCEPTION:', error);
+    console.error('[IMPORT COTISTAS] Stack:', error.stack);
+    
+    // SEMPRE retornar JSON, não importa o erro
     return NextResponse.json({
       success: false,
-      error: error.message || "Erro ao processar arquivo"
-    }, { status: 500 });
+      error: error?.message || String(error) || "Erro desconhecido ao processar arquivo"
+    }, { 
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
   }
 }
