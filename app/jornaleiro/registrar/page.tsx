@@ -14,7 +14,7 @@ export default function JornaleiroRegisterPage() {
   const router = useRouter();
 
   // Steps
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [loadingCep, setLoadingCep] = useState(false);
@@ -37,9 +37,9 @@ export default function JornaleiroRegisterPage() {
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Cotista
-  const [isCotista, setIsCotista] = useState(false);
-  const [selectedCotista, setSelectedCotista] = useState<{
+  // Cota Ativa
+  const [isCotaAtiva, setIsCotaAtiva] = useState(false);
+  const [selectedCotaAtiva, setSelectedCotaAtiva] = useState<{
     id: string;
     codigo: string;
     razao_social: string;
@@ -254,16 +254,16 @@ export default function JornaleiroRegisterPage() {
       if (w.instagramHas) setInstagramHas(w.instagramHas);
       if (w.instagramUrl) setInstagramUrl(w.instagramUrl);
       if (Array.isArray(w.hours)) setHours(w.hours);
-      if (w.isCotista !== undefined) setIsCotista(w.isCotista);
-      if (w.selectedCotista) setSelectedCotista(w.selectedCotista);
+      if (w.isCotaAtiva !== undefined) setIsCotaAtiva(w.isCotaAtiva);
+      if (w.selectedCotaAtiva) setSelectedCotaAtiva(w.selectedCotaAtiva);
     } catch {}
   }, []);
 
   // Salvar progresso do wizard
   useEffect(() => {
-    const payload = { step, name, cpf, phone, email, password, cep, street, number, complement, neighborhood, city, uf, bankName, bankCoverUrl: bankCoverPreview || bankCoverUrl, bankProfileUrl: bankProfilePreview || bankProfileUrl, bankTpuUrl, servicePhone, gmbHas, gmbUrl, facebookHas, facebookUrl, instagramHas, instagramUrl, hours, banks, isCotista, selectedCotista };
+    const payload = { step, name, cpf, phone, email, password, cep, street, number, complement, neighborhood, city, uf, bankName, bankCoverUrl: bankCoverPreview || bankCoverUrl, bankProfileUrl: bankProfilePreview || bankProfileUrl, bankTpuUrl, servicePhone, gmbHas, gmbUrl, facebookHas, facebookUrl, instagramHas, instagramUrl, hours, banks, isCotaAtiva, selectedCotaAtiva };
     try { localStorage.setItem('gb:sellerWizard', JSON.stringify(payload)); } catch {}
-  }, [step, name, cpf, phone, email, password, cep, street, number, complement, neighborhood, city, uf, bankName, bankCoverUrl, bankProfileUrl, bankCoverPreview, bankProfilePreview, servicePhone, gmbHas, gmbUrl, facebookHas, facebookUrl, instagramHas, instagramUrl, hours, banks, isCotista, selectedCotista]);
+  }, [step, name, cpf, phone, email, password, cep, street, number, complement, neighborhood, city, uf, bankName, bankCoverUrl, bankProfileUrl, bankCoverPreview, bankProfilePreview, servicePhone, gmbHas, gmbUrl, facebookHas, facebookUrl, instagramHas, instagramUrl, hours, banks, isCotaAtiva, selectedCotaAtiva]);
 
   // Auto-hide toast
   useEffect(() => {
@@ -447,6 +447,10 @@ export default function JornaleiroRegisterPage() {
       setStep(4);
       return;
     }
+    if (step === 4) {
+      setStep(5);
+      return;
+    }
   };
 
   const onBack = () => {
@@ -455,6 +459,7 @@ export default function JornaleiroRegisterPage() {
     if (step === 3) setStep(2);
     if (step === 4) setStep(3);
     if (step === 5) setStep(4);
+    if (step === 6) setStep(5);
   };
 
   const { signUp, signIn, profile } = useAuth();
@@ -556,11 +561,11 @@ export default function JornaleiroRegisterPage() {
         preparation_time: 30,
         payment_methods: ['pix', 'dinheiro'],
         tpu_url: allBanks[0].tpu_url || null,
-        is_cotista: isCotista,
-        cotista_id: selectedCotista?.id || null,
-        cotista_codigo: selectedCotista?.codigo || null,
-        cotista_razao_social: selectedCotista?.razao_social || null,
-        cotista_cnpj_cpf: selectedCotista?.cnpj_cpf || null,
+        is_cotista: isCotaAtiva,
+        cotista_id: selectedCotaAtiva?.id || null,
+        cotista_codigo: selectedCotaAtiva?.codigo || null,
+        cotista_razao_social: selectedCotaAtiva?.razao_social || null,
+        cotista_cnpj_cpf: selectedCotaAtiva?.cnpj_cpf || null,
       };
 
       // Salvar backup local (apenas dados da banca)
@@ -600,24 +605,27 @@ export default function JornaleiroRegisterPage() {
           <div className="h-1 w-full rounded-full bg-gray-200" />
           <div
             className="absolute left-0 top-0 h-1 rounded-full bg-[#ff5c00] transition-all duration-500"
-            style={{ width: `${((step - 1) / 4) * 100}%` }}
+            style={{ width: `${((step - 1) / 5) * 100}%` }}
           />
         </div>
         <div className="mt-3 flex items-center justify-between">
           {[
-            { n: 1, label: 'Jornaleiro', icon: (
+            { n: 1, label: 'Cota Ativa', icon: (
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            )},
+            { n: 2, label: 'Jornaleiro', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>
             )},
-            { n: 2, label: 'Banca', icon: (
+            { n: 3, label: 'Banca', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l1-5h16l1 5M4 9h16v10H4z"/></svg>
             )},
-            { n: 3, label: 'Funcionamento', icon: (
+            { n: 4, label: 'Funcionamento', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
             )},
-            { n: 4, label: 'Social Midia', icon: (
+            { n: 5, label: 'Social Midia', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8a3 3 0 11-2.83 4H8.83A3 3 0 116 8h12z"/></svg>
             )},
-            { n: 5, label: 'Conclusão', icon: (
+            { n: 6, label: 'Conclusão', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
             )},
           ].map(({ n, label, icon }) => {
@@ -648,12 +656,14 @@ export default function JornaleiroRegisterPage() {
           <div className="text-center">
             <h1 className="text-xl font-semibold">Cadastro do Jornaleiro</h1>
             {step === 1 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Estas são suas informações pessoais para futuros contatos. Os dados da sua banca serão solicitados na próxima etapa.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Identifique-se como Cota Ativa para ter acesso automático ao catálogo completo de produtos dos distribuidores.</p>
             ) : step === 2 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Agora vamos solicitar os dados públicos da sua banca. Essas informações serão exibidas para os clientes na plataforma.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Estas são suas informações pessoais para futuros contatos. Os dados da sua banca serão solicitados na próxima etapa.</p>
             ) : step === 3 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Defina os horários de funcionamento da sua banca. Essas informações aparecerão para os clientes.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Agora vamos solicitar os dados públicos da sua banca. Essas informações serão exibidas para os clientes na plataforma.</p>
             ) : step === 4 ? (
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Defina os horários de funcionamento da sua banca. Essas informações aparecerão para os clientes.</p>
+            ) : step === 5 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Adicione suas redes sociais para potencializar sua presença digital. É opcional e pode ser feito depois no painel.</p>
             ) : null}
           </div>
@@ -664,6 +674,98 @@ export default function JornaleiroRegisterPage() {
         )}
 
         {step === 1 && (
+          <div className="mt-4 grid grid-cols-1 gap-3">
+            <div className="rounded-lg bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <span className="text-orange-600 text-3xl shrink-0">🎯</span>
+                <div>
+                  <h3 className="text-lg font-bold text-orange-900">Você possui Cota Ativa?</h3>
+                  <p className="text-sm text-orange-800 mt-1">
+                    Se você é cadastrado como Cota Ativa de algum distribuidor, terá acesso automático ao catálogo completo de produtos.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <label className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all hover:shadow-md ${!isCotaAtiva ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
+                <input
+                  type="radio"
+                  name="cota_ativa"
+                  checked={!isCotaAtiva}
+                  onChange={() => {
+                    setIsCotaAtiva(false);
+                    setSelectedCotaAtiva(null);
+                  }}
+                  className="h-5 w-5 text-orange-600 focus:ring-orange-500"
+                />
+                <div>
+                  <span className="text-base font-semibold text-gray-900">Não possuo Cota Ativa</span>
+                  <p className="text-sm text-gray-600 mt-1">Vou cadastrar meus produtos manualmente</p>
+                </div>
+              </label>
+
+              <label className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all hover:shadow-md ${isCotaAtiva ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
+                <input
+                  type="radio"
+                  name="cota_ativa"
+                  checked={isCotaAtiva}
+                  onChange={() => setIsCotaAtiva(true)}
+                  className="h-5 w-5 text-orange-600 focus:ring-orange-500"
+                />
+                <div>
+                  <span className="text-base font-semibold text-gray-900">Possuo Cota Ativa</span>
+                  <p className="text-sm text-gray-600 mt-1">Tenho acesso ao catálogo de distribuidores</p>
+                </div>
+              </label>
+            </div>
+
+            {isCotaAtiva && (
+              <div className="mt-4 space-y-4">
+                <div className="rounded-xl bg-blue-50 border-2 border-blue-200 p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-blue-600 text-2xl shrink-0">ℹ️</span>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-bold text-blue-900">Como encontrar seu cadastro</h4>
+                      <p className="text-sm text-blue-800 mt-2">
+                        <strong>Busque seu cadastro de Cota Ativa</strong> pelo nome da empresa, CNPJ/CPF ou código.
+                        Ao identificar-se, você terá acesso automático a todos os produtos dos distribuidores cadastrados na plataforma.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <CotistaSearch
+                  onSelect={(cotaAtiva) => setSelectedCotaAtiva(cotaAtiva)}
+                  selectedCnpjCpf={selectedCotaAtiva?.cnpj_cpf}
+                />
+
+                {selectedCotaAtiva && (
+                  <div className="rounded-xl border-2 border-green-200 bg-green-50 p-5 shadow-md">
+                    <div className="flex items-start gap-3">
+                      <span className="text-green-600 text-3xl shrink-0">✓</span>
+                      <div className="flex-1">
+                        <h4 className="text-base font-bold text-green-900">Cota Ativa Identificada!</h4>
+                        <div className="mt-3 space-y-2 text-sm text-green-800">
+                          <p><strong>Código:</strong> <span className="font-mono">{selectedCotaAtiva.codigo}</span></p>
+                          <p><strong>Razão Social:</strong> {selectedCotaAtiva.razao_social}</p>
+                          <p><strong>CNPJ/CPF:</strong> <span className="font-mono">{selectedCotaAtiva.cnpj_cpf}</span></p>
+                        </div>
+                        <div className="mt-4 rounded-lg bg-white border border-green-300 p-3">
+                          <p className="text-sm text-green-700 font-medium">
+                            🎉 Perfeito! Você terá acesso automático ao catálogo completo de produtos dos distribuidores.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 2 && (
           <div className="mt-4 grid grid-cols-1 gap-3">
             <div>
               <label className="text-[12px] text-gray-700">Nome completo</label>
@@ -834,92 +936,10 @@ export default function JornaleiroRegisterPage() {
               </div>
             )}
 
-            {/* Seção de Cotista */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Você compra produtos através de distribuidores?</h3>
-              <p className="text-xs text-gray-600 mb-4">
-                Se você é cadastrado como cotista de algum distribuidor, você terá acesso automático ao catálogo completo de produtos.
-              </p>
-              
-              <div className="space-y-3">
-                <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all hover:bg-gray-50 ${!isCotista ? 'border-orange-500 bg-orange-50' : 'border-gray-200'}`}>
-                  <input
-                    type="radio"
-                    name="cotista"
-                    checked={!isCotista}
-                    onChange={() => {
-                      setIsCotista(false);
-                      setSelectedCotista(null);
-                    }}
-                    className="h-4 w-4 text-orange-600 focus:ring-orange-500"
-                  />
-                  <div>
-                    <span className="text-sm font-medium text-gray-900">Não sou cotista</span>
-                    <p className="text-xs text-gray-600 mt-0.5">Vou cadastrar meus produtos manualmente</p>
-                  </div>
-                </label>
-
-                <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all hover:bg-gray-50 ${isCotista ? 'border-orange-500 bg-orange-50' : 'border-gray-200'}`}>
-                  <input
-                    type="radio"
-                    name="cotista"
-                    checked={isCotista}
-                    onChange={() => setIsCotista(true)}
-                    className="h-4 w-4 text-orange-600 focus:ring-orange-500"
-                  />
-                  <div>
-                    <span className="text-sm font-medium text-gray-900">Sou cotista</span>
-                    <p className="text-xs text-gray-600 mt-0.5">Tenho acesso ao catálogo de distribuidores</p>
-                  </div>
-                </label>
-              </div>
-
-              {isCotista && (
-                <div className="mt-4 space-y-3">
-                  <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
-                    <div className="flex items-start gap-2">
-                      <span className="text-blue-600 text-lg shrink-0">ℹ️</span>
-                      <div className="flex-1">
-                        <p className="text-xs text-blue-800">
-                          <strong>Busque seu cadastro de cotista</strong> pelo nome, CNPJ/CPF ou código.
-                          Ao identificar-se, você terá acesso automático a todos os produtos dos distribuidores cadastrados na plataforma.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <CotistaSearch
-                    onSelect={(cotista) => setSelectedCotista(cotista)}
-                    selectedCnpjCpf={selectedCotista?.cnpj_cpf}
-                  />
-
-                  {selectedCotista && (
-                    <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4">
-                      <div className="flex items-start gap-3">
-                        <span className="text-green-600 text-2xl shrink-0">✓</span>
-                        <div className="flex-1">
-                          <h4 className="text-sm font-semibold text-green-900">Cotista Selecionado</h4>
-                          <div className="mt-2 space-y-1 text-xs text-green-800">
-                            <p><strong>Código:</strong> {selectedCotista.codigo}</p>
-                            <p><strong>Razão Social:</strong> {selectedCotista.razao_social}</p>
-                            <p><strong>CNPJ/CPF:</strong> {selectedCotista.cnpj_cpf}</p>
-                          </div>
-                          <div className="mt-3 rounded-md bg-white border border-green-300 p-2">
-                            <p className="text-xs text-green-700">
-                              🎉 Ótimo! Você terá acesso automático ao catálogo completo de produtos dos distribuidores.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
         )}
 
-        {step === 2 && (
+        {step === 3 && (
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Nome da banca acima do CEP */}
             <div className="md:col-span-2">
@@ -1027,9 +1047,9 @@ export default function JornaleiroRegisterPage() {
           </div>
         )}
 
-        {step === 2 && null}
+        {step === 3 && null}
 
-        {step === 3 && (
+        {step === 4 && (
           <div className="mt-4 space-y-5">
             {/* Horários */}
             <div>
@@ -1061,7 +1081,7 @@ export default function JornaleiroRegisterPage() {
           </div>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <div className="mt-4 space-y-5">
             {/* Sociais */}
             <div className="rounded-xl border border-gray-200 p-3">
@@ -1108,7 +1128,7 @@ export default function JornaleiroRegisterPage() {
           </div>
         )}
 
-        {step === 5 && (
+        {step === 6 && (
           <div className="mt-6 text-center space-y-3">
             <h2 className="text-lg font-semibold">Tudo pronto! Bem-vindo ao Guia das Bancas</h2>
             <p className="text-sm text-gray-700 max-w-xl mx-auto">Você tomou a decisão certa ao trazer sua banca para o digital. Agora sua presença online vai ajudar novos clientes a encontrarem seus produtos com facilidade.</p>
@@ -1124,13 +1144,13 @@ export default function JornaleiroRegisterPage() {
           </div>
         )}
 
-        {step !== 5 && (
+        {step !== 6 && (
         <div className="mt-6 flex items-center justify-end">
           <div className="flex items-center gap-2">
             {step > 1 && (
               <button onClick={onBack} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50">Voltar</button>
             )}
-            {step < 4 ? (
+            {step < 5 ? (
               <button onClick={onNext} className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95">Avançar</button>
             ) : (
               <>
