@@ -36,6 +36,7 @@ import {
   IconSchool,
   IconSettings,
   IconBrandWhatsapp,
+  IconUserCheck,
 } from "@tabler/icons-react";
 
 const hedvig = Hedvig_Letters_Serif({
@@ -74,6 +75,7 @@ const iconComponents = {
   school: IconSchool,
   settings: IconSettings,
   brandWhatsapp: IconBrandWhatsapp,
+  userCheck: IconUserCheck,
 } as const;
 
 type IconKey = keyof typeof iconComponents;
@@ -112,6 +114,7 @@ const ADMIN_MENU = [
       { label: "Produtos", href: "/admin/products", icon: "box" as IconKey },
       { label: "Categorias", href: "/admin/cms/categories", icon: "tags" as IconKey },
       { label: "Distribuidores", href: "/admin/distribuidores", icon: "truck" as IconKey },
+      { label: "Cota Ativa", href: "/admin/cotistas", icon: "userCheck" as IconKey },
     ]
   },
   {
