@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthContext";
 
 export default function RelatoriosPage() {
@@ -12,6 +13,7 @@ export default function RelatoriosPage() {
     campanhasAtivas: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [isCotista, setIsCotista] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -19,13 +21,15 @@ export default function RelatoriosPage() {
     const load = async () => {
       try {
         // Buscar estatísticas reais
-        const [prodRes, campRes] = await Promise.all([
+        const [prodRes, campRes, bancaRes] = await Promise.all([
           fetch('/api/jornaleiro/products'),
           fetch('/api/jornaleiro/campaigns'),
+          fetch('/api/jornaleiro/banca'),
         ]);
 
         const prodData = await prodRes.json();
         const campData = await campRes.json();
+        const bancaData = await bancaRes.json();
 
         const produtos = prodData.items || [];
         const campanhas = campData.data || [];
@@ -36,6 +40,9 @@ export default function RelatoriosPage() {
           produtosAtivos: produtos.filter((p: any) => p.active).length,
           campanhasAtivas: campanhas.filter((c: any) => c.status === 'active').length,
         });
+
+        // Verificar se é cotista
+        setIsCotista(bancaData?.data?.is_cotista === true && bancaData?.data?.cotista_id);
       } catch (e) {
         console.error('Erro ao carregar estatísticas:', e);
       } finally {
@@ -119,6 +126,26 @@ export default function RelatoriosPage() {
           Suas campanhas promocionais estão {stats.campanhasAtivas > 0 ? 'ativas e divulgando seus produtos' : 'aguardando configuração'}.
         </p>
       </div>
+
+      {/* Relatório de Cotista */}
+      {isCotista && (
+        <Link href="/jornaleiro/relatorios/cotista">
+          <div className="rounded-xl border-2 border-green-200 bg-gradient-to-r from-green-50 to-green-100 p-6 hover:shadow-lg transition-all cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">✓</span>
+                  <h3 className="text-lg font-bold text-green-900">Relatório de Cotista</h3>
+                </div>
+                <p className="text-sm text-green-700">
+                  Estatísticas avançadas sobre produtos de distribuidores, customizações e análise financeira do seu catálogo.
+                </p>
+              </div>
+              <div className="text-green-600 text-3xl">→</div>
+            </div>
+          </div>
+        </Link>
+      )}
     </div>
   );
 }
