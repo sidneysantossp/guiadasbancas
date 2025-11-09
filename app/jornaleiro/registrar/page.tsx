@@ -681,7 +681,7 @@ export default function JornaleiroRegisterPage() {
                 <div>
                   <h3 className="text-lg font-bold text-orange-900">Você possui Cota Ativa?</h3>
                   <p className="text-sm text-orange-800 mt-1">
-                    Tenha acesso automático ao catálogo completo de produtos das principais Marcas através da COTA ATIVA do Guia Das Bancas. São Milhares de Produtos disponíveis automaticamente no perfil da sua Banca para venda.
+                    Tenha acesso automático ao catálogo completo de produtos das principais Marcas através da COTA ATIVA do Guia Das Bancas. São Milhares de Produtos disponíveis automaticamente no perfil da sua Banca para você começar a vender hoje mesmo.
                   </p>
                 </div>
               </div>
