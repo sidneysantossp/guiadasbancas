@@ -739,7 +739,7 @@ useEffect(() => {
                   {cartOpen && <MiniCartDropdown onClose={() => setCartOpen(false)} />}
                 </div>
 
-                {mounted && (
+                {false && (
                   <button
                     type="button"
                     aria-label="Notificações"
