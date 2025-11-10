@@ -737,6 +737,7 @@ export default function JornaleiroRegisterPage() {
                 <CotistaSearch
                   onSelect={(cotaAtiva) => setSelectedCotaAtiva(cotaAtiva)}
                   selectedCnpjCpf={selectedCotaAtiva?.cnpj_cpf}
+                  mode="public"
                 />
 
                 {selectedCotaAtiva && (
