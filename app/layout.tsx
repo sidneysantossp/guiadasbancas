@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <ToastProvider>
                 <CartProvider>
                   {!shouldHideNavbar && <Navbar />}
-                  <main className={!shouldHideNavbar ? "pt-[140px] md:pt-[120px]" : ""}>{children}</main>
+                  <main className={!shouldHideNavbar ? "pt-[140px] md:pt-[80px]" : ""}>{children}</main>
                   {!shouldHideNavbar && <AppFooter />}
                   {!shouldHideNavbar && <FloatingCart />}
                   {!shouldHideNavbar && <CookieConsent />}
