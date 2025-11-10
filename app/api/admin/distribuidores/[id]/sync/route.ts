@@ -8,7 +8,7 @@ export const maxDuration = 300;
 // Configurações de sincronização
 const SYNC_CONFIG = {
   TIMEOUT_SAFETY_MARGIN: 10, // Parar 10s antes do timeout
-  MAX_EXECUTION_TIME: 50 * 1000, // 50 segundos em ms
+  MAX_EXECUTION_TIME: 270 * 1000, // 4.5 minutos em ms
 };
 
 // Categoria fallback para produtos sem categoria
@@ -122,34 +122,48 @@ export async function POST(
     let recebidos = 0;
 
     const batchSize = 200;
+    const INSERT_BATCH_SIZE = 200;
+    const UPDATE_CONCURRENCY = 10;
 
     for await (const lote of mercosApi.getAllProdutosGenerator({ batchSize, alteradoApos: syncInitialTimestamp || null })) {
       recebidos += lote.length;
       console.log(`[SYNC] Lote recebido com ${lote.length} produtos (total recebidos: ${recebidos})`);
 
+      // Verificar tempo antes de processar o lote
+      if ((Date.now() - startTime) > SYNC_CONFIG.MAX_EXECUTION_TIME) {
+        console.log(`[SYNC] ⏰ Timeout preventivo antes do lote. Parando.`);
+        atingiuLimiteTempo = true;
+        break;
+      }
+
+      // Buscar IDs existentes deste lote em UMA consulta
+      const mercosIds = lote.map(p => p.id);
+      const { data: existentesRows, error: mapErr } = await supabase
+        .from('products')
+        .select('id, mercos_id')
+        .eq('distribuidor_id', params.id)
+        .in('mercos_id', mercosIds);
+      if (mapErr) {
+        console.error('[SYNC] ❌ Erro ao buscar mapa de existentes:', mapErr);
+      }
+      const existentes = new Map<number, string>((existentesRows || []).map(r => [r.mercos_id as number, r.id as string]));
+
+      // Preparar payloads
+      const novosPayload: any[] = [];
+      const updatesPayload: { id: string; data: any; mercosId: number; nome: string }[] = [];
+
       for (const produtoMercos of lote) {
         const elapsedTime = Date.now() - startTime;
         if (elapsedTime > SYNC_CONFIG.MAX_EXECUTION_TIME) {
-          console.log(`[SYNC] ⏰ Timeout preventivo atingido (${elapsedTime}ms). Parando processamento.`);
-          console.log(`[SYNC] 📊 Processados: ${processados} (de ${recebidos} recebidos nesta execução)`);
+          console.log(`[SYNC] ⏰ Timeout preventivo atingido (${elapsedTime}ms) durante preparação. Interrompendo.`);
           atingiuLimiteTempo = true;
           break;
         }
-
         try {
           processados++;
-
-          if (processados % 10 === 0) {
+          if (processados % 50 === 0) {
             console.log(`[SYNC] Progresso: ${processados} processados (de ${recebidos} recebidos)`);
           }
-
-          const { data: produtoExistente } = await supabase
-            .from('products')
-            .select('id')
-            .eq('mercos_id', produtoMercos.id)
-            .eq('distribuidor_id', params.id)
-            .single();
-
           const produtoData = {
             name: produtoMercos.nome,
             description: produtoMercos.observacoes || '',
@@ -169,52 +183,49 @@ export async function POST(
             ativo: produtoMercos.ativo && !produtoMercos.excluido,
           };
 
-          if (produtoExistente) {
-            const { error } = await supabase
-              .from('products')
-              .update(produtoData)
-              .eq('id', produtoExistente.id);
-
-            if (error) {
-              console.error(`[SYNC] ❌ Erro ao atualizar produto ID ${produtoMercos.id}:`, {
-                message: error.message,
-                details: error.details,
-                hint: error.hint,
-                code: error.code,
-                produtoNome: produtoMercos.nome
-              });
-              erros.push(`Erro ao atualizar produto ${produtoMercos.nome}: ${error.message} (${error.code || 'N/A'})`);
-            } else {
-              produtosAtualizados++;
-              if (processados % 100 === 0) {
-                console.log(`[SYNC] ✓ Atualizado produto ${produtoMercos.id} - ${produtoMercos.nome}`);
-              }
-            }
+          const existingId = existentes.get(produtoMercos.id);
+          if (existingId) {
+            updatesPayload.push({ id: existingId, data: produtoData, mercosId: produtoMercos.id, nome: produtoMercos.nome });
           } else {
-            const { error } = await supabase
-              .from('products')
-              .insert([produtoData]);
-
-            if (error) {
-              console.error(`[SYNC] ❌ Erro ao criar produto ID ${produtoMercos.id}:`, {
-                message: error.message,
-                details: error.details,
-                hint: error.hint,
-                code: error.code,
-                produtoNome: produtoMercos.nome,
-                produtoData: JSON.stringify(produtoData, null, 2)
-              });
-              erros.push(`Erro ao criar produto ${produtoMercos.nome}: ${error.message} (${error.code || 'N/A'})`);
-            } else {
-              produtosNovos++;
-              if (processados % 100 === 0) {
-                console.log(`[SYNC] ✓ Criado produto ${produtoMercos.id} - ${produtoMercos.nome}`);
-              }
-            }
+            novosPayload.push(produtoData);
           }
         } catch (error: any) {
-          console.error(`[SYNC] ❌ Exceção ao processar produto ${produtoMercos.id}:`, error);
-          erros.push(`Exceção ao processar produto ${produtoMercos.nome}: ${error.message}`);
+          console.error(`[SYNC] ❌ Exceção ao preparar produto ${produtoMercos.id}:`, error);
+          erros.push(`Exceção ao preparar produto ${produtoMercos.nome}: ${error.message}`);
+        }
+      }
+
+      // Inserir novos em lotes
+      for (let i = 0; i < novosPayload.length; i += INSERT_BATCH_SIZE) {
+        if ((Date.now() - startTime) > SYNC_CONFIG.MAX_EXECUTION_TIME) { atingiuLimiteTempo = true; break; }
+        const batch = novosPayload.slice(i, i + INSERT_BATCH_SIZE);
+        const { error } = await supabase.from('products').insert(batch);
+        if (error) {
+          console.error('[SYNC] ❌ Erro ao inserir batch:', error);
+          erros.push(`Erro ao inserir batch: ${error.message}`);
+        } else {
+          produtosNovos += batch.length;
+        }
+      }
+
+      // Atualizar existentes com concorrência limitada
+      for (let i = 0; i < updatesPayload.length; i += UPDATE_CONCURRENCY) {
+        if ((Date.now() - startTime) > SYNC_CONFIG.MAX_EXECUTION_TIME) { atingiuLimiteTempo = true; break; }
+        const slice = updatesPayload.slice(i, i + UPDATE_CONCURRENCY);
+        const results = await Promise.allSettled(
+          slice.map(async (u) => {
+            const { error } = await supabase.from('products').update(u.data).eq('id', u.id);
+            if (error) {
+              console.error(`[SYNC] ❌ Erro ao atualizar produto ID ${u.mercosId}:`, error);
+              erros.push(`Erro ao atualizar produto ${u.nome}: ${error.message}`);
+            } else {
+              produtosAtualizados++;
+            }
+          })
+        );
+        // Optional: log results length to monitor
+        if (results.length) {
+          // noop
         }
       }
 
@@ -236,10 +247,12 @@ export async function POST(
       .eq('distribuidor_id', params.id);
 
     // Atualizar última sincronização do distribuidor
+    // Importante: só avançar timestamp se a execução NÃO foi interrompida por tempo
+    const novaUltimaSync = !atingiuLimiteTempo ? new Date().toISOString() : (ultimaSincronizacaoBase || null);
     await supabase
       .from('distribuidores')
       .update({
-        ultima_sincronizacao: new Date().toISOString(),
+        ultima_sincronizacao: novaUltimaSync,
         total_produtos: totalProdutos || 0,
       })
       .eq('id', params.id);
@@ -254,7 +267,7 @@ export async function POST(
         produtos_total: processados,
         produtos_recebidos: recebidos,
         erros,
-        ultima_sincronizacao: new Date().toISOString(),
+        ultima_sincronizacao: novaUltimaSync || new Date().toISOString(),
       },
     });
   } catch (error: any) {
