@@ -602,7 +602,7 @@ useEffect(() => {
       </div>
 
       {/* Desktop: main utility bar */}
-      <div className="hidden md:block border-b border-gray-100">
+      <div className="hidden md:block">
         <div className="container-max flex items-center gap-8 py-4">
           <Link href="/" className="flex items-center">
             {branding?.logoUrl ? (
@@ -761,10 +761,10 @@ useEffect(() => {
 
                 <Link
                   href="/jornaleiro"
-                  className="inline-flex items-center justify-center text-gray-700 hover:text-[#ff5c00] transition-colors"
-                  aria-label="Área do jornaleiro"
+                  className="inline-flex items-center rounded-md bg-[#ff5c00] text-white px-3 py-2 text-sm font-semibold shadow hover:opacity-95 transition-colors"
+                  aria-label="Sou Jornaleiro"
                 >
-                  <IconBuildingStore size={22} stroke={1.8} className="text-current" />
+                  Sou Jornaleiro
                 </Link>
               </div>
             </>
