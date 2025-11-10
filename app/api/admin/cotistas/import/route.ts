@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60; // 60 seconds timeout
+export const maxDuration = 300; // extend timeout to handle large files
 
 function verifyAdminAuth(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -132,94 +132,92 @@ export async function POST(request: NextRequest) {
     let errors = 0;
     const errorDetails: string[] = [];
 
-    // Processar cada linha
+    // Preparar linhas válidas para upsert em lote
+    const prepared: any[] = [];
     for (let i = 1; i < data.length; i++) {
-      try {
-        const values = data[i].map((v: any) => {
-          if (v === null || v === undefined) return '';
-          return String(v).trim();
-        });
-        
-        if (values.every((v: string) => !v)) continue; // Pular linhas vazias
-        
-        const razaoSocial = values[idxRazaoSocial]?.trim();
-        let cnpjCpf = values[idxCnpjCpf]?.trim();
-        
-        // Se CNPJ/CPF vier como número do Excel, formatar corretamente
-        if (cnpjCpf && /^\d+$/.test(cnpjCpf)) {
-          // Adicionar zeros à esquerda se necessário
-          if (cnpjCpf.length < 11) {
-            cnpjCpf = cnpjCpf.padStart(11, '0');
-          } else if (cnpjCpf.length > 11 && cnpjCpf.length < 14) {
-            cnpjCpf = cnpjCpf.padStart(14, '0');
-          }
-        }
+      const values = data[i].map((v: any) => (v === null || v === undefined ? '' : String(v).trim()));
+      if (values.every((v: string) => !v)) continue;
 
-        if (!razaoSocial || !cnpjCpf) {
-          errorDetails.push(`Linha ${i + 1}: Razão Social ou CNPJ/CPF vazio`);
-          errors++;
-          continue;
-        }
+      const razaoSocial = values[idxRazaoSocial]?.trim();
+      let cnpjCpf = values[idxCnpjCpf]?.trim();
 
-        if (!isValidCnpjCpf(cnpjCpf)) {
-          errorDetails.push(`Linha ${i + 1}: CNPJ/CPF inválido: ${cnpjCpf}`);
-          errors++;
-          continue;
-        }
+      if (cnpjCpf && /^\d+$/.test(cnpjCpf)) {
+        if (cnpjCpf.length < 11) cnpjCpf = cnpjCpf.padStart(11, '0');
+        else if (cnpjCpf.length > 11 && cnpjCpf.length < 14) cnpjCpf = cnpjCpf.padStart(14, '0');
+      }
 
-        const codigo = extractCodigo(razaoSocial);
-        const cnpjCpfClean = cleanCnpjCpf(cnpjCpf);
-
-        const cotistaData = {
-          codigo,
-          razao_social: razaoSocial,
-          cnpj_cpf: cnpjCpfClean,
-          telefone: idxTelefone !== -1 ? values[idxTelefone]?.trim() || null : null,
-          telefone_2: idxTelefone2 !== -1 ? values[idxTelefone2]?.trim() || null : null,
-          endereco_principal: idxEndereco !== -1 ? values[idxEndereco]?.trim() || null : null,
-          cidade: idxCidade !== -1 ? values[idxCidade]?.trim() || null : null,
-          estado: idxEstado !== -1 ? values[idxEstado]?.trim() || null : null,
-          ativo: true,
-        };
-
-        // Verificar se já existe
-        const { data: existing } = await supabaseAdmin
-          .from('cotistas')
-          .select('id')
-          .eq('cnpj_cpf', cnpjCpfClean)
-          .single();
-
-        if (existing) {
-          // Atualizar
-          const { error } = await supabaseAdmin
-            .from('cotistas')
-            .update(cotistaData)
-            .eq('id', existing.id);
-
-          if (error) {
-            errorDetails.push(`Linha ${i + 1}: Erro ao atualizar - ${error.message}`);
-            errors++;
-          } else {
-            updated++;
-          }
-        } else {
-          // Inserir novo
-          const { error } = await supabaseAdmin
-            .from('cotistas')
-            .insert(cotistaData);
-
-          if (error) {
-            errorDetails.push(`Linha ${i + 1}: Erro ao inserir - ${error.message}`);
-            errors++;
-          } else {
-            imported++;
-          }
-        }
-
-      } catch (err: any) {
-        console.error(`[IMPORT COTISTAS] Erro na linha ${i + 1}:`, err);
-        errorDetails.push(`Linha ${i + 1}: ${err.message}`);
+      if (!razaoSocial || !cnpjCpf) {
+        errorDetails.push(`Linha ${i + 1}: Razão Social ou CNPJ/CPF vazio`);
         errors++;
+        continue;
+      }
+
+      if (!isValidCnpjCpf(cnpjCpf)) {
+        errorDetails.push(`Linha ${i + 1}: CNPJ/CPF inválido: ${cnpjCpf}`);
+        errors++;
+        continue;
+      }
+
+      const codigo = extractCodigo(razaoSocial);
+      const cnpjCpfClean = cleanCnpjCpf(cnpjCpf);
+
+      prepared.push({
+        codigo,
+        razao_social: razaoSocial,
+        cnpj_cpf: cnpjCpfClean,
+        telefone: idxTelefone !== -1 ? values[idxTelefone]?.trim() || null : null,
+        telefone_2: idxTelefone2 !== -1 ? values[idxTelefone2]?.trim() || null : null,
+        endereco_principal: idxEndereco !== -1 ? values[idxEndereco]?.trim() || null : null,
+        cidade: idxCidade !== -1 ? values[idxCidade]?.trim() || null : null,
+        estado: idxEstado !== -1 ? values[idxEstado]?.trim() || null : null,
+        ativo: true,
+      });
+    }
+
+    console.log('[IMPORT COTISTAS] Linhas válidas para upsert:', prepared.length);
+
+    // Upsert em lotes com onConflict por cnpj_cpf
+    const chunkSize = 500;
+    for (let start = 0; start < prepared.length; start += chunkSize) {
+      const chunk = prepared.slice(start, start + chunkSize);
+      const cnpjs = chunk.map((r) => r.cnpj_cpf);
+
+      // Buscar quais já existem para contar updated/imported
+      const { data: existingList, error: existingErr } = await supabaseAdmin
+        .from('cotistas')
+        .select('cnpj_cpf')
+        .in('cnpj_cpf', cnpjs);
+      if (existingErr) {
+        console.error('[IMPORT COTISTAS] Erro buscando existentes:', existingErr);
+      }
+      const existingSet = new Set((existingList || []).map((r: any) => r.cnpj_cpf));
+
+      const expectedImported = chunk.filter((r) => !existingSet.has(r.cnpj_cpf)).length;
+      const expectedUpdated = chunk.length - expectedImported;
+
+      const { error: upsertErr } = await supabaseAdmin
+        .from('cotistas')
+        .upsert(chunk, { onConflict: 'cnpj_cpf' });
+
+      if (upsertErr) {
+        console.warn('[IMPORT COTISTAS] Upsert em lote falhou, tentando item a item. Erro:', upsertErr.message);
+        // Fallback item a item para identificar erros sem abortar todo o lote
+        for (let idx = 0; idx < chunk.length; idx++) {
+          const row = chunk[idx];
+          const { error: itemErr } = await supabaseAdmin
+            .from('cotistas')
+            .upsert(row, { onConflict: 'cnpj_cpf' });
+          if (itemErr) {
+            errors++;
+            errorDetails.push(`Erro ao salvar registro (${row.cnpj_cpf}): ${itemErr.message}`);
+          } else {
+            if (existingSet.has(row.cnpj_cpf)) updated++;
+            else imported++;
+          }
+        }
+      } else {
+        imported += expectedImported;
+        updated += expectedUpdated;
       }
     }
 
