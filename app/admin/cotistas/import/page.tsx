@@ -43,10 +43,8 @@ export default function ImportCotistasPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      // Usar rota CSV por enquanto
-      const endpoint = file.name.endsWith('.csv') 
-        ? '/api/admin/cotistas/import-csv'
-        : '/api/admin/cotistas/import';
+      // Usar rota unificada de import
+      const endpoint = '/api/admin/cotistas/import';
       
       console.log('[IMPORT] Endpoint:', endpoint);
       console.log('[IMPORT] Arquivo:', file.name, file.type, file.size);

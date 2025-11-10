@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-export const runtime = 'nodejs'; // Force Node.js runtime for xlsx
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // 60 seconds timeout
 
@@ -48,52 +47,39 @@ export async function POST(request: NextRequest) {
 
     console.log('[IMPORT COTISTAS] Arquivo recebido:', file.name, file.type, file.size);
 
-    // Ler conteúdo do arquivo
+    // Ler conteúdo do arquivo como texto (CSV/TSV apenas)
+    console.log('[IMPORT COTISTAS] Lendo arquivo como texto...');
     const buffer = await file.arrayBuffer();
+    const text = new TextDecoder('utf-8').decode(buffer);
     
-    let data: any[][] = [];
-    
-    // Detectar tipo de arquivo e processar
-    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.type.includes('spreadsheet')) {
-      // Processar Excel
-      try {
-        console.log('[IMPORT COTISTAS] 📊 Processando como Excel');
-        console.log('[IMPORT COTISTAS] Importando biblioteca xlsx...');
-        
-        // Dynamic import of xlsx
-        const XLSX = await import('xlsx');
-        console.log('[IMPORT COTISTAS] ✅ Biblioteca xlsx importada');
-        
-        console.log('[IMPORT COTISTAS] Lendo workbook...');
-        const workbook = XLSX.read(buffer, { type: 'buffer' });
-        console.log('[IMPORT COTISTAS] ✅ Workbook lido. Sheets:', workbook.SheetNames);
-        
-        const sheetName = workbook.SheetNames[0];
-        console.log('[IMPORT COTISTAS] Usando sheet:', sheetName);
-        
-        const worksheet = workbook.Sheets[sheetName];
-        console.log('[IMPORT COTISTAS] Convertendo sheet para JSON...');
-        
-        data = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
-        console.log('[IMPORT COTISTAS] ✅ Excel processado, linhas:', data.length);
-      } catch (xlsxError: any) {
-        console.error('[IMPORT COTISTAS] ❌ Erro ao processar Excel:', xlsxError);
-        console.error('[IMPORT COTISTAS] Error stack:', xlsxError.stack);
-        return NextResponse.json({ 
-          success: false, 
-          error: `Erro ao processar arquivo Excel: ${xlsxError.message}` 
-        }, { 
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-    } else {
-      // Processar CSV
-      console.log('[IMPORT COTISTAS] Processando como CSV');
-      const text = new TextDecoder('utf-8').decode(buffer);
-      const lines = text.split('\n').filter(line => line.trim());
-      data = lines.map(line => line.split(/[,;\t]/).map(v => v.trim().replace(/^["']|["']$/g, '')));
+    if (!text || text.trim().length === 0) {
+      return NextResponse.json({ 
+        success: false, 
+        error: "Arquivo vazio ou inválido" 
+      }, { status: 400 });
     }
+    
+    // Processar linhas
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    if (lines.length === 0) {
+      return NextResponse.json({ 
+        success: false, 
+        error: "Arquivo não contém dados" 
+      }, { status: 400 });
+    }
+    
+    // Detectar separador automático
+    const firstLine = lines[0];
+    const separator = firstLine.includes('\t') ? '\t' : (firstLine.includes(';') ? ';' : ',');
+    console.log('[IMPORT COTISTAS] Separador detectado:', separator === '\t' ? 'TAB' : separator);
+    
+    // Converter para array 2D
+    const data = lines.map(line => 
+      line.split(separator).map(v => v.trim().replace(/^["']|["']$/g, ''))
+    );
+    
+    console.log('[IMPORT COTISTAS] Total linhas processadas:', data.length);
     
     if (data.length === 0) {
       return NextResponse.json({ 
