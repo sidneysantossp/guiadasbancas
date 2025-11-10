@@ -48,18 +48,32 @@ export default function ImportCotistasPage() {
         ? '/api/admin/cotistas/import-csv'
         : '/api/admin/cotistas/import';
       
+      console.log('[IMPORT] Endpoint:', endpoint);
+      console.log('[IMPORT] Arquivo:', file.name, file.type, file.size);
+      
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer admin-token'
         },
         body: formData
+      }).catch(fetchError => {
+        console.error('[IMPORT] Fetch error:', fetchError);
+        throw new Error(`Erro de conexão: ${fetchError.message}. Verifique se o servidor está rodando.`);
       });
 
-      const data = await response.json();
+      console.log('[IMPORT] Response status:', response.status);
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('[IMPORT] JSON parse error:', jsonError);
+        throw new Error('Resposta inválida do servidor. Por favor, verifique os logs do servidor.');
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Erro ao importar arquivo');
+        throw new Error(data.error || `Erro ${response.status}: ${response.statusText}`);
       }
 
       setProgress("Importação concluída!");
