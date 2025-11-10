@@ -17,26 +17,61 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
-    const limit = parseInt(searchParams.get('limit') || '100');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const pageSizeParam = searchParams.get('pageSize') || searchParams.get('limit') || '50';
+    const pageSize = Math.min(Math.max(1, parseInt(pageSizeParam)), 2000);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
     let query = supabaseAdmin
       .from('cotistas')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('razao_social', { ascending: true })
-      .limit(limit);
+      .range(from, to);
 
     if (search) {
       query = query.or(`razao_social.ilike.%${search}%,cnpj_cpf.ilike.%${search}%,codigo.ilike.%${search}%`);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       console.error('[GET COTISTAS] Error:', error);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data });
+    let activeCount = 0;
+    let inactiveCount = 0;
+
+    let activeQuery = supabaseAdmin
+      .from('cotistas')
+      .select('id', { count: 'exact', head: true })
+      .eq('ativo', true);
+    if (search) {
+      activeQuery = activeQuery.or(`razao_social.ilike.%${search}%,cnpj_cpf.ilike.%${search}%,codigo.ilike.%${search}%`);
+    }
+    const { count: aCount, error: aErr } = await activeQuery;
+    if (aErr) {
+      console.error('[GET COTISTAS] active count error:', aErr);
+    } else {
+      activeCount = aCount ?? 0;
+    }
+
+    let inactiveQuery = supabaseAdmin
+      .from('cotistas')
+      .select('id', { count: 'exact', head: true })
+      .eq('ativo', false);
+    if (search) {
+      inactiveQuery = inactiveQuery.or(`razao_social.ilike.%${search}%,cnpj_cpf.ilike.%${search}%,codigo.ilike.%${search}%`);
+    }
+    const { count: iCount, error: iErr } = await inactiveQuery;
+    if (iErr) {
+      console.error('[GET COTISTAS] inactive count error:', iErr);
+    } else {
+      inactiveCount = iCount ?? 0;
+    }
+
+    return NextResponse.json({ success: true, data, total: count ?? 0, page, pageSize, stats: { active: activeCount, inactive: inactiveCount } });
   } catch (error: any) {
     console.error('[GET COTISTAS] Exception:', error);
     return NextResponse.json({ success: false, error: error.message || "Erro interno" }, { status: 500 });

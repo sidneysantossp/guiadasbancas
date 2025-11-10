@@ -18,12 +18,18 @@ export default function CotistasPage() {
   const [cotistas, setCotistas] = useState<Cotista[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<{ active: number; inactive: number }>({ active: 0, inactive: 0 });
 
   const fetchCotistas = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
       if (search) params.append('search', search);
+      params.append('page', String(currentPage));
+      params.append('limit', String(itemsPerPage));
       
       const res = await fetch(`/api/admin/cotistas?${params}`, {
         headers: { 'Authorization': 'Bearer admin-token' }
@@ -32,6 +38,13 @@ export default function CotistasPage() {
       const json = await res.json();
       if (json.success) {
         setCotistas(json.data || []);
+        setTotal(json.total || 0);
+        if (json.stats && typeof json.stats.active === 'number' && typeof json.stats.inactive === 'number') {
+          setStats({ active: json.stats.active, inactive: json.stats.inactive });
+        } else {
+          const activeFromPage = (json.data || []).filter((c: Cotista) => c.ativo).length;
+          setStats({ active: activeFromPage, inactive: (json.data || []).length - activeFromPage });
+        }
       }
     } catch (error) {
       console.error('Error fetching cotistas:', error);
@@ -42,10 +55,11 @@ export default function CotistasPage() {
 
   useEffect(() => {
     fetchCotistas();
-  }, []);
+  }, [currentPage, itemsPerPage]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setCurrentPage(1);
     fetchCotistas();
   };
 
@@ -87,6 +101,16 @@ export default function CotistasPage() {
             placeholder="Buscar por razão social, CNPJ/CPF ou código..."
             className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
           />
+          <select
+            value={itemsPerPage}
+            onChange={(e) => { setItemsPerPage(parseInt(e.target.value)); setCurrentPage(1); }}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:ring-orange-500"
+          >
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+            <option value={200}>200</option>
+          </select>
           <button
             type="submit"
             className="rounded-md bg-gray-600 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700"
@@ -96,7 +120,7 @@ export default function CotistasPage() {
           {search && (
             <button
               type="button"
-              onClick={() => { setSearch(''); fetchCotistas(); }}
+              onClick={() => { setSearch(''); setCurrentPage(1); fetchCotistas(); }}
               className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
             >
               Limpar
@@ -109,19 +133,15 @@ export default function CotistasPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <p className="text-sm text-gray-600">Total de Cotistas</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{cotistas.length}</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{total}</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <p className="text-sm text-gray-600">Ativos</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">
-            {cotistas.filter(c => c.ativo).length}
-          </p>
+          <p className="text-2xl font-bold text-green-600 mt-1">{stats.active}</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <p className="text-sm text-gray-600">Inativos</p>
-          <p className="text-2xl font-bold text-red-600 mt-1">
-            {cotistas.filter(c => !c.ativo).length}
-          </p>
+          <p className="text-2xl font-bold text-red-600 mt-1">{stats.inactive}</p>
         </div>
       </div>
 
@@ -190,6 +210,38 @@ export default function CotistasPage() {
               ))}
             </tbody>
           </table>
+          {total > 0 && (
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-3">
+              <div className="text-sm text-gray-600">
+                {(() => {
+                  const from = total === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+                  const to = Math.min(currentPage * itemsPerPage, total);
+                  return `Mostrando ${from} a ${to} de ${total} cotistas`;
+                })()}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={`rounded-md border px-3 py-1.5 text-sm ${currentPage === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                >
+                  Anterior
+                </button>
+                <div className="text-sm text-gray-600 px-2">
+                  {`Página ${currentPage} de ${Math.max(1, Math.ceil(total / itemsPerPage))}`}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.min(Math.max(1, Math.ceil(total / itemsPerPage)), p + 1))}
+                  disabled={currentPage >= Math.ceil(total / itemsPerPage) || total === 0}
+                  className={`rounded-md border px-3 py-1.5 text-sm ${currentPage >= Math.ceil(total / itemsPerPage) || total === 0 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                >
+                  Próxima
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
