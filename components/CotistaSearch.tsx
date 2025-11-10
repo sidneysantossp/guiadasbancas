@@ -16,15 +16,18 @@ type Props = {
   onSelect: (cotista: Cotista | null) => void;
   selectedCnpjCpf?: string;
   mode?: 'admin' | 'public';
+  supportWhatsapp?: string;
 };
 
-export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin' }: Props) {
+export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin', supportWhatsapp }: Props) {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<Cotista[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selected, setSelected] = useState<Cotista | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const supportNumber = (supportWhatsapp || (process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP as string) || '').trim();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -46,6 +49,8 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
       setShowResults(false);
       return;
     }
+    // typing again clears not-found state
+    if (notFound) setNotFound(false);
     if (mode === 'admin') {
       const searchCotistas = async () => {
         if (search.length < 2) {
@@ -91,6 +96,7 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
               } else {
                 onSelect(null);
                 setSelected(null);
+                setNotFound(true);
               }
             }
           } catch (err) {
@@ -148,6 +154,7 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
     setResults([]);
     onSelect(null);
     setSelected(null);
+    setNotFound(false);
   };
 
   const formatCnpjCpf = (value: string) => {
@@ -225,6 +232,29 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
       {mode === 'admin' && showResults && !loading && results.length === 0 && search.length >= 2 && (
         <div className="mt-1 text-xs text-gray-500">
           Nenhum cotista encontrado
+        </div>
+      )}
+
+      {/* No Results (PUBLIC) */}
+      {mode === 'public' && !loading && notFound && (
+        <div className="mt-2 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded px-3 py-2">
+          Nenhum cadastro encontrado para este CPF/CNPJ. Entre em contato conosco pelo WhatsApp
+          {supportNumber ? (
+            <>
+              {" "}
+              <a
+                href={`https://wa.me/${supportNumber.replace(/\D/g,'')}?text=${encodeURIComponent('Olá! Não encontrei meu cadastro de Cota Ativa no Guia das Bancas. Pode me ajudar?')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#25D366] font-semibold hover:underline"
+              >
+                clicando aqui
+              </a>
+              .
+            </>
+          ) : (
+            <>.</>
+          )}
         </div>
       )}
     </div>
