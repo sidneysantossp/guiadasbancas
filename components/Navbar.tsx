@@ -820,7 +820,7 @@ useEffect(() => {
 
       {/* Main bar: Horizontal Category Menu */}
       {!inDashboard && (
-        <div className="hidden md:block">
+        <div className="hidden">
           <div className="container-max">
             <nav className="flex items-center gap-1 text-sm overflow-x-auto scrollbar-hide">
               <Link 
