@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
+    const searchDigits = (search || '').replace(/[^0-9]/g, '');
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const pageSizeParam = searchParams.get('pageSize') || searchParams.get('limit') || '50';
     const pageSize = Math.min(Math.max(1, parseInt(pageSizeParam)), 2000);
@@ -30,7 +31,17 @@ export async function GET(request: NextRequest) {
       .range(from, to);
 
     if (search) {
-      query = query.or(`razao_social.ilike.%${search}%,cnpj_cpf.ilike.%${search}%,codigo.ilike.%${search}%`);
+      const ors: string[] = [];
+      // texto livre em razão social e código
+      ors.push(`razao_social.ilike.%${search}%`);
+      ors.push(`codigo.ilike.%${search}%`);
+      // busca por documento com dígitos (bd armazena apenas números)
+      if (searchDigits.length === 11 || searchDigits.length === 14) {
+        ors.unshift(`cnpj_cpf.eq.${searchDigits}`);
+      } else if (searchDigits.length >= 3) {
+        ors.push(`cnpj_cpf.ilike.%${searchDigits}%`);
+      }
+      query = query.or(ors.join(','));
     }
 
     const { data, error, count } = await query;
@@ -48,7 +59,15 @@ export async function GET(request: NextRequest) {
       .select('id', { count: 'exact', head: true })
       .eq('ativo', true);
     if (search) {
-      activeQuery = activeQuery.or(`razao_social.ilike.%${search}%,cnpj_cpf.ilike.%${search}%,codigo.ilike.%${search}%`);
+      const ors: string[] = [];
+      ors.push(`razao_social.ilike.%${search}%`);
+      ors.push(`codigo.ilike.%${search}%`);
+      if (searchDigits.length === 11 || searchDigits.length === 14) {
+        ors.unshift(`cnpj_cpf.eq.${searchDigits}`);
+      } else if (searchDigits.length >= 3) {
+        ors.push(`cnpj_cpf.ilike.%${searchDigits}%`);
+      }
+      activeQuery = activeQuery.or(ors.join(','));
     }
     const { count: aCount, error: aErr } = await activeQuery;
     if (aErr) {
@@ -62,7 +81,15 @@ export async function GET(request: NextRequest) {
       .select('id', { count: 'exact', head: true })
       .eq('ativo', false);
     if (search) {
-      inactiveQuery = inactiveQuery.or(`razao_social.ilike.%${search}%,cnpj_cpf.ilike.%${search}%,codigo.ilike.%${search}%`);
+      const ors: string[] = [];
+      ors.push(`razao_social.ilike.%${search}%`);
+      ors.push(`codigo.ilike.%${search}%`);
+      if (searchDigits.length === 11 || searchDigits.length === 14) {
+        ors.unshift(`cnpj_cpf.eq.${searchDigits}`);
+      } else if (searchDigits.length >= 3) {
+        ors.push(`cnpj_cpf.ilike.%${searchDigits}%`);
+      }
+      inactiveQuery = inactiveQuery.or(ors.join(','));
     }
     const { count: iCount, error: iErr } = await inactiveQuery;
     if (iErr) {
