@@ -23,6 +23,7 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
   const [results, setResults] = useState<Cotista[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [selected, setSelected] = useState<Cotista | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -36,8 +37,15 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const selectedLabel = (c: Cotista | null) => c ? (c.codigo ? `${c.codigo} - ${c.razao_social}` : c.razao_social) : '';
+
   // Search cotistas
   useEffect(() => {
+    // If we have a selection and the input still matches the selection label, do not search
+    if (selected && search.trim() === selectedLabel(selected)) {
+      setShowResults(false);
+      return;
+    }
     if (mode === 'admin') {
       const searchCotistas = async () => {
         if (search.length < 2) {
@@ -77,8 +85,12 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
             if (json.success) {
               if (json.data) {
                 onSelect(json.data);
+                setSelected(json.data);
+                setSearch(selectedLabel(json.data));
+                setShowResults(false);
               } else {
                 onSelect(null);
+                setSelected(null);
               }
             }
           } catch (err) {
@@ -97,8 +109,12 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
             if (json.success) {
               if (json.data) {
                 onSelect(json.data);
+                setSelected(json.data);
+                setSearch(selectedLabel(json.data));
+                setShowResults(false);
               } else {
                 onSelect(null);
+                setSelected(null);
               }
             }
           } catch (err) {
@@ -110,6 +126,7 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
         }
         // otherwise, clear selection without querying
         onSelect(null);
+        setSelected(null);
         setResults([]);
         setShowResults(false);
       };
@@ -121,7 +138,8 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
 
   const handleSelect = (cotista: Cotista) => {
     onSelect(cotista);
-    setSearch(cotista.razao_social);
+    setSelected(cotista);
+    setSearch(selectedLabel(cotista));
     setShowResults(false);
   };
 
@@ -129,6 +147,7 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
     setSearch("");
     setResults([]);
     onSelect(null);
+    setSelected(null);
   };
 
   const formatCnpjCpf = (value: string) => {
@@ -144,6 +163,8 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
   return (
     <div ref={wrapperRef} className="relative">
       <div className="relative">
+        {/** readOnly when public mode has a selection to avoid re-queries */}
+        {/** user can click X to clear and type another value */}
         <input
           type="text"
           value={search}
@@ -151,6 +172,8 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
           onFocus={() => mode === 'admin' && results.length > 0 && setShowResults(true)}
           placeholder={mode === 'admin' ? "Digite o nome, CNPJ/CPF ou código do cotista..." : "Digite seu CNPJ/CPF ou código..."}
           className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 pr-10 text-sm focus:border-orange-500 focus:ring-orange-500"
+          readOnly={mode === 'public' && !!selected}
+          aria-readonly={mode === 'public' && !!selected}
         />
         {search && (
           <button
