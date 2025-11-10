@@ -63,13 +63,30 @@ export default function SyncDistribuidorPage() {
         }
       );
 
-      const data = await response.json();
+      if (!response.ok) {
+        let errText = '';
+        try {
+          const j = await response.json();
+          errText = j?.error || JSON.stringify(j);
+        } catch {
+          errText = await response.text();
+        }
+        throw new Error(`HTTP ${response.status} - ${errText?.slice(0, 300)}`);
+      }
+
+      let data: any;
+      const rawText = await response.text();
+      try {
+        data = JSON.parse(rawText || '{}');
+      } catch {
+        throw new Error(`Resposta não-JSON da API: ${rawText?.slice(0, 300)}`);
+      }
 
       if (data.success) {
         setResult(data.data);
         await loadDistribuidor(); // Recarregar para atualizar última sincronização
       } else {
-        alert('Erro na sincronização: ' + data.error);
+        throw new Error(data.error || 'Erro na sincronização');
       }
     } catch (error) {
       console.error('Erro na sincronização:', error);
@@ -102,11 +119,23 @@ export default function SyncDistribuidorPage() {
       console.log('[UI] Status da resposta:', response.status);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro na sincronização');
+        let errText = '';
+        try {
+          const j = await response.json();
+          errText = j?.error || JSON.stringify(j);
+        } catch {
+          errText = await response.text();
+        }
+        throw new Error(`HTTP ${response.status} - ${errText?.slice(0, 300)}`);
       }
 
-      const data = await response.json();
+      const rawText = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(rawText || '{}');
+      } catch {
+        throw new Error(`Resposta não-JSON da API: ${rawText?.slice(0, 300)}`);
+      }
       console.log('[UI] Dados recebidos:', data);
 
       if (data.success) {
