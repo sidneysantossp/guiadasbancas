@@ -43,7 +43,12 @@ export default function ImportCotistasPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/admin/cotistas/import', {
+      // Usar rota CSV por enquanto
+      const endpoint = file.name.endsWith('.csv') 
+        ? '/api/admin/cotistas/import-csv'
+        : '/api/admin/cotistas/import';
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer admin-token'
@@ -89,6 +94,15 @@ export default function ImportCotistasPage() {
         >
           ← Voltar
         </Link>
+      </div>
+
+      {/* Important Note */}
+      <div className="rounded-lg bg-amber-50 border border-amber-300 p-4 mb-4">
+        <h3 className="text-sm font-semibold text-amber-900 mb-2">⚠️ Importante</h3>
+        <p className="text-sm text-amber-800">
+          Por favor, <strong>exporte sua planilha Excel como CSV</strong> antes de importar.
+          No Excel/Google Sheets: Arquivo → Salvar Como → CSV (separado por vírgulas).
+        </p>
       </div>
 
       {/* Instructions */}
