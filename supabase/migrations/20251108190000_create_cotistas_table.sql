@@ -34,31 +34,19 @@ create index if not exists idx_bancas_is_cotista on public.bancas(is_cotista);
 -- Enable RLS
 alter table public.cotistas enable row level security;
 
--- Admin can do everything
-create policy "Admin full access to cotistas"
-  on public.cotistas
-  for all
-  to authenticated
-  using (
-    exists (
-      select 1 from public.users
-      where users.id = auth.uid()
-      and users.role = 'admin'
-    )
-  );
+-- Drop old policies if they exist (for idempotency)
+drop policy if exists "Admin full access to cotistas" on public.cotistas;
+drop policy if exists "Jornaleiros can read cotistas" on public.cotistas;
 
--- Jornaleiros can read cotistas to search/select
-create policy "Jornaleiros can read cotistas"
+-- Allow all authenticated users to read cotistas (search/select)
+create policy "Authenticated can read cotistas"
   on public.cotistas
   for select
   to authenticated
-  using (
-    exists (
-      select 1 from public.users
-      where users.id = auth.uid()
-      and users.role = 'jornaleiro'
-    )
-  );
+  using (true);
+
+-- Note: service_role bypasses RLS automatically in Supabase for inserts/updates/deletes
+-- Admin APIs use the service key (supabaseAdmin), so no extra write policies are required here.
 
 -- Update trigger for updated_at
 create or replace function update_cotistas_updated_at()
