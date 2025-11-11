@@ -103,83 +103,124 @@ export default function SyncDistribuidorPage() {
     setContinuousProgress(null);
     setResult(null);
 
-    try {
-      console.log('[UI] Iniciando sincronização ultra-rápida...');
-      
-      const response = await fetch(
-        `/api/admin/distribuidores/${params.id}/sync-fast`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+    const maxRetries = 2;
+    let lastError: Error | null = null;
 
-      console.log('[UI] Status da resposta:', response.status);
-
-      if (!response.ok) {
-        let errText = '';
-        try {
-          const j = await response.json();
-          errText = j?.error || JSON.stringify(j);
-        } catch {
-          errText = await response.text();
-        }
-        throw new Error(`HTTP ${response.status} - ${errText?.slice(0, 300)}`);
-      }
-
-      const rawText = await response.text();
-      let data: any;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        data = JSON.parse(rawText || '{}');
-      } catch {
-        throw new Error(`Resposta não-JSON da API: ${rawText?.slice(0, 300)}`);
-      }
-      console.log('[UI] Dados recebidos:', data);
+        console.log(`[UI] Tentativa ${attempt}/${maxRetries} - Iniciando sincronização ultra-rápida...`);
+        
+        const response = await fetch(
+          `/api/admin/distribuidores/${params.id}/sync-fast`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
 
-      if (data.success) {
-        const ignorados = data.data.produtos_ignorados || 0;
-        const novos = data.data.produtos_novos || 0;
-        
-        // Exibir resultado
-        setResult({
-          success: true,
-          produtos_novos: novos,
-          produtos_atualizados: ignorados, // Usar campo de atualizados para mostrar ignorados
-          produtos_total: data.data.produtos_total,
-          erros: data.data.erros || [],
-          ultima_sincronizacao: new Date().toISOString(),
-        });
-        
-        // Mostrar progresso
-        setContinuousProgress({
-          success: true,
-          completed: true,
-          message: `✅ Sincronização em ${data.data.tempo_execucao}! 
+        console.log('[UI] Status da resposta:', response.status);
+
+        if (!response.ok) {
+          let errText = '';
+          try {
+            const j = await response.json();
+            errText = j?.error || JSON.stringify(j);
+          } catch {
+            errText = await response.text();
+          }
+          throw new Error(`HTTP ${response.status} - ${errText?.slice(0, 300)}`);
+        }
+
+        const rawText = await response.text();
+        let data: any;
+        try {
+          data = JSON.parse(rawText || '{}');
+        } catch {
+          throw new Error(`Resposta não-JSON da API: ${rawText?.slice(0, 300)}`);
+        }
+        console.log('[UI] Dados recebidos:', data);
+
+        if (data.success) {
+          const ignorados = data.data.produtos_ignorados || 0;
+          const novos = data.data.produtos_novos || 0;
           
+          // Exibir resultado
+          setResult({
+            success: true,
+            produtos_novos: novos,
+            produtos_atualizados: ignorados, // Usar campo de atualizados para mostrar ignorados
+            produtos_total: data.data.produtos_total,
+            erros: data.data.erros || [],
+            ultima_sincronizacao: new Date().toISOString(),
+          });
+          
+          // Mostrar progresso
+          setContinuousProgress({
+            success: true,
+            completed: true,
+            message: `✅ Sincronização em ${data.data.tempo_execucao}! 
+            
 🆕 ${novos} produtos novos inseridos
 ⏭️ ${ignorados} já existiam (ignorados)
 📦 Total no banco: ${data.data.total_no_banco} produtos
 
 ${data.data.total_no_banco < 7700 ? '⚠️ Clique novamente para continuar até completar 7.701 produtos' : '✅ Sincronização completa!'}`,
-        });
+          });
+          
+          await loadDistribuidor();
+          return; // Success - exit retry loop
+        } else {
+          throw new Error(data.error || 'Erro desconhecido');
+        }
+      } catch (error: any) {
+        lastError = error;
+        console.error(`[UI] Tentativa ${attempt} falhou:`, error);
         
-        await loadDistribuidor();
-      } else {
-        throw new Error(data.error || 'Erro desconhecido');
+        // Check if it's a network error that should be retried
+        const isNetworkError = error.message?.includes('Failed to fetch') || 
+                              error.message?.includes('NetworkError') ||
+                              error.message?.includes('ERR_NETWORK');
+        
+        if (isNetworkError && attempt < maxRetries) {
+          console.log(`[UI] Erro de rede detectado, tentando novamente em 2s...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        } else if (attempt === maxRetries || !isNetworkError) {
+          // Last attempt or non-network error
+          break;
+        }
       }
-    } catch (error: any) {
-      console.error('[UI] Erro na sincronização:', error);
-      setResult({
-        success: false,
-        produtos_novos: 0,
-        produtos_atualizados: 0,
-        produtos_total: 0,
-        erros: [error.message || 'Erro ao executar sincronização'],
-        ultima_sincronizacao: new Date().toISOString(),
-      });
-      alert('Erro na sincronização: ' + error.message);
+    }
+
+    // If we get here, all retries failed
+    console.error('[UI] Todas as tentativas falharam:', lastError);
+    setResult({
+      success: false,
+      produtos_novos: 0,
+      produtos_atualizados: 0,
+      produtos_total: 0,
+      erros: [lastError?.message || 'Erro ao executar sincronização'],
+      ultima_sincronizacao: new Date().toISOString(),
+    });
+    
+    // Check if sync might have completed on server despite network error
+    try {
+      console.log('[UI] Verificando status no servidor...');
+      const statusResponse = await fetch(`/api/admin/distribuidores/${params.id}/sync-status`);
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        if (statusData.success && statusData.totalProdutos > 500) {
+          alert(`Atenção: A sincronização pode ter sido concluída no servidor (${statusData.totalProdutos} produtos encontrados). Recarregue a página para verificar.`);
+        } else {
+          alert('Erro na sincronização: ' + (lastError?.message || 'Falha de rede'));
+        }
+      } else {
+        alert('Erro na sincronização: ' + (lastError?.message || 'Falha de rede'));
+      }
+    } catch {
+      alert('Erro na sincronização: ' + (lastError?.message || 'Falha de rede'));
     } finally {
       setSyncingContinuous(false);
     }
