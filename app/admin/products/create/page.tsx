@@ -143,7 +143,17 @@ export default function AdminProductCreatePage() {
         },
         body: JSON.stringify(vr.data),
       });
-      if (!res.ok) throw new Error("Falha ao criar produto.");
+      if (!res.ok) {
+        const text = await res.text();
+        let msg = "Falha ao criar produto.";
+        try {
+          const json = JSON.parse(text);
+          msg = json?.error || msg;
+          if (json?.code) msg += ` [${json.code}]`;
+          if (json?.details) msg += ` - ${json.details}`;
+        } catch {}
+        throw new Error(msg);
+      }
       toast.success("Produto criado com sucesso");
       router.push("/admin/products");
     } catch (e: any) {
