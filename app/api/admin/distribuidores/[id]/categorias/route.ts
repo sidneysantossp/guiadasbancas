@@ -26,19 +26,29 @@ export async function GET(
 
     console.log(`[CATEGORIAS-API] ✅ Encontradas ${categorias?.length || 0} categorias (count: ${count})`);
     
-    // Log específico para debug da categoria 0855e8eb
-    const targetCategory = categorias?.find(cat => cat.nome && cat.nome.includes('0855e8eb'));
-    if (targetCategory) {
-      console.log(`[CATEGORIAS-API] 🎯 Categoria "0855e8eb" ENCONTRADA: "${targetCategory.nome}"`);
-      // Encontrar posição da categoria
-      const position = categorias?.findIndex(cat => cat.nome && cat.nome.includes('0855e8eb'));
-      console.log(`[CATEGORIAS-API] 📍 Posição da categoria: ${position + 1}`);
+    // Log específico para debug das categorias de homologação
+    const targetCategory1 = categorias?.find(cat => cat.nome && cat.nome.includes('0855e8eb'));
+    const targetCategory2 = categorias?.find(cat => cat.nome && cat.nome.includes('0819565d'));
+    
+    if (targetCategory1) {
+      console.log(`[CATEGORIAS-API] 🎯 Categoria "0855e8eb" ENCONTRADA: "${targetCategory1.nome}"`);
+      const position1 = categorias?.findIndex(cat => cat.nome && cat.nome.includes('0855e8eb'));
+      console.log(`[CATEGORIAS-API] 📍 Posição da categoria 0855e8eb: ${position1 + 1}`);
     } else {
       console.log(`[CATEGORIAS-API] ❌ Categoria "0855e8eb" NÃO encontrada na resposta`);
-      // Log das primeiras 5 categorias para debug
-      console.log(`[CATEGORIAS-API] 🔍 Primeiras 5 categorias:`, 
-        categorias?.slice(0, 5).map(cat => cat.nome) || []);
     }
+    
+    if (targetCategory2) {
+      console.log(`[CATEGORIAS-API] 🎯 Categoria "0819565d" ENCONTRADA: "${targetCategory2.nome}"`);
+      const position2 = categorias?.findIndex(cat => cat.nome && cat.nome.includes('0819565d'));
+      console.log(`[CATEGORIAS-API] 📍 Posição da categoria 0819565d: ${position2 + 1}`);
+    } else {
+      console.log(`[CATEGORIAS-API] ❌ Categoria "0819565d" NÃO encontrada na resposta`);
+    }
+    
+    // Log das primeiras 10 categorias para debug completo
+    console.log(`[CATEGORIAS-API] 🔍 Primeiras 10 categorias:`, 
+      categorias?.slice(0, 10).map((cat, index) => `${index + 1}. ${cat.nome}`) || []);
 
     const response = NextResponse.json({
       success: true,
@@ -47,8 +57,10 @@ export async function GET(
         total: categorias?.length || 0,
         count: count,
         distribuidor_id: params.id,
-        has_0855e8eb: !!targetCategory,
-        position_0855e8eb: targetCategory ? categorias?.findIndex(cat => cat.nome && cat.nome.includes('0855e8eb')) + 1 : null
+        has_0855e8eb: !!targetCategory1,
+        position_0855e8eb: targetCategory1 ? categorias?.findIndex(cat => cat.nome && cat.nome.includes('0855e8eb')) + 1 : null,
+        has_0819565d: !!targetCategory2,
+        position_0819565d: targetCategory2 ? categorias?.findIndex(cat => cat.nome && cat.nome.includes('0819565d')) + 1 : null
       }
     });
 
