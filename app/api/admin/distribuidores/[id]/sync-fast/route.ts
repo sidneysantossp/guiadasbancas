@@ -167,7 +167,10 @@ export async function POST(
     const MAX_PRODUTOS_PROCESSAR = 10000; // Limite de segurança
     
     let toInsertBuffer: any[] = [];
-    let iterationsWithoutNew = 0;
+    // Deixar de usar critério de interrupção por iterações sem novos para não encerrar antes do fim
+    let hadTimeout = false;
+    let hadError = false;
+    let endedBecauseNoMore = false;
 
     console.log('[SYNC-FAST] Iniciando processamento...');
 
@@ -176,6 +179,7 @@ export async function POST(
       const elapsedSeconds = (Date.now() - startTime) / 1000;
       if (elapsedSeconds >= MAX_EXECUTION_TIME) {
         console.log('[SYNC-FAST] ⚠️ Timeout alcançado, finalizando...');
+        hadTimeout = true;
         
         // Inserir produtos restantes no buffer
         if (toInsertBuffer.length > 0) {
@@ -203,6 +207,7 @@ export async function POST(
 
         if (produtos.length === 0) {
           console.log('[SYNC-FAST] ✅ API não retornou mais produtos');
+          endedBecauseNoMore = true;
           break;
         }
 
@@ -213,26 +218,13 @@ export async function POST(
 
         // Filtrar apenas produtos que NÃO existem
         const novos = produtos.filter(p => !existingMercosIds.has(p.id));
-        
+
         produtosIgnorados += (produtos.length - novos.length);
         totalProcessed += produtos.length;
 
         console.log(`[SYNC-FAST] ${novos.length} novos | ${produtos.length - novos.length} já existem`);
 
-        // Se não encontrou nenhum produto novo neste lote, incrementar contador
-        if (novos.length === 0) {
-          iterationsWithoutNew++;
-          console.log(`[SYNC-FAST] ⚠️ Iteração ${iterationsWithoutNew} sem produtos novos`);
-          
-          // Se atingiu o limite de iterações sem produtos novos, parar
-          if (iterationsWithoutNew >= MAX_ITERATIONS_WITHOUT_NEW) {
-            console.log(`[SYNC-FAST] 🛑 Parando: ${MAX_ITERATIONS_WITHOUT_NEW} iterações consecutivas sem produtos novos`);
-            break;
-          }
-        } else {
-          // Reset do contador se encontrou produtos novos
-          iterationsWithoutNew = 0;
-        }
+        // Não vamos mais parar por iterações sem novos; seguimos até a API terminar as páginas
 
         // Adicionar ao buffer
         novos.forEach((produto, idx) => {
@@ -267,7 +259,7 @@ export async function POST(
             sob_encomenda: false,
             pre_venda: false,
             pronta_entrega: true,
-            ativo: produto.ativo && !produto.excluido,
+            active: produto.ativo && !produto.excluido,
             updated_at: new Date().toISOString(),
           });
 
@@ -291,11 +283,13 @@ export async function POST(
         // Se recebeu menos que o esperado, chegou ao fim
         if (produtos.length < BATCH_SIZE) {
           console.log('[SYNC-FAST] ✅ Última página processada');
+          endedBecauseNoMore = true;
           break;
         }
 
       } catch (error: any) {
         console.error(`[SYNC-FAST] Erro no lote:`, error);
+        hadError = true;
         break;
       }
     }
@@ -313,10 +307,11 @@ export async function POST(
       .select('*', { count: 'exact', head: true })
       .eq('distribuidor_id', distribuidorId);
 
+    const advanceTimestamp = !hadTimeout && !hadError && endedBecauseNoMore;
     await supabase
       .from('distribuidores')
       .update({
-        ultima_sincronizacao: new Date().toISOString(),
+        ultima_sincronizacao: advanceTimestamp ? new Date().toISOString() : (distribuidor.ultima_sincronizacao || null),
         total_produtos: totalProdutos || 0,
       })
       .eq('id', distribuidorId);

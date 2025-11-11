@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
 
+export const runtime = 'nodejs';
+export const maxDuration = 300;
+
 /**
  * Cron job para sincronizar produtos de todos os distribuidores ativos
  * Configurar no Vercel Cron: *//* /15 * * * * (a cada 15 minutos)
@@ -39,7 +42,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const results = [];
+    const results: any[] = [];
 
     // Sincronizar cada distribuidor
     for (const distribuidor of distribuidores) {
@@ -64,32 +67,37 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Buscar produtos desde última sincronização
+        // Buscar produtos desde última sincronização, processando por lotes com limite de tempo
         const ultimaSincronizacao = distribuidor.ultima_sincronizacao || undefined;
-        const produtosMercos = await mercosApi.getAllProdutos(ultimaSincronizacao);
-        console.log(`[CRON] Produtos recebidos (${distribuidor.nome}):`, produtosMercos.length);
-
-        // Limitar processamento no CRON para evitar timeout
-        const MAX_PRODUTOS_CRON = 30; // Menor limite para CRON
-        const produtosParaProcessar = produtosMercos.slice(0, MAX_PRODUTOS_CRON);
-        
-        if (produtosMercos.length > MAX_PRODUTOS_CRON) {
-          console.log(`[CRON] ⚠️ Limitando a ${MAX_PRODUTOS_CRON} produtos (total: ${produtosMercos.length})`);
-        }
-
+        const startTime = Date.now();
+        const MAX_EXECUTION_TIME = 270 * 1000; // 4.5 min
+        const INSERT_BATCH_SIZE = 200;
+        const UPDATE_CONCURRENCY = 10;
         let produtosNovos = 0;
         let produtosAtualizados = 0;
+        let processados = 0;
+        let recebidos = 0;
+        let atingiuLimiteTempo = false;
 
-        // Processar produtos (limitado)
-        for (const produtoMercos of produtosParaProcessar) {
-          try {
-            const { data: produtoExistente } = await supabase
-              .from('products')
-              .select('id')
-              .eq('mercos_id', produtoMercos.id)
-              .eq('distribuidor_id', distribuidor.id)
-              .single();
+        for await (const lote of mercosApi.getAllProdutosGenerator({ batchSize: 200, alteradoApos: ultimaSincronizacao || null })) {
+          recebidos += lote.length;
+          if ((Date.now() - startTime) > MAX_EXECUTION_TIME) { atingiuLimiteTempo = true; break; }
 
+          // Buscar mapa de existentes em uma consulta
+          const mercosIds = lote.map(p => p.id);
+          const { data: existentesRows } = await supabase
+            .from('products')
+            .select('id, mercos_id')
+            .eq('distribuidor_id', distribuidor.id)
+            .in('mercos_id', mercosIds);
+          const existentes = new Map<number, string>((existentesRows || []).map(r => [r.mercos_id as number, r.id as string]));
+
+          const novosPayload: any[] = [];
+          const updatesPayload: { id: string; data: any; mercosId: number; nome: string }[] = [];
+
+          for (const produtoMercos of lote) {
+            if ((Date.now() - startTime) > MAX_EXECUTION_TIME) { atingiuLimiteTempo = true; break; }
+            processados++;
             const produtoData = {
               name: produtoMercos.nome,
               description: produtoMercos.observacoes || '',
@@ -104,44 +112,67 @@ export async function POST(request: NextRequest) {
               sob_encomenda: false,
               pre_venda: false,
               pronta_entrega: true,
-            } as const;
+              active: produtoMercos.ativo && !produtoMercos.excluido,
+              sincronizado_em: new Date().toISOString(),
+            };
 
-            if (produtoExistente) {
-              const { error } = await supabase
-                .from('products')
-                .update(produtoData)
-                .eq('id', produtoExistente.id);
-              if (error) {
-                console.error(`[CRON] Erro ao atualizar ${produtoMercos.nome}:`, error);
-              } else {
-                produtosAtualizados++;
-                console.log(`[CRON] ✓ Atualizado: ${produtoMercos.nome}`);
-              }
+            const existingId = existentes.get(produtoMercos.id);
+            if (existingId) {
+              updatesPayload.push({ id: existingId, data: produtoData, mercosId: produtoMercos.id, nome: produtoMercos.nome });
             } else {
-              const { error } = await supabase.from('products').insert([produtoData]);
-              if (error) {
-                console.error(`[CRON] Erro ao criar ${produtoMercos.nome}:`, error);
-              } else {
-                produtosNovos++;
-                console.log(`[CRON] ✓ Criado: ${produtoMercos.nome}`);
-              }
+              novosPayload.push(produtoData);
             }
-          } catch (error) {
-            console.error(`[CRON] Erro ao processar produto ${produtoMercos.nome}:`, error);
           }
+
+          // Inserir novos
+          for (let i = 0; i < novosPayload.length; i += INSERT_BATCH_SIZE) {
+            if ((Date.now() - startTime) > MAX_EXECUTION_TIME) { atingiuLimiteTempo = true; break; }
+            const batch = novosPayload.slice(i, i + INSERT_BATCH_SIZE);
+            const { error } = await supabase.from('products').insert(batch);
+            if (error) {
+              console.error('[CRON] ❌ Erro ao inserir batch:', error);
+            } else {
+              produtosNovos += batch.length;
+            }
+          }
+
+          // Atualizar existentes com concorrência limitada
+          for (let i = 0; i < updatesPayload.length; i += UPDATE_CONCURRENCY) {
+            if ((Date.now() - startTime) > MAX_EXECUTION_TIME) { atingiuLimiteTempo = true; break; }
+            const slice = updatesPayload.slice(i, i + UPDATE_CONCURRENCY);
+            await Promise.allSettled(
+              slice.map(async (u) => {
+                const { error } = await supabase.from('products').update(u.data).eq('id', u.id);
+                if (error) {
+                  console.error(`[CRON] ❌ Erro ao atualizar produto ID ${u.mercosId}:`, error);
+                } else {
+                  produtosAtualizados++;
+                }
+              })
+            );
+          }
+
+          if (atingiuLimiteTempo) break;
         }
 
-        // Atualizar última sincronização
+        // Contar total no banco
+        const { count: totalProdutos } = await supabase
+          .from('products')
+          .select('*', { count: 'exact', head: true })
+          .eq('distribuidor_id', distribuidor.id);
+
+        // Atualizar última sincronização apenas se concluído sem timeout
+        const novaUltimaSync = !atingiuLimiteTempo ? new Date().toISOString() : (distribuidor.ultima_sincronizacao || null);
         await supabase
           .from('distribuidores')
           .update({
-            ultima_sincronizacao: new Date().toISOString(),
-            total_produtos: produtosNovos + produtosAtualizados,
+            ultima_sincronizacao: novaUltimaSync,
+            total_produtos: totalProdutos || 0,
           })
           .eq('id', distribuidor.id);
 
         console.log(
-          `[CRON] ✓ ${distribuidor.nome}: ${produtosNovos} novos, ${produtosAtualizados} atualizados`
+          `[CRON] ✓ ${distribuidor.nome}: ${produtosNovos} novos, ${produtosAtualizados} atualizados (recebidos=${recebidos}, processados=${processados})`
         );
 
         results.push({
@@ -149,7 +180,8 @@ export async function POST(request: NextRequest) {
           success: true,
           produtos_novos: produtosNovos,
           produtos_atualizados: produtosAtualizados,
-          total: produtosMercos.length,
+          total_no_banco: totalProdutos || 0,
+          parcial: atingiuLimiteTempo,
         });
       } catch (error: any) {
         console.error(`[CRON] Erro em ${distribuidor.nome}:`, error);

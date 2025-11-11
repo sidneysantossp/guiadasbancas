@@ -181,7 +181,7 @@ export async function POST(
             sob_encomenda: false,
             pre_venda: false,
             pronta_entrega: true,
-            ativo: produtoMercos.ativo && !produtoMercos.excluido,
+            active: produtoMercos.ativo && !produtoMercos.excluido,
           };
 
           const existingId = existentes.get(produtoMercos.id);
