@@ -34,19 +34,44 @@ export default function CategoriasPage() {
   const fetchData = async () => {
     try {
       console.log('[CATEGORIAS-PAGE] 🔄 Carregando dados...');
+      console.log('[CATEGORIAS-PAGE] 📍 Distribuidor ID:', params.id);
       
       // Buscar distribuidor
-      const distRes = await fetch(`/api/admin/distribuidores/${params.id}`);
+      const distRes = await fetch(`/api/admin/distribuidores/${params.id}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      console.log('[CATEGORIAS-PAGE] 📡 Distribuidor response status:', distRes.status);
+      
       if (distRes.ok) {
         const distData = await distRes.json();
-        setDistribuidor(distData);
-        console.log('[CATEGORIAS-PAGE] ✅ Distribuidor carregado:', distData.nome);
+        console.log('[CATEGORIAS-PAGE] 📦 Distribuidor raw data:', distData);
+        // Tratar tanto distData.data quanto distData direto
+        const distribuidor = distData.data || distData;
+        setDistribuidor(distribuidor);
+        console.log('[CATEGORIAS-PAGE] ✅ Distribuidor carregado:', distribuidor.nome);
+      } else {
+        console.error('[CATEGORIAS-PAGE] ❌ Erro ao buscar distribuidor:', distRes.status, distRes.statusText);
       }
 
       // Buscar categorias
-      const catRes = await fetch(`/api/admin/distribuidores/${params.id}/categorias`);
+      const catRes = await fetch(`/api/admin/distribuidores/${params.id}/categorias`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      console.log('[CATEGORIAS-PAGE] 📡 Categorias response status:', catRes.status);
+      
       if (catRes.ok) {
         const catData = await catRes.json();
+        console.log('[CATEGORIAS-PAGE] 📦 Categorias raw data:', catData);
         console.log('[CATEGORIAS-PAGE] 📊 Categorias recebidas:', catData.data?.length);
         console.log('[CATEGORIAS-PAGE] 🔍 Debug info:', catData.debug);
         
@@ -59,6 +84,10 @@ export default function CategoriasPage() {
         }
         
         setCategorias(catData.data || []);
+      } else {
+        console.error('[CATEGORIAS-PAGE] ❌ Erro ao buscar categorias:', catRes.status, catRes.statusText);
+        const errorText = await catRes.text();
+        console.error('[CATEGORIAS-PAGE] 📄 Error response:', errorText);
       }
     } catch (error) {
       console.error('[CATEGORIAS-PAGE] ❌ Erro ao carregar dados:', error);
