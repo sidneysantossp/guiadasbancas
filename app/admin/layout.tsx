@@ -112,6 +112,7 @@ const ADMIN_MENU = [
     section: "Catálogo",
     items: [
       { label: "Produtos", href: "/admin/products", icon: "box" as IconKey },
+      { label: "Importar Fotos", href: "/admin/produtos/upload-imagens", icon: "image" as IconKey },
       { label: "Categorias", href: "/admin/cms/categories", icon: "tags" as IconKey },
       { label: "Distribuidores", href: "/admin/distribuidores", icon: "truck" as IconKey },
       { label: "Cota Ativa", href: "/admin/cotistas", icon: "userCheck" as IconKey },

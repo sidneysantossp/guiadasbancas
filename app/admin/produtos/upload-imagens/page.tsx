@@ -12,16 +12,20 @@ export default function UploadImagensMassaPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setFiles(Array.from(e.target.files));
+      const selected = Array.from(e.target.files);
+      setFiles(selected);
       setResults(null);
+      void startUpload(selected);
     }
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (e.dataTransfer.files) {
-      setFiles(Array.from(e.dataTransfer.files));
+      const selected = Array.from(e.dataTransfer.files);
+      setFiles(selected);
       setResults(null);
+      void startUpload(selected);
     }
   };
 
@@ -29,8 +33,8 @@ export default function UploadImagensMassaPage() {
     e.preventDefault();
   };
 
-  const handleUpload = async () => {
-    if (files.length === 0) {
+  const startUpload = async (selected: File[]) => {
+    if (selected.length === 0) {
       alert('Selecione pelo menos uma imagem');
       return;
     }
@@ -40,12 +44,15 @@ export default function UploadImagensMassaPage() {
 
     try {
       const formData = new FormData();
-      files.forEach(file => {
+      selected.forEach(file => {
         formData.append('images', file);
       });
 
       const response = await fetch('/api/admin/produtos/upload-imagens-massa', {
         method: 'POST',
+        headers: {
+          'Authorization': 'Bearer admin-token'
+        },
         body: formData,
       });
 
@@ -62,6 +69,10 @@ export default function UploadImagensMassaPage() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleUpload = async () => {
+    await startUpload(files);
   };
 
   const removeFile = (index: number) => {

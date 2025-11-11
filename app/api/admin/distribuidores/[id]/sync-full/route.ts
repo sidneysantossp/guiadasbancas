@@ -224,6 +224,7 @@ async function processProduct(
     banca_id: null,
     distribuidor_id: distribuidorId,
     mercos_id: produto.id,
+    codigo_mercos: produto.codigo || null,
     category_id: CATEGORIA_SEM_CATEGORIA_ID,
     origem: 'mercos',
     sincronizado_em: new Date().toISOString(),

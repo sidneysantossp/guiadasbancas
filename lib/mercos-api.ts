@@ -204,10 +204,15 @@ export class MercosAPI {
     });
     
     try {
-      const response = await this.request<MercosProduto[] | MercosProduto | null>(
+      const raw = await this.request<any>(
         endpoint,
         { method: 'GET' }
       );
+
+      // Desembrulhar envelope comum da Mercos { data, qtde_total_registros, ... }
+      const response = (raw && typeof raw === 'object' && 'data' in raw && Array.isArray(raw.data))
+        ? (raw.data as MercosProduto[])
+        : raw;
 
       console.log(`[MercosAPI] Resposta recebida:`, {
         tipo: Array.isArray(response) ? 'array' : typeof response,
@@ -221,7 +226,7 @@ export class MercosAPI {
         return [];
       }
       
-      const produtos = Array.isArray(response) ? response : [response];
+      const produtos = Array.isArray(response) ? response as MercosProduto[] : [response as MercosProduto];
       console.log(`[MercosAPI] Retornando ${produtos.length} produtos`);
       
       // Log detalhado do primeiro produto para verificar a estrutura
@@ -270,7 +275,16 @@ export class MercosAPI {
 
         // Ordena por ID para garantir a ordem correta na paginação
         produtos.sort((a, b) => a.id - b.id);
-        lastId = produtos[produtos.length - 1].id;
+        const newestId = produtos[produtos.length - 1].id;
+
+        // Guarda para evitar loop infinito quando a API ignora o parâmetro de paginação
+        if (lastId !== null && newestId <= lastId) {
+          console.warn('[MercosAPI] Página retornou último ID não crescente; interrompendo paginação para evitar loop. lastId=', lastId, ' new=', newestId);
+          yield produtos;
+          return;
+        }
+
+        lastId = newestId;
         
         yield produtos;
         

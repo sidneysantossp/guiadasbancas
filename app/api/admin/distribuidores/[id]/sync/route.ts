@@ -173,6 +173,7 @@ export async function POST(
             banca_id: null,
             distribuidor_id: params.id,
             mercos_id: produtoMercos.id,
+            codigo_mercos: produtoMercos.codigo || null,
             category_id: CATEGORIA_SEM_CATEGORIA_ID,
             origem: 'mercos' as const,
             sincronizado_em: new Date().toISOString(),

@@ -6,10 +6,17 @@ import { auth } from '@/lib/auth';
 // Upload em massa de imagens com vinculação automática por código Mercos
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    
-    // Verificar autenticação e role admin
-    if (!session?.user || (session.user as any).role !== 'admin') {
+    // Suporta dois modos de auth: NextAuth (session) ou header Bearer 'admin-token'
+    const bearer = req.headers.get('authorization');
+    const hasAdminToken = !!bearer && bearer.trim() === 'Bearer admin-token';
+    let isAdmin = hasAdminToken;
+
+    if (!isAdmin) {
+      const session = await auth();
+      isAdmin = !!(session?.user && (session.user as any).role === 'admin');
+    }
+
+    if (!isAdmin) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
@@ -28,17 +35,36 @@ export async function POST(req: NextRequest) {
 
     for (const file of files) {
       try {
-        // Extrair código Mercos do nome do arquivo
-        // Exemplo: AKOTO001.jpg -> AKOTO001
+        // Extrair identificadores do nome do arquivo (sem extensão)
+        // Exemplos aceitos:
+        //   AKOTO001.jpg -> codigo_mercos=AKOTO001
+        //   AKOTO001_01.png -> codigo_mercos=AKOTO001
+        //   123456.jpg -> mercos_id=123456
+        //   123456_extra.jpeg -> mercos_id=123456
         const fileName = file.name;
-        const codigoMercos = fileName.split('.')[0].toUpperCase();
+        const baseName = fileName.replace(/\.[^.]+$/, '');
+        const primaryToken = baseName.split(/[\s._-]/)[0];
+        const codigoMercos = (primaryToken || baseName).toUpperCase();
+        const numericIdMatch = baseName.match(/\b(\d{3,})\b/);
+        const possibleMercosId = numericIdMatch ? parseInt(numericIdMatch[1], 10) : null;
 
-        // Buscar produto com este código
-        const { data: produto, error: produtoError } = await supabaseAdmin
+        // Buscar produto por codigo_mercos
+        let { data: produto, error: produtoError } = await supabaseAdmin
           .from('products')
-          .select('id, name, images, codigo_mercos')
+          .select('id, name, images, codigo_mercos, mercos_id')
           .eq('codigo_mercos', codigoMercos)
-          .single();
+          .maybeSingle();
+
+        // Fallback: tentar por mercos_id quando houver número no nome do arquivo
+        if ((!produto || produtoError) && possibleMercosId) {
+          const byId = await supabaseAdmin
+            .from('products')
+            .select('id, name, images, codigo_mercos, mercos_id')
+            .eq('mercos_id', possibleMercosId)
+            .maybeSingle();
+          produto = byId.data as any;
+          produtoError = byId.error as any;
+        }
 
         if (produtoError || !produto) {
           results.errors.push({
@@ -51,10 +77,10 @@ export async function POST(req: NextRequest) {
 
         // Upload da imagem para Supabase Storage
         const fileExt = fileName.split('.').pop();
-        const filePath = `products/${codigoMercos}_${Date.now()}.${fileExt}`;
-        
+        const filePath = `bancas/${codigoMercos}_${Date.now()}.${fileExt}`;
+
         const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-          .from('product-images')
+          .from('images')
           .upload(filePath, file, {
             contentType: file.type,
             upsert: false
@@ -71,7 +97,7 @@ export async function POST(req: NextRequest) {
 
         // Gerar URL pública da imagem
         const { data: { publicUrl } } = supabaseAdmin.storage
-          .from('product-images')
+          .from('images')
           .getPublicUrl(filePath);
 
         // Atualizar produto com a imagem

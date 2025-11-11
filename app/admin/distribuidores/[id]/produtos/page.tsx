@@ -52,9 +52,10 @@ export default function ProdutosDistribuidorPage() {
     }
     
     try {
-      // Buscar dados do distribuidor (com cache busting se forçado)
+      // Buscar dados do distribuidor (no-store para não usar cache)
       const distResponse = await fetch(
-        `/api/admin/distribuidores/${params.id}${forceRefresh ? `?t=${Date.now()}` : ''}`
+        `/api/admin/distribuidores/${params.id}${forceRefresh ? `?t=${Date.now()}` : ''}`,
+        { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }
       );
       const distResult = await distResponse.json();
       
@@ -62,10 +63,11 @@ export default function ProdutosDistribuidorPage() {
         setDistribuidor(distResult.data);
       }
 
-      // Buscar produtos do distribuidor com paginação (com cache busting se forçado)
+      // Buscar produtos do distribuidor com paginação (no-store para não usar cache)
       const offset = (currentPage - 1) * itemsPerPage;
       const prodResponse = await fetch(
-        `/api/admin/distribuidores/${params.id}/produtos?limit=${itemsPerPage}&offset=${offset}${forceRefresh ? `&t=${Date.now()}` : ''}`
+        `/api/admin/distribuidores/${params.id}/produtos?limit=${itemsPerPage}&offset=${offset}${forceRefresh ? `&t=${Date.now()}` : ''}`,
+        { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }
       );
       const prodResult = await prodResponse.json();
       
@@ -73,8 +75,11 @@ export default function ProdutosDistribuidorPage() {
         console.log('[PRODUTOS-PAGE] Produtos recebidos:', prodResult.data?.length);
         console.log('[PRODUTOS-PAGE] Primeiro produto:', prodResult.data?.[0]);
         setProdutos(prodResult.data);
-        setTotalProdutos(prodResult.total || 0);
-        setTotalPages(Math.ceil((prodResult.total || 0) / itemsPerPage));
+        const dbTotal = Number(prodResult.total) || 0;
+        const distTotal = Number(distResult?.data?.total_produtos) || 0;
+        const finalTotal = dbTotal || distTotal;
+        setTotalProdutos(finalTotal);
+        setTotalPages(Math.ceil(finalTotal / itemsPerPage));
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
