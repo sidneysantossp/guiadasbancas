@@ -24,6 +24,7 @@ export default function CategoriasPage() {
   
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
+  const [showAll, setShowAll] = useState(false);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -78,12 +79,11 @@ export default function CategoriasPage() {
     }
   };
 
-  // Cálculos de paginação - TEMPORARIAMENTE DESABILITADO PARA PRINT COMPLETO
+  // Cálculos de paginação
   const totalPages = Math.ceil(categorias.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  // MOSTRAR TODAS AS CATEGORIAS PARA PRINT
-  const currentCategorias = categorias; // categorias.slice(startIndex, endIndex);
+  const currentCategorias = showAll ? categorias : categorias.slice(startIndex, endIndex);
 
   const goToPage = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
@@ -190,10 +190,29 @@ export default function CategoriasPage() {
           )}
         </div>
 
-        {/* Controles de Paginação - TEMPORARIAMENTE OCULTO PARA PRINT */}
-        {false && categorias.length > 0 && (
+        {/* Controles de Visualização e Paginação */}
+        {categorias.length > 0 && (
           <div className="bg-white rounded-lg shadow p-4 mb-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setShowAll(!showAll)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    showAll
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {showAll ? '📄 Mostrando Todas' : '📋 Ver Todas (Print)'}
+                </button>
+                <span className="text-sm text-gray-600">
+                  {showAll ? 'Ideal para tirar print completo' : 'Navegação paginada (10 por página)'}
+                </span>
+              </div>
+            </div>
+            
+            {!showAll && (
+              <div className="flex items-center justify-between">
               <div className="text-sm text-gray-700">
                 Mostrando <span className="font-medium">{startIndex + 1}</span> a{' '}
                 <span className="font-medium">{Math.min(endIndex, categorias.length)}</span> de{' '}
@@ -235,6 +254,7 @@ export default function CategoriasPage() {
                 </button>
               </div>
             </div>
+            )}
           </div>
         )}
 
