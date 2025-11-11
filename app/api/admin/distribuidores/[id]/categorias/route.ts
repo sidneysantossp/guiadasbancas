@@ -8,11 +8,13 @@ export async function GET(
   try {
     console.log(`[CATEGORIAS-API] 🔍 Buscando categorias para distribuidor: ${params.id}`);
     
-    const { data: categorias, error } = await supabaseAdmin
+    // Forçar busca sem limite e sem cache
+    const { data: categorias, error, count } = await supabaseAdmin
       .from('distribuidor_categories')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('distribuidor_id', params.id)
-      .order('nome', { ascending: true });
+      .order('nome', { ascending: true })
+      .limit(1000); // Limite explícito alto para garantir
 
     if (error) {
       console.error('[CATEGORIAS-API] ❌ Erro ao buscar categorias:', error);
@@ -22,25 +24,40 @@ export async function GET(
       );
     }
 
-    console.log(`[CATEGORIAS-API] ✅ Encontradas ${categorias?.length || 0} categorias`);
+    console.log(`[CATEGORIAS-API] ✅ Encontradas ${categorias?.length || 0} categorias (count: ${count})`);
     
     // Log específico para debug da categoria 0855e8eb
     const targetCategory = categorias?.find(cat => cat.nome && cat.nome.includes('0855e8eb'));
     if (targetCategory) {
       console.log(`[CATEGORIAS-API] 🎯 Categoria "0855e8eb" ENCONTRADA: "${targetCategory.nome}"`);
+      // Encontrar posição da categoria
+      const position = categorias?.findIndex(cat => cat.nome && cat.nome.includes('0855e8eb'));
+      console.log(`[CATEGORIAS-API] 📍 Posição da categoria: ${position + 1}`);
     } else {
       console.log(`[CATEGORIAS-API] ❌ Categoria "0855e8eb" NÃO encontrada na resposta`);
+      // Log das primeiras 5 categorias para debug
+      console.log(`[CATEGORIAS-API] 🔍 Primeiras 5 categorias:`, 
+        categorias?.slice(0, 5).map(cat => cat.nome) || []);
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: categorias || [],
       debug: {
         total: categorias?.length || 0,
+        count: count,
         distribuidor_id: params.id,
-        has_0855e8eb: !!targetCategory
+        has_0855e8eb: !!targetCategory,
+        position_0855e8eb: targetCategory ? categorias?.findIndex(cat => cat.nome && cat.nome.includes('0855e8eb')) + 1 : null
       }
     });
+
+    // Headers para evitar cache
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
   } catch (error: any) {
     console.error('Erro:', error);
     return NextResponse.json(
