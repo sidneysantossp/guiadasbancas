@@ -9,6 +9,8 @@ export default function UploadImagensMassaPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [results, setResults] = useState<any>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number; batch: number; batches: number } | null>(null);
+  const BATCH_SIZE = 8;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -41,28 +43,76 @@ export default function UploadImagensMassaPage() {
 
     setUploading(true);
     setResults(null);
+    setProgress({ done: 0, total: selected.length, batch: 0, batches: Math.ceil(selected.length / BATCH_SIZE) });
 
     try {
-      const formData = new FormData();
-      selected.forEach(file => {
-        formData.append('images', file);
-      });
+      const totalBatches = Math.ceil(selected.length / BATCH_SIZE);
+      const aggregate = { success: [] as any[], errors: [] as any[], total: selected.length };
 
-      const response = await fetch('/api/admin/produtos/upload-imagens-massa', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer admin-token'
-        },
-        body: formData,
-      });
+      for (let b = 0; b < totalBatches; b++) {
+        const slice = selected.slice(b * BATCH_SIZE, (b + 1) * BATCH_SIZE);
+        setProgress({ done: b * BATCH_SIZE, total: selected.length, batch: b + 1, batches: totalBatches });
 
-      const data = await response.json();
+        const formData = new FormData();
+        slice.forEach(file => formData.append('images', file));
 
-      if (response.ok) {
-        setResults(data.data);
-      } else {
-        alert(`Erro: ${data.error}`);
+        const response = await fetch('/api/admin/produtos/upload-imagens-massa', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer admin-token' },
+          body: formData,
+        });
+
+        let data: any = null;
+        const text = await response.text();
+        try { data = JSON.parse(text); } catch { data = null; }
+
+        if (!response.ok) {
+          const msg = data?.error || text?.slice(0, 200) || 'Erro desconhecido';
+          // Se for 413, reprocessar cada arquivo individualmente
+          if (response.status === 413 || /entity too large/i.test(msg)) {
+            for (const file of slice) {
+              const singleFD = new FormData();
+              singleFD.append('images', file);
+              const r = await fetch('/api/admin/produtos/upload-imagens-massa', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer admin-token' },
+                body: singleFD,
+              });
+              const t = await r.text();
+              let j: any = null; try { j = JSON.parse(t); } catch { j = null; }
+              if (r.ok) {
+                const payload = j?.data || { success: [], errors: [] };
+                if (Array.isArray(payload.success)) aggregate.success.push(...payload.success);
+                if (Array.isArray(payload.errors)) aggregate.errors.push(...payload.errors);
+              } else {
+                const emsg = j?.error || t?.slice(0, 200) || `HTTP ${r.status}`;
+                aggregate.errors.push({ file: file.name, error: emsg });
+              }
+              setResults({ ...aggregate });
+              setProgress(p => p ? { ...p, done: Math.min((b + 1) * BATCH_SIZE, selected.length) } : null);
+              await new Promise(rsl => setTimeout(rsl, 60));
+            }
+            // Prosseguir para o próximo lote
+            continue;
+          } else {
+            aggregate.errors.push({ file: `lote-${b + 1}`, error: msg });
+            setResults({ ...aggregate });
+            await new Promise(r => setTimeout(r, 80));
+            continue;
+          }
+        }
+
+        const payload = data?.data || { success: [], errors: [] };
+        if (Array.isArray(payload.success)) aggregate.success.push(...payload.success);
+        if (Array.isArray(payload.errors)) aggregate.errors.push(...payload.errors);
+
+        setResults({ ...aggregate });
+        setProgress({ done: Math.min((b + 1) * BATCH_SIZE, selected.length), total: selected.length, batch: b + 1, batches: totalBatches });
+        // Aguardar levemente entre lotes para evitar limitações
+        await new Promise(r => setTimeout(r, 120));
       }
+
+      setProgress(p => p ? { ...p, done: p.total } : null);
     } catch (error: any) {
       console.error('Erro no upload:', error);
       alert('Erro ao fazer upload das imagens');

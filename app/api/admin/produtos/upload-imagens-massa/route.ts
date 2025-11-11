@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auth } from '@/lib/auth';
 
+export const runtime = 'nodejs';
+export const maxDuration = 300;
+
 // POST /api/admin/produtos/upload-imagens-massa
 // Upload em massa de imagens com vinculação automática por código Mercos
 export async function POST(req: NextRequest) {

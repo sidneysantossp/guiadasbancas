@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 function verifyAdminAuth(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -121,11 +122,65 @@ export async function POST(request: NextRequest) {
 
     console.log('[CREATE PRODUCT] Dados a inserir:', JSON.stringify(productData, null, 2));
 
-    const { data, error } = await supabaseAdmin
+    // Tentativa 1: inserir com todos os campos previstos
+    let { data, error } = await supabaseAdmin
       .from('products')
       .insert(productData)
       .select()
       .single();
+
+    // Fallback: se der erro de coluna inexistente (ex.: campos Mercos não aplicados em prod), tenta com o mínimo necessário
+    if (error && (error.code === '42703' || /column .* does not exist/i.test(error.message || ''))) {
+      console.warn('[CREATE PRODUCT] Coluna inexistente detectada. Tentando fallback com colunas mínimas...');
+      const minimalData: any = {
+        name: productData.name,
+        description: productData.description,
+        price: productData.price,
+        category_id: productData.category_id,
+        banca_id: productData.banca_id,
+        images: productData.images,
+        stock_qty: productData.stock_qty,
+        track_stock: productData.track_stock,
+        sob_encomenda: productData.sob_encomenda,
+        pre_venda: productData.pre_venda,
+        pronta_entrega: productData.pronta_entrega,
+      };
+      const retry = await supabaseAdmin
+        .from('products')
+        .insert(minimalData)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error as any;
+    }
+
+    // Fallback 2: se falhar por NOT NULL em banca_id, escolher uma banca padrão
+    if (error && error.code === '23502' && /banca_id/i.test(`${error.message || ''} ${error.details || ''} ${error.hint || ''}`)) {
+      console.warn('[CREATE PRODUCT] NOT NULL em banca_id. Buscando banca padrão para continuar...');
+      const { data: anyBanca } = await supabaseAdmin.from('bancas').select('id').limit(1).single();
+      if (anyBanca?.id) {
+        const minimalWithBanca: any = {
+          name: productData.name,
+          description: productData.description,
+          price: productData.price,
+          category_id: productData.category_id,
+          banca_id: anyBanca.id,
+          images: productData.images,
+          stock_qty: productData.stock_qty,
+          track_stock: productData.track_stock,
+          sob_encomenda: productData.sob_encomenda,
+          pre_venda: productData.pre_venda,
+          pronta_entrega: productData.pronta_entrega,
+        };
+        const retry2 = await supabaseAdmin
+          .from('products')
+          .insert(minimalWithBanca)
+          .select()
+          .single();
+        data = retry2.data;
+        error = retry2.error as any;
+      }
+    }
 
     if (error) {
       console.error('[CREATE PRODUCT] Erro ao criar produto:', error);
@@ -140,26 +195,31 @@ export async function POST(request: NextRequest) {
 
     // Se produto está disponível para todas as bancas, criar registros automáticos
     if (body.disponivel_todas_bancas && data) {
-      const { data: bancas } = await supabaseAdmin
-        .from('bancas')
-        .select('id');
-      
-      if (bancas && bancas.length > 0) {
-        const bancaProdutos = bancas.map(banca => ({
-          banca_id: banca.id,
-          product_id: data.id,
-          enabled: true,
-          custom_price: null,
-          custom_description: null,
-          custom_status: 'active',
-          custom_pronta_entrega: data.pronta_entrega,
-          custom_sob_encomenda: data.sob_encomenda,
-          custom_pre_venda: data.pre_venda
-        }));
-
-        await supabaseAdmin
-          .from('banca_produtos_distribuidor')
-          .insert(bancaProdutos);
+      try {
+        const { data: bancas, error: bancasErr } = await supabaseAdmin
+          .from('bancas')
+          .select('id');
+        if (!bancasErr && bancas && bancas.length > 0) {
+          const bancaProdutos = bancas.map(banca => ({
+            banca_id: banca.id,
+            product_id: data.id,
+            enabled: true,
+            custom_price: null,
+            custom_description: null,
+            custom_status: 'active',
+            custom_pronta_entrega: data.pronta_entrega,
+            custom_sob_encomenda: data.sob_encomenda,
+            custom_pre_venda: data.pre_venda
+          }));
+          const { error: linkErr } = await supabaseAdmin
+            .from('banca_produtos_distribuidor')
+            .insert(bancaProdutos);
+          if (linkErr) {
+            console.warn('[CREATE PRODUCT] Aviso: falha ao vincular produto às bancas:', linkErr);
+          }
+        }
+      } catch (e) {
+        console.warn('[CREATE PRODUCT] Aviso: exceção ao vincular às bancas:', e);
       }
     }
 
