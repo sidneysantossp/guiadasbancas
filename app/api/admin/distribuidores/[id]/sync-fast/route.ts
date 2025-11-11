@@ -418,7 +418,7 @@ async function insertBatch(supabase: any, products: any[]) {
   
   const { error } = await supabase
     .from('products')
-    .upsert(products, { onConflict: 'distribuidor_id,mercos_id' });
+    .upsert(products, { onConflict: 'idx_products_distribuidor_mercos_id' });
   
   if (error) {
     console.error('[SYNC-FAST] ❌ Erro ao inserir batch:', error.message);
