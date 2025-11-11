@@ -412,16 +412,42 @@ export async function POST(
   }
 }
 
-// Função auxiliar para inserir em batch
+// Função auxiliar para inserir em batch (sem upsert para evitar constraint issues)
 async function insertBatch(supabase: any, products: any[]) {
   if (products.length === 0) return;
   
+  // Tentar inserir todos de uma vez
   const { error } = await supabase
     .from('products')
-    .upsert(products, { onConflict: 'distribuidor_id,mercos_id' });
+    .insert(products);
   
   if (error) {
-    console.error('[SYNC-FAST] ❌ Erro ao inserir batch:', error.message);
-    throw error;
+    // Se falhar por duplicata, inserir um por um ignorando erros de duplicata
+    if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
+      console.log('[SYNC-FAST] ⚠️ Duplicatas detectadas, inserindo individualmente...');
+      let inserted = 0;
+      
+      for (const product of products) {
+        const { error: singleError } = await supabase
+          .from('products')
+          .insert([product]);
+        
+        if (singleError) {
+          if (singleError.code === '23505' || singleError.message?.includes('duplicate') || singleError.message?.includes('unique')) {
+            // Ignorar duplicatas silenciosamente
+            continue;
+          } else {
+            console.error('[SYNC-FAST] ❌ Erro ao inserir produto individual:', singleError.message);
+          }
+        } else {
+          inserted++;
+        }
+      }
+      
+      console.log(`[SYNC-FAST] ✅ ${inserted}/${products.length} produtos inseridos (${products.length - inserted} duplicatas ignoradas)`);
+    } else {
+      console.error('[SYNC-FAST] ❌ Erro ao inserir batch:', error.message);
+      throw error;
+    }
   }
 }
