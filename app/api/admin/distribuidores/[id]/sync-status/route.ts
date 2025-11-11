@@ -42,7 +42,7 @@ export async function GET(
     // Verificar produtos de exemplo
     const { data: produtosExemplo, error: produtosError } = await supabaseAdmin
       .from('products')
-      .select('id, name, price, stock_qty, ativo, updated_at')
+      .select('id, name, price, stock_qty, active, updated_at')
       .eq('distribuidor_id', distribuidorId)
       .order('updated_at', { ascending: false })
       .limit(5);

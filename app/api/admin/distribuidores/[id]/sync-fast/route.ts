@@ -141,7 +141,7 @@ export async function POST(
     }
     console.log(`[SYNC-FAST] ${categoriasMap.size} categorias mapeadas`);
 
-    // PASSO 3: Buscar TODOS os mercos_ids que já existem (UMA ÚNICA QUERY)
+    // PASSO 2: Buscar TODOS os mercos_ids que já existem (UMA ÚNICA QUERY)
     console.log('[SYNC-FAST] Buscando produtos já sincronizados...');
     const { data: existingProducts } = await supabase
       .from('products')
@@ -152,25 +152,44 @@ export async function POST(
     const existingMercosIds = new Set(
       existingProducts?.map(p => p.mercos_id) || []
     );
+    const maxExistingMercosId = existingProducts && existingProducts.length
+      ? Math.max(...existingProducts.map(p => p.mercos_id as number))
+      : 0;
 
     console.log(`[SYNC-FAST] ${existingMercosIds.size} produtos já sincronizados`);
 
-    // PASSO 2: Buscar TODOS os produtos da Mercos em lotes grandes
+    // PASSO 3: Buscar TODOS os produtos da Mercos em lotes grandes por ultima_alteracao
     let totalProcessed = 0;
     let produtosNovos = 0;
     let produtosIgnorados = 0;
-    let lastId: number | null = null;
+    let cursorDate: string | null = '2020-01-01T00:00:00';
+    let lastId: number | null = null; // paginação secundária dentro do mesmo timestamp
+    let lastBatchTimestamp: string | null = null;
     const BATCH_SIZE = 200; // Máximo permitido pela API Mercos
     const INSERT_BATCH_SIZE = 200; // Lotes de inserção no Supabase
     const MAX_EXECUTION_TIME = 270; // 4.5 minutos
-    const MAX_ITERATIONS_WITHOUT_NEW = 5; // Parar após 5 iterações sem produtos novos
-    const MAX_PRODUTOS_PROCESSAR = 10000; // Limite de segurança
+    const MAX_PRODUTOS_PROCESSAR = 500000; // Limite de segurança alto para catálogos grandes
     
     let toInsertBuffer: any[] = [];
     // Deixar de usar critério de interrupção por iterações sem novos para não encerrar antes do fim
     let hadTimeout = false;
     let hadError = false;
     let endedBecauseNoMore = false;
+    // usando MercosAPI com tratamento de 429 e backoff
+    const bumpIsoSecond = (iso: string) => {
+      try {
+        const d = new Date(iso);
+        if (!isNaN(d.getTime())) {
+          const nd = new Date(d.getTime() + 1000);
+          return nd.toISOString();
+        }
+      } catch {}
+      return iso;
+    };
+    let lastSeenKey: string | null = null;
+    let repeatCount = 0;
+    let pageMode: 'timestamp' | 'id' = 'timestamp';
+    let noProgressIters = 0;
 
     console.log('[SYNC-FAST] Iniciando processamento...');
 
@@ -198,12 +217,22 @@ export async function POST(
       }
 
       try {
-        // Buscar lote de produtos da Mercos
-        console.log(`[SYNC-FAST] Buscando lote afterId=${lastId || 'início'}...`);
-        const produtos = await mercosApi.getBatchProdutos({
-          limit: BATCH_SIZE,
-          afterId: lastId,
-        });
+        const fetchResult = pageMode === 'timestamp'
+          ? await mercosApi.getBatchProdutosByAlteracao({
+              alteradoApos: cursorDate,
+              afterId: lastId,
+              limit: BATCH_SIZE,
+              orderDirection: 'asc',
+            })
+          : { produtos: await mercosApi.getBatchProdutos({
+                limit: BATCH_SIZE,
+                afterId: lastId,
+                orderBy: 'id',
+                orderDirection: 'asc',
+              }), limited: true };
+
+        const produtos = fetchResult.produtos;
+        const limited = fetchResult.limited;
 
         if (produtos.length === 0) {
           console.log('[SYNC-FAST] ✅ API não retornou mais produtos');
@@ -216,8 +245,18 @@ export async function POST(
         const ultimoId = produtos[produtos.length - 1]?.id;
         console.log(`[SYNC-FAST] Recebidos ${produtos.length} produtos (ID ${primeiroId} → ${ultimoId})`);
 
-        // Filtrar apenas produtos que NÃO existem
-        const novos = produtos.filter(p => !existingMercosIds.has(p.id));
+        // Determinar novos (Set em memória) e fazer fallback checando no DB se necessário
+        let novos = produtos.filter((p: any) => !existingMercosIds.has(p.id));
+        if (novos.length === 0) {
+          const mercosIds = produtos.map((p: any) => p.id);
+          const { data: existentesRows } = await supabase
+            .from('products')
+            .select('mercos_id')
+            .eq('distribuidor_id', distribuidorId)
+            .in('mercos_id', mercosIds);
+          const existingInBatch = new Set((existentesRows || []).map((r: any) => r.mercos_id));
+          novos = produtos.filter((p: any) => !existingInBatch.has(p.id));
+        }
 
         produtosIgnorados += (produtos.length - novos.length);
         totalProcessed += produtos.length;
@@ -227,7 +266,7 @@ export async function POST(
         // Não vamos mais parar por iterações sem novos; seguimos até a API terminar as páginas
 
         // Adicionar ao buffer
-        novos.forEach((produto, idx) => {
+        novos.forEach((produto: any, idx: number) => {
           // Buscar categoria correta do produto
           let categoryId = CATEGORIA_SEM_CATEGORIA_ID;
           if (produto.categoria_id && categoriasMap.has(produto.categoria_id)) {
@@ -263,7 +302,7 @@ export async function POST(
             updated_at: new Date().toISOString(),
           });
 
-          // Adicionar ao Set para não inserir duplicado
+          // Adicionar ao Set para não inserir duplicado nesta execução
           existingMercosIds.add(produto.id);
         });
 
@@ -275,16 +314,46 @@ export async function POST(
           console.log(`[SYNC-FAST] ✅ ${produtosNovos} produtos inseridos até agora`);
         }
 
-        // Atualizar último ID
         if (produtos.length > 0) {
-          lastId = produtos[produtos.length - 1].id;
+          const last = produtos[produtos.length - 1] as any;
+          if (pageMode === 'timestamp') {
+            const lastTs = last?.ultima_alteracao || null;
+            const currentKey = `${lastTs || ''}#${last?.id || 0}`;
+            if (currentKey === lastSeenKey) {
+              repeatCount++;
+              if (lastTs) {
+                cursorDate = bumpIsoSecond(lastTs);
+                lastId = null;
+              }
+            } else {
+              repeatCount = 0;
+              if (lastTs && lastTs === cursorDate) {
+                lastId = last.id || null;
+              } else if (lastTs) {
+                cursorDate = lastTs;
+                lastId = null;
+              }
+            }
+            lastSeenKey = currentKey;
+            lastBatchTimestamp = lastTs;
+          } else {
+            lastId = last?.id || lastId;
+          }
         }
 
-        // Se recebeu menos que o esperado, chegou ao fim
-        if (produtos.length < BATCH_SIZE) {
-          console.log('[SYNC-FAST] ✅ Última página processada');
+        if ((pageMode === 'timestamp' && !limited) || (pageMode === 'id' && produtos.length < BATCH_SIZE)) {
           endedBecauseNoMore = true;
           break;
+        }
+
+        if (novos.length === 0) {
+          noProgressIters++;
+          if (noProgressIters >= 3) {
+            pageMode = 'id';
+            lastId = lastId || 0;
+          }
+        } else {
+          noProgressIters = 0;
         }
 
       } catch (error: any) {
@@ -349,7 +418,7 @@ async function insertBatch(supabase: any, products: any[]) {
   
   const { error } = await supabase
     .from('products')
-    .insert(products);
+    .upsert(products, { onConflict: 'distribuidor_id,mercos_id' });
   
   if (error) {
     console.error('[SYNC-FAST] ❌ Erro ao inserir batch:', error.message);

@@ -32,6 +32,50 @@ export class MercosAPI {
       : this.config.baseUrl;
   }
 
+  async getBatchProdutosByAlteracao(params: {
+    alteradoApos: string | null;
+    afterId?: number | null;
+    limit?: number;
+    orderDirection?: 'asc' | 'desc';
+  }): Promise<{ produtos: MercosProduto[]; limited: boolean }> {
+    const { alteradoApos, afterId = null, limit = 200, orderDirection = 'asc' } = params;
+
+    const qp = new URLSearchParams();
+    if (alteradoApos) qp.append('alterado_apos', alteradoApos);
+    qp.append('limit', Math.min(limit, 200).toString());
+    if (afterId) qp.append('id_maior_que', afterId.toString());
+    qp.append('order_by', 'ultima_alteracao');
+    qp.append('order_direction', orderDirection);
+
+    const endpoint = `/produtos?${qp.toString()}`;
+    const url = `${this.baseUrl}${endpoint}`;
+    const headers = {
+      'ApplicationToken': this.config.applicationToken,
+      'CompanyToken': this.config.companyToken,
+      'Content-Type': 'application/json',
+    } as Record<string, string>;
+
+    while (true) {
+      const response = await fetch(url, { headers });
+      if (response.status === 429) {
+        const throttleError = await response.json().catch(() => ({ tempo_ate_permitir_novamente: 5 }));
+        const waitTime = (throttleError.tempo_ate_permitir_novamente || 5) * 1000;
+        await new Promise(r => setTimeout(r, waitTime));
+        continue;
+      }
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro Mercos API: ${response.status} - ${errorText}`);
+      }
+
+      const raw = await response.json();
+      const data = (raw && typeof raw === 'object' && 'data' in raw && Array.isArray(raw.data)) ? raw.data : raw;
+      const produtos: MercosProduto[] = Array.isArray(data) ? data : [];
+      const limited = response.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
+      return { produtos, limited };
+    }
+  }
+
   /**
    * Realiza uma requisição com tratamento de erros e retentativas
    */
