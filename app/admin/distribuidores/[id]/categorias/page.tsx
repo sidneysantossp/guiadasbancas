@@ -21,6 +21,10 @@ export default function CategoriasPage() {
   const [timestamp, setTimestamp] = useState('2025-11-01T02:50:00');
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
+  
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchData();
@@ -64,6 +68,7 @@ export default function CategoriasPage() {
       // Recarregar categorias
       if (result.success) {
         await fetchData();
+        setCurrentPage(1); // Voltar para primeira página após sync
       }
     } catch (error) {
       console.error('Erro ao sincronizar:', error);
@@ -71,6 +76,16 @@ export default function CategoriasPage() {
     } finally {
       setSyncing(false);
     }
+  };
+
+  // Cálculos de paginação
+  const totalPages = Math.ceil(categorias.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentCategorias = categorias.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };
 
   if (loading) {
@@ -174,6 +189,54 @@ export default function CategoriasPage() {
           )}
         </div>
 
+        {/* Controles de Paginação */}
+        {categorias.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Mostrando <span className="font-medium">{startIndex + 1}</span> a{' '}
+                <span className="font-medium">{Math.min(endIndex, categorias.length)}</span> de{' '}
+                <span className="font-medium">{categorias.length}</span> categorias
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Anterior
+                </button>
+                
+                {/* Números das páginas */}
+                <div className="flex gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => goToPage(page)}
+                      className={`px-3 py-1 text-sm rounded-md ${
+                        page === currentPage
+                          ? 'bg-[#ff5c00] text-white'
+                          : 'border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+                
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Próxima
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Tabela de Categorias */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
@@ -197,7 +260,17 @@ export default function CategoriasPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {categorias.map((categoria) => (
+              {currentCategorias.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    {categorias.length === 0 
+                      ? 'Nenhuma categoria sincronizada ainda. Use o botão "Sincronizar" acima.'
+                      : 'Nenhuma categoria nesta página.'
+                    }
+                  </td>
+                </tr>
+              ) : (
+                currentCategorias.map((categoria) => (
                 <tr 
                   key={categoria.id}
                   className={
@@ -239,7 +312,8 @@ export default function CategoriasPage() {
                     {new Date(categoria.created_at).toLocaleString('pt-BR')}
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>
