@@ -33,17 +33,35 @@ export default function CategoriasPage() {
 
   const fetchData = async () => {
     try {
+      console.log('[CATEGORIAS-PAGE] 🔄 Carregando dados...');
+      
       // Buscar distribuidor
       const distRes = await fetch(`/api/admin/distribuidores/${params.id}`);
-      const distData = await distRes.json();
-      setDistribuidor(distData);
+      if (distRes.ok) {
+        const distData = await distRes.json();
+        setDistribuidor(distData);
+        console.log('[CATEGORIAS-PAGE] ✅ Distribuidor carregado:', distData.nome);
+      }
 
       // Buscar categorias
       const catRes = await fetch(`/api/admin/distribuidores/${params.id}/categorias`);
-      const catData = await catRes.json();
-      setCategorias(catData.data || []);
+      if (catRes.ok) {
+        const catData = await catRes.json();
+        console.log('[CATEGORIAS-PAGE] 📊 Categorias recebidas:', catData.data?.length);
+        console.log('[CATEGORIAS-PAGE] 🔍 Debug info:', catData.debug);
+        
+        // Verificar se a categoria 0855e8eb está presente
+        const targetCategory = catData.data?.find((cat: any) => cat.nome && cat.nome.includes('0855e8eb'));
+        if (targetCategory) {
+          console.log('[CATEGORIAS-PAGE] 🎯 Categoria "0855e8eb" encontrada no frontend:', targetCategory.nome);
+        } else {
+          console.log('[CATEGORIAS-PAGE] ❌ Categoria "0855e8eb" NÃO encontrada no frontend');
+        }
+        
+        setCategorias(catData.data || []);
+      }
     } catch (error) {
-      console.error('Erro ao buscar dados:', error);
+      console.error('[CATEGORIAS-PAGE] ❌ Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
     }
@@ -84,6 +102,17 @@ export default function CategoriasPage() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentCategorias = showAll ? categorias : categorias.slice(startIndex, endIndex);
+  
+  // Debug logs para renderização
+  console.log('[CATEGORIAS-PAGE] 📋 Estado atual:', {
+    totalCategorias: categorias.length,
+    currentPage,
+    showAll,
+    startIndex,
+    endIndex,
+    currentCategoriasLength: currentCategorias.length,
+    primeiras3Categorias: currentCategorias.slice(0, 3).map(cat => cat.nome)
+  });
 
   const goToPage = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
