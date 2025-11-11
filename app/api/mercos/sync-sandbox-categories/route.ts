@@ -28,17 +28,25 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Buscar TODAS as categorias do SANDBOX
+    // Buscar TODAS as categorias do SANDBOX com paginação adequada
     let allCategorias: any[] = [];
-    let dataInicial = '2000-01-01T00:00:00';
+    let afterId = null;
     let hasMore = true;
     let pageCount = 0;
+    const LIMIT = 100; // Limite por página
 
-    while (hasMore && pageCount < 100) {
+    console.log('[SYNC-SANDBOX-CATEGORIES] 🔄 Iniciando paginação por ID...');
+
+    while (hasMore && pageCount < 50) {
       pageCount++;
-      const endpoint = `/categorias?alterado_apos=${dataInicial}`;
       
-      console.log(`[SYNC-SANDBOX-CATEGORIES] 📄 Página ${pageCount}`);
+      // Construir endpoint com paginação por ID
+      let endpoint = `/categorias?limit=${LIMIT}&order_by=id&order_direction=asc`;
+      if (afterId) {
+        endpoint += `&after_id=${afterId}`;
+      }
+      
+      console.log(`[SYNC-SANDBOX-CATEGORIES] 📄 Página ${pageCount} (after_id: ${afterId || 'início'})`);
       
       const url = `https://sandbox.mercos.com/api/v1${endpoint}`;
       const headers = {
@@ -66,16 +74,29 @@ export async function POST(request: NextRequest) {
       const categorias = await response.json();
       const categoriasArray = Array.isArray(categorias) ? categorias : [];
       
+      console.log(`[SYNC-SANDBOX-CATEGORIES] 📦 Recebidas ${categoriasArray.length} categorias nesta página`);
+      
+      if (categoriasArray.length === 0) {
+        console.log('[SYNC-SANDBOX-CATEGORIES] ✅ Nenhuma categoria retornada - fim da paginação');
+        hasMore = false;
+        break;
+      }
+      
       allCategorias = [...allCategorias, ...categoriasArray];
 
-      const limitouRegistros = response.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS');
-      
-      if (limitouRegistros === '1' && categoriasArray.length > 0) {
-        const ultimaCategoria = categoriasArray[categoriasArray.length - 1];
-        dataInicial = ultimaCategoria.ultima_alteracao;
-      } else {
+      // Verificar se há mais páginas
+      if (categoriasArray.length < LIMIT) {
+        console.log('[SYNC-SANDBOX-CATEGORIES] ✅ Última página alcançada (menos que o limite)');
         hasMore = false;
+      } else {
+        // Usar o ID da última categoria para próxima página
+        const ultimaCategoria = categoriasArray[categoriasArray.length - 1];
+        afterId = ultimaCategoria.id;
+        console.log(`[SYNC-SANDBOX-CATEGORIES] ➡️ Próxima página: after_id=${afterId}`);
       }
+
+      // Pequena pausa entre requests
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     console.log(`[SYNC-SANDBOX-CATEGORIES] 📊 Total categorias: ${allCategorias.length}`);
