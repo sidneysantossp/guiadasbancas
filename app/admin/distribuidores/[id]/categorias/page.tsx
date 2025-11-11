@@ -107,6 +107,7 @@ export default function CategoriasPage() {
         body: JSON.stringify({
           companyToken: '4b866744-a086-11f0-ada6-5e65486a6283',
           distribuidorId: params.id,
+          alteradoApos: timestamp,
         })
       });
 
@@ -235,6 +236,11 @@ export default function CategoriasPage() {
                     <div>• Atualizadas: {syncResult.resultado.atualizadas}</div>
                     {syncResult.resultado.erros > 0 && (
                       <div className="text-red-600">• Erros: {syncResult.resultado.erros}</div>
+                    )}
+                    {Array.isArray(syncResult.resultado.erros_exemplo) && syncResult.resultado.erros_exemplo.length > 0 && (
+                      <div className="mt-2 text-xs text-gray-600">
+                        Exemplos de erros: {syncResult.resultado.erros_exemplo.map((e: any) => `${e.mercos_id} - ${e.erro}`).join(', ')}
+                      </div>
                     )}
                   </div>
                 </div>

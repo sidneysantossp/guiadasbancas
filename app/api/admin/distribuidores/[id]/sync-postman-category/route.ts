@@ -4,6 +4,24 @@ import { supabaseAdmin } from '@/lib/supabase';
 const SANDBOX_APP_TOKEN = 'd39001ac-0b14-11f0-8ed7-6e1485be00f2';
 const COMPANY_TOKEN = '4b866744-a086-11f0-ada6-5e65486a6283';
 
+async function fetchWith429Retry(url: string, init: RequestInit, maxAttempts = 6): Promise<Response> {
+  let attempt = 1;
+  while (true) {
+    const res = await fetch(url, init);
+    if (res.status !== 429) return res;
+    const body = await res.json().catch(() => ({ tempo_ate_permitir_novamente: 5 }));
+    const serverWait = (body?.tempo_ate_permitir_novamente ?? 5) * 1000;
+    const backoff = Math.min(30000, 1000 * Math.pow(2, attempt - 1));
+    const wait = Math.max(serverWait, backoff);
+    if (attempt >= maxAttempts) {
+      return res; // devolve o 429 após esgotar tentativas
+    }
+    console.warn(`[SYNC-POSTMAN] 429 recebido. Tentativa ${attempt}/${maxAttempts - 1}. Aguardando ${Math.round(wait/1000)}s...`);
+    await new Promise(r => setTimeout(r, wait));
+    attempt++;
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -19,7 +37,7 @@ export async function POST(
     
     console.log(`[SYNC-POSTMAN] 📡 URL: ${mercosUrl}`);
     
-    const mercosResponse = await fetch(mercosUrl, {
+    const mercosResponse = await fetchWith429Retry(mercosUrl, {
       headers: {
         'ApplicationToken': SANDBOX_APP_TOKEN,
         'CompanyToken': COMPANY_TOKEN,
@@ -28,7 +46,8 @@ export async function POST(
     });
     
     if (!mercosResponse.ok) {
-      throw new Error(`Mercos API error: ${mercosResponse.status}`);
+      const errText = await mercosResponse.text().catch(() => '');
+      throw new Error(`Mercos API error: ${mercosResponse.status} ${errText}`);
     }
     
     const categorias = await mercosResponse.json();
