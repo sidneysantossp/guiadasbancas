@@ -27,10 +27,10 @@ export async function GET(req: NextRequest) {
     const userId = session.user.id;
     console.log('[CATALOGO] Buscando banca para userId:', userId);
 
-    // Buscar banca do jornaleiro (pela tabela bancas, não user_profiles)
+    // Buscar banca do jornaleiro com informações de cotista
     const { data: banca } = await supabase
       .from('bancas')
-      .select('id')
+      .select('id, is_cotista, cotista_id')
       .eq('user_id', userId)
       .single();
 
@@ -43,7 +43,21 @@ export async function GET(req: NextRequest) {
     }
 
     const bancaId = banca.id;
-    console.log('[CATALOGO] Banca encontrada:', bancaId);
+    const isCotista = banca.is_cotista === true && banca.cotista_id;
+    console.log('[CATALOGO] Banca encontrada:', bancaId, '- É cotista:', isCotista);
+
+    // Verificar se é cotista - apenas cotistas têm acesso ao catálogo de distribuidores
+    if (!isCotista) {
+      console.log('[CATALOGO] Usuário não é cotista - acesso negado ao catálogo');
+      return NextResponse.json({
+        success: true,
+        data: [],
+        products: [],
+        total: 0,
+        is_cotista: false,
+        message: 'Para ter acesso ao catálogo de distribuidores, você precisa se identificar como cotista na sua banca.'
+      });
+    }
 
     // Buscar todos os produtos de distribuidores com info do distribuidor e categoria
     const { data: produtos, error: prodError } = await supabase
@@ -112,11 +126,14 @@ export async function GET(req: NextRequest) {
       };
     }) || [];
 
+    console.log(`[CATALOGO] Cotista - ${produtosComCustom.length} produtos de distribuidores encontrados`);
+
     return NextResponse.json({
       success: true,
       products: produtosComCustom,
       data: produtosComCustom, // backward compatibility
       total: produtosComCustom.length,
+      is_cotista: true,
     });
   } catch (error: any) {
     console.error('[API] Erro geral:', error);

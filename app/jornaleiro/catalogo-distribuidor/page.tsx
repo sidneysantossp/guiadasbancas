@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useFetchAuth } from '@/lib/hooks/useFetchAuth';
+import CotistaStatusAlert from '@/components/CotistaStatusAlert';
 
 interface ProdutoDistribuidor {
   id: string;
@@ -40,6 +41,7 @@ export default function CatalogoDistribuidorPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [updating, setUpdating] = useState<string | null>(null);
+  const [isCotista, setIsCotista] = useState(false);
 
   useEffect(() => {
     loadProdutos();
@@ -51,7 +53,8 @@ export default function CatalogoDistribuidorPage() {
       const data = await response.json();
 
       if (data.success) {
-        setProdutos(data.data);
+        setProdutos(data.data || data.products || []);
+        setIsCotista(data.is_cotista === true);
       } else {
         alert('Erro ao carregar produtos: ' + data.error);
       }
@@ -143,6 +146,17 @@ export default function CatalogoDistribuidorPage() {
           Gerencie os produtos disponibilizados pelos distribuidores para sua banca.
           Todos os produtos são habilitados automaticamente e sincronizados a cada 15 minutos.
         </p>
+      </div>
+
+      {/* Alerta de status de cotista */}
+      <div className="mb-6">
+        <CotistaStatusAlert 
+          isCotista={isCotista} 
+          stats={{
+            proprios: 0, // Não aplicável nesta página
+            distribuidores: produtos.length
+          }}
+        />
       </div>
 
       {/* Barra de busca */}
