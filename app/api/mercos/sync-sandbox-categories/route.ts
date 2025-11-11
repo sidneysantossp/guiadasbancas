@@ -30,23 +30,21 @@ export async function POST(request: NextRequest) {
 
     // Buscar TODAS as categorias do SANDBOX com paginação adequada
     let allCategorias: any[] = [];
-    let afterId = null;
+    let dataInicial = '2000-01-01T00:00:00';
     let hasMore = true;
     let pageCount = 0;
     const LIMIT = 100; // Limite por página
 
-    console.log('[SYNC-SANDBOX-CATEGORIES] 🔄 Iniciando paginação por ID...');
+    console.log('[SYNC-SANDBOX-CATEGORIES] 🔄 Iniciando paginação por timestamp...');
 
     while (hasMore && pageCount < 50) {
       pageCount++;
       
-      // Construir endpoint com paginação por ID
-      let endpoint = `/categorias?limit=${LIMIT}&order_by=id&order_direction=asc`;
-      if (afterId) {
-        endpoint += `&after_id=${afterId}`;
-      }
+      // Construir endpoint com paginação por timestamp
+      const endpoint = `/categorias?alterado_apos=${encodeURIComponent(dataInicial)}&limit=${LIMIT}`;
+      console.log(`[SYNC-SANDBOX-CATEGORIES] 🔗 Endpoint: ${endpoint}`);
       
-      console.log(`[SYNC-SANDBOX-CATEGORIES] 📄 Página ${pageCount} (after_id: ${afterId || 'início'})`);
+      console.log(`[SYNC-SANDBOX-CATEGORIES] 📄 Página ${pageCount} (timestamp: ${dataInicial})`);
       
       const url = `https://sandbox.mercos.com/api/v1${endpoint}`;
       const headers = {
@@ -84,15 +82,16 @@ export async function POST(request: NextRequest) {
       
       allCategorias = [...allCategorias, ...categoriasArray];
 
-      // Verificar se há mais páginas
-      if (categoriasArray.length < LIMIT) {
-        console.log('[SYNC-SANDBOX-CATEGORIES] ✅ Última página alcançada (menos que o limite)');
-        hasMore = false;
-      } else {
-        // Usar o ID da última categoria para próxima página
+      // Verificar se há mais páginas usando header
+      const limitouRegistros = response.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS');
+      
+      if (limitouRegistros === '1' && categoriasArray.length > 0) {
         const ultimaCategoria = categoriasArray[categoriasArray.length - 1];
-        afterId = ultimaCategoria.id;
-        console.log(`[SYNC-SANDBOX-CATEGORIES] ➡️ Próxima página: after_id=${afterId}`);
+        dataInicial = ultimaCategoria.ultima_alteracao;
+        console.log(`[SYNC-SANDBOX-CATEGORIES] ➡️ Próxima página: timestamp=${dataInicial}`);
+      } else {
+        console.log('[SYNC-SANDBOX-CATEGORIES] ✅ Última página alcançada (sem limitação)');
+        hasMore = false;
       }
 
       // Pequena pausa entre requests
