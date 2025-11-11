@@ -78,11 +78,12 @@ export default function CategoriasPage() {
     }
   };
 
-  // Cálculos de paginação
+  // Cálculos de paginação - TEMPORARIAMENTE DESABILITADO PARA PRINT COMPLETO
   const totalPages = Math.ceil(categorias.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentCategorias = categorias.slice(startIndex, endIndex);
+  // MOSTRAR TODAS AS CATEGORIAS PARA PRINT
+  const currentCategorias = categorias; // categorias.slice(startIndex, endIndex);
 
   const goToPage = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
@@ -189,8 +190,8 @@ export default function CategoriasPage() {
           )}
         </div>
 
-        {/* Controles de Paginação */}
-        {categorias.length > 0 && (
+        {/* Controles de Paginação - TEMPORARIAMENTE OCULTO PARA PRINT */}
+        {false && categorias.length > 0 && (
           <div className="bg-white rounded-lg shadow p-4 mb-4">
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-700">
