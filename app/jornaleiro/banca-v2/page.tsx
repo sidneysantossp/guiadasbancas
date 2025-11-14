@@ -295,9 +295,19 @@ export default function BancaV2Page() {
         },
         payments: Array.isArray(bancaData.payments) ? bancaData.payments : (Array.isArray(bancaData.payment_methods) ? bancaData.payment_methods : []),
         categories: Array.isArray(bancaData.categories) ? bancaData.categories : [],
-        hours: Array.isArray(bancaData.hours) && bancaData.hours.length > 0
-          ? bancaData.hours
-          : DAYS.map((d) => ({ key: d.key, label: d.label, open: false, start: '08:00', end: '18:00' })),
+        hours: (() => {
+          console.log('🕐 [V2] bancaData.hours:', bancaData.hours);
+          console.log('🕐 [V2] É array?', Array.isArray(bancaData.hours));
+          console.log('🕐 [V2] Tem itens?', bancaData.hours?.length);
+          
+          if (Array.isArray(bancaData.hours) && bancaData.hours.length > 0) {
+            console.log('🕐 [V2] Usando horários do banco:', bancaData.hours);
+            return bancaData.hours;
+          } else {
+            console.log('🕐 [V2] Usando horários padrão');
+            return DAYS.map((d) => ({ key: d.key, label: d.label, open: false, start: '08:00', end: '18:00' }));
+          }
+        })(),
         delivery_enabled: bancaData.delivery_enabled === true,
         free_shipping_threshold: typeof bancaData.free_shipping_threshold === 'number' ? bancaData.free_shipping_threshold : 120,
         origin_cep: bancaData.origin_cep || '',
