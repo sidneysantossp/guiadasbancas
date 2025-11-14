@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
+import { useToast } from '@/components/admin/ToastProvider';
 import { supabase } from '@/lib/supabase';
 import ImageUploader from '@/components/admin/ImageUploader';
 import FileUploadDragDrop from '@/components/common/FileUploadDragDrop';
@@ -34,6 +34,16 @@ const PAYMENT_OPTIONS = [
   { value: 'debito', label: 'Cartão de débito' },
   { value: 'online', label: 'Pagamento online' },
 ] as const;
+
+type SelectedCotistaInfo = {
+  id: string;
+  codigo: string;
+  razao_social: string;
+  cnpj_cpf: string;
+  telefone?: string;
+  cidade?: string;
+  estado?: string;
+};
 
 // Schema de validação (aninhado, compatível com a API)
 const bancaSchema = z.object({
@@ -66,8 +76,7 @@ const bancaSchema = z.object({
     start: z.string(),
     end: z.string(),
   })).default([]),
-  featured: z.boolean().default(false),
-  ctaUrl: z.string().optional(),
+  // featured/ctaUrl removidos do gerenciamento do jornaleiro
   delivery_enabled: z.boolean().default(false),
   free_shipping_threshold: z.number().default(120),
   origin_cep: z.string().optional(),
@@ -90,16 +99,20 @@ export default function BancaV2Page() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [formKey, setFormKey] = useState<number>(() => Date.now());
   const nameRef = useRef<HTMLInputElement | null>(null);
   const sellerNameRef = useRef<HTMLInputElement | null>(null);
+  const phoneRef = useRef<HTMLInputElement | null>(null);
+  const cpfRef = useRef<HTMLInputElement | null>(null);
   const [coverImages, setCoverImages] = useState<string[]>([]);
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
   const [imagesChanged, setImagesChanged] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'jornaleiro' | 'banca' | 'func' | 'social'>('jornaleiro');
   const [isCotista, setIsCotista] = useState(false);
-  const [selectedCotista, setSelectedCotista] = useState<any>(null);
+  const [selectedCotista, setSelectedCotista] = useState<SelectedCotistaInfo | null>(null);
+  const [cotistaDirty, setCotistaDirty] = useState(false);
 
   const withCacheBust = (url?: string, seed?: number | string) => {
     if (!url) return '';
@@ -150,15 +163,28 @@ export default function BancaV2Page() {
   const { data: profileResp } = useQuery({
     queryKey: ['jornaleiroProfile', authToken],
     queryFn: async () => {
+      console.log('🔑 [Profile] Token usado:', authToken ? 'presente' : 'ausente');
       const res = await fetch('/api/jornaleiro/profile', {
         cache: 'no-store',
+        credentials: 'include',
         headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
       });
-      if (!res.ok) throw new Error('Erro ao carregar perfil');
-      return res.json();
+      
+      console.log('📡 [Profile] Status da resposta:', res.status);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.log('❌ [Profile] Erro na API:', errorText);
+        throw new Error(`Erro ao carregar perfil: ${res.status} - ${errorText}`);
+      }
+      
+      const data = await res.json();
+      console.log('✅ [Profile] Dados recebidos:', data);
+      return data;
     },
     staleTime: 0,
-    enabled: !!authToken && status === 'authenticated',
+    // Buscar mesmo sem token do Supabase; a API usa auth() como fallback
+    enabled: status === 'authenticated',
   });
 
   // React Hook Form
@@ -182,8 +208,6 @@ export default function BancaV2Page() {
       payments: [],
       categories: [],
       hours: DAYS.map((d) => ({ key: d.key, label: d.label, open: false, start: '08:00', end: '18:00' })),
-      featured: false,
-      ctaUrl: '',
       delivery_enabled: false,
       free_shipping_threshold: 120,
       origin_cep: '',
@@ -198,11 +222,49 @@ export default function BancaV2Page() {
     }).catch(() => setAuthToken(null));
   }, []);
 
+  // 🔥 CRITICAL: UseEffect específico para garantir preenchimento de WhatsApp e CPF via REF
+  useEffect(() => {
+    if (bancaData?.profile || profileResp?.profile) {
+      const phoneValue = profileResp?.profile?.phone || bancaData?.profile?.phone || '';
+      const cpfValue = profileResp?.profile?.cpf || bancaData?.profile?.cpf || '';
+      
+      console.log('[CRITICAL FIX] 📱🔧 Forçando atualização crítica dos campos via REF:', { phoneValue, cpfValue });
+      
+      // Forçar via REF (mais direto)
+      if (phoneRef.current && phoneValue) {
+        phoneRef.current.value = phoneValue;
+        setValue('profile.phone', phoneValue, { shouldDirty: false, shouldTouch: false });
+        console.log('[CRITICAL FIX] 📱 WhatsApp definido via REF:', phoneValue);
+      }
+      
+      if (cpfRef.current && cpfValue) {
+        cpfRef.current.value = cpfValue;
+        setValue('profile.cpf', cpfValue, { shouldDirty: false, shouldTouch: false });
+        console.log('[CRITICAL FIX] 📄 CPF definido via REF:', cpfValue);
+      }
+      
+      // Backup: tentar novamente após um delay
+      setTimeout(() => {
+        if (phoneRef.current && phoneValue && phoneRef.current.value !== phoneValue) {
+          console.log('[CRITICAL FIX] 📱 BACKUP: Forçando WhatsApp novamente:', phoneValue);
+          phoneRef.current.value = phoneValue;
+          phoneRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        
+        if (cpfRef.current && cpfValue && cpfRef.current.value !== cpfValue) {
+          console.log('[CRITICAL FIX] 📄 BACKUP: Forçando CPF novamente:', cpfValue);
+          cpfRef.current.value = cpfValue;
+          cpfRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }, 200);
+    }
+  }, [bancaData?.profile, profileResp?.profile, setValue]);
+
   // 🔥 CRITICAL: Reset form quando dados da API mudarem (antes da pintura)
   useLayoutEffect(() => {
     if (bancaData) {
       const adr = bancaData.addressObj || {};
-      const prof = (profileResp && profileResp.profile) ? profileResp.profile : {};
+      const prof = (profileResp?.profile) ?? (bancaData?.profile) ?? {};
       const formData = {
         name: bancaData.name || '',
         description: stripHtml(bancaData.description) || '',
@@ -229,9 +291,7 @@ export default function BancaV2Page() {
         hours: Array.isArray(bancaData.hours) && bancaData.hours.length > 0
           ? bancaData.hours
           : DAYS.map((d) => ({ key: d.key, label: d.label, open: false, start: '08:00', end: '18:00' })),
-        featured: bancaData.featured === true,
-        ctaUrl: bancaData.ctaUrl || '',
-        delivery_enabled: bancaData.delivery_enabled || false,
+        delivery_enabled: bancaData.delivery_enabled === true,
         free_shipping_threshold: typeof bancaData.free_shipping_threshold === 'number' ? bancaData.free_shipping_threshold : 120,
         origin_cep: bancaData.origin_cep || '',
         location: {
@@ -240,15 +300,75 @@ export default function BancaV2Page() {
         },
         profile: {
           full_name: prof.full_name || (session?.user?.name || ''),
-          phone: prof.phone || '',
+          phone: prof.phone || prof.telefone || bancaData.contact?.whatsapp || bancaData.whatsapp || '',
           email: session?.user?.email || '',
           cpf: prof.cpf || '',
-          avatar_url: prof.avatar_url || '',
+          avatar_url: prof.avatar_url || prof.avatarUrl || '',
         },
       } as any;
       
+      console.log('🔄 [V2] Carregando dados da banca:', {
+        bancaData,
+        profileResp,
+        adr,
+        prof,
+        formData
+      });
+      console.log('👤 [V2] Dados do perfil (prof):', prof);
+      console.log('📱 [V2] prof.phone:', prof.phone);
+      console.log('📄 [V2] prof.cpf:', prof.cpf);
       console.log('🔄 [V2] Resetando form com novos dados:', formData);
       reset(formData, { keepDirty: false, keepDirtyValues: false, keepValues: false });
+      // Forçar preenchimento de campos simples (telefone/CPF) após reset com múltiplas tentativas
+      try {
+        const phoneValue = formData.profile?.phone || '';
+        const cpfValue = formData.profile?.cpf || '';
+        
+        console.log('[FIX] 🔄 Preenchendo campos WhatsApp e CPF:', { phoneValue, cpfValue });
+        
+        // Primeira tentativa: React Hook Form
+        setValue('profile.phone', phoneValue, { shouldDirty: false, shouldTouch: false, shouldValidate: false });
+        setValue('profile.cpf', cpfValue, { shouldDirty: false, shouldTouch: false, shouldValidate: false });
+        
+        // Segunda tentativa: DOM direto (imediato)
+        setTimeout(() => {
+          const phoneInput = document.querySelector('input[name="profile.phone"]') as HTMLInputElement;
+          const cpfInput = document.querySelector('input[name="profile.cpf"]') as HTMLInputElement;
+          
+          if (phoneInput && phoneValue) {
+            console.log('[FIX] 📱 Preenchimento DOM imediato WhatsApp:', phoneValue);
+            phoneInput.value = phoneValue;
+            phoneInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          
+          if (cpfInput && cpfValue) {
+            console.log('[FIX] 📄 Preenchimento DOM imediato CPF:', cpfValue);
+            cpfInput.value = cpfValue;
+            cpfInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }, 100);
+        
+        // Terceira tentativa: DOM com delay maior
+        setTimeout(() => {
+          const phoneInput = document.querySelector('input[name="profile.phone"]') as HTMLInputElement;
+          const cpfInput = document.querySelector('input[name="profile.cpf"]') as HTMLInputElement;
+          
+          if (phoneInput && phoneValue && phoneInput.value !== phoneValue) {
+            console.log('[FIX] 📱 Correção tardia WhatsApp:', phoneValue);
+            phoneInput.value = phoneValue;
+            phoneInput.dispatchEvent(new Event('input', { bubbles: true }));
+            phoneInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          
+          if (cpfInput && cpfValue && cpfInput.value !== cpfValue) {
+            console.log('[FIX] 📄 Correção tardia CPF:', cpfValue);
+            cpfInput.value = cpfValue;
+            cpfInput.dispatchEvent(new Event('input', { bubbles: true }));
+            cpfInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }, 500);
+        
+      } catch {}
       // Imagens
       try {
         const seed = bancaData.updated_at || Date.now();
@@ -261,11 +381,14 @@ export default function BancaV2Page() {
       
       // Cotista
       try {
+        console.log('[Banca-V2] 🏢 bancaData.is_cotista:', bancaData.is_cotista);
+        console.log('[Banca-V2] 👥 bancaData.cotista_razao_social:', bancaData.cotista_razao_social);
+        console.log('[Banca-V2] 📦 bancaData completo:', bancaData);
         const isCotistaValue = bancaData.is_cotista === true;
         setIsCotista(isCotistaValue);
-        if (isCotistaValue && bancaData.cotista_id) {
+        if (isCotistaValue && bancaData.cotista_razao_social) {
           setSelectedCotista({
-            id: bancaData.cotista_id,
+            id: bancaData.cotista_id || null,
             codigo: bancaData.cotista_codigo || '',
             razao_social: bancaData.cotista_razao_social || '',
             cnpj_cpf: bancaData.cotista_cnpj_cpf || '',
@@ -273,6 +396,7 @@ export default function BancaV2Page() {
         } else {
           setSelectedCotista(null);
         }
+        setCotistaDirty(false);
       } catch {}
       // Forçar injeção de valores no DOM após o reset para contornar restauração do browser
       queueMicrotask(() => {
@@ -290,7 +414,7 @@ export default function BancaV2Page() {
       });
       // Reforço adicional por alguns ciclos curtos para derrotar extensões de autofill
       let attempts = 0;
-      const maxAttempts = 10;
+      const maxAttempts = 15; // Aumentado para dar mais tempo
       const timer = setInterval(() => {
         attempts++;
         const el = nameRef.current;
@@ -303,10 +427,37 @@ export default function BancaV2Page() {
           el2.value = formData.profile?.full_name || '';
           el2.dispatchEvent(new Event('input', { bubbles: true }));
         }
-        if (attempts >= maxAttempts || ((el && el.value === formData.name) && (el2 && el2.value === (formData.profile?.full_name || '')))) {
-          clearInterval(timer);
+        
+        // 🔥 CRITICAL: Forçar também WhatsApp e CPF via REF no timer
+        const phoneEl = phoneRef.current;
+        const cpfEl = cpfRef.current;
+        const phoneValue = formData.profile?.phone || '';
+        const cpfValue = formData.profile?.cpf || '';
+        
+        if (phoneEl && phoneValue && phoneEl.value !== phoneValue) {
+          console.log('[TIMER FIX] 📱 Forçando WhatsApp via timer:', phoneValue);
+          phoneEl.value = phoneValue;
+          phoneEl.dispatchEvent(new Event('input', { bubbles: true }));
         }
-      }, 50);
+        
+        if (cpfEl && cpfValue && cpfEl.value !== cpfValue) {
+          console.log('[TIMER FIX] 📄 Forçando CPF via timer:', cpfValue);
+          cpfEl.value = cpfValue;
+          cpfEl.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        
+        const allFieldsCorrect = (
+          (el && el.value === formData.name) &&
+          (el2 && el2.value === (formData.profile?.full_name || '')) &&
+          (!phoneValue || (phoneEl && phoneEl.value === phoneValue)) &&
+          (!cpfValue || (cpfEl && cpfEl.value === cpfValue))
+        );
+        
+        if (attempts >= maxAttempts || allFieldsCorrect) {
+          clearInterval(timer);
+          console.log('[FIX] ✅ Timer finalizado. Tentativas:', attempts, 'Sucesso:', allFieldsCorrect);
+        }
+      }, 75); // Aumentado intervalo para dar mais tempo
       
       setFormKey(Date.now());
     }
@@ -402,8 +553,7 @@ export default function BancaV2Page() {
             payments: data.payments,
             categories: data.categories,
             hours: data.hours,
-            featured: data.featured,
-            ctaUrl: data.ctaUrl,
+            // featured/ctaUrl removidos
             delivery_enabled: data.delivery_enabled,
             free_shipping_threshold: data.free_shipping_threshold,
             origin_cep: data.origin_cep,
@@ -451,6 +601,7 @@ export default function BancaV2Page() {
     },
     onSuccess: (response) => {
       console.log('✅ [V2] Salvamento concluído:', response.data);
+      console.log('🎉 [V2] Exibindo toast de sucesso...');
       
       // Invalidar query para forçar reload - o useEffect vai resetar o form automaticamente
       queryClient.invalidateQueries({ queryKey: ['banca'] });
@@ -480,8 +631,7 @@ export default function BancaV2Page() {
         payments: Array.isArray(r.payment_methods) ? r.payment_methods : (Array.isArray(r.payments) ? r.payments : []),
         categories: Array.isArray(r.categories) ? r.categories : [],
         hours: Array.isArray(r.hours) ? r.hours : DAYS.map((d) => ({ key: d.key, label: d.label, open: false, start: '08:00', end: '18:00' })),
-        featured: r.featured === true,
-        ctaUrl: r.ctaUrl || '',
+        // featured/ctaUrl removidos
         delivery_enabled: r.delivery_enabled || false,
         free_shipping_threshold: typeof r.free_shipping_threshold === 'number' ? r.free_shipping_threshold : 120,
         origin_cep: r.origin_cep || '',
@@ -519,14 +669,19 @@ export default function BancaV2Page() {
         }));
       }
       
+      console.log('🎉 [V2] Chamando toast.success...');
       toast.success('✅ Dados salvos com sucesso!');
+      console.log('🎉 [V2] Toast.success executado!');
     },
     onError: (error: Error) => {
+      console.log('❌ [V2] Erro no salvamento:', error.message);
       toast.error(`❌ ${error.message}`);
     },
   });
 
   const onSubmit = (data: BancaFormData) => {
+    console.log('🚀 [SUBMIT] Formulário enviado com dados:', data);
+    console.log('🚀 [SUBMIT] Dados do perfil enviados:', data.profile);
     saveMutation.mutate(data);
   };
 
@@ -640,8 +795,12 @@ export default function BancaV2Page() {
           <div>
             <label className="block text-sm font-medium text-gray-700">WhatsApp (pessoal)</label>
             <input
-              {...register('profile.phone')}
-              key={`seller-phone-${profileResp?.profile?.updated_at || formKey}`}
+              ref={phoneRef}
+              key={`seller-phone-${bancaData?.profile?.updated_at || profileResp?.profile?.updated_at || formKey}`}
+              defaultValue=""
+              onChange={(e) => {
+                setValue('profile.phone', e.target.value, { shouldDirty: true });
+              }}
               autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
               placeholder="(11) 99999-9999"
@@ -660,8 +819,12 @@ export default function BancaV2Page() {
           <div>
             <label className="block text-sm font-medium text-gray-700">CPF</label>
             <input
-              {...register('profile.cpf')}
-              key={`seller-cpf-${formKey}`}
+              ref={cpfRef}
+              key={`seller-cpf-${bancaData?.profile?.updated_at || profileResp?.profile?.updated_at || formKey}`}
+              defaultValue=""
+              onChange={(e) => {
+                setValue('profile.cpf', e.target.value, { shouldDirty: true });
+              }}
               autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
               placeholder="000.000.000-00"
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -687,6 +850,7 @@ export default function BancaV2Page() {
                 onChange={() => {
                   setIsCotista(false);
                   setSelectedCotista(null);
+                  setCotistaDirty(true);
                 }}
                 className="h-4 w-4 text-[#ff5c00] focus:ring-[#ff5c00]"
               />
@@ -711,7 +875,21 @@ export default function BancaV2Page() {
                   Buscar Cotista
                 </label>
                 <CotistaSearch
-                  onSelect={(cotista) => setSelectedCotista(cotista)}
+                  onSelect={(cotista) => {
+                    setSelectedCotista(cotista);
+                    // Forçar form como dirty para habilitar botão salvar
+                    setValue('name', watch('name'), { shouldDirty: true });
+                    setCotistaDirty(true);
+                  }}
+                  onInputChange={(value) => {
+                    // Marcar form como dirty quando usuário digita CPF/CNPJ
+                    if (value.trim()) {
+                      setValue('name', watch('name'), { shouldDirty: true });
+                      setCotistaDirty(true);
+                    } else {
+                      setCotistaDirty(false);
+                    }
+                  }}
                   selectedCnpjCpf={selectedCotista?.cnpj_cpf}
                 />
               </div>
@@ -832,23 +1010,6 @@ export default function BancaV2Page() {
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                 placeholder="Conte um pouco sobre sua banca..."
               />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Link de CTA</label>
-                <input
-                  {...register('ctaUrl')}
-                  key={`ctaUrl-${bancaData?.updated_at || formKey}`}
-                  autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                  placeholder="https://..."
-                />
-              </div>
-              <label className="mt-6 inline-flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" {...register('featured')} className="rounded" />
-                Destaque na página
-              </label>
             </div>
           </div>
         </div>
@@ -1095,77 +1256,7 @@ export default function BancaV2Page() {
           </div>
         </div>
 
-        {/* Pagamentos e Categorias */}
-        <div className={`${activeTab === 'banca' ? 'grid' : 'hidden'} gap-4 lg:grid-cols-2`}>
-          <div className="rounded-xl border border-gray-200 bg-white p-6">
-            <h2 className="text-lg font-semibold">Pagamentos aceitos</h2>
-            <div className="grid gap-2 sm:grid-cols-2 mt-2">
-              {PAYMENT_OPTIONS.map((option) => {
-                const selected = new Set(watch('payments') || []);
-                const checked = selected.has(option.value);
-                return (
-                  <label key={option.value} className="inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm">
-                    <input
-                      key={`pay-${option.value}-${formKey}`}
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => {
-                        const next = new Set(watch('payments') || []);
-                        if (next.has(option.value)) next.delete(option.value); else next.add(option.value);
-                        setValue('payments', Array.from(next), { shouldDirty: true });
-                      }}
-                      className="rounded"
-                    />
-                    {option.label}
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-gray-200 bg-white p-6">
-            <h2 className="text-lg font-semibold">Categorias atendidas</h2>
-            <label className="inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm">
-              <input
-                key={`cat-all-${formKey}`}
-                type="checkbox"
-                checked={Boolean((categoriesData || []).length > 0 && (categoriesData || []).every((c:any) => (watch('categories') || []).includes(c.id)))}
-                onChange={() => {
-                  const allIds = (categoriesData || []).map((c:any) => c.id);
-                  const current = new Set(watch('categories') || []);
-                  const allSelected = allIds.length > 0 && allIds.every((id:string) => current.has(id));
-                  setValue('categories', allSelected ? [] : allIds, { shouldDirty: true });
-                }}
-                className="rounded"
-              />
-              Selecionar todas
-            </label>
-            <div className="grid gap-2 sm:grid-cols-2 mt-2">
-              {(categoriesData || []).map((option: any) => {
-                const checked = (watch('categories') || []).includes(option.id);
-                return (
-                  <label key={option.id} className="inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm">
-                    <input
-                      key={`cat-${option.id}-${formKey}`}
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => {
-                        const next = new Set(watch('categories') || []);
-                        if (next.has(option.id)) next.delete(option.id); else next.add(option.id);
-                        setValue('categories', Array.from(next), { shouldDirty: true });
-                      }}
-                      className="rounded"
-                    />
-                    {option.name}
-                  </label>
-                );
-              })}
-              {(!categoriesData || categoriesData.length === 0) && (
-                <p className="text-sm text-gray-500">Nenhuma categoria cadastrada ainda.</p>
-              )}
-            </div>
-          </div>
-        </div>
+        {/* Pagamentos e Categorias - REMOVIDO PARA JORNALEIROS (controlado pelos admins) */}
 
         {/* Entrega e frete */}
         <div className={`${activeTab === 'banca' ? 'block' : 'hidden'} rounded-xl border border-gray-200 bg-white p-6`}>
@@ -1188,18 +1279,42 @@ export default function BancaV2Page() {
 
         {/* Botões */}
         <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4">
-          <button
-            type="button"
-            onClick={() => reset()}
-            disabled={(!isDirty && !imagesChanged) || saveMutation.isPending}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
-            Descartar alterações
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                reset();
+                setCotistaDirty(false);
+              }}
+              disabled={(!isDirty && !imagesChanged) || saveMutation.isPending}
+              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Descartar alterações
+            </button>
+            
+            {/* Botão de teste para debug */}
+            <button
+              type="button"
+              onClick={() => {
+                console.log('🧪 [TESTE] Valores atuais dos campos:');
+                console.log('📱 WhatsApp (ref):', phoneRef.current?.value);
+                console.log('📄 CPF (ref):', cpfRef.current?.value);
+                console.log('📱 WhatsApp (form):', watch('profile.phone'));
+                console.log('📄 CPF (form):', watch('profile.cpf'));
+                console.log('🔄 isDirty:', isDirty);
+                console.log('🖼️ imagesChanged:', imagesChanged);
+                console.log('👥 cotistaDirty:', cotistaDirty);
+                toast.success('🧪 Teste executado - veja o console!');
+              }}
+              className="rounded-md border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+            >
+              🧪 Teste Debug
+            </button>
+          </div>
 
           <button
             type="submit"
-            disabled={(!isDirty && !imagesChanged) || saveMutation.isPending}
+            disabled={(!isDirty && !imagesChanged && !cotistaDirty) || saveMutation.isPending}
             className="rounded-md bg-purple-600 px-6 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
           >
             {saveMutation.isPending ? 'Salvando...' : 'Salvar alterações'}
