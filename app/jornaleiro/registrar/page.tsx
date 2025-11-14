@@ -14,7 +14,7 @@ export default function JornaleiroRegisterPage() {
   const router = useRouter();
 
   // Steps
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7>(1);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [loadingCep, setLoadingCep] = useState(false);
@@ -329,18 +329,17 @@ export default function JornaleiroRegisterPage() {
     fetchAndFillCep(only);
   }, [cep, lastCepFetched]);
 
-  // Prefill service phone on step 2 from step 1 phone
-  // Sempre sincroniza se servicePhone estiver vazio ou se phone mudou
+  // Prefill service phone on step 3 from step 2 phone
+  // Sempre sincroniza se servicePhone estiver vazio ou incompleto
   useEffect(() => {
-    if (step === 2 && phone) {
-      // Se servicePhone está vazio, preenche com phone
-      if (!servicePhone) {
+    if (step === 3 && phone && phone.length >= 10) {
+      // Se servicePhone está vazio ou muito curto (incompleto), preenche com phone
+      if (!servicePhone || servicePhone.length < 10) {
+        console.log('🔄 Sincronizando WhatsApp:', phone, '->', servicePhone);
         setServicePhone(phone);
       }
-      // Se servicePhone é igual ao phone antigo, atualiza para o novo phone
-      // (caso o usuário tenha voltado e mudado o telefone no step 1)
     }
-  }, [step, phone]);
+  }, [step, phone, servicePhone]);
 
   // Lista de estados (sigla + nome)
   const STATES: { uf: string; name: string }[] = [
@@ -407,24 +406,24 @@ export default function JornaleiroRegisterPage() {
   };
 
   const validateStep4 = () => {
-    const handleRe = /^[A-Za-z0-9._-]{2,30}$/;
-    // Para handles, exigimos apenas nome de usuário (sem URL)
+    // Validação flexível para URLs completas ou handles
     if (facebookHas === 'yes') {
-      if (!facebookUrl) return 'Informe o nome de usuário do Facebook (sem URL).';
-      if (!handleRe.test(facebookUrl.replace(/^@/, ''))) return 'Nome de usuário do Facebook inválido.';
+      if (!facebookUrl || !facebookUrl.trim()) return 'Informe o link do seu perfil do Facebook.';
     }
     if (instagramHas === 'yes') {
-      if (!instagramUrl) return 'Informe o nome de usuário do Instagram (sem URL).';
-      if (!handleRe.test(instagramUrl.replace(/^@/, ''))) return 'Nome de usuário do Instagram inválido.';
+      if (!instagramUrl || !instagramUrl.trim()) return 'Informe o link do seu perfil do Instagram.';
     }
-    // Google Meu Negócio será conectado via API no painel, não validar aqui
     return null;
   };
 
   const onNext = async () => {
     setError(null);
     if (step === 1) {
-      // Validate field-level and block next if any error
+      if (isCotaAtiva && !selectedCotaAtiva) { setError('Selecione sua Cota Ativa ou escolha "Não possuo Cota Ativa".'); return; }
+      setStep(2);
+      return;
+    }
+    if (step === 2) {
       const e1 = validateName(name); setErrorField('name', e1);
       const e2 = validateCpf(cpf); setErrorField('cpf', e2);
       const e3 = validatePhone(phone); setErrorField('phone', e3);
@@ -432,23 +431,24 @@ export default function JornaleiroRegisterPage() {
       const e5 = validatePasswordField(password); setErrorField('password', e5);
       const e6 = validateConfirmField(confirmPassword, password); setErrorField('confirmPassword', e6);
       if (e1 || e2 || e3 || e4 || e5 || e6) { return; }
-      setStep(2);
-      return;
-    }
-    if (step === 2) {
-      const err = validateStep2();
-      if (err) { setError(err); return; }
       setStep(3);
       return;
     }
     if (step === 3) {
-      const err = validateStep3();
+      const err = validateStep2();
       if (err) { setError(err); return; }
       setStep(4);
       return;
     }
     if (step === 4) {
+      // Validação das imagens é opcional
       setStep(5);
+      return;
+    }
+    if (step === 5) {
+      const err = validateStep3();
+      if (err) { setError(err); return; }
+      setStep(6);
       return;
     }
   };
@@ -460,6 +460,7 @@ export default function JornaleiroRegisterPage() {
     if (step === 4) setStep(3);
     if (step === 5) setStep(4);
     if (step === 6) setStep(5);
+    if (step === 7) setStep(6);
   };
 
   const { signUp, signIn, profile } = useAuth();
@@ -472,6 +473,9 @@ export default function JornaleiroRegisterPage() {
 
   const onFinish = async () => {
     setError(null);
+    console.log('[Wizard] 🚀 Iniciando conclusão do cadastro...');
+    console.log('[Wizard] 🏢 isCotaAtiva atual:', isCotaAtiva);
+    console.log('[Wizard] 👥 selectedCotaAtiva atual:', selectedCotaAtiva);
     const err1 = validateStep1();
     if (err1) { setError(err1); setStep(1); return; }
     const err2 = validateStep2();
@@ -509,16 +513,16 @@ export default function JornaleiroRegisterPage() {
         address: { cep, street, number, complement, neighborhood, city, uf },
         socials: {
           gmb: '',
-          facebook: facebookHas === 'yes' ? facebookUrl.replace(/^@/, '') : '',
-          instagram: instagramHas === 'yes' ? instagramUrl.replace(/^@/, '') : '',
+          facebook: facebookHas === 'yes' ? facebookUrl : '',
+          instagram: instagramHas === 'yes' ? instagramUrl : '',
         },
         hours,
         tpu_url: bankTpuUrl || undefined,
         meta: {
           socialsSkipped,
           socialsLinks: {
-            facebook: (facebookHas === 'yes' && facebookUrl) ? `https://facebook.com/${facebookUrl.replace(/^@/, '')}` : undefined,
-            instagram: (instagramHas === 'yes' && instagramUrl) ? `https://instagram.com/${instagramUrl.replace(/^@/, '')}` : undefined,
+            facebook: (facebookHas === 'yes' && facebookUrl) ? (facebookUrl.startsWith('http') ? facebookUrl : `https://facebook.com/${facebookUrl.replace(/^@/, '')}`) : undefined,
+            instagram: (instagramHas === 'yes' && instagramUrl) ? (instagramUrl.startsWith('http') ? instagramUrl : `https://instagram.com/${instagramUrl.replace(/^@/, '')}`) : undefined,
           },
           location: {
             lat: lat2 ? Number(lat2) : undefined,
@@ -569,6 +573,13 @@ export default function JornaleiroRegisterPage() {
       };
 
       // Salvar backup local (apenas dados da banca)
+      console.log('[Wizard] 💾 Salvando bancaData:', bancaData);
+      console.log('[Wizard] 🏢 is_cotista:', bancaData.is_cotista);
+      console.log('[Wizard] 🏢 cotista_id:', bancaData.cotista_id);
+      console.log('[Wizard] 👥 cotista_razao_social:', bancaData.cotista_razao_social);
+      console.log('[Wizard] 📋 cotista_cnpj_cpf:', bancaData.cotista_cnpj_cpf);
+      console.log('[Wizard] 🔍 Estado isCotaAtiva:', isCotaAtiva);
+      console.log('[Wizard] 🔍 selectedCotaAtiva:', selectedCotaAtiva);
       localStorage.setItem("gb:bancaData", JSON.stringify(bancaData));
       
       setToast('✅ Cadastro concluído! Redirecionando...');
@@ -605,7 +616,7 @@ export default function JornaleiroRegisterPage() {
           <div className="h-1 w-full rounded-full bg-gray-200" />
           <div
             className="absolute left-0 top-0 h-1 rounded-full bg-[#ff5c00] transition-all duration-500"
-            style={{ width: `${((step - 1) / 5) * 100}%` }}
+            style={{ width: `${((step - 1) / 6) * 100}%` }}
           />
         </div>
         <div className="mt-3 flex items-center justify-between">
@@ -619,13 +630,16 @@ export default function JornaleiroRegisterPage() {
             { n: 3, label: 'Banca', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l1-5h16l1 5M4 9h16v10H4z"/></svg>
             )},
-            { n: 4, label: 'Funcionamento', icon: (
+            { n: 4, label: 'Imagens', icon: (
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z"/></svg>
+            )},
+            { n: 5, label: 'Funcionamento', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
             )},
-            { n: 5, label: 'Social Midia', icon: (
+            { n: 6, label: 'Social Midia', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8a3 3 0 11-2.83 4H8.83A3 3 0 116 8h12z"/></svg>
             )},
-            { n: 6, label: 'Conclusão', icon: (
+            { n: 7, label: 'Conclusão', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
             )},
           ].map(({ n, label, icon }) => {
@@ -662,8 +676,10 @@ export default function JornaleiroRegisterPage() {
             ) : step === 3 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Agora vamos solicitar os dados públicos da sua banca. Essas informações serão exibidas para os clientes na plataforma.</p>
             ) : step === 4 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Defina os horários de funcionamento da sua banca. Essas informações aparecerão para os clientes.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Adicione as imagens da sua banca para criar uma identidade visual atrativa. O banner aparece no topo e a foto de perfil identifica sua banca.</p>
             ) : step === 5 ? (
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Defina os horários de funcionamento da sua banca. Essas informações aparecerão para os clientes.</p>
+            ) : step === 6 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Adicione suas redes sociais para potencializar sua presença digital. É opcional e pode ser feito depois no painel.</p>
             ) : null}
           </div>
@@ -1031,16 +1047,19 @@ export default function JornaleiroRegisterPage() {
               <input className="input mt-1 w-full" placeholder="(00) 00000-0000" value={servicePhone} onChange={(e)=>setServicePhone(maskPhoneBR(e.target.value))} />
             </div>
 
-            <div className="md:col-span-2">
-              <FileUploadDragDrop
-                label="Termo de Permissão de Uso (TPU) - PDF"
-                value={bankTpuUrl}
-                onChange={setBankTpuUrl}
-                accept="application/pdf"
-                role="jornaleiro"
-                className="h-24 w-full"
-              />
-            </div>
+            {/* TPU: Apenas para não-cotistas ou cotistas sem cadastro encontrado */}
+            {(!isCotaAtiva || !selectedCotaAtiva) && (
+              <div className="md:col-span-2">
+                <FileUploadDragDrop
+                  label="Termo de Permissão de Uso (TPU) - PDF"
+                  value={bankTpuUrl}
+                  onChange={setBankTpuUrl}
+                  accept="application/pdf"
+                  role="jornaleiro"
+                  className="h-24 w-full"
+                />
+              </div>
+            )}
 
             {/* Geolocalização oculta nesta etapa (mantida apenas em memória) */}
             
@@ -1050,6 +1069,101 @@ export default function JornaleiroRegisterPage() {
         {step === 3 && null}
 
         {step === 4 && (
+          <div className="mt-4 space-y-6">
+            {/* Preview da Banca com imagens */}
+            <div className="rounded-xl border border-gray-200 p-6 bg-gray-50">
+              <h3 className="text-lg font-semibold mb-4 text-center">Prévia da sua Banca</h3>
+              
+              {/* Layout da banca como preview */}
+              <div className="relative bg-white rounded-lg shadow-lg overflow-hidden w-full">
+                {/* Banner/Cover */}
+                <div className="relative h-48 bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center">
+                  {bankCoverPreview || bankCoverUrl ? (
+                    <img 
+                      src={bankCoverPreview || bankCoverUrl} 
+                      alt="Banner da banca" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-white text-sm font-medium">Banner da Banca</div>
+                  )}
+                  
+                  {/* Foto de perfil */}
+                  <div className="absolute -bottom-10 left-6 w-20 h-20 rounded-full border-4 border-white bg-gray-200 flex items-center justify-center overflow-hidden">
+                    {bankProfilePreview || bankProfileUrl ? (
+                      <img 
+                        src={bankProfilePreview || bankProfileUrl} 
+                        alt="Perfil da banca" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Informações da banca */}
+                <div className="pt-12 pb-6 px-6">
+                  <h4 className="font-bold text-lg">{bankName || 'Nome da Banca'}</h4>
+                  <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
+                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">Banca Ativa</span>
+                    <span>•</span>
+                    <span>📍 {city || 'Cidade'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Upload das imagens */}
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4">📸 Imagens da Banca</h3>
+                
+                {/* Banner/Cover */}
+                <div className="mb-6">
+                  <FileUploadDragDrop
+                    label="Banner da Banca (Imagem de Capa)"
+                    value={bankCoverUrl}
+                    onChange={(url) => {
+                      setBankCoverUrl(url);
+                      setBankCoverPreview(url);
+                    }}
+                    accept="image/*"
+                    placeholder="https://exemplo.com/banner.jpg"
+                    role="jornaleiro"
+                    className="h-32 w-full"
+                  />
+                  <p className="text-sm text-gray-500 mt-2">
+                    Recomendado: 800x200px. Esta imagem aparece no topo da sua banca.
+                  </p>
+                </div>
+
+                {/* Profile/Avatar */}
+                <div>
+                  <FileUploadDragDrop
+                    label="Foto de Perfil da Banca"
+                    value={bankProfileUrl}
+                    onChange={(url) => {
+                      setBankProfileUrl(url);
+                      setBankProfilePreview(url);
+                    }}
+                    accept="image/*"
+                    placeholder="https://exemplo.com/perfil.jpg"
+                    role="jornaleiro"
+                    className="h-32 w-full"
+                  />
+                  <p className="text-sm text-gray-500 mt-2">
+                    Recomendado: 200x200px (quadrada). Esta imagem identifica sua banca.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 5 && (
           <div className="mt-4 space-y-5">
             {/* Horários */}
             <div>
@@ -1081,7 +1195,7 @@ export default function JornaleiroRegisterPage() {
           </div>
         )}
 
-        {step === 5 && (
+        {step === 6 && (
           <div className="mt-4 space-y-5">
             {/* Sociais */}
             <div className="rounded-xl border border-gray-200 p-3">
@@ -1091,35 +1205,38 @@ export default function JornaleiroRegisterPage() {
               </div>
               <div className="mt-2 space-y-3">
                 <div>
-                  <label className="text-[12px] text-gray-700">Google Meu Negócio</label>
-                  <div className="mt-1 flex items-center justify-between gap-3 text-sm">
-                    <span className="text-[12px] text-gray-500">Conecte sua conta para sincronizar fotos, avaliações e horários.</span>
-                    <button type="button" disabled className="cursor-not-allowed rounded-md border border-gray-300 bg-white px-3 py-1 text-[12px] text-gray-500">Conectar (em breve)</button>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[12px] text-gray-700">Facebook</label>
+                  <label className="text-[12px] text-gray-700 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    Facebook
+                  </label>
                   <div className="mt-1 flex items-center gap-3 text-sm">
                     <label className="inline-flex items-center gap-1"><input type="radio" name="fb" checked={facebookHas==='yes'} onChange={()=>setFacebookHas('yes')} /> Tem</label>
                     <label className="inline-flex items-center gap-1"><input type="radio" name="fb" checked={facebookHas==='no'} onChange={()=>setFacebookHas('no')} /> Não tem</label>
                   </div>
                   {facebookHas === 'yes' && (
                     <>
-                      <input className="input mt-1 w-full" placeholder="Nome de usuário (sem @)" value={facebookUrl} onChange={(e)=>setFacebookUrl(e.target.value.replace(/\s+/g, ''))} />
-                      <div className="mt-1 text-[11px] text-gray-500">Digite apenas o nome de usuário. Ex.: minhabanca</div>
+                      <input className="input mt-1 w-full" placeholder="https://facebook.com/minhabanca" value={facebookUrl} onChange={(e)=>setFacebookUrl(e.target.value)} />
+                      <div className="mt-1 text-[11px] text-gray-500">Cole o link completo do seu perfil do Facebook</div>
                     </>
                   )}
                 </div>
                 <div>
-                  <label className="text-[12px] text-gray-700">Instagram</label>
+                  <label className="text-[12px] text-gray-700 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-pink-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                    </svg>
+                    Instagram
+                  </label>
                   <div className="mt-1 flex items-center gap-3 text-sm">
                     <label className="inline-flex items-center gap-1"><input type="radio" name="ig" checked={instagramHas==='yes'} onChange={()=>setInstagramHas('yes')} /> Tem</label>
                     <label className="inline-flex items-center gap-1"><input type="radio" name="ig" checked={instagramHas==='no'} onChange={()=>setInstagramHas('no')} /> Não tem</label>
                   </div>
                   {instagramHas === 'yes' && (
                     <>
-                      <input className="input mt-1 w-full" placeholder="Nome de usuário (sem @)" value={instagramUrl} onChange={(e)=>setInstagramUrl(e.target.value.replace(/\s+/g, ''))} />
-                      <div className="mt-1 text-[11px] text-gray-500">Digite apenas o nome de usuário. Ex.: minhabanca</div>
+                      <input className="input mt-1 w-full" placeholder="https://instagram.com/minhabanca" value={instagramUrl} onChange={(e)=>setInstagramUrl(e.target.value)} />
+                      <div className="mt-1 text-[11px] text-gray-500">Cole o link completo do seu perfil do Instagram</div>
                     </>
                   )}
                 </div>
@@ -1128,13 +1245,13 @@ export default function JornaleiroRegisterPage() {
           </div>
         )}
 
-        {step === 6 && (
+        {step === 7 && (
           <div className="mt-6 text-center space-y-3">
             <h2 className="text-lg font-semibold">Tudo pronto! Bem-vindo ao Guia das Bancas</h2>
             <p className="text-sm text-gray-700 max-w-xl mx-auto">Você tomou a decisão certa ao trazer sua banca para o digital. Agora sua presença online vai ajudar novos clientes a encontrarem seus produtos com facilidade.</p>
             {socialsSkipped && (
               <div className="mx-auto max-w-xl rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-left text-[13px] text-amber-800">
-                Você pulou a etapa de redes sociais. No painel você poderá adicionar seus perfis e conectar o Google Meu Negócio para sincronizar fotos, avaliações e horários.
+                Você pulou a etapa de redes sociais. No painel você poderá adicionar seus perfis do Facebook e Instagram.
               </div>
             )}
             <div className="mt-4 flex items-center justify-center gap-3">
@@ -1144,13 +1261,13 @@ export default function JornaleiroRegisterPage() {
           </div>
         )}
 
-        {step !== 6 && (
+        {step !== 7 && (
         <div className="mt-6 flex items-center justify-end">
           <div className="flex items-center gap-2">
             {step > 1 && (
               <button onClick={onBack} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50">Voltar</button>
             )}
-            {step < 5 ? (
+            {step < 6 ? (
               <button onClick={onNext} className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95">Avançar</button>
             ) : (
               <>

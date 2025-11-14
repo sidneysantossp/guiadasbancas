@@ -68,8 +68,10 @@ export default function JornaleiroOnboardingPage() {
       } else {
         saved = JSON.parse(bancaDataStr);
         console.log('[Onboarding] 📦 Dados recuperados do localStorage:', saved);
-        console.log('[Onboarding] 🏢 is_cotista:', saved.is_cotista);
-        console.log('[Onboarding] 👥 selectedCotaAtiva:', saved.cotista_razao_social);
+        console.log('[Onboarding] 🏢 is_cotista do localStorage:', saved.is_cotista);
+        console.log('[Onboarding] 🏢 cotista_id do localStorage:', saved.cotista_id);
+        console.log('[Onboarding] 👥 cotista_razao_social do localStorage:', saved.cotista_razao_social);
+        console.log('[Onboarding] 📋 CNPJ/CPF do localStorage:', saved.cotista_cnpj_cpf);
       }
 
       // Tentar recuperar os dados completos do wizard para normalizar campos
@@ -135,11 +137,10 @@ export default function JornaleiroOnboardingPage() {
         cotista_cnpj_cpf: saved.cotista_cnpj_cpf ?? null,
       } as any;
       
-      console.log('[Onboarding] 🏢 Dados do cotista a serem salvos:', {
-        is_cotista: bancaData.is_cotista,
-        cotista_id: bancaData.cotista_id,
-        cotista_razao_social: bancaData.cotista_razao_social
-      });
+      console.log('[Onboarding] 🏢 ANTES DE SALVAR - is_cotista:', bancaData.is_cotista);
+      console.log('[Onboarding] 🏢 ANTES DE SALVAR - cotista_id:', bancaData.cotista_id);
+      console.log('[Onboarding] 👥 ANTES DE SALVAR - cotista_razao_social:', bancaData.cotista_razao_social);
+      console.log('[Onboarding] 📋 ANTES DE SALVAR - cotista_cnpj_cpf:', bancaData.cotista_cnpj_cpf);
 
       // Se já existe uma banca para este usuário, não criar novamente
       const { data: existing, error: existingErr } = await supabase
