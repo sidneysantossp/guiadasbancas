@@ -247,9 +247,14 @@ export default function JornaleiroOnboardingPage() {
 
       setStatus("success");
       setMessage("Banca criada com sucesso! Redirecionando...");
+      
+      console.log('[Onboarding] 🎉 Sucesso! Redirecionando para dashboard em 1.5s...');
+      console.log('[Onboarding] 📊 Banca criada com ID:', data.id);
+      console.log('[Onboarding] 🏢 is_cotista final:', data.is_cotista);
 
       // Redirecionar para dashboard (com hard reload para garantir que o layout detecte a banca)
       setTimeout(() => {
+        console.log('[Onboarding] 🔄 Executando redirecionamento agora...');
         window.location.href = '/jornaleiro/dashboard';
       }, 1500);
 
