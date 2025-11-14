@@ -27,7 +27,12 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const isCotista = banca.is_cotista === true && banca.cotista_id;
+  console.log('[JORNALEIRO/PRODUCTS] Banca row (campos cotista):', {
+    is_cotista: banca.is_cotista,
+    cotista_id: banca.cotista_id,
+  });
+
+  const isCotista = banca.is_cotista === true && !!banca.cotista_id;
   console.log(`[JORNALEIRO/PRODUCTS] Banca ${banca.id} - É cotista: ${isCotista}`);
 
   const { searchParams } = new URL(request.url);
@@ -62,19 +67,42 @@ export async function GET(request: NextRequest) {
   let produtosAdmin: any[] = [];
   
   if (isCotista) {
-    const { data } = await supabaseAdmin
-      .from('products')
-      .select(`
-        *,
-        categories(name),
-        bancas(name)
-      `)
-      .not('distribuidor_id', 'is', null)
-      .eq('active', true)
-      .order('created_at', { ascending: false });
+    // Buscar TODOS os produtos de distribuidores (sem limite de 1000)
+    // Supabase tem limite padrão de 1000, então vamos buscar em lotes se necessário
+    let allProducts: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
     
-    produtosAdmin = data || [];
-    console.log(`[JORNALEIRO/PRODUCTS] Cotista - ${produtosAdmin.length} produtos de distribuidores encontrados`);
+    while (hasMore) {
+      const { data, error: fetchError } = await supabaseAdmin
+        .from('products')
+        .select(`
+          *,
+          categories(name),
+          bancas(name)
+        `)
+        .not('distribuidor_id', 'is', null)
+        .eq('active', true)
+        .order('created_at', { ascending: false })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      
+      if (fetchError) {
+        console.error(`[JORNALEIRO/PRODUCTS] Erro ao buscar página ${page}:`, fetchError);
+        break;
+      }
+      
+      if (data && data.length > 0) {
+        allProducts = allProducts.concat(data);
+        page++;
+        hasMore = data.length === pageSize; // Se retornou menos que pageSize, não há mais páginas
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    produtosAdmin = allProducts;
+    console.log(`[JORNALEIRO/PRODUCTS] Cotista - ${produtosAdmin.length} produtos de distribuidores encontrados (${page} páginas)`);
   } else {
     console.log(`[JORNALEIRO/PRODUCTS] Não-cotista - produtos de distribuidores NÃO disponíveis`);
   }
