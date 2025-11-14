@@ -47,13 +47,30 @@ export default function JornaleiroOnboardingPage() {
       setMessage("Criando sua banca...");
       // Recuperar dados salvos no localStorage
       const bancaDataStr = localStorage.getItem("gb:bancaData");
+      
+      // Se não tem dados no localStorage, criar banca com dados mínimos do perfil
+      let saved: any = null;
       if (!bancaDataStr) {
-        setStatus("error");
-        setMessage("Dados da banca não encontrados. Por favor, faça o cadastro novamente.");
-        return;
+        console.log('[Onboarding] Dados não encontrados no localStorage, criando banca mínima...');
+        // Criar banca com dados básicos do usuário
+        saved = {
+          name: profile?.full_name || user?.email?.split('@')[0] || 'Minha Banca',
+          description: '',
+          phone: null,
+          whatsapp: null,
+          email: (user as any)?.email || null,
+          cep: '00000-000', // CEP padrão (obrigatório)
+          address: 'Endereço a configurar',
+          lat: -23.5505,
+          lng: -46.6333,
+          payment_methods: ['pix', 'dinheiro'],
+        };
+      } else {
+        saved = JSON.parse(bancaDataStr);
+        console.log('[Onboarding] 📦 Dados recuperados do localStorage:', saved);
+        console.log('[Onboarding] 🏢 is_cotista:', saved.is_cotista);
+        console.log('[Onboarding] 👥 selectedCotaAtiva:', saved.cotista_razao_social);
       }
-
-      const saved = JSON.parse(bancaDataStr);
 
       // Tentar recuperar os dados completos do wizard para normalizar campos
       let wizard: any = null;
@@ -66,6 +83,27 @@ export default function JornaleiroOnboardingPage() {
         ? `${wizard.street || ''}, ${wizard.number || ''}${wizard.neighborhood ? ' - ' + wizard.neighborhood : ''}, ${wizard.city || ''}${wizard.uf ? ' - ' + wizard.uf : ''}`.replace(/\s+,/g, ',').replace(/,\s+,/g, ', ')
         : (saved.address || '');
 
+      // Horários padrão se não tiver
+      const defaultHours = {
+        seg: '08:00-18:00',
+        ter: '08:00-18:00',
+        qua: '08:00-18:00',
+        qui: '08:00-18:00',
+        sex: '08:00-18:00',
+        sab: '08:00-14:00',
+      };
+
+      // Construir addressObj estruturado para facilitar edição posterior
+      const addressObj = {
+        cep: saved.cep || wizard?.cep || '00000-000',
+        street: wizard?.street || saved.street || '',
+        number: wizard?.number || saved.number || '',
+        complement: wizard?.complement || saved.complement || '',
+        neighborhood: wizard?.neighborhood || saved.neighborhood || '',
+        city: wizard?.city || saved.city || '',
+        uf: wizard?.uf || saved.uf || '',
+      };
+
       const bancaData = {
         name: saved.name,
         description: saved.description || '',
@@ -76,19 +114,32 @@ export default function JornaleiroOnboardingPage() {
         email: saved.email || null,
         instagram: saved.instagram || (wizard?.instagramHas === 'yes' ? (wizard?.instagramUrl || '').replace(/^@/, '') : null),
         facebook: saved.facebook || (wizard?.facebookHas === 'yes' ? (wizard?.facebookUrl || '').replace(/^@/, '') : null),
-        cep: saved.cep || wizard?.cep || null,
-        address: normalizedAddress,
+        cep: addressObj.cep, // CEP obrigatório
+        address: normalizedAddress || 'Endereço a configurar',
+        // Salvar também o objeto estruturado (temporariamente desabilitado até migração)
+        // ...(addressObj.street ? { addressObj: addressObj } : {}),
         lat: saved.lat ?? (wizard?.lat2 ? Number(wizard.lat2) : -23.5505),
         lng: saved.lng ?? (wizard?.lng2 ? Number(wizard.lng2) : -46.6333),
         tpu_url: saved.tpu_url || wizard?.bankTpuUrl || null,
-        // Se tivermos os hours do wizard, usá-los; caso contrário, painel usa default
-        hours: Array.isArray(wizard?.hours) ? wizard.hours : undefined,
-        delivery_fee: 0,
-        min_order_value: 0,
-        delivery_radius: 5,
-        preparation_time: 30,
+        opening_hours: saved.opening_hours || defaultHours,
+        delivery_fee: saved.delivery_fee ?? 0,
+        min_order_value: saved.min_order_value ?? 0,
+        delivery_radius: saved.delivery_radius ?? 5,
+        preparation_time: saved.preparation_time ?? 30,
         payment_methods: saved.payment_methods || ['pix', 'dinheiro'],
+        // Dados do cotista (prioritize saved que vem do wizard completo)
+        is_cotista: saved.is_cotista ?? false,
+        cotista_id: saved.cotista_id ?? null,
+        cotista_codigo: saved.cotista_codigo ?? null,
+        cotista_razao_social: saved.cotista_razao_social ?? null,
+        cotista_cnpj_cpf: saved.cotista_cnpj_cpf ?? null,
       } as any;
+      
+      console.log('[Onboarding] 🏢 Dados do cotista a serem salvos:', {
+        is_cotista: bancaData.is_cotista,
+        cotista_id: bancaData.cotista_id,
+        cotista_razao_social: bancaData.cotista_razao_social
+      });
 
       // Se já existe uma banca para este usuário, não criar novamente
       const { data: existing, error: existingErr } = await supabase
@@ -132,14 +183,38 @@ export default function JornaleiroOnboardingPage() {
         .single();
 
       if (error) {
-        throw error;
+        console.error('[Onboarding] ❌ Erro ao criar banca:', error);
+        throw new Error(`Erro ao criar banca: ${error.message || JSON.stringify(error)}`);
       }
+      
+      console.log('[Onboarding] ✅ Banca criada com sucesso!');
+      console.log('[Onboarding] 🏢 is_cotista salvo:', data.is_cotista);
+      console.log('[Onboarding] 👥 cotista_razao_social salvo:', data.cotista_razao_social);
 
-      // Atualizar perfil com banca_id
+      // Atualizar perfil com banca_id E dados do cadastro (phone, cpf)
       console.log('[Onboarding] Atualizando user_profiles com banca_id:', data.id);
+      
+      // Tentar recuperar dados do perfil do wizard
+      const profileUpdates: any = { banca_id: data.id };
+      
+      // Extrair telefone e CPF do wizard ou saved (bancaData)
+      const phoneToSave = saved.phone || wizard?.phone || wizard?.servicePhone;
+      const cpfToSave = saved.cpf || wizard?.cpf;
+      
+      if (phoneToSave) {
+        profileUpdates.phone = phoneToSave;
+        console.log('[Onboarding] 📞 Salvando telefone no perfil:', phoneToSave);
+      }
+      if (cpfToSave) {
+        profileUpdates.cpf = cpfToSave;
+        console.log('[Onboarding] 🆔 Salvando CPF no perfil:', cpfToSave);
+      }
+      
+      console.log('[Onboarding] 📋 Dados para atualizar perfil:', profileUpdates);
+      
       const { error: profileError } = await supabase
         .from("user_profiles")
-        .update({ banca_id: data.id })
+        .update(profileUpdates)
         .eq("id", user!.id);
 
       if (profileError) {
@@ -149,21 +224,27 @@ export default function JornaleiroOnboardingPage() {
       
       console.log('[Onboarding] ✅ Banca criada e vinculada ao perfil com sucesso!');
 
-      // Limpar localStorage
+      // Salvar banca no cache imediatamente
+      sessionStorage.setItem(`gb:banca:${user!.id}`, JSON.stringify(data));
+      console.log('[Onboarding] 📦 Banca salva no cache');
+
+      // Limpar localStorage do wizard
       localStorage.removeItem("gb:bancaData");
+      localStorage.removeItem("gb:sellerWizard");
 
       setStatus("success");
-      setMessage("Banca criada com sucesso! Redirecionando para a Academy...");
+      setMessage("Banca criada com sucesso! Redirecionando...");
 
-      // Redirecionar para academy (vídeo de boas-vindas)
+      // Redirecionar para dashboard (com hard reload para garantir que o layout detecte a banca)
       setTimeout(() => {
-        router.push(("/jornaleiro/academy" as Route));
-      }, 2000);
+        window.location.href = '/jornaleiro/dashboard';
+      }, 1500);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao criar banca:", error);
       setStatus("error");
-      setMessage("Erro ao criar banca. Tente novamente mais tarde.");
+      const errorMsg = error?.message || error?.toString() || "Erro desconhecido";
+      setMessage(`Erro ao criar banca: ${errorMsg}`);
     }
   };
 
