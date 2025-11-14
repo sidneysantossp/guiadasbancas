@@ -172,6 +172,24 @@ export default function JornaleiroOnboardingPage() {
       }
 
       // Criar banca no Supabase
+      console.log('[Onboarding] 👤 user.id:', user!.id);
+      console.log('[Onboarding] 📧 user.email:', (user as any)?.email);
+      console.log('[Onboarding] 🔑 Verificando se usuário existe no banco...');
+      
+      // Verificar se o usuário existe no banco antes de criar a banca
+      const { data: userCheck, error: userCheckError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('id', user!.id)
+        .single();
+      
+      if (userCheckError || !userCheck) {
+        console.error('[Onboarding] ❌ Usuário não encontrado no banco:', userCheckError);
+        throw new Error('Usuário não encontrado. Por favor, faça login novamente.');
+      }
+      
+      console.log('[Onboarding] ✅ Usuário encontrado no banco!');
+      
       const { data, error } = await supabase
         .from("bancas")
         .insert({
