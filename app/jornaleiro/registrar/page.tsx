@@ -45,6 +45,12 @@ export default function JornaleiroRegisterPage() {
     razao_social: string;
     cnpj_cpf: string;
   } | null>(null);
+  
+  console.log('[Wizard] 🔄 Estado atual do componente:', {
+    step,
+    isCotaAtiva,
+    selectedCotaAtiva: selectedCotaAtiva ? 'SELECIONADO' : 'NÃO SELECIONADO'
+  });
 
   // Field-level errors (Step 1)
   const [fieldErrors, setFieldErrors] = useState<{
@@ -419,6 +425,10 @@ export default function JornaleiroRegisterPage() {
   const onNext = async () => {
     setError(null);
     if (step === 1) {
+      console.log('[Wizard] 📋 Avançando do Step 1 - Estado atual:', {
+        isCotaAtiva,
+        selectedCotaAtiva
+      });
       if (isCotaAtiva && !selectedCotaAtiva) { setError('Selecione sua Cota Ativa ou escolha "Não possuo Cota Ativa".'); return; }
       setStep(2);
       return;
