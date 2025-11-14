@@ -48,23 +48,17 @@ export default function JornaleiroOnboardingPage() {
       // Recuperar dados salvos no localStorage
       const bancaDataStr = localStorage.getItem("gb:bancaData");
       
-      // Se não tem dados no localStorage, criar banca com dados mínimos do perfil
+      // Se não tem dados no localStorage, redirecionar para o cadastro
       let saved: any = null;
       if (!bancaDataStr) {
-        console.log('[Onboarding] Dados não encontrados no localStorage, criando banca mínima...');
-        // Criar banca com dados básicos do usuário
-        saved = {
-          name: profile?.full_name || user?.email?.split('@')[0] || 'Minha Banca',
-          description: '',
-          phone: null,
-          whatsapp: null,
-          email: (user as any)?.email || null,
-          cep: '00000-000', // CEP padrão (obrigatório)
-          address: 'Endereço a configurar',
-          lat: -23.5505,
-          lng: -46.6333,
-          payment_methods: ['pix', 'dinheiro'],
-        };
+        console.log('[Onboarding] ❌ Dados não encontrados no localStorage!');
+        console.log('[Onboarding] 🔄 Redirecionando para página de cadastro...');
+        setStatus("error");
+        setMessage("Dados de cadastro não encontrados. Redirecionando...");
+        setTimeout(() => {
+          router.push("/jornaleiro/registrar" as Route);
+        }, 2000);
+        return;
       } else {
         saved = JSON.parse(bancaDataStr);
         console.log('[Onboarding] 📦 Dados recuperados do localStorage:', saved);
