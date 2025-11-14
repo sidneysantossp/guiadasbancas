@@ -1138,16 +1138,19 @@ export default function BancaV2Page() {
               />
             </div>
 
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Google Maps / GMB</label>
-              <input
-                {...register('socials.gmb')}
-                key={`gmb-${bancaData?.updated_at || formKey}`}
-                autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                placeholder="https://maps.google.com/..."
-              />
-            </div>
+            {/* Google Maps / GMB - OCULTO PARA JORNALEIROS */}
+            {false && (
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700">Google Maps / GMB</label>
+                <input
+                  {...register('socials.gmb')}
+                  key={`gmb-${bancaData?.updated_at || formKey}`}
+                  autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  placeholder="https://maps.google.com/..."
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -1195,11 +1198,16 @@ export default function BancaV2Page() {
                         setTimeout(() => {
                           numberRef.current?.focus();
                         }, 100);
+                        
+                        // Mensagem de sucesso
+                        toast.success('✅ Endereço encontrado com sucesso!');
                       } else {
                         console.error('❌ CEP não encontrado');
+                        toast.error('❌ CEP não encontrado. Verifique o número digitado.');
                       }
                     } catch (error) {
                       console.error('Erro ao buscar CEP:', error);
+                      toast.error('❌ Erro ao buscar CEP. Verifique sua conexão com a internet.');
                     }
                   }
                 }}
