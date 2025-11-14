@@ -114,6 +114,7 @@ export default function BancaV2Page() {
   const [isCotista, setIsCotista] = useState(false);
   const [selectedCotista, setSelectedCotista] = useState<SelectedCotistaInfo | null>(null);
   const [cotistaDirty, setCotistaDirty] = useState(false);
+  const [addressFieldsEnabled, setAddressFieldsEnabled] = useState(false);
 
   const withCacheBust = (url?: string, seed?: number | string) => {
     if (!url) return '';
@@ -259,7 +260,12 @@ export default function BancaV2Page() {
         }
       }, 200);
     }
-  }, [bancaData?.profile, profileResp?.profile, setValue]);
+    
+    // Habilitar campos de endereço se já houver dados
+    if (bancaData?.addressObj?.cep || bancaData?.cep) {
+      setAddressFieldsEnabled(true);
+    }
+  }, [bancaData?.profile, profileResp?.profile, bancaData?.addressObj, bancaData?.cep, setValue]);
 
   // 🔥 CRITICAL: Reset form quando dados da API mudarem (antes da pintura)
   useLayoutEffect(() => {
@@ -1176,15 +1182,21 @@ export default function BancaV2Page() {
                       const data = await response.json();
                       
                       if (!data.erro) {
+                        console.log('✅ CEP encontrado:', data);
                         setValue('addressObj.street', data.logradouro, { shouldDirty: true });
                         setValue('addressObj.neighborhood', data.bairro, { shouldDirty: true });
                         setValue('addressObj.city', data.localidade, { shouldDirty: true });
                         setValue('addressObj.uf', data.uf, { shouldDirty: true });
                         
+                        // Habilitar campos de endereço
+                        setAddressFieldsEnabled(true);
+                        
                         // Focar no campo de número
                         setTimeout(() => {
                           numberRef.current?.focus();
                         }, 100);
+                      } else {
+                        console.error('❌ CEP não encontrado');
                       }
                     } catch (error) {
                       console.error('Erro ao buscar CEP:', error);
@@ -1200,8 +1212,12 @@ export default function BancaV2Page() {
                 {...register('addressObj.city')}
                 key={`city-${bancaData?.updated_at || formKey}`}
                 autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                className="mt-1 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600"
-                readOnly
+                className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${
+                  addressFieldsEnabled 
+                    ? 'border-gray-300 bg-white text-gray-900' 
+                    : 'border-gray-200 bg-gray-50 text-gray-600'
+                }`}
+                readOnly={!addressFieldsEnabled}
               />
             </div>
 
@@ -1211,8 +1227,12 @@ export default function BancaV2Page() {
                 {...register('addressObj.street')}
                 key={`street-${bancaData?.updated_at || formKey}`}
                 autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                className="mt-1 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600"
-                readOnly
+                className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${
+                  addressFieldsEnabled 
+                    ? 'border-gray-300 bg-white text-gray-900' 
+                    : 'border-gray-200 bg-gray-50 text-gray-600'
+                }`}
+                readOnly={!addressFieldsEnabled}
               />
             </div>
 
@@ -1240,8 +1260,12 @@ export default function BancaV2Page() {
                 {...register('addressObj.neighborhood')}
                 key={`neighborhood-${bancaData?.updated_at || formKey}`}
                 autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                className="mt-1 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600"
-                readOnly
+                className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${
+                  addressFieldsEnabled 
+                    ? 'border-gray-300 bg-white text-gray-900' 
+                    : 'border-gray-200 bg-gray-50 text-gray-600'
+                }`}
+                readOnly={!addressFieldsEnabled}
               />
             </div>
             <div>
@@ -1258,8 +1282,12 @@ export default function BancaV2Page() {
               <select
                 {...register('addressObj.uf')}
                 key={`uf-${bancaData?.updated_at || formKey}`}
-                className="mt-1 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600"
-                disabled
+                className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${
+                  addressFieldsEnabled 
+                    ? 'border-gray-300 bg-white text-gray-900' 
+                    : 'border-gray-200 bg-gray-50 text-gray-600'
+                }`}
+                disabled={!addressFieldsEnabled}
               >
                 <option value="">Selecione</option>
                 {ESTADOS.map(uf => (
