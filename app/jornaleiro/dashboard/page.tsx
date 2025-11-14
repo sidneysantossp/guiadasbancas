@@ -38,6 +38,9 @@ export default function JornaleiroDashboardPage() {
         return;
       }
       
+      console.log('[Dashboard] 🏪 Banca carregada:', bancaData);
+      console.log('[Dashboard] 👥 is_cotista:', bancaData?.is_cotista);
+      console.log('[Dashboard] 📄 tpu_url:', bancaData?.tpu_url);
       setBanca(bancaData);
     } catch (error) {
       console.error('[Dashboard] Erro ao carregar banca:', error);
@@ -146,8 +149,58 @@ export default function JornaleiroDashboardPage() {
     );
   }
 
+  // Verificar se precisa mostrar alerta de TPU
+  const needsTpuAlert = banca && !banca.is_cotista && !banca.tpu_url;
+
   return (
     <div className="space-y-4 overflow-x-hidden px-3 sm:px-0 max-w-full">
+      {/* Alerta TPU para não-cotistas sem documento */}
+      {needsTpuAlert && (
+        <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 sm:p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+                <svg className="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 18.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>  
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-lg font-semibold text-amber-900 mb-2">
+                📄 Documento Pendente
+              </div>
+              <p className="text-sm text-amber-800 mb-4">
+                <strong>Seu cadastro da banca só será liberado após o envio do Termo de Permissão de Uso (TPU).</strong>
+                <br />
+                Este documento é obrigatório para não-cotistas e garante que você tem autorização para vender na localização informada.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link
+                  href="/jornaleiro/banca"
+                  className="inline-flex items-center justify-center px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  </svg>
+                  Enviar TPU na Minha Banca
+                </Link>
+                <a
+                  href="https://example.com/modelo-tpu.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-4 py-2 bg-white text-amber-700 text-sm font-medium rounded-lg border border-amber-300 hover:bg-amber-50 transition-colors"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Baixar Modelo TPU
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 justify-items-center sm:justify-items-stretch max-w-full">
         <div className="w-full max-w-sm sm:max-w-none min-w-0 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
           <div className="text-sm text-gray-500">Pedidos hoje</div>

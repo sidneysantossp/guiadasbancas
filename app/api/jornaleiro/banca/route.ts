@@ -112,6 +112,8 @@ async function loadBancaForUser(userId: string): Promise<any> {
       banca_name: data.name,
       banca_user_id: data.user_id,
       email: data.email,
+      is_cotista: data.is_cotista,
+      cotista_razao_social: data.cotista_razao_social,
       MATCH: data.user_id === userId ? '✅ CORRETO' : '❌ ERRO: user_id não bate!'
     });
     
@@ -124,8 +126,24 @@ async function loadBancaForUser(userId: string): Promise<any> {
       return null;
     }
     
-    // Parse robusto do endereço completo para addressObj
-    const addressObj = parseAddressString(data.address || '', data.cep || '');
+    // Buscar perfil do usuário para trazer phone/cpf
+    const { data: profile, error: profileErr } = await supabaseAdmin
+      .from('user_profiles')
+      .select('full_name, phone, cpf, avatar_url, updated_at')
+      .eq('id', userId)
+      .single();
+    if (profileErr) {
+      console.warn('[loadBancaForUser] ⚠️ Não foi possível carregar profile:', profileErr.message);
+    }
+
+    // Usar addressObj do banco se existir, senão fazer parse do endereço
+    let addressObj;
+    if (data.addressObj && typeof data.addressObj === 'object') {
+      addressObj = data.addressObj;
+    } else {
+      // Fallback: Parse robusto do endereço completo para addressObj
+      addressObj = parseAddressString(data.address || '', data.cep || '');
+    }
     
     const result = {
       id: data.id,
@@ -170,6 +188,20 @@ async function loadBancaForUser(userId: string): Promise<any> {
       delivery_enabled: data.delivery_enabled || false,
       free_shipping_threshold: data.free_shipping_threshold || 120,
       origin_cep: data.origin_cep || '',
+      // Dados do cotista
+      is_cotista: data.is_cotista || false,
+      cotista_id: data.cotista_id || null,
+      cotista_codigo: data.cotista_codigo || null,
+      cotista_razao_social: data.cotista_razao_social || null,
+      cotista_cnpj_cpf: data.cotista_cnpj_cpf || null,
+      // Perfil (para preencher formulário mesmo se /profile falhar)
+      profile: {
+        full_name: (profile as any)?.full_name || '',
+        phone: (profile as any)?.phone || '',
+        cpf: (profile as any)?.cpf || '',
+        avatar_url: (profile as any)?.avatar_url || '',
+        updated_at: (profile as any)?.updated_at || null,
+      },
     };
     
     console.log("Retornando banca com imagens:", {
@@ -345,6 +377,14 @@ export async function PUT(request: NextRequest) {
       cotista_cnpj_cpf: data.cotista_cnpj_cpf || null,
       updated_at: new Date().toISOString()
     };
+    
+    console.log('[PUT] 👥 Salvando is_cotista:', updateData.is_cotista);
+    console.log('[PUT] 🏢 Salvando cotista_id:', updateData.cotista_id);
+
+    // Adicionar addressObj apenas se tiver dados estruturados (temporariamente desabilitado)
+    // if (data.addressObj && (data.addressObj.street || data.addressObj.city)) {
+    //   updateData.addressObj = data.addressObj;
+    // }
 
     // CRÍTICO: Imagens são completamente independentes
     // Só atualizar se foi explicitamente enviado (aceita string vazia também)

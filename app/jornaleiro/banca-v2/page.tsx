@@ -575,6 +575,8 @@ export default function BancaV2Page() {
       
       // Agora salvar dados da banca
       console.log('💾 [SAVE] Salvando dados da banca...');
+      console.log('👥 [SAVE] is_cotista:', isCotista);
+      console.log('🏢 [SAVE] selectedCotista:', selectedCotista);
       
       const res = await fetch('/api/jornaleiro/banca', {
         method: 'PUT',
