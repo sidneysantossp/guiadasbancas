@@ -105,6 +105,7 @@ export default function BancaV2Page() {
   const sellerNameRef = useRef<HTMLInputElement | null>(null);
   const phoneRef = useRef<HTMLInputElement | null>(null);
   const cpfRef = useRef<HTMLInputElement | null>(null);
+  const numberRef = useRef<HTMLInputElement | null>(null);
   const [coverImages, setCoverImages] = useState<string[]>([]);
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
   const [imagesChanged, setImagesChanged] = useState(false);
@@ -620,6 +621,10 @@ export default function BancaV2Page() {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       console.log('🔄 [V2] Queries invalidadas - dados serão recarregados');
       
+      // Disparar evento para atualizar navbar
+      window.dispatchEvent(new Event('banca-updated'));
+      console.log('📢 [V2] Evento banca-updated disparado para atualizar navbar');
+      
       // Reset imediato com os dados retornados do servidor (mapeados para o formulário)
       const r = response.data || {};
       const adr = r.addressObj || {};
@@ -837,10 +842,25 @@ export default function BancaV2Page() {
               key={`seller-cpf-${bancaData?.profile?.updated_at || profileResp?.profile?.updated_at || formKey}`}
               defaultValue=""
               onChange={(e) => {
-                setValue('profile.cpf', e.target.value, { shouldDirty: true });
+                // Aplicar máscara de CPF: 000.000.000-00
+                let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é dígito
+                if (value.length > 11) value = value.slice(0, 11); // Limita a 11 dígitos
+                
+                // Aplica a máscara
+                if (value.length > 9) {
+                  value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+                } else if (value.length > 6) {
+                  value = value.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+                } else if (value.length > 3) {
+                  value = value.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+                }
+                
+                e.target.value = value;
+                setValue('profile.cpf', value, { shouldDirty: true });
               }}
               autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
               placeholder="000.000.000-00"
+              maxLength={14}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
           </div>
@@ -1139,6 +1159,38 @@ export default function BancaV2Page() {
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 placeholder="00000-000"
                 maxLength={9}
+                onChange={async (e) => {
+                  let value = e.target.value.replace(/\D/g, '');
+                  if (value.length > 8) value = value.slice(0, 8);
+                  if (value.length > 5) {
+                    value = value.replace(/(\d{5})(\d{1,3})/, '$1-$2');
+                  }
+                  e.target.value = value;
+                  setValue('addressObj.cep', value, { shouldDirty: true });
+                  
+                  // Buscar endereço quando CEP estiver completo
+                  const cepNumeros = value.replace(/\D/g, '');
+                  if (cepNumeros.length === 8) {
+                    try {
+                      const response = await fetch(`https://viacep.com.br/ws/${cepNumeros}/json/`);
+                      const data = await response.json();
+                      
+                      if (!data.erro) {
+                        setValue('addressObj.street', data.logradouro, { shouldDirty: true });
+                        setValue('addressObj.neighborhood', data.bairro, { shouldDirty: true });
+                        setValue('addressObj.city', data.localidade, { shouldDirty: true });
+                        setValue('addressObj.uf', data.uf, { shouldDirty: true });
+                        
+                        // Focar no campo de número
+                        setTimeout(() => {
+                          numberRef.current?.focus();
+                        }, 100);
+                      }
+                    } catch (error) {
+                      console.error('Erro ao buscar CEP:', error);
+                    }
+                  }
+                }}
               />
             </div>
 
@@ -1148,7 +1200,8 @@ export default function BancaV2Page() {
                 {...register('addressObj.city')}
                 key={`city-${bancaData?.updated_at || formKey}`}
                 autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600"
+                readOnly
               />
             </div>
 
@@ -1158,14 +1211,24 @@ export default function BancaV2Page() {
                 {...register('addressObj.street')}
                 key={`street-${bancaData?.updated_at || formKey}`}
                 autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600"
+                readOnly
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Número</label>
               <input
-                {...register('addressObj.number')}
+                {...register('addressObj.number', {
+                  setValueAs: (v) => {
+                    // Guardar ref manualmente
+                    return v;
+                  }
+                })}
+                ref={(e) => {
+                  register('addressObj.number').ref(e);
+                  numberRef.current = e;
+                }}
                 key={`number-${bancaData?.updated_at || formKey}`}
                 autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -1177,7 +1240,8 @@ export default function BancaV2Page() {
                 {...register('addressObj.neighborhood')}
                 key={`neighborhood-${bancaData?.updated_at || formKey}`}
                 autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600"
+                readOnly
               />
             </div>
             <div>
@@ -1194,7 +1258,8 @@ export default function BancaV2Page() {
               <select
                 {...register('addressObj.uf')}
                 key={`uf-${bancaData?.updated_at || formKey}`}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600"
+                disabled
               >
                 <option value="">Selecione</option>
                 {ESTADOS.map(uf => (
@@ -1272,24 +1337,26 @@ export default function BancaV2Page() {
 
         {/* Pagamentos e Categorias - REMOVIDO PARA JORNALEIROS (controlado pelos admins) */}
 
-        {/* Entrega e frete */}
-        <div className={`${activeTab === 'banca' ? 'block' : 'hidden'} rounded-xl border border-gray-200 bg-white p-6`}>
-          <h2 className="mb-4 text-lg font-semibold">Entrega</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-              <input key={`delivery-${formKey}`} type="checkbox" {...register('delivery_enabled')} className="rounded" />
-              Entrega ativada
-            </label>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Frete grátis a partir de (R$)</label>
-              <input key={`free-threshold-${formKey}`} type="number" step="1" min="0" {...register('free_shipping_threshold', { valueAsNumber: true })} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">CEP de origem</label>
-              <input key={`origin-cep-${formKey}`} {...register('origin_cep')} autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="00000-000" />
+        {/* Entrega e frete - OCULTO TEMPORARIAMENTE */}
+        {false && (
+          <div className={`${activeTab === 'banca' ? 'block' : 'hidden'} rounded-xl border border-gray-200 bg-white p-6`}>
+            <h2 className="mb-4 text-lg font-semibold">Entrega</h2>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input key={`delivery-${formKey}`} type="checkbox" {...register('delivery_enabled')} className="rounded" />
+                Entrega ativada
+              </label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Frete grátis a partir de (R$)</label>
+                <input key={`free-threshold-${formKey}`} type="number" step="1" min="0" {...register('free_shipping_threshold', { valueAsNumber: true })} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">CEP de origem</label>
+                <input key={`origin-cep-${formKey}`} {...register('origin_cep')} autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="00000-000" />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Botões */}
         <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4">

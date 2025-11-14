@@ -137,9 +137,18 @@ export default function ImageUploader({ label = "Imagens", multiple = true, max 
                   alt="preview"
                   className={previewShape === 'circle' ? 'h-24 w-24 object-cover' : 'w-full h-24 object-cover'}
                 />
+                {/* Botão X sempre visível no canto superior direito */}
+                <button
+                  type="button"
+                  onClick={() => removeAt(i)}
+                  className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold shadow-lg transition-all z-10"
+                  title="Remover imagem"
+                >
+                  ×
+                </button>
+                {/* Controles de movimento aparecem no hover */}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                   <button type="button" onClick={()=>move(i, i-1)} className="text-white bg-black/40 rounded px-2 py-1 text-xs">◀︎</button>
-                  <button type="button" onClick={()=>removeAt(i)} className="text-white bg-red-600 rounded px-2 py-1 text-xs">Remover</button>
                   <button type="button" onClick={()=>move(i, i+1)} className="text-white bg-black/40 rounded px-2 py-1 text-xs">▶︎</button>
                 </div>
               </div>

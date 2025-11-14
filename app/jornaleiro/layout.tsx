@@ -229,6 +229,18 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         return;
       }
 
+      // Verificar se usuário está bloqueado
+      if (profile && profile.blocked) {
+        console.error('[Security] Usuário bloqueado pelo administrador');
+        console.error('[Security] Motivo:', profile.blocked_reason);
+        alert(`Sua conta foi bloqueada pelo administrador.\nMotivo: ${profile.blocked_reason || 'Não especificado'}`);
+        sessionStorage.clear();
+        await signOut();
+        router.push('/jornaleiro');
+        setBancaValidated(true);
+        return;
+      }
+
       // Cache da banca em sessionStorage para evitar múltiplas chamadas
       // IMPORTANTE: Usar chave específica do usuário para evitar conflito
       const cacheKey = `gb:banca:${user.id}`;
@@ -279,16 +291,16 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           .single();
 
         if (error || !bancaData) {
-          console.error('[Layout] ❌ SEGURANÇA: Usuário sem banca associada!', error?.message);
-          console.error('[Layout] Forçando logout por segurança...');
+          console.error('[Layout] ❌ Usuário sem banca associada!', error?.message);
+          console.log('[Layout] Redirecionando para onboarding para criar banca...');
           setBanca(null);
           setBancaValidated(true);
           
-          // SEGURANÇA CRÍTICA: Fazer logout imediato se não tiver banca
-          sessionStorage.clear();
-          localStorage.clear();
-          await signOut();
-          router.push('/jornaleiro?error=no_banca');
+          // Redirecionar para onboarding em vez de fazer logout
+          // Isso permite que usuários sem banca criem uma
+          if (pathname !== '/jornaleiro/onboarding') {
+            router.push('/jornaleiro/onboarding');
+          }
           return;
         }
 
@@ -324,6 +336,35 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
     validateUserAccess();
   }, [user?.id, profile?.role, authLoading, isAuthRoute]);
+
+  // Listener para atualizar a banca quando houver alteração (ex: mudança de imagem)
+  useEffect(() => {
+    const handleBancaUpdate = () => {
+      console.log('[Layout] 🔄 Evento de atualização de banca recebido');
+      // Limpar cache e recarregar
+      if (user?.id) {
+        sessionStorage.removeItem(`gb:banca:${user.id}`);
+        // Recarregar banca
+        const reloadBanca = async () => {
+          const { data: bancaData } = await supabase
+            .from('bancas')
+            .select('id, name, user_id, email, profile_image')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (bancaData) {
+            console.log('[Layout] ✅ Banca recarregada:', bancaData);
+            setBanca(bancaData);
+            sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(bancaData));
+          }
+        };
+        reloadBanca();
+      }
+    };
+
+    window.addEventListener('banca-updated', handleBancaUpdate);
+    return () => window.removeEventListener('banca-updated', handleBancaUpdate);
+  }, [user?.id]);
 
   // Timeout de segurança: se demorar mais de 2s, liberar mesmo assim
   useEffect(() => {
@@ -395,31 +436,19 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     });
   }
   
-  // SEGURANÇA CRÍTICA: Se não tiver banca, bloquear TUDO
+  // SEGURANÇA CRÍTICA: Se não tiver banca, redirecionar para onboarding
   if (!banca && !isAuthRoute) {
+    // Redirecionar para onboarding para criar a banca
+    if (typeof window !== 'undefined') {
+      console.log('[Layout] Usuário sem banca, redirecionando para onboarding...');
+      router.push('/jornaleiro/onboarding');
+    }
     return (
       <ToastProvider>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-            <div className="text-6xl mb-4">🚫</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h1>
-            <p className="text-gray-600 mb-6">
-              Sua conta não possui uma banca associada. Entre em contato com o administrador para configurar sua banca.
-            </p>
-            <div className="space-y-3">
-              <button
-                onClick={logout}
-                className="w-full bg-[#ff5c00] text-white px-4 py-2 rounded-md hover:opacity-90"
-              >
-                Ir para Dashboard
-              </button>
-              <button
-                onClick={() => router.push('/jornaleiro/banca')}
-                className="w-full border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50"
-              >
-                Cadastrar Banca
-              </button>
-            </div>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Configurando sua conta...</p>
           </div>
         </div>
       </ToastProvider>
