@@ -6,24 +6,41 @@ export const dynamic = 'force-dynamic';
 
 // Helper para identificar o usuário autenticado
 async function getUserFromRequest(request: NextRequest) {
+  console.log('🔐 [getUserFromRequest] Iniciando autenticação...');
+  
   // 1) Tentar via Bearer token (Supabase)
   const authHeader = request.headers.get("authorization");
+  console.log('🔐 [getUserFromRequest] Auth header:', authHeader ? 'Presente' : 'Ausente');
+  
   if (authHeader?.startsWith("Bearer ") && supabaseAdmin) {
     try {
       const token = authHeader.substring(7);
       const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-      if (!error && user) return user as any;
-    } catch {}
+      if (!error && user) {
+        console.log('✅ [getUserFromRequest] Autenticado via Bearer token:', user.id);
+        return user as any;
+      }
+      console.log('❌ [getUserFromRequest] Erro no Bearer token:', error);
+    } catch (err) {
+      console.error('❌ [getUserFromRequest] Exceção no Bearer token:', err);
+    }
   }
 
   // 2) Fallback: sessão padrão do app (NextAuth/Auth.js)
   try {
+    console.log('🔐 [getUserFromRequest] Tentando NextAuth session...');
     const session = await auth();
+    console.log('🔐 [getUserFromRequest] Session:', session ? 'Presente' : 'Ausente');
+    
     if ((session as any)?.user?.id) {
+      console.log('✅ [getUserFromRequest] Autenticado via NextAuth:', (session as any).user.id);
       return { id: (session as any).user.id, email: (session as any).user.email } as any;
     }
-  } catch {}
+  } catch (err) {
+    console.error('❌ [getUserFromRequest] Erro no NextAuth:', err);
+  }
 
+  console.error('❌ [getUserFromRequest] Nenhum método de autenticação funcionou');
   return null;
 }
 
@@ -76,6 +93,13 @@ export async function GET(request: NextRequest) {
       success: true,
       profile,
       banca: banca || null,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store',
+      },
     });
   } catch (error) {
     console.error("Erro ao buscar perfil:", error);
@@ -131,7 +155,7 @@ export async function PUT(request: NextRequest) {
         avatar_url: profileUpdates.avatar_url,
       });
 
-      const { data: updatedProfile, error: profileError } = await (supabaseAdmin
+      const { data: updatedProfile, error: profileError, count } = await (supabaseAdmin
         .from("user_profiles")
         .update({
           full_name: profileUpdates.full_name,
@@ -147,7 +171,13 @@ export async function PUT(request: NextRequest) {
         throw profileError;
       }
 
-      console.log('✅ [API Profile PUT] Perfil atualizado com sucesso:', updatedProfile);
+      console.log('✅ [API Profile PUT] Perfil atualizado com sucesso!');
+      console.log('📊 [API Profile PUT] Linhas afetadas:', updatedProfile?.length || 0);
+      console.log('📝 [API Profile PUT] Dados atualizados:', updatedProfile);
+      
+      if (!updatedProfile || updatedProfile.length === 0) {
+        console.error('⚠️ [API Profile PUT] AVISO: Nenhuma linha foi atualizada! Possível problema de RLS ou user_id incorreto.');
+      }
     } else {
       console.log('⏭️  [API Profile PUT] Nenhum dado de perfil para atualizar');
     }
@@ -264,6 +294,13 @@ export async function PUT(request: NextRequest) {
       success: true,
       profile: updatedProfile,
       banca: updatedBanca,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store',
+      },
     });
   } catch (error) {
     console.error("Erro ao atualizar perfil:", error);
