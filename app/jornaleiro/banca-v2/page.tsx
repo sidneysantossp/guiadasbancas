@@ -324,6 +324,8 @@ export default function BancaV2Page() {
       console.log('👤 [V2] Dados do perfil (prof):', prof);
       console.log('📱 [V2] prof.phone:', prof.phone);
       console.log('📄 [V2] prof.cpf:', prof.cpf);
+      console.log('📍 [V2] CEP:', formData.addressObj.cep);
+      console.log('🏠 [V2] Complemento:', formData.addressObj.complement);
       console.log('🔄 [V2] Resetando form com novos dados:', formData);
       reset(formData, { keepDirty: false, keepDirtyValues: false, keepValues: false });
       // Forçar preenchimento de campos simples (telefone/CPF) após reset com múltiplas tentativas
@@ -1161,56 +1163,63 @@ export default function BancaV2Page() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700">CEP</label>
-              <input
-                {...register('addressObj.cep')}
-                key={`cep-${bancaData?.updated_at || formKey}`}
-                autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                placeholder="00000-000"
-                maxLength={9}
-                onChange={async (e) => {
-                  let value = e.target.value.replace(/\D/g, '');
-                  if (value.length > 8) value = value.slice(0, 8);
-                  if (value.length > 5) {
-                    value = value.replace(/(\d{5})(\d{1,3})/, '$1-$2');
-                  }
-                  e.target.value = value;
-                  setValue('addressObj.cep', value, { shouldDirty: true });
-                  
-                  // Buscar endereço quando CEP estiver completo
-                  const cepNumeros = value.replace(/\D/g, '');
-                  if (cepNumeros.length === 8) {
-                    try {
-                      const response = await fetch(`https://viacep.com.br/ws/${cepNumeros}/json/`);
-                      const data = await response.json();
-                      
-                      if (!data.erro) {
-                        console.log('✅ CEP encontrado:', data);
-                        setValue('addressObj.street', data.logradouro, { shouldDirty: true });
-                        setValue('addressObj.neighborhood', data.bairro, { shouldDirty: true });
-                        setValue('addressObj.city', data.localidade, { shouldDirty: true });
-                        setValue('addressObj.uf', data.uf, { shouldDirty: true });
-                        
-                        // Habilitar campos de endereço
-                        setAddressFieldsEnabled(true);
-                        
-                        // Focar no campo de número
-                        setTimeout(() => {
-                          numberRef.current?.focus();
-                        }, 100);
-                        
-                        // Mensagem de sucesso
-                        toast.success('✅ Endereço encontrado com sucesso!');
-                      } else {
-                        console.error('❌ CEP não encontrado');
-                        toast.error('❌ CEP não encontrado. Verifique o número digitado.');
+              <Controller
+                name="addressObj.cep"
+                control={control}
+                render={({ field }) => (
+                  <input
+                    {...field}
+                    key={`cep-${bancaData?.updated_at || formKey}`}
+                    autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    placeholder="00000-000"
+                    maxLength={9}
+                    onChange={async (e) => {
+                      let value = e.target.value.replace(/\D/g, '');
+                      if (value.length > 8) value = value.slice(0, 8);
+                      if (value.length > 5) {
+                        value = value.replace(/(\d{5})(\d{1,3})/, '$1-$2');
                       }
-                    } catch (error) {
-                      console.error('Erro ao buscar CEP:', error);
-                      toast.error('❌ Erro ao buscar CEP. Verifique sua conexão com a internet.');
-                    }
-                  }
-                }}
+                      
+                      // Atualizar o campo do React Hook Form
+                      field.onChange(value);
+                      
+                      // Buscar endereço quando CEP estiver completo
+                      const cepNumeros = value.replace(/\D/g, '');
+                      if (cepNumeros.length === 8) {
+                        try {
+                          const response = await fetch(`https://viacep.com.br/ws/${cepNumeros}/json/`);
+                          const data = await response.json();
+                          
+                          if (!data.erro) {
+                            console.log('✅ CEP encontrado:', data);
+                            setValue('addressObj.street', data.logradouro, { shouldDirty: true });
+                            setValue('addressObj.neighborhood', data.bairro, { shouldDirty: true });
+                            setValue('addressObj.city', data.localidade, { shouldDirty: true });
+                            setValue('addressObj.uf', data.uf, { shouldDirty: true });
+                            
+                            // Habilitar campos de endereço
+                            setAddressFieldsEnabled(true);
+                            
+                            // Focar no campo de número
+                            setTimeout(() => {
+                              numberRef.current?.focus();
+                            }, 100);
+                            
+                            // Mensagem de sucesso
+                            toast.success('✅ Endereço encontrado com sucesso!');
+                          } else {
+                            console.error('❌ CEP não encontrado');
+                            toast.error('❌ CEP não encontrado. Verifique o número digitado.');
+                          }
+                        } catch (error) {
+                          console.error('Erro ao buscar CEP:', error);
+                          toast.error('❌ Erro ao buscar CEP. Verifique sua conexão com a internet.');
+                        }
+                      }
+                    }}
+                  />
+                )}
               />
             </div>
 
