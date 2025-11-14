@@ -1,23 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { auth } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
-// Helper para pegar user_id do header de autenticação
+// Helper para identificar o usuário autenticado
 async function getUserFromRequest(request: NextRequest) {
+  // 1) Tentar via Bearer token (Supabase)
   const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ") || !supabaseAdmin) {
-    return null;
+  if (authHeader?.startsWith("Bearer ") && supabaseAdmin) {
+    try {
+      const token = authHeader.substring(7);
+      const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+      if (!error && user) return user as any;
+    } catch {}
   }
 
-  const token = authHeader.substring(7);
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  
-  if (error || !user) {
-    return null;
-  }
+  // 2) Fallback: sessão padrão do app (NextAuth/Auth.js)
+  try {
+    const session = await auth();
+    if ((session as any)?.user?.id) {
+      return { id: (session as any).user.id, email: (session as any).user.email } as any;
+    }
+  } catch {}
 
-  return user;
+  return null;
 }
 
 // GET - Buscar perfil e banca do jornaleiro
@@ -50,8 +57,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verificar se é jornaleiro
-    if ((profile as any).role !== "jornaleiro") {
+    // Verificar se é jornaleiro (somente se o campo existir)
+    if (typeof (profile as any).role !== 'undefined' && (profile as any).role !== "jornaleiro") {
       return NextResponse.json(
         { error: "Acesso negado" },
         { status: 403 }
@@ -94,6 +101,10 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { profile: profileUpdates, banca: bancaUpdates } = body;
 
+    console.log('📥 [API Profile PUT] Body recebido:', body);
+    console.log('📥 [API Profile PUT] profileUpdates:', profileUpdates);
+    console.log('📥 [API Profile PUT] User ID:', user.id);
+
     // Buscar perfil atual
     const { data: currentProfile } = await supabaseAdmin
       .from("user_profiles")
@@ -101,7 +112,10 @@ export async function PUT(request: NextRequest) {
       .eq("id", user.id)
       .single() as any;
 
+    console.log('👤 [API Profile PUT] Perfil atual:', currentProfile);
+
     if (!currentProfile || (currentProfile as any).role !== "jornaleiro") {
+      console.error('❌ [API Profile PUT] Acesso negado - não é jornaleiro');
       return NextResponse.json(
         { error: "Acesso negado" },
         { status: 403 }
@@ -110,7 +124,14 @@ export async function PUT(request: NextRequest) {
 
     // Atualizar perfil se houver dados
     if (profileUpdates) {
-      const { error: profileError } = await (supabaseAdmin
+      console.log('💾 [API Profile PUT] Atualizando perfil com dados:', {
+        full_name: profileUpdates.full_name,
+        phone: profileUpdates.phone,
+        cpf: profileUpdates.cpf,
+        avatar_url: profileUpdates.avatar_url,
+      });
+
+      const { data: updatedProfile, error: profileError } = await (supabaseAdmin
         .from("user_profiles")
         .update({
           full_name: profileUpdates.full_name,
@@ -118,11 +139,17 @@ export async function PUT(request: NextRequest) {
           cpf: profileUpdates.cpf,
           avatar_url: profileUpdates.avatar_url,
         } as any)
-        .eq("id", user.id) as any);
+        .eq("id", user.id)
+        .select() as any);
 
       if (profileError) {
+        console.error('❌ [API Profile PUT] Erro ao atualizar perfil:', profileError);
         throw profileError;
       }
+
+      console.log('✅ [API Profile PUT] Perfil atualizado com sucesso:', updatedProfile);
+    } else {
+      console.log('⏭️  [API Profile PUT] Nenhum dado de perfil para atualizar');
     }
 
     // Atualizar ou criar banca
@@ -214,6 +241,8 @@ export async function PUT(request: NextRequest) {
     }
 
     // Buscar dados atualizados
+    console.log('🔄 [API Profile PUT] Buscando dados atualizados...');
+    
     const { data: updatedProfile } = await (supabaseAdmin
       .from("user_profiles")
       .select("*")
@@ -225,6 +254,11 @@ export async function PUT(request: NextRequest) {
       .select("*")
       .eq("user_id", user.id)
       .single() as any);
+
+    console.log('✅ [API Profile PUT] Dados atualizados:', {
+      profile: updatedProfile,
+      banca: updatedBanca
+    });
 
     return NextResponse.json({
       success: true,

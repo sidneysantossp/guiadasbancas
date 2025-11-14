@@ -539,6 +539,34 @@ export default function BancaV2Page() {
       const uploadedCover = await uploadImages(coverImages);
       const uploadedAvatar = await uploadImages(avatarImages);
 
+      // 🔥 CRITICAL: Salvar dados do perfil PRIMEIRO
+      console.log('💾 [SAVE] Salvando dados do perfil primeiro...');
+      console.log('💾 [SAVE] Dados do perfil:', data.profile);
+      
+      const profileRes = await fetch('/api/jornaleiro/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile: {
+            full_name: data.profile?.full_name || '',
+            phone: data.profile?.phone || '',
+            cpf: data.profile?.cpf || '',
+            avatar_url: data.profile?.avatar_url || '',
+          }
+        }),
+      });
+      
+      if (!profileRes.ok) {
+        const profileError = await profileRes.json();
+        console.error('❌ [SAVE] Erro ao salvar perfil:', profileError);
+        throw new Error(profileError.error || 'Erro ao salvar perfil');
+      }
+      
+      console.log('✅ [SAVE] Perfil salvo com sucesso!');
+      
+      // Agora salvar dados da banca
+      console.log('💾 [SAVE] Salvando dados da banca...');
+      
       const res = await fetch('/api/jornaleiro/banca', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -574,28 +602,12 @@ export default function BancaV2Page() {
       
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || 'Erro ao salvar');
+        console.error('❌ [SAVE] Erro ao salvar banca:', error);
+        throw new Error(error.error || 'Erro ao salvar banca');
       }
       
-      if (authToken) {
-        try {
-          await fetch('/api/jornaleiro/profile', {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${authToken}`,
-            },
-            body: JSON.stringify({
-              profile: {
-                full_name: data.profile?.full_name || undefined,
-                phone: data.profile?.phone || undefined,
-                cpf: data.profile?.cpf || undefined,
-                avatar_url: undefined,
-              },
-            }),
-          });
-        } catch {}
-      }
+      console.log('✅ [SAVE] Banca salva com sucesso!');
+      console.log('🎉 [SAVE] Salvamento completo - Perfil + Banca atualizados!');
 
       return res.json();
     },
@@ -603,8 +615,10 @@ export default function BancaV2Page() {
       console.log('✅ [V2] Salvamento concluído:', response.data);
       console.log('🎉 [V2] Exibindo toast de sucesso...');
       
-      // Invalidar query para forçar reload - o useEffect vai resetar o form automaticamente
+      // Invalidar queries para forçar reload - o useEffect vai resetar o form automaticamente
       queryClient.invalidateQueries({ queryKey: ['banca'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      console.log('🔄 [V2] Queries invalidadas - dados serão recarregados');
       
       // Reset imediato com os dados retornados do servidor (mapeados para o formulário)
       const r = response.data || {};
@@ -1295,7 +1309,7 @@ export default function BancaV2Page() {
             {/* Botão de teste para debug */}
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 console.log('🧪 [TESTE] Valores atuais dos campos:');
                 console.log('📱 WhatsApp (ref):', phoneRef.current?.value);
                 console.log('📄 CPF (ref):', cpfRef.current?.value);
@@ -1304,11 +1318,39 @@ export default function BancaV2Page() {
                 console.log('🔄 isDirty:', isDirty);
                 console.log('🖼️ imagesChanged:', imagesChanged);
                 console.log('👥 cotistaDirty:', cotistaDirty);
-                toast.success('🧪 Teste executado - veja o console!');
+                
+                // Testar salvamento direto
+                console.log('\n🧪 [TESTE] Testando salvamento direto...');
+                try {
+                  const testRes = await fetch('/api/jornaleiro/profile', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      profile: {
+                        full_name: watch('profile.full_name'),
+                        phone: phoneRef.current?.value || watch('profile.phone'),
+                        cpf: cpfRef.current?.value || watch('profile.cpf'),
+                        avatar_url: watch('profile.avatar_url'),
+                      }
+                    }),
+                  });
+                  
+                  const testData = await testRes.json();
+                  console.log('✅ [TESTE] Resposta da API:', testData);
+                  
+                  if (testRes.ok) {
+                    toast.success('🧪 Teste executado com sucesso! Veja o console.');
+                  } else {
+                    toast.error('❌ Erro no teste: ' + (testData.error || 'Desconhecido'));
+                  }
+                } catch (err: any) {
+                  console.error('❌ [TESTE] Erro:', err);
+                  toast.error('❌ Erro no teste: ' + err.message);
+                }
               }}
               className="rounded-md border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
             >
-              🧪 Teste Debug
+              🧪 Teste Debug + Salvar
             </button>
           </div>
 
