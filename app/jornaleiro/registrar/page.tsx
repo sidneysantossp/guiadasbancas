@@ -563,12 +563,7 @@ export default function JornaleiroRegisterPage() {
         address: `${allBanks[0].address.street}, ${allBanks[0].address.number}${allBanks[0].address.complement ? ' - ' + allBanks[0].address.complement : ''} - ${allBanks[0].address.neighborhood}, ${allBanks[0].address.city} - ${allBanks[0].address.uf}`,
         lat: allBanks[0].meta?.location?.lat || -23.5505,
         lng: allBanks[0].meta?.location?.lng || -46.6333,
-        opening_hours: allBanks[0].hours.reduce((acc: any, h: any) => {
-          if (h.open) {
-            acc[h.key] = `${h.start}-${h.end}`;
-          }
-          return acc;
-        }, {}),
+        hours: allBanks[0].hours,
         delivery_fee: 0,
         min_order_value: 0,
         delivery_radius: 5,
