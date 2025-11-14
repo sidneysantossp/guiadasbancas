@@ -709,7 +709,10 @@ export default function JornaleiroRegisterPage() {
                   type="radio"
                   name="cota_ativa"
                   checked={isCotaAtiva}
-                  onChange={() => setIsCotaAtiva(true)}
+                  onChange={() => {
+                    console.log('[Wizard] ✅ Usuário selecionou: POSSUO COTA ATIVA');
+                    setIsCotaAtiva(true);
+                  }}
                   className="h-5 w-5 text-orange-600 focus:ring-orange-500"
                 />
                 <div>
@@ -724,6 +727,7 @@ export default function JornaleiroRegisterPage() {
                   name="cota_ativa"
                   checked={!isCotaAtiva}
                   onChange={() => {
+                    console.log('[Wizard] ❌ Usuário selecionou: NÃO POSSUO COTA ATIVA');
                     setIsCotaAtiva(false);
                     setSelectedCotaAtiva(null);
                   }}
