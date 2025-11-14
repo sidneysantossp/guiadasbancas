@@ -151,6 +151,16 @@ export default function JornaleiroDashboardPage() {
 
   // Verificar se precisa mostrar alerta de TPU
   const needsTpuAlert = banca && !banca.is_cotista && !banca.tpu_url;
+  
+  console.log('[Dashboard] 🚨 Verificação do alerta TPU:', {
+    banca_exists: !!banca,
+    is_cotista: banca?.is_cotista,
+    is_cotista_type: typeof banca?.is_cotista,
+    not_is_cotista: !banca?.is_cotista,
+    tpu_url: banca?.tpu_url,
+    not_tpu_url: !banca?.tpu_url,
+    needsTpuAlert
+  });
 
   return (
     <div className="space-y-4 overflow-x-hidden px-3 sm:px-0 max-w-full">
