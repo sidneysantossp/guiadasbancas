@@ -43,14 +43,31 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         .from('products')
         .select(`
           *,
-          categories!category_id(name),
-          distribuidores!distribuidor_id(nome)
+          categories!category_id(name)
         `)
         .eq('active', true)
         .not('distribuidor_id', 'is', null);
       
       todosProdutosDistribuidor = data || [];
       console.log(`[PRODUCTS] Cotista - ${todosProdutosDistribuidor.length} produtos de distribuidores encontrados`);
+      
+      // Buscar nomes dos distribuidores separadamente
+      if (todosProdutosDistribuidor.length > 0) {
+        const distribuidorIds = [...new Set(todosProdutosDistribuidor.map(p => p.distribuidor_id).filter(Boolean))];
+        const { data: distribuidores } = await supabase
+          .from('distribuidores')
+          .select('id, nome')
+          .in('id', distribuidorIds);
+        
+        // Criar mapa de distribuidores
+        const distribuidorMap = new Map((distribuidores || []).map(d => [d.id, d.nome]));
+        
+        // Adicionar nome do distribuidor a cada produto
+        todosProdutosDistribuidor = todosProdutosDistribuidor.map(p => ({
+          ...p,
+          distribuidor_nome: distribuidorMap.get(p.distribuidor_id) || ''
+        }));
+      }
     } else {
       console.log(`[PRODUCTS] Não-cotista - produtos de distribuidores NÃO serão exibidos`);
     }
@@ -83,8 +100,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
           // Extrair nome da categoria (vem como objeto do join)
           const categoryName = produto.categories?.name || CATEGORIA_DISTRIBUIDORES_NOME;
           
-          // Extrair nome do distribuidor (vem como objeto do join)
-          const distribuidorNome = produto.distribuidores?.nome || '';
+          // Nome do distribuidor já foi adicionado anteriormente
+          const distribuidorNome = produto.distribuidor_nome || '';
           
           // Se jornaleiro usa estoque próprio, usar custom_stock_qty
           // Senão, usar stock_qty do distribuidor
@@ -93,7 +110,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
             : produto.stock_qty;
           
           const customStatus = custom?.custom_status || 'available';
-          const { categories, distribuidores, ...produtoLimpo } = produto;
+          const { categories, ...produtoLimpo } = produto;
           
           return {
             ...produtoLimpo,
