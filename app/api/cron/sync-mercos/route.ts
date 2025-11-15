@@ -98,6 +98,24 @@ export async function POST(request: NextRequest) {
           for (const produtoMercos of lote) {
             if ((Date.now() - startTime) > MAX_EXECUTION_TIME) { atingiuLimiteTempo = true; break; }
             processados++;
+            
+            // Verificar se o produto está ativo
+            const isAtivo = produtoMercos.ativo && !produtoMercos.excluido;
+            const existingId = existentes.get(produtoMercos.id);
+            
+            // Se o produto está INATIVO e existe no banco, deletar
+            if (!isAtivo && existingId) {
+              await supabase.from('products').delete().eq('id', existingId);
+              console.log(`[CRON] 🗑️  Produto inativo deletado: ${produtoMercos.nome}`);
+              continue;
+            }
+            
+            // Se o produto está INATIVO e não existe no banco, ignorar
+            if (!isAtivo) {
+              continue;
+            }
+            
+            // Produto ATIVO - processar normalmente
             const produtoData = {
               name: produtoMercos.nome,
               description: produtoMercos.observacoes || '',
@@ -112,11 +130,10 @@ export async function POST(request: NextRequest) {
               sob_encomenda: false,
               pre_venda: false,
               pronta_entrega: true,
-              active: produtoMercos.ativo && !produtoMercos.excluido,
+              active: true, // Sempre true, pois já filtramos acima
               sincronizado_em: new Date().toISOString(),
             };
 
-            const existingId = existentes.get(produtoMercos.id);
             if (existingId) {
               updatesPayload.push({ id: existingId, data: produtoData, mercosId: produtoMercos.id, nome: produtoMercos.nome });
             } else {
