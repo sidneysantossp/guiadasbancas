@@ -46,7 +46,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
           categories!category_id(name)
         `)
         .eq('active', true)
-        .not('distribuidor_id', 'is', null);
+        .not('distribuidor_id', 'is', null)
+        .order('name', { ascending: true });
       
       todosProdutosDistribuidor = data || [];
       console.log(`[PRODUCTS] Cotista - ${todosProdutosDistribuidor.length} produtos de distribuidores encontrados`);
