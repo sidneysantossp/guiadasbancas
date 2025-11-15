@@ -109,9 +109,10 @@ export async function GET(req: NextRequest) {
     if (distribuidorIds.length > 0) {
       const { data: distRows } = await supabase
         .from('distribuidores')
-        .select('id, name')
+        .select('id, nome')
         .in('id', distribuidorIds as any);
-      distMap = new Map<string, string>((distRows || []).map((d: any) => [d.id, d.name]));
+      distMap = new Map<string, string>((distRows || []).map((d: any) => [d.id, d.nome]));
+      console.log(`[CATALOGO] ${distRows?.length || 0} distribuidores mapeados:`, Array.from(distMap.values()));
     }
 
     if (categoryIds.length > 0) {
