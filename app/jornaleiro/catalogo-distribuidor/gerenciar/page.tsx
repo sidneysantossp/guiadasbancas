@@ -243,17 +243,17 @@ export default function GerenciarCatalogoPage() {
                 )}
               </div>
 
-              <h3 className="font-medium text-gray-900 text-sm mb-2 line-clamp-2">
+              <h3 className="font-medium text-gray-900 text-sm mb-1 line-clamp-2">
                 {product.name}
               </h3>
 
+              {product.distribuidor_nome && (
+                <p className="text-xs text-orange-600 font-medium mb-3">
+                  {product.distribuidor_nome}
+                </p>
+              )}
+
               <div className="space-y-2 text-xs text-gray-600 mb-3">
-                {product.distribuidor_nome && (
-                  <p>📦 {product.distribuidor_nome}</p>
-                )}
-                {product.category_name && (
-                  <p>🏷️ {product.category_name}</p>
-                )}
                 <div className="flex items-center justify-between">
                   <span>Preço original:</span>
                   <span className={product.custom_price ? "line-through" : "font-semibold"}>
