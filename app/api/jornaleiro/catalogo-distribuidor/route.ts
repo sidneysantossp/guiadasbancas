@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     }
 
     const bancaId = banca.id;
-    const isCotista = banca.is_cotista === true && banca.cotista_id;
+    const isCotista = banca.is_cotista === true && !!banca.cotista_id;
     console.log('[CATALOGO] Banca encontrada:', bancaId, '- É cotista:', isCotista);
 
     // Verificar se é cotista - apenas cotistas têm acesso ao catálogo de distribuidores
@@ -59,24 +59,67 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Buscar todos os produtos de distribuidores com info do distribuidor e categoria
-    const { data: produtos, error: prodError } = await supabase
-      .from('products')
-      .select(`
-        id, name, description, price, stock_qty, images, mercos_id, distribuidor_id, 
-        track_stock, pronta_entrega, sob_encomenda, pre_venda, created_at, category_id,
-        distribuidores:distribuidor_id(name),
-        categories:category_id(name)
-      `)
-      .not('distribuidor_id', 'is', null)
-      .order('created_at', { ascending: false });
+    // Buscar TODOS os produtos de distribuidores com paginação (sem limite de 1000)
+    console.log('[CATALOGO] Buscando produtos de distribuidores com paginação...');
+    const produtos: any[] = [];
+    let hasMore = true;
+    let offset = 0;
+    const BATCH_SIZE = 1000;
 
-    if (prodError) {
-      console.error('[API] Erro ao buscar produtos:', prodError.message);
-      return NextResponse.json(
-        { success: false, error: prodError.message },
-        { status: 500 }
-      );
+    while (hasMore) {
+      const { data: batch, error: prodError } = await supabase
+        .from('products')
+        .select('id, name, description, price, stock_qty, images, mercos_id, distribuidor_id, track_stock, pronta_entrega, sob_encomenda, pre_venda, created_at, category_id, active')
+        .not('distribuidor_id', 'is', null)
+        .eq('active', true) // Apenas produtos ativos
+        .order('created_at', { ascending: false })
+        .range(offset, offset + BATCH_SIZE - 1);
+
+      if (prodError) {
+        console.error('[CATALOGO] Erro ao buscar produtos:', prodError.message);
+        return NextResponse.json(
+          { success: false, error: prodError.message },
+          { status: 500 }
+        );
+      }
+
+      if (batch && batch.length > 0) {
+        produtos.push(...batch);
+        console.log(`[CATALOGO] Lote ${Math.floor(offset / BATCH_SIZE) + 1}: ${batch.length} produtos`);
+        
+        if (batch.length < BATCH_SIZE) {
+          hasMore = false;
+        } else {
+          offset += BATCH_SIZE;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
+
+    console.log(`[CATALOGO] Total de produtos carregados: ${produtos.length}`);
+
+    // Buscar nomes de distribuidores e categorias para mapear manualmente
+    const distribuidorIds = Array.from(new Set((produtos || []).map((p: any) => p.distribuidor_id).filter(Boolean)));
+    const categoryIds = Array.from(new Set((produtos || []).map((p: any) => p.category_id).filter(Boolean)));
+
+    let distMap = new Map<string, string>();
+    let catMap = new Map<string, string>();
+
+    if (distribuidorIds.length > 0) {
+      const { data: distRows } = await supabase
+        .from('distribuidores')
+        .select('id, name')
+        .in('id', distribuidorIds as any);
+      distMap = new Map<string, string>((distRows || []).map((d: any) => [d.id, d.name]));
+    }
+
+    if (categoryIds.length > 0) {
+      const { data: catRows } = await supabase
+        .from('categories')
+        .select('id, name')
+        .in('id', categoryIds as any);
+      catMap = new Map<string, string>((catRows || []).map((c: any) => [c.id, c.name]));
     }
 
     // Buscar customizações da banca
@@ -91,18 +134,14 @@ export async function GET(req: NextRequest) {
     );
 
     // Combinar produtos com customizações
-    const produtosComCustom = produtos?.map(produto => {
+    const produtosComCustom = produtos?.map((produto: any) => {
       const custom = customMap.get(produto.id);
-      
-      // Extrair nomes de objetos nested
-      const distribuidor_nome = (produto.distribuidores as any)?.name || null;
-      const category_name = (produto.categories as any)?.name || null;
-      
-      // Remover objetos nested para evitar problemas no frontend
-      const { distribuidores, categories, ...produtoLimpo } = produto as any;
-      
+
+      const distribuidor_nome = distMap.get(produto.distribuidor_id) || null;
+      const category_name = catMap.get(produto.category_id) || null;
+
       return {
-        ...produtoLimpo,
+        ...produto,
         // Nomes extraídos
         distribuidor_nome,
         category_name,
