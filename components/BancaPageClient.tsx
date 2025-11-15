@@ -163,6 +163,9 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
   const outOfStock = p.status === 'unavailable' || 
     (p.status !== 'available' && Boolean(p.ready) && (p.stockQty != null) && (p.stockQty <= 0));
   
+  // Verificar se é produto de distribuidor
+  const isDistribuidor = (p as any).is_distribuidor === true;
+  const distribuidorNome = (p as any).distribuidor_nome;
   
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">
@@ -209,7 +212,16 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
         </button>
       </div>
       <div className="p-2.5 flex flex-col flex-1">
-        <div className="flex flex-wrap gap-1">
+        <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="text-[13px] font-semibold hover:underline line-clamp-2">{p.name}</Link>
+        
+        {/* Nome do distribuidor (se for produto de distribuidor) */}
+        {isDistribuidor && distribuidorNome && (
+          <p className="text-xs text-orange-600 font-medium mt-1">
+            {distribuidorNome.split(' ')[0]}
+          </p>
+        )}
+        
+        <div className="flex flex-wrap gap-1 mt-2">
           {p.pronta_entrega && (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold">
               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
@@ -236,7 +248,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
             </span>
           )}
         </div>
-        <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="mt-2 text-[13px] font-semibold hover:underline">{p.name}</Link>
+        
         <div className="mt-1 flex items-center gap-2">
           <Stars value={(p as any).rating ?? 5} />
           {typeof (p as any).reviews === 'number' && (

@@ -21,7 +21,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       .eq('id', bancaId)
       .single();
 
-    const isCotista = banca?.is_cotista === true && banca?.cotista_id;
+    const isCotista = banca?.is_cotista === true && !!banca?.cotista_id;
     console.log(`[PRODUCTS] Banca ${bancaId} - É cotista: ${isCotista}`);
 
     // 1. Buscar produtos próprios da banca
@@ -43,7 +43,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         .from('products')
         .select(`
           *,
-          categories!category_id(name)
+          categories!category_id(name),
+          distribuidores!distribuidor_id(nome)
         `)
         .eq('active', true)
         .not('distribuidor_id', 'is', null);
@@ -82,6 +83,9 @@ export async function GET(request: NextRequest, context: { params: { id: string 
           // Extrair nome da categoria (vem como objeto do join)
           const categoryName = produto.categories?.name || CATEGORIA_DISTRIBUIDORES_NOME;
           
+          // Extrair nome do distribuidor (vem como objeto do join)
+          const distribuidorNome = produto.distribuidores?.nome || '';
+          
           // Se jornaleiro usa estoque próprio, usar custom_stock_qty
           // Senão, usar stock_qty do distribuidor
           const effectiveStock = custom?.custom_stock_enabled 
@@ -89,12 +93,13 @@ export async function GET(request: NextRequest, context: { params: { id: string 
             : produto.stock_qty;
           
           const customStatus = custom?.custom_status || 'available';
-          const { categories, ...produtoLimpo } = produto;
+          const { categories, distribuidores, ...produtoLimpo } = produto;
           
           return {
             ...produtoLimpo,
             images,
             category_name: categoryName,
+            distribuidor_nome: distribuidorNome,
             price: custom?.custom_price || produto.price,
             stock_qty: effectiveStock, // Usar estoque efetivo (próprio ou distribuidor)
             description: produto.description + (custom?.custom_description ? `\n\n${custom.custom_description}` : ''),
