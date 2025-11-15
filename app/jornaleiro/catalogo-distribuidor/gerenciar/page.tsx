@@ -220,7 +220,7 @@ export default function GerenciarCatalogoPage() {
           {pagedProducts.map((product) => (
             <div
               key={product.id}
-              className={`rounded-lg border bg-white p-4 hover:shadow-md transition-shadow ${
+              className={`rounded-lg border bg-white p-4 hover:shadow-md transition-shadow flex flex-col ${
                 product.enabled === false ? 'opacity-60 border-gray-300' : 'border-gray-200'
               }`}
             >
@@ -244,52 +244,54 @@ export default function GerenciarCatalogoPage() {
                 )}
               </div>
 
-              <h3 className="font-medium text-gray-900 text-sm mb-1 line-clamp-2">
-                {product.name}
-              </h3>
+              <div className="flex-1 flex flex-col">
+                <h3 className="font-medium text-gray-900 text-sm mb-1 line-clamp-2">
+                  {product.name}
+                </h3>
 
-              {product.codigo_mercos && (
-                <p className="text-[11px] text-gray-500 font-mono mb-1">
-                  {product.codigo_mercos}
-                </p>
-              )}
-
-              {product.distribuidor_nome && (
-                <p className="text-xs text-orange-600 font-medium mb-3">
-                  {product.distribuidor_nome.split(' ')[0]}
-                </p>
-              )}
-
-              <div className="space-y-2 text-xs text-gray-600 mb-3">
-                <div className="flex items-center justify-between">
-                  <span>Preço original:</span>
-                  <span className={product.custom_price ? "line-through" : "font-semibold"}>
-                    {formatPrice(product.price)}
-                  </span>
-                </div>
-                {product.custom_price && (
-                  <div className="flex items-center justify-between text-orange-600 font-semibold">
-                    <span>Preço customizado:</span>
-                    <span>{formatPrice(product.custom_price)}</span>
-                  </div>
+                {product.codigo_mercos && (
+                  <p className="text-[11px] text-gray-500 font-mono mb-1">
+                    {product.codigo_mercos}
+                  </p>
                 )}
-                <div className="flex items-center justify-between">
-                  <span>Estoque:</span>
-                  <span className="font-semibold">
-                    {product.custom_stock_enabled 
-                      ? product.custom_stock_qty
-                      : product.stock_qty
-                    }
-                  </span>
-                </div>
-              </div>
 
-              <Link
-                href={`/jornaleiro/produtos/${product.id}`}
-                className="w-full inline-flex items-center justify-center rounded-md bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-700"
-              >
-                Ver Detalhes
-              </Link>
+                {product.distribuidor_nome && (
+                  <p className="text-xs text-orange-600 font-medium mb-3">
+                    {product.distribuidor_nome.split(' ')[0]}
+                  </p>
+                )}
+
+                <div className="space-y-2 text-xs text-gray-600 mb-3 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span>Preço original:</span>
+                    <span className={product.custom_price ? "line-through" : "font-semibold"}>
+                      {formatPrice(product.price)}
+                    </span>
+                  </div>
+                  {product.custom_price && (
+                    <div className="flex items-center justify-between text-orange-600 font-semibold">
+                      <span>Preço customizado:</span>
+                      <span>{formatPrice(product.custom_price)}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span>Estoque:</span>
+                    <span className="font-semibold">
+                      {product.custom_stock_enabled 
+                        ? product.custom_stock_qty
+                        : product.stock_qty
+                      }
+                    </span>
+                  </div>
+                </div>
+
+                <Link
+                  href={`/jornaleiro/produtos/${product.id}`}
+                  className="w-full inline-flex items-center justify-center rounded-md bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-700 mt-auto"
+                >
+                  Ver Detalhes
+                </Link>
+              </div>
             </div>
           ))}
         </div>

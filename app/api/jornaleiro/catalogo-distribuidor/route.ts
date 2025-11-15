@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
     while (hasMore) {
       const { data: batch, error: prodError } = await supabase
         .from('products')
-        .select('id, name, description, price, stock_qty, images, mercos_id, distribuidor_id, track_stock, pronta_entrega, sob_encomenda, pre_venda, created_at, category_id, active')
+        .select('id, name, description, price, stock_qty, images, mercos_id, codigo_mercos, distribuidor_id, track_stock, pronta_entrega, sob_encomenda, pre_venda, created_at, category_id, active')
         .not('distribuidor_id', 'is', null)
         .eq('active', true) // Apenas produtos ativos
         .order('created_at', { ascending: false })
