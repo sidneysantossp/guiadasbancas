@@ -25,27 +25,41 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const isCotista = banca?.is_cotista === true && !!banca?.cotista_id;
 
     // 1. Buscar produtos próprios da banca com desconto (ofertas reais)
-    const { data: produtosProprios } = await supabase
+    const { data: todosProdutosProprios } = await supabase
       .from('products')
       .select('*, categories!category_id(name)')
       .eq('banca_id', bancaId)
       .is('distribuidor_id', null)
-      .eq('active', true)
-      .or('discount_percent.gt.0,price_original.gt.price')
-      .limit(6);
+      .eq('active', true);
+    
+    // Filtrar apenas produtos com desconto
+    const produtosProprios = (todosProdutosProprios || [])
+      .filter(p => {
+        const hasDiscountPercent = p.discount_percent && p.discount_percent > 0;
+        const hasDiscountPrice = p.price_original && p.price_original > p.price;
+        return hasDiscountPercent || hasDiscountPrice;
+      })
+      .slice(0, 6);
 
     // 2. Se for cotista, buscar produtos de distribuidores com desconto
     let produtosDistribuidor: any[] = [];
     
     if (isCotista) {
-      // Buscar produtos de distribuidores com desconto
-      const { data: produtosComDesconto } = await supabase
+      // Buscar produtos de distribuidores
+      const { data: todosProdutosDistribuidor } = await supabase
         .from('products')
         .select('*, categories!category_id(name)')
         .not('distribuidor_id', 'is', null)
-        .eq('active', true)
-        .or('discount_percent.gt.0,price_original.gt.price')
-        .limit(6);
+        .eq('active', true);
+      
+      // Filtrar apenas produtos com desconto
+      const produtosComDesconto = (todosProdutosDistribuidor || [])
+        .filter(p => {
+          const hasDiscountPercent = p.discount_percent && p.discount_percent > 0;
+          const hasDiscountPrice = p.price_original && p.price_original > p.price;
+          return hasDiscountPercent || hasDiscountPrice;
+        })
+        .slice(0, 6);
 
       // Buscar customizações da banca para esses produtos
       const productIds = (produtosComDesconto || []).map(p => p.id);
