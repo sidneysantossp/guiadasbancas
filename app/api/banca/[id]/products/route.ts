@@ -206,3 +206,4 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     }, { status: 500 });
   }
 }
+// Force rebuild Sat Nov 15 18:02:32 -03 2025
