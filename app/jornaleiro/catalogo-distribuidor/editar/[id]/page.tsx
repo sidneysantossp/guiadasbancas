@@ -249,11 +249,22 @@ export default function EditarProdutoDistribuidorPage() {
                     R$
                   </span>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     value={customPrice}
-                    onChange={(e) => setCustomPrice(e.target.value)}
+                    onChange={(e) => {
+                      // Permitir apenas números e vírgula/ponto
+                      const value = e.target.value.replace(/[^\d,\.]/g, '').replace(',', '.');
+                      setCustomPrice(value);
+                    }}
+                    onBlur={(e) => {
+                      // Formatar ao sair do campo
+                      const num = parseFloat(e.target.value);
+                      if (!isNaN(num)) {
+                        setCustomPrice(num.toFixed(2));
+                      }
+                    }}
+                    placeholder="0.00"
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-[#ff5c00] focus:border-transparent"
                     required
                   />
