@@ -70,10 +70,20 @@ export async function POST(req: NextRequest) {
         }
 
         if (produtoError || !produto) {
+          // Buscar produtos similares para sugestão
+          const { data: similares } = await supabaseAdmin
+            .from('products')
+            .select('codigo_mercos, name')
+            .ilike('codigo_mercos', `%${codigoMercos.substring(0, 4)}%`)
+            .limit(3);
+          
           results.errors.push({
             file: fileName,
             codigo: codigoMercos,
-            error: 'Produto não encontrado'
+            error: 'Produto não encontrado',
+            sugestao: similares && similares.length > 0 
+              ? `Produtos similares: ${similares.map(p => p.codigo_mercos).join(', ')}`
+              : 'Verifique se o código do arquivo corresponde ao código Mercos do produto'
           });
           continue;
         }
