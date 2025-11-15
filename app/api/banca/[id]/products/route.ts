@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const CATEGORIA_DISTRIBUIDORES_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
 const CATEGORIA_DISTRIBUIDORES_NOME = 'Diversos';
 const DEFAULT_PRODUCT_IMAGE = 'https://placehold.co/400x600/e5e7eb/6b7280.png';
