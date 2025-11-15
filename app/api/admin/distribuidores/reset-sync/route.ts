@@ -134,6 +134,7 @@ export async function POST(request: Request) {
             banca_id: null,
             distribuidor_id: distribuidor.id,
             mercos_id: p.id,
+            codigo_mercos: p.codigo || null, // Salvar código da Mercos
             origem: 'mercos' as const,
             track_stock: true,
             sob_encomenda: false,
