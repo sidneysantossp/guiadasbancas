@@ -22,7 +22,10 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       .single();
 
     const isCotista = banca?.is_cotista === true && !!banca?.cotista_id;
-    console.log(`[PRODUCTS] Banca ${bancaId} - É cotista: ${isCotista}`);
+    console.log(`[PRODUCTS] Banca ${bancaId}`);
+    console.log(`[PRODUCTS] - is_cotista no banco: ${banca?.is_cotista}`);
+    console.log(`[PRODUCTS] - cotista_id: ${banca?.cotista_id}`);
+    console.log(`[PRODUCTS] - É cotista (final): ${isCotista}`);
 
     // 1. Buscar produtos próprios da banca
     const { data: produtosProprios } = await supabase
