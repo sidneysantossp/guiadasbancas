@@ -119,24 +119,23 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         .filter(produto => {
           const custom = customMap.get(produto.id);
           
-          // 1. Deve estar habilitado (enabled !== false)
-          if (!produto._enabled) return false;
+          // 1. Se tem customização e está desabilitado, não mostrar
+          if (custom && custom.enabled === false) return false;
           
-          // 2. Se NÃO tem customização, aceitar apenas se:
-          //    - Tem estoque do distribuidor > 0
+          // 2. Se NÃO tem customização, SEMPRE mostrar (produtos do distribuidor disponíveis para cotistas)
           if (!custom) {
-            return produto._effectiveStock > 0;
+            return true;
           }
           
           // 3. Se TEM customização:
           //    - Se tem estoque próprio ativado: verificar se qty > 0
-          //    - Se NÃO tem estoque próprio: verificar estoque do distribuidor
+          //    - Se NÃO tem estoque próprio: sempre mostrar (usa estoque do distribuidor)
           //    - OU status explicitamente 'available'
           if (custom.custom_stock_enabled) {
             return (custom.custom_stock_qty ?? 0) > 0;
           }
           
-          return produto._effectiveStock > 0 || custom.custom_status === 'available';
+          return true; // Mostrar se não tem estoque próprio ativado
         })
         .map(({ _enabled, _effectiveStock, _customStatus, ...produto }) => produto);
     }
