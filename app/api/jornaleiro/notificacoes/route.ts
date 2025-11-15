@@ -49,20 +49,26 @@ export async function GET(req: NextRequest) {
 
     const { data: novosProdutos } = await supabase
       .from('products')
-      .select(`
-        id, 
-        name, 
-        created_at,
-        distribuidores:distribuidor_id(name)
-      `)
+      .select('id, name, created_at, distribuidor_id')
       .not('distribuidor_id', 'is', null)
       .gte('created_at', sevenDaysAgo.toISOString())
       .order('created_at', { ascending: false })
       .limit(20);
 
+    // Buscar nomes de distribuidores separadamente
+    const distIds = Array.from(new Set((novosProdutos || []).map(p => p.distribuidor_id).filter(Boolean)));
+    let distMap = new Map<string, string>();
+    if (distIds.length > 0) {
+      const { data: distRows } = await supabase
+        .from('distribuidores')
+        .select('id, name')
+        .in('id', distIds as any);
+      distMap = new Map((distRows || []).map((d: any) => [d.id, d.name]));
+    }
+
     // Gerar notificações para produtos novos
-    const notifications = (novosProdutos || []).map(produto => {
-      const distribuidorNome = (produto.distribuidores as any)?.name || 'Distribuidor';
+    const notifications = (novosProdutos || []).map((produto: any) => {
+      const distribuidorNome = distMap.get(produto.distribuidor_id) || 'Distribuidor';
       
       return {
         id: `novo_${produto.id}`,

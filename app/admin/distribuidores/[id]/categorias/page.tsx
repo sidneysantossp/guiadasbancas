@@ -82,7 +82,8 @@ export default function CategoriasPage() {
         } else {
           console.log('[CATEGORIAS-PAGE] ❌ Categoria "0855e8eb" NÃO encontrada no frontend');
         }
-        
+
+        // Usar apenas os dados reais vindos da API (sem injeção manual)
         setCategorias(catData.data || []);
       } else {
         console.error('[CATEGORIAS-PAGE] ❌ Erro ao buscar categorias:', catRes.status, catRes.statusText);
@@ -110,6 +111,13 @@ export default function CategoriasPage() {
           alteradoApos: timestamp,
         })
       });
+
+      if (response.status === 429) {
+        const j = await response.json();
+        setSyncResult({ success: false, error: j.error || 'Limite de requisições da Mercos. Aguarde e tente novamente.', tempo_ate_permitir_novamente: j.tempo_ate_permitir_novamente });
+        setSyncing(false);
+        return;
+      }
 
       const result = await response.json();
       setSyncResult(result);
@@ -248,6 +256,9 @@ export default function CategoriasPage() {
                 <div className="text-red-800">
                   <div className="font-semibold mb-2">❌ Erro na Sincronização</div>
                   <div className="text-sm">{syncResult.error}</div>
+                  {typeof syncResult.tempo_ate_permitir_novamente === 'number' && (
+                    <div className="text-xs mt-1 text-gray-600">Aguarde {syncResult.tempo_ate_permitir_novamente}s e tente novamente.</div>
+                  )}
                 </div>
               )}
             </div>
@@ -360,7 +371,8 @@ export default function CategoriasPage() {
                   key={categoria.id}
                   className={
                     categoria.nome.startsWith('b8ea7d42') ||
-                    categoria.nome.startsWith('f962ef5e')
+                    categoria.nome.startsWith('f962ef5e') ||
+                    categoria.nome.startsWith('b4f48a33')
                       ? 'bg-yellow-50' 
                       : ''
                   }
@@ -373,12 +385,6 @@ export default function CategoriasPage() {
                       <span className="text-sm font-medium text-gray-900">
                         {categoria.nome}
                       </span>
-                      {(categoria.nome.startsWith('b8ea7d42') ||
-                        categoria.nome.startsWith('f962ef5e')) && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          Homologação
-                        </span>
-                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -415,7 +421,8 @@ export default function CategoriasPage() {
           <div className="mt-3 space-y-2 ml-4">
             {categorias.filter(c => 
               c.nome.startsWith('b8ea7d42') ||
-              c.nome.startsWith('f962ef5e')
+              c.nome.startsWith('f962ef5e') ||
+              c.nome.startsWith('b4f48a33')
             ).map((cat, idx) => (
               <div key={cat.id} className="bg-white rounded p-3 border border-blue-200">
                 <div className="text-xs text-blue-600 font-semibold">ETAPA {idx + 1}</div>

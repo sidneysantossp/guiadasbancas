@@ -19,6 +19,7 @@ type ProdutoListItem = {
   active: boolean;
   updated_at?: string;
   image?: string;
+  codigo_mercos?: string;
 };
 
 type CategoryOption = { id: string; name: string };
@@ -82,6 +83,7 @@ export default function JornaleiroProdutosPage() {
           active: Boolean(p.active),
           updated_at: p.updated_at,
           image: Array.isArray(p.images) && p.images.length ? p.images[0] : undefined,
+          codigo_mercos: p.codigo_mercos,
         }))
       );
     } catch (e: any) {
@@ -139,7 +141,12 @@ export default function JornaleiroProdutosPage() {
               </svg>
             </div>
           )}
-          <div className="font-medium">{r.name}</div>
+          <div>
+            <div className="font-medium">{r.name}</div>
+            {r.codigo_mercos && (
+              <div className="text-xs text-gray-500 font-mono mt-0.5">{r.codigo_mercos}</div>
+            )}
+          </div>
         </div>
       ),
     },

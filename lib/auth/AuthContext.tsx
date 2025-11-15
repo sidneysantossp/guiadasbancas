@@ -16,6 +16,9 @@ export interface UserProfile {
   banca_id: string | null;
   active: boolean;
   email_verified: boolean;
+  blocked?: boolean;
+  blocked_reason?: string | null;
+  blocked_at?: string | null;
   created_at: string;
   updated_at: string;
 }

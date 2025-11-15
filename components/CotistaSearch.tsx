@@ -17,9 +17,10 @@ type Props = {
   selectedCnpjCpf?: string;
   mode?: 'admin' | 'public';
   supportWhatsapp?: string;
+  onInputChange?: (value: string) => void;
 };
 
-export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin', supportWhatsapp }: Props) {
+export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin', supportWhatsapp, onInputChange }: Props) {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<Cotista[]>([]);
   const [loading, setLoading] = useState(false);
@@ -175,7 +176,10 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            onInputChange?.(e.target.value);
+          }}
           onFocus={() => mode === 'admin' && results.length > 0 && setShowResults(true)}
           placeholder={mode === 'admin' ? "Digite o nome, CNPJ/CPF ou código do cotista..." : "Digite seu CNPJ/CPF ou código..."}
           className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 pr-10 text-sm focus:border-orange-500 focus:ring-orange-500"

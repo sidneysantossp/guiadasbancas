@@ -17,7 +17,7 @@ export default function FileUploadDragDrop({
   label,
   value,
   onChange,
-  placeholder = "https://exemplo.com/arquivo.pdf",
+  placeholder,
   className = "h-28 w-full",
   accept = 'application/pdf',
   role = 'jornaleiro',
@@ -61,7 +61,7 @@ export default function FileUploadDragDrop({
     try {
       setUploading(true);
 
-      if (accept && file.type && !file.type.includes(accept.split('/')[1])) {
+      if (accept && file.type && !file.type.match(accept.replace('*', '.*'))) {
         alert(`Tipo de arquivo inválido. Esperado: ${accept}`);
         return;
       }
@@ -118,7 +118,25 @@ export default function FileUploadDragDrop({
 
   const renderPreview = () => {
     if (!value) return null;
+    
     const isPdf = value.toLowerCase().endsWith('.pdf') || accept.includes('pdf');
+    const isImage = accept.includes('image') || value.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+    
+    if (isImage) {
+      return (
+        <div className="rounded-md border p-3 bg-white">
+          <img 
+            src={value} 
+            alt="Preview" 
+            className="w-full h-32 object-cover rounded"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        </div>
+      );
+    }
+    
     if (isPdf) {
       const isDataUrl = value.startsWith('data:');
       const rawName = isDataUrl ? 'TPU.pdf' : (value.split('/').pop() || 'Arquivo.pdf');
@@ -199,7 +217,9 @@ export default function FileUploadDragDrop({
         className="hidden"
       />
 
-      <p className="text-xs text-gray-500">Formato aceito: PDF. Máximo 5MB.</p>
+      <p className="text-xs text-gray-500">
+        Formato aceito: {accept === 'image/*' ? 'JPG, PNG, JPEG' : accept === 'application/pdf' ? 'PDF' : accept}. Máximo 5MB.
+      </p>
     </div>
   );
 }

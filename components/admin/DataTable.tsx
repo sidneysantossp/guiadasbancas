@@ -23,9 +23,16 @@ export interface DataTableProps<T> {
   renderActions?: (row: T) => React.ReactNode;
   initialPageSize?: number;
   pageSizeOptions?: number[];
+  // Server-side pagination (optional)
+  serverMode?: boolean;
+  serverPage?: number;
+  serverPageSize?: number;
+  serverTotal?: number;
+  onServerPageChange?: (page: number) => void;
+  onServerPageSizeChange?: (pageSize: number) => void;
 }
 
-export default function DataTable<T>({ columns, data, getId, onSelectRows, selectable = false, actionsHeader = "Ações", renderActions, initialPageSize = 10, pageSizeOptions = [10, 20, 50] }: DataTableProps<T>) {
+export default function DataTable<T>({ columns, data, getId, onSelectRows, selectable = false, actionsHeader = "Ações", renderActions, initialPageSize = 10, pageSizeOptions = [10, 20, 50], serverMode = false, serverPage = 1, serverPageSize = initialPageSize, serverTotal, onServerPageChange, onServerPageSizeChange }: DataTableProps<T>) {
   const [selected, setSelected] = React.useState<string[]>([]);
   const [sortKey, setSortKey] = React.useState<string | null>(null);
   const [sortDir, setSortDir] = React.useState<"asc" | "desc">("asc");
@@ -59,10 +66,11 @@ export default function DataTable<T>({ columns, data, getId, onSelectRows, selec
   };
 
   const sorted = React.useMemo(() => {
+    if (serverMode) return data; // sorting handled by server or disabled
     if (!sortKey) return data;
     const col = columns.find((x) => x.key === sortKey);
     if (!col) return data;
-    const accessor = col.sortAccessor || ((row: any) => row[col.key]);
+    const accessor = col.sortAccessor || ((row: any) => (row as any)[col.key]);
     const arr = [...data];
     arr.sort((a, b) => {
       const va = accessor(a);
@@ -74,14 +82,15 @@ export default function DataTable<T>({ columns, data, getId, onSelectRows, selec
       return 0;
     });
     return arr;
-  }, [data, sortKey, sortDir, columns]);
+  }, [data, sortKey, sortDir, columns, serverMode]);
 
-  const total = sorted.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const start = (currentPage - 1) * pageSize;
-  const end = start + pageSize;
-  const pageRows = sorted.slice(start, end);
+  const effectivePageSize = serverMode ? serverPageSize : pageSize;
+  const total = serverMode ? (serverTotal ?? data.length) : sorted.length;
+  const totalPages = Math.max(1, Math.ceil(total / effectivePageSize));
+  const currentPage = Math.min(serverMode ? serverPage : page, totalPages);
+  const start = (currentPage - 1) * effectivePageSize;
+  const end = start + effectivePageSize;
+  const pageRows = serverMode ? data : sorted.slice(start, end);
 
   const toggleAll = () => {
     if (!selectable) return;
@@ -165,19 +174,28 @@ export default function DataTable<T>({ columns, data, getId, onSelectRows, selec
           <label className="hidden sm:block">Por página</label>
           <select
             className="rounded-md border border-gray-300 px-2 py-1"
-            value={pageSize}
-            onChange={(e)=>{ setPageSize(parseInt(e.target.value)); setPage(1); }}
+            value={effectivePageSize}
+            onChange={(e)=>{
+              const next = parseInt(e.target.value);
+              if (serverMode) {
+                onServerPageSizeChange?.(next);
+                onServerPageChange?.(1);
+              } else {
+                setPageSize(next); 
+                setPage(1);
+              }
+            }}
           >
             {pageSizeOptions.map((n)=> (
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
           <div className="flex items-center gap-1">
-            <button className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50" disabled={currentPage<=1} onClick={()=>setPage(1)}>{'<<'}</button>
-            <button className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50" disabled={currentPage<=1} onClick={()=>setPage((p)=>Math.max(1,p-1))}>{'<'}</button>
+            <button className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50" disabled={currentPage<=1} onClick={()=> serverMode ? onServerPageChange?.(1) : setPage(1)}>{'<<'}</button>
+            <button className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50" disabled={currentPage<=1} onClick={()=> serverMode ? onServerPageChange?.(Math.max(1, currentPage-1)) : setPage((p)=>Math.max(1,p-1))}>{'<'}</button>
             <span className="px-2">{currentPage}/{totalPages}</span>
-            <button className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50" disabled={currentPage>=totalPages} onClick={()=>setPage((p)=>Math.min(totalPages,p+1))}>{'>'}</button>
-            <button className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50" disabled={currentPage>=totalPages} onClick={()=>setPage(totalPages)}>{'>>'}</button>
+            <button className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50" disabled={currentPage>=totalPages} onClick={()=> serverMode ? onServerPageChange?.(Math.min(totalPages, currentPage+1)) : setPage((p)=>Math.min(totalPages,p+1))}>{'>'}</button>
+            <button className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50" disabled={currentPage>=totalPages} onClick={()=> serverMode ? onServerPageChange?.(totalPages) : setPage(totalPages)}>{'>>'}</button>
           </div>
         </div>
       </div>

@@ -17,13 +17,27 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [total, setTotal] = useState(0);
 
-  const fetchRows = async () => {
+  const fetchRows = async (opts?: { page?: number; pageSize?: number; q?: string; distribuidor?: string; }) => {
     try {
       setLoading(true);
       console.log('🔍 Buscando produtos admin...');
-      
-      const res = await fetch(`/api/admin/products?_t=${Date.now()}`, {
+      const pageParam = opts?.page ?? page;
+      const pageSizeParam = opts?.pageSize ?? pageSize;
+      const qParam = (opts?.q ?? q).trim();
+      const distParam = (opts?.distribuidor ?? distribuidor).trim();
+
+      const params = new URLSearchParams({
+        page: String(pageParam),
+        pageSize: String(pageSizeParam),
+      });
+      if (qParam) params.set('q', qParam);
+      if (distParam) params.set('distribuidor', distParam);
+
+      const res = await fetch(`/api/admin/products?${params.toString()}&_t=${Date.now()}`, {
         headers: {
           'Authorization': 'Bearer admin-token'
         },
@@ -46,6 +60,7 @@ export default function AdminProductsPage() {
       console.log('📦 É array?:', Array.isArray(json?.data));
       
       const items = Array.isArray(json?.data) ? json.data : [];
+      const totalFromServer = Number(json?.total || 0);
       console.log('📋 Total de produtos:', items.length);
       console.log('📋 Primeiros itens:', items.slice(0, 2));
       
@@ -66,7 +81,10 @@ export default function AdminProductsPage() {
         distribuidor_nome: p.distribuidor_nome || "Guia das Bancas", // Nome do distribuidor ou padrão
       })));
       
-      console.log('✅ Produtos carregados com sucesso');
+      setTotal(totalFromServer);
+      setPage(pageParam);
+      setPageSize(pageSizeParam);
+      console.log('✅ Produtos carregados com sucesso. total=', totalFromServer);
     } catch (e) {
       console.error('❌ Erro ao buscar produtos:', e);
     } finally {
@@ -143,11 +161,20 @@ export default function AdminProductsPage() {
   };
 
   useEffect(() => {
-    fetchRows();
+    fetchRows({ page: 1, pageSize });
     fetchDistribuidores();
     fetchCategorias();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Recarregar ao mudar q/distribuidor
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      fetchRows({ page: 1, pageSize, q, distribuidor });
+    }, 250);
+    return () => clearTimeout(debounce);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, distribuidor]);
 
   const fetchDistribuidores = async () => {
     try {
@@ -177,26 +204,14 @@ export default function AdminProductsPage() {
     }
   };
 
+  // Como q e distribuidor são filtrados no servidor, aqui filtramos apenas categoria/status no lote atual
   const filtered = useMemo(() => {
     return rows.filter(r => {
-      // Filtro de busca por nome
-      if (q && !r.name.toLowerCase().includes(q.toLowerCase())) return false;
-      
-      // Filtro de categoria
       if (category && r.category !== category) return false;
-      
-      // Filtro de status
       if (status && ((status === "ativo" && !r.active) || (status === "inativo" && r.active))) return false;
-      
-      // Filtro de distribuidor
-      if (distribuidor) {
-        if (distribuidor === "admin" && r.distribuidor_id) return false;
-        if (distribuidor !== "admin" && r.distribuidor_id !== distribuidor) return false;
-      }
-      
       return true;
     });
-  }, [rows, q, category, status, distribuidor]);
+  }, [rows, category, status]);
 
   const columns: Column<any>[] = [
     { 
@@ -223,8 +238,8 @@ export default function AdminProductsPage() {
         <div>
           <span className="font-medium">{r.name}</span>
           {r.codigo_mercos && (
-            <div className="text-xs text-gray-500 mt-1">
-              🏷️ {r.codigo_mercos}
+            <div className="text-xs text-gray-500 font-mono mt-1">
+              {r.codigo_mercos}
             </div>
           )}
         </div>
@@ -330,6 +345,12 @@ export default function AdminProductsPage() {
         getId={(r)=>r.id}
         selectable
         onSelectRows={setSelectedIds}
+        serverMode
+        serverPage={page}
+        serverPageSize={pageSize}
+        serverTotal={total}
+        onServerPageChange={(next)=> fetchRows({ page: next, pageSize, q, distribuidor })}
+        onServerPageSizeChange={(next)=> fetchRows({ page: 1, pageSize: next, q, distribuidor })}
         renderActions={(row) => (
           <div className="flex items-center gap-2">
             <Link

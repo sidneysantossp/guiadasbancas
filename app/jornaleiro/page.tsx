@@ -200,21 +200,11 @@ export default function JornaleiroLoginPage() {
             </form>
 
             <div className="mt-6 flex flex-col gap-3 text-center text-sm">
-              <Link href="/jornaleiro/esqueci-senha" className="font-medium text-[#ff2d55] hover:underline">
-                Preciso de ajuda para acessar
-              </Link>
               <p className="text-gray-600">
                 Ainda não tem cadastro?
                 {" "}
                 <Link href="/jornaleiro/registrar" className="font-semibold text-[#ff2d55] hover:underline">
                   Cadastre sua banca
-                </Link>
-              </p>
-              <p className="text-gray-500">
-                É cliente?
-                {" "}
-                <Link href="/minha-conta" className="font-medium text-[#ff2d55] hover:underline">
-                  Entrar como cliente
                 </Link>
               </p>
               <Link href="/" className="text-gray-400 hover:text-gray-600">

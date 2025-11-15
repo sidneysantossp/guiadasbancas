@@ -13,6 +13,7 @@ interface Product {
   stock_qty: number;
   images: string[];
   mercos_id: number;
+  codigo_mercos?: string;
   sincronizado_em: string | null;
   created_at: string;
   origem: string;
@@ -251,6 +252,11 @@ export default function ProdutosDistribuidorPage() {
                           <div className="text-sm font-medium text-gray-900">
                             {produto.name}
                           </div>
+                          {produto.codigo_mercos && (
+                            <div className="text-xs text-gray-500 font-mono mt-0.5">
+                              {produto.codigo_mercos}
+                            </div>
+                          )}
                           {produto.description && (
                             <div className="text-sm text-gray-500 truncate max-w-xs">
                               {produto.description}

@@ -227,5 +227,78 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  return NextResponse.json({ success: false, error: "Funcionalidade não implementada para Supabase" }, { status: 501 });
+  try {
+    if (!verifyAdminAuth(request)) {
+      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const bancaId = searchParams.get("id");
+
+    if (!bancaId) {
+      return NextResponse.json({ success: false, error: "ID da banca é obrigatório" }, { status: 400 });
+    }
+
+    console.log('[DELETE] Iniciando exclusão da banca:', bancaId);
+
+    // Verificar se a banca existe antes de excluir
+    const { data: existingBanca, error: fetchError } = await supabaseAdmin
+      .from('bancas')
+      .select('id, name, user_id')
+      .eq('id', bancaId)
+      .single();
+
+    if (fetchError || !existingBanca) {
+      console.error('[DELETE] Banca não encontrada:', fetchError);
+      return NextResponse.json({ success: false, error: 'Banca não encontrada' }, { status: 404 });
+    }
+
+    console.log('[DELETE] Banca encontrada para exclusão:', existingBanca.name);
+
+    // Excluir a banca (isso também removerá referências devido às constraints CASCADE)
+    const { error: deleteError } = await supabaseAdmin
+      .from('bancas')
+      .delete()
+      .eq('id', bancaId);
+
+    if (deleteError) {
+      console.error('[DELETE] Erro ao excluir banca:', deleteError);
+      return NextResponse.json({ success: false, error: 'Erro ao excluir banca' }, { status: 500 });
+    }
+
+    // Limpar banca_id do user_profiles e excluir o perfil se existir
+    if (existingBanca.user_id) {
+      console.log('[DELETE] Removendo perfil do usuário:', existingBanca.user_id);
+      
+      // Remover o perfil do usuário
+      const { error: profileError } = await supabaseAdmin
+        .from('user_profiles')
+        .delete()
+        .eq('id', existingBanca.user_id);
+      
+      if (profileError) {
+        console.warn('[DELETE] Aviso: Não foi possível remover perfil do usuário:', profileError);
+      }
+
+      // Remover o usuário do sistema de autenticação
+      try {
+        const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(existingBanca.user_id);
+        
+        if (authError) {
+          console.warn('[DELETE] Aviso: Não foi possível remover usuário da autenticação:', authError);
+        } else {
+          console.log('[DELETE] ✅ Usuário removido da autenticação:', existingBanca.user_id);
+        }
+      } catch (authErr) {
+        console.warn('[DELETE] Erro ao remover usuário da autenticação:', authErr);
+      }
+    }
+
+    console.log('[DELETE] ✅ Banca e usuário excluídos com sucesso:', existingBanca.name);
+    return NextResponse.json({ success: true, message: 'Banca e usuário excluídos com sucesso' });
+
+  } catch (error) {
+    console.error('Delete banca API error:', error);
+    return NextResponse.json({ success: false, error: 'Erro interno do servidor' }, { status: 500 });
+  }
 }

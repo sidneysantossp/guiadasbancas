@@ -14,7 +14,6 @@ type GeneralConfigType = {
   name: string;
   whatsapp: string;
   description: string;
-  active: boolean;
   delivery_enabled?: boolean;
   free_shipping_threshold?: number;
   origin_cep?: string;
@@ -116,17 +115,7 @@ const GeneralSettingsForm = memo(({
         />
       </div>
 
-      <div className="flex items-center gap-2">
-        <input 
-          type="checkbox" 
-          id="active" 
-          checked={generalConfig.active}
-          onChange={(e) => setGeneralConfig({ ...generalConfig, active: e.target.checked })}
-        />
-        <label htmlFor="active" className="text-sm">
-          Banca ativa (visível para clientes)
-        </label>
-      </div>
+      {/* Checkbox de ativação removido - agora controlado apenas pelos administradores */}
     </div>
 
     <div className="pt-4">
@@ -159,7 +148,6 @@ export default function ConfiguracoesPage() {
     name: '',
     whatsapp: '',
     description: '',
-    active: true,
     delivery_enabled: false,
     free_shipping_threshold: 120,
     origin_cep: '',
@@ -201,7 +189,6 @@ export default function ConfiguracoesPage() {
           name: data.name || '',
           whatsapp: data.whatsapp || '',
           description: data.description || '',
-          active: data.active !== false,
           delivery_enabled: data.delivery_enabled || false,
           free_shipping_threshold: data.free_shipping_threshold || 120,
           origin_cep: data.origin_cep || '',
@@ -276,7 +263,6 @@ export default function ConfiguracoesPage() {
           name: generalConfig.name,
           whatsapp: generalConfig.whatsapp,
           description: generalConfig.description,
-          active: generalConfig.active,
           delivery_fee: deliveryConfig.delivery_fee,
           delivery_radius: deliveryConfig.delivery_radius,
           delivery_enabled: generalConfig.delivery_enabled || false,

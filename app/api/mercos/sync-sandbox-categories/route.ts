@@ -27,14 +27,15 @@ async function fetchWith429Retry(url: string, init: RequestInit, maxAttempts = 6
 
 export async function POST(request: NextRequest) {
   try {
-    const { companyToken, distribuidorId, alteradoApos } = await request.json();
-    
+    const { companyToken, distribuidorId, alteradoApos, nomePrefix, maxPages } = await request.json();
+
     console.log('==================================================');
     console.log('[SYNC-SANDBOX-CATEGORIES] 🔄 Sincronizando categorias do SANDBOX');
     console.log('[SYNC-SANDBOX-CATEGORIES] Distribuidor ID:', distribuidorId);
+    console.log('[SYNC-SANDBOX-CATEGORIES] alterado_apos recebido:', alteradoApos);
 
     const SANDBOX_APP_TOKEN = 'd39001ac-0b14-11f0-8ed7-6e1485be00f2';
-    
+
     if (!companyToken) {
       return NextResponse.json({
         success: false,
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validar se o distribuidor existe (evita 36 erros por FK inválida)
+    // Validar se o distribuidor existe
     const { data: dist, error: distErr } = await supabaseAdmin
       .from('distribuidores')
       .select('id, nome')
@@ -59,83 +60,95 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Distribuidor inválido ou não encontrado', distribuidorId }, { status: 404 });
     }
 
-    // Buscar TODAS as categorias do SANDBOX com paginação adequada
+    // Buscar categorias com paginação via alterado_apos
+    console.log('[SYNC-SANDBOX-CATEGORIES] 🔄 Buscando categorias da API (paginado)...');
+
+    const baseUrl = `https://sandbox.mercos.com/api/v1`;
+    const headers = {
+      'ApplicationToken': SANDBOX_APP_TOKEN,
+      'CompanyToken': companyToken,
+      'Content-Type': 'application/json',
+    };
+
     let allCategorias: any[] = [];
-    let dataInicial = alteradoApos || '2000-01-01T00:00:00';
+    let dataInicial = alteradoApos || '2020-01-01T00:00:00';
     let hasMore = true;
     let pageCount = 0;
-    const LIMIT = 100; // Limite por página
 
-    console.log('[SYNC-SANDBOX-CATEGORIES] 🔄 Iniciando paginação por timestamp...');
-
-    while (hasMore && pageCount < 50) {
+    while (hasMore && pageCount < (Number(maxPages) > 0 ? Number(maxPages) : 500)) {
       pageCount++;
-      
-      // Construir endpoint com paginação por timestamp
-      const endpoint = `/categorias?alterado_apos=${encodeURIComponent(dataInicial)}&limit=${LIMIT}`;
-      console.log(`[SYNC-SANDBOX-CATEGORIES] 🔗 Endpoint: ${endpoint}`);
-      
-      console.log(`[SYNC-SANDBOX-CATEGORIES] 📄 Página ${pageCount} (timestamp: ${dataInicial})`);
-      
-      const url = `https://sandbox.mercos.com/api/v1${endpoint}`;
-      const headers = {
-        'ApplicationToken': SANDBOX_APP_TOKEN,
-        'CompanyToken': companyToken,
-        'Content-Type': 'application/json',
-      };
+      const endpoint = `/categorias?alterado_apos=${encodeURIComponent(dataInicial)}&limit=200&order_by=ultima_alteracao&order_direction=asc`;
+      console.log(`[SYNC-SANDBOX-CATEGORIES] 📄 Página ${pageCount}: ${endpoint}`);
 
-      const response = await fetchWith429Retry(url, { headers });
-
+      const response = await fetchWith429Retry(`${baseUrl}${endpoint}`, { headers });
+      if (response.status === 429) {
+        let bodyText = await response.text();
+        let retrySec = 5;
+        try {
+          const obj = JSON.parse(bodyText);
+          if (obj && obj.tempo_ate_permitir_novamente != null) {
+            retrySec = Number(obj.tempo_ate_permitir_novamente);
+          }
+        } catch {}
+        return NextResponse.json({
+          success: false,
+          error: 'Mercos limit: aguarde e tente novamente',
+          tempo_ate_permitir_novamente: retrySec
+        }, { status: 429, headers: { 'Retry-After': String(retrySec) } });
+      }
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('[SYNC-SANDBOX-CATEGORIES] ❌ Erro:', errorText);
+        console.error('[SYNC-SANDBOX-CATEGORIES] ❌ Erro na API Mercos:', errorText);
         throw new Error(`Erro Mercos API: ${response.status} - ${errorText}`);
       }
 
       const categorias = await response.json();
       const categoriasArray = Array.isArray(categorias) ? categorias : [];
-      
-      console.log(`[SYNC-SANDBOX-CATEGORIES] 📦 Recebidas ${categoriasArray.length} categorias nesta página`);
-      
-      if (categoriasArray.length === 0) {
-        console.log('[SYNC-SANDBOX-CATEGORIES] ✅ Nenhuma categoria retornada - fim da paginação');
+      const pageFiltered = nomePrefix
+        ? categoriasArray.filter((c: any) => typeof c?.nome === 'string' && c.nome.startsWith(nomePrefix))
+        : categoriasArray;
+
+      console.log(`[SYNC-SANDBOX-CATEGORIES] ✅ Recebidas ${categoriasArray.length} categorias nesta página`);
+
+      allCategorias = [...allCategorias, ...pageFiltered];
+
+      const limitouRegistros = response.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
+      if (nomePrefix && pageFiltered.length > 0) {
         hasMore = false;
-        break;
-      }
-      
-      allCategorias = [...allCategorias, ...categoriasArray];
-
-      // Verificar se há mais páginas usando header
-      const limitouRegistros = response.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS');
-
-      // Se header não existir, assume continuidade se veio um lote cheio
-      const deveContinuar = (limitouRegistros === '1') || (categoriasArray.length >= LIMIT);
-
-      if (deveContinuar && categoriasArray.length > 0) {
+        console.log('[SYNC-SANDBOX-CATEGORIES] Encontrado por prefixo, encerrando paginação');
+      } else if (limitouRegistros && categoriasArray.length > 0) {
         const ultimaCategoria = categoriasArray[categoriasArray.length - 1];
-        dataInicial = ultimaCategoria.ultima_alteracao;
-        console.log(`[SYNC-SANDBOX-CATEGORIES] ➡️ Próxima página: timestamp=${dataInicial}`);
+        // avança 1s para evitar loop quando a API considera >=
+        const ts = ultimaCategoria.ultima_alteracao;
+        const nextDate = new Date(ts);
+        if (!isNaN(nextDate.getTime())) {
+          nextDate.setSeconds(nextDate.getSeconds() + 1);
+          dataInicial = nextDate.toISOString();
+        } else {
+          dataInicial = ts;
+        }
+        console.log(`[SYNC-SANDBOX-CATEGORIES] ➡️ Próxima página a partir de: ${dataInicial}`);
       } else {
-        console.log('[SYNC-SANDBOX-CATEGORIES] ✅ Última página alcançada (sem limitação)');
         hasMore = false;
+        console.log('[SYNC-SANDBOX-CATEGORIES] ✅ Todas as páginas buscadas!');
       }
-
-      // Pequena pausa entre requests
-      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    console.log(`[SYNC-SANDBOX-CATEGORIES] 📊 Total categorias: ${allCategorias.length}`);
+    console.log(`[SYNC-SANDBOX-CATEGORIES] 📊 Total recebidas da API: ${allCategorias.length}`);
 
-    // Carregar mercos_ids existentes para calcular inseridas/atualizadas
-    const { data: existingList, error: existingErr } = await supabaseAdmin
-      .from('distribuidor_categories')
-      .select('mercos_id')
-      .eq('distribuidor_id', distribuidorId);
-    if (existingErr) {
-      console.error('[SYNC-SANDBOX-CATEGORIES] Erro ao buscar existentes:', existingErr);
+    if (allCategorias.length === 0) {
+      return NextResponse.json({
+        success: true,
+        resultado: {
+          total_mercos: 0,
+          inseridas: 0,
+          atualizadas: 0,
+          erros: 0
+        }
+      });
     }
-    const existingSet = new Set<number>((existingList || []).map((r: any) => r.mercos_id));
 
+    // Preparar dados para upsert
     const rows = allCategorias.map(cat => ({
       distribuidor_id: distribuidorId,
       mercos_id: cat.id,
@@ -145,43 +158,42 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString()
     }));
 
-    let inseridas = 0;
-    let atualizadas = 0;
-    let erros = 0;
-    const errorDetails: Array<{mercos_id:number; nome:string; erro:string}> = [];
+    // Upsert com retorno para contabilizar resultados reais
+    console.log('[SYNC-SANDBOX-CATEGORIES] 🔄 Executando upsert com retorno...');
+    const { data: upsertData, error: upsertError } = await supabaseAdmin
+      .from('distribuidor_categories')
+      .upsert(rows, { onConflict: 'distribuidor_id,mercos_id' })
+      .select('id, mercos_id, nome');
 
-    for (const r of rows) {
-      if (existingSet.has(r.mercos_id)) atualizadas++; else inseridas++;
+    if (upsertError) {
+      console.error('[SYNC-SANDBOX-CATEGORIES] ❌ Erro no upsert:', upsertError);
+      throw new Error(`Erro no banco: ${upsertError.message}`);
     }
 
-    // Upsert em lotes
-    const CHUNK = 200;
-    for (let i = 0; i < rows.length; i += CHUNK) {
-      const chunk = rows.slice(i, i + CHUNK);
-      const { error } = await supabaseAdmin
-        .from('distribuidor_categories')
-        .upsert(chunk, { onConflict: 'distribuidor_id,mercos_id' });
-      if (error) {
-        console.error('[SYNC-SANDBOX-CATEGORIES] Erro no upsert em lote:', error);
-        erros += chunk.length;
-        errorDetails.push({ mercos_id: chunk[0]?.mercos_id, nome: chunk[0]?.nome, erro: error.message || 'upsert error' });
-      }
-      // pequena pausa para não sobrecarregar
-      await new Promise(r => setTimeout(r, 50));
-    }
+    // Verificar presença específica das categorias do lote atual
+    const mercosIdsInseridos = (upsertData || []).map(r => r.mercos_id);
+    console.log('[SYNC-SANDBOX-CATEGORIES] ✅ Upsert concluído para IDs:', mercosIdsInseridos.slice(0, 10));
 
-    console.log(`[SYNC-SANDBOX-CATEGORIES] ✅ Inseridas: ${inseridas}`);
-    console.log(`[SYNC-SANDBOX-CATEGORIES] ✅ Atualizadas: ${atualizadas}`);
-    console.log(`[SYNC-SANDBOX-CATEGORIES] ❌ Erros: ${erros}`);
+    const { data: verif } = await supabaseAdmin
+      .from('distribuidor_categories')
+      .select('mercos_id, nome')
+      .eq('distribuidor_id', distribuidorId)
+      .in('mercos_id', allCategorias.map((c:any) => c.id));
+
+    const verifNomes = (verif || []).map(v => v.nome);
+    console.log('[SYNC-SANDBOX-CATEGORIES] 🔍 Verificação pós-upsert (nomes):', verifNomes);
+
+    console.log(`[SYNC-SANDBOX-CATEGORIES] ✅ Sincronização concluída!`);
 
     return NextResponse.json({
       success: true,
       resultado: {
         total_mercos: allCategorias.length,
-        inseridas,
-        atualizadas,
-        erros,
-        erros_exemplo: errorDetails.slice(0, 5)
+        inseridas: upsertData?.length || 0,
+        atualizadas: 0,
+        erros: 0,
+        verificados: verif || [],
+        nomePrefix: nomePrefix || null
       }
     }, {
       headers: {
@@ -201,5 +213,130 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const url = new URL(request.url);
+    const distribuidorId = url.searchParams.get('distribuidorId') || '';
+    const alteradoApos = url.searchParams.get('alteradoApos') || '2020-01-01T00:00:00';
+    const companyTokenParam = url.searchParams.get('companyToken') || '';
+    const full = url.searchParams.get('full') === '1' || url.searchParams.get('full') === 'true';
+    const nomePrefix = url.searchParams.get('nomePrefix') || url.searchParams.get('prefix') || '';
+    const maxPages = Number(url.searchParams.get('maxPages') || '0');
+
+    console.log('==================================================');
+    console.log('[SYNC-SANDBOX-CATEGORIES][GET] 🔍 Consulta paginada (somente leitura)');
+    console.log('[SYNC-SANDBOX-CATEGORIES][GET] distribuidorId=', distribuidorId);
+    console.log('[SYNC-SANDBOX-CATEGORIES][GET] alterado_apos=', alteradoApos);
+
+    const SANDBOX_APP_TOKEN = 'd39001ac-0b14-11f0-8ed7-6e1485be00f2';
+    let companyToken = companyTokenParam;
+
+    // Buscar token no banco se distribuidorId informado
+    if (!companyToken && distribuidorId) {
+      const { data: dist } = await supabaseAdmin
+        .from('distribuidores')
+        .select('mercos_company_token, mercos_application_token')
+        .eq('id', distribuidorId)
+        .maybeSingle();
+      if (dist?.mercos_company_token) {
+        companyToken = dist.mercos_company_token as string;
+      }
+    }
+
+    // Fallback para token do sandbox usado nos testes
+    if (!companyToken) {
+      companyToken = '4b866744-a086-11f0-ada6-5e65486a6283';
+    }
+
+    const baseUrl = 'https://sandbox.mercos.com/api/v1';
+    const headers = {
+      'ApplicationToken': SANDBOX_APP_TOKEN,
+      'CompanyToken': companyToken,
+      'Content-Type': 'application/json',
+    } as Record<string, string>;
+
+    let allCategorias: any[] = [];
+    let cursor = alteradoApos;
+    let hasMore = true;
+    let pageCount = 0;
+
+    while (hasMore && pageCount < (maxPages > 0 ? maxPages : 500)) {
+      pageCount++;
+      const endpoint = `/categorias?alterado_apos=${encodeURIComponent(cursor)}&limit=200&order_by=ultima_alteracao&order_direction=asc`;
+      console.log(`[SYNC-SANDBOX-CATEGORIES][GET] Página ${pageCount}: ${endpoint}`);
+
+      const response = await fetchWith429Retry(`${baseUrl}${endpoint}`, { headers });
+      if (response.status === 429) {
+        let bodyText = await response.text();
+        let retrySec = 5;
+        try {
+          const obj = JSON.parse(bodyText);
+          if (obj && obj.tempo_ate_permitir_novamente != null) {
+            retrySec = Number(obj.tempo_ate_permitir_novamente);
+          }
+        } catch {}
+        return NextResponse.json({
+          success: false,
+          error: 'Mercos limit: aguarde e tente novamente',
+          tempo_ate_permitir_novamente: retrySec
+        }, { status: 429, headers: { 'Retry-After': String(retrySec) } });
+      }
+      if (!response.ok) {
+        const txt = await response.text();
+        console.error('[SYNC-SANDBOX-CATEGORIES][GET] ❌ Erro na API Mercos:', txt);
+        throw new Error(`Erro Mercos API: ${response.status} - ${txt}`);
+      }
+
+      const arr = await response.json();
+      const page = Array.isArray(arr) ? arr : [];
+      const pageFiltered = nomePrefix
+        ? page.filter((c: any) => typeof c?.nome === 'string' && c.nome.startsWith(nomePrefix))
+        : page;
+      allCategorias = allCategorias.concat(pageFiltered);
+
+      const limited = response.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
+      if (nomePrefix && pageFiltered.length > 0) {
+        hasMore = false;
+        console.log('[SYNC-SANDBOX-CATEGORIES][GET] Encontrado por prefixo, encerrando paginação');
+      } else if (limited && page.length > 0) {
+        const last = page[page.length - 1];
+        const d = new Date(last.ultima_alteracao);
+        if (!isNaN(d.getTime())) {
+          d.setSeconds(d.getSeconds() + 1);
+          cursor = d.toISOString();
+        } else {
+          cursor = last.ultima_alteracao;
+        }
+        console.log(`[SYNC-SANDBOX-CATEGORIES][GET] Próxima página a partir de: ${cursor}`);
+      } else {
+        hasMore = false;
+        console.log('[SYNC-SANDBOX-CATEGORIES][GET] ✅ Todas as páginas buscadas!');
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      total: allCategorias.length,
+      primeiras_5: allCategorias.slice(0, 5).map(c => ({ id: c.id, nome: c.nome, excluido: c.excluido })),
+      exemplo_busca_bcb369e5: allCategorias.find((c: any) => typeof c.nome === 'string' && c.nome.startsWith('bcb369e5'))?.nome || null,
+      data: full ? allCategorias : undefined,
+      debug: {
+        pages: pageCount,
+        alterado_apos_inicial: alteradoApos,
+        ultimo_alterado_apos: cursor,
+        nomePrefix: nomePrefix || null
+      }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

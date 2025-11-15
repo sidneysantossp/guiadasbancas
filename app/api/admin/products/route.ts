@@ -16,11 +16,32 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
     }
 
-    // Buscar produtos
-    const { data: products, error: productsError } = await supabaseAdmin
+    const url = request.nextUrl;
+    const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
+    const pageSize = Math.max(1, Math.min(100, parseInt(url.searchParams.get('pageSize') || '50')));
+    const q = (url.searchParams.get('q') || '').trim();
+    const distribuidor = (url.searchParams.get('distribuidor') || '').trim();
+
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = supabaseAdmin
       .from('products')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('name');
+
+    if (q) {
+      query = query.ilike('name', `%${q}%`);
+    }
+    if (distribuidor) {
+      if (distribuidor === 'admin') {
+        query = query.is('distribuidor_id', null);
+      } else {
+        query = query.eq('distribuidor_id', distribuidor);
+      }
+    }
+
+    const { data: products, error: productsError, count } = await query.range(from, to);
 
     if (productsError) {
       console.error('Admin products error:', productsError);
@@ -66,7 +87,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({ success: true, data: mappedData });
+    return NextResponse.json({ success: true, data: mappedData, total: count || 0, page, pageSize });
   } catch (error) {
     console.error('Admin products API error:', error);
     return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500 });

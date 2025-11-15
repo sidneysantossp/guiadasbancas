@@ -14,6 +14,7 @@ type Product = {
   images: string[];
   distribuidor_nome?: string;
   category_name?: string;
+  codigo_mercos?: string;
   // Customização
   custom_price?: number;
   custom_stock_enabled?: boolean;
@@ -246,6 +247,12 @@ export default function GerenciarCatalogoPage() {
               <h3 className="font-medium text-gray-900 text-sm mb-1 line-clamp-2">
                 {product.name}
               </h3>
+
+              {product.codigo_mercos && (
+                <p className="text-[11px] text-gray-500 font-mono mb-1">
+                  {product.codigo_mercos}
+                </p>
+              )}
 
               {product.distribuidor_nome && (
                 <p className="text-xs text-orange-600 font-medium mb-3">

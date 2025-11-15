@@ -67,6 +67,10 @@ export default function EditBancaPage() {
   const [resetLoading, setResetLoading] = useState<boolean>(false);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
   const [resetErr, setResetErr] = useState<string | null>(null);
+  // Estados para exclusão
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState<string>("");
   
   // Estados brasileiros
   const estados = [
@@ -282,6 +286,40 @@ export default function EditBancaPage() {
     setHours(prev => prev.map((hour, i) => 
       i === index ? { ...hour, [field]: value } : hour
     ));
+  };
+
+  // Função para excluir banca
+  const handleDeleteBanca = async () => {
+    if (deleteConfirmText !== name) {
+      alert('O nome digitado não confere com o nome da banca. Digite exatamente: ' + name);
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      const response = await fetch(`/api/admin/bancas?id=${bancaId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer admin-token',
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao excluir banca');
+      }
+
+      alert('Banca excluída com sucesso!');
+      router.push('/admin/cms/bancas'); // Redirecionar para listagem
+    } catch (error: any) {
+      console.error('Erro ao excluir banca:', error);
+      alert('Erro ao excluir banca: ' + error.message);
+    } finally {
+      setDeleteLoading(false);
+      setShowDeleteConfirm(false);
+      setDeleteConfirmText('');
+    }
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -836,6 +874,21 @@ export default function EditBancaPage() {
                       <div className="mt-2 rounded-md bg-green-50 border border-green-200 p-2 text-xs text-green-700">{resetMsg}</div>
                     )}
                   </div>
+
+                  {/* Zona de Perigo - Excluir Banca */}
+                  <div className="border-t border-red-200 pt-4">
+                    <h4 className="text-sm font-medium mb-2 text-red-700">Zona de Perigo</h4>
+                    <p className="text-xs text-red-600 mb-3">
+                      ⚠️ Atenção: Esta ação é irreversível. Todos os dados da banca, produtos, pedidos e histórico serão permanentemente removidos.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    >
+                      🗑️ Excluir Banca Permanentemente
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -966,6 +1019,68 @@ export default function EditBancaPage() {
           </div>
         </div>
       </form>
+
+      {/* Modal de Confirmação de Exclusão */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                  <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Confirmar Exclusão</h3>
+              </div>
+              
+              <div className="mb-4">
+                <p className="text-sm text-gray-700 mb-3">
+                  ⚠️ <strong>Esta ação não pode ser desfeita.</strong> Todos os dados da banca serão permanentemente removidos, incluindo:
+                </p>
+                <ul className="text-xs text-gray-600 list-disc list-inside space-y-1 mb-4">
+                  <li>Informações da banca</li>
+                  <li>Produtos cadastrados</li>
+                  <li>Pedidos e histórico</li>
+                  <li>Configurações e preferências</li>
+                </ul>
+                <p className="text-sm font-medium text-gray-900 mb-2">
+                  Para confirmar, digite o nome da banca: <span className="font-mono bg-gray-100 px-1">{name}</span>
+                </p>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  placeholder="Digite o nome da banca aqui..."
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteConfirmText('');
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteBanca}
+                  disabled={deleteLoading || deleteConfirmText !== name}
+                  className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleteLoading ? 'Excluindo...' : 'Excluir Permanentemente'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

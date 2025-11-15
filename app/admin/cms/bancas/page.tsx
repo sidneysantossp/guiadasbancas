@@ -66,6 +66,62 @@ export default function BancasPage() {
     window.location.href = `/admin/cms/bancas/${banca.id}`;
   };
 
+  const toggleBancaStatus = async (banca: AdminBanca) => {
+    try {
+      const newStatus = !banca.active;
+      const res = await fetch('/api/admin/bancas', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer admin-token'
+        },
+        body: JSON.stringify({
+          data: {
+            id: banca.id,
+            name: banca.name,
+            active: newStatus
+          }
+        })
+      });
+
+      if (res.ok) {
+        // Atualizar o estado local
+        setItems(items.map(item => 
+          item.id === banca.id ? { ...item, active: newStatus } : item
+        ));
+        console.log(`Banca ${banca.name} ${newStatus ? 'ativada' : 'desativada'} com sucesso`);
+      } else {
+        console.error('Erro ao alterar status da banca');
+      }
+    } catch (error) {
+      console.error('Erro ao alterar status da banca:', error);
+    }
+  };
+
+  const deleteBanca = async (banca: AdminBanca) => {
+    try {
+      const res = await fetch(`/api/admin/bancas?id=${banca.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer admin-token'
+        }
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        // Remover do estado local
+        setItems(items.filter(item => item.id !== banca.id));
+        alert(`Banca "${banca.name}" excluída com sucesso!`);
+      } else {
+        alert(`Erro ao excluir banca: ${result.error || 'Erro desconhecido'}`);
+      }
+    } catch (error) {
+      console.error('Erro ao excluir banca:', error);
+      alert('Erro ao excluir banca. Tente novamente.');
+    }
+  };
+
   const filteredItems = useMemo(() => {
     let filtered = items;
     if (showPendingOnly) {
@@ -165,20 +221,53 @@ export default function BancasPage() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onEdit(item)}
-                    className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-                  >
-                    Editar
-                  </button>
-                  <Link
-                    href={`/banca/${item.id}`}
-                    target="_blank"
-                    className="inline-flex items-center gap-1 rounded-md bg-gray-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
-                  >
-                    Ver
-                  </Link>
+                <div className="flex items-center gap-3">
+                  {/* Toggle de ativação */}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={item.active}
+                      onChange={() => toggleBancaStatus(item)}
+                      className="sr-only"
+                    />
+                    <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      item.active ? 'bg-green-600' : 'bg-gray-300'
+                    }`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        item.active ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
+                    </div>
+                    <span className="text-sm text-gray-600">
+                      {item.active ? 'Ativa' : 'Inativa'}
+                    </span>
+                  </label>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onEdit(item)}
+                      className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      Editar
+                    </button>
+                    <Link
+                      href={`/banca/${item.id}`}
+                      target="_blank"
+                      className="inline-flex items-center gap-1 rounded-md bg-gray-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
+                    >
+                      Ver
+                    </Link>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Tem certeza que deseja excluir a banca "${item.name}"?\n\nEsta ação não pode ser desfeita.`)) {
+                          deleteBanca(item);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+                      title="Excluir banca"
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
