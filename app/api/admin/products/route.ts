@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       .order('name');
 
     if (q) {
-      query = query.ilike('name', `%${q}%`);
+      query = query.or(`name.ilike.%${q}%,codigo_mercos.ilike.%${q}%`);
     }
     if (distribuidor) {
       if (distribuidor === 'admin') {

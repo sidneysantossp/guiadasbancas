@@ -51,7 +51,9 @@ export async function GET(request: NextRequest) {
     `)
     .eq('banca_id', banca.id);
 
-  if (q) query = query.ilike('name', `%${q}%`);
+  if (q) {
+    query = query.or(`name.ilike.%${q}%,codigo_mercos.ilike.%${q}%`);
+  }
   if (category) query = query.eq('category_id', category);
   if (active !== null) query = query.eq('active', active === 'true');
   if (featured !== null) query = query.eq('featured', featured === 'true');

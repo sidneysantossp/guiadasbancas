@@ -73,7 +73,9 @@ export default function GerenciarCatalogoPage() {
   ).sort();
 
   const filteredProducts = products.filter(p => {
-    const matchSearch = search === "" || p.name.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = search === "" || 
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.codigo_mercos && p.codigo_mercos.toLowerCase().includes(search.toLowerCase()));
     const matchDistribuidor = selectedDistribuidor === "" || p.distribuidor_nome === selectedDistribuidor;
     return matchSearch && matchDistribuidor;
   });
@@ -121,7 +123,7 @@ export default function GerenciarCatalogoPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Digite o nome do produto..."
+              placeholder="Digite o nome ou código do produto..."
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
             />
           </div>

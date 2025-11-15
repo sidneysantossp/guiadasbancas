@@ -314,7 +314,7 @@ export default function AdminProductsPage() {
         )}
         onReset={() => { setQ(""); setCategory(""); setStatus(""); setDistribuidor(""); }}
       >
-        <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Buscar por nome..." className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"/>
+        <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Buscar por nome ou código..." className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"/>
         <select value={category} onChange={(e)=>setCategory(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
           <option value="">Todas categorias</option>
           {categorias.map((cat) => (
