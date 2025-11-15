@@ -26,6 +26,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Parâmetro para forçar sincronização completa (ignorar última sincronização)
+    const { searchParams } = new URL(request.url);
+    const forceFullSync = searchParams.get('full') === 'true';
+
     const supabase = supabaseAdmin;
 
     // Buscar todos os distribuidores ativos
@@ -68,7 +72,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Buscar produtos desde última sincronização, processando por lotes com limite de tempo
-        const ultimaSincronizacao = distribuidor.ultima_sincronizacao || undefined;
+        const ultimaSincronizacao = forceFullSync ? null : (distribuidor.ultima_sincronizacao || null);
         const startTime = Date.now();
         const MAX_EXECUTION_TIME = 270 * 1000; // 4.5 min
         const INSERT_BATCH_SIZE = 200;
@@ -79,7 +83,9 @@ export async function POST(request: NextRequest) {
         let recebidos = 0;
         let atingiuLimiteTempo = false;
 
-        for await (const lote of mercosApi.getAllProdutosGenerator({ batchSize: 200, alteradoApos: ultimaSincronizacao || null })) {
+        console.log(`[CRON] ${forceFullSync ? 'SINCRONIZAÇÃO COMPLETA' : 'Sincronização incremental'} desde: ${ultimaSincronizacao || '2020-01-01'}`);
+
+        for await (const lote of mercosApi.getAllProdutosGenerator({ batchSize: 200, alteradoApos: ultimaSincronizacao })) {
           recebidos += lote.length;
           if ((Date.now() - startTime) > MAX_EXECUTION_TIME) { atingiuLimiteTempo = true; break; }
 
