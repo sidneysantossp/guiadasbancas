@@ -32,14 +32,26 @@ export async function GET() {
     // Buscar TODOS os produtos ATIVOS da Mercos
     console.log('[FIND-MISSING] Buscando produtos da Mercos...');
     const produtosMercos: any[] = [];
+    let totalLotes = 0;
     
-    for await (const lote of mercosApi.getAllProdutosGenerator({ batchSize: 500, alteradoApos: null })) {
-      const ativos = lote.filter(p => p.ativo && !p.excluido);
-      produtosMercos.push(...ativos);
-      console.log(`[FIND-MISSING] Lote: ${lote.length} produtos, ${ativos.length} ativos`);
+    try {
+      for await (const lote of mercosApi.getAllProdutosGenerator({ batchSize: 500, alteradoApos: null })) {
+        totalLotes++;
+        const ativos = lote.filter(p => p.ativo && !p.excluido);
+        produtosMercos.push(...ativos);
+        console.log(`[FIND-MISSING] Lote ${totalLotes}: ${lote.length} produtos, ${ativos.length} ativos, total: ${produtosMercos.length}`);
+        
+        // Limite de segurança para não travar
+        if (totalLotes >= 20) {
+          console.log('[FIND-MISSING] Limite de lotes atingido');
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('[FIND-MISSING] Erro ao buscar da Mercos:', error);
     }
 
-    console.log(`[FIND-MISSING] Total Mercos ATIVOS: ${produtosMercos.length}`);
+    console.log(`[FIND-MISSING] Total Mercos ATIVOS: ${produtosMercos.length} (${totalLotes} lotes)`);
 
     // Buscar todos os produtos do banco
     console.log('[FIND-MISSING] Buscando produtos do banco...');
@@ -79,8 +91,6 @@ export async function GET() {
         nome: p.nome,
         ativo: p.ativo,
         excluido: p.excluido,
-        preco: p.preco,
-        estoque: p.estoque,
       })),
       produtos_sobrando: sobrando.map(p => ({
         id: p.id,
