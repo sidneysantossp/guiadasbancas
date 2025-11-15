@@ -249,7 +249,7 @@ export default function GerenciarCatalogoPage() {
 
               {product.distribuidor_nome && (
                 <p className="text-xs text-orange-600 font-medium mb-3">
-                  {product.distribuidor_nome}
+                  {product.distribuidor_nome.split(' ')[0]}
                 </p>
               )}
 
