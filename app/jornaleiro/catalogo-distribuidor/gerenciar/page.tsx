@@ -270,8 +270,8 @@ export default function GerenciarCatalogoPage() {
                   <span>Estoque:</span>
                   <span className="font-semibold">
                     {product.custom_stock_enabled 
-                      ? `${product.custom_stock_qty} (próprio)`
-                      : `${product.stock_qty} (distribuidor)`
+                      ? product.custom_stock_qty
+                      : product.stock_qty
                     }
                   </span>
                 </div>
