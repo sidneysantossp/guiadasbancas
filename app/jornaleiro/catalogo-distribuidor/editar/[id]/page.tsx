@@ -61,8 +61,17 @@ export default function EditarProdutoDistribuidorPage() {
       if (data.success) {
         const prod = data.data.find((p: Product) => p.id === params.id);
         if (prod) {
+          console.log('[DEBUG] Produto carregado:', {
+            name: prod.name,
+            price: prod.price,
+            distribuidor_price: prod.distribuidor_price,
+            custom_price: prod.custom_price
+          });
+          
           setProduto(prod);
-          setCustomPrice(prod.custom_price?.toString() || prod.distribuidor_price.toString());
+          const priceToUse = prod.custom_price?.toString() || prod.distribuidor_price.toString();
+          console.log('[DEBUG] Preço a usar:', priceToUse);
+          setCustomPrice(priceToUse);
           setCustomDescription(prod.custom_description || '');
           setCustomStatus(prod.custom_status);
           setCustomProntaEntrega(prod.custom_pronta_entrega);
