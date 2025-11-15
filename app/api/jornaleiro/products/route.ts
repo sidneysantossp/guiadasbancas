@@ -162,6 +162,13 @@ export async function GET(request: NextRequest) {
     stats: {
       proprios: produtosBanca?.length || 0,
       distribuidores: produtosAdminFiltrados.length
+    },
+    timestamp: new Date().toISOString()
+  }, {
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
     }
   });
 }
