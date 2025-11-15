@@ -214,9 +214,16 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
       <div className="p-2.5 flex flex-col flex-1">
         <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="text-[13px] font-semibold hover:underline line-clamp-2">{p.name}</Link>
         
+        {/* Código do produto */}
+        {(p as any).codigo_mercos && (
+          <p className="text-[11px] text-gray-500 font-mono mt-1">
+            {(p as any).codigo_mercos}
+          </p>
+        )}
+        
         {/* Nome do distribuidor (se for produto de distribuidor) */}
         {isDistribuidor && distribuidorNome && (
-          <p className="text-xs text-orange-600 font-medium mt-1">
+          <p className="text-xs text-orange-600 font-medium mt-0.5">
             {distribuidorNome.split(' ')[0]}
           </p>
         )}
@@ -514,6 +521,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             status: item.status || 'available',
             is_distribuidor: Boolean(item.is_distribuidor),
             distribuidor_nome: item.distribuidor_nome || '',
+            codigo_mercos: item.codigo_mercos || '',
           } as any;
         });
         if (active) setProdutos(mapped);
@@ -571,6 +579,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             status: item.status || 'available',
             is_distribuidor: Boolean(item.is_distribuidor),
             distribuidor_nome: item.distribuidor_nome || '',
+            codigo_mercos: item.codigo_mercos || '',
           } as any;
         });
         if (active) setProdutosDestaque(mapped);
