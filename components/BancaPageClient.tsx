@@ -512,7 +512,9 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             pre_venda: Boolean(item.pre_venda),
             pronta_entrega: Boolean(item.pronta_entrega),
             status: item.status || 'available',
-          } satisfies ProdutoResumo;
+            is_distribuidor: Boolean(item.is_distribuidor),
+            distribuidor_nome: item.distribuidor_nome || '',
+          } as any;
         });
         if (active) setProdutos(mapped);
       } catch {
@@ -567,7 +569,9 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             pre_venda: Boolean(item.pre_venda),
             pronta_entrega: Boolean(item.pronta_entrega),
             status: item.status || 'available',
-          } satisfies ProdutoResumo;
+            is_distribuidor: Boolean(item.is_distribuidor),
+            distribuidor_nome: item.distribuidor_nome || '',
+          } as any;
         });
         if (active) setProdutosDestaque(mapped);
       } catch {
