@@ -6,7 +6,6 @@ import { validateProductUpdate } from "@/lib/validators/product";
 import ImageUploader from "@/components/admin/ImageUploader";
 import ProductImageUploader from "@/components/admin/ProductImageUploader";
 import ImageSizeGuide from "@/components/admin/ImageSizeGuide";
-import VideoTutorial from "@/components/admin/VideoTutorial";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import SpecificationsEditor from "@/components/admin/SpecificationsEditor";
 import ReviewsManager from "@/components/admin/ReviewsManager";
@@ -375,12 +374,6 @@ export default function SellerProductEditPage() {
         </div>
 
         <div className="space-y-3">
-          {/* Tutorial em vídeo */}
-          <VideoTutorial 
-            title="ACADEMY GUIA DAS BANCAS"
-            videoId="dQw4w9WgXcQ"
-          />
-          
           <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
             {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
             <div>
