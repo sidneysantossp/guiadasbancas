@@ -78,7 +78,16 @@ export async function POST(request: NextRequest) {
         }
 
         // Buscar produtos desde última sincronização, processando por lotes com limite de tempo
-        const ultimaSincronizacao = forceFullSync ? null : (distribuidor.ultima_sincronizacao || null);
+        // Forçar sincronização completa se:
+        // 1. forceFullSync=true (parâmetro manual)
+        // 2. Nunca sincronizou antes
+        // 3. Última sincronização foi há mais de 24 horas (para pegar produtos desabilitados)
+        const agora = new Date();
+        const ultimaSinc = distribuidor.ultima_sincronizacao ? new Date(distribuidor.ultima_sincronizacao) : null;
+        const horasDesdeUltimaSinc = ultimaSinc ? (agora.getTime() - ultimaSinc.getTime()) / (1000 * 60 * 60) : 999;
+        const deveSerCompleta = forceFullSync || !ultimaSinc || horasDesdeUltimaSinc >= 24;
+        
+        const ultimaSincronizacao = deveSerCompleta ? null : distribuidor.ultima_sincronizacao;
         const startTime = Date.now();
         const MAX_EXECUTION_TIME = 270 * 1000; // 4.5 min
         const INSERT_BATCH_SIZE = 200;
@@ -89,7 +98,7 @@ export async function POST(request: NextRequest) {
         let recebidos = 0;
         let atingiuLimiteTempo = false;
 
-        console.log(`[CRON] ${forceFullSync ? 'SINCRONIZAÇÃO COMPLETA' : 'Sincronização incremental'} desde: ${ultimaSincronizacao || '2020-01-01'}`);
+        console.log(`[CRON] ${deveSerCompleta ? 'SINCRONIZAÇÃO COMPLETA' : 'Sincronização incremental'} desde: ${ultimaSincronizacao || '2020-01-01'}`);
 
         for await (const lote of mercosApi.getAllProdutosGenerator({ batchSize: 200, alteradoApos: ultimaSincronizacao })) {
           recebidos += lote.length;
