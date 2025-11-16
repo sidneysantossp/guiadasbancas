@@ -47,6 +47,13 @@ export default function GerenciarCatalogoPage() {
       const json = await res.json();
       
       if (json.success) {
+        console.log('[DEBUG] Produtos carregados:', json.products?.slice(0, 3).map((p: any) => ({
+          name: p.name,
+          price: p.price,
+          custom_price: p.custom_price,
+          type_price: typeof p.price,
+          type_custom: typeof p.custom_price
+        })));
         setProducts(json.products || []);
       } else {
         toast.error(json.error || "Erro ao carregar produtos");
