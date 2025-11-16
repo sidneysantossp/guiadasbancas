@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useToast } from "@/components/admin/ToastProvider";
-import CotistaStatusAlert from '@/components/CotistaStatusAlert';
 
 type Product = {
   id: string;
@@ -28,7 +27,6 @@ export default function GerenciarCatalogoPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [isCotista, setIsCotista] = useState<boolean | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selectedDistribuidor, setSelectedDistribuidor] = useState<string>("");
@@ -37,11 +35,6 @@ export default function GerenciarCatalogoPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      
-      // Verificar se é cotista
-      const bancaRes = await fetch('/api/jornaleiro/banca');
-      const bancaJson = await bancaRes.json();
-      setIsCotista(bancaJson?.data?.is_cotista === true && !!bancaJson?.data?.cotista_id);
       
       const res = await fetch('/api/jornaleiro/catalogo-distribuidor');
       const json = await res.json();
@@ -107,17 +100,6 @@ export default function GerenciarCatalogoPage() {
           Customize preços, estoque e disponibilidade dos produtos de distribuidores na sua banca
         </p>
       </div>
-
-      {/* Alerta de status de cotista */}
-      {isCotista !== null && (
-        <CotistaStatusAlert 
-          isCotista={isCotista} 
-          stats={{
-            proprios: 0, // Não aplicável nesta página
-            distribuidores: products.length
-          }}
-        />
-      )}
 
       {/* Search and Filters */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
