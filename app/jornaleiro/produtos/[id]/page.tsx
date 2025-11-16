@@ -91,8 +91,8 @@ export default function SellerProductEditPage() {
     setDiscountPercent(newDiscount);
   };
 
-  useEffect(() => {
-    const loadProduct = async () => {
+  // Função para carregar dados do produto
+  const loadProduct = async () => {
       try {
         setLoading(true);
         setError(null);
@@ -185,7 +185,9 @@ export default function SellerProductEditPage() {
       } finally {
         setLoading(false);
       }
-    };
+  };
+
+  useEffect(() => {
     loadProduct();
   }, [params?.id, toast, authHeaders]);
 
