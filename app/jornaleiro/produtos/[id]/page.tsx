@@ -149,23 +149,44 @@ export default function SellerProductEditPage() {
         });
         setImages(Array.isArray(p.images) ? p.images : []);
         
-        // Converter preço de decimal (banco) para centavos (string)
-        // Exemplo: 14.9 (banco) -> "1490" (state) -> formatCurrency exibe "14,90"
-        const priceInCents = Math.round((p.price || 0) * 100).toString();
-        setPrice(priceInCents);
+        // Lógica de preços:
+        // BANCO: price = preço de venda, price_original = preço do distribuidor (antes do desconto)
+        // INTERFACE: price (state) = preço do distribuidor, priceOriginal (state) = preço de venda
         
-        // Verificar se jornaleiro já personalizou o preço
+        console.log('[DEBUG] Dados do produto carregado:', {
+          price_banco: p.price,
+          price_original_banco: p.price_original,
+          discount_percent: p.discount_percent
+        });
+        
+        // Se tem price_original no banco, significa que o jornaleiro customizou
         const hasCustomization = p.price_original && p.price_original !== p.price;
         setHasCustomPrice(hasCustomization);
         
-        // Se não há customização, usar o preço do distribuidor como base
-        if (!hasCustomization) {
-          setPriceOriginal(priceInCents);
-          setDiscountPercent(0);
-        } else {
-          const priceOriginalInCents = Math.round((p.price_original || 0) * 100).toString();
-          setPriceOriginal(priceOriginalInCents);
+        if (hasCustomization) {
+          // Tem customização: price_original (banco) = preço distribuidor, price (banco) = preço venda
+          const priceDistribuidorInCents = Math.round((p.price_original || 0) * 100).toString();
+          const priceVendaInCents = Math.round((p.price || 0) * 100).toString();
+          
+          setPrice(priceDistribuidorInCents);        // Preço do distribuidor (não editável)
+          setPriceOriginal(priceVendaInCents);       // Preço de venda (editável)
           setDiscountPercent(p.discount_percent || 0);
+          
+          console.log('[DEBUG] Com customização:', {
+            priceDistribuidor: priceDistribuidorInCents,
+            priceVenda: priceVendaInCents
+          });
+        } else {
+          // Sem customização: usar price (banco) para ambos
+          const priceInCents = Math.round((p.price || 0) * 100).toString();
+          
+          setPrice(priceInCents);                    // Preço do distribuidor
+          setPriceOriginal(priceInCents);            // Preço de venda (igual ao distribuidor)
+          setDiscountPercent(0);
+          
+          console.log('[DEBUG] Sem customização:', {
+            price: priceInCents
+          });
         }
         setDescriptionFull(p.description_full || "");
         setSpecifications(p.specifications || "");
