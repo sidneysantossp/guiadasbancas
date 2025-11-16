@@ -254,17 +254,11 @@ export default function GerenciarCatalogoPage() {
 
                 <div className="space-y-2 text-xs text-gray-600 mb-3 flex-1">
                   <div className="flex items-center justify-between">
-                    <span>Preço original:</span>
-                    <span className={product.custom_price ? "line-through" : "font-semibold"}>
-                      {formatPrice(product.price)}
+                    <span>Preço:</span>
+                    <span className="font-semibold text-gray-900">
+                      {formatPrice(product.custom_price || product.price)}
                     </span>
                   </div>
-                  {product.custom_price && (
-                    <div className="flex items-center justify-between text-orange-600 font-semibold">
-                      <span>Preço customizado:</span>
-                      <span>{formatPrice(product.custom_price)}</span>
-                    </div>
-                  )}
                   <div className="flex items-center justify-between">
                     <span>Estoque:</span>
                     <span className="font-semibold">
