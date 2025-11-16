@@ -7,7 +7,7 @@ export const maxDuration = 300;
 
 /**
  * Cron job para sincronizar produtos de todos os distribuidores ativos
- * Configurar no Vercel Cron: *//* /15 * * * * (a cada 15 minutos)
+ * Configurado no vercel.json: * * * * * (a cada 1 minuto)
  * 
  * Ou usar serviço externo como cron-job.org:
  * POST https://seudominio.com/api/cron/sync-mercos
