@@ -27,8 +27,40 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       return NextResponse.json({ success: false, error: "Produto não encontrado" }, { status: 404 });
     }
 
-    // Se o produto tem distribuidor_id, qualquer jornaleiro pode ver
+    // Se o produto tem distribuidor_id, buscar customizações da banca
     if (product.distribuidor_id) {
+      // Buscar banca do usuário para pegar customizações
+      const { data: banca } = await supabaseAdmin
+        .from('bancas')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (banca) {
+        // Buscar customizações específicas da banca
+        const { data: customization } = await supabaseAdmin
+          .from('banca_produtos_distribuidor')
+          .select('*')
+          .eq('banca_id', banca.id)
+          .eq('product_id', id)
+          .single();
+
+        if (customization && customization.custom_price) {
+          // Se tem customização de preço, aplicar
+          // custom_price é o preço de venda customizado
+          // price original é o preço do distribuidor
+          return NextResponse.json({ 
+            success: true, 
+            data: {
+              ...product,
+              price: customization.custom_price,      // Preço de venda customizado
+              price_original: product.price,          // Preço original do distribuidor
+              has_custom_price: true
+            }
+          });
+        }
+      }
+      
       return NextResponse.json({ success: true, data: product });
     }
 
