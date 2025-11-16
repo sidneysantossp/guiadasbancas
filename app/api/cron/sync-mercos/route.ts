@@ -7,11 +7,17 @@ export const maxDuration = 300;
 
 /**
  * Cron job para sincronizar produtos de todos os distribuidores ativos
- * Configurado no vercel.json: * * * * * (a cada 1 minuto)
  * 
- * Ou usar serviço externo como cron-job.org:
- * POST https://seudominio.com/api/cron/sync-mercos
- * Header: Authorization: Bearer SEU_CRON_SECRET
+ * VERCEL HOBBY PLAN: Limitado a 1x por hora (0 *\/1 * * *)
+ * VERCEL PRO PLAN: Permite a cada 1 minuto (* * * * *)
+ * 
+ * Para sincronização a cada 1 minuto no plano gratuito:
+ * Use serviço externo como cron-job.org (GRATUITO):
+ * - URL: POST https://www.guiadasbancas.com.br/api/cron/sync-mercos
+ * - Schedule: * * * * * (a cada 1 minuto)
+ * - Header: Authorization: Bearer SEU_CRON_SECRET
+ * 
+ * Veja CRON_SETUP.md para instruções completas
  */
 export async function POST(request: NextRequest) {
   try {
