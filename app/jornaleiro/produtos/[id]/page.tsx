@@ -235,8 +235,8 @@ export default function SellerProductEditPage() {
       const body = {
         name: (fd.get("name") as string)?.trim(),
         description: (fd.get("description") as string) || "",
-        price: priceOriginal ? parseCurrency(priceOriginal) : parseCurrency(price), // Preço de venda (o que o jornaleiro definiu)
-        price_original: parseCurrency(price), // Preço original do distribuidor
+        price: parseCurrency(price), // Preço de venda (o que o cliente paga)
+        price_original: priceOriginal ? parseCurrency(priceOriginal) : null, // Preço original (antes do desconto)
         discount_percent: discountPercent,
         has_custom_price: hasCustomPrice, // Flag para indicar se foi personalizado
         stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
