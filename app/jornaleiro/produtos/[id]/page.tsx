@@ -8,7 +8,6 @@ import ProductImageUploader from "@/components/admin/ProductImageUploader";
 import ImageSizeGuide from "@/components/admin/ImageSizeGuide";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import SpecificationsEditor from "@/components/admin/SpecificationsEditor";
-import ReviewsManager from "@/components/admin/ReviewsManager";
 import { useToast } from "@/components/admin/ToastProvider";
 
 interface CategoryOption {
@@ -71,7 +70,6 @@ export default function SellerProductEditPage() {
   const [featuredCount, setFeaturedCount] = useState(0);
   const [descriptionFull, setDescriptionFull] = useState("");
   const [specifications, setSpecifications] = useState("");
-  const [allowReviews, setAllowReviews] = useState(true); // Sempre ativo por padrão
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -169,7 +167,6 @@ export default function SellerProductEditPage() {
         }
         setDescriptionFull(p.description_full || "");
         setSpecifications(p.specifications || "");
-        setAllowReviews(p.allow_reviews !== false); // Ativo por padrão, só desativa se explicitamente false
       } catch (e: any) {
         let message = e?.message || "Erro ao carregar produto.";
         if (e.name === 'AbortError') {
@@ -254,7 +251,6 @@ export default function SellerProductEditPage() {
         description_full: descriptionFull,
         specifications: specifications,
         gallery_images: [],
-        allow_reviews: allowReviews,
       };
 
       const vr = validateProductUpdate(body as any);
@@ -565,14 +561,6 @@ export default function SellerProductEditPage() {
               </button>
             </div>
           </div>
-          
-          {/* Gestão de avaliações */}
-          <ReviewsManager
-            allowReviews={allowReviews}
-            onAllowReviewsChange={setAllowReviews}
-            readonly={true}
-            adminOnly={true}
-          />
         </div>
       </form>
 
