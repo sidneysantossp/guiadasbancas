@@ -189,12 +189,6 @@ export default function GerenciarCatalogoPage() {
             {filteredProducts.filter(p => p.enabled !== false).length}
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-sm text-gray-600">Customizados</p>
-          <p className="text-2xl font-bold text-orange-600 mt-1">
-            {filteredProducts.filter(p => p.custom_price || p.custom_stock_enabled).length}
-          </p>
-        </div>
       </div>
 
       {/* Products List */}
