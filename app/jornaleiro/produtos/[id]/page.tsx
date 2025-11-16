@@ -149,7 +149,11 @@ export default function SellerProductEditPage() {
           pronta_entrega: Boolean(p.pronta_entrega),
         });
         setImages(Array.isArray(p.images) ? p.images : []);
-        setPrice(String(p.price || 0));
+        
+        // Converter preço de decimal (banco) para centavos (string)
+        // Exemplo: 14.9 (banco) -> "1490" (state) -> formatCurrency exibe "14,90"
+        const priceInCents = Math.round((p.price || 0) * 100).toString();
+        setPrice(priceInCents);
         
         // Verificar se jornaleiro já personalizou o preço
         const hasCustomization = p.price_original && p.price_original !== p.price;
@@ -157,10 +161,11 @@ export default function SellerProductEditPage() {
         
         // Se não há customização, usar o preço do distribuidor como base
         if (!hasCustomization) {
-          setPriceOriginal(String(p.price || 0));
+          setPriceOriginal(priceInCents);
           setDiscountPercent(0);
         } else {
-          setPriceOriginal(p.price_original && !isNaN(p.price_original) ? String(p.price_original) : '');
+          const priceOriginalInCents = Math.round((p.price_original || 0) * 100).toString();
+          setPriceOriginal(priceOriginalInCents);
           setDiscountPercent(p.discount_percent || 0);
         }
         setDescriptionFull(p.description_full || "");
