@@ -137,6 +137,17 @@ export async function GET(req: NextRequest) {
     // Combinar produtos com customizações
     const produtosComCustom = produtos?.map((produto: any) => {
       const custom = customMap.get(produto.id);
+      
+      // Debug para Almanaque
+      if (produto.codigo_mercos === 'AALCA029') {
+        console.log('[DEBUG CATALOGO] Almanaque:', {
+          produto_id: produto.id,
+          produto_price: produto.price,
+          custom_price: custom?.custom_price,
+          custom_exists: !!custom,
+          custom_data: custom
+        });
+      }
 
       const distribuidor_nome = distMap.get(produto.distribuidor_id) || null;
       const category_name = catMap.get(produto.category_id) || null;
