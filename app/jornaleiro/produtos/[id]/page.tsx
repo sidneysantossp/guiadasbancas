@@ -281,8 +281,12 @@ export default function SellerProductEditPage() {
         body: JSON.stringify(vr.data),
       });
       if (!res.ok) throw new Error("Falha ao salvar produto.");
+      
       toast.success("Produto atualizado com sucesso");
-      router.push("/jornaleiro/produtos");
+      
+      // Recarregar dados do produto para mostrar valores atualizados
+      await loadProduct();
+      
     } catch (e: any) {
       const message = e?.message || "Erro ao salvar.";
       setError(message);
