@@ -232,11 +232,31 @@ export default function SellerProductEditPage() {
       }
       
 
+      // Lógica de preços:
+      // - price (state) = preço do distribuidor (base, não editável)
+      // - priceOriginal (state) = preço de venda customizado (editável)
+      // 
+      // Ao salvar no banco:
+      // - price (banco) = preço de venda final (o que o cliente paga)
+      // - price_original (banco) = preço original antes do desconto (se houver)
+      
+      const priceDistribuidor = parseCurrency(price); // Preço base do distribuidor
+      const priceVenda = parseCurrency(priceOriginal); // Preço de venda (editado pelo jornaleiro)
+      
+      console.log('[DEBUG] Valores antes de salvar:', {
+        price_state: price,
+        priceOriginal_state: priceOriginal,
+        priceDistribuidor,
+        priceVenda,
+        discountPercent,
+        hasCustomPrice
+      });
+
       const body = {
         name: (fd.get("name") as string)?.trim(),
         description: (fd.get("description") as string) || "",
-        price: parseCurrency(price), // Preço de venda (o que o cliente paga)
-        price_original: priceOriginal ? parseCurrency(priceOriginal) : null, // Preço original (antes do desconto)
+        price: priceVenda, // Preço de venda (o que o cliente paga)
+        price_original: hasCustomPrice && discountPercent > 0 ? priceDistribuidor : null, // Preço original (se houver desconto)
         discount_percent: discountPercent,
         has_custom_price: hasCustomPrice, // Flag para indicar se foi personalizado
         stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
