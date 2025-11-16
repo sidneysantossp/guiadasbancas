@@ -106,7 +106,9 @@ export default function SellerProductEditPage() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
         
-        const res = await fetch(`/api/jornaleiro/products/${id}`, { 
+        // Adicionar timestamp para evitar cache
+        const timestamp = Date.now();
+        const res = await fetch(`/api/jornaleiro/products/${id}?t=${timestamp}`, { 
           headers: authHeaders, 
           cache: "no-store",
           signal: controller.signal
@@ -284,10 +286,15 @@ export default function SellerProductEditPage() {
       });
       if (!res.ok) throw new Error("Falha ao salvar produto.");
       
+      const savedData = await res.json();
+      console.log('[DEBUG] Produto salvo com sucesso:', savedData);
+      
       toast.success("Produto atualizado com sucesso");
       
       // Recarregar dados do produto para mostrar valores atualizados
+      console.log('[DEBUG] Recarregando produto...');
       await loadProduct();
+      console.log('[DEBUG] Produto recarregado!');
       
     } catch (e: any) {
       const message = e?.message || "Erro ao salvar.";
