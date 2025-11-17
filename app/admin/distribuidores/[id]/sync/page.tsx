@@ -383,18 +383,26 @@ ${data.data.total_no_banco < 7700 ? '⚠️ Clique novamente para continuar até
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl" data-page-version="v4-timestamp-forced">
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4">
           <Link
             href="/admin/distribuidores"
             className="text-[#ff5c00] hover:underline flex items-center gap-2"
           >
             ← Voltar
           </Link>
+        </div>
+        <div className="flex items-center gap-3 mb-4">
           <Link
             href={`/admin/distribuidores/${params.id}/debug-mercos`}
-            className="px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition"
+            className="px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition"
           >
             🔍 Debug API Mercos
+          </Link>
+          <Link
+            href={`/admin/distribuidores/${params.id}/atualizar-codigos`}
+            className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition"
+          >
+            🔄 Atualizar Códigos
           </Link>
         </div>
         <h1 className="text-3xl font-bold text-gray-900">
