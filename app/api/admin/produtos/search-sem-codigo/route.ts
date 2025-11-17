@@ -26,16 +26,7 @@ export async function GET(req: NextRequest) {
 
     let query = supabaseAdmin
       .from('products')
-      .select(`
-        id,
-        name,
-        mercos_id,
-        codigo_mercos,
-        images,
-        distribuidor:distribuidores!distribuidor_id (
-          name
-        )
-      `)
+      .select('id, name, mercos_id, codigo_mercos, images, distribuidor_id')
       .order('name');
 
     // Filtrar por distribuidor se informado
@@ -70,6 +61,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Buscar nomes dos distribuidores
+    const distribuidorIds = [...new Set((produtos || []).map(p => p.distribuidor_id).filter(Boolean))];
+    const { data: distribuidores } = await supabase
+      .from('distribuidores')
+      .select('id, name')
+      .in('id', distribuidorIds);
+
+    const distribuidoresMap = new Map(
+      (distribuidores || []).map((d: any) => [d.id, d.name])
+    );
+
     // Formatar resposta
     const produtosFormatados = (produtos || []).map((p: any) => ({
       id: p.id,
@@ -77,7 +79,7 @@ export async function GET(req: NextRequest) {
       mercos_id: p.mercos_id,
       codigo_mercos: p.codigo_mercos,
       images: p.images || [],
-      distribuidor_name: p.distribuidor?.name || 'Sem distribuidor',
+      distribuidor_name: distribuidoresMap.get(p.distribuidor_id) || 'Sem distribuidor',
     }));
 
     return NextResponse.json({
