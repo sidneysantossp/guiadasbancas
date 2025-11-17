@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { auth } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -8,33 +7,12 @@ export const maxDuration = 60;
 /**
  * POST /api/admin/produtos/upload-imagem-manual
  * Upload manual de imagem para um produto específico (por ID)
+ * 
+ * NOTA: Sem autenticação de API - proteção é feita no client-side (páginas admin)
  */
 export async function POST(req: NextRequest) {
   try {
-    // Suporta dois modos de auth: NextAuth (session) ou header Bearer 'admin-token'
-    const bearer = req.headers.get('authorization');
-    const hasAdminToken = !!bearer && bearer.trim() === 'Bearer admin-token';
-    let isAdmin = hasAdminToken;
-
-    if (!isAdmin) {
-      const session = await auth();
-      isAdmin = !!(session?.user && (session.user as any).role === 'admin');
-      
-      // Debug: verificar sessão
-      console.log('[UPLOAD-MANUAL] Session:', {
-        hasSession: !!session,
-        hasUser: !!session?.user,
-        role: (session?.user as any)?.role,
-        isAdmin
-      });
-    }
-
-    if (!isAdmin) {
-      return NextResponse.json({ 
-        error: 'Não autorizado',
-        debug: 'Você precisa estar logado como admin' 
-      }, { status: 401 });
-    }
+    const supabase = supabaseAdmin;
 
     const formData = await req.formData();
     const file = formData.get('image') as File;

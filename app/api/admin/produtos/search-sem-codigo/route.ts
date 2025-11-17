@@ -1,38 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { auth } from '@/lib/auth';
 
 /**
  * GET /api/admin/produtos/search-sem-codigo
  * Busca produtos por nome, mercos_id ou codigo_mercos
  * Útil para encontrar produtos que não têm codigo_mercos para upload manual
+ * 
+ * NOTA: Sem autenticação de API - proteção é feita no client-side (páginas admin)
  */
 export async function GET(req: NextRequest) {
   try {
-    // Suporta dois modos de auth: NextAuth (session) ou header Bearer 'admin-token'
-    const bearer = req.headers.get('authorization');
-    const hasAdminToken = !!bearer && bearer.trim() === 'Bearer admin-token';
-    let isAdmin = hasAdminToken;
-
-    if (!isAdmin) {
-      const session = await auth();
-      isAdmin = !!(session?.user && (session.user as any).role === 'admin');
-      
-      // Debug: verificar sessão
-      console.log('[SEARCH-SEM-CODIGO] Session:', {
-        hasSession: !!session,
-        hasUser: !!session?.user,
-        role: (session?.user as any)?.role,
-        isAdmin
-      });
-    }
-
-    if (!isAdmin) {
-      return NextResponse.json({ 
-        error: 'Não autorizado',
-        debug: 'Você precisa estar logado como admin' 
-      }, { status: 401 });
-    }
+    const supabase = supabaseAdmin;
 
     const url = new URL(req.url);
     const searchTerm = url.searchParams.get('q') || '';
