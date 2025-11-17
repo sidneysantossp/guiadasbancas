@@ -292,14 +292,15 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
         if (error || !bancaData) {
           console.error('[Layout] ❌ Usuário sem banca associada!', error?.message);
-          console.log('[Layout] Redirecionando para onboarding para criar banca...');
+          console.log('[Layout] Usuário sem banca associada. Redirecionando para fluxo de cadastro, NÃO para onboarding.');
           setBanca(null);
           setBancaValidated(true);
           
-          // Redirecionar para onboarding em vez de fazer logout
-          // Isso permite que usuários sem banca criem uma
-          if (pathname !== '/jornaleiro/onboarding') {
-            router.push('/jornaleiro/onboarding');
+          // Regra nova:
+          // - Onboarding é reservado para o fluxo logo após o wizard de cadastro
+          // - Se o usuário acessa uma rota protegida sem ter banca, enviamos para /jornaleiro/registrar
+          if (!pathname?.startsWith('/jornaleiro/registrar')) {
+            router.push('/jornaleiro/registrar');
           }
           return;
         }

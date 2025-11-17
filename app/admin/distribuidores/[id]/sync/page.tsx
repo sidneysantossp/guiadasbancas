@@ -52,8 +52,9 @@ export default function SyncDistribuidorPage() {
         body.startTimestamp = customTimestamp.trim();
       }
 
+      // Usar sempre sincronização COMPLETA
       const response = await fetch(
-        `/api/admin/distribuidores/${params.id}/sync`,
+        `/api/admin/distribuidores/${params.id}/sync-full`,
         {
           method: 'POST',
           headers: {
@@ -74,13 +75,8 @@ export default function SyncDistribuidorPage() {
         throw new Error(`HTTP ${response.status} - ${errText?.slice(0, 300)}`);
       }
 
-      let data: any;
-      const rawText = await response.text();
-      try {
-        data = JSON.parse(rawText || '{}');
-      } catch {
-        throw new Error(`Resposta não-JSON da API: ${rawText?.slice(0, 300)}`);
-      }
+      // Resposta sempre JSON do sync-full
+      const data = await response.json();
 
       if (data.success) {
         setResult(data.data);
@@ -90,7 +86,7 @@ export default function SyncDistribuidorPage() {
       }
     } catch (error) {
       console.error('Erro na sincronização:', error);
-      alert('Erro na sincronização');
+      alert('Erro na sincronização: ' + (error as any)?.message || 'Erro desconhecido');
     } finally {
       setSyncing(false);
     }
