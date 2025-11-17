@@ -11,11 +11,29 @@ export const maxDuration = 60;
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    const isAdmin = !!(session?.user && (session.user as any).role === 'admin');
+    // Suporta dois modos de auth: NextAuth (session) ou header Bearer 'admin-token'
+    const bearer = req.headers.get('authorization');
+    const hasAdminToken = !!bearer && bearer.trim() === 'Bearer admin-token';
+    let isAdmin = hasAdminToken;
 
     if (!isAdmin) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+      const session = await auth();
+      isAdmin = !!(session?.user && (session.user as any).role === 'admin');
+      
+      // Debug: verificar sessão
+      console.log('[UPLOAD-MANUAL] Session:', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        role: (session?.user as any)?.role,
+        isAdmin
+      });
+    }
+
+    if (!isAdmin) {
+      return NextResponse.json({ 
+        error: 'Não autorizado',
+        debug: 'Você precisa estar logado como admin' 
+      }, { status: 401 });
     }
 
     const formData = await req.formData();
