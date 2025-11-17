@@ -36,7 +36,13 @@ export default function GerenciarCatalogoPage() {
     try {
       setLoading(true);
       
-      const res = await fetch('/api/jornaleiro/catalogo-distribuidor');
+      const timestamp = Date.now();
+      const res = await fetch(`/api/jornaleiro/catalogo-distribuidor?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
       const json = await res.json();
       
       if (json.success) {

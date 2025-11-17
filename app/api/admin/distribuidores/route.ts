@@ -5,6 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = supabaseAdmin;
 
+    // Buscar distribuidores
     const { data: distribuidores, error } = await supabase
       .from('distribuidores')
       .select('*')
@@ -17,9 +18,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (!distribuidores || distribuidores.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+      });
+    }
+
+    // Para cada distribuidor, contar apenas produtos ATIVOS
+    const distribuidoresComTotais = await Promise.all(
+      distribuidores.map(async (dist) => {
+        const { count } = await supabase
+          .from('products')
+          .select('*', { count: 'exact', head: true })
+          .eq('distribuidor_id', dist.id)
+          .eq('active', true);
+
+        return {
+          ...dist,
+          // total_produtos passa a refletir apenas produtos ativos
+          total_produtos: count ?? 0,
+        };
+      })
+    );
+
     return NextResponse.json({
       success: true,
-      data: distribuidores,
+      data: distribuidoresComTotais,
     });
   } catch (error: any) {
     return NextResponse.json(

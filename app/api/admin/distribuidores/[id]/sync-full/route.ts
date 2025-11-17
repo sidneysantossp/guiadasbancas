@@ -147,11 +147,12 @@ export async function POST(
     const timeoutReached = isTimeoutReached(startTime, SYNC_CONFIG.MAX_EXECUTION_TIME);
     const limitReached = totalProcessed >= SYNC_CONFIG.PRODUCTS_PER_ITERATION;
 
-    // Atualizar contador no distribuidor
+    // Atualizar contador no distribuidor (apenas produtos ATIVOS)
     const { count: totalProdutos } = await supabase
       .from('products')
       .select('*', { count: 'exact', head: true })
-      .eq('distribuidor_id', distribuidorId);
+      .eq('distribuidor_id', distribuidorId)
+      .eq('active', true);
 
     await supabase
       .from('distribuidores')
