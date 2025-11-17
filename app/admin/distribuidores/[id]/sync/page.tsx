@@ -383,12 +383,20 @@ ${data.data.total_no_banco < 7700 ? '⚠️ Clique novamente para continuar até
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl" data-page-version="v4-timestamp-forced">
       <div className="mb-8">
-        <Link
-          href="/admin/distribuidores"
-          className="text-[#ff5c00] hover:underline flex items-center gap-2 mb-4"
-        >
-          ← Voltar
-        </Link>
+        <div className="flex items-center justify-between mb-4">
+          <Link
+            href="/admin/distribuidores"
+            className="text-[#ff5c00] hover:underline flex items-center gap-2"
+          >
+            ← Voltar
+          </Link>
+          <Link
+            href={`/admin/distribuidores/${params.id}/debug-mercos`}
+            className="px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition"
+          >
+            🔍 Debug API Mercos
+          </Link>
+        </div>
         <h1 className="text-3xl font-bold text-gray-900">
           Sincronizar Catálogo
         </h1>
