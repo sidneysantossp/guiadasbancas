@@ -46,6 +46,23 @@ export async function POST(
       );
     }
 
+    // Mapear produtos locais atuais (para identificar quais deixaram de existir/ficaram inativos na Mercos)
+    const { data: existingProductsRows } = await supabase
+      .from('products')
+      .select('id, mercos_id')
+      .eq('distribuidor_id', distribuidorId);
+
+    const mercosIdToLocalId = new Map<number, string>();
+    const remainingMercosIds = new Set<number>();
+
+    (existingProductsRows || []).forEach((row: any) => {
+      if (row.mercos_id != null) {
+        const mercosId = Number(row.mercos_id);
+        mercosIdToLocalId.set(mercosId, row.id);
+        remainingMercosIds.add(mercosId);
+      }
+    });
+
     // Garantir categoria fallback
     const { data: categoria } = await supabase
       .from('categories')
@@ -122,6 +139,10 @@ export async function POST(
               produtosAtualizados++;
             }
             totalProcessed++;
+            // Este produto continua existindo/ativo na Mercos
+            if (produtos[index]?.id != null) {
+              remainingMercosIds.delete(produtos[index].id);
+            }
           } else {
             erros.push(`Produto ${produtos[index].nome}: ${result.reason}`);
           }
@@ -146,6 +167,29 @@ export async function POST(
 
     const timeoutReached = isTimeoutReached(startTime, SYNC_CONFIG.MAX_EXECUTION_TIME);
     const limitReached = totalProcessed >= SYNC_CONFIG.PRODUCTS_PER_ITERATION;
+
+    // Qualquer produto que permaneceu em remainingMercosIds existe localmente
+    // mas não veio na listagem de produtos ativos da Mercos -> marcar como inativo
+    if (!timeoutReached && remainingMercosIds.size > 0) {
+      const idsToDisable: string[] = [];
+      remainingMercosIds.forEach((mercosId) => {
+        const localId = mercosIdToLocalId.get(mercosId);
+        if (localId) idsToDisable.push(localId);
+      });
+
+      if (idsToDisable.length > 0) {
+        console.log(`[SYNC-FULL] Marcando ${idsToDisable.length} produtos como inativos (não retornaram da Mercos)`);
+        const { error: disableError } = await supabase
+          .from('products')
+          .update({ active: false })
+          .in('id', idsToDisable);
+
+        if (disableError) {
+          console.error('[SYNC-FULL] Erro ao marcar produtos como inativos:', disableError);
+          erros.push('Erro ao marcar produtos antigos como inativos. Ver logs.');
+        }
+      }
+    }
 
     // Atualizar contador no distribuidor (apenas produtos ATIVOS)
     const { count: totalProdutos } = await supabase
