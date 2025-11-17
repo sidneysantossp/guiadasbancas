@@ -437,19 +437,18 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     });
   }
   
-  // SEGURANÇA CRÍTICA: Se não tiver banca, redirecionar para onboarding
-  if (!banca && !isAuthRoute) {
-    // Redirecionar para onboarding para criar a banca
-    if (typeof window !== 'undefined') {
-      console.log('[Layout] Usuário sem banca, redirecionando para onboarding...');
-      router.push('/jornaleiro/onboarding');
-    }
+  // IMPORTANTE: Não redirecionar aqui!
+  // A lógica de redirecionamento está no useEffect (linhas 293-305)
+  // Este bloco causava redirecionamentos indesejados para usuários não autenticados
+  // Se não tiver banca e não for rota de autenticação, mostrar loading
+  // (o useEffect irá redirecionar corretamente para /jornaleiro/registrar)
+  if (!banca && !isAuthRoute && user) {
     return (
       <ToastProvider>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Configurando sua conta...</p>
+            <p className="mt-4 text-gray-600">Carregando...</p>
           </div>
         </div>
       </ToastProvider>
