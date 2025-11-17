@@ -44,14 +44,19 @@ export async function GET(req: NextRequest) {
         // Se for número, buscar por mercos_id
         query = query.eq('mercos_id', numericSearch);
       } else {
-        // Se não, buscar por nome ou codigo_mercos
+        // Se não, buscar por nome ou codigo_mercos (aceita parcial)
+        // Usa ilike para case-insensitive e % para busca parcial
         query = query.or(`name.ilike.%${searchTerm}%,codigo_mercos.ilike.%${searchTerm}%`);
       }
     }
+    
+    console.log('[SEARCH-SEM-CODIGO] Termo de busca:', searchTerm);
 
     query = query.limit(50);
 
     const { data: produtos, error } = await query;
+
+    console.log('[SEARCH-SEM-CODIGO] Produtos encontrados:', produtos?.length || 0);
 
     if (error) {
       console.error('[SEARCH-SEM-CODIGO] Erro:', error);
@@ -60,17 +65,33 @@ export async function GET(req: NextRequest) {
         { status: 500 }
       );
     }
+    
+    if (!produtos || produtos.length === 0) {
+      return NextResponse.json({
+        success: true,
+        produtos: [],
+        total: 0,
+        message: 'Nenhum produto encontrado com esse termo',
+      });
+    }
 
     // Buscar nomes dos distribuidores
     const distribuidorIds = [...new Set((produtos || []).map(p => p.distribuidor_id).filter(Boolean))];
-    const { data: distribuidores } = await supabase
-      .from('distribuidores')
-      .select('id, name')
-      .in('id', distribuidorIds);
-
-    const distribuidoresMap = new Map(
-      (distribuidores || []).map((d: any) => [d.id, d.name])
-    );
+    
+    let distribuidoresMap = new Map();
+    
+    if (distribuidorIds.length > 0) {
+      const { data: distribuidores } = await supabase
+        .from('distribuidores')
+        .select('id, nome')
+        .in('id', distribuidorIds);
+      
+      console.log('[SEARCH-SEM-CODIGO] Distribuidores encontrados:', distribuidores);
+      
+      distribuidoresMap = new Map(
+        (distribuidores || []).map((d: any) => [d.id, d.nome])
+      );
+    }
 
     // Formatar resposta
     const produtosFormatados = (produtos || []).map((p: any) => ({
