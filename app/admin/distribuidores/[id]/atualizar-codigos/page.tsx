@@ -20,17 +20,33 @@ export default function AtualizarCodigosPage() {
     try {
       const response = await fetch(`/api/admin/distribuidores/${distribuidorId}/atualizar-codigos`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
-      const data = await response.json();
+      // Tentar parsear a resposta como JSON
+      let data;
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        // Se não é JSON, pegar o texto
+        const text = await response.text();
+        throw new Error(`Resposta inválida do servidor: ${text.substring(0, 200)}`);
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Erro ao atualizar códigos');
+        const errorMsg = data.error || 'Erro ao atualizar códigos';
+        const detalhes = data.detalhes ? `\n\nDetalhes: ${data.detalhes}` : '';
+        throw new Error(errorMsg + detalhes);
       }
 
       setResultado(data);
     } catch (err: any) {
-      setErro(err.message);
+      console.error('Erro ao atualizar códigos:', err);
+      setErro(err.message || 'Erro desconhecido');
     } finally {
       setLoading(false);
     }

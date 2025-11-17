@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
 
-export const maxDuration = 300; // 5 minutos
+export const maxDuration = 60; // 1 minuto
+export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/admin/distribuidores/[id]/atualizar-codigos
@@ -38,25 +39,39 @@ export async function POST(
       baseUrl: distribuidor.base_url || 'https://app.mercos.com/api/v1',
     });
 
-    // Buscar TODOS os produtos da API Mercos
+    // Buscar produtos da API Mercos (limitado para evitar timeout)
     console.log('[ATUALIZAR-CODIGOS] Buscando produtos na API Mercos...');
     let todosProdutos: any[] = [];
     let offset: number | null = null;
     const limit = 200;
+    const maxProdutos = 2000; // Limite para evitar timeout
+    let tentativas = 0;
+    const maxTentativas = 10;
 
-    while (true) {
-      const produtos = await mercosApi.getBatchProdutos({ 
-        limit,
-        afterId: offset
-      });
+    try {
+      while (todosProdutos.length < maxProdutos && tentativas < maxTentativas) {
+        const produtos = await mercosApi.getBatchProdutos({ 
+          limit,
+          afterId: offset
+        });
 
-      if (produtos.length === 0) break;
+        if (produtos.length === 0) break;
 
-      todosProdutos.push(...produtos);
-      console.log(`[ATUALIZAR-CODIGOS] Buscados ${todosProdutos.length} produtos...`);
+        todosProdutos.push(...produtos);
+        console.log(`[ATUALIZAR-CODIGOS] Buscados ${todosProdutos.length} produtos...`);
 
-      if (produtos.length < limit) break;
-      offset = produtos[produtos.length - 1].id;
+        if (produtos.length < limit) break;
+        offset = produtos[produtos.length - 1].id;
+        tentativas++;
+      }
+    } catch (apiError: any) {
+      console.error('[ATUALIZAR-CODIGOS] Erro ao buscar da API Mercos:', apiError.message);
+      return NextResponse.json({ 
+        success: false, 
+        error: `Erro ao buscar produtos da API Mercos: ${apiError.message}`,
+        parcial: true,
+        produtos_buscados: todosProdutos.length,
+      }, { status: 500 });
     }
 
     console.log(`[ATUALIZAR-CODIGOS] Total na API Mercos: ${todosProdutos.length}`);
@@ -93,42 +108,53 @@ export async function POST(
       }, { status: 404 });
     }
 
-    // Atualizar produtos
+    // Atualizar produtos em lotes
     let atualizados = 0;
     let semMudanca = 0;
     let naoEncontrados = 0;
     const erros: any[] = [];
+    const batchSize = 50;
 
-    for (const produto of produtosNoBanco) {
-      const codigoNaMercos = codigosPorMercosId.get(produto.mercos_id);
+    for (let i = 0; i < produtosNoBanco.length; i += batchSize) {
+      const batch = produtosNoBanco.slice(i, i + batchSize);
       
-      if (!codigoNaMercos) {
-        naoEncontrados++;
-        continue;
-      }
-
-      if (produto.codigo_mercos === codigoNaMercos) {
-        semMudanca++;
-        continue;
-      }
-
-      // Atualizar o código
-      const { error } = await supabase
-        .from('products')
-        .update({ 
-          codigo_mercos: codigoNaMercos,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', produto.id);
-
-      if (error) {
-        console.error(`[ATUALIZAR-CODIGOS] Erro ao atualizar ${produto.name}:`, error);
-        erros.push({ produto: produto.name, erro: error.message });
-      } else {
-        atualizados++;
-        if (atualizados % 100 === 0) {
-          console.log(`[ATUALIZAR-CODIGOS] Atualizados ${atualizados} produtos...`);
+      for (const produto of batch) {
+        const codigoNaMercos = codigosPorMercosId.get(produto.mercos_id);
+        
+        if (!codigoNaMercos) {
+          naoEncontrados++;
+          continue;
         }
+
+        if (produto.codigo_mercos === codigoNaMercos) {
+          semMudanca++;
+          continue;
+        }
+
+        // Atualizar o código
+        try {
+          const { error } = await supabase
+            .from('products')
+            .update({ 
+              codigo_mercos: codigoNaMercos,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', produto.id);
+
+          if (error) {
+            console.error(`[ATUALIZAR-CODIGOS] Erro ao atualizar ${produto.name}:`, error);
+            erros.push({ produto: produto.name, erro: error.message });
+          } else {
+            atualizados++;
+          }
+        } catch (updateError: any) {
+          console.error(`[ATUALIZAR-CODIGOS] Exceção ao atualizar ${produto.name}:`, updateError);
+          erros.push({ produto: produto.name, erro: updateError.message });
+        }
+      }
+      
+      if ((i + batchSize) % 200 === 0) {
+        console.log(`[ATUALIZAR-CODIGOS] Progresso: ${i + batchSize}/${produtosNoBanco.length}`);
       }
     }
 
@@ -182,10 +208,26 @@ export async function POST(
       erros: erros.slice(0, 10), // Máximo 10 erros no response
     });
   } catch (error: any) {
-    console.error('[ATUALIZAR-CODIGOS] Erro:', error);
+    console.error('[ATUALIZAR-CODIGOS] Erro fatal:', error);
+    
+    // Garantir que sempre retornamos JSON válido
+    const errorMessage = error?.message || 'Erro desconhecido';
+    const errorStack = error?.stack || '';
+    
     return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
+      { 
+        success: false, 
+        error: errorMessage,
+        tipo_erro: error?.name || 'Unknown',
+        detalhes: errorStack.split('\n').slice(0, 3).join('\n'),
+        timestamp: new Date().toISOString(),
+      },
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
     );
   }
 }
