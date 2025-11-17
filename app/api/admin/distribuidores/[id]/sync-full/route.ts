@@ -277,7 +277,7 @@ async function processProduct(
     sob_encomenda: false,
     pre_venda: false,
     pronta_entrega: true,
-    ativo: produto.ativo && !produto.excluido,
+    active: produto.ativo && !produto.excluido,
     updated_at: new Date().toISOString(),
   };
 
