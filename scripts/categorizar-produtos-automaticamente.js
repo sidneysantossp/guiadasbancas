@@ -176,7 +176,7 @@ async function main() {
   console.log('\n📦 Buscando produtos...');
   let query = supabase
     .from('products')
-    .select('id, name, category_id, categories(name), distribuidor_id, distribuidores(nome)')
+    .select('id, name, category_id, categories(name), distribuidor_id')
     .not('distribuidor_id', 'is', null)
     .eq('active', true);
 
@@ -244,8 +244,7 @@ async function main() {
       name: product.name,
       currentCategory,
       suggestedCategory,
-      categoryId,
-      distribuidor: product.distribuidores?.nome
+      categoryId
     });
   });
 
