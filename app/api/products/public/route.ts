@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const category = searchParams.get("category") || "";
-    const limit = Math.min(parseInt(searchParams.get("limit") || "12"), 50); // Máximo 50
+    const distribuidor = searchParams.get("distribuidor") || "";
+    const limit = Math.min(parseInt(searchParams.get("limit") || "12"), 100); // Máximo 100
     const sort = searchParams.get("sort") || "created_at";
     const order = searchParams.get("order") || "desc";
 
@@ -39,6 +40,11 @@ export async function GET(req: NextRequest) {
     // Filtro de categoria
     if (category) {
       query = query.eq('category_id', category);
+    }
+
+    // Filtro de distribuidor
+    if (distribuidor) {
+      query = query.eq('distribuidor_id', distribuidor);
     }
 
     // Ordenação

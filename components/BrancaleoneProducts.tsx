@@ -87,6 +87,9 @@ function ProductCard({ p }: { p: BrancaleoneProduct }) {
   );
 }
 
+// ID fixo da Brancaleone (mesmo usado nas páginas de banca)
+const BRANCALEONE_ID = '1511df09-1f4a-4e68-9f8c-05cd06be6269';
+
 export default function BrancaleoneProducts() {
   const [products, setProducts] = useState<BrancaleoneProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,11 +103,11 @@ export default function BrancaleoneProducts() {
       try {
         setLoading(true);
         
-        // Buscar produtos direto da API pública, limitando bastante
-        const prodRes = await fetch(`/api/products/public?limit=100&sort=created_at&order=desc`);
+        // Buscar produtos da Brancaleone usando o distribuidor_id fixo
+        const prodRes = await fetch(`/api/products/public?distribuidor=${BRANCALEONE_ID}&limit=20&sort=created_at&order=desc`);
         
         if (!prodRes.ok) {
-          console.error('Erro ao buscar produtos:', prodRes.status);
+          console.error('Erro ao buscar produtos Brancaleone:', prodRes.status);
           if (active) setProducts([]);
           return;
         }
@@ -112,16 +115,9 @@ export default function BrancaleoneProducts() {
         const prodData = await prodRes.json();
         const items = Array.isArray(prodData?.items) ? prodData.items : (Array.isArray(prodData?.data) ? prodData.data : []);
         
-        // Filtrar produtos da Brancaleone
-        const brancaleoneItems = items.filter((p: any) => {
-          const distribNome = p.distribuidor_nome || p.distributor_name || '';
-          return distribNome.toLowerCase().includes('brancaleone');
-        });
+        console.log('Produtos Brancaleone encontrados:', items.length);
         
-        console.log('Total de produtos da API:', items.length);
-        console.log('Produtos Brancaleone encontrados:', brancaleoneItems.length);
-        
-        const mapped: BrancaleoneProduct[] = brancaleoneItems
+        const mapped: BrancaleoneProduct[] = items
           .filter((p: any) => p?.id && typeof p.price === 'number' && p.price > 0 && p.images && p.images[0])
           .map((p: any) => ({
             id: p.id,
