@@ -199,11 +199,12 @@ function BancaCard({
         <div className="text-xs text-gray-700">
           <div className="flex flex-wrap gap-1.5">
             {(catBadges.length ? catBadges : categories).slice(0, 3).map((c, i) => (
-              <span key={i} className="inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 px-2 py-0.5">
-                <span className="h-3 w-3 rounded-full overflow-hidden">
-                  <Image src={c.icon} alt={c.name} width={12} height={12} className="h-3 w-3 object-cover rounded-full" loading="lazy" />
-                </span>
-                <span className="text-[10px] font-medium">{c.name}</span>
+              <span key={i} className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 text-gray-700 px-2.5 py-1">
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 6v6l4 2" />
+                </svg>
+                <span className="text-[11px] font-medium">{c.name}</span>
               </span>
             ))}
           </div>
@@ -340,11 +341,7 @@ export default function FeaturedBancas() {
 
   return (
     <section className="w-full">
-      <div className="container-max relative rounded-2xl px-3 sm:px-6 md:px-8 py-3">
-        {/* Background image clipped by rounded corners */}
-        <div className="absolute inset-0 z-0 pointer-events-none select-none rounded-2xl overflow-hidden">
-          <Image src="https://stackfood-react.6amtech.com/static/paidAdds.png" alt="bg" fill sizes="100vw" className="object-cover" />
-        </div>
+      <div className="container-max relative px-3 sm:px-6 md:px-8 py-6">
         <div className="relative z-10 mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg sm:text-xl font-semibold">Bancas perto de você</h2>
