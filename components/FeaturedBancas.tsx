@@ -340,7 +340,7 @@ export default function FeaturedBancas() {
         </div>
         {/* Carrossel: mobile scroll-snap manual, desktop slider com setas */}
         {isMobile ? (
-          <div className="relative z-10 py-2">
+          <div className="relative z-10 py-6">
             <div className="overflow-x-auto no-scrollbar">
               <div className="flex gap-4 snap-x snap-mandatory">
                 {normalized.map((b, i) => (
@@ -352,7 +352,7 @@ export default function FeaturedBancas() {
             </div>
           </div>
         ) : (
-          <div className="relative z-10 py-2">
+          <div className="relative z-10 py-6">
             {/* Viewport com gutters para as setas (evita que o card entre sob a seta) */}
             <div className="overflow-hidden px-6">
               <div
