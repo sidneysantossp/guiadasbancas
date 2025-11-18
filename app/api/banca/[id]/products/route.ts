@@ -53,6 +53,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     let todosProdutosDistribuidor: any[] = [];
     
     // Buscar produtos dos distribuidores públicos (sempre)
+    // IMPORTANTE: Adicionar limit alto para evitar limite padrão de 1000 do Supabase
     const { data: produtosPublicos } = await supabase
       .from('products')
       .select(`
@@ -61,7 +62,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       `)
       .eq('active', true)
       .in('distribuidor_id', DISTRIBUIDORES_PUBLICOS)
-      .order('name', { ascending: true });
+      .order('name', { ascending: true })
+      .limit(5000); // Bambino (903) + Brancaleone (3439) = ~4342 produtos
     
     todosProdutosDistribuidor = produtosPublicos || [];
     console.log(`[PRODUCTS] ${todosProdutosDistribuidor.length} produtos de distribuidores públicos (Bambino, Brancaleone)`);
@@ -77,7 +79,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         .eq('active', true)
         .not('distribuidor_id', 'is', null)
         .not('distribuidor_id', 'in', `(${DISTRIBUIDORES_PUBLICOS.join(',')})`)
-        .order('name', { ascending: true });
+        .order('name', { ascending: true })
+        .limit(5000);
       
       if (outrosDistribuidores && outrosDistribuidores.length > 0) {
         todosProdutosDistribuidor = [...todosProdutosDistribuidor, ...outrosDistribuidores];
