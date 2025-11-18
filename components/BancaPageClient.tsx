@@ -221,13 +221,6 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
           </p>
         )}
         
-        {/* Nome do distribuidor (se for produto de distribuidor) */}
-        {isDistribuidor && distribuidorNome && (
-          <p className="text-xs text-orange-600 font-medium mt-0.5">
-            {distribuidorNome.split(' ')[0]}
-          </p>
-        )}
-        
         <div className="flex flex-wrap gap-1 mt-2">
           {p.pronta_entrega && (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold">
@@ -1291,7 +1284,8 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
 
       {/* Selos (agora sobrepostos ao banner) */}
 
-      {/* Ofertas e Promoções */}
+      {/* Ofertas e Promoções - só exibe se houver produtos em destaque */}
+      {(!loadingDestaque && produtosDestaque.length > 0) && (
       <div className="mt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-base sm:text-lg font-semibold flex items-center gap-2 whitespace-nowrap">
@@ -1346,6 +1340,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           </div>
         </div>
       </div>
+      )}
 
       {/* Produtos da Banca */}
       <h2 ref={productsTopRef} className="mt-8 mb-0 text-base sm:text-lg font-semibold">Produtos desta Banca</h2>
