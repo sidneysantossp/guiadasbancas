@@ -80,7 +80,7 @@ export const CATEGORY_RULES: CategoryRule[] = [
       'PRINGLES', 'ELMA CHIPS', 'TORCIDA', 'BACONZITOS', 'YOKITOS',
       'PIPOCA', 'AMENDOIM', 'CASTANHA', 'NOZES', 'MIX', 'PETISCO',
       'BISCOITO SALGADO', 'CREAM CRACKER', 'CLUB SOCIAL', 'TRAKINAS SALGADO',
-      'SNACK', 'LANCHE'
+      'SNACK', 'LANCHE', 'PAÇOCA', 'PACOCA', 'PACOQUITA', 'OVINHO'
     ],
     priority: 12
   },
@@ -94,11 +94,13 @@ export const CATEGORY_RULES: CategoryRule[] = [
       'GAROTO', 'HERSHEYS', 'FERRERO', 'KINDER', 'M&M', 'SNICKERS', 'TWIX',
       'KIT KAT', 'KITKAT', 'LOLLO', 'BIS', 'PRESTÍGIO', 'PRESTIGIO', 'OURO BRANCO',
       'SONHO DE VALSA', 'SERENATA', 'ALPINO', 'DIAMANTE NEGRO', 'LAKA',
-      'BALA', 'DROPS', '7BELO', 'HALLS', 'MENTE', 'MENTOS', 'TRIDENT',
-      'CHICLETE', 'HORTELÃ', 'HORTELA', 'GOMA DE MASCAR',
-      'PIRULITO', 'CHUPA CHUPS', 'POP ROCKS', 'FINI', 'DORI', 'DOCILE',
-      'JUJUBA', 'GELATINA', 'PAÇOCA', 'PACOCA', 'PÉ DE MOLEQUE', 'PE DE MOLEQUE',
-      'MARIA MOLE', 'MARSHMALLOW', 'BRIGADEIRO', 'BEIJINHO'
+      'BALA DURA', 'BALA MASTIGÁVEL', 'BALA GEL', 'BALA DE GOMA', 'BALA BUTTER',
+      'DROPS', '7BELO', 'HALLS', 'MENTE', 'MENTOS', 'TRIDENT',
+      'CHICLETE', 'HORTELÃ', 'HORTELA', 'GOMA DE MASCAR', 'BUZZY',
+      'PIRULITO', 'CHUPA CHUPS', 'POP ROCKS', 'FINI', 'DORI', 'DOCILE', 'SKITTLES',
+      'JUJUBA', 'GELATINA', 'PÉ DE MOLEQUE', 'PE DE MOLEQUE',
+      'MARIA MOLE', 'MARSHMALLOW', 'BRIGADEIRO', 'BEIJINHO', 'FRUITTELLA',
+      'BUTTER TOFFEES', 'ARCOR'
     ],
     priority: 11
   },
@@ -201,12 +203,12 @@ export const CATEGORY_RULES: CategoryRule[] = [
     priority: 4
   },
   
-  // Acessórios e Outros
+  // Acessórios (sem balão que deve ir para Outros)
   {
     id: 'acessorios',
     name: 'Acessórios',
     keywords: [
-      'CAMA PET', 'ACESSÓRIO', 'KIT', 'CONJUNTO', 'MOCHILA', 'ESTOJO',
+      'CAMA PET', 'ACESSÓRIO', 'MOCHILA', 'ESTOJO',
       'NECESSAIRE', 'CANECA', 'COPO', 'GARRAFA'
     ],
     priority: 3
