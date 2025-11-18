@@ -100,43 +100,39 @@ export default function BrancaleoneProducts() {
       try {
         setLoading(true);
         
-        // Buscar distribuidores para pegar ID da Brancaleone
-        const distRes = await fetch('/api/admin/distribuidores');
-        if (!distRes.ok) throw new Error('Erro ao buscar distribuidores');
+        // Buscar produtos direto da API pública, limitando bastante
+        const prodRes = await fetch(`/api/products/public?limit=100&sort=created_at&order=desc`);
         
-        const distData = await distRes.json();
-        const distribuidores = Array.isArray(distData?.data) ? distData.data : [];
-        const brancaleone = distribuidores.find((d: any) => 
-          d.name?.toLowerCase().includes('brancaleone')
-        );
-        
-        if (!brancaleone) {
-          console.log('Distribuidor Brancaleone não encontrado');
+        if (!prodRes.ok) {
+          console.error('Erro ao buscar produtos:', prodRes.status);
           if (active) setProducts([]);
           return;
         }
-
-        // Buscar produtos da Brancaleone
-        const prodRes = await fetch(`/api/products/public?distribuidor=${brancaleone.id}&limit=20&sort=created_at&order=desc`, {
-          next: { revalidate: 300 } as any,
-        });
-        
-        if (!prodRes.ok) throw new Error('Erro ao buscar produtos');
         
         const prodData = await prodRes.json();
         const items = Array.isArray(prodData?.items) ? prodData.items : (Array.isArray(prodData?.data) ? prodData.data : []);
         
-        const mapped: BrancaleoneProduct[] = items
-          .filter((p: any) => p?.id && typeof p.price === 'number' && p.price > 0)
+        // Filtrar produtos da Brancaleone
+        const brancaleoneItems = items.filter((p: any) => {
+          const distribNome = p.distribuidor_nome || p.distributor_name || '';
+          return distribNome.toLowerCase().includes('brancaleone');
+        });
+        
+        console.log('Total de produtos da API:', items.length);
+        console.log('Produtos Brancaleone encontrados:', brancaleoneItems.length);
+        
+        const mapped: BrancaleoneProduct[] = brancaleoneItems
+          .filter((p: any) => p?.id && typeof p.price === 'number' && p.price > 0 && p.images && p.images[0])
           .map((p: any) => ({
             id: p.id,
             name: p.name || 'Produto',
-            image: (p.images && p.images[0]) || "https://via.placeholder.com/400x400?text=Sem+Imagem",
+            image: p.images[0],
             price: Number(p.price || 0),
             priceOriginal: p.price_original != null ? Number(p.price_original) : null,
             discountPercent: p.discount_percent != null ? Number(p.discount_percent) : null,
           }));
 
+        console.log('Produtos Brancaleone mapeados:', mapped.length);
         if (active) setProducts(mapped.slice(0, 12)); // Limitar a 12 produtos
       } catch (error) {
         console.error('Erro ao carregar produtos Brancaleone:', error);
@@ -191,8 +187,17 @@ export default function BrancaleoneProducts() {
     );
   }
 
-  if (products.length === 0) {
-    return null; // Não exibir seção se não houver produtos
+  if (products.length === 0 && !loading) {
+    // Exibir mensagem temporária para debug
+    return (
+      <section className="w-full py-8 bg-gray-50">
+        <div className="container-max">
+          <div className="text-center text-gray-500 text-sm">
+            Nenhum produto Brancaleone disponível no momento.
+          </div>
+        </div>
+      </section>
+    );
   }
 
   return (
