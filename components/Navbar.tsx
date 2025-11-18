@@ -191,6 +191,22 @@ export default function Navbar() {
   const pathname = usePathname();
   const [q, setQ] = useState("");
   const [loc, setLoc] = useState<UserLocation | null>(null);
+  
+  // Detectar se estamos na página de uma banca e extrair o bancaId
+  const bancaId = useMemo(() => {
+    if (pathname?.startsWith('/banca/')) {
+      const parts = pathname.split('/');
+      if (parts.length >= 4) {
+        const slug = parts[3]; // /banca/[uf]/[slug]
+        const lastPart = slug.split('-').pop();
+        // Retorna o ID se o último segmento parecer um UUID ou ID
+        if (lastPart && (lastPart.length > 8 || /^[a-f0-9-]+$/i.test(lastPart))) {
+          return lastPart;
+        }
+      }
+    }
+    return undefined;
+  }, [pathname]);
   const [locOpen, setLocOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
@@ -629,8 +645,9 @@ useEffect(() => {
                     onQueryChange={setQ}
                     onSelect={handleSearchSelect}
                     onSubmit={handleSearchSubmit}
-                    placeholder="O que você procura hoje?"
+                    placeholder={bancaId ? "Buscar produtos nesta banca..." : "O que você procura hoje?"}
                     className="w-full rounded-lg border border-gray-300 bg-white pl-11 pr-4 py-2.5 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00]"
+                    bancaId={bancaId}
                   />
                 </div>
               </form>
@@ -893,8 +910,9 @@ useEffect(() => {
                 handleSearchSubmit();
                 setMobileSearchOpen(false);
               }}
-              placeholder="Buscar produtos, categorias..."
+              placeholder={bancaId ? "Buscar produtos nesta banca..." : "Buscar produtos, categorias..."}
               className="input w-full pr-24"
+              bancaId={bancaId}
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
               <button type="button" onClick={()=>{ setMobileSearchOpen(false); }} className="text-sm text-gray-600 hover:text-black">Cancelar</button>

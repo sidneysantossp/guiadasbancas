@@ -23,6 +23,7 @@ type SearchAutocompleteProps = {
   onSubmit: () => void;
   placeholder?: string;
   className?: string;
+  bancaId?: string; // ID da banca para filtrar produtos apenas daquela banca
 };
 
 export default function SearchAutocomplete({
@@ -31,7 +32,8 @@ export default function SearchAutocomplete({
   onSelect,
   onSubmit,
   placeholder = "Buscar produtos, categorias...",
-  className = ""
+  className = "",
+  bancaId
 }: SearchAutocompleteProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -41,68 +43,7 @@ export default function SearchAutocomplete({
   const resultsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Simular dados de produtos para autocomplete
-  const mockProducts: SearchResult[] = [
-    {
-      id: "prod-1",
-      name: "Chico Bento - Edição 450",
-      image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400",
-      price: 8.90,
-      banca_name: "Banca São Jorge",
-      banca_id: "banca-1",
-      distance: 0.5,
-      category: "Gibis"
-    },
-    {
-      id: "prod-2", 
-      name: "Chico Bento Moço - Aventuras",
-      image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400",
-      price: 12.50,
-      banca_name: "Banca Central",
-      banca_id: "banca-2",
-      distance: 1.2,
-      category: "Gibis"
-    },
-    {
-      id: "prod-3",
-      name: "Revista Chiclete com Banana",
-      price: 15.90,
-      banca_name: "Banca do Centro",
-      banca_id: "banca-3",
-      distance: 0.8,
-      category: "Revistas"
-    },
-    {
-      id: "prod-4",
-      name: "Folha de S.Paulo",
-      price: 3.50,
-      banca_name: "Banca São Jorge",
-      banca_id: "banca-1", 
-      distance: 0.5,
-      category: "Jornais"
-    },
-    {
-      id: "prod-5",
-      name: "Revista Veja",
-      image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400",
-      price: 12.90,
-      banca_name: "Banca Central",
-      banca_id: "banca-2",
-      distance: 1.2,
-      category: "Revistas"
-    },
-    {
-      id: "prod-6",
-      name: "O Estado de S.Paulo",
-      price: 4.00,
-      banca_name: "Banca do Centro", 
-      banca_id: "banca-3",
-      distance: 0.8,
-      category: "Jornais"
-    }
-  ];
-
-  // Buscar produtos baseado na query
+  // Buscar produtos da API real
   useEffect(() => {
     if (query.length < 2) {
       setResults([]);
@@ -112,25 +53,66 @@ export default function SearchAutocomplete({
 
     setLoading(true);
     
-    // Simular delay de API
-    const timeoutId = setTimeout(() => {
-      const filtered = mockProducts
-        .filter(product => 
-          product.name.toLowerCase().includes(query.toLowerCase()) ||
-          product.category.toLowerCase().includes(query.toLowerCase()) ||
-          product.banca_name.toLowerCase().includes(query.toLowerCase())
-        )
-        .sort((a, b) => (a.distance || 0) - (b.distance || 0)) // Ordenar por proximidade
-        .slice(0, 6); // Limitar a 6 resultados
+    const timeoutId = setTimeout(async () => {
+      try {
+        let url = `/api/products/most-searched?search=${encodeURIComponent(query)}&limit=6`;
+        
+        // Se estiver na página de uma banca, buscar apenas produtos daquela banca
+        if (bancaId) {
+          url = `/api/banca/${bancaId}/products`;
+        }
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        let products = [];
+        
+        if (bancaId && data.success && Array.isArray(data.products)) {
+          // Filtrar produtos da banca pelo termo de busca
+          products = data.products
+            .filter((p: any) => 
+              p.name.toLowerCase().includes(query.toLowerCase()) ||
+              (p.category_name || '').toLowerCase().includes(query.toLowerCase()) ||
+              (p.distribuidor_nome || '').toLowerCase().includes(query.toLowerCase()) ||
+              (p.description || '').toLowerCase().includes(query.toLowerCase())
+            )
+            .slice(0, 6)
+            .map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              image: Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : '',
+              price: p.price,
+              banca_name: p.distribuidor_nome || 'Esta banca',
+              banca_id: bancaId,
+              category: p.category_name || 'Produtos'
+            }));
+        } else if (data.success && Array.isArray(data.data)) {
+          // Busca global de produtos
+          products = data.data.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            image: Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : '',
+            price: p.price,
+            banca_name: p.distribuidor_nome || p.banca?.name || 'Banca',
+            banca_id: p.banca_id || p.distribuidor_id,
+            category: p.category || 'Produtos'
+          }));
+        }
 
-      setResults(filtered);
-      setIsOpen(filtered.length > 0);
-      setLoading(false);
-      setSelectedIndex(-1);
+        setResults(products);
+        setIsOpen(products.length > 0);
+        setLoading(false);
+        setSelectedIndex(-1);
+      } catch (error) {
+        console.error('Erro ao buscar produtos:', error);
+        setResults([]);
+        setIsOpen(false);
+        setLoading(false);
+      }
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [query]);
+  }, [query, bancaId]);
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {

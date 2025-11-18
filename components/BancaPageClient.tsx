@@ -1389,7 +1389,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         {/* Área de Produtos */}
         <div className="flex-1 min-w-0">
           {/* Barra de chips mobile (Todos fixo) + seta à direita + limpar filtro */}
-          <div className="lg:hidden mb-4 sticky top-0 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-100 w-full max-w-full overflow-x-hidden">
+          <div className="lg:hidden mb-4 sticky top-[140px] md:top-[80px] z-[999] bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-100 w-full max-w-full overflow-x-hidden shadow-sm">
             <div className="flex items-center justify-between px-1 pt-0">
               <div className="text-[11px] sm:text-[12px] text-gray-500">Navegue por uma Categoria</div>
               <div className="flex items-center gap-2">
