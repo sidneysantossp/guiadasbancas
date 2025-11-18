@@ -64,19 +64,6 @@ export default function ProductCard({ id, name, price, priceOriginal, image, hre
             {typeof distanceKm === 'number' && <div className="text-[12px] text-gray-600">{distanceKm.toFixed(1)} km</div>}
           </div>
         )}
-        {(sellerName || sellerAvatar) && (
-          <div className="mt-2 flex items-center gap-2">
-            <span className="inline-block h-5 w-5 rounded-full overflow-hidden bg-orange-100 ring-1 ring-black/5">
-              {sellerAvatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={sellerAvatar} alt={sellerName || 'Banca'} className="h-full w-full object-cover" />
-              ) : (
-                <svg viewBox="0 0 24 24" className="h-full w-full text-[#ff7a33]" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>
-              )}
-            </span>
-            <span className="text-[12px] text-gray-700 truncate">{sellerName || 'Banca'}</span>
-          </div>
-        )}
         {typeof priceOriginal === "number" && priceOriginal > price ? (
           <div className="mt-1 text-[13px]">
             <span className="text-gray-400 line-through mr-2">R$ {priceOriginal.toFixed(2)}</span>
