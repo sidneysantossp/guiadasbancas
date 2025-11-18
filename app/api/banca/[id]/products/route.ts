@@ -53,19 +53,32 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     let todosProdutosDistribuidor: any[] = [];
     
     // Buscar produtos dos distribuidores públicos (sempre)
-    // IMPORTANTE: Adicionar limit alto para evitar limite padrão de 1000 do Supabase
-    const { data: produtosPublicos } = await supabase
+    // IMPORTANTE: Supabase ignora .limit() com .in(), então buscar separadamente
+    const produtosBambino = await supabase
       .from('products')
       .select(`
         *,
         categories!category_id(name)
       `)
       .eq('active', true)
-      .in('distribuidor_id', DISTRIBUIDORES_PUBLICOS)
+      .eq('distribuidor_id', DISTRIBUIDORES_PUBLICOS[0]) // Bambino
+      .order('name', { ascending: true });
+
+    const produtosBrancaleone = await supabase
+      .from('products')
+      .select(`
+        *,
+        categories!category_id(name)
+      `)
+      .eq('active', true)
+      .eq('distribuidor_id', DISTRIBUIDORES_PUBLICOS[1]) // Brancaleone
       .order('name', { ascending: true })
-      .limit(5000); // Bambino (903) + Brancaleone (3439) = ~4342 produtos
+      .limit(5000); // Brancaleone tem >3000 produtos
     
-    todosProdutosDistribuidor = produtosPublicos || [];
+    todosProdutosDistribuidor = [
+      ...(produtosBambino.data || []),
+      ...(produtosBrancaleone.data || [])
+    ];
     console.log(`[PRODUCTS] ${todosProdutosDistribuidor.length} produtos de distribuidores públicos (Bambino, Brancaleone)`);
     
     // Se for cotista, buscar TAMBÉM produtos de outros distribuidores
