@@ -52,9 +52,9 @@ export default function SyncDistribuidorPage() {
         body.startTimestamp = customTimestamp.trim();
       }
 
-      // Usar sempre sincronização COMPLETA
+      // Usar sempre a rota principal de sincronização, que já trata paginação completa
       const response = await fetch(
-        `/api/admin/distribuidores/${params.id}/sync-full`,
+        `/api/admin/distribuidores/${params.id}/sync`,
         {
           method: 'POST',
           headers: {

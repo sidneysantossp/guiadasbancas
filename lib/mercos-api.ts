@@ -294,50 +294,105 @@ export class MercosAPI {
   }
 
   /**
-   * Busca todos os produtos com paginação automática
+   * Busca todos os produtos com paginação automática, usando apenas
+   * o parâmetro de data `alterado_apos` + header MEUSPEDIDOS_LIMITOU_REGISTROS,
+   * de forma semelhante ao fluxo de categorias. Isso evita depender de
+   * id_maior_que/afterId, que a API da Mercos pode ignorar em alguns casos.
    */
   async *getAllProdutosGenerator(params: {
     batchSize?: number;
     alteradoApos?: string | null;
   } = {}): AsyncGenerator<MercosProduto[], void, void> {
     const { batchSize = 100, alteradoApos = null } = params;
-    let lastId: number | null = null;
+
+    // Data inicial: se não informada, usar um passado "seguro"
+    let dataInicial = alteradoApos || '2020-01-01T00:00:00';
     let hasMore = true;
+
+    console.log('[MercosAPI] getAllProdutosGenerator - Iniciando busca de produtos a partir de', dataInicial);
 
     while (hasMore) {
       try {
-        const produtos = await this.getBatchProdutos({
-          limit: batchSize,
-          afterId: lastId,
-          alteradoApos,
-        });
+        const qp = new URLSearchParams();
+        if (dataInicial) qp.append('alterado_apos', dataInicial);
+        qp.append('limit', Math.min(batchSize, 200).toString());
+        qp.append('order_by', 'ultima_alteracao');
+        qp.append('order_direction', 'asc');
 
-        if (produtos.length === 0) {
+        const endpoint = `/produtos?${qp.toString()}`;
+        const url = `${this.baseUrl}${endpoint}`;
+
+        const headers = {
+          'ApplicationToken': this.config.applicationToken,
+          'CompanyToken': this.config.companyToken,
+          'Content-Type': 'application/json',
+        } as Record<string, string>;
+
+        console.log('[MercosAPI] getAllProdutosGenerator - Buscando:', url);
+
+        const response = await fetch(url, { headers });
+
+        console.log('[MercosAPI] getAllProdutosGenerator - Response status:', response.status);
+
+        // Tratamento de throttling
+        if (response.status === 429) {
+          const throttleError = await response.json().catch(() => ({ tempo_ate_permitir_novamente: 5 }));
+          const waitTime = (throttleError.tempo_ate_permitir_novamente || 5) * 1000;
+          console.log(`[MercosAPI] getAllProdutosGenerator - Throttling detectado. Aguardando ${waitTime / 1000}s...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        }
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('[MercosAPI] getAllProdutosGenerator - Erro na resposta:', errorText);
+          throw new Error(`Erro Mercos API: ${response.status} - ${errorText}`);
+        }
+
+        // Ler headers de paginação da Mercos
+        const limitouRegistros = response.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
+
+        const raw = await response.json();
+        const data = (raw && typeof raw === 'object' && 'data' in raw && Array.isArray(raw.data))
+          ? raw.data
+          : raw;
+
+        const produtosArray: MercosProduto[] = Array.isArray(data) ? data : [];
+
+        console.log('[MercosAPI] getAllProdutosGenerator - Recebidos', produtosArray.length, 'produtos neste lote');
+
+        if (produtosArray.length === 0) {
+          console.log('[MercosAPI] getAllProdutosGenerator - Nenhum produto retornado, finalizando paginação');
           hasMore = false;
           return;
         }
 
-        // Ordena por ID para garantir a ordem correta na paginação
-        produtos.sort((a, b) => a.id - b.id);
-        const newestId = produtos[produtos.length - 1].id;
+        // Garante ordem crescente por ultima_alteracao + id
+        produtosArray.sort((a, b) => {
+          const ta = (a.ultima_alteracao || '').toString();
+          const tb = (b.ultima_alteracao || '').toString();
+          if (ta < tb) return -1;
+          if (ta > tb) return 1;
+          return a.id - b.id;
+        });
 
-        // Guarda para evitar loop infinito quando a API ignora o parâmetro de paginação
-        if (lastId !== null && newestId <= lastId) {
-          console.warn('[MercosAPI] Página retornou último ID não crescente; interrompendo paginação para evitar loop. lastId=', lastId, ' new=', newestId);
-          yield produtos;
-          return;
-        }
+        // Atualizar cursor de data para próxima página, se necessário
+        const ultimoProduto = produtosArray[produtosArray.length - 1];
+        const ultimaData = ultimoProduto?.ultima_alteracao;
 
-        lastId = newestId;
-        
-        yield produtos;
-        
-        // Se recebemos menos itens que o solicitado, chegamos ao final
-        if (produtos.length < batchSize) {
+        yield produtosArray;
+
+        if (limitouRegistros && ultimaData) {
+          // A Mercos limitou os registros; avançar alterado_apos para a última data
+          dataInicial = ultimaData;
+          console.log('[MercosAPI] getAllProdutosGenerator - Limitou registros, próxima página com alterado_apos =', dataInicial);
+        } else {
+          // Não houve limite de registros, fim da paginação
+          console.log('[MercosAPI] getAllProdutosGenerator - Paginação concluída.');
           hasMore = false;
         }
       } catch (error) {
-        console.error('[MercosAPI] Erro ao buscar produtos:', error);
+        console.error('[MercosAPI] Erro ao buscar produtos (getAllProdutosGenerator):', error);
         throw error;
       }
     }

@@ -162,7 +162,7 @@ export async function POST(
     let totalProcessed = 0;
     let produtosNovos = 0;
     let produtosIgnorados = 0;
-    let cursorDate: string | null = '2020-01-01T00:00:00';
+    let cursorDate: string | null = null; // null = buscar desde o início, sem filtro de data
     let lastId: number | null = null; // paginação secundária dentro do mesmo timestamp
     let lastBatchTimestamp: string | null = null;
     const BATCH_SIZE = 200; // Máximo permitido pela API Mercos
@@ -188,7 +188,7 @@ export async function POST(
     };
     let lastSeenKey: string | null = null;
     let repeatCount = 0;
-    let pageMode: 'timestamp' | 'id' = 'timestamp';
+    let pageMode: 'timestamp' | 'id' = 'id'; // Mudar para 'id' para buscar todos os produtos
     let noProgressIters = 0;
 
     console.log('[SYNC-FAST] Iniciando processamento...');
@@ -287,10 +287,11 @@ export async function POST(
             description: produto.observacoes || '',
             price: produto.preco_tabela,
             stock_qty: produto.saldo_estoque || 0,
-            images: [],
+            images: produto.imagens || [],
             banca_id: null,
             distribuidor_id: distribuidorId,
             mercos_id: produto.id,
+            codigo_mercos: produto.codigo || null,
             category_id: categoryId,
             origem: 'mercos',
             sincronizado_em: new Date().toISOString(),
@@ -298,6 +299,8 @@ export async function POST(
             sob_encomenda: false,
             pre_venda: false,
             pronta_entrega: true,
+            ativo: produto.ativo || false,
+            excluido: produto.excluido || false,
             active: produto.ativo && !produto.excluido,
             updated_at: new Date().toISOString(),
           });

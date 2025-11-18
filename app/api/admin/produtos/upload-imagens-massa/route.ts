@@ -52,10 +52,17 @@ export async function POST(req: NextRequest) {
         const possibleMercosId = numericIdMatch ? parseInt(numericIdMatch[1], 10) : null;
 
         // Buscar produto por codigo_mercos
+        // Obs: existem casos com códigos duplicados (ex: variações, registros antigos).
+        // Aqui priorizamos:
+        // 1) produtos ativos
+        // 2) o mais recentemente atualizado
         let { data: produto, error: produtoError } = await supabaseAdmin
           .from('products')
-          .select('id, name, images, codigo_mercos, mercos_id')
+          .select('id, name, images, codigo_mercos, mercos_id, active, updated_at')
           .eq('codigo_mercos', codigoMercos)
+          .order('active', { ascending: false })
+          .order('updated_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         // Fallback: tentar por mercos_id quando houver número no nome do arquivo
