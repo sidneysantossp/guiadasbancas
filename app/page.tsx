@@ -19,7 +19,7 @@ const CategoryCarousel = dynamic(() => import("@/components/CategoryCarousel"), 
 });
 const FeaturedBancas = dynamic(() => import("@/components/FeaturedBancas"), { 
   ssr: false,
-  loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" />
+  loading: () => null
 });
 
 // LAZY: Componentes below-fold carregam sob demanda
@@ -77,7 +77,7 @@ export default function HomePage() {
         </div>
       </Suspense>
 
-      <Suspense fallback={<div className="h-64 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+      <Suspense fallback={null}>
         <div className="py-6">
           <FeaturedBancas />
         </div>
