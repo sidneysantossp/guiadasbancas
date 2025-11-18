@@ -637,22 +637,24 @@ useEffect(() => {
 
           {!inDashboard && (
             <>
-              <form onSubmit={onSearch} className="flex-1 max-w-2xl">
-                <div className="relative">
-                  <IconSearch size={20} stroke={1.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <SearchAutocomplete
-                    query={q}
-                    onQueryChange={setQ}
-                    onSelect={handleSearchSelect}
-                    onSubmit={handleSearchSubmit}
-                    placeholder={bancaId ? "Buscar produtos nesta banca..." : "O que você procura hoje?"}
-                    className="w-full rounded-lg border border-gray-300 bg-white pl-11 pr-4 py-2.5 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00]"
-                    bancaId={bancaId}
-                  />
-                </div>
-              </form>
+              {/* Ocultar busca na página da banca - haverá busca local lá */}
+              {!bancaId && (
+                <form onSubmit={onSearch} className="flex-1 max-w-2xl">
+                  <div className="relative">
+                    <IconSearch size={20} stroke={1.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <SearchAutocomplete
+                      query={q}
+                      onQueryChange={setQ}
+                      onSelect={handleSearchSelect}
+                      onSubmit={handleSearchSubmit}
+                      placeholder="O que você procura hoje?"
+                      className="w-full rounded-lg border border-gray-300 bg-white pl-11 pr-4 py-2.5 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00]"
+                    />
+                  </div>
+                </form>
+              )}
 
-              <div className="flex items-center gap-6 text-sm">
+              <div className={`flex items-center gap-6 text-sm ${bancaId ? 'flex-1 justify-end' : ''}`}>
                 {mounted && (
                   <button
                     type="button"
@@ -894,8 +896,8 @@ useEffect(() => {
       {/* Componente de geolocalização automática */}
       <AutoGeolocation onLocationUpdate={handleLocationUpdate} />
     </header>
-    {/* Mobile Search Bar (full width abaixo da navbar) */}
-    {!inDashboard && mobileSearchOpen && (
+    {/* Mobile Search Bar (full width abaixo da navbar) - Ocultar na página da banca */}
+    {!inDashboard && !bancaId && mobileSearchOpen && (
       <div className="md:hidden border-t border-gray-200 bg-white shadow-sm">
         <div className="container-max px-4 py-3">
           <div className="relative">
@@ -910,9 +912,8 @@ useEffect(() => {
                 handleSearchSubmit();
                 setMobileSearchOpen(false);
               }}
-              placeholder={bancaId ? "Buscar produtos nesta banca..." : "Buscar produtos, categorias..."}
+              placeholder="Buscar produtos, categorias..."
               className="input w-full pr-24"
-              bancaId={bancaId}
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
               <button type="button" onClick={()=>{ setMobileSearchOpen(false); }} className="text-sm text-gray-600 hover:text-black">Cancelar</button>

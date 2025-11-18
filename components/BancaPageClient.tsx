@@ -762,6 +762,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     return [];
   }, [allCategoriesFromDB]);
   const [activeCategory, setActiveCategory] = useState<string>('Todos');
+  const [searchTerm, setSearchTerm] = useState<string>(''); // Busca local de produtos
   const catScrollerRef = useRef<HTMLDivElement | null>(null);
   const [hasCatOverflow, setHasCatOverflow] = useState(false);
 
@@ -843,18 +844,30 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     }
   }, [activeCategory]);
   const produtosFiltrados = useMemo(() => {
-    if (!activeCategory || activeCategory === 'Todos') {
-      return produtos.sort((a, b) => (b.ready ? 1 : 0) - (a.ready ? 1 : 0));
+    let filtered = [...produtos];
+    
+    // 1. Filtrar por termo de busca (se houver)
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(p => {
+        const name = p.name?.toLowerCase() || '';
+        const category = normalizeCategory(p.category, categoriesMap).toLowerCase();
+        
+        return name.includes(searchLower) || category.includes(searchLower);
+      });
     }
     
-    // Filtrar por categoria ativa
-    const filtered = produtos.filter(p => {
-      const pCatName = normalizeCategory(p.category, categoriesMap);
-      return pCatName.toLowerCase() === activeCategory.toLowerCase();
-    });
+    // 2. Filtrar por categoria ativa (se não for 'Todos')
+    if (activeCategory && activeCategory !== 'Todos') {
+      filtered = filtered.filter(p => {
+        const pCatName = normalizeCategory(p.category, categoriesMap);
+        return pCatName.toLowerCase() === activeCategory.toLowerCase();
+      });
+    }
     
+    // 3. Ordenar por disponibilidade
     return filtered.sort((a, b) => (b.ready ? 1 : 0) - (a.ready ? 1 : 0));
-  }, [produtos, activeCategory, categoriesMap]);
+  }, [produtos, activeCategory, searchTerm, categoriesMap]);
 
   // Paginação com carregamento incremental por página (30 itens/page)
   const pageSize = 30;
@@ -869,8 +882,8 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const canLoadMoreWithinPage = (batchCount * batchSize) < pageSlice.length;
   const visibleProducts = useMemo(() => pageSlice.slice(0, Math.min(pageSlice.length, batchCount * batchSize)), [pageSlice, batchCount]);
-  // Reset ao trocar categoria ou página
-  useEffect(() => { setCurrentPage(1); setBatchCount(1); }, [activeCategory]);
+  // Reset ao trocar categoria, busca ou página
+  useEffect(() => { setCurrentPage(1); setBatchCount(1); }, [activeCategory, searchTerm]);
   useEffect(() => { setBatchCount(1); }, [currentPage]);
   useEffect(() => {
     // rolar para o topo da seção produtos quando muda de página
@@ -1388,6 +1401,53 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
 
         {/* Área de Produtos */}
         <div className="flex-1 min-w-0">
+          {/* Campo de Busca Local - Acima dos badges */}
+          <div className="mb-4">
+            <div className="relative">
+              <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.3-4.3" />
+              </svg>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  // Resetar para categoria 'Todos' quando buscar
+                  if (e.target.value.trim() && activeCategory !== 'Todos') {
+                    setActiveCategory('Todos');
+                  }
+                }}
+                placeholder="Buscar produtos nesta banca..."
+                className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-10 py-2.5 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00] transition-colors"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label="Limpar busca"
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M6 6l12 12M6 18L18 6"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+            {/* Contador de resultados */}
+            {(searchTerm.trim() || activeCategory !== 'Todos') && (
+              <div className="text-xs text-gray-500 mt-2">
+                {produtosFiltrados.length === 0 ? (
+                  'Nenhum resultado'
+                ) : produtosFiltrados.length === 1 ? (
+                  '1 produto encontrado'
+                ) : (
+                  `${produtosFiltrados.length} produtos encontrados`
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Barra de chips mobile (Todos fixo) + seta à direita + limpar filtro */}
           <div className="lg:hidden mb-4 sticky top-[140px] md:top-[80px] z-[999] bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-100 w-full max-w-full overflow-x-hidden shadow-sm">
             <div className="flex items-center justify-between px-1 pt-0">
@@ -1443,7 +1503,31 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           {loadingProdutos ? (
             <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">Carregando produtos...</div>
           ) : visibleProducts.length === 0 ? (
-            <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">Nenhum produto publicado nesta banca ainda.</div>
+            <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+              {searchTerm.trim() ? (
+                <>
+                  Nenhum produto encontrado para "<span className="font-semibold">{searchTerm}</span>".{' '}
+                  <button 
+                    onClick={() => setSearchTerm('')} 
+                    className="text-[#ff5c00] hover:underline font-medium"
+                  >
+                    Limpar busca
+                  </button>
+                </>
+              ) : activeCategory !== 'Todos' ? (
+                <>
+                  Nenhum produto na categoria "<span className="font-semibold">{activeCategory}</span>".{' '}
+                  <button 
+                    onClick={() => setActiveCategory('Todos')} 
+                    className="text-[#ff5c00] hover:underline font-medium"
+                  >
+                    Ver todos
+                  </button>
+                </>
+              ) : (
+                'Nenhum produto publicado nesta banca ainda.'
+              )}
+            </div>
           ) : (
             <>
               <div className="mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
