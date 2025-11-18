@@ -31,7 +31,7 @@ const CampaignSection = dynamic(() => import("@/components/CampaignSection"), {
   ssr: false,
   loading: () => <div className="h-40 bg-gray-100 animate-pulse rounded-lg" />
 });
-const TrendingProducts = dynamic(() => import("@/components/TrendingProducts"), { 
+const BrancaleoneProducts = dynamic(() => import("@/components/BrancaleoneProducts"), { 
   ssr: false,
   loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
 });
@@ -97,9 +97,7 @@ export default function HomePage() {
       </Suspense>
 
       <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
-        <div className="py-6">
-          <TrendingProducts />
-        </div>
+        <BrancaleoneProducts />
       </Suspense>
 
       <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
