@@ -295,7 +295,7 @@ export default function BrancaleoneProducts() {
         {/* Título */}
         <div className="mb-6">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-            Produtos que outras pessoas compram de novo
+            Os mais buscados
           </h2>
         </div>
 
