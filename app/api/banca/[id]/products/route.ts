@@ -75,11 +75,12 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       .order('name', { ascending: true })
       .limit(5000); // Brancaleone tem >3000 produtos
     
+    // IMPORTANTE: Brancaleone primeiro, depois Bambino (ordem de exibição)
     todosProdutosDistribuidor = [
-      ...(produtosBambino.data || []),
-      ...(produtosBrancaleone.data || [])
+      ...(produtosBrancaleone.data || []),
+      ...(produtosBambino.data || [])
     ];
-    console.log(`[PRODUCTS] ${todosProdutosDistribuidor.length} produtos de distribuidores públicos (Bambino, Brancaleone)`);
+    console.log(`[PRODUCTS] ${todosProdutosDistribuidor.length} produtos de distribuidores públicos (Brancaleone primeiro, depois Bambino)`);
     
     // Se for cotista, buscar TAMBÉM produtos de outros distribuidores
     if (isCotista) {
@@ -206,8 +207,22 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         .map(({ _enabled, _effectiveStock, _customStatus, ...produto }) => produto);
     }
 
-    // 3. Combinar produtos próprios + distribuidor (garantir imagem em todos)
+    // 3. Combinar produtos: Brancaleone PRIMEIRO, depois próprios, depois outros distribuidores
+    // Separar produtos por distribuidor
+    const produtosBrancaleoneFilter = produtosDistribuidor.filter(p => 
+      p.distribuidor_id === DISTRIBUIDORES_PUBLICOS[1] // Brancaleone
+    );
+    const produtosBambinoFilter = produtosDistribuidor.filter(p => 
+      p.distribuidor_id === DISTRIBUIDORES_PUBLICOS[0] // Bambino
+    );
+    const produtosOutrosDistribuidores = produtosDistribuidor.filter(p => 
+      !DISTRIBUIDORES_PUBLICOS.includes(p.distribuidor_id)
+    );
+    
     const todosProdutos = [
+      // 1. Brancaleone PRIMEIRO
+      ...produtosBrancaleoneFilter,
+      // 2. Produtos próprios da banca
       ...(produtosProprios || []).map(p => {
         let images = p.images || [];
         if (!Array.isArray(images) || images.length === 0) {
@@ -227,7 +242,10 @@ export async function GET(request: NextRequest, context: { params: { id: string 
           active: true 
         };
       }),
-      ...produtosDistribuidor,
+      // 3. Bambino
+      ...produtosBambinoFilter,
+      // 4. Outros distribuidores (se cotista)
+      ...produtosOutrosDistribuidores,
     ];
 
     return NextResponse.json({
