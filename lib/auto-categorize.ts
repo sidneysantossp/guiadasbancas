@@ -113,7 +113,8 @@ export const CATEGORY_RULES: CategoryRule[] = [
     keywords: [
       'GRAPHIC MSP', 'GRAPHIC NOVEL', 'ASTRONAUTA', 'BIDU', 'CHICO BENTO',
       'TURMA DA MÔNICA', 'TURMA DA MONICA', 'MÔNICA', 'MONICA', 'CEBOLINHA',
-      'CASCÃO', 'CASCAO', 'MAGALI', 'ALMANAQUE'
+      'CASCÃO', 'CASCAO', 'MAGALI', 'ALMANAQUE', 'ALMANAQUE DO', 'ALMANAQUE DA',
+      'PANINI KIDS', 'MAURICIO DE SOUSA', 'MSP', 'GIBI DA TURMA'
     ],
     priority: 9
   },
@@ -123,8 +124,10 @@ export const CATEGORY_RULES: CategoryRule[] = [
     id: 'cards',
     name: 'Cards e Colecionáveis',
     keywords: [
-      'DECK', 'CARDS', 'ENVELOPE', 'BLISTER', 'STARTERPACK', 'FLOWPACK',
-      'BRASILEIRÃO', 'LIBERTADORES', 'SELEÇÃO', 'FUTEBOL'
+      'DECK', 'CARDS', 'CARD', 'ENVELOPE', 'BLISTER', 'STARTERPACK', 'FLOWPACK',
+      'BRASILEIRÃO', 'LIBERTADORES', 'SELEÇÃO', 'FUTEBOL', 'CONMEBOL',
+      'TRADING CARD', 'TCG', 'CCG', 'POKEMON', 'YU-GI-OH', 'MAGIC',
+      'ENV ', 'ENVELOPES', 'LUCCAS NETO', 'STITCH'
     ],
     priority: 8
   },
@@ -135,7 +138,8 @@ export const CATEGORY_RULES: CategoryRule[] = [
     name: 'Álbuns de Figurinhas',
     keywords: [
       'ALBUM', 'ÁLBUM', 'FIGURINHAS', 'STICKER', 'STK', 'SUPER MARIO',
-      'PAW PATROL', 'SQUISHMALLOWS', 'HELLO KITTY'
+      'PAW PATROL', 'SQUISHMALLOWS', 'HELLO KITTY', 'ALBUM DE FIGURINHAS',
+      'CADERNETA', 'CADERNO DE FIGURINHAS', 'COLEÇÃO DE FIGURINHAS'
     ],
     priority: 7
   },
@@ -172,12 +176,25 @@ export const CATEGORY_RULES: CategoryRule[] = [
     priority: 4
   },
   
+  // Brinquedos
+  {
+    id: 'brinquedos',
+    name: 'Brinquedos',
+    keywords: [
+      'MINIATURA', 'MINIATURAS', 'BONECO', 'BONECA', 'CARRINHO', 'CARRO',
+      'CAMINHÃO', 'ESCAVADEIRA', 'GUINDASTE', 'TRATOR', 'CAMINHAO',
+      'BRINQUEDO', 'TOY', 'ACTION FIGURE', 'FUNKO', 'PELÚCIA', 'PELUCIA'
+    ],
+    priority: 4
+  },
+  
   // Acessórios e Outros
   {
     id: 'acessorios',
     name: 'Acessórios',
     keywords: [
-      'CAMA PET', 'ACESSÓRIO', 'KIT', 'CONJUNTO'
+      'CAMA PET', 'ACESSÓRIO', 'KIT', 'CONJUNTO', 'MOCHILA', 'ESTOJO',
+      'NECESSAIRE', 'CANECA', 'COPO', 'GARRAFA'
     ],
     priority: 3
   }

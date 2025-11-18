@@ -103,12 +103,42 @@ const CATEGORY_RULES = [
     priority: 10
   },
   {
+    name: 'Graphic Novels',
+    keywords: [
+      'GRAPHIC MSP', 'GRAPHIC NOVEL', 'ASTRONAUTA', 'BIDU', 'CHICO BENTO',
+      'TURMA DA MÔNICA', 'TURMA DA MONICA', 'MÔNICA', 'MONICA', 'CEBOLINHA',
+      'CASCÃO', 'CASCAO', 'MAGALI', 'ALMANAQUE', 'ALMANAQUE DO', 'ALMANAQUE DA',
+      'PANINI KIDS', 'MAURICIO DE SOUSA', 'MSP', 'GIBI DA TURMA'
+    ],
+    priority: 10
+  },
+  {
     name: 'HQs e Comics',
     keywords: [
       'BATMAN', 'SUPERMAN', 'HOMEM-ARANHA', 'SPIDER-MAN', 'WOLVERINE',
-      'X-MEN', 'VINGADORES', 'AVENGERS', 'DC', 'MARVEL', 'HQ', 'COMIC'
+      'X-MEN', 'VINGADORES', 'AVENGERS', 'DC', 'MARVEL', 'HQ', 'COMIC',
+      'SPAWN', 'SURFISTA PRATEADO', 'SENTINELA', 'CORPORAÇÃO'
     ],
     priority: 9
+  },
+  {
+    name: 'Cards e Colecionáveis',
+    keywords: [
+      'DECK', 'CARDS', 'CARD', 'ENVELOPE', 'BLISTER', 'STARTERPACK', 'FLOWPACK',
+      'BRASILEIRÃO', 'LIBERTADORES', 'SELEÇÃO', 'FUTEBOL', 'CONMEBOL',
+      'TRADING CARD', 'TCG', 'CCG', 'POKEMON', 'YU-GI-OH', 'MAGIC',
+      'ENV ', 'ENVELOPES', 'LUCCAS NETO', 'STITCH'
+    ],
+    priority: 8
+  },
+  {
+    name: 'Brinquedos',
+    keywords: [
+      'MINIATURA', 'MINIATURAS', 'BONECO', 'BONECA', 'CARRINHO', 'CARRO',
+      'CAMINHÃO', 'ESCAVADEIRA', 'GUINDASTE', 'TRATOR', 'CAMINHAO',
+      'BRINQUEDO', 'TOY', 'ACTION FIGURE', 'FUNKO', 'PELÚCIA', 'PELUCIA'
+    ],
+    priority: 7
   },
   {
     name: 'Revistas',
