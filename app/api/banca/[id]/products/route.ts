@@ -8,6 +8,12 @@ const CATEGORIA_DISTRIBUIDORES_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
 const CATEGORIA_DISTRIBUIDORES_NOME = 'Diversos';
 const DEFAULT_PRODUCT_IMAGE = 'https://placehold.co/400x600/e5e7eb/6b7280.png';
 
+// Distribuidores que devem aparecer para TODAS as bancas (cotistas ou não)
+const DISTRIBUIDORES_PUBLICOS = [
+  '3a989c56-bbd3-4769-b076-a83483e39542', // Bambino
+  '1511df09-1f4a-4e68-9f8c-05cd06be6269'  // Brancaleone
+];
+
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
     const bancaId = context.params.id;
@@ -41,11 +47,28 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       .eq('active', true)
       .is('distribuidor_id', null);
 
-    // 2. Buscar produtos de distribuidor SOMENTE se for cotista
+    // 2. Buscar produtos de distribuidor
+    // - Distribuidores públicos (Bambino, Brancaleone): SEMPRE para todas as bancas
+    // - Outros distribuidores: SOMENTE se for cotista
     let todosProdutosDistribuidor: any[] = [];
     
+    // Buscar produtos dos distribuidores públicos (sempre)
+    const { data: produtosPublicos } = await supabase
+      .from('products')
+      .select(`
+        *,
+        categories!category_id(name)
+      `)
+      .eq('active', true)
+      .in('distribuidor_id', DISTRIBUIDORES_PUBLICOS)
+      .order('name', { ascending: true });
+    
+    todosProdutosDistribuidor = produtosPublicos || [];
+    console.log(`[PRODUCTS] ${todosProdutosDistribuidor.length} produtos de distribuidores públicos (Bambino, Brancaleone)`);
+    
+    // Se for cotista, buscar TAMBÉM produtos de outros distribuidores
     if (isCotista) {
-      const { data } = await supabase
+      const { data: outrosDistribuidores } = await supabase
         .from('products')
         .select(`
           *,
@@ -53,30 +76,33 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         `)
         .eq('active', true)
         .not('distribuidor_id', 'is', null)
+        .not('distribuidor_id', 'in', `(${DISTRIBUIDORES_PUBLICOS.join(',')})`)
         .order('name', { ascending: true });
       
-      todosProdutosDistribuidor = data || [];
-      console.log(`[PRODUCTS] Cotista - ${todosProdutosDistribuidor.length} produtos de distribuidores encontrados`);
-      
-      // Buscar nomes dos distribuidores separadamente
-      if (todosProdutosDistribuidor.length > 0) {
-        const distribuidorIds = [...new Set(todosProdutosDistribuidor.map(p => p.distribuidor_id).filter(Boolean))];
-        const { data: distribuidores } = await supabase
-          .from('distribuidores')
-          .select('id, nome')
-          .in('id', distribuidorIds);
-        
-        // Criar mapa de distribuidores
-        const distribuidorMap = new Map((distribuidores || []).map(d => [d.id, d.nome]));
-        
-        // Adicionar nome do distribuidor a cada produto
-        todosProdutosDistribuidor = todosProdutosDistribuidor.map(p => ({
-          ...p,
-          distribuidor_nome: distribuidorMap.get(p.distribuidor_id) || ''
-        }));
+      if (outrosDistribuidores && outrosDistribuidores.length > 0) {
+        todosProdutosDistribuidor = [...todosProdutosDistribuidor, ...outrosDistribuidores];
+        console.log(`[PRODUCTS] Cotista - ${outrosDistribuidores.length} produtos de outros distribuidores`);
       }
-    } else {
-      console.log(`[PRODUCTS] Não-cotista - produtos de distribuidores NÃO serão exibidos`);
+    }
+    
+    console.log(`[PRODUCTS] Total de produtos de distribuidores: ${todosProdutosDistribuidor.length}`);
+    
+    // Buscar nomes dos distribuidores separadamente
+    if (todosProdutosDistribuidor.length > 0) {
+      const distribuidorIds = [...new Set(todosProdutosDistribuidor.map(p => p.distribuidor_id).filter(Boolean))];
+      const { data: distribuidores } = await supabase
+        .from('distribuidores')
+        .select('id, nome')
+        .in('id', distribuidorIds);
+      
+      // Criar mapa de distribuidores
+      const distribuidorMap = new Map((distribuidores || []).map(d => [d.id, d.nome]));
+      
+      // Adicionar nome do distribuidor a cada produto
+      todosProdutosDistribuidor = todosProdutosDistribuidor.map(p => ({
+        ...p,
+        distribuidor_nome: distribuidorMap.get(p.distribuidor_id) || ''
+      }));
     }
 
     let produtosDistribuidor: any[] = [];
