@@ -1062,7 +1062,7 @@ useEffect(() => {
     )}
     
     {/* Bottom Nav - Mobile only */}
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[1000] border-t border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <div className="container-max">
         <div className="grid grid-cols-5">
           {/* Home */}
