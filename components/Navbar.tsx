@@ -192,20 +192,9 @@ export default function Navbar() {
   const [q, setQ] = useState("");
   const [loc, setLoc] = useState<UserLocation | null>(null);
   
-  // Detectar se estamos na página de uma banca e extrair o bancaId
-  const bancaId = useMemo(() => {
-    if (pathname?.startsWith('/banca/')) {
-      const parts = pathname.split('/');
-      if (parts.length >= 4) {
-        const slug = parts[3]; // /banca/[uf]/[slug]
-        const lastPart = slug.split('-').pop();
-        // Retorna o ID se o último segmento parecer um UUID ou ID
-        if (lastPart && (lastPart.length > 8 || /^[a-f0-9-]+$/i.test(lastPart))) {
-          return lastPart;
-        }
-      }
-    }
-    return undefined;
+  // Detectar se estamos na página de uma banca (para ocultar busca global)
+  const isOnBancaPage = useMemo(() => {
+    return pathname?.startsWith('/banca/');
   }, [pathname]);
   const [locOpen, setLocOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -638,7 +627,7 @@ useEffect(() => {
           {!inDashboard && (
             <>
               {/* Ocultar busca na página da banca - haverá busca local lá */}
-              {!bancaId && (
+              {!isOnBancaPage && (
                 <form onSubmit={onSearch} className="flex-1 max-w-2xl">
                   <div className="relative">
                     <IconSearch size={20} stroke={1.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -654,7 +643,7 @@ useEffect(() => {
                 </form>
               )}
 
-              <div className={`flex items-center gap-6 text-sm ${bancaId ? 'flex-1 justify-end' : ''}`}>
+              <div className={`flex items-center gap-6 text-sm ${isOnBancaPage ? 'flex-1 justify-end' : ''}`}>
                 {mounted && (
                   <button
                     type="button"
@@ -897,7 +886,7 @@ useEffect(() => {
       <AutoGeolocation onLocationUpdate={handleLocationUpdate} />
     </header>
     {/* Mobile Search Bar (full width abaixo da navbar) - Ocultar na página da banca */}
-    {!inDashboard && !bancaId && mobileSearchOpen && (
+    {!inDashboard && !isOnBancaPage && mobileSearchOpen && (
       <div className="md:hidden border-t border-gray-200 bg-white shadow-sm">
         <div className="container-max px-4 py-3">
           <div className="relative">
