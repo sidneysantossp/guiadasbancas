@@ -33,7 +33,11 @@ export async function GET(req: NextRequest) {
         distribuidor_id,
         created_at,
         rating_avg,
-        reviews_count
+        reviews_count,
+        codigo_mercos,
+        pronta_entrega,
+        sob_encomenda,
+        pre_venda
       `)
       .eq('active', true);
 
@@ -78,7 +82,11 @@ export async function GET(req: NextRequest) {
       banca_id: p.banca_id,
       distribuidor_id: p.distribuidor_id,
       rating_avg: p.rating_avg || null,
-      reviews_count: p.reviews_count || null
+      reviews_count: p.reviews_count || null,
+      codigo_mercos: p.codigo_mercos || null,
+      pronta_entrega: p.pronta_entrega || false,
+      sob_encomenda: p.sob_encomenda || false,
+      pre_venda: p.pre_venda || false
     }));
 
     return NextResponse.json({
