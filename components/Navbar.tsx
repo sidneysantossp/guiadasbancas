@@ -805,8 +805,8 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Busca mobile */}
-      {!inDashboard && (
+      {/* Busca mobile - Ocultar na página da banca */}
+      {!inDashboard && !isOnBancaPage && (
         <div className="md:hidden border-t border-gray-100">
           <div className="px-4 py-3">
             <form onSubmit={onSearch}>
