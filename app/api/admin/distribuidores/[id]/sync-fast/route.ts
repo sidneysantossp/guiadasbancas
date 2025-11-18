@@ -188,7 +188,7 @@ export async function POST(
     };
     let lastSeenKey: string | null = null;
     let repeatCount = 0;
-    let pageMode: 'timestamp' | 'id' = 'id'; // Mudar para 'id' para buscar todos os produtos
+    let pageMode: 'timestamp' | 'id' = 'id' as 'timestamp' | 'id'; // Mudar para 'id' para buscar todos os produtos
     let noProgressIters = 0;
 
     console.log('[SYNC-FAST] Iniciando processamento...');
