@@ -197,17 +197,6 @@ function BancaCard({
           </span>
         </div>
         <div className="text-xs text-gray-700">
-          <div className="flex flex-wrap gap-1.5">
-            {(catBadges.length ? catBadges : categories).slice(0, 3).map((c, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 text-gray-700 px-2.5 py-1">
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 6v6l4 2" />
-                </svg>
-                <span className="text-[11px] font-medium">{c.name}</span>
-              </span>
-            ))}
-          </div>
           <div className="mt-3">
             <span className="inline-flex w-full items-center justify-center rounded-full bg-[#ff5c00] px-4 py-2 text-[12px] font-semibold text-white shadow-sm hover:bg-[#ff7a33]">
               Ver Banca
