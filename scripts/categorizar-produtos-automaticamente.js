@@ -54,15 +54,28 @@ const CATEGORY_RULES = [
   {
     name: 'Bebidas',
     keywords: [
+      // Água
       'ÁGUA', 'AGUA', 'MINERAL', 'CRYSTAL', 'BONAFONT', 'LINDOYA', 'PUREZA',
-      'REFRIGERANTE', 'COCA-COLA', 'COCA COLA', 'PEPSI', 'GUARANÁ', 'GUARANA',
+      'COM GÁS', 'COM GAS', 'SEM GÁS', 'SEM GAS', 'GASOSA', 'GASEIFICADA',
+      // Refrigerantes
+      'REFRIGERANTE', 'REFRI', 'COCA-COLA', 'COCA COLA', 'PEPSI', 'GUARANÁ', 'GUARANA',
       'FANTA', 'SPRITE', 'KUAT', 'DOLLY', 'SUKITA', 'SCHWEPPES', 'SODA',
+      'ANTARCTICA', 'LIMONADA', 'LARANJA', 'UVA', 'SEM AÇUCAR', 'SEM ACUCAR', 'ZERO',
+      // Sucos
       'SUCO', 'NÉCTAR', 'NECTAR', 'DEL VALLE', 'ADES', 'TANG', 'FRESH',
+      // Chás
       'CHÁ', 'CHA', 'LIPTON', 'MATTE LEÃO', 'MATTE LEAO', 'LEÃO', 'LEAO',
+      // Energéticos
       'ENERGÉTICO', 'ENERGETICO', 'RED BULL', 'MONSTER', 'TNT', 'FUSION',
-      'GATORADE', 'POWERADE', 'ISOTÔNICO', 'ISOTONICO', 'H2OH', 'ÁGUA DE COCO',
-      'AGUA DE COCO', 'SOCOCO', 'KERO COCO', 'LEITE', 'NINHO', 'PARMALAT',
-      'YAKULT', 'ACTIMEL', 'IOGURTE', 'ACHOCOLATADO', 'TODDYNHO', 'NESCAU'
+      'GUARAVITON', 'ENERGY', 'MELANCIA', 'TROPICAL', 'SUGAR FREE', 'MANGO LOCO',
+      'GREEN', 'GINSENG', 'AÇAI', 'ACAI',
+      // Isotônicos
+      'GATORADE', 'POWERADE', 'ISOTÔNICO', 'ISOTONICO', 'H2OH',
+      // Água de coco
+      'ÁGUA DE COCO', 'AGUA DE COCO', 'SOCOCO', 'KERO COCO',
+      // Leite e derivados
+      'LEITE', 'NINHO', 'PARMALAT', 'YAKULT', 'ACTIMEL', 'IOGURTE', 
+      'ACHOCOLATADO', 'TODDYNHO', 'NESCAU'
     ],
     priority: 13
   },
