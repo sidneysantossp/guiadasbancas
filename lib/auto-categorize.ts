@@ -12,6 +12,84 @@ export interface CategoryRule {
 
 // Regras de categorização (ordenadas por prioridade)
 export const CATEGORY_RULES: CategoryRule[] = [
+  // Tabaco e Cigarros (prioridade máxima para evitar confusão)
+  {
+    id: 'tabaco',
+    name: 'Tabaco e Cigarros',
+    keywords: [
+      'CIGARRO', 'CIGARROS', 'TABACO', 'MAÇO', 'MARLBORO', 'CAMEL', 'DUNHILL',
+      'LUCKY STRIKE', 'PALL MALL', 'FREE', 'L&M', 'WINSTON', 'DERBY', 'EIGHT',
+      'HOLLYWOOD', 'MINISTER', 'KENT', 'CHESTERFIELD', 'VICEROY', 'CHARUTARIA',
+      'CHARUTO', 'FUMO', 'TABACARIA'
+    ],
+    priority: 15
+  },
+  
+  // Bebidas Alcoólicas
+  {
+    id: 'bebidas-alcoolicas',
+    name: 'Bebidas Alcoólicas',
+    keywords: [
+      'CERVEJA', 'BRAHMA', 'SKOL', 'HEINEKEN', 'BUDWEISER', 'CORONA', 'STELLA',
+      'ANTARCTICA', 'ITAIPAVA', 'AMSTEL', 'ORIGINAL', 'BOHEMIA', 'EISENBAHN',
+      'VINHO', 'VODKA', 'WHISKY', 'WHISKEY', 'GIN', 'RUM', 'CACHAÇA', 'CACHACA',
+      'CATUABA', 'ENERGÉTICO ALCÓOLICO', 'ENERGETICO ALCOOLICO', 'SMIRNOFF ICE',
+      'JACK DANIELS', 'JOHNNIE WALKER', 'RED LABEL', 'BLACK LABEL', 'ABSOLUT',
+      'APEROL', 'CAMPARI', 'LICOR'
+    ],
+    priority: 14
+  },
+  
+  // Bebidas Não Alcoólicas
+  {
+    id: 'bebidas',
+    name: 'Bebidas',
+    keywords: [
+      'ÁGUA', 'AGUA', 'MINERAL', 'CRYSTAL', 'BONAFONT', 'LINDOYA', 'PUREZA',
+      'REFRIGERANTE', 'COCA-COLA', 'COCA COLA', 'PEPSI', 'GUARANÁ', 'GUARANA',
+      'FANTA', 'SPRITE', 'KUAT', 'DOLLY', 'SUKITA', 'SCHWEPPES', 'SODA',
+      'SUCO', 'NÉCTAR', 'NECTAR', 'DEL VALLE', 'ADES', 'TANG', 'FRESH',
+      'CHÁ', 'CHA', 'LIPTON', 'MATTE LEÃO', 'MATTE LEAO', 'LEÃO', 'LEAO',
+      'ENERGÉTICO', 'ENERGETICO', 'RED BULL', 'MONSTER', 'TNT', 'FUSION',
+      'GATORADE', 'POWERADE', 'ISOTÔNICO', 'ISOTONICO', 'H2OH', 'ÁGUA DE COCO',
+      'AGUA DE COCO', 'SOCOCO', 'KERO COCO', 'LEITE', 'NINHO', 'PARMALAT',
+      'YAKULT', 'ACTIMEL', 'IOGURTE', 'ACHOCOLATADO', 'TODDYNHO', 'NESCAU'
+    ],
+    priority: 13
+  },
+  
+  // Snacks Salgados
+  {
+    id: 'snacks',
+    name: 'Snacks e Salgadinhos',
+    keywords: [
+      'SALGADINHO', 'CHIPS', 'RUFFLES', 'DORITOS', 'CHEETOS', 'FANDANGOS',
+      'PRINGLES', 'ELMA CHIPS', 'TORCIDA', 'BACONZITOS', 'YOKITOS',
+      'PIPOCA', 'AMENDOIM', 'CASTANHA', 'NOZES', 'MIX', 'PETISCO',
+      'BISCOITO SALGADO', 'CREAM CRACKER', 'CLUB SOCIAL', 'TRAKINAS SALGADO',
+      'SNACK', 'LANCHE'
+    ],
+    priority: 12
+  },
+  
+  // Doces e Chocolates
+  {
+    id: 'doces',
+    name: 'Doces e Chocolates',
+    keywords: [
+      'CHOCOLATE', 'BOMBOM', 'BARRA DE CHOCOLATE', 'LACTA', 'NESTLÉ', 'NESTLE',
+      'GAROTO', 'HERSHEYS', 'FERRERO', 'KINDER', 'M&M', 'SNICKERS', 'TWIX',
+      'KIT KAT', 'KITKAT', 'LOLLO', 'BIS', 'PRESTÍGIO', 'PRESTIGIO', 'OURO BRANCO',
+      'SONHO DE VALSA', 'SERENATA', 'ALPINO', 'DIAMANTE NEGRO', 'LAKA',
+      'BALA', 'DROPS', '7BELO', 'HALLS', 'MENTE', 'MENTOS', 'TRIDENT',
+      'CHICLETE', 'HORTELÃ', 'HORTELA', 'GOMA DE MASCAR',
+      'PIRULITO', 'CHUPA CHUPS', 'POP ROCKS', 'FINI', 'DORI', 'DOCILE',
+      'JUJUBA', 'GELATINA', 'PAÇOCA', 'PACOCA', 'PÉ DE MOLEQUE', 'PE DE MOLEQUE',
+      'MARIA MOLE', 'MARSHMALLOW', 'BRIGADEIRO', 'BEIJINHO'
+    ],
+    priority: 11
+  },
+  
   // Mangás e Quadrinhos
   {
     id: 'mangas',
@@ -22,7 +100,8 @@ export const CATEGORY_RULES: CategoryRule[] = [
       'BLEACH', 'DRAGON BALL', 'TOKYO GHOUL', 'DEATH NOTE', 'FULLMETAL',
       'GOLDEN KAMUY', 'BUNGO STRAY DOGS', 'RADIANT', 'FOOD WARS', 'MORIARTY',
       'POKEMON', 'AFTER GOD', 'MAGILUMIERE', 'CACANDO DRAGOES', 'CAÇANDO DRAGÕES',
-      '[REB]', 'MANGA', 'MANGÁ'
+      '[REB]', 'MANGA', 'MANGÁ', 'CHAINSAW MAN', 'JUJUTSU KAISEN', 'DEMON SLAYER',
+      'KIMETSU NO YAIBA', 'SPY X FAMILY', 'FRIEREN'
     ],
     priority: 10
   },
