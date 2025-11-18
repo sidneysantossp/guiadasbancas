@@ -1343,88 +1343,126 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       )}
 
       {/* Produtos da Banca */}
-      <h2 ref={productsTopRef} className="mt-8 mb-0 text-base sm:text-lg font-semibold">Produtos desta Banca</h2>
+      <h2 ref={productsTopRef} className="mt-8 mb-4 text-base sm:text-lg font-semibold">Produtos desta Banca</h2>
 
-      {/* Barra de chips (Todos fixo) + seta à direita + limpar filtro */}
-      <div className="mt-0 sticky top-0 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-100 w-full max-w-full overflow-x-hidden">
-        <div className="flex items-center justify-between px-1 pt-0">
-          <div className="text-[11px] sm:text-[12px] text-gray-500">Navegue por uma Categoria</div>
-          <div className="flex items-center gap-2">
-            {activeCategory !== 'Todos' && (
-              <button onClick={()=>setActiveCategory('Todos')} className="text-[12px] text-[#ff5c00] font-medium hover:underline">Limpar filtro</button>
-            )}
-            <div className="flex items-center gap-1 z-10">
-              <button
-                type="button"
-                aria-label="Categorias anteriores"
-                onClick={()=>{ const el = catScrollerRef.current; if (el) el.scrollBy({ left: -220, behavior: 'smooth' }); }}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-              </button>
-              <button
-                type="button"
-                aria-label="Próximas categorias"
-                onClick={()=>{ const el = catScrollerRef.current; if (el) el.scrollBy({ left: 220, behavior: 'smooth' }); }}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="relative flex items-stretch gap-2 px-1 pb-2">
-          {/* Chip 'Todos' fixo */}
-          <div className="shrink-0 py-2">
-            <button
-              onClick={()=> setActiveCategory('Todos')}
-              className={`whitespace-nowrap rounded-full border px-2 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-[12px] ${activeCategory==='Todos'?"border-[#ff5c00] text-white bg-[#ff5c00]":"border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`}
-            >Todos</button>
-          </div>
-          {/* Scroller somente com demais categorias */}
-          <div className="relative flex-1 min-w-0 max-w-full">
-            <div ref={catScrollerRef} className="no-scrollbar flex items-center gap-2 w-full max-w-full overflow-x-auto overflow-y-hidden py-2 pr-10 whitespace-nowrap">
-              {allCategories.map((name) => (
+      {/* Layout com Sidebar + Produtos */}
+      <div className="flex gap-6">
+        {/* Sidebar de Categorias */}
+        <aside className="hidden lg:block w-64 flex-shrink-0">
+          <div className="sticky top-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Categorias</h3>
+              <nav className="space-y-1">
                 <button
-                  key={name}
-                  onClick={()=>{ setActiveCategory(name); }}
-                  className={`whitespace-nowrap rounded-full border px-2 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-[12px] ${activeCategory===name?"border-[#ff5c00] text-white bg-[#ff5c00]":"border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`}
-                >{name}</button>
-              ))}
+                  onClick={() => setActiveCategory('Todos')}
+                  className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                    activeCategory === 'Todos'
+                      ? 'bg-[#ff5c00] text-white font-medium'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Todos os Produtos
+                </button>
+                {allCategories.map((name) => (
+                  <button
+                    key={name}
+                    onClick={() => setActiveCategory(name)}
+                    className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                      activeCategory === name
+                        ? 'bg-[#ff5c00] text-white font-medium'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </nav>
             </div>
-            {/* mobile hint: gradiente à direita */}
-            <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-white to-transparent sm:hidden" />
           </div>
-        </div>
-      </div>
-      {loadingProdutos ? (
-        <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">Carregando produtos...</div>
-      ) : visibleProducts.length === 0 ? (
-        <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">Nenhum produto publicado nesta banca ainda.</div>
-      ) : (
-        <>
-          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {visibleProducts.map((p) => (
-              <ProductCard key={p.id} p={p} phone={banca.phone} bancaId={banca.id} bancaName={banca.name} />
-            ))}
-          </div>
-          {/* Loader / sentinela para infinite scroll */}
-          <div ref={endRef} className="mt-3 flex items-center justify-center">
-            {isLoadingMore ? (
-              <span className="text-sm text-gray-500">Carregando...</span>
-            ) : !canLoadMoreWithinPage ? (
-              <span className="text-[12px] text-gray-400">Fim da página</span>
-            ) : null}
-          </div>
+        </aside>
 
-          {/* Paginação */}
-          <div className="mt-4 flex items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={()=> setCurrentPage(p => Math.max(1, p-1))}
-              disabled={currentPage === 1}
-              className={`rounded-md border px-3 py-1 text-sm ${currentPage===1 ? 'text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed' : 'text-gray-700 border-gray-300 bg-white hover:bg-gray-50'}`}
-            >Anterior</button>
+        {/* Área de Produtos */}
+        <div className="flex-1 min-w-0">
+          {/* Barra de chips mobile (Todos fixo) + seta à direita + limpar filtro */}
+          <div className="lg:hidden mb-4 sticky top-0 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-100 w-full max-w-full overflow-x-hidden">
+            <div className="flex items-center justify-between px-1 pt-0">
+              <div className="text-[11px] sm:text-[12px] text-gray-500">Navegue por uma Categoria</div>
+              <div className="flex items-center gap-2">
+                {activeCategory !== 'Todos' && (
+                  <button onClick={()=>setActiveCategory('Todos')} className="text-[12px] text-[#ff5c00] font-medium hover:underline">Limpar filtro</button>
+                )}
+                <div className="flex items-center gap-1 z-10">
+                  <button
+                    type="button"
+                    aria-label="Categorias anteriores"
+                    onClick={()=>{ const el = catScrollerRef.current; if (el) el.scrollBy({ left: -220, behavior: 'smooth' }); }}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Próximas categorias"
+                    onClick={()=>{ const el = catScrollerRef.current; if (el) el.scrollBy({ left: 220, behavior: 'smooth' }); }}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="relative flex items-stretch gap-2 px-1 pb-2">
+              {/* Chip 'Todos' fixo */}
+              <div className="shrink-0 py-2">
+                <button
+                  onClick={()=> setActiveCategory('Todos')}
+                  className={`whitespace-nowrap rounded-full border px-2 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-[12px] ${activeCategory==='Todos'?"border-[#ff5c00] text-white bg-[#ff5c00]":"border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`}
+                >Todos</button>
+              </div>
+              {/* Scroller somente com demais categorias */}
+              <div className="relative flex-1 min-w-0 max-w-full">
+                <div ref={catScrollerRef} className="no-scrollbar flex items-center gap-2 w-full max-w-full overflow-x-auto overflow-y-hidden py-2 pr-10 whitespace-nowrap">
+                  {allCategories.map((name) => (
+                    <button
+                      key={name}
+                      onClick={()=>{ setActiveCategory(name); }}
+                      className={`whitespace-nowrap rounded-full border px-2 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-[12px] ${activeCategory===name?"border-[#ff5c00] text-white bg-[#ff5c00]":"border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`}
+                    >{name}</button>
+                  ))}
+                </div>
+                {/* mobile hint: gradiente à direita */}
+                <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-white to-transparent sm:hidden" />
+              </div>
+            </div>
+          </div>
+          {loadingProdutos ? (
+            <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">Carregando produtos...</div>
+          ) : visibleProducts.length === 0 ? (
+            <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">Nenhum produto publicado nesta banca ainda.</div>
+          ) : (
+            <>
+              <div className="mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {visibleProducts.map((p) => (
+                  <ProductCard key={p.id} p={p} phone={banca.phone} bancaId={banca.id} bancaName={banca.name} />
+                ))}
+              </div>
+              {/* Loader / sentinela para infinite scroll */}
+              <div ref={endRef} className="mt-3 flex items-center justify-center">
+                {isLoadingMore ? (
+                  <span className="text-sm text-gray-500">Carregando...</span>
+                ) : !canLoadMoreWithinPage ? (
+                  <span className="text-[12px] text-gray-400">Fim da página</span>
+                ) : null}
+              </div>
+
+              {/* Paginação */}
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={()=> setCurrentPage(p => Math.max(1, p-1))}
+                  disabled={currentPage === 1}
+                  className={`rounded-md border px-3 py-1 text-sm ${currentPage===1 ? 'text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed' : 'text-gray-700 border-gray-300 bg-white hover:bg-gray-50'}`}
+                >Anterior</button>
             {(() => {
               const btns: JSX.Element[] = [];
               const maxBtns = 5;
@@ -1444,15 +1482,18 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
               if (end < totalPages) btns.push(<span key="end-ellipsis" className="px-1 text-sm text-gray-500">...</span>);
               return btns;
             })()}
-            <button
-              type="button"
-              onClick={()=> setCurrentPage(p => Math.min(totalPages, p+1))}
-              disabled={currentPage === totalPages}
-              className={`rounded-md border px-3 py-1 text-sm ${currentPage===totalPages ? 'text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed' : 'text-gray-700 border-gray-300 bg-white hover:bg-gray-50'}`}
-            >Próxima</button>
-          </div>
-        </>
-      )}
+                <button
+                  type="button"
+                  onClick={()=> setCurrentPage(p => Math.min(totalPages, p+1))}
+                  disabled={currentPage === totalPages}
+                  className={`rounded-md border px-3 py-1 text-sm ${currentPage===totalPages ? 'text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed' : 'text-gray-700 border-gray-300 bg-white hover:bg-gray-50'}`}
+                >Próxima</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      
       <style jsx>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
