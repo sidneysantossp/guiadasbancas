@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readProducts, type ProdutoItem } from "@/lib/server/productsStore";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,14 +8,39 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search');
     const limit = parseInt(searchParams.get('limit') || '24');
     
-    let items: ProdutoItem[] = await readProducts();
-    if (!items.length) {
-      const legacy = (globalThis as any).__PRODUCTS_STORE__ as ProdutoItem[] | undefined;
-      if (Array.isArray(legacy) && legacy.length) items = legacy;
+    const supabase = supabaseAdmin;
+    
+    // Buscar produtos do banco de dados
+    let query = supabase
+      .from('products')
+      .select(`
+        id,
+        name,
+        price,
+        images,
+        banca_id,
+        distribuidor_id,
+        category_id,
+        description,
+        stock_qty,
+        track_stock,
+        active,
+        codigo_mercos,
+        categories!category_id(name),
+        distribuidores!distribuidor_id(nome)
+      `)
+      .eq('active', true)
+      .limit(5000); // Limite alto para buscar todos os produtos disponíveis
+    
+    const { data: items, error } = await query;
+    
+    if (error) {
+      console.error('[SEARCH] Erro ao buscar produtos:', error);
+      return NextResponse.json({ ok: false, success: false, error: error.message }, { status: 500 });
     }
     
     // Filtrar por categoria se especificada
-    let filtered = [...items].filter(p => p.active !== false);
+    let filtered = [...(items || [])].filter(p => p.active !== false);
     
     if (category) {
       filtered = filtered.filter(p => {
@@ -28,43 +53,55 @@ export async function GET(req: NextRequest) {
     if (search) {
       filtered = filtered.filter(p => {
         const searchTerm = search.toLowerCase();
+        const categoryName = (p.categories as any)?.name || '';
+        const distributorName = (p.distribuidores as any)?.nome || '';
+        
         return p.name.toLowerCase().includes(searchTerm) ||
                (p.description || '').toLowerCase().includes(searchTerm) ||
-               (p.category_id || '').toLowerCase().includes(searchTerm);
+               (p.codigo_mercos || '').toLowerCase().includes(searchTerm) ||
+               categoryName.toLowerCase().includes(searchTerm) ||
+               distributorName.toLowerCase().includes(searchTerm);
       });
     }
     
-    // Heurística simples de "mais buscados": ordena por reviews_count desc, depois rating_avg desc, depois featured
+    // Ordenar por nome e limitar resultados
     const sorted = filtered
-      .sort((a, b) => (b.reviews_count || 0) - (a.reviews_count || 0) || (b.rating_avg || 0) - (a.rating_avg || 0) || (b.featured ? 1 : 0) - (a.featured ? 1 : 0))
+      .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, limit);
 
     // Map reduzido para o front com informações da banca
-    const data = sorted.map(p => ({
-      id: p.id,
-      name: p.name,
-      price: p.price,
-      price_original: (p as any).price_original ?? null,
-      images: p.images || [],
-      banca_id: p.banca_id,
-      category_id: p.category_id,
-      category: p.category_id, // Para compatibilidade
-      description: p.description || '',
-      rating_avg: p.rating_avg || null,
-      reviews_count: p.reviews_count || 0,
-      stock_qty: p.stock_qty ?? null,
-      track_stock: p.track_stock ?? false,
-      sob_encomenda: (p as any).sob_encomenda ?? false,
-      pre_venda: (p as any).pre_venda ?? false,
-      pronta_entrega: (p as any).pronta_entrega ?? false,
-      discount_percent: (p as any).discount_percent ?? null,
-      // Informações mock da banca para o slider
-      banca: {
-        id: p.banca_id,
-        name: getBancaName(p.banca_id),
-        avatar: null
-      }
-    }));
+    const data = sorted.map(p => {
+      const categoryName = (p.categories as any)?.name || '';
+      const distributorName = (p.distribuidores as any)?.nome || '';
+      
+      return {
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        price_original: null,
+        images: p.images || [],
+        banca_id: p.banca_id,
+        distribuidor_id: p.distribuidor_id,
+        distribuidor_nome: distributorName,
+        category_id: p.category_id,
+        category: categoryName, // Nome da categoria para exibição
+        description: p.description || '',
+        rating_avg: null, // Não implementado ainda
+        reviews_count: 0, // Não implementado ainda
+        stock_qty: p.stock_qty ?? null,
+        track_stock: p.track_stock ?? false,
+        sob_encomenda: false,
+        pre_venda: false,
+        pronta_entrega: true,
+        discount_percent: null,
+        // Informações da banca/distribuidor
+        banca: {
+          id: p.banca_id || p.distribuidor_id,
+          name: distributorName || getBancaName(p.banca_id),
+          avatar: null
+        }
+      };
+    });
     
     return NextResponse.json({ ok: true, success: true, data });
   } catch (e: any) {
