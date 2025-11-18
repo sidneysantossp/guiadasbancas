@@ -78,14 +78,14 @@ export default function HomePage() {
       </Suspense>
 
       <Suspense fallback={null}>
-        <div className="py-6">
+        <div className="pt-6 pb-2">
           <FeaturedBancas />
         </div>
       </Suspense>
 
       {/* LAZY LOADING: Carrega conforme scroll */}
       <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
-        <div className="py-6">
+        <div className="pt-2 pb-6">
           <MostSearchedProducts />
         </div>
       </Suspense>
