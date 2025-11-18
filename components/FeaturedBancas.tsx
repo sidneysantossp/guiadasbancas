@@ -329,7 +329,7 @@ export default function FeaturedBancas() {
   const next = () => setIndex((i) => i + 1);
 
   return (
-    <section className="w-full">
+    <section className="w-full px-5">
       <div className="container-max relative px-3 sm:px-6 md:px-8 py-6">
         <div className="relative z-10 mb-4 flex items-center justify-between">
           <div>
