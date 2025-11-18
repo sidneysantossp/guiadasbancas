@@ -54,6 +54,7 @@ export type ProdutoResumo = {
   pre_venda?: boolean;
   pronta_entrega?: boolean;
   status?: string; // 'available', 'unavailable', 'hidden'
+  codigo_mercos?: string; // Código do produto (ex: ACBKA004)
 };
 
 const FALLBACK_BANCA: BancaDetail = {
@@ -852,8 +853,9 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       filtered = filtered.filter(p => {
         const name = p.name?.toLowerCase() || '';
         const category = normalizeCategory(p.category, categoriesMap).toLowerCase();
+        const codigo = p.codigo_mercos?.toLowerCase() || '';
         
-        return name.includes(searchLower) || category.includes(searchLower);
+        return name.includes(searchLower) || category.includes(searchLower) || codigo.includes(searchLower);
       });
     }
     
