@@ -632,8 +632,8 @@ export default function ProductPageClient({ productId }: { productId: string }) 
           </div>
 
           <div className="mt-3">
-            <button className="w-full rounded-md border border-[#ff5c00] text-[#ff5c00] font-semibold px-3 py-0.5 leading-tight hover:bg-[#fff3ec] text-xs inline-flex items-center justify-center gap-1.5">
-              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
+            <button className="w-full rounded-md border border-[#ff5c00] text-[#ff5c00] font-semibold px-4 py-2.5 hover:bg-[#fff3ec] text-sm inline-flex items-center justify-center gap-2">
+              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={16} height={16} className="h-4 w-4 object-contain" />
               Comprar pelo WhatsApp
             </button>
           </div>
