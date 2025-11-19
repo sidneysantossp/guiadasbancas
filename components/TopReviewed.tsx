@@ -186,10 +186,10 @@ export default function TopReviewed() {
           
           if (r.ok) {
             const j = await r.json();
-            const allProducts = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
+            const allProducts: ApiProduct[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
             
             // Filtrar produtos SEM imagem (evitar mocks)
-            source = allProducts.filter(p => p.images && p.images.length > 0);
+            source = allProducts.filter((p: ApiProduct) => p.images && p.images.length > 0);
             
             console.log(`[TopReviewed] Total: ${allProducts.length}, Com imagem: ${source.length}`);
           }
