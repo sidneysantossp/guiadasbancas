@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from 'fs';
-import path from 'path';
+import { supabase } from "@/lib/supabase";
 
 type HeroSlide = {
   id: string;
@@ -29,40 +28,64 @@ type SliderConfig = {
   heightMobile: number;
 };
 
-// Simulação de banco de dados em memória (em produção seria um banco real)
-const SLIDES_PATH = path.join(process.cwd(), 'data', 'hero-slides.json');
-const CONFIG_PATH = path.join(process.cwd(), 'data', 'slider-config.json');
-
+// Funções para ler/gravar no Supabase
 async function readSlides(): Promise<HeroSlide[]> {
   try {
-    const raw = await fs.readFile(SLIDES_PATH, 'utf-8');
-    const parsed = JSON.parse(raw || '[]');
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
+    const { data, error } = await supabase
+      .from('hero_slides')
+      .select('*')
+      .order('order', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('[hero-slides] Erro ao ler slides:', error);
     return [];
   }
 }
 
-async function writeSlides(items: HeroSlide[]) {
-  await fs.mkdir(path.dirname(SLIDES_PATH), { recursive: true });
-  await fs.writeFile(SLIDES_PATH, JSON.stringify(items, null, 2), 'utf-8');
+async function writeSlide(slide: HeroSlide) {
+  const { error } = await supabase
+    .from('hero_slides')
+    .upsert(slide, { onConflict: 'id' });
+  
+  if (error) throw error;
+}
+
+async function deleteSlide(slideId: string) {
+  const { error } = await supabase
+    .from('hero_slides')
+    .delete()
+    .eq('id', slideId);
+  
+  if (error) throw error;
 }
 
 async function readConfig(): Promise<SliderConfig | null> {
   try {
-    const raw = await fs.readFile(CONFIG_PATH, 'utf-8');
-    return JSON.parse(raw);
-  } catch {
+    const { data, error } = await supabase
+      .from('slider_config')
+      .select('*')
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('[hero-slides] Erro ao ler config:', error);
     return null;
   }
 }
 
 async function writeConfig(cfg: SliderConfig) {
-  await fs.mkdir(path.dirname(CONFIG_PATH), { recursive: true });
-  await fs.writeFile(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf-8');
+  const { error } = await supabase
+    .from('slider_config')
+    .upsert({ id: 1, ...cfg }, { onConflict: 'id' });
+  
+  if (error) throw error;
 }
 
-let heroSlides: HeroSlide[] = [
+// Slides padrão para fallback
+const DEFAULT_SLIDES: HeroSlide[] = [
   {
     id: "slide-1",
     title: "Sua banca favorita\nagora delivery",
@@ -116,7 +139,7 @@ let heroSlides: HeroSlide[] = [
   }
 ];
 
-let sliderConfig: SliderConfig = {
+const DEFAULT_CONFIG: SliderConfig = {
   autoPlayTime: 6000,
   transitionSpeed: 600,
   showArrows: true,
@@ -137,30 +160,34 @@ function verifyAdminAuth(request: NextRequest) {
 // GET - Buscar slides
 export async function GET(request: NextRequest) {
   try {
-    // Sempre tentar carregar do disco
-    const diskSlides = await readSlides();
-    if (diskSlides.length > 0) heroSlides = diskSlides as HeroSlide[];
-    const diskCfg = await readConfig();
-    if (diskCfg) sliderConfig = diskCfg;
-
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
     const admin = searchParams.get("admin");
 
+    // Buscar configuração
     if (type === "config") {
-      return NextResponse.json({ success: true, data: sliderConfig });
+      const config = await readConfig() || DEFAULT_CONFIG;
+      return NextResponse.json({ success: true, data: config });
     }
+
+    // Buscar slides do banco
+    const heroSlides = await readSlides();
+    const sliderConfig = await readConfig() || DEFAULT_CONFIG;
+    
+    // Usar fallback se não houver slides
+    const slides = heroSlides.length > 0 ? heroSlides : DEFAULT_SLIDES;
 
     // Se for admin, retornar todos os slides
     if (admin === "true") {
-      const allSlides = [...heroSlides].sort((a, b) => a.order - b.order);
-      return NextResponse.json({ success: true, data: allSlides, config: sliderConfig });
+      return NextResponse.json({ 
+        success: true, 
+        data: slides, 
+        config: sliderConfig 
+      });
     }
 
     // Retornar apenas slides ativos para o frontend público
-    const publicSlides = heroSlides
-      .filter(slide => slide.active)
-      .sort((a, b) => a.order - b.order);
+    const publicSlides = slides.filter(slide => slide.active);
 
     return NextResponse.json({ 
       success: true, 
@@ -168,6 +195,7 @@ export async function GET(request: NextRequest) {
       config: sliderConfig 
     });
   } catch (error) {
+    console.error('[hero-slides GET] Erro:', error);
     return NextResponse.json(
       { success: false, error: "Erro ao buscar slides" },
       { status: 500 }
@@ -189,22 +217,19 @@ export async function POST(request: NextRequest) {
     const { type, data } = body;
 
     if (type === "config") {
-      sliderConfig = { ...sliderConfig, ...data };
-      await writeConfig(sliderConfig);
-      return NextResponse.json({ success: true, data: sliderConfig });
+      await writeConfig(data);
+      return NextResponse.json({ success: true, data });
     }
 
     // Criar novo slide
+    const current = await readSlides();
     const newSlide: HeroSlide = {
       ...data,
       id: `slide-${Date.now()}`,
-      order: heroSlides.length + 1
+      order: current.length + 1
     };
 
-    const current = await readSlides();
-    const updated = [...current, newSlide];
-    heroSlides = updated;
-    await writeSlides(updated);
+    await writeSlide(newSlide);
     return NextResponse.json({ success: true, data: newSlide });
   } catch (error) {
     return NextResponse.json(
@@ -228,30 +253,31 @@ export async function PUT(request: NextRequest) {
     const { type, data } = body;
 
     if (type === "config") {
-      sliderConfig = { ...sliderConfig, ...data };
-      await writeConfig(sliderConfig);
-      return NextResponse.json({ success: true, data: sliderConfig });
+      await writeConfig(data);
+      return NextResponse.json({ success: true, data });
     }
 
     if (type === "bulk") {
       // Atualização em lote (reordenação, ativação/desativação)
-      heroSlides = data;
-      await writeSlides(heroSlides);
-      return NextResponse.json({ success: true, data: heroSlides });
+      for (const slide of data) {
+        await writeSlide(slide);
+      }
+      return NextResponse.json({ success: true, data });
     }
 
     // Atualizar slide individual
-    const slideIndex = heroSlides.findIndex(s => s.id === data.id);
-    if (slideIndex === -1) {
+    const heroSlides = await readSlides();
+    const existingSlide = heroSlides.find(s => s.id === data.id);
+    if (!existingSlide) {
       return NextResponse.json(
         { success: false, error: "Slide não encontrado" },
         { status: 404 }
       );
     }
 
-    heroSlides[slideIndex] = { ...heroSlides[slideIndex], ...data };
-    await writeSlides(heroSlides);
-    return NextResponse.json({ success: true, data: heroSlides[slideIndex] });
+    const updatedSlide = { ...existingSlide, ...data };
+    await writeSlide(updatedSlide);
+    return NextResponse.json({ success: true, data: updatedSlide });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Erro ao atualizar slide" },
@@ -280,19 +306,25 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const slideIndex = heroSlides.findIndex(s => s.id === slideId);
-    if (slideIndex === -1) {
+    const heroSlides = await readSlides();
+    const existingSlide = heroSlides.find(s => s.id === slideId);
+    if (!existingSlide) {
       return NextResponse.json(
         { success: false, error: "Slide não encontrado" },
         { status: 404 }
       );
     }
 
-    heroSlides.splice(slideIndex, 1);
+    await deleteSlide(slideId);
+    
     // Reordenar slides restantes
-    heroSlides.forEach((slide, index) => { slide.order = index + 1; });
-    await writeSlides(heroSlides);
-    return NextResponse.json({ success: true, data: heroSlides });
+    const remainingSlides = heroSlides.filter(s => s.id !== slideId);
+    for (let i = 0; i < remainingSlides.length; i++) {
+      remainingSlides[i].order = i + 1;
+      await writeSlide(remainingSlides[i]);
+    }
+    
+    return NextResponse.json({ success: true, data: remainingSlides });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Erro ao excluir slide" },
