@@ -22,22 +22,23 @@ export async function GET(
       );
     }
 
-    // Buscar count REAL de produtos no banco (TODOS: ativos + inativos)
+    // Buscar count REAL de produtos ATIVOS no banco
     const { count: produtosCount, error: countError } = await supabase
       .from('products')
       .select('*', { count: 'exact', head: true })
-      .eq('distribuidor_id', params.id);
+      .eq('distribuidor_id', params.id)
+      .eq('active', true); // Apenas produtos ativos na plataforma
 
     if (countError) {
       console.error('[API] Erro ao contar produtos:', countError);
     }
 
-    // Retornar com count real atualizado
+    // Retornar com count real de produtos ATIVOS
     return NextResponse.json({
       success: true,
       data: {
         ...data,
-        total_produtos: produtosCount || 0, // Substituir pelo count real do banco
+        total_produtos: produtosCount || 0, // Apenas produtos ATIVOS
       },
     });
   } catch (error: any) {

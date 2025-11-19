@@ -241,11 +241,12 @@ export async function POST(
       );
     }
 
-    // Contar total de produtos do distribuidor (TODOS: ativos + inativos)
+    // Contar total de produtos ATIVOS do distribuidor
     const { count: totalProdutos } = await supabase
       .from('products')
       .select('*', { count: 'exact', head: true })
-      .eq('distribuidor_id', params.id);
+      .eq('distribuidor_id', params.id)
+      .eq('active', true); // Apenas produtos ativos na plataforma
 
     // Atualizar última sincronização do distribuidor
     // Importante: só avançar timestamp se a execução NÃO foi interrompida por tempo

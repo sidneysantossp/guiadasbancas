@@ -25,17 +25,18 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Para cada distribuidor, contar TODOS os produtos (ativos e inativos)
+    // Para cada distribuidor, contar apenas produtos ATIVOS
     const distribuidoresComTotais = await Promise.all(
       distribuidores.map(async (dist) => {
         const { count } = await supabase
           .from('products')
           .select('*', { count: 'exact', head: true })
-          .eq('distribuidor_id', dist.id);
+          .eq('distribuidor_id', dist.id)
+          .eq('active', true); // Apenas produtos ativos na plataforma
 
         return {
           ...dist,
-          // total_produtos reflete count REAL do banco (todos os produtos)
+          // total_produtos reflete apenas produtos ATIVOS
           total_produtos: count ?? 0,
         };
       })
