@@ -436,16 +436,18 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
     b3: "Quadrinhos, papelaria e aquela conversa boa com o jornaleiro.",
   };
 
-  // Aplicação dos filtros com fallback
+  // Aplicação dos filtros
   const filteredBancas = useMemo(() => {
     const withinKm = (d: number | null) => {
       if (d == null) return true; // sem loc, não filtra por km
-      if (maxKm >= 5) return true;
+      if (maxKm >= 5) return true; // 5+ km = mostrar todos
       return d <= maxKm + 1e-9;
     };
-    const meetsStars = (r?: number) => (r ?? 0) >= minStars;
-    const f = sortedBancas.filter(({ b, km }) => withinKm(km) && meetsStars(b.rating));
-    return f.length > 0 ? f : sortedBancas;
+    const meetsStars = (r?: number) => {
+      if (minStars === 0) return true; // "Qualquer" = mostrar todos
+      return (r ?? 0) >= minStars;
+    };
+    return sortedBancas.filter(({ b, km }) => withinKm(km) && meetsStars(b.rating));
   }, [sortedBancas, maxKm, minStars]);
 
   if (!mounted) {
@@ -520,11 +522,23 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
               </div>
             </div>
           </div>
-          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {filteredBancas.map(({ b, km }) => (
-              <BancaCard key={b.id} b={b} km={km} loc={loc} description={DESCRIPTIONS[b.id as keyof typeof DESCRIPTIONS]} />
-            ))}
-          </div>
+          {filteredBancas.length === 0 ? (
+            <div className="mt-6 text-center py-12 bg-gray-50 rounded-lg">
+              <svg viewBox="0 0 24 24" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M8 15s1.5 2 4 2 4-2 4-2"/>
+                <path d="M9 9h.01M15 9h.01"/>
+              </svg>
+              <p className="text-gray-600 font-medium">Nenhuma banca encontrada com esses filtros</p>
+              <p className="text-sm text-gray-500 mt-1">Tente ajustar a distância ou avaliação mínima</p>
+            </div>
+          ) : (
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {filteredBancas.map(({ b, km }) => (
+                <BancaCard key={b.id} b={b} km={km} loc={loc} description={DESCRIPTIONS[b.id as keyof typeof DESCRIPTIONS]} />
+              ))}
+            </div>
+          )}
           <style jsx>{`
             .range-orange::-webkit-slider-runnable-track{background:#ffe2d2;height:6px;border-radius:9999px}
             .range-orange::-moz-range-track{background:#ffe2d2;height:6px;border-radius:9999px}
