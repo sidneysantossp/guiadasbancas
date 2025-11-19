@@ -152,8 +152,9 @@ function FavCard({ item }: { item: FavItem }) {
       return;
     }
     
-    // TODO: Implementar lógica de adicionar aos favoritos
-    show(<span>Adicionado aos favoritos!</span>);
+    // TODO: Implementar lógica de adicionar aos favoritos quando o backend estiver pronto
+    // Por enquanto, apenas notifica o usuário
+    show(<span>⭐ Funcionalidade em breve! Aguarde...</span>);
   };
 
   return (
@@ -195,13 +196,15 @@ function FavCard({ item }: { item: FavItem }) {
           </Link>
           {/* Coluna de ícones alinhados verticalmente */}
           <div className="flex flex-col items-center justify-center gap-2 py-1 self-stretch">
-            <button 
-              onClick={handleFavorite}
-              aria-label="Favoritar" 
-              className="w-9 h-9 grid place-items-center rounded-md border border-gray-300 hover:bg-gray-50 transition-all hover:border-[#ff5c00]"
-            >
-              <HeartOutline />
-            </button>
+            {user && (
+              <button 
+                onClick={handleFavorite}
+                aria-label="Favoritar" 
+                className="w-9 h-9 grid place-items-center rounded-md border border-gray-300 hover:bg-gray-50 transition-all hover:border-[#ff5c00]"
+              >
+                <HeartOutline />
+              </button>
+            )}
             <Link href={("/produto/" + slugify(name) + "-" + id) as Route} aria-label="Visualizar produto" className="w-9 h-9 grid place-items-center rounded-md border border-gray-300 hover:bg-gray-50">
               <EyeIcon />
             </Link>
