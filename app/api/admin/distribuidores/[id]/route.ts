@@ -8,6 +8,7 @@ export async function GET(
   try {
     const supabase = supabaseAdmin;
 
+    // Buscar dados do distribuidor
     const { data, error } = await supabase
       .from('distribuidores')
       .select('*')
@@ -21,9 +22,23 @@ export async function GET(
       );
     }
 
+    // Buscar count REAL de produtos no banco (TODOS: ativos + inativos)
+    const { count: produtosCount, error: countError } = await supabase
+      .from('products')
+      .select('*', { count: 'exact', head: true })
+      .eq('distribuidor_id', params.id);
+
+    if (countError) {
+      console.error('[API] Erro ao contar produtos:', countError);
+    }
+
+    // Retornar com count real atualizado
     return NextResponse.json({
       success: true,
-      data,
+      data: {
+        ...data,
+        total_produtos: produtosCount || 0, // Substituir pelo count real do banco
+      },
     });
   } catch (error: any) {
     return NextResponse.json(
