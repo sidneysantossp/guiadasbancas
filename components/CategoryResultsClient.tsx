@@ -378,6 +378,13 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
                 // Contar quantos produtos dessa categoria a banca tem
                 const productsCount = productsArray.filter((p: any) => p.banca_id === banca.id).length;
                 
+                // Log para debug de coordenadas
+                console.log(`[CategoryResults] Banca "${banca.name}":`, {
+                  lat: banca.lat,
+                  lng: banca.lng,
+                  hasCoordinates: !!(banca.lat && banca.lng)
+                });
+                
                 return {
                   id: banca.id,
                   name: banca.name || 'Banca',
@@ -423,10 +430,26 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
 
   const sortedBancas = useMemo(() => {
     const dataSource = bancas.length > 0 ? bancas : MOCK_BANCAS;
-    if (!loc) return dataSource.map((b) => ({ b, km: null as number | null }));
-    return [...dataSource]
-      .map((b) => ({ b, km: haversineKm({ lat: loc.lat, lng: loc.lng }, { lat: b.lat, lng: b.lng }) }))
+    if (!loc) {
+      console.log('[CategoryResults] Sem localização do usuário - não ordena por distância');
+      return dataSource.map((b) => ({ b, km: null as number | null }));
+    }
+    
+    console.log('[CategoryResults] Localização do usuário:', { lat: loc.lat, lng: loc.lng });
+    
+    const sorted = [...dataSource]
+      .map((b) => {
+        const km = haversineKm({ lat: loc.lat, lng: loc.lng }, { lat: b.lat, lng: b.lng });
+        console.log(`[CategoryResults] Distância para "${b.name}":`, {
+          bancaLat: b.lat,
+          bancaLng: b.lng,
+          distanciaKm: km.toFixed(2)
+        });
+        return { b, km };
+      })
       .sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity));
+    
+    return sorted;
   }, [loc, bancas]);
 
   // Descrições curtas temporárias
@@ -438,6 +461,8 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
 
   // Aplicação dos filtros
   const filteredBancas = useMemo(() => {
+    console.log(`[CategoryResults] Aplicando filtros: maxKm=${maxKm}, minStars=${minStars}`);
+    
     const withinKm = (d: number | null) => {
       if (d == null) return true; // sem loc, não filtra por km
       if (maxKm >= 5) return true; // 5+ km = mostrar todos
@@ -447,7 +472,24 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
       if (minStars === 0) return true; // "Qualquer" = mostrar todos
       return (r ?? 0) >= minStars;
     };
-    return sortedBancas.filter(({ b, km }) => withinKm(km) && meetsStars(b.rating));
+    
+    const filtered = sortedBancas.filter(({ b, km }) => {
+      const passKm = withinKm(km);
+      const passStars = meetsStars(b.rating);
+      
+      console.log(`[CategoryResults] Filtro "${b.name}":`, {
+        distancia: km?.toFixed(2) || 'null',
+        passaDistancia: passKm,
+        rating: b.rating,
+        passaRating: passStars,
+        incluido: passKm && passStars
+      });
+      
+      return passKm && passStars;
+    });
+    
+    console.log(`[CategoryResults] Filtrados: ${filtered.length} de ${sortedBancas.length}`);
+    return filtered;
   }, [sortedBancas, maxKm, minStars]);
 
   if (!mounted) {
