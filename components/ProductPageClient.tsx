@@ -645,11 +645,20 @@ export default function ProductPageClient({ productId }: { productId: string }) 
           <div className="mt-4 bg-gray-50 rounded-lg p-3 border border-gray-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full overflow-hidden ring-1 ring-black/5">
+                <Link 
+                  href={`/banca/${product.vendor.id}` as Route}
+                  className="h-10 w-10 rounded-full overflow-hidden ring-1 ring-black/5 hover:ring-2 hover:ring-[#ff5c00] transition-all"
+                  title={`Ver perfil de ${product.vendor.name}`}
+                >
                   <Image src={product.vendor.avatar} alt={product.vendor.name} width={40} height={40} className="h-full w-full object-cover" />
-                </div>
+                </Link>
                 <div>
-                  <div className="text-sm font-semibold leading-tight">{product.vendor.name}</div>
+                  <Link 
+                    href={`/banca/${product.vendor.id}` as Route}
+                    className="text-sm font-semibold leading-tight hover:text-[#ff5c00] transition-colors"
+                  >
+                    {product.vendor.name}
+                  </Link>
                   {product.vendor.distanceKm != null && (
                     <div className="text-[12px] text-gray-600">≈ {product.vendor.distanceKm.toFixed(1)} km de você</div>
                   )}
