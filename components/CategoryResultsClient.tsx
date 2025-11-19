@@ -295,56 +295,114 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
     setLoc(loadStoredLocation());
   }, []);
 
-  // Buscar produtos e bancas reais
+  // Buscar produtos e bancas reais por categoria
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Buscar produtos
-        const productsRes = await fetch(`/api/products/most-searched?category=${encodeURIComponent(slug)}&limit=50`);
-        if (productsRes.ok) {
-          const productsData = await productsRes.json();
-          if (productsData.data && Array.isArray(productsData.data)) {
-            const mappedProducts: Product[] = productsData.data.map((item: any) => ({
-              id: item.id,
-              name: item.name,
-              price: item.price || 0,
-              image: item.images?.[0] || item.image || '',
-              vendor: item.banca?.name || 'Banca',
-              vendorAvatar: item.banca?.avatar || '',
-              lat: item.banca?.lat || -23.5505,
-              lng: item.banca?.lng || -46.6333,
-              rating: item.rating_avg || 5,
-              reviews: item.reviews_count || 0,
-              ready: item.pronta_entrega || false,
-            }));
-            setProducts(mappedProducts);
+        console.log(`[CategoryResults] Buscando dados para categoria: ${slug}`);
+        
+        // 1. Buscar categoria pelo slug
+        const categoriesRes = await fetch('/api/categories');
+        let categoryId = '';
+        
+        if (categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json();
+          const allCategories = Array.isArray(categoriesData?.data) ? categoriesData.data : [];
+          const category = allCategories.find((cat: any) => 
+            cat.link?.includes(`/${slug}`) || 
+            cat.id === slug ||
+            cat.name.toLowerCase() === slug.toLowerCase()
+          );
+          
+          if (category) {
+            categoryId = category.id;
+            console.log(`[CategoryResults] Categoria encontrada: ${category.name} (ID: ${categoryId})`);
+          } else {
+            console.log(`[CategoryResults] Categoria não encontrada para slug: ${slug}`);
           }
         }
         
-        // Buscar bancas
-        const bancasRes = await fetch('/api/bancas');
-        if (bancasRes.ok) {
-          const bancasData = await bancasRes.json();
-          if (Array.isArray(bancasData)) {
-            const mappedBancas: Banca[] = bancasData.map((item: any) => ({
-              id: item.id,
-              name: item.name,
-              cover: item.cover || '',
-              avatar: item.avatar || '',
-              lat: item.lat || item.location?.lat || -23.5505,
-              lng: item.lng || item.location?.lng || -46.6333,
-              itemsCount: item.productsCount || 0,
-              rating: item.rating || 4.5,
-              reviews: item.reviewsCount || 0,
-              open: true,
-            }));
+        // 2. Buscar produtos da categoria via Supabase
+        if (categoryId) {
+          const productsRes = await fetch(`/api/products/public?category=${categoryId}&limit=100`);
+          if (productsRes.ok) {
+            const productsData = await productsRes.json();
+            const productsArray = Array.isArray(productsData?.items) ? productsData.items : (Array.isArray(productsData?.data) ? productsData.data : []);
+            
+            console.log(`[CategoryResults] Produtos encontrados: ${productsArray.length}`);
+            
+            // Buscar informações das bancas para cada produto
+            const bancasMap = new Map<string, any>();
+            const bancasRes = await fetch('/api/bancas');
+            if (bancasRes.ok) {
+              const bancasData = await bancasRes.json();
+              const bancasArray = Array.isArray(bancasData?.data) ? bancasData.data : (Array.isArray(bancasData) ? bancasData : []);
+              bancasArray.forEach((banca: any) => {
+                bancasMap.set(banca.id, banca);
+              });
+            }
+            
+            // Mapear produtos com informações da banca
+            const mappedProducts: Product[] = productsArray
+              .filter((item: any) => item.images && item.images.length > 0 && item.active !== false)
+              .map((item: any) => {
+                const banca = item.banca_id ? bancasMap.get(item.banca_id) : null;
+                return {
+                  id: item.id,
+                  name: item.name || 'Produto',
+                  price: Number(item.price || 0),
+                  image: item.images[0],
+                  vendor: banca?.name || 'Banca',
+                  vendorAvatar: banca?.avatar || banca?.cover_image || '',
+                  lat: banca?.lat || -23.5505,
+                  lng: banca?.lng || -46.6333,
+                  rating: item.rating_avg || 5,
+                  reviews: item.reviews_count || 0,
+                  ready: true,
+                };
+              });
+            
+            setProducts(mappedProducts);
+            console.log(`[CategoryResults] Produtos mapeados: ${mappedProducts.length}`);
+            
+            // 3. Buscar bancas que possuem produtos dessa categoria
+            const uniqueBancaIds = new Set(productsArray.map((p: any) => p.banca_id).filter(Boolean));
+            console.log(`[CategoryResults] Bancas únicas com produtos: ${uniqueBancaIds.size}`);
+            
+            const mappedBancas: Banca[] = Array.from(uniqueBancaIds)
+              .map(bancaId => bancasMap.get(bancaId))
+              .filter(Boolean)
+              .filter((banca: any) => banca.active !== false)
+              .map((banca: any) => {
+                // Contar quantos produtos dessa categoria a banca tem
+                const productsCount = productsArray.filter((p: any) => p.banca_id === banca.id).length;
+                
+                return {
+                  id: banca.id,
+                  name: banca.name || 'Banca',
+                  cover: banca.cover_image || banca.cover || '',
+                  avatar: banca.avatar || banca.cover_image || '',
+                  lat: banca.lat || -23.5505,
+                  lng: banca.lng || -46.6333,
+                  itemsCount: productsCount,
+                  rating: 4.5,
+                  reviews: 0,
+                  open: true,
+                };
+              });
+            
             setBancas(mappedBancas);
+            console.log(`[CategoryResults] Bancas mapeadas: ${mappedBancas.length}`);
           }
+        } else {
+          console.log('[CategoryResults] Usando dados mock - categoria não encontrada');
+          setProducts(MOCK_PRODUCTS);
+          setBancas(MOCK_BANCAS);
         }
+        
       } catch (error) {
-        console.error('Erro ao buscar dados:', error);
-        // Usar fallback em caso de erro
+        console.error('[CategoryResults] Erro ao buscar dados:', error);
         setProducts(MOCK_PRODUCTS);
         setBancas(MOCK_BANCAS);
       } finally {
