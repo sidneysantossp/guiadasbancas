@@ -287,8 +287,8 @@ export default function MarvelComics() {
       <div className="container-max">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Image src="https://stackfood-react.6amtech.com/_next/static/media/best_foods.7a9b751b.svg" alt="Marvel Comics" width={23} height={23} />
-            <h2 className="text-lg sm:text-xl font-semibold">Marvel Comics</h2>
+            <Image src="https://stackfood-react.6amtech.com/_next/static/media/best_foods.7a9b751b.svg" alt="Marvel HQs" width={23} height={23} />
+            <h2 className="text-lg sm:text-xl font-semibold">Marvel HQs</h2>
           </div>
           <Link href="/categorias/hqs-e-comics" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
         </div>
