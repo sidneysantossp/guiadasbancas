@@ -240,7 +240,7 @@ function FavCard({ item }: { item: FavItem }) {
           <Link href={("/produto/" + slugify(name) + "-" + id) as Route} className="flex-1 min-w-0">
             <div className="min-w-0">
               <div className="text-[13px] font-semibold leading-tight line-clamp-2 break-words hover:underline">{name}</div>
-              {codigo_mercos && <div className="text-[10px] text-gray-500 font-mono mt-0.5">{codigo_mercos}</div>}
+              {codigo_mercos && <div className="text-[10px] text-gray-500 font-mono mt-0.5">Cód: {codigo_mercos}</div>}
               {vendorName && <div className="text-[12px] text-gray-600 line-clamp-1">{vendorName}</div>}
               <div className="mt-1"><Stars value={ratingAvg} count={reviewsCount} /></div>
             </div>
@@ -349,11 +349,17 @@ export default function FavoritePicks() {
           const price = Number(p.price || 0);
           const priceOriginal = p.price_original != null ? Number(p.price_original) : null;
           const discountPercent = p.discount_percent != null ? Number(p.discount_percent) : (priceOriginal && priceOriginal > price ? Math.round((1 - price / priceOriginal) * 100) : null);
+          
+          // Cache-busting: adiciona timestamp na URL da imagem
+          const imageUrl = p.images && p.images[0]
+            ? `${p.images[0]}${p.images[0].includes('?') ? '&' : '?'}t=${Date.now()}`
+            : 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=1200&auto=format&fit=crop';
+          
           return {
             id: p.id,
             name: p.name,
             vendorName: bancas[p.banca_id || '']?.name,
-            image: (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=1200&auto=format&fit=crop',
+            image: imageUrl,
             price,
             priceOriginal,
             discountPercent,

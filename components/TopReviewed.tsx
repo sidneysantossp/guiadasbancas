@@ -20,6 +20,7 @@ type TopItem = {
   reviews?: number;
   available?: boolean;
   discountLabel?: string;
+  code?: string; // Código do produto (codigo_mercos)
 };
 
 const TOPS: TopItem[] = [
@@ -153,7 +154,7 @@ export default function TopReviewed() {
   // Preferir vitrine curada pelo Admin (featured); fallback: categorias Eletrônicos/Informática
   type ApiProduct = {
     id: string; name: string; images?: string[]; price?: number; price_original?: number | null;
-    discount_percent?: number | null; rating_avg?: number | null; reviews_count?: number | null; active?: boolean; description?: string; banca_id?: string;
+    discount_percent?: number | null; rating_avg?: number | null; reviews_count?: number | null; active?: boolean; description?: string; banca_id?: string; codigo_mercos?: string;
   };
   const [items, setItems] = useState<TopItem[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -209,19 +210,27 @@ export default function TopReviewed() {
           return 0;
         });
 
-        const mapped: TopItem[] = source.slice(0, 8).map(p => ({
-          id: p.id,
-          title: p.name,
-          vendor: (p.banca_id && bancaMap[p.banca_id]?.name) || '',
-          description: p.description,
-          image: (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=1200&auto=format&fit=crop',
-          price: Number(p.price || 0),
-          oldPrice: p.price_original != null ? Number(p.price_original) : undefined,
-          rating: p.rating_avg ?? undefined,
-          reviews: p.reviews_count ?? undefined,
-          available: p.active !== false,
-          discountLabel: (typeof p.discount_percent === 'number' && p.discount_percent > 0) ? `-${Math.round(p.discount_percent)}%` : undefined,
-        }));
+        const mapped: TopItem[] = source.slice(0, 8).map(p => {
+          // Cache-busting: adiciona timestamp na URL da imagem
+          const imageUrl = p.images && p.images[0] 
+            ? `${p.images[0]}${p.images[0].includes('?') ? '&' : '?'}t=${Date.now()}`
+            : 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=1200&auto=format&fit=crop';
+          
+          return {
+            id: p.id,
+            title: p.name,
+            vendor: (p.banca_id && bancaMap[p.banca_id]?.name) || '',
+            description: p.description,
+            image: imageUrl,
+            price: Number(p.price || 0),
+            oldPrice: p.price_original != null ? Number(p.price_original) : undefined,
+            rating: p.rating_avg ?? undefined,
+            reviews: p.reviews_count ?? undefined,
+            available: p.active !== false,
+            discountLabel: (typeof p.discount_percent === 'number' && p.discount_percent > 0) ? `-${Math.round(p.discount_percent)}%` : undefined,
+            code: p.codigo_mercos,
+          };
+        });
 
         if (alive) setItems(mapped.length ? mapped : TOPS);
       } catch {
@@ -373,6 +382,9 @@ function EnhancedCard({ p }: { p: TopItem }) {
           )}
         </div>
         <Link href={productHref} className="mt-2 text-[13px] font-semibold hover:underline line-clamp-2">{p.title}</Link>
+        {p.code && (
+          <div className="text-[11px] text-gray-500 font-mono">Cód: {p.code}</div>
+        )}
         <div className="text-[12px] text-gray-600 line-clamp-1">{p.vendor}</div>
         <div className="mt-1 flex items-center gap-2">
           <Stars value={p.rating} count={p.reviews} />
