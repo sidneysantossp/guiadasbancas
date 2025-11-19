@@ -20,6 +20,7 @@ type BrancaleoneProduct = {
   pronta_entrega?: boolean;
   sob_encomenda?: boolean;
   pre_venda?: boolean;
+  banca_name?: string;
 };
 
 function slugify(text: string) {
@@ -103,7 +104,14 @@ function ProductCard({ p }: { p: BrancaleoneProduct }) {
         {/* Código do produto */}
         {p.codigo_mercos && (
           <p className="text-[10px] text-gray-500 font-mono mt-0.5">
-            {p.codigo_mercos}
+            Cód: {p.codigo_mercos}
+          </p>
+        )}
+        
+        {/* Nome da banca */}
+        {p.banca_name && (
+          <p className="text-[11px] text-gray-600 mt-0.5">
+            {p.banca_name}
           </p>
         )}
         
@@ -191,7 +199,10 @@ export default function BrancaleoneProducts() {
         setLoading(true);
         
         // Buscar produtos da Brancaleone usando o distribuidor_id fixo
-        const prodRes = await fetch(`/api/products/public?distribuidor=${BRANCALEONE_ID}&limit=20&sort=created_at&order=desc`);
+        const [prodRes, bancasRes] = await Promise.all([
+          fetch(`/api/products/public?distribuidor=${BRANCALEONE_ID}&limit=20&sort=created_at&order=desc`),
+          fetch('/api/bancas', { cache: 'no-store' })
+        ]);
         
         if (!prodRes.ok) {
           console.error('Erro ao buscar produtos Brancaleone:', prodRes.status);
@@ -201,6 +212,14 @@ export default function BrancaleoneProducts() {
         
         const prodData = await prodRes.json();
         const items = Array.isArray(prodData?.items) ? prodData.items : (Array.isArray(prodData?.data) ? prodData.data : []);
+        
+        // Buscar bancas
+        let bancaMap: Record<string, { name: string }> = {};
+        if (bancasRes.ok) {
+          const bancasData = await bancasRes.json();
+          const bancasList: Array<{ id: string; name: string }> = Array.isArray(bancasData?.data) ? bancasData.data : [];
+          bancaMap = Object.fromEntries(bancasList.map(b => [b.id, { name: b.name }]));
+        }
         
         console.log('Produtos Brancaleone encontrados:', items.length);
         
@@ -219,6 +238,7 @@ export default function BrancaleoneProducts() {
             pronta_entrega: p.pronta_entrega === true,
             sob_encomenda: p.sob_encomenda === true,
             pre_venda: p.pre_venda === true,
+            banca_name: bancaMap[p.banca_id || '']?.name || undefined,
           }));
 
         console.log('Produtos Brancaleone mapeados:', mapped.length);
