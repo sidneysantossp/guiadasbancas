@@ -175,12 +175,12 @@ export default function TopReviewed() {
           source = Array.isArray(cj?.data) ? cj.data : [];
         }
 
-        // 2) Se não houver curados, buscar DIRETAMENTE produtos de Bomboniere
+        // 2) Se não houver curados, buscar DIRETAMENTE produtos de Bebidas
         if (!source.length) {
-          const BOMBONIERE_ID = '6337c11f-c5ab-4f4b-ab9c-73c754d6eaae';
+          const BEBIDAS_ID = 'c230ed83-b08a-4b7a-8f19-7c8230f36c86';
           
           const r = await fetch(
-            `/api/products/public?category=${BOMBONIERE_ID}&limit=50`, 
+            `/api/products/public?category=${BEBIDAS_ID}&limit=50`, 
             { next: { revalidate: 60 } as any }
           );
           
@@ -191,7 +191,7 @@ export default function TopReviewed() {
             // Filtrar produtos SEM imagem (evitar mocks)
             source = allProducts.filter((p: ApiProduct) => p.images && p.images.length > 0);
             
-            console.log(`[TopReviewed] Total: ${allProducts.length}, Com imagem: ${source.length}`);
+            console.log(`[TopReviewed] Total Bebidas: ${allProducts.length}, Com imagem: ${source.length}`);
           }
         }
 
@@ -281,8 +281,8 @@ export default function TopReviewed() {
       <div className="container-max">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Image src="https://stackfood-react.6amtech.com/_next/static/media/best_foods.7a9b751b.svg" alt="Bomboniere" width={23} height={23} />
-            <h2 className="text-lg sm:text-xl font-semibold">Bomboniere</h2>
+            <Image src="https://stackfood-react.6amtech.com/_next/static/media/best_foods.7a9b751b.svg" alt="Bebidas" width={23} height={23} />
+            <h2 className="text-lg sm:text-xl font-semibold">Bebidas em Destaque</h2>
           </div>
           <Link href="/categorias/informatica" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
         </div>
