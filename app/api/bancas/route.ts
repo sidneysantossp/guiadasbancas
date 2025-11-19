@@ -96,14 +96,14 @@ export async function GET(req: Request) {
       lat: banca.lat,
       lng: banca.lng,
       cover: banca.cover_image || '',
-      avatar: banca.cover_image || '',
+      avatar: banca.avatar || banca.cover_image || '',
       description: banca.address,
       categories: banca.categories || [],
       active: banca.active !== false,
       order: banca.order || 0
     }));
 
-    return NextResponse.json(list);
+    return NextResponse.json({ data: list });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Erro ao listar bancas" }, { status: 500 });
   }
