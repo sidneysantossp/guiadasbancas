@@ -1,20 +1,20 @@
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { supabaseAdmin } from '@/lib/supabase';
+import { auth } from '@/lib/auth';
 
 // GET - Listar favoritos do usuário
 export async function GET(req: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    
     // Verificar autenticação
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const session = await auth();
+    if (!session?.user) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
+    const userId = (session.user as any).id;
+
     // Buscar favoritos do usuário com informações dos produtos
-    const { data: favorites, error } = await supabase
+    const { data: favorites, error } = await supabaseAdmin
       .from('user_favorites')
       .select(`
         id,
@@ -29,7 +29,7 @@ export async function GET(req: Request) {
           reviews_count
         )
       `)
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -52,14 +52,13 @@ export async function GET(req: Request) {
 // POST - Adicionar produto aos favoritos
 export async function POST(req: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    
     // Verificar autenticação
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const session = await auth();
+    if (!session?.user) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
+    const userId = (session.user as any).id;
     const body = await req.json();
     const { product_id } = body;
 
@@ -68,7 +67,7 @@ export async function POST(req: Request) {
     }
 
     // Verificar se o produto existe
-    const { data: product, error: productError } = await supabase
+    const { data: product, error: productError } = await supabaseAdmin
       .from('products')
       .select('id')
       .eq('id', product_id)
@@ -79,10 +78,10 @@ export async function POST(req: Request) {
     }
 
     // Adicionar aos favoritos
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('user_favorites')
       .insert({
-        user_id: session.user.id,
+        user_id: userId,
         product_id
       })
       .select()
@@ -116,14 +115,13 @@ export async function POST(req: Request) {
 // DELETE - Remover produto dos favoritos
 export async function DELETE(req: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    
     // Verificar autenticação
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const session = await auth();
+    if (!session?.user) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
+    const userId = (session.user as any).id;
     const { searchParams } = new URL(req.url);
     const product_id = searchParams.get('product_id');
 
@@ -132,10 +130,10 @@ export async function DELETE(req: Request) {
     }
 
     // Remover dos favoritos
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('user_favorites')
       .delete()
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .eq('product_id', product_id);
 
     if (error) {
