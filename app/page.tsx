@@ -47,6 +47,10 @@ const TopReviewed = dynamic(() => import("@/components/TopReviewed"), {
   ssr: false,
   loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
 });
+const TurmaDaMonica = dynamic(() => import("@/components/TurmaDaMonica"), { 
+  ssr: false,
+  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+});
 const NewArrivals = dynamic(() => import("@/components/NewArrivals"), { 
   ssr: false,
   loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
@@ -84,6 +88,12 @@ export default function HomePage() {
       {/* LAZY LOADING: Carrega conforme scroll */}
       <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
         <MostSearchedProducts />
+      </Suspense>
+
+      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-6">
+          <TurmaDaMonica />
+        </div>
       </Suspense>
 
       <Suspense fallback={<div className="h-40 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
