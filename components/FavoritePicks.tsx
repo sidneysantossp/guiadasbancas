@@ -240,12 +240,9 @@ export default function FavoritePicks() {
     (async () => {
       try {
         setLoading(true);
-        // Buscar produtos de bebidas e bomboniere da Bambino
-        const [bebidasRes, bomboniereRes, bRes] = await Promise.all([
-          fetch(`/api/products/public?distribuidor=${BAMBINO_ID}&category=${BEBIDAS_ID}&limit=3&sort=created_at&order=desc`, {
-            next: { revalidate: 60 } as any
-          }),
-          fetch(`/api/products/public?distribuidor=${BAMBINO_ID}&category=${BOMBONIERE_ID}&limit=3&sort=created_at&order=desc`, {
+        // Buscar produtos da Bambino (bebidas e bomboniere)
+        const [pRes, bRes] = await Promise.all([
+          fetch(`/api/products/public?distribuidor=${BAMBINO_ID}&limit=12&sort=created_at&order=desc`, {
             next: { revalidate: 60 } as any
           }),
           fetch('/api/bancas', {
@@ -254,18 +251,26 @@ export default function FavoritePicks() {
         ]);
         let list: ApiProduct[] = [];
         
-        // Combinar produtos de bebidas e bomboniere
-        if (bebidasRes.ok) {
-          const bebidasJson = await bebidasRes.json();
-          const bebidasList = Array.isArray(bebidasJson?.data) ? bebidasJson.data : (Array.isArray(bebidasJson?.items) ? bebidasJson.items : []);
-          list = [...list, ...bebidasList];
+        if (pRes.ok) {
+          const pj = await pRes.json();
+          const allProducts = Array.isArray(pj?.data) ? pj.data : (Array.isArray(pj?.items) ? pj.items : []);
+          
+          // Filtrar apenas bebidas e bomboniere se tiver category_id
+          list = allProducts.filter((p: ApiProduct) => {
+            const catId = (p as any).category_id;
+            return catId === BEBIDAS_ID || catId === BOMBONIERE_ID;
+          });
+          
+          // Se não encontrar produtos com essas categorias, pegar os primeiros 6
+          if (list.length === 0) {
+            console.log('[FavoritePicks] Nenhum produto de bebidas/bomboniere, usando fallback');
+            list = allProducts.slice(0, 6);
+          } else {
+            console.log(`[FavoritePicks] Encontrados ${list.length} produtos de bebidas/bomboniere`);
+          }
         }
         
-        if (bomboniereRes.ok) {
-          const bomboniereJson = await bomboniereRes.json();
-          const bomboniereList = Array.isArray(bomboniereJson?.data) ? bomboniereJson.data : (Array.isArray(bomboniereJson?.items) ? bomboniereJson.items : []);
-          list = [...list, ...bomboniereList];
-        }
+        console.log(`[FavoritePicks] Total de produtos: ${list.length}`);
         let bancas: Record<string, ApiBanca> = {};
         if (bRes.ok) {
           const bj = await bRes.json();
@@ -290,8 +295,10 @@ export default function FavoritePicks() {
             available: p.active !== false,
           } as FavItem;
         });
+        console.log(`[FavoritePicks] Produtos mapeados: ${mapped.length}`);
         if (active) setItems(mapped);
       } catch (e) {
+        console.error('[FavoritePicks] Erro ao buscar produtos:', e);
         if (active) setItems([]);
       } finally {
         if (active) setLoading(false);
@@ -374,7 +381,8 @@ export default function FavoritePicks() {
     }
   };
 
-  if (!loading && data.length === 0) return null;
+  // Temporariamente comentado para debug
+  // if (!loading && data.length === 0) return null;
 
   return (
     <section className="w-full">
