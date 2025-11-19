@@ -381,9 +381,12 @@ export default function FavoritePicks() {
     <section className="w-full">
       <div className="container-max">
         <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Image src="https://stackfood-react.6amtech.com/_next/static/media/fire.612dd1de.svg" alt="Fogo" width={23} height={23} />
-            <h2 className="text-lg sm:text-xl font-semibold">Produtos Bambino</h2>
+          <div>
+            <div className="flex items-center gap-2">
+              <Image src="https://stackfood-react.6amtech.com/_next/static/media/fire.612dd1de.svg" alt="Fogo" width={23} height={23} />
+              <h2 className="text-lg sm:text-xl font-semibold">Bomboniere e Bebidas</h2>
+            </div>
+            <p className="text-sm text-gray-600 mt-1">Os melhores produtos Bambino para você</p>
           </div>
           <Link href="/buscar?q=recomendados" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
         </div>
