@@ -5,6 +5,24 @@ import Link from "next/link";
 import SafeImage from "./SafeImage";
 import { useCategories } from "@/lib/useCategories";
 
+function useScrolled() {
+  const [scrolled, setScrolled] = useState(false);
+  
+  useEffect(() => {
+    const handleScroll = () => {
+      // Fica sticky após rolar 200px
+      setScrolled(window.scrollY > 200);
+    };
+    
+    window.addEventListener("scroll", handleScroll);
+    handleScroll(); // Check inicial
+    
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+  
+  return scrolled;
+}
+
 function useItemsPerView(length: number) {
   const [w, setW] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1024);
   useEffect(() => {
@@ -21,6 +39,7 @@ function useItemsPerView(length: number) {
 
 export default function CategoryCarousel() {
   const { items } = useCategories();
+  const scrolled = useScrolled();
   const filtered = items.filter((c) => {
     const n = (c.name || '').trim().toLowerCase();
     const link = (c.link || '').toLowerCase();
@@ -74,11 +93,22 @@ export default function CategoryCarousel() {
   };
 
   return (
-    <section id="buy-by-category" className="w-full">
+    <section 
+      id="buy-by-category" 
+      className={`w-full bg-white transition-all duration-300 ${
+        !isMobile && scrolled 
+          ? 'md:sticky md:top-[72px] md:z-40 md:shadow-md md:py-2' 
+          : ''
+      }`}
+    >
       <div className="container-max">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg sm:text-xl font-semibold">Compre por categoria</h2>
-          <Link href="/categorias" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Explorar mais</Link>
+        <div className={`flex items-center justify-between transition-all duration-300 ${scrolled && !isMobile ? 'mb-2' : 'mb-4'}`}>
+          <h2 className={`font-semibold transition-all duration-300 ${scrolled && !isMobile ? 'text-base' : 'text-lg sm:text-xl'}`}>
+            Compre por categoria
+          </h2>
+          <Link href="/categorias" className="text-[var(--color-primary)] text-sm font-medium hover:underline">
+            Explorar mais
+          </Link>
         </div>
       </div>
       <div className="w-full overflow-hidden">
@@ -98,15 +128,27 @@ export default function CategoryCarousel() {
                   <Link
                     key={`${c.key}-${i}`}
                     href={c.link as any}
-                    className="group flex shrink-0 flex-col items-center gap-2 py-2"
+                    className={`group flex shrink-0 flex-col items-center transition-all duration-300 ${
+                      scrolled && !isMobile ? 'gap-1 py-1' : 'gap-2 py-2'
+                    }`}
                     style={{
                       flex: `0 0 ${100 / perView}%`,
                     }}
                   >
-                    <div className={`relative h-24 w-24 sm:h-28 sm:w-28 md:h-28 md:w-28 rounded-[24px] sm:rounded-[28px] overflow-hidden shadow-sm transition-transform group-hover:-translate-y-0.5`}>
+                    <div 
+                      className={`relative rounded-[24px] sm:rounded-[28px] overflow-hidden shadow-sm transition-all duration-300 group-hover:-translate-y-0.5 ${
+                        scrolled && !isMobile 
+                          ? 'h-16 w-16 md:h-16 md:w-16' 
+                          : 'h-24 w-24 sm:h-28 sm:w-28 md:h-28 md:w-28'
+                      }`}
+                    >
                       <SafeImage src={c.image} alt={c.name} fill className="object-cover" />
                     </div>
-                    <div className="text-sm text-gray-800 font-medium text-center">{c.name}</div>
+                    <div className={`text-gray-800 font-medium text-center transition-all duration-300 ${
+                      scrolled && !isMobile ? 'text-xs' : 'text-sm'
+                    }`}>
+                      {c.name}
+                    </div>
                   </Link>
                 ))}
             </div>
