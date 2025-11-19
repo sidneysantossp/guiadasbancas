@@ -180,15 +180,18 @@ export default function TopReviewed() {
           const BOMBONIERE_ID = '6337c11f-c5ab-4f4b-ab9c-73c754d6eaae';
           
           const r = await fetch(
-            `/api/products/public?category=${BOMBONIERE_ID}&limit=12`, 
+            `/api/products/public?category=${BOMBONIERE_ID}&limit=50`, 
             { next: { revalidate: 60 } as any }
           );
           
           if (r.ok) {
             const j = await r.json();
-            source = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
+            const allProducts = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
             
-            console.log(`[TopReviewed] Bomboniere encontrados: ${source.length}`);
+            // Filtrar produtos SEM imagem (evitar mocks)
+            source = allProducts.filter(p => p.images && p.images.length > 0);
+            
+            console.log(`[TopReviewed] Total: ${allProducts.length}, Com imagem: ${source.length}`);
           }
         }
 

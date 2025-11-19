@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get("category") || "";
     const distribuidor = searchParams.get("distribuidor") || "";
     const limit = Math.min(parseInt(searchParams.get("limit") || "12"), 100); // Máximo 100
-    const sort = searchParams.get("sort") || "created_at";
-    const order = searchParams.get("order") || "desc";
+    const sort = searchParams.get("sort") || "name"; // Mudado de created_at para name (alfabético)
+    const order = searchParams.get("order") || "asc"; // Mudado de desc para asc
 
     // Query otimizada - apenas produtos ativos
     let query = supabaseAdmin
