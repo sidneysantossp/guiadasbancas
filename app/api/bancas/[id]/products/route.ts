@@ -1,17 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readProducts, type ProdutoItem } from "@/lib/server/productsStore";
+import { supabaseAdmin } from "@/lib/supabase";
 
-export async function GET(_req: NextRequest, context: { params: { id: string } }) {
+export async function GET(req: NextRequest, context: { params: { id: string } }) {
   try {
     const bancaId = context.params.id;
-    let items: ProdutoItem[] = await readProducts();
-    if (!items.length) {
-      const legacy = (globalThis as any).__PRODUCTS_STORE__ as ProdutoItem[] | undefined;
-      if (Array.isArray(legacy) && legacy.length) items = legacy;
+    const url = new URL(req.url);
+    const limit = parseInt(url.searchParams.get("limit") || "12", 10);
+    
+    const { data: products, error } = await supabaseAdmin
+      .from('products')
+      .select('*')
+      .eq('banca_id', bancaId)
+      .eq('active', true)
+      .limit(limit);
+    
+    if (error) {
+      console.error('Erro ao buscar produtos da banca:', error);
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
-    const products = items.filter(p => p.banca_id === bancaId && p.active !== false).slice(0, 12);
-    return NextResponse.json({ success: true, data: products });
+    
+    return NextResponse.json({ success: true, items: products || [] });
   } catch (e: any) {
+    console.error('Erro ao buscar produtos da banca:', e);
     return NextResponse.json({ success: false, error: e?.message || "Erro ao buscar produtos da banca" }, { status: 500 });
   }
 }
