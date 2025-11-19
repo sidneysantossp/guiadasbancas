@@ -237,7 +237,7 @@ function useItemsPerView() {
   return 4;                   // desktop: 4
 }
 
-function RelatedCarousel({ items }: { items: Array<{ id: string; name: string; image: string; price: number }> }) {
+function RelatedCarousel({ items }: { items: RelatedProduct[] }) {
   const perView = useItemsPerView();
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);
