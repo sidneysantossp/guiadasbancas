@@ -21,6 +21,7 @@ type FavItem = {
   ratingAvg?: number | null;
   reviewsCount?: number | null;
   available?: boolean;
+  codigo_mercos?: string;
 };
 
 type ApiProduct = {
@@ -34,6 +35,7 @@ type ApiProduct = {
   reviews_count?: number | null;
   banca_id?: string;
   active?: boolean;
+  codigo_mercos?: string;
 };
 
 type ApiBanca = { id: string; name: string };
@@ -123,7 +125,7 @@ function Stars({ value, count }: { value?: number | null; count?: number | null 
 }
 
 function FavCard({ item }: { item: FavItem }) {
-  const { id, name, vendorName, image, price, priceOriginal, discountPercent, ratingAvg, reviewsCount, available } = item;
+  const { id, name, vendorName, image, price, priceOriginal, discountPercent, ratingAvg, reviewsCount, available, codigo_mercos } = item;
   const { addToCart } = useCart();
   const { show } = useToast();
   const { user } = useAuth();
@@ -168,6 +170,7 @@ function FavCard({ item }: { item: FavItem }) {
           <Link href={("/produto/" + slugify(name) + "-" + id) as Route} className="flex-1 min-w-0">
             <div className="min-w-0">
               <div className="text-[13px] font-semibold leading-tight line-clamp-2 break-words hover:underline">{name}</div>
+              {codigo_mercos && <div className="text-[10px] text-gray-500 font-mono mt-0.5">{codigo_mercos}</div>}
               {vendorName && <div className="text-[12px] text-gray-600 line-clamp-1">{vendorName}</div>}
               <div className="mt-1"><Stars value={ratingAvg} count={reviewsCount} /></div>
             </div>
@@ -286,6 +289,7 @@ export default function FavoritePicks() {
             ratingAvg: p.rating_avg ?? null,
             reviewsCount: p.reviews_count ?? null,
             available: p.active !== false,
+            codigo_mercos: (p as any).codigo_mercos || undefined,
           } as FavItem;
         });
         console.log(`[FavoritePicks] Produtos mapeados: ${mapped.length}`);
@@ -386,7 +390,7 @@ export default function FavoritePicks() {
               <Image src="https://stackfood-react.6amtech.com/_next/static/media/fire.612dd1de.svg" alt="Fogo" width={23} height={23} />
               <h2 className="text-lg sm:text-xl font-semibold">Bomboniere e Bebidas</h2>
             </div>
-            <p className="text-sm text-gray-600 mt-1">Os melhores produtos Bambino para você</p>
+            <p className="text-sm text-gray-600 mt-1">Os melhores produtos para você</p>
           </div>
           <Link href="/buscar?q=recomendados" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
         </div>
