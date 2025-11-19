@@ -69,6 +69,7 @@ type RelatedProduct = {
   name: string;
   image: string;
   price: number;
+  codigo_mercos?: string;
 };
 
 function Stars({ value = 5 }: { value?: number }) {
@@ -324,9 +325,14 @@ function RelatedCarousel({ items }: { items: Array<{ id: string; name: string; i
                   </div>
                   {/* Título + Badge */}
                   <div className="mt-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-1 md:gap-2">
-                    <Link href={("/produto/" + slugify(it.name) + "-" + it.id) as Route} className="text-[13px] font-semibold md:line-clamp-1 hover:underline">
-                      {it.name}
-                    </Link>
+                    <div className="flex-1">
+                      <Link href={("/produto/" + slugify(it.name) + "-" + it.id) as Route} className="text-[13px] font-semibold line-clamp-2 hover:underline">
+                        {it.name}
+                      </Link>
+                      {it.codigo_mercos && (
+                        <p className="text-[10px] text-gray-600 mt-0.5">Cód: {it.codigo_mercos}</p>
+                      )}
+                    </div>
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold whitespace-nowrap md:mt-0 mt-1">
                       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
                       Pronta Entrega
@@ -479,6 +485,7 @@ export default function ProductPageClient({ productId }: { productId: string }) 
                   name: rp.name || 'Produto',
                   image: rp.images[0],
                   price: Number(rp.price || 0),
+                  codigo_mercos: rp.codigo_mercos,
                 }));
               
               setRelatedProducts(filtered);
