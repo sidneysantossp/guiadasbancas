@@ -174,27 +174,20 @@ export default function TopReviewed() {
           source = Array.isArray(cj?.data) ? cj.data : [];
         }
 
-        // 2) Se não houver curados, buscar produtos da Bambino (Bebidas)
+        // 2) Se não houver curados, buscar DIRETAMENTE produtos de Bebidas
         if (!source.length) {
-          const BAMBINO_ID = '3a989c56-bbd3-4769-b076-a83483e39542';
           const BEBIDAS_ID = 'c230ed83-b08a-4b7a-8f19-7c8230f36c86';
           
           const r = await fetch(
-            `/api/products/public?distribuidor=${BAMBINO_ID}&limit=12`, 
+            `/api/products/public?category=${BEBIDAS_ID}&limit=12`, 
             { next: { revalidate: 60 } as any }
           );
           
           if (r.ok) {
             const j = await r.json();
-            const allProducts: ApiProduct[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
+            source = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
             
-            // Filtrar apenas Bebidas
-            source = allProducts.filter(p => {
-              const catId = (p as any).category_id;
-              return catId === BEBIDAS_ID;
-            });
-            
-            console.log(`[TopReviewed] Total Bambino: ${allProducts.length}, Bebidas filtradas: ${source.length}`);
+            console.log(`[TopReviewed] Bebidas encontradas: ${source.length}`);
           }
         }
 

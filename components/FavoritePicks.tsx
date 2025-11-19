@@ -319,9 +319,9 @@ export default function FavoritePicks() {
     (async () => {
       try {
         setLoading(true);
-        // Buscar produtos da Bambino (Bebidas)
+        // Buscar DIRETAMENTE produtos de Bebidas (não filtrar por distribuidor)
         const [pRes, bRes] = await Promise.all([
-          fetch(`/api/products/public?distribuidor=${BAMBINO_ID}&limit=50&sort=created_at&order=desc`, {
+          fetch(`/api/products/public?category=${BEBIDAS_ID}&limit=12&sort=created_at&order=desc`, {
             next: { revalidate: 60 } as any
           }),
           fetch('/api/bancas', {
@@ -332,20 +332,9 @@ export default function FavoritePicks() {
         
         if (pRes.ok) {
           const pj = await pRes.json();
-          const allProducts = Array.isArray(pj?.data) ? pj.data : (Array.isArray(pj?.items) ? pj.items : []);
+          list = Array.isArray(pj?.data) ? pj.data : (Array.isArray(pj?.items) ? pj.items : []);
           
-          console.log(`[FavoritePicks] Total produtos Bambino: ${allProducts.length}`);
-          
-          // Filtrar apenas Bebidas
-          list = allProducts.filter((p: ApiProduct) => {
-            const catId = (p as any).category_id;
-            return catId === BEBIDAS_ID;
-          });
-          
-          // Limitar a 12 produtos
-          list = list.slice(0, 12);
-          
-          console.log(`[FavoritePicks] Encontrados ${list.length} produtos de Bebidas`);
+          console.log(`[FavoritePicks] Produtos de Bebidas encontrados: ${list.length}`);
         }
         
         console.log(`[FavoritePicks] Total de produtos: ${list.length}`);
