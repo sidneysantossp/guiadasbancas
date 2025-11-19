@@ -336,30 +336,11 @@ export default function FavoritePicks() {
           
           console.log(`[FavoritePicks] Total produtos Bambino: ${allProducts.length}`);
           
-          // Debug: mostrar todas as categorias encontradas
-          const categorias = new Set(allProducts.map((p: any) => p.category_id || 'SEM_CATEGORIA'));
-          console.log(`[FavoritePicks] Categorias encontradas:`, Array.from(categorias));
-          console.log(`[FavoritePicks] Procurando por Bebidas ID: ${BEBIDAS_ID}`);
+          // TEMPORÁRIO: Mostrar todos os produtos da Bambino (sem filtro)
+          // Motivo: Produtos não têm category_id correto no banco
+          list = allProducts.slice(0, 12);
           
-          // Filtrar apenas bebidas
-          list = allProducts.filter((p: ApiProduct) => {
-            const catId = (p as any).category_id;
-            const match = catId === BEBIDAS_ID;
-            if (match) {
-              console.log(`[FavoritePicks] ✅ Bebida encontrada:`, p.name, catId);
-            }
-            return match;
-          });
-          
-          // Limitar a 12 produtos
-          list = list.slice(0, 12);
-          
-          console.log(`[FavoritePicks] Encontrados ${list.length} produtos de Bebidas`);
-          
-          // Se não encontrou nenhuma bebida, mostrar aviso
-          if (list.length === 0) {
-            console.warn(`[FavoritePicks] ⚠️ NENHUMA BEBIDA ENCONTRADA! Verifique as categorias no banco.`);
-          }
+          console.log(`[FavoritePicks] Exibindo ${list.length} produtos da Bambino (sem filtro de categoria)`);
         }
         
         console.log(`[FavoritePicks] Total de produtos: ${list.length}`);
@@ -484,7 +465,7 @@ export default function FavoritePicks() {
           <div>
             <div className="flex items-center gap-2">
               <Image src="https://stackfood-react.6amtech.com/_next/static/media/fire.612dd1de.svg" alt="Fogo" width={23} height={23} />
-              <h2 className="text-lg sm:text-xl font-semibold">Bebidas</h2>
+              <h2 className="text-lg sm:text-xl font-semibold">Produtos em Destaque</h2>
             </div>
             <p className="text-sm text-gray-600 mt-1">Os melhores produtos para você</p>
           </div>
