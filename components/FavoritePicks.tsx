@@ -255,6 +255,13 @@ export default function FavoritePicks() {
           const pj = await pRes.json();
           const allProducts = Array.isArray(pj?.data) ? pj.data : (Array.isArray(pj?.items) ? pj.items : []);
           
+          console.log(`[FavoritePicks] Total produtos Bambino: ${allProducts.length}`);
+          
+          // Debug: mostrar categorias encontradas
+          const categorias = new Set(allProducts.map((p: any) => p.category_id));
+          console.log(`[FavoritePicks] Categorias encontradas:`, Array.from(categorias));
+          console.log(`[FavoritePicks] Procurando por: Bebidas=${BEBIDAS_ID}, Bomboniere=${BOMBONIERE_ID}`);
+          
           // Filtrar apenas bebidas e bomboniere
           list = allProducts.filter((p: ApiProduct) => {
             const catId = (p as any).category_id;
@@ -375,8 +382,20 @@ export default function FavoritePicks() {
     }
   };
 
-  // Não exibir seção se não houver produtos
-  if (!loading && data.length === 0) return null;
+  // Temporariamente comentado para debug
+  // if (!loading && data.length === 0) return null;
+  
+  if (!loading && data.length === 0) {
+    return (
+      <section className="w-full">
+        <div className="container-max">
+          <div className="text-center py-8 text-gray-500">
+            Nenhum produto de bebidas ou bomboniere encontrado. Verifique o console para debug.
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="w-full">
