@@ -242,7 +242,7 @@ export default function FavoritePicks() {
         setLoading(true);
         // Buscar produtos da Bambino (bebidas e bomboniere)
         const [pRes, bRes] = await Promise.all([
-          fetch(`/api/products/public?distribuidor=${BAMBINO_ID}&limit=12&sort=created_at&order=desc`, {
+          fetch(`/api/products/public?distribuidor=${BAMBINO_ID}&limit=50&sort=created_at&order=desc`, {
             next: { revalidate: 60 } as any
           }),
           fetch('/api/bancas', {
@@ -255,19 +255,13 @@ export default function FavoritePicks() {
           const pj = await pRes.json();
           const allProducts = Array.isArray(pj?.data) ? pj.data : (Array.isArray(pj?.items) ? pj.items : []);
           
-          // Filtrar apenas bebidas e bomboniere se tiver category_id
+          // Filtrar apenas bebidas e bomboniere
           list = allProducts.filter((p: ApiProduct) => {
             const catId = (p as any).category_id;
             return catId === BEBIDAS_ID || catId === BOMBONIERE_ID;
           });
           
-          // Se não encontrar produtos com essas categorias, pegar os primeiros 6
-          if (list.length === 0) {
-            console.log('[FavoritePicks] Nenhum produto de bebidas/bomboniere, usando fallback');
-            list = allProducts.slice(0, 6);
-          } else {
-            console.log(`[FavoritePicks] Encontrados ${list.length} produtos de bebidas/bomboniere`);
-          }
+          console.log(`[FavoritePicks] Encontrados ${list.length} produtos de bebidas/bomboniere`);
         }
         
         console.log(`[FavoritePicks] Total de produtos: ${list.length}`);
@@ -307,7 +301,7 @@ export default function FavoritePicks() {
     return () => { active = false; };
   }, []);
 
-  const data = useMemo(() => Array.isArray(items) ? items.slice(0, 6) : [], [items]);
+  const data = useMemo(() => Array.isArray(items) ? items.slice(0, 12) : [], [items]);
   const [scrollIndex, setScrollIndex] = useState(0);
   const touchRef = useRef<{ startX: number; startY: number; active: boolean } | null>(null);
 
@@ -381,8 +375,8 @@ export default function FavoritePicks() {
     }
   };
 
-  // Temporariamente comentado para debug
-  // if (!loading && data.length === 0) return null;
+  // Não exibir seção se não houver produtos
+  if (!loading && data.length === 0) return null;
 
   return (
     <section className="w-full">
@@ -397,7 +391,7 @@ export default function FavoritePicks() {
 
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 12 }).map((_, i) => (
               <div key={i} className="rounded-2xl bg-gray-100 animate-pulse h-28"></div>
             ))}
           </div>
