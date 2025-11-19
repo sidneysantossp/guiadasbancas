@@ -315,7 +315,7 @@ export default function BrancaleoneProducts() {
         {/* Título */}
         <div className="mb-6">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-            Os mais buscados
+            HQ's e DC Comics
           </h2>
         </div>
 
