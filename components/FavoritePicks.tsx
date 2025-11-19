@@ -140,6 +140,29 @@ function FavCard({ item }: { item: FavItem }) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
+  // Carregar estado inicial dos favoritos
+  useEffect(() => {
+    if (!user) {
+      setIsFavorite(false);
+      return;
+    }
+    
+    const checkFavorite = async () => {
+      try {
+        const response = await fetch('/api/favorites');
+        if (response.ok) {
+          const data = await response.json();
+          const isFav = data.data?.some((fav: any) => fav.product_id === id);
+          setIsFavorite(isFav || false);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar favorito:', error);
+      }
+    };
+    
+    checkFavorite();
+  }, [user, id]);
+  
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
