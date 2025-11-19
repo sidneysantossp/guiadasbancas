@@ -63,17 +63,13 @@ const MOCK: ProductDetail = {
   },
 };
 
-// Produtos relacionados (mock) — substituir por dados reais futuramente
-const RELATED: Array<{ id: string; name: string; image: string; price: number }> = [
-  { id: "p10", name: "Donut de Morango", image: "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?q=80&w=800&auto=format&fit=crop", price: 15.9 },
-  { id: "p11", name: "Donut de Baunilha", image: "https://images.unsplash.com/photo-1608571423902-eed4a5ad55e1?q=80&w=800&auto=format&fit=crop", price: 14.9 },
-  { id: "p12", name: "Cupcake Red Velvet", image: "https://images.unsplash.com/photo-1511389026070-a14ae610a1be?q=80&w=800&auto=format&fit=crop", price: 19.9 },
-  { id: "p13", name: "Brownie Tradicional", image: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?q=80&w=800&auto=format&fit=crop", price: 12.9 },
-  { id: "p14", name: "Cookie com Gotas", image: "https://images.unsplash.com/photo-1541987391-02c0f4f6c7b4?q=80&w=800&auto=format&fit=crop", price: 9.9 },
-  { id: "p15", name: "Croissant Chocolate", image: "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?q=80&w=800&auto=format&fit=crop", price: 21.9 },
-  { id: "p16", name: "Scone de Limão", image: "https://images.unsplash.com/photo-1488477304112-4944851de03d?q=80&w=800&auto=format&fit=crop", price: 11.9 },
-  { id: "p17", name: "Torta de Maçã", image: "https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=800&auto=format&fit=crop", price: 29.9 },
-];
+// Tipos para produtos relacionados
+type RelatedProduct = {
+  id: string;
+  name: string;
+  image: string;
+  price: number;
+};
 
 function Stars({ value = 5 }: { value?: number }) {
   const full = Math.floor(value);
@@ -403,6 +399,7 @@ export default function ProductPageClient({ productId }: { productId: string }) 
   const [qty, setQty] = useState(1);
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewStats, setReviewStats] = useState<any>(null);
+  const [relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
 
   // Buscar produto real do backend
   useEffect(() => {
@@ -464,6 +461,33 @@ export default function ProductPageClient({ productId }: { productId: string }) 
         
         console.log("Produto carregado com sucesso:", mappedProduct.name);
         setProduct(mappedProduct);
+        
+        // Buscar produtos relacionados da mesma banca
+        if (p.banca_id) {
+          try {
+            const relatedRes = await fetch(`/api/bancas/${p.banca_id}/products?limit=12`);
+            if (relatedRes.ok) {
+              const relatedJson = await relatedRes.json();
+              const relatedList = Array.isArray(relatedJson?.items) ? relatedJson.items : (Array.isArray(relatedJson?.data) ? relatedJson.data : []);
+              
+              // Filtrar produtos diferentes do atual e com imagem
+              const filtered = relatedList
+                .filter((rp: any) => rp.id !== productId && rp.images && rp.images.length > 0)
+                .slice(0, 8)
+                .map((rp: any) => ({
+                  id: rp.id,
+                  name: rp.name || 'Produto',
+                  image: rp.images[0],
+                  price: Number(rp.price || 0),
+                }));
+              
+              setRelatedProducts(filtered);
+              console.log(`[ProductPage] Produtos relacionados carregados: ${filtered.length}`);
+            }
+          } catch (e) {
+            console.error("Erro ao buscar produtos relacionados:", e);
+          }
+        }
       } catch (e: any) {
         console.error("Erro ao carregar produto:", e);
         console.log("ProductId tentado:", productId);
@@ -648,7 +672,7 @@ export default function ProductPageClient({ productId }: { productId: string }) 
       </div>
 
       {/* Veja mais produtos desta banca */}
-      <RelatedCarousel items={RELATED} />
+      {relatedProducts.length > 0 && <RelatedCarousel items={relatedProducts} />}
     </section>
     </>
   );
