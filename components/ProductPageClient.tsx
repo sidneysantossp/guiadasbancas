@@ -421,6 +421,20 @@ export default function ProductPageClient({ productId }: { productId: string }) 
           throw new Error("Dados do produto inválidos");
         }
         
+        // Buscar dados da banca se houver banca_id
+        let bancaData = null;
+        if (p.banca_id) {
+          try {
+            const bancaRes = await fetch(`/api/bancas/${p.banca_id}`, { cache: "no-store" });
+            if (bancaRes.ok) {
+              const bancaJson = await bancaRes.json();
+              bancaData = bancaJson?.data || bancaJson;
+            }
+          } catch (e) {
+            console.error("Erro ao buscar dados da banca:", e);
+          }
+        }
+        
         // Combinar imagens principais com galeria
         const mainImages = Array.isArray(p.images) ? p.images : (p.images ? [p.images] : []);
         const galleryImages = Array.isArray(p.gallery_images) ? p.gallery_images : [];
@@ -439,8 +453,8 @@ export default function ProductPageClient({ productId }: { productId: string }) 
           discountLabel: p.discount_percent ? `-${p.discount_percent}%` : undefined,
           vendor: {
             id: p.banca_id || "banca-unknown",
-            name: "Banca Local", // TODO: buscar dados da banca
-            avatar: "https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=200&auto=format&fit=crop",
+            name: bancaData?.name || "Banca Local",
+            avatar: bancaData?.avatar || bancaData?.images?.avatar || "https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=200&auto=format&fit=crop",
             distanceKm: null,
           },
           stock: p.stock_qty || 0,
