@@ -257,18 +257,10 @@ export default function FavoritePicks() {
           
           console.log(`[FavoritePicks] Total produtos Bambino: ${allProducts.length}`);
           
-          // Debug: mostrar categorias encontradas
-          const categorias = new Set(allProducts.map((p: any) => p.category_id));
-          console.log(`[FavoritePicks] Categorias encontradas:`, Array.from(categorias));
-          console.log(`[FavoritePicks] Procurando por: Bebidas=${BEBIDAS_ID}, Bomboniere=${BOMBONIERE_ID}`);
+          // Pegar os primeiros 12 produtos da Bambino (sem filtro de categoria)
+          list = allProducts.slice(0, 12);
           
-          // Filtrar apenas bebidas e bomboniere
-          list = allProducts.filter((p: ApiProduct) => {
-            const catId = (p as any).category_id;
-            return catId === BEBIDAS_ID || catId === BOMBONIERE_ID;
-          });
-          
-          console.log(`[FavoritePicks] Encontrados ${list.length} produtos de bebidas/bomboniere`);
+          console.log(`[FavoritePicks] Exibindo ${list.length} produtos Bambino`);
         }
         
         console.log(`[FavoritePicks] Total de produtos: ${list.length}`);
@@ -382,20 +374,8 @@ export default function FavoritePicks() {
     }
   };
 
-  // Temporariamente comentado para debug
-  // if (!loading && data.length === 0) return null;
-  
-  if (!loading && data.length === 0) {
-    return (
-      <section className="w-full">
-        <div className="container-max">
-          <div className="text-center py-8 text-gray-500">
-            Nenhum produto de bebidas ou bomboniere encontrado. Verifique o console para debug.
-          </div>
-        </div>
-      </section>
-    );
-  }
+  // Não exibir seção se não houver produtos
+  if (!loading && data.length === 0) return null;
 
   return (
     <section className="w-full">
@@ -403,7 +383,7 @@ export default function FavoritePicks() {
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Image src="https://stackfood-react.6amtech.com/_next/static/media/fire.612dd1de.svg" alt="Fogo" width={23} height={23} />
-<h2 className="text-lg sm:text-xl font-semibold">Bebidas e Bomboniere Bambino</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">Produtos Bambino</h2>
           </div>
           <Link href="/buscar?q=recomendados" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
         </div>
