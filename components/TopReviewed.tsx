@@ -174,34 +174,28 @@ export default function TopReviewed() {
           source = Array.isArray(cj?.data) ? cj.data : [];
         }
 
-        // 2) Se não houver curados, buscar pelas categorias Eletrônicos e Informática
+        // 2) Se não houver curados, buscar produtos da Brancaleone (HQs e Comics) - TESTE
         if (!source.length) {
-          const cRes = await fetch('/api/categories', { cache: 'no-store' });
-          const cj = await cRes.json();
-          const cats: Array<{ id: string; link?: string; name?: string }> = Array.isArray(cj?.data) ? cj.data : [];
-          const getIdBySlug = (slug: string) => cats.find(c => c.link?.endsWith(`/categorias/${slug}`))?.id;
-          const catEle = getIdBySlug('eletronicos');
-          const catInfo = getIdBySlug('informatica');
-
-          const fetchByCat = async (cat?: string | null) => {
-            if (!cat) return [] as ApiProduct[];
-            const r = await fetch(`/api/products/public?category=${encodeURIComponent(cat)}&limit=12`, { 
-              next: { revalidate: 60 } as any 
-            });
-            if (!r.ok) return [] as ApiProduct[];
+          const BRANCALEONE_ID = '1511df09-1f4a-4e68-9f8c-05cd06be6269';
+          const HQS_COMICS_ID = '1e813114-e1bc-442d-96e4-2704910d157d';
+          
+          const r = await fetch(
+            `/api/products/public?distribuidor=${BRANCALEONE_ID}&limit=12`, 
+            { next: { revalidate: 60 } as any }
+          );
+          
+          if (r.ok) {
             const j = await r.json();
-            const list: ApiProduct[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
-            return list;
-          };
-
-          const [listEle, listInfo] = await Promise.all([
-            fetchByCat(catEle),
-            fetchByCat(catInfo)
-          ]);
-          const merged = [...listEle, ...listInfo];
-          // Dedupe by id
-          const seen = new Set<string>();
-          source = merged.filter(p => { if (!p?.id || seen.has(p.id)) return false; seen.add(p.id); return true; });
+            const allProducts: ApiProduct[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
+            
+            // Filtrar apenas HQs e Comics
+            source = allProducts.filter(p => {
+              const catId = (p as any).category_id;
+              return catId === HQS_COMICS_ID;
+            });
+            
+            console.log(`[TopReviewed] Total Brancaleone: ${allProducts.length}, HQs filtrados: ${source.length}`);
+          }
         }
 
         let bancaMap: Record<string, { name: string }> = {};
@@ -282,8 +276,8 @@ export default function TopReviewed() {
       <div className="container-max">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Image src="https://stackfood-react.6amtech.com/_next/static/media/best_foods.7a9b751b.svg" alt="Eletrônicos e Informática" width={23} height={23} />
-            <h2 className="text-lg sm:text-xl font-semibold">Eletrônicos e Informática</h2>
+            <Image src="https://stackfood-react.6amtech.com/_next/static/media/best_foods.7a9b751b.svg" alt="HQs e Comics" width={23} height={23} />
+            <h2 className="text-lg sm:text-xl font-semibold">HQs e Comics - Teste</h2>
           </div>
           <Link href="/categorias/informatica" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
         </div>
