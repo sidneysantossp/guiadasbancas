@@ -222,18 +222,30 @@ function FavCard({ item }: { item: FavItem }) {
   );
 }
 
+// IDs das categorias e distribuidor
+const BAMBINO_ID = '3a989c56-bbd3-4769-b076-a83483e39542';
+const BEBIDAS_ID = 'cat-1758882632653';
+const BOMBONIERE_ID = 'cat-1758882669110';
+
 export default function FavoritePicks() {
-  const [items, setItems] = useState<FavItem[] | null>(null);
+  const { user } = useAuth();
+  const { addToCart } = useCart();
+  const { show } = useToast();
   const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<FavItem[]>([]);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
         setLoading(true);
-        // Futuro: usar histórico do usuário. Início: fallback para últimas novidades
-        const [pRes, bRes] = await Promise.all([
-          fetch('/api/products/public?limit=6&sort=created_at&order=desc', {
+        // Buscar produtos de bebidas e bomboniere da Bambino
+        const [bebidasRes, bomboniereRes, bRes] = await Promise.all([
+          fetch(`/api/products/public?distribuidor=${BAMBINO_ID}&category=${BEBIDAS_ID}&limit=3&sort=created_at&order=desc`, {
+            next: { revalidate: 60 } as any
+          }),
+          fetch(`/api/products/public?distribuidor=${BAMBINO_ID}&category=${BOMBONIERE_ID}&limit=3&sort=created_at&order=desc`, {
             next: { revalidate: 60 } as any
           }),
           fetch('/api/bancas', {
@@ -241,18 +253,18 @@ export default function FavoritePicks() {
           }),
         ]);
         let list: ApiProduct[] = [];
-        if (pRes.ok) {
-          const pj = await pRes.json();
-          list = Array.isArray(pj?.data) ? pj.data : (Array.isArray(pj?.items) ? pj.items : []);
+        
+        // Combinar produtos de bebidas e bomboniere
+        if (bebidasRes.ok) {
+          const bebidasJson = await bebidasRes.json();
+          const bebidasList = Array.isArray(bebidasJson?.data) ? bebidasJson.data : (Array.isArray(bebidasJson?.items) ? bebidasJson.items : []);
+          list = [...list, ...bebidasList];
         }
-        if (list.length === 0) {
-          const alt = await fetch('/api/products/most-searched', {
-            next: { revalidate: 60 } as any
-          });
-          if (alt.ok) {
-            const aj = await alt.json();
-            list = Array.isArray(aj?.data) ? aj.data : [];
-          }
+        
+        if (bomboniereRes.ok) {
+          const bomboniereJson = await bomboniereRes.json();
+          const bomboniereList = Array.isArray(bomboniereJson?.data) ? bomboniereJson.data : (Array.isArray(bomboniereJson?.items) ? bomboniereJson.items : []);
+          list = [...list, ...bomboniereList];
         }
         let bancas: Record<string, ApiBanca> = {};
         if (bRes.ok) {
@@ -370,7 +382,7 @@ export default function FavoritePicks() {
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Image src="https://stackfood-react.6amtech.com/_next/static/media/fire.612dd1de.svg" alt="Fogo" width={23} height={23} />
-            <h2 className="text-lg sm:text-xl font-semibold">Recomendados para você</h2>
+<h2 className="text-lg sm:text-xl font-semibold">Bebidas e Bomboniere Bambino</h2>
           </div>
           <Link href="/buscar?q=recomendados" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
         </div>
