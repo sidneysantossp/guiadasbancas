@@ -367,11 +367,11 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
             console.log(`[CategoryResults] Produtos mapeados: ${mappedProducts.length}`);
             
             // 3. Buscar bancas que possuem produtos dessa categoria
-            const uniqueBancaIds = new Set(productsArray.map((p: any) => p.banca_id).filter(Boolean));
+            const uniqueBancaIds = new Set<string>(productsArray.map((p: any) => p.banca_id).filter(Boolean));
             console.log(`[CategoryResults] Bancas únicas com produtos: ${uniqueBancaIds.size}`);
             
             const mappedBancas: Banca[] = Array.from(uniqueBancaIds)
-              .map(bancaId => bancasMap.get(bancaId))
+              .map((bancaId: string) => bancasMap.get(bancaId))
               .filter(Boolean)
               .filter((banca: any) => banca.active !== false)
               .map((banca: any) => {
