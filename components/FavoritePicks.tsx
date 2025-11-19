@@ -58,7 +58,14 @@ function RatingPill({ rating = 4.7, reviews = 1 }: { rating?: number; reviews?: 
   );
 }
 
-function HeartOutline() {
+function HeartOutline({ filled = false }: { filled?: boolean }) {
+  if (filled) {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-red-500" aria-hidden>
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+      </svg>
+    );
+  }
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500" aria-hidden>
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
@@ -130,6 +137,8 @@ function FavCard({ item }: { item: FavItem }) {
   const { show } = useToast();
   const { user } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -143,7 +152,7 @@ function FavCard({ item }: { item: FavItem }) {
     show(<span>Adicionado ao carrinho!</span>);
   };
 
-  const handleFavorite = (e: React.MouseEvent) => {
+  const handleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -152,9 +161,46 @@ function FavCard({ item }: { item: FavItem }) {
       return;
     }
     
-    // TODO: Implementar lógica de adicionar aos favoritos quando o backend estiver pronto
-    // Por enquanto, apenas notifica o usuário
-    show(<span>⭐ Funcionalidade em breve! Aguarde...</span>);
+    if (isLoading) return;
+    
+    setIsLoading(true);
+    
+    try {
+      if (isFavorite) {
+        // Remover dos favoritos
+        const response = await fetch(`/api/favorites?product_id=${id}`, {
+          method: 'DELETE',
+        });
+        
+        if (response.ok) {
+          setIsFavorite(false);
+          show(<span>❌ Removido dos favoritos</span>);
+        } else {
+          const data = await response.json();
+          show(<span>Erro: {data.error || 'Não foi possível remover dos favoritos'}</span>);
+        }
+      } else {
+        // Adicionar aos favoritos
+        const response = await fetch('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_id: id }),
+        });
+        
+        if (response.ok) {
+          setIsFavorite(true);
+          show(<span>⭐ Adicionado aos favoritos!</span>);
+        } else {
+          const data = await response.json();
+          show(<span>Erro: {data.error || 'Não foi possível adicionar aos favoritos'}</span>);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao gerenciar favorito:', error);
+      show(<span>Erro ao processar favorito</span>);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -199,10 +245,15 @@ function FavCard({ item }: { item: FavItem }) {
             {user && (
               <button 
                 onClick={handleFavorite}
-                aria-label="Favoritar" 
-                className="w-9 h-9 grid place-items-center rounded-md border border-gray-300 hover:bg-gray-50 transition-all hover:border-[#ff5c00]"
+                disabled={isLoading}
+                aria-label={isFavorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                className={`w-9 h-9 grid place-items-center rounded-md border transition-all ${
+                  isFavorite 
+                    ? 'border-red-500 bg-red-50 hover:bg-red-100' 
+                    : 'border-gray-300 hover:bg-gray-50 hover:border-[#ff5c00]'
+                } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <HeartOutline />
+                <HeartOutline filled={isFavorite} />
               </button>
             )}
             <Link href={("/produto/" + slugify(name) + "-" + id) as Route} aria-label="Visualizar produto" className="w-9 h-9 grid place-items-center rounded-md border border-gray-300 hover:bg-gray-50">
