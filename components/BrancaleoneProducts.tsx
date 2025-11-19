@@ -74,13 +74,13 @@ function ProductCard({ p }: { p: BrancaleoneProduct }) {
       {/* Imagem */}
       <div className="relative">
         <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route}>
-          <div className="relative aspect-[3/4] bg-gray-50 overflow-hidden">
+          <div className="relative aspect-[4/5] bg-gray-50 overflow-hidden">
             <Image
               src={p.image}
               alt={p.name}
               fill
               sizes="220px"
-              className="object-contain p-3"
+              className="object-contain p-2"
             />
           </div>
         </Link>
@@ -88,27 +88,27 @@ function ProductCard({ p }: { p: BrancaleoneProduct }) {
         <button
           onClick={handleAddToCart}
           aria-label="Adicionar ao carrinho"
-          className="absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white shadow hover:bg-gray-50"
+          className="absolute -bottom-4 right-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white shadow hover:bg-gray-50"
         >
-          <Image src="https://cdn-icons-png.flaticon.com/128/4982/4982841.png" alt="Carrinho" width={20} height={20} className="h-5 w-5 object-contain" />
+          <Image src="https://cdn-icons-png.flaticon.com/128/4982/4982841.png" alt="Carrinho" width={16} height={16} className="h-4 w-4 object-contain" />
         </button>
       </div>
 
       {/* Conteúdo */}
-      <div className="p-2.5 flex flex-col flex-1">
-        <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="text-[13px] font-semibold hover:underline line-clamp-2">
+      <div className="p-2 flex flex-col flex-1">
+        <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="text-[12px] font-semibold hover:underline line-clamp-2">
           {p.name}
         </Link>
         
         {/* Código do produto */}
         {p.codigo_mercos && (
-          <p className="text-[11px] text-gray-500 font-mono mt-1">
+          <p className="text-[10px] text-gray-500 font-mono mt-0.5">
             {p.codigo_mercos}
           </p>
         )}
         
         {/* Badges */}
-        <div className="flex flex-wrap gap-1 mt-2">
+        <div className="flex flex-wrap gap-1 mt-1">
           {p.pronta_entrega && (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold">
               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
@@ -130,41 +130,41 @@ function ProductCard({ p }: { p: BrancaleoneProduct }) {
         </div>
         
         {/* Avaliações */}
-        <div className="mt-1 flex items-center gap-2">
+        <div className="mt-0.5 flex items-center gap-1.5">
           <Stars value={p.rating_avg || 5} />
           {typeof p.reviews_count === 'number' && p.reviews_count > 0 && (
-            <span className="text-[11px] text-gray-500">{p.reviews_count} avaliações</span>
+            <span className="text-[10px] text-gray-500">{p.reviews_count} avaliações</span>
           )}
         </div>
         
         {/* Preço e Botões */}
-        <div className="mt-auto pt-2 flex flex-col gap-1.5">
-          <div className="flex flex-col gap-0.5">
+        <div className="mt-auto pt-1.5 flex flex-col gap-1">
+          <div className="flex flex-col">
             {discount > 0 ? (
               <>
-                <div className="text-[12px] text-gray-600">
+                <div className="text-[11px] text-gray-600">
                   De: <span className="text-gray-400 line-through">R$ {(price / (1 - discount / 100)).toFixed(2)}</span>
                 </div>
-                <div className="text-[18px] text-[#ff5c00] font-extrabold">Por: R$ {price.toFixed(2)}</div>
+                <div className="text-[16px] text-[#ff5c00] font-extrabold">Por: R$ {price.toFixed(2)}</div>
               </>
             ) : (
-              <div className="text-[18px] text-[#ff5c00] font-extrabold">Por: R$ {price.toFixed(2)}</div>
+              <div className="text-[16px] text-[#ff5c00] font-extrabold">Por: R$ {price.toFixed(2)}</div>
             )}
           </div>
           
           {/* Botões */}
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-0.5">
             <button
               onClick={handleAddToCart}
-              className="w-full rounded px-2.5 py-1 text-[11px] font-semibold bg-[#ff5c00] text-white hover:opacity-95"
+              className="w-full rounded px-2 py-0.5 text-[10px] font-semibold bg-[#ff5c00] text-white hover:opacity-95"
             >
               Adicionar ao Carrinho
             </button>
             <button
               onClick={handleWhatsApp}
-              className="w-full inline-flex items-center justify-center gap-1.5 rounded border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15 px-2.5 py-1 text-[11px] font-semibold"
+              className="w-full inline-flex items-center justify-center gap-1 rounded border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15 px-2 py-0.5 text-[10px] font-semibold"
             >
-              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
+              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={12} height={12} className="h-3 w-3 object-contain" />
               Comprar
             </button>
           </div>
