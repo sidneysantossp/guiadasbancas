@@ -302,9 +302,9 @@ function FavCard({ item }: { item: FavItem }) {
   );
 }
 
-// IDs das categorias e distribuidor - TESTE COM BRANCALEONE
-const BRANCALEONE_ID = '1511df09-1f4a-4e68-9f8c-05cd06be6269';
-const HQS_COMICS_ID = '1e813114-e1bc-442d-96e4-2704910d157d'; // HQs e Comics (99 produtos)
+// IDs das categorias e distribuidor
+const BAMBINO_ID = '3a989c56-bbd3-4769-b076-a83483e39542';
+const BEBIDAS_ID = 'c230ed83-b08a-4b7a-8f19-7c8230f36c86'; // Bebidas
 
 export default function FavoritePicks() {
   const { user } = useAuth();
@@ -319,9 +319,9 @@ export default function FavoritePicks() {
     (async () => {
       try {
         setLoading(true);
-        // Buscar produtos da Brancaleone (HQs e Comics)
+        // Buscar produtos da Bambino (Bebidas)
         const [pRes, bRes] = await Promise.all([
-          fetch(`/api/products/public?distribuidor=${BRANCALEONE_ID}&limit=50&sort=created_at&order=desc`, {
+          fetch(`/api/products/public?distribuidor=${BAMBINO_ID}&limit=50&sort=created_at&order=desc`, {
             next: { revalidate: 60 } as any
           }),
           fetch('/api/bancas', {
@@ -334,18 +334,18 @@ export default function FavoritePicks() {
           const pj = await pRes.json();
           const allProducts = Array.isArray(pj?.data) ? pj.data : (Array.isArray(pj?.items) ? pj.items : []);
           
-          console.log(`[FavoritePicks] Total produtos Brancaleone: ${allProducts.length}`);
+          console.log(`[FavoritePicks] Total produtos Bambino: ${allProducts.length}`);
           
-          // Filtrar apenas HQs e Comics
+          // Filtrar apenas Bebidas
           list = allProducts.filter((p: ApiProduct) => {
             const catId = (p as any).category_id;
-            return catId === HQS_COMICS_ID;
+            return catId === BEBIDAS_ID;
           });
           
           // Limitar a 12 produtos
           list = list.slice(0, 12);
           
-          console.log(`[FavoritePicks] Encontrados ${list.length} produtos de HQs e Comics`);
+          console.log(`[FavoritePicks] Encontrados ${list.length} produtos de Bebidas`);
         }
         
         console.log(`[FavoritePicks] Total de produtos: ${list.length}`);
@@ -470,9 +470,9 @@ export default function FavoritePicks() {
           <div>
             <div className="flex items-center gap-2">
               <Image src="https://stackfood-react.6amtech.com/_next/static/media/fire.612dd1de.svg" alt="Fogo" width={23} height={23} />
-              <h2 className="text-lg sm:text-xl font-semibold">HQs e Comics</h2>
+              <h2 className="text-lg sm:text-xl font-semibold">Bebidas</h2>
             </div>
-            <p className="text-sm text-gray-600 mt-1">Quadrinhos em destaque</p>
+            <p className="text-sm text-gray-600 mt-1">As melhores bebidas para você</p>
           </div>
           <Link href="/buscar?q=recomendados" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
         </div>

@@ -174,13 +174,13 @@ export default function TopReviewed() {
           source = Array.isArray(cj?.data) ? cj.data : [];
         }
 
-        // 2) Se não houver curados, buscar produtos da Brancaleone (HQs e Comics) - TESTE
+        // 2) Se não houver curados, buscar produtos da Bambino (Bebidas)
         if (!source.length) {
-          const BRANCALEONE_ID = '1511df09-1f4a-4e68-9f8c-05cd06be6269';
-          const HQS_COMICS_ID = '1e813114-e1bc-442d-96e4-2704910d157d';
+          const BAMBINO_ID = '3a989c56-bbd3-4769-b076-a83483e39542';
+          const BEBIDAS_ID = 'c230ed83-b08a-4b7a-8f19-7c8230f36c86';
           
           const r = await fetch(
-            `/api/products/public?distribuidor=${BRANCALEONE_ID}&limit=12`, 
+            `/api/products/public?distribuidor=${BAMBINO_ID}&limit=12`, 
             { next: { revalidate: 60 } as any }
           );
           
@@ -188,13 +188,13 @@ export default function TopReviewed() {
             const j = await r.json();
             const allProducts: ApiProduct[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
             
-            // Filtrar apenas HQs e Comics
+            // Filtrar apenas Bebidas
             source = allProducts.filter(p => {
               const catId = (p as any).category_id;
-              return catId === HQS_COMICS_ID;
+              return catId === BEBIDAS_ID;
             });
             
-            console.log(`[TopReviewed] Total Brancaleone: ${allProducts.length}, HQs filtrados: ${source.length}`);
+            console.log(`[TopReviewed] Total Bambino: ${allProducts.length}, Bebidas filtradas: ${source.length}`);
           }
         }
 
@@ -276,8 +276,8 @@ export default function TopReviewed() {
       <div className="container-max">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Image src="https://stackfood-react.6amtech.com/_next/static/media/best_foods.7a9b751b.svg" alt="HQs e Comics" width={23} height={23} />
-            <h2 className="text-lg sm:text-xl font-semibold">HQs e Comics - Teste</h2>
+            <Image src="https://stackfood-react.6amtech.com/_next/static/media/best_foods.7a9b751b.svg" alt="Bebidas" width={23} height={23} />
+            <h2 className="text-lg sm:text-xl font-semibold">Bebidas em Destaque</h2>
           </div>
           <Link href="/categorias/informatica" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todos</Link>
         </div>
