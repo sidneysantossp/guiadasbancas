@@ -28,6 +28,70 @@ type SliderConfig = {
   heightMobile: number;
 };
 
+// Funções de conversão camelCase <-> snake_case
+function toSnakeCase(slide: HeroSlide): any {
+  return {
+    id: slide.id,
+    title: slide.title,
+    description: slide.description,
+    image_url: slide.imageUrl,
+    image_alt: slide.imageAlt,
+    gradient_from: slide.gradientFrom,
+    gradient_to: slide.gradientTo,
+    cta1_text: slide.cta1Text,
+    cta1_link: slide.cta1Link,
+    cta1_style: slide.cta1Style,
+    cta2_text: slide.cta2Text,
+    cta2_link: slide.cta2Link,
+    cta2_style: slide.cta2Style,
+    active: slide.active,
+    order: slide.order
+  };
+}
+
+function toCamelCase(dbSlide: any): HeroSlide {
+  return {
+    id: dbSlide.id,
+    title: dbSlide.title,
+    description: dbSlide.description,
+    imageUrl: dbSlide.image_url,
+    imageAlt: dbSlide.image_alt,
+    gradientFrom: dbSlide.gradient_from,
+    gradientTo: dbSlide.gradient_to,
+    cta1Text: dbSlide.cta1_text,
+    cta1Link: dbSlide.cta1_link,
+    cta1Style: dbSlide.cta1_style,
+    cta2Text: dbSlide.cta2_text,
+    cta2Link: dbSlide.cta2_link,
+    cta2Style: dbSlide.cta2_style,
+    active: dbSlide.active,
+    order: dbSlide.order
+  };
+}
+
+function configToSnakeCase(cfg: SliderConfig): any {
+  return {
+    id: 1,
+    auto_play_time: cfg.autoPlayTime,
+    transition_speed: cfg.transitionSpeed,
+    show_arrows: cfg.showArrows,
+    show_dots: cfg.showDots,
+    height_desktop: cfg.heightDesktop,
+    height_mobile: cfg.heightMobile
+  };
+}
+
+function configToCamelCase(dbCfg: any): SliderConfig {
+  return {
+    autoPlayTime: dbCfg.auto_play_time,
+    transitionSpeed: dbCfg.transition_speed,
+    showArrows: dbCfg.show_arrows,
+    showDots: dbCfg.show_dots,
+    heightDesktop: dbCfg.height_desktop,
+    heightMobile: dbCfg.height_mobile
+  };
+}
+
 // Funções para ler/gravar no Supabase
 async function readSlides(): Promise<HeroSlide[]> {
   try {
@@ -37,7 +101,7 @@ async function readSlides(): Promise<HeroSlide[]> {
       .order('order', { ascending: true });
     
     if (error) throw error;
-    return data || [];
+    return (data || []).map(toCamelCase);
   } catch (error) {
     console.error('[hero-slides] Erro ao ler slides:', error);
     return [];
@@ -45,9 +109,10 @@ async function readSlides(): Promise<HeroSlide[]> {
 }
 
 async function writeSlide(slide: HeroSlide) {
+  const dbSlide = toSnakeCase(slide);
   const { error } = await supabase
     .from('hero_slides')
-    .upsert(slide, { onConflict: 'id' });
+    .upsert(dbSlide, { onConflict: 'id' });
   
   if (error) throw error;
 }
@@ -69,7 +134,7 @@ async function readConfig(): Promise<SliderConfig | null> {
       .single();
     
     if (error) throw error;
-    return data;
+    return data ? configToCamelCase(data) : null;
   } catch (error) {
     console.error('[hero-slides] Erro ao ler config:', error);
     return null;
@@ -77,9 +142,10 @@ async function readConfig(): Promise<SliderConfig | null> {
 }
 
 async function writeConfig(cfg: SliderConfig) {
+  const dbCfg = configToSnakeCase(cfg);
   const { error } = await supabase
     .from('slider_config')
-    .upsert({ id: 1, ...cfg }, { onConflict: 'id' });
+    .upsert(dbCfg, { onConflict: 'id' });
   
   if (error) throw error;
 }
