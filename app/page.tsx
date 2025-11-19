@@ -51,6 +51,10 @@ const TurmaDaMonica = dynamic(() => import("@/components/TurmaDaMonica"), {
   ssr: false,
   loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
 });
+const MarvelComics = dynamic(() => import("@/components/MarvelComics"), { 
+  ssr: false,
+  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+});
 const NewArrivals = dynamic(() => import("@/components/NewArrivals"), { 
   ssr: false,
   loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
@@ -93,6 +97,12 @@ export default function HomePage() {
       <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
         <div className="py-6">
           <TurmaDaMonica />
+        </div>
+      </Suspense>
+
+      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+        <div className="py-6">
+          <MarvelComics />
         </div>
       </Suspense>
 
