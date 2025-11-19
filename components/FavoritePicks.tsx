@@ -305,7 +305,6 @@ function FavCard({ item }: { item: FavItem }) {
 // IDs das categorias e distribuidor
 const BAMBINO_ID = '3a989c56-bbd3-4769-b076-a83483e39542';
 const BEBIDAS_ID = 'cat-1758882632653';
-const BOMBONIERE_ID = 'cat-1758882669110';
 
 export default function FavoritePicks() {
   const { user } = useAuth();
@@ -337,10 +336,16 @@ export default function FavoritePicks() {
           
           console.log(`[FavoritePicks] Total produtos Bambino: ${allProducts.length}`);
           
-          // Pegar os primeiros 12 produtos da Bambino (sem filtro de categoria)
-          list = allProducts.slice(0, 12);
+          // Filtrar apenas bebidas
+          list = allProducts.filter((p: ApiProduct) => {
+            const catId = (p as any).category_id;
+            return catId === BEBIDAS_ID;
+          });
           
-          console.log(`[FavoritePicks] Exibindo ${list.length} produtos Bambino`);
+          // Limitar a 12 produtos
+          list = list.slice(0, 12);
+          
+          console.log(`[FavoritePicks] Encontrados ${list.length} produtos de Bebidas`);
         }
         
         console.log(`[FavoritePicks] Total de produtos: ${list.length}`);
@@ -465,7 +470,7 @@ export default function FavoritePicks() {
           <div>
             <div className="flex items-center gap-2">
               <Image src="https://stackfood-react.6amtech.com/_next/static/media/fire.612dd1de.svg" alt="Fogo" width={23} height={23} />
-              <h2 className="text-lg sm:text-xl font-semibold">Bomboniere e Bebidas</h2>
+              <h2 className="text-lg sm:text-xl font-semibold">Bebidas</h2>
             </div>
             <p className="text-sm text-gray-600 mt-1">Os melhores produtos para você</p>
           </div>
