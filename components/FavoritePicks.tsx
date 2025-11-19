@@ -336,16 +336,30 @@ export default function FavoritePicks() {
           
           console.log(`[FavoritePicks] Total produtos Bambino: ${allProducts.length}`);
           
+          // Debug: mostrar todas as categorias encontradas
+          const categorias = new Set(allProducts.map((p: any) => p.category_id || 'SEM_CATEGORIA'));
+          console.log(`[FavoritePicks] Categorias encontradas:`, Array.from(categorias));
+          console.log(`[FavoritePicks] Procurando por Bebidas ID: ${BEBIDAS_ID}`);
+          
           // Filtrar apenas bebidas
           list = allProducts.filter((p: ApiProduct) => {
             const catId = (p as any).category_id;
-            return catId === BEBIDAS_ID;
+            const match = catId === BEBIDAS_ID;
+            if (match) {
+              console.log(`[FavoritePicks] ✅ Bebida encontrada:`, p.name, catId);
+            }
+            return match;
           });
           
           // Limitar a 12 produtos
           list = list.slice(0, 12);
           
           console.log(`[FavoritePicks] Encontrados ${list.length} produtos de Bebidas`);
+          
+          // Se não encontrou nenhuma bebida, mostrar aviso
+          if (list.length === 0) {
+            console.warn(`[FavoritePicks] ⚠️ NENHUMA BEBIDA ENCONTRADA! Verifique as categorias no banco.`);
+          }
         }
         
         console.log(`[FavoritePicks] Total de produtos: ${list.length}`);
