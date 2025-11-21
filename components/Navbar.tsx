@@ -221,6 +221,7 @@ export default function Navbar() {
   const [branding, setBranding] = useState<{logoUrl: string; logoAlt: string; siteName: string; socialInstagram?: string; socialFacebook?: string; socialYoutube?: string; socialLinkedin?: string} | null>(null);
   const { items: categoryItems } = useCategories(); // Pré-carrega categorias na inicialização
   const [activeMegaMenu, setActiveMegaMenu] = useState<'categories' | null>(null);
+  const { isJornaleiro, isAdmin } = useAuth();
 
   const socialLinks = useMemo(() => {
     if (!branding) return [] as { key: string; href: string; label: string }[];
@@ -767,13 +768,24 @@ useEffect(() => {
                   </button>
                 )}
 
-                <Link
-                  href="/jornaleiro"
-                  className="inline-flex items-center rounded-md bg-[#ff5c00] text-white px-3 py-2 text-sm font-semibold shadow hover:opacity-95 transition-colors"
-                  aria-label="Sou Jornaleiro"
-                >
-                  Sou Jornaleiro
-                </Link>
+                {isJornaleiro || isAdmin ? (
+                  <Link
+                    href={"/jornaleiro/banca" as Route}
+                    className="inline-flex items-center gap-2 rounded-md border border-[#ff5c00] text-[#ff5c00] bg-white px-3 py-2 text-sm font-semibold hover:bg-orange-50 transition-colors"
+                    aria-label="Painel do Jornaleiro"
+                  >
+                    <IconBuildingStore size={18} stroke={2} />
+                    <span>Painel</span>
+                  </Link>
+                ) : (
+                  <Link
+                    href="/jornaleiro"
+                    className="inline-flex items-center rounded-md bg-[#ff5c00] text-white px-3 py-2 text-sm font-semibold shadow hover:opacity-95 transition-colors"
+                    aria-label="Sou Jornaleiro"
+                  >
+                    Sou Jornaleiro
+                  </Link>
+                )}
               </div>
             </>
           )}
@@ -1047,10 +1059,17 @@ useEffect(() => {
                 <span>Minha Conta</span>
               </Link>
             )}
-            <Link href="/jornaleiro" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-100">
-              <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#ff5c00]" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16v4H4zM6 11v7a1 1 0 001 1h10a1 1 0 001-1v-7"/></svg>
-              <span>Sou Jornaleiro</span>
-            </Link>
+            {profile?.role === 'jornaleiro' ? (
+              <Link href="/jornaleiro/banca" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-100">
+                <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#ff5c00]" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16v4H4zM6 11v7a1 1 0 001 1h10a1 1 0 001-1v-7"/></svg>
+                <span>Painel</span>
+              </Link>
+            ) : (
+              <Link href="/jornaleiro" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-100">
+                <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#ff5c00]" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16v4H4zM6 11v7a1 1 0 001 1h10a1 1 0 001-1v-7"/></svg>
+                <span>Sou Jornaleiro</span>
+              </Link>
+            )}
           </nav>
         </aside>
       </div>

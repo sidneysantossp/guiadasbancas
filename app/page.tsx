@@ -80,7 +80,7 @@ export default function HomePage() {
       <MiniCategoryBar />
       {/* PRIORIDADE ALTA: Primeiro scroll */}
       <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
-        <div className="py-8 hidden md:block">
+        <div className="hidden md:block md:pt-2 md:pb-4 lg:pt-0 lg:pb-4">
           <CategoryCarousel />
         </div>
       </Suspense>

@@ -95,22 +95,12 @@ export default function CategoryCarousel() {
   return (
     <section 
       id="buy-by-category" 
-      className={`w-full bg-white transition-all duration-300 ${
+      className={`w-full bg-white md:-mt-3 lg:-mt-4 xl:-mt-4 md:pt-2 lg:pt-3 transition-all duration-300 ${
         !isMobile && scrolled 
-          ? 'md:sticky md:top-[72px] md:z-40 md:shadow-md md:py-2' 
+          ? 'md:sticky md:top-[72px] md:z-40 md:py-2' 
           : ''
       }`}
     >
-      <div className="container-max">
-        <div className={`flex items-center justify-between transition-all duration-300 ${scrolled && !isMobile ? 'mb-2' : 'mb-4'}`}>
-          <h2 className={`font-semibold transition-all duration-300 ${scrolled && !isMobile ? 'text-base' : 'text-lg sm:text-xl'}`}>
-            Compre por categoria
-          </h2>
-          <Link href="/categorias" className="text-[var(--color-primary)] text-sm font-medium hover:underline">
-            Explorar mais
-          </Link>
-        </div>
-      </div>
       <div className="w-full overflow-hidden">
         <div className="container-max">
           {/* Slider: múltiplos por view, avançando 1 por vez com slide */}
