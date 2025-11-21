@@ -207,9 +207,25 @@ export default function TrendingProducts() {
         }
         const j = await r.json();
         const merged: ApiProduct[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
+
+        // Remover gibis da Turma da Mônica desta vitrine específica (HQs & Comics da home)
+        const blockedNamePatterns = [
+          /casc[aã]o/i,
+          /cebolinha/i,
+          /m[oô]nica/i,
+          /magali/i,
+          /turma da m[oô]nica/i,
+        ];
+
         const seen = new Set<string>();
         const mapped: TrendProduct[] = merged
-          .filter(p => p?.id && !seen.has(p.id) && typeof p.price === 'number')
+          .filter(p => {
+            if (!p?.id || typeof p.price !== 'number') return false;
+            const name = String(p.name || "");
+            if (blockedNamePatterns.some((re) => re.test(name))) return false;
+            if (seen.has(p.id)) return false;
+            return true;
+          })
           .map((p) => {
             seen.add(p.id);
             return {
