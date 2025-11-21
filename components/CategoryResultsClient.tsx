@@ -403,7 +403,7 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
                   reviews: item.reviews_count || 0,
                   ready: true,
                   bancaId: item.banca_id,
-                  phone: banca?.phone || banca?.whatsapp || banca?.telefone || banca?.whatsapp_phone,
+                  phone: banca?.contact?.whatsapp || banca?.whatsapp || banca?.phone || banca?.telefone || banca?.whatsapp_phone,
                 };
               });
             
