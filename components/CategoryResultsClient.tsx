@@ -240,7 +240,7 @@ function ProductCard({ p, km }: { p: Product; km: number | null }) {
           {p.phone && (
             <a
               href={`https://wa.me/${String(p.phone).replace(/\D/g, "")}?text=${encodeURIComponent(
-                `Olá! Tenho interesse no produto: ${p.name} (R$ ${p.price.toFixed(2)}).`
+                `Olá! Tenho interesse no produto: ${p.name} (R$ ${p.price.toFixed(2)}).\n\nVer produto: https://guiadasbancas.com/produto/${slugify(p.name)}-${p.id}`
               )}`}
               target="_blank"
               rel="noopener noreferrer"

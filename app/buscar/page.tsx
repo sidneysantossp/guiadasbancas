@@ -338,7 +338,7 @@ function BuscarPageContent() {
                           {bancaPhone && (
                             <a
                               href={`https://wa.me/${String(bancaPhone).replace(/\D/g, "")}?text=${encodeURIComponent(
-                                `Olá! Tenho interesse no produto: ${product.name} (R$ ${product.price.toFixed(2)}).`
+                                `Olá! Tenho interesse no produto: ${product.name} (R$ ${product.price.toFixed(2)}).\n\nVer produto: https://guiadasbancas.com${productHref}`
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"

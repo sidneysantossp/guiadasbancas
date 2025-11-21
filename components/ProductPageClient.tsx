@@ -355,13 +355,14 @@ function RelatedCarousel({ items }: { items: RelatedProduct[] }) {
                     <button
                       type="button"
                       onClick={() => {
-                        try {
-                          const msg = encodeURIComponent(`Olá! Tenho interesse no produto: ${it.name} (R$ ${it.price.toFixed(2)}).`);
-                          const url = `https://wa.me?text=${msg}`;
-                          if (typeof window !== "undefined") {
-                            window.open(url, "_blank", "noopener,noreferrer");
-                          }
-                        } catch {}
+                        if (typeof window === "undefined") return;
+                        const baseUrl = window.location.origin || "https://guiadasbancas.com";
+                        const productPath = "/produto/" + slugify(it.name) + "-" + it.id;
+                        const productUrl = baseUrl + productPath;
+                        const text = `Olá! Tenho interesse no produto: ${it.name} (R$ ${it.price.toFixed(2)}).\n\nVer produto: ${productUrl}`;
+                        const msg = encodeURIComponent(text);
+                        const url = `https://wa.me?text=${msg}`;
+                        window.location.href = url;
                       }}
                       className="w-full rounded-md border border-[#ff5c00] text-[#ff5c00] text-[10px] font-semibold px-3 py-1.5 leading-tight hover:bg-[#fff3ec] inline-flex items-center justify-center gap-1.5"
                     >
@@ -555,14 +556,15 @@ export default function ProductPageClient({ productId }: { productId: string }) 
   const { show } = useToast();
 
   const handleWhatsAppMain = () => {
+    if (typeof window === "undefined") return;
     const rawPhone = product.vendor.phone;
     const digits = rawPhone ? rawPhone.replace(/\D/g, "") : "";
-    const msg = encodeURIComponent(`Olá! Tenho interesse no produto: ${product.name} (R$ ${product.price.toFixed(2)}).`);
+    const productUrl = window.location.href;
+    const text = `Olá! Tenho interesse no produto: ${product.name} (R$ ${product.price.toFixed(2)}).\n\nVer produto: ${productUrl}`;
+    const msg = encodeURIComponent(text);
     const base = digits ? `https://wa.me/${digits}` : "https://wa.me";
     const url = `${base}?text=${msg}`;
-    if (typeof window !== "undefined") {
-      window.location.href = url;
-    }
+    window.location.href = url;
   };
 
   // Gerar dados estruturados

@@ -106,14 +106,17 @@ function FeaturedCard({ p }: { p: Product }) {
   const subtotal = items.reduce((s, it) => s + (it.price ?? 0) * it.qty, 0);
   const qualifies = shippingConfig.freeShippingEnabled || subtotal >= shippingConfig.freeShippingThreshold;
   const handleWhatsApp = () => {
+    if (typeof window === "undefined") return;
     const rawPhone = p.phone;
     const digits = rawPhone ? String(rawPhone).replace(/\D/g, "") : "";
-    const msg = encodeURIComponent(`Olá! Tenho interesse no produto: ${p.name} (R$ ${(p.price || 0).toFixed(2)}).`);
+    const baseUrl = window.location.origin || "https://guiadasbancas.com";
+    const productPath = "/produto/" + slugify(p.name) + "-" + p.id;
+    const productUrl = baseUrl + productPath;
+    const text = `Olá! Tenho interesse no produto: ${p.name} (R$ ${(p.price || 0).toFixed(2)}).\n\nVer produto: ${productUrl}`;
+    const msg = encodeURIComponent(text);
     const base = digits ? `https://wa.me/${digits}` : "https://wa.me";
     const url = `${base}?text=${msg}`;
-    if (typeof window !== "undefined") {
-      window.location.href = url;
-    }
+    window.location.href = url;
   };
   return (
     <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="group relative col-span-12 md:col-span-5 row-span-2 overflow-hidden rounded-2xl border border-[#ff5c00] bg-white shadow-lg hover:shadow-xl transition-shadow md:min-h-[620px] flex flex-col">
@@ -226,14 +229,17 @@ function SmallCard({ p }: { p: Product }) {
   const { show } = useToast();
   const outOfStock = Boolean(p.trackStock) && (p.stockQty != null) && (p.stockQty <= 0);
   const handleWhatsApp = () => {
+    if (typeof window === "undefined") return;
     const rawPhone = p.phone;
     const digits = rawPhone ? String(rawPhone).replace(/\D/g, "") : "";
-    const msg = encodeURIComponent(`Olá! Tenho interesse no produto: ${p.name} (R$ ${(p.price || 0).toFixed(2)}).`);
+    const baseUrl = window.location.origin || "https://guiadasbancas.com";
+    const productPath = "/produto/" + slugify(p.name) + "-" + p.id;
+    const productUrl = baseUrl + productPath;
+    const text = `Olá! Tenho interesse no produto: ${p.name} (R$ ${(p.price || 0).toFixed(2)}).\n\nVer produto: ${productUrl}`;
+    const msg = encodeURIComponent(text);
     const base = digits ? `https://wa.me/${digits}` : "https://wa.me";
     const url = `${base}?text=${msg}`;
-    if (typeof window !== "undefined") {
-      window.location.href = url;
-    }
+    window.location.href = url;
   };
   
   return (

@@ -292,7 +292,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
             </button>
             {phone ? (
               <a
-                href={`https://wa.me/${phone.replace(/\D/g, "")}\?text=${encodeURIComponent(`Olá! Gostaria de comprar ${p.name}.`)}`}
+                href={`https://wa.me/${phone.replace(/\D/g, "")}\?text=${encodeURIComponent(`Olá! Gostaria de comprar ${p.name}.\n\nVer produto: https://guiadasbancas.com/produto/${slugify(p.name)}-${p.id}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`w-full inline-flex items-center justify-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold ${outOfStock ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50 pointer-events-none' : 'border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15'}`}
@@ -788,13 +788,19 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       };
 
       let timer = start();
-      const stop = () => { if (timer) { window.clearInterval(timer); timer = undefined as any; } };
-      const resume = () => { stop(); timer = start(); };
+      const stop = () => {
+        if (timer) {
+          window.clearInterval(timer);
+          timer = undefined as any;
+        }
+      };
 
       // Pausa/retoma em interação e visibilidade
       const onEnter = () => stop();
-      const onLeave = () => resume();
-      const onVisibility = () => { if (document.hidden) stop(); else resume(); };
+      const onLeave = () => start();
+      const onVisibility = () => {
+        if (document.hidden) stop(); else start();
+      };
       el.addEventListener('mouseenter', onEnter);
       el.addEventListener('mouseleave', onLeave);
       el.addEventListener('touchstart', onEnter, { passive: true } as any);
@@ -1006,20 +1012,22 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
               title="Clique para copiar o código"
             >
               <div className="pointer-events-none absolute -right-8 -bottom-8 h-24 w-24 rounded-full bg-white/10" />
-              <div className="flex items-center gap-2 md:gap-3 px-3 py-2 md:px-4 md:py-3">
-                <div className="grid h-7 w-7 md:h-9 md:w-9 place-items-center rounded-lg md:rounded-xl bg-[#ff7a33] text-white shadow ring-1 ring-black/10">
-                  <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                    <path d="M3 7h18v4H3zM6 11v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-7" />
-                  </svg>
+              <div className="relative">
+                <div className="flex items-center gap-2 md:gap-3 px-3 py-2 md:px-4 md:py-3">
+                  <div className="grid h-7 w-7 md:h-9 md:w-9 place-items-center rounded-lg md:rounded-xl bg-[#ff7a33] text-white shadow ring-1 ring-black/10">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <path d="M3 7h18v4H3zM6 11v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-7" />
+                    </svg>
+                  </div>
+                  <div className="min-w-0 text-left">
+                    <div className="text-[9px] md:text-[10px] uppercase tracking-wide text-white/90">{highlightCoupon.title}</div>
+                    <div className="text-xs md:text-base md:font-bold font-semibold tracking-wider">{highlightCoupon.code}</div>
+                  </div>
                 </div>
-                <div className="min-w-0 text-left">
-                  <div className="text-[9px] md:text-[10px] uppercase tracking-wide text-white/90">{highlightCoupon.title}</div>
-                  <div className="text-xs md:text-base md:font-bold font-semibold tracking-wider">{highlightCoupon.code}</div>
+                <div className="px-3 pb-2 md:px-4 md:pb-3 text-[9px] md:text-[10px] text-white/90">
+                  Use no checkout e ganhe <span className="font-semibold">{highlightCoupon.discountText}</span>
+                  {copiedCoupon && <span className="ml-1 md:ml-2 rounded bg-white/20 px-1.5 md:px-2 py-[2px] text-[8px] md:text-[10px]">Copiado!</span>}
                 </div>
-              </div>
-              <div className="px-3 pb-2 md:px-4 md:pb-3 text-[9px] md:text-[10px] text-white/90">
-                Use no checkout e ganhe <span className="font-semibold">{highlightCoupon.discountText}</span>
-                {copiedCoupon && <span className="ml-1 md:ml-2 rounded bg-white/20 px-1.5 md:px-2 py-[2px] text-[8px] md:text-[10px]">Copiado!</span>}
               </div>
             </button>
           </div>
@@ -1042,7 +1050,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                 </div>
                 {km != null && (
                   <div className="inline-flex items-center gap-1 rounded-full bg-white/80 backdrop-blur px-2 py-[2px] text-[11px] text-gray-700">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5z"/></svg>
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 11.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5z"/></svg>
                     {Math.ceil(km) > 3 ? "+3 km" : `${Math.max(1, Math.ceil(km))} km`}
                   </div>
                 )}
@@ -1092,7 +1100,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-1.5 rounded-md border border-gray-300 text-gray-700 font-semibold px-3 py-2 leading-tight hover:bg-gray-50 text-xs"
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 11a4 4 0 110-8 4 4 0 010 8z"/></svg>
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 11.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5z"/></svg>
             Como chegar
           </a>
           {/* Ligar */}
