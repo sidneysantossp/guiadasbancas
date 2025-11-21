@@ -33,21 +33,8 @@ const BrancaleoneProducts = dynamic(() => import("@/components/BrancaleoneProduc
 const MiniBanners = dynamic(() => import("@/components/MiniBanners"), { 
   ssr: false
 });
-const FavoritePicks = dynamic(() => import("@/components/FavoritePicks"), { 
-  ssr: false
-});
-const TopReviewed = dynamic(() => import("@/components/TopReviewed"), { 
-  ssr: false
-});
-const TurmaDaMonica = dynamic(() => import("@/components/TurmaDaMonica"), { 
-  ssr: false
-});
-const MarvelComics = dynamic(() => import("@/components/MarvelComics"), { 
-  ssr: false
-});
-const NewArrivals = dynamic(() => import("@/components/NewArrivals"), { 
-  ssr: false
-});
+// Seções antigas baseadas em mock (TurmaDaMonica, MarvelComics, FavoritePicks, TopReviewed, NewArrivals)
+// foram removidas da home para evitar qualquer dado fictício na vitrine principal.
 const ReferralBanner = dynamic(() => import("@/components/ReferralBanner"), { 
   ssr: false
 });
@@ -76,21 +63,9 @@ export default function HomePage() {
         <FeaturedBancas />
       </Suspense>
 
-      {/* LAZY LOADING: Carrega conforme scroll */}
+      {/* LAZY LOADING: Carrega conforme scroll, apenas com dados reais */}
       <Suspense fallback={null}>
         <MostSearchedProducts />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <div className="py-6">
-          <TurmaDaMonica />
-        </div>
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <div className="py-6">
-          <MarvelComics />
-        </div>
       </Suspense>
 
       <Suspense fallback={null}>
@@ -111,25 +86,7 @@ export default function HomePage() {
 
       <Suspense fallback={null}>
         <div className="py-6">
-          <FavoritePicks />
-        </div>
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <div className="py-6">
-          <TopReviewed />
-        </div>
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <div className="py-6">
           <ReferralBanner />
-        </div>
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <div className="py-6">
-          <NewArrivals />
         </div>
       </Suspense>
 

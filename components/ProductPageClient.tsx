@@ -26,6 +26,7 @@ export type ProductDetail = {
     name: string;
     avatar: string;
     distanceKm?: number | null;
+    phone?: string;
   };
   stock?: number;
   description?: string;
@@ -351,7 +352,19 @@ function RelatedCarousel({ items }: { items: RelatedProduct[] }) {
                     >
                       Adicionar ao carrinho
                     </button>
-                    <button className="w-full rounded-md border border-[#ff5c00] text-[#ff5c00] text-[10px] font-semibold px-3 py-1.5 leading-tight hover:bg-[#fff3ec] inline-flex items-center justify-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try {
+                          const msg = encodeURIComponent(`Olá! Tenho interesse no produto: ${it.name} (R$ ${it.price.toFixed(2)}).`);
+                          const url = `https://wa.me?text=${msg}`;
+                          if (typeof window !== "undefined") {
+                            window.open(url, "_blank", "noopener,noreferrer");
+                          }
+                        } catch {}
+                      }}
+                      className="w-full rounded-md border border-[#ff5c00] text-[#ff5c00] text-[10px] font-semibold px-3 py-1.5 leading-tight hover:bg-[#fff3ec] inline-flex items-center justify-center gap-1.5"
+                    >
                       <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
                       Comprar pelo WhatsApp
                     </button>
@@ -459,6 +472,7 @@ export default function ProductPageClient({ productId }: { productId: string }) 
             name: bancaData?.name || "Banca Local",
             avatar: bancaData?.avatar || bancaData?.images?.avatar || "https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=200&auto=format&fit=crop",
             distanceKm: null,
+            phone: bancaData?.contact?.whatsapp || bancaData?.phone || bancaData?.telefone || bancaData?.whatsapp_phone,
           },
           stock: p.stock_qty || 0,
           description: p.description_full || p.description || "Descrição não disponível",
@@ -539,6 +553,17 @@ export default function ProductPageClient({ productId }: { productId: string }) 
   const max = Math.max(1, product.images.length - 1);
   const { addToCart, items } = useCart();
   const { show } = useToast();
+
+  const handleWhatsAppMain = () => {
+    const rawPhone = product.vendor.phone;
+    const digits = rawPhone ? rawPhone.replace(/\D/g, "") : "";
+    const msg = encodeURIComponent(`Olá! Tenho interesse no produto: ${product.name} (R$ ${product.price.toFixed(2)}).`);
+    const base = digits ? `https://wa.me/${digits}` : "https://wa.me";
+    const url = `${base}?text=${msg}`;
+    if (typeof window !== "undefined") {
+      window.location.href = url;
+    }
+  };
 
   // Gerar dados estruturados
   const productSchema = generateProductSchema(product, reviews, reviewStats);
@@ -625,7 +650,11 @@ export default function ProductPageClient({ productId }: { productId: string }) 
           </div>
 
           <div className="mt-3">
-            <button className="w-full rounded-md border border-[#ff5c00] text-[#ff5c00] font-semibold px-4 py-2.5 hover:bg-[#fff3ec] text-sm inline-flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={handleWhatsAppMain}
+              className="w-full rounded-md border border-[#ff5c00] text-[#ff5c00] font-semibold px-4 py-2.5 hover:bg-[#fff3ec] text-sm inline-flex items-center justify-center gap-2"
+            >
               <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={16} height={16} className="h-4 w-4 object-contain" />
               Comprar pelo WhatsApp
             </button>

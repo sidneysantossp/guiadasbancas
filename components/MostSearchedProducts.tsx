@@ -29,8 +29,8 @@ export type Product = {
   preVenda?: boolean;
   bancaId?: string;
   bancaName?: string;
+  phone?: string;
 };
-
 
 type ApiProduct = {
   id: string;
@@ -50,7 +50,7 @@ type ApiProduct = {
   pronta_entrega?: boolean;
 };
 
-type ApiBanca = { id: string; name: string; cover?: string; avatar?: string };
+type ApiBanca = { id: string; name: string; cover?: string; avatar?: string; contact?: { whatsapp?: string; phone?: string; telefone?: string; whatsapp_phone?: string } };
 
 function Price({ value, original, size = 'sm' }: { value?: number; original?: number | null; size?: 'sm' | 'lg' }) {
   if (typeof value !== "number") return null;
@@ -105,6 +105,16 @@ function FeaturedCard({ p }: { p: Product }) {
   const { items } = useCart();
   const subtotal = items.reduce((s, it) => s + (it.price ?? 0) * it.qty, 0);
   const qualifies = shippingConfig.freeShippingEnabled || subtotal >= shippingConfig.freeShippingThreshold;
+  const handleWhatsApp = () => {
+    const rawPhone = p.phone;
+    const digits = rawPhone ? String(rawPhone).replace(/\D/g, "") : "";
+    const msg = encodeURIComponent(`Olá! Tenho interesse no produto: ${p.name} (R$ ${(p.price || 0).toFixed(2)}).`);
+    const base = digits ? `https://wa.me/${digits}` : "https://wa.me";
+    const url = `${base}?text=${msg}`;
+    if (typeof window !== "undefined") {
+      window.location.href = url;
+    }
+  };
   return (
     <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="group relative col-span-12 md:col-span-5 row-span-2 overflow-hidden rounded-2xl border border-[#ff5c00] bg-white shadow-lg hover:shadow-xl transition-shadow md:min-h-[620px] flex flex-col">
       <div className="relative w-full group h-72 md:h-[280px]">
@@ -196,7 +206,11 @@ function FeaturedCard({ p }: { p: Product }) {
           {/* Botões no rodapé do card */}
           <div className="pt-2 flex flex-col gap-2">
             <button className="w-full rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-3 py-2 text-xs font-semibold text-white shadow hover:opacity-95" onClick={(e)=>{ e.preventDefault(); addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: p.bancaId, banca_name: p.bancaName }, 1); show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>); }}>Comprar</button>
-            <button className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-[#ff5c00] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#ff5c00] leading-tight hover:bg-[#fff3ec] whitespace-nowrap">
+            <button
+              type="button"
+              onClick={(e)=>{ e.preventDefault(); handleWhatsApp(); }}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-[#ff5c00] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#ff5c00] leading-tight hover:bg-[#fff3ec] whitespace-nowrap"
+            >
               <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
               Comprar pelo WhatsApp
             </button>
@@ -211,6 +225,16 @@ function SmallCard({ p }: { p: Product }) {
   const { addToCart } = useCart();
   const { show } = useToast();
   const outOfStock = Boolean(p.trackStock) && (p.stockQty != null) && (p.stockQty <= 0);
+  const handleWhatsApp = () => {
+    const rawPhone = p.phone;
+    const digits = rawPhone ? String(rawPhone).replace(/\D/g, "") : "";
+    const msg = encodeURIComponent(`Olá! Tenho interesse no produto: ${p.name} (R$ ${(p.price || 0).toFixed(2)}).`);
+    const base = digits ? `https://wa.me/${digits}` : "https://wa.me";
+    const url = `${base}?text=${msg}`;
+    if (typeof window !== "undefined") {
+      window.location.href = url;
+    }
+  };
   
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex h-full w-full flex-col flex-1">
@@ -348,10 +372,12 @@ function SmallCard({ p }: { p: Product }) {
               {outOfStock ? 'Esgotado' : 'Adicionar ao Carrinho'}
             </button>
             <button
+              type="button"
+              onClick={handleWhatsApp}
               className="w-full inline-flex items-center justify-center gap-1.5 rounded-md border border-[#5ad58a] bg-[#eafff3] text-[#1f9c4a] hover:bg-[#dcffe9] px-3 py-2 text-[12px] font-semibold"
             >
               <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={16} height={16} className="h-4 w-4 object-contain" />
-              Comprar
+              Comprar pelo WhatsApp
             </button>
           </div>
         </div>
@@ -425,6 +451,7 @@ export default function MostSearchedProducts() {
             preVenda: p.pre_venda ?? false,
             bancaId: p.banca_id,
             bancaName: bancas[p.banca_id || '']?.name,
+            phone: bancas[p.banca_id || '']?.contact?.whatsapp || bancas[p.banca_id || '']?.contact?.whatsapp_phone || bancas[p.banca_id || '']?.contact?.phone || bancas[p.banca_id || '']?.contact?.telefone,
           };
         });
         
