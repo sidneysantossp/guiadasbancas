@@ -18,57 +18,6 @@ export type TrendProduct = {
   reviewsCount?: number | null;
 };
 
-const CATEGORY_SLUGS = [
-  "figurinhas",
-  "revistas",
-  "quadrinhos",
-  "jornais",
-  "papelaria",
-];
-
-const FALLBACK_PRODUCTS: TrendProduct[] = [
-  {
-    id: "fallback-figurinhas",
-    name: "Pacote Figurinhas Copa 2026 - Kit com 10 unidades",
-    image: "https://images.unsplash.com/photo-1511288590094-2540f81c77d1?q=80&w=1200&auto=format&fit=crop",
-    price: 24.9,
-    priceOriginal: 29.9,
-    discountPercent: 17,
-    ratingAvg: 4.8,
-    reviewsCount: 56,
-  },
-  {
-    id: "fallback-revistas",
-    name: "Revista Veja - Edição Semanal Especial",
-    image: "https://images.unsplash.com/photo-1516979187457-637abb4f9353?q=80&w=1200&auto=format&fit=crop",
-    price: 9.9,
-    priceOriginal: null,
-    discountPercent: null,
-    ratingAvg: 4.6,
-    reviewsCount: 34,
-  },
-  {
-    id: "fallback-quadrinhos",
-    name: "Turma da Mônica - Graphic MSP Edição Limitada",
-    image: "https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=1200&auto=format&fit=crop",
-    price: 32.5,
-    priceOriginal: 39.9,
-    discountPercent: 18,
-    ratingAvg: 4.9,
-    reviewsCount: 89,
-  },
-  {
-    id: "fallback-jornais",
-    name: "Assinatura Jornal Diário Popular - Final de Semana",
-    image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1200&auto=format&fit=crop",
-    price: 12.9,
-    priceOriginal: 15.9,
-    discountPercent: 19,
-    ratingAvg: 4.4,
-    reviewsCount: 21,
-  },
-];
-
 type ApiProduct = {
   id: string;
   name: string;
@@ -248,35 +197,16 @@ export default function TrendingProducts() {
     (async () => {
       try {
         setLoading(true);
-        const [categoriesRes, ...rest] = await Promise.all([
-          fetch('/api/categories', { cache: 'no-store' }),
-        ]);
-
-        let categoryMap: Record<string, string> = {};
-        if (categoriesRes.ok) {
-          const cj = await categoriesRes.json();
-          const catList: Array<{ id: string; link?: string; name?: string }> = Array.isArray(cj?.data) ? cj.data : [];
-          categoryMap = Object.fromEntries(
-            catList.map(cat => {
-              const slugFromLink = cat.link?.split('/').pop() || '';
-              return [slugFromLink || cat.name?.toLowerCase() || '', cat.id];
-            })
-          );
+        const HQS_COMICS_ID = '1e813114-e1bc-442d-96e4-2704910d157d';
+        const r = await fetch(`/api/products/public?category=${encodeURIComponent(HQS_COMICS_ID)}&limit=24&sort=created_at&order=desc`, {
+          next: { revalidate: 60 } as any,
+        });
+        if (!r.ok) {
+          if (active) setApiItems([]);
+          return;
         }
-
-        const fetchByCategory = async (slug: string) => {
-          const categoryId = categoryMap[slug];
-          if (!categoryId) return [] as ApiProduct[];
-          const r = await fetch(`/api/products/public?category=${encodeURIComponent(categoryId)}&limit=8&sort=created_at&order=desc`, {
-            next: { revalidate: 60 } as any,
-          });
-          if (!r.ok) return [] as ApiProduct[];
-          const j = await r.json();
-          return Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
-        };
-
-        const results = await Promise.all(CATEGORY_SLUGS.map(fetchByCategory));
-        const merged = results.flat();
+        const j = await r.json();
+        const merged: ApiProduct[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
         const seen = new Set<string>();
         const mapped: TrendProduct[] = merged
           .filter(p => p?.id && !seen.has(p.id) && typeof p.price === 'number')
@@ -304,7 +234,7 @@ export default function TrendingProducts() {
     return () => { active = false; };
   }, []);
 
-  const items = useMemo(() => (apiItems.length ? apiItems : FALLBACK_PRODUCTS), [apiItems]);
+  const items = useMemo(() => apiItems, [apiItems]);
   const track = useMemo(() => [...items, ...items], [items]);
 
   useEffect(() => {
@@ -315,12 +245,16 @@ export default function TrendingProducts() {
     return () => clearInterval(id);
   }, []);
 
+  if (!loading && items.length === 0) {
+    return null;
+  }
+
   return (
     <section className="w-full">
       <div className="container-max">
         <div className="mb-3 flex items-center gap-2">
           <FireIcon />
-          <h2 className="text-lg sm:text-xl font-semibold">Produtos em alta</h2>
+          <h2 className="text-lg sm:text-xl font-semibold">HQs e Comics</h2>
         </div>
 
         <div className="relative">

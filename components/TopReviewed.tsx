@@ -7,7 +7,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 
-// Mock de itens mais bem avaliados
 type TopItem = {
   id: string;
   title: string;
@@ -22,53 +21,6 @@ type TopItem = {
   discountLabel?: string;
   code?: string; // Código do produto (codigo_mercos)
 };
-
-const TOPS: TopItem[] = [
-  {
-    id: "t1",
-    title: "Produto da Banca",
-    vendor: "Hungry Puppets",
-    image: "https://images.unsplash.com/photo-1548365328-9f547fb095de?q=80&w=1200&auto=format&fit=crop",
-    price: 370,
-    oldPrice: 400,
-    rating: 4.7,
-    reviews: 3,
-    available: false,
-    discountLabel: "$30.00",
-  },
-  {
-    id: "t2",
-    title: "Produto da Banca",
-    vendor: "Cheese Burger",
-    image: "https://images.unsplash.com/photo-1550547660-8b1290f252a9?q=80&w=1200&auto=format&fit=crop",
-    price: 80,
-    rating: 5.0,
-    reviews: 1,
-    available: true,
-  },
-  {
-    id: "t3",
-    title: "Produto da Banca",
-    vendor: "Vintage Kitchen",
-    image: "https://images.unsplash.com/photo-1604909052743-88c0dbcc7c9d?q=80&w=1200&auto=format&fit=crop",
-    price: 320,
-    rating: 5.0,
-    reviews: 1,
-    available: false,
-  },
-  {
-    id: "t4",
-    title: "Produto da Banca",
-    vendor: "Redcliff Cafe",
-    image: "https://images.unsplash.com/photo-1495147466023-ac5c588e2e94?q=80&w=1200&auto=format&fit=crop",
-    price: 13.58,
-    oldPrice: 14,
-    rating: 5.0,
-    reviews: 1,
-    available: true,
-    discountLabel: "3%",
-  },
-];
 
 function RatingPill({ rating = 5.0, reviews = 1 }: { rating?: number; reviews?: number }) {
   return (
@@ -240,9 +192,9 @@ export default function TopReviewed() {
           };
         });
 
-        if (alive) setItems(mapped.length ? mapped : TOPS);
+        if (alive) setItems(mapped.length ? mapped : []);
       } catch {
-        if (alive) setItems(TOPS);
+        if (alive) setItems([]);
       } finally {
         if (alive) setLoading(false);
       }
@@ -250,10 +202,13 @@ export default function TopReviewed() {
     return () => { alive = false; };
   }, []);
 
-  const cards = useMemo(() => (Array.isArray(items) && items.length ? items : TOPS).map((p) => ({ type: "card" as const, p })), [items]);
+  const cards = useMemo(() => (Array.isArray(items) ? items : []), [items]).map((p) => ({ type: "card" as const, p }));
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);
   const loopCards = useMemo(() => [...cards, ...cards], [cards]);
+  if (!loading && cards.length === 0) {
+    return null;
+  }
   useEffect(() => {
     const id = setInterval(() => {
       setIndex((i) => i + 1);

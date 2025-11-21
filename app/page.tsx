@@ -2,17 +2,13 @@ import FullBanner from "@/components/FullBanner";
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
 
-// Banner de indicação com SSR desabilitado para evitar erros de hidratação
 const ReferralPlatformBannerWrapper = dynamic(
   () => import("@/components/ReferralPlatformBannerWrapper"),
   { ssr: false }
 );
 
-
-// CRÍTICO: Apenas componentes above-fold carregam imediatamente
 const MiniCategoryBar = dynamic(() => import("@/components/MiniCategoryBar"));
 const MobileCategoryScroller = dynamic(() => import("@/components/MobileCategoryScroller"));
-// PRIORIDADE ALTA: Componentes visíveis no primeiro scroll
 const CategoryCarousel = dynamic(() => import("@/components/CategoryCarousel"), { 
   ssr: false
 });
@@ -20,7 +16,6 @@ const FeaturedBancas = dynamic(() => import("@/components/FeaturedBancas"), {
   ssr: false
 });
 
-// LAZY: Componentes below-fold carregam sob demanda
 const MostSearchedProducts = dynamic(() => import("@/components/MostSearchedProducts"), { 
   ssr: false
 });
@@ -33,16 +28,21 @@ const BrancaleoneProducts = dynamic(() => import("@/components/BrancaleoneProduc
 const MiniBanners = dynamic(() => import("@/components/MiniBanners"), { 
   ssr: false
 });
-// Seções antigas baseadas em mock (TurmaDaMonica, MarvelComics, FavoritePicks, TopReviewed, NewArrivals)
-// foram removidas da home para evitar qualquer dado fictício na vitrine principal.
+const TopReviewed = dynamic(() => import("@/components/TopReviewed"), {
+  ssr: false
+});
+const FavoritePicks = dynamic(() => import("@/components/FavoritePicks"), {
+  ssr: false
+});
+const TrendingProducts = dynamic(() => import("@/components/TrendingProducts"), {
+  ssr: false
+});
 const ReferralBanner = dynamic(() => import("@/components/ReferralBanner"), { 
   ssr: false
 });
 const Newsletter = dynamic(() => import("@/components/Newsletter"), { 
   ssr: false
 });
-
-// Import movido para o topo do arquivo
 
 export default function HomePage() {
   return (
@@ -66,6 +66,21 @@ export default function HomePage() {
       {/* LAZY LOADING: Carrega conforme scroll, apenas com dados reais */}
       <Suspense fallback={null}>
         <MostSearchedProducts />
+      </Suspense>
+
+      {/* Bomboniere */}
+      <Suspense fallback={null}>
+        <TopReviewed />
+      </Suspense>
+
+      {/* Bebidas */}
+      <Suspense fallback={null}>
+        <FavoritePicks />
+      </Suspense>
+
+      {/* HQs & Comics */}
+      <Suspense fallback={null}>
+        <TrendingProducts />
       </Suspense>
 
       <Suspense fallback={null}>
