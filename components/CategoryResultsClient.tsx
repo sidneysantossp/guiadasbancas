@@ -23,6 +23,8 @@ export type Product = {
   rating?: number;
   reviews?: number;
   ready?: boolean;
+  bancaId?: string;
+  phone?: string;
 };
 
 export type Banca = {
@@ -205,6 +207,56 @@ function ProductCard({ p, km }: { p: Product; km: number | null }) {
           </div>
           <span className="text-[11px] text-gray-500">&nbsp;</span>
         </div>
+
+        <div className="mt-2 flex flex-col gap-1.5">
+          <button
+            type="button"
+            className="w-full rounded-md bg-[#ff5c00] text-white text-[11px] font-semibold py-1.5 hover:opacity-95"
+            onClick={() => {
+              addToCart(
+                {
+                  id: p.id,
+                  name: p.name,
+                  price: p.price,
+                  image: p.image,
+                  banca_id: p.bancaId,
+                  banca_name: p.vendor,
+                },
+                1
+              );
+              show(
+                <span>
+                  Adicionado ao carrinho. {" "}
+                  <Link href="/carrinho" className="underline font-semibold">
+                    Ver carrinho
+                  </Link>
+                </span>
+              );
+            }}
+          >
+            Adicionar ao carrinho
+          </button>
+
+          {p.phone && (
+            <a
+              href={`https://wa.me/${String(p.phone).replace(/\D/g, "")}?text=${encodeURIComponent(
+                `Olá! Tenho interesse no produto: ${p.name} (R$ ${p.price.toFixed(2)}).`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full inline-flex items-center justify-center gap-1.5 rounded-md border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] text-[11px] font-semibold py-1.5 hover:bg-[#25D366]/15"
+            >
+              <Image
+                src="https://cdn-icons-png.flaticon.com/128/733/733585.png"
+                alt="WhatsApp"
+                width={14}
+                height={14}
+                className="h-3.5 w-3.5 object-contain"
+              />
+              Comprar pelo WhatsApp
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -350,6 +402,8 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
                   rating: item.rating_avg || 5,
                   reviews: item.reviews_count || 0,
                   ready: true,
+                  bancaId: item.banca_id,
+                  phone: banca?.phone || banca?.whatsapp || banca?.telefone || banca?.whatsapp_phone,
                 };
               });
             
