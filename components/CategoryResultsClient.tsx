@@ -166,10 +166,8 @@ function slugify(text: string) {
 
 function ProductCard({ p, km }: { p: Product; km: number | null }) {
   const [fav, setFav] = useState(false);
-  const { addToCart, items } = useCart();
+  const { addToCart } = useCart();
   const { show } = useToast();
-  const subtotal = items.reduce((s, it) => s + (it.price ?? 0) * it.qty, 0);
-  const qualifies = shippingConfig.freeShippingEnabled || subtotal >= shippingConfig.freeShippingThreshold;
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition">
       <div className="relative h-40 sm:h-44 lg:h-36 w-full group">
@@ -197,14 +195,6 @@ function ProductCard({ p, km }: { p: Product; km: number | null }) {
         <div className="mt-2 flex items-center justify-between">
           <span className="text-[#ff5c00] font-extrabold">R$ {p.price.toFixed(2)}</span>
           <DistancePill km={km} />
-        </div>
-        {/* Teaser frete grátis */}
-        <div className="mt-1 text-[11px]">
-          {qualifies ? (
-            <span className="text-emerald-700">Frete grátis!</span>
-          ) : (
-            <span className="text-gray-600">Faltam R$ {(Math.max(0, shippingConfig.freeShippingThreshold - subtotal)).toFixed(2)} para frete grátis</span>
-          )}
         </div>
         <div className="mt-2 flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">

@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useCategories } from "@/lib/useCategories";
 import RelatedProductsSlider from "@/components/RelatedProductsSlider";
+import { useCart } from "@/components/CartContext";
+import { useToast } from "@/components/ToastProvider";
 
 type Banca = {
   id: string;
@@ -32,6 +35,8 @@ function BuscarPageContent() {
   const q = params.get("q") || "";
 
   const [loc, setLoc] = useState<{ lat: number; lng: number; state?: string } | null>(null);
+  const { addToCart } = useCart();
+  const { show } = useToast();
   useEffect(() => {
     try {
       const raw = localStorage.getItem("gb:userLocation");
@@ -224,78 +229,136 @@ function BuscarPageContent() {
             <div>
               <h2 className="text-lg font-semibold mb-4">Produtos ({filteredProducts.length})</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {filteredProducts.map((product) => (
-                  <Link
-                    key={product.id}
-                    href={`/produto/${product.name.toLowerCase().replace(/\s+/g, '-')}-prod-${product.id}`}
-                    className="block bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
-                  >
-                    <div className="relative h-32 sm:h-28 lg:h-24 bg-gray-100">
-                      {product.images?.[0] ? (
-                        <img
-                          src={product.images[0]}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl text-gray-400">
-                          📦
+                {filteredProducts.map((product) => {
+                  const productHref = `/produto/${product.name.toLowerCase().replace(/\s+/g, '-')}-prod-${product.id}`;
+                  const bancaPhone = product.banca?.phone || product.banca?.whatsapp || product.banca?.telefone || product.banca?.whatsapp_phone;
+                  return (
+                    <div
+                      key={product.id}
+                      className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow flex flex-col"
+                    >
+                      <Link
+                        href={productHref}
+                        className="block"
+                      >
+                        <div className="relative h-32 sm:h-28 lg:h-24 bg-gray-100">
+                          {product.images?.[0] ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={product.images[0]}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl text-gray-400">
+                              📦
+                            </div>
+                          )}
+                          {product.discount_percent && (
+                            <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                              -{product.discount_percent}%
+                            </div>
+                          )}
                         </div>
-                      )}
-                      
-                      {product.discount_percent && (
-                        <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                          -{product.discount_percent}%
-                        </div>
-                      )}
-                    </div>
+                      </Link>
 
-                    <div className="p-3">
-                      <h3 className="font-medium text-gray-900 text-sm line-clamp-2 mb-2">
-                        {product.name}
-                      </h3>
-                      
-                      {product.rating_avg && (
-                        <div className="flex items-center gap-1 mb-2">
-                          <div className="flex">
-                            {[...Array(5)].map((_, i) => (
-                              <svg
-                                key={i}
-                                className={`w-3 h-3 ${
-                                  i < Math.floor(product.rating_avg) 
-                                    ? 'text-yellow-400' 
-                                    : 'text-gray-300'
-                                }`}
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
-                            ))}
-                          </div>
-                          <span className="text-xs text-gray-500">
-                            ({product.reviews_count})
-                          </span>
-                        </div>
-                      )}
+                      <div className="p-3 flex flex-col gap-2 flex-1">
+                        <h3 className="font-medium text-gray-900 text-sm line-clamp-2">
+                          {product.name}
+                        </h3>
 
-                      <div className="space-y-1">
-                        {product.price_original && (
-                          <div className="text-xs text-gray-500 line-through">
-                            De: R$ {product.price_original.toFixed(2)}
+                        {product.rating_avg && (
+                          <div className="flex items-center gap-1">
+                            <div className="flex">
+                              {[...Array(5)].map((_, i) => (
+                                <svg
+                                  key={i}
+                                  className={`w-3 h-3 ${
+                                    i < Math.floor(product.rating_avg)
+                                      ? "text-yellow-400"
+                                      : "text-gray-300"
+                                  }`}
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                              ))}
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              ({product.reviews_count})
+                            </span>
                           </div>
                         )}
-                        <div className="text-sm font-semibold text-[#ff5c00]">
-                          R$ {product.price.toFixed(2)}
+
+                        <div className="space-y-1">
+                          {product.price_original && (
+                            <div className="text-xs text-gray-500 line-through">
+                              De: R$ {product.price_original.toFixed(2)}
+                            </div>
+                          )}
+                          <div className="text-sm font-semibold text-[#ff5c00]">
+                            R$ {product.price.toFixed(2)}
+                          </div>
+                        </div>
+
+                        <div className="text-xs text-gray-500">
+                          {product.banca?.name || "Banca"}
+                        </div>
+
+                        <div className="mt-2 flex flex-col gap-1">
+                          <button
+                            type="button"
+                            className="w-full rounded-md bg-[#ff5c00] text-white text-xs font-semibold py-2 hover:opacity-95"
+                            onClick={() => {
+                              addToCart(
+                                {
+                                  id: product.id,
+                                  name: product.name,
+                                  price: product.price,
+                                  image: product.images?.[0],
+                                  banca_id: product.banca?.id,
+                                  banca_name: product.banca?.name,
+                                },
+                                1
+                              );
+                              show(
+                                <span>
+                                  Adicionado ao carrinho. {" "}
+                                  <Link href="/carrinho" className="underline font-semibold">
+                                    Ver carrinho
+                                  </Link>
+                                </span>
+                              );
+                            }}
+                          >
+                            Adicionar ao carrinho
+                          </button>
+
+                          {bancaPhone && (
+                            <a
+                              href={`https://wa.me/${String(bancaPhone).replace(/\D/g, "")}?text=${encodeURIComponent(
+                                `Olá! Tenho interesse no produto: ${product.name} (R$ ${product.price.toFixed(2)}).`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full inline-flex items-center justify-center gap-1.5 rounded-md border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] text-xs font-semibold py-2 hover:bg-[#25D366]/15"
+                            >
+                              <Image
+                                src="https://cdn-icons-png.flaticon.com/128/733/733585.png"
+                                alt="WhatsApp"
+                                width={14}
+                                height={14}
+                                className="h-3.5 w-3.5 object-contain"
+                              />
+                              Comprar pelo WhatsApp
+                            </a>
+                          )}
                         </div>
                       </div>
-
-                      <div className="text-xs text-gray-500 mt-2">
-                        {product.banca?.name || 'Banca'}
-                      </div>
                     </div>
-                  </Link>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

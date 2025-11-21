@@ -539,8 +539,6 @@ export default function ProductPageClient({ productId }: { productId: string }) 
   const max = Math.max(1, product.images.length - 1);
   const { addToCart, items } = useCart();
   const { show } = useToast();
-  const subtotal = items.reduce((s, it) => s + (it.price ?? 0) * it.qty, 0);
-  const qualifies = shippingConfig.freeShippingEnabled || subtotal >= shippingConfig.freeShippingThreshold;
 
   // Gerar dados estruturados
   const productSchema = generateProductSchema(product, reviews, reviewStats);
@@ -607,18 +605,6 @@ export default function ProductPageClient({ productId }: { productId: string }) 
             {product.oldPrice && (
               <span className="text-gray-400 line-through">R$ {product.oldPrice.toFixed(2)}</span>
             )}
-          </div>
-          {/* Teaser frete grátis */}
-          <div className="mt-1 text-[12px] flex items-center gap-1">
-            {qualifies ? (
-              <span className="text-emerald-700">Frete grátis!</span>
-            ) : (
-              <span className="text-gray-600">Faltam R$ {(Math.max(0, shippingConfig.freeShippingThreshold - subtotal)).toFixed(2)} para frete grátis</span>
-            )}
-            <svg viewBox="0 0 24 24" className="h-4 w-4 text-gray-400" fill="currentColor" aria-hidden>
-              <title>{shippingConfig.freeShippingEnabled ? "Frete grátis oferecido pela banca" : `Frete grátis ao atingir R$ ${shippingConfig.freeShippingThreshold.toFixed(2)}`}</title>
-              <path d="M12 2a10 10 0 1010 10A10.011 10.011 0 0012 2zm0 15a1.25 1.25 0 111.25-1.25A1.25 1.25 0 0112 17zm1-4.5h-2V7h2z"/>
-            </svg>
           </div>
 
           {/* (Vendedor movido para baixo, após TrustBadges) */}
