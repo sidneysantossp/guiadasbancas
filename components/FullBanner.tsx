@@ -172,8 +172,7 @@ const normalizeSliderConfig = (raw: unknown): Partial<SliderConfig> => {
 };
 
 export default function FullBanner({ bancaId }: { bancaId?: string }) {
-  // Inicia com slides padrão para nunca renderizar em branco na home
-  const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_SLIDES);
+  const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [config, setConfig] = useState<SliderConfig>(DEFAULT_CONFIG);
   const [index, setIndex] = useState(0);
   const [coupon, setCoupon] = useState<{ title: string; code: string; discountText: string } | null>(null);
@@ -192,7 +191,7 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
             const adminSlides = Array.isArray(result.data) ? result.data : [];
             const onlyActive = adminSlides.filter((s: any) => s?.active);
             const ordered = onlyActive.sort((a: any, b: any) => (a?.order ?? 999) - (b?.order ?? 999));
-            setSlides(ordered.length > 0 ? ordered : DEFAULT_SLIDES);
+            setSlides(ordered.length > 0 ? ordered : []);
             if (result.config) {
               setConfig(result.config);
             } else {
@@ -208,13 +207,13 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
               } catch {}
             }
           } else {
-            setSlides(DEFAULT_SLIDES);
+            setSlides([]);
           }
         } else {
-          setSlides(DEFAULT_SLIDES);
+          setSlides([]);
         }
       } catch {
-        setSlides(DEFAULT_SLIDES);
+        setSlides([]);
       }
     };
 
