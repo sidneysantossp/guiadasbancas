@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type ApiProduct = {
   id: string;
@@ -17,6 +17,17 @@ type ApiProduct = {
   rating_avg?: number | null;
   reviews_count?: number | null;
   codigo_mercos?: string;
+  banca_id?: string;
+};
+
+type ApiBanca = {
+  id: string;
+  name: string;
+  contact?: { whatsapp?: string | null } | null;
+  whatsapp?: string | null;
+  phone?: string | null;
+  telefone?: string | null;
+  whatsapp_phone?: string | null;
 };
 
 type MonicaProduct = {
@@ -29,6 +40,8 @@ type MonicaProduct = {
   ratingAvg?: number | null;
   reviewsCount?: number | null;
   codigo_mercos?: string;
+  vendorName?: string;
+  bancaPhone?: string | null;
 };
 
 function slugify(text: string) {
@@ -86,7 +99,8 @@ function MonicaCard({ p }: { p: MonicaProduct }) {
     const codeText = p.codigo_mercos ? ` (cód. ${p.codigo_mercos})` : "";
     const message = `Olá! Tenho interesse no produto: ${p.name}${codeText} por R$ ${price.toFixed(2)}.\n\nVer produto: ${productUrl}`;
     if (typeof window !== "undefined") {
-      window.location.href = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      const base = p.bancaPhone ? `https://wa.me/${String(p.bancaPhone).replace(/\D/g, "")}` : "https://wa.me/";
+      window.location.href = `${base}?text=${encodeURIComponent(message)}`;
     }
   };
 
@@ -117,6 +131,11 @@ function MonicaCard({ p }: { p: MonicaProduct }) {
         {p.codigo_mercos && (
           <div className="text-[11px] text-gray-500 font-mono mt-0.5">
             Cód: {p.codigo_mercos}
+          </div>
+        )}
+        {p.vendorName && (
+          <div className="text-[12px] text-gray-600 line-clamp-1 mt-0.5">
+            {p.vendorName}
           </div>
         )}
         <div className="mt-1 flex items-center gap-2">
@@ -171,8 +190,28 @@ export default function TurmaMonicaStrip() {
           if (active) setItems([]);
           return;
         }
-        const j = await r.json();
-        const merged: ApiProduct[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.data) ? j.data : []);
+        const [productsJson, bancasRes] = await Promise.all([
+          r.json(),
+          fetch("/api/bancas", { next: { revalidate: 300 } as any })
+        ]);
+
+        const merged: ApiProduct[] = Array.isArray(productsJson?.items)
+          ? productsJson.items
+          : (Array.isArray(productsJson?.data) ? productsJson.data : []);
+
+        let bancaMap: Record<string, { name: string; phone: string | null }> = {};
+        if (bancasRes.ok) {
+          try {
+            const bj = await bancasRes.json();
+            const list: ApiBanca[] = Array.isArray(bj?.data) ? bj.data : [];
+            bancaMap = Object.fromEntries(
+              list.map((b) => {
+                const phone = b.contact?.whatsapp || b.whatsapp || b.phone || b.telefone || b.whatsapp_phone || null;
+                return [b.id, { name: b.name, phone }];
+              })
+            );
+          } catch {}
+        }
 
         const namePatterns = [
           /casc[aã]o/i,
@@ -193,6 +232,7 @@ export default function TurmaMonicaStrip() {
           })
           .map((p) => {
             seen.add(p.id);
+            const bancaInfo = p.banca_id ? bancaMap[p.banca_id] : undefined;
             return {
               id: p.id,
               name: p.name,
@@ -203,6 +243,8 @@ export default function TurmaMonicaStrip() {
               ratingAvg: p.rating_avg ?? null,
               reviewsCount: p.reviews_count ?? null,
               codigo_mercos: (p as any).codigo_mercos || undefined,
+              vendorName: bancaInfo?.name,
+              bancaPhone: bancaInfo?.phone ?? null,
             } as MonicaProduct;
           });
 
