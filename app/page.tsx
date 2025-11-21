@@ -28,6 +28,9 @@ const BrancaleoneProducts = dynamic(() => import("@/components/BrancaleoneProduc
 const MiniBanners = dynamic(() => import("@/components/MiniBanners"), { 
   ssr: false
 });
+const TurmaMonicaStrip = dynamic(() => import("@/components/TurmaMonicaStrip"), {
+  ssr: false
+});
 const TopReviewed = dynamic(() => import("@/components/TopReviewed"), {
   ssr: false
 });
@@ -97,6 +100,10 @@ export default function HomePage() {
         <div className="py-6">
           <MiniBanners />
         </div>
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <TurmaMonicaStrip />
       </Suspense>
 
       <Suspense fallback={null}>
