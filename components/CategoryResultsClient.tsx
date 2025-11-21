@@ -591,40 +591,71 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
             {" "}
             <span className="text-[#ff5c00] font-semibold">“{title}”</span>.
           </p>
-          {/* Filtros Bancas */}
-          <div className="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-            <div className="text-sm text-gray-700">Resultados: <span className="font-semibold">{filteredBancas.length}</span></div>
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium">Distância</span>
-                <input type="range" min={0} max={5} step={0.5} value={maxKm} onChange={(e)=>setMaxKm(Number(e.target.value))} className="accent-[#ff5c00] range-orange w-48" />
-                <span className="text-xs text-gray-700 w-12">{maxKm>=5? '5+Km' : `${maxKm.toFixed(1)}Km`}</span>
+
+          {/* Layout com sidebar de filtros (esquerda) + lista de bancas (direita) */}
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-[260px,1fr] gap-4 items-start">
+            {/* Sidebar de filtros */}
+            <aside className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
+              <div className="text-sm font-semibold text-gray-800">Filtros</div>
+              <div className="text-xs text-gray-600">Resultados: <span className="font-semibold">{filteredBancas.length}</span></div>
+
+              {/* Filtro distância */}
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-gray-800">Distância</div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0}
+                    max={5}
+                    step={0.5}
+                    value={maxKm}
+                    onChange={(e)=>setMaxKm(Number(e.target.value))}
+                    className="accent-[#ff5c00] range-orange flex-1"
+                  />
+                  <span className="text-xs text-gray-700 w-12 text-right">{maxKm>=5? '5+Km' : `${maxKm.toFixed(1)}Km`}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Avaliação</span>
-                {[0,1,2,3,4,5].map((n)=> (
-                  <button key={n} type="button" onClick={()=>setMinStars(n)} className={`h-8 px-2 rounded-md border text-sm ${minStars===n? 'bg-[#fff3ec] border-[#ffd7bd] text-[#ff5c00]' : 'bg-white border-gray-300 text-gray-700'}`}>{n===0? 'Qualquer' : `${n}+★`}</button>
-                ))}
+
+              {/* Filtro avaliação */}
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-gray-800">Avaliação</div>
+                <div className="flex flex-wrap gap-2">
+                  {[0,1,2,3,4,5].map((n)=> (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={()=>setMinStars(n)}
+                      className={`h-8 px-2 rounded-md border text-sm ${minStars===n? 'bg-[#fff3ec] border-[#ffd7bd] text-[#ff5c00]' : 'bg-white border-gray-300 text-gray-700'}`}
+                    >
+                      {n===0? 'Qualquer' : `${n}+★`}
+                    </button>
+                  ))}
+                </div>
               </div>
+            </aside>
+
+            {/* Lista de bancas */}
+            <div>
+              {filteredBancas.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <svg viewBox="0 0 24 24" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M8 15s1.5 2 4 2 4-2 4-2"/>
+                    <path d="M9 9h.01M15 9h.01"/>
+                  </svg>
+                  <p className="text-gray-600 font-medium">Nenhuma banca encontrada com esses filtros</p>
+                  <p className="text-sm text-gray-500 mt-1">Tente ajustar a distância ou avaliação mínima</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  {filteredBancas.map(({ b, km }) => (
+                    <BancaCard key={b.id} b={b} km={km} loc={loc} description={DESCRIPTIONS[b.id as keyof typeof DESCRIPTIONS]} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-          {filteredBancas.length === 0 ? (
-            <div className="mt-6 text-center py-12 bg-gray-50 rounded-lg">
-              <svg viewBox="0 0 24 24" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M8 15s1.5 2 4 2 4-2 4-2"/>
-                <path d="M9 9h.01M15 9h.01"/>
-              </svg>
-              <p className="text-gray-600 font-medium">Nenhuma banca encontrada com esses filtros</p>
-              <p className="text-sm text-gray-500 mt-1">Tente ajustar a distância ou avaliação mínima</p>
-            </div>
-          ) : (
-            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {filteredBancas.map(({ b, km }) => (
-                <BancaCard key={b.id} b={b} km={km} loc={loc} description={DESCRIPTIONS[b.id as keyof typeof DESCRIPTIONS]} />
-              ))}
-            </div>
-          )}
+
           <style jsx>{`
             .range-orange::-webkit-slider-runnable-track{background:#ffe2d2;height:6px;border-radius:9999px}
             .range-orange::-moz-range-track{background:#ffe2d2;height:6px;border-radius:9999px}
