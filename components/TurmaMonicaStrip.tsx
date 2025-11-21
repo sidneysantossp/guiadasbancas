@@ -16,6 +16,7 @@ type ApiProduct = {
   discount_percent?: number | null;
   rating_avg?: number | null;
   reviews_count?: number | null;
+  codigo_mercos?: string;
 };
 
 type MonicaProduct = {
@@ -27,6 +28,7 @@ type MonicaProduct = {
   discountPercent?: number | null;
   ratingAvg?: number | null;
   reviewsCount?: number | null;
+  codigo_mercos?: string;
 };
 
 function slugify(text: string) {
@@ -75,6 +77,19 @@ function MonicaCard({ p }: { p: MonicaProduct }) {
 
   const href = ("/produto/" + slugify(p.name) + "-" + p.id) as Route;
 
+  const handleWhatsApp = (event: React.MouseEvent) => {
+    event.preventDefault();
+    const price = p.price ?? 0;
+    const productPath = href as string;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const productUrl = origin ? `${origin}${productPath}` : productPath;
+    const codeText = p.codigo_mercos ? ` (cód. ${p.codigo_mercos})` : "";
+    const message = `Olá! Tenho interesse no produto: ${p.name}${codeText} por R$ ${price.toFixed(2)}.\n\nVer produto: ${productUrl}`;
+    if (typeof window !== "undefined") {
+      window.location.href = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    }
+  };
+
   return (
     <Link href={href} className="group flex h-full flex-col rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
       <div className="relative px-4 pt-4 pb-3">
@@ -99,6 +114,11 @@ function MonicaCard({ p }: { p: MonicaProduct }) {
         <h3 className="text-sm font-semibold leading-snug text-gray-900 line-clamp-2">
           {p.name}
         </h3>
+        {p.codigo_mercos && (
+          <div className="text-[11px] text-gray-500 font-mono mt-0.5">
+            Cód: {p.codigo_mercos}
+          </div>
+        )}
         <div className="mt-1 flex items-center gap-2">
           <Stars value={p.ratingAvg} count={p.reviewsCount} />
         </div>
@@ -119,6 +139,14 @@ function MonicaCard({ p }: { p: MonicaProduct }) {
             className="w-full rounded px-2.5 py-1.5 text-[11px] font-semibold bg-[#ff5c00] text-white hover:opacity-95"
           >
             Adicionar ao Carrinho
+          </button>
+          <button
+            type="button"
+            onClick={handleWhatsApp}
+            className="mt-2 w-full inline-flex items-center justify-center gap-1.5 rounded border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15 px-2.5 py-1.5 text-[11px] font-semibold"
+          >
+            <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
+            Comprar pelo WhatsApp
           </button>
         </div>
       </div>
@@ -174,6 +202,7 @@ export default function TurmaMonicaStrip() {
               discountPercent: p.discount_percent != null ? Number(p.discount_percent) : null,
               ratingAvg: p.rating_avg ?? null,
               reviewsCount: p.reviews_count ?? null,
+              codigo_mercos: (p as any).codigo_mercos || undefined,
             } as MonicaProduct;
           });
 
