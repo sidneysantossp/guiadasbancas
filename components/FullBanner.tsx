@@ -172,7 +172,8 @@ const normalizeSliderConfig = (raw: unknown): Partial<SliderConfig> => {
 };
 
 export default function FullBanner({ bancaId }: { bancaId?: string }) {
-  const [slides, setSlides] = useState<HeroSlide[]>([]);
+  // Inicia com slides padrão para nunca renderizar em branco na home
+  const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_SLIDES);
   const [config, setConfig] = useState<SliderConfig>(DEFAULT_CONFIG);
   const [index, setIndex] = useState(0);
   const [coupon, setCoupon] = useState<{ title: string; code: string; discountText: string } | null>(null);
