@@ -5,7 +5,7 @@ import { Suspense } from "react";
 // Banner de indicação com SSR desabilitado para evitar erros de hidratação
 const ReferralPlatformBannerWrapper = dynamic(
   () => import("@/components/ReferralPlatformBannerWrapper"),
-  { ssr: false, loading: () => <div className="py-6"><div className="container-max"><div className="h-64 bg-gray-200 rounded-2xl"></div></div></div> }
+  { ssr: false }
 );
 
 
@@ -14,58 +14,45 @@ const MiniCategoryBar = dynamic(() => import("@/components/MiniCategoryBar"));
 const MobileCategoryScroller = dynamic(() => import("@/components/MobileCategoryScroller"));
 // PRIORIDADE ALTA: Componentes visíveis no primeiro scroll
 const CategoryCarousel = dynamic(() => import("@/components/CategoryCarousel"), { 
-  ssr: false,
-  loading: () => <div className="h-32 bg-gray-100 animate-pulse rounded-lg" />
+  ssr: false
 });
 const FeaturedBancas = dynamic(() => import("@/components/FeaturedBancas"), { 
-  ssr: false,
-  loading: () => null
+  ssr: false
 });
 
 // LAZY: Componentes below-fold carregam sob demanda
 const MostSearchedProducts = dynamic(() => import("@/components/MostSearchedProducts"), { 
-  ssr: false,
-  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+  ssr: false
 });
 const CampaignSection = dynamic(() => import("@/components/CampaignSection"), { 
-  ssr: false,
-  loading: () => <div className="h-40 bg-gray-100 animate-pulse rounded-lg" />
+  ssr: false
 });
 const BrancaleoneProducts = dynamic(() => import("@/components/BrancaleoneProducts"), { 
-  ssr: false,
-  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+  ssr: false
 });
 const MiniBanners = dynamic(() => import("@/components/MiniBanners"), { 
-  ssr: false,
-  loading: () => <div className="h-32 bg-gray-100 animate-pulse rounded-lg" />
+  ssr: false
 });
 const FavoritePicks = dynamic(() => import("@/components/FavoritePicks"), { 
-  ssr: false,
-  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+  ssr: false
 });
 const TopReviewed = dynamic(() => import("@/components/TopReviewed"), { 
-  ssr: false,
-  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+  ssr: false
 });
 const TurmaDaMonica = dynamic(() => import("@/components/TurmaDaMonica"), { 
-  ssr: false,
-  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+  ssr: false
 });
 const MarvelComics = dynamic(() => import("@/components/MarvelComics"), { 
-  ssr: false,
-  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+  ssr: false
 });
 const NewArrivals = dynamic(() => import("@/components/NewArrivals"), { 
-  ssr: false,
-  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+  ssr: false
 });
 const ReferralBanner = dynamic(() => import("@/components/ReferralBanner"), { 
-  ssr: false,
-  loading: () => <div className="h-24 bg-gray-100 animate-pulse rounded-lg" />
+  ssr: false
 });
 const Newsletter = dynamic(() => import("@/components/Newsletter"), { 
-  ssr: false,
-  loading: () => <div className="h-32 bg-gray-100 animate-pulse rounded-lg" />
+  ssr: false
 });
 
 // Import movido para o topo do arquivo
@@ -79,7 +66,7 @@ export default function HomePage() {
       <MobileCategoryScroller />
       <MiniCategoryBar />
       {/* PRIORIDADE ALTA: Primeiro scroll */}
-      <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+      <Suspense fallback={null}>
         <div className="hidden md:block md:pt-2 md:pb-4 lg:pt-0 lg:pb-4">
           <CategoryCarousel />
         </div>
@@ -90,57 +77,57 @@ export default function HomePage() {
       </Suspense>
 
       {/* LAZY LOADING: Carrega conforme scroll */}
-      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+      <Suspense fallback={null}>
         <MostSearchedProducts />
       </Suspense>
 
-      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+      <Suspense fallback={null}>
         <div className="py-6">
           <TurmaDaMonica />
         </div>
       </Suspense>
 
-      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+      <Suspense fallback={null}>
         <div className="py-6">
           <MarvelComics />
         </div>
       </Suspense>
 
-      <Suspense fallback={<div className="h-40 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+      <Suspense fallback={null}>
         <div className="py-6">
           <CampaignSection />
         </div>
       </Suspense>
 
-      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+      <Suspense fallback={null}>
         <BrancaleoneProducts />
       </Suspense>
 
-      <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+      <Suspense fallback={null}>
         <div className="py-6">
           <MiniBanners />
         </div>
       </Suspense>
 
-      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+      <Suspense fallback={null}>
         <div className="py-6">
           <FavoritePicks />
         </div>
       </Suspense>
 
-      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+      <Suspense fallback={null}>
         <div className="py-6">
           <TopReviewed />
         </div>
       </Suspense>
 
-      <Suspense fallback={<div className="h-24 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+      <Suspense fallback={null}>
         <div className="py-6">
           <ReferralBanner />
         </div>
       </Suspense>
 
-      <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+      <Suspense fallback={null}>
         <div className="py-6">
           <NewArrivals />
         </div>
@@ -149,7 +136,7 @@ export default function HomePage() {
       {/* Banner de Indicação da Plataforma */}
       <ReferralPlatformBannerWrapper />
 
-      <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg mx-4" />}>
+      <Suspense fallback={null}>
         <div className="pt-6 pb-0">
           <Newsletter />
         </div>

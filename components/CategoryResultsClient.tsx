@@ -498,6 +498,12 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
       .sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity));
   }, [loc, products, prodMaxKm, prodMinStars, maxPriceFilter]);
 
+  const maxAvailablePrice = useMemo(() => {
+    const dataSource = products.length > 0 ? products : MOCK_PRODUCTS;
+    const max = dataSource.reduce((m, p) => Math.max(m, p.price || 0), 0);
+    return max > 0 ? Math.ceil(max) : 500;
+  }, [products]);
+
   const sortedBancas = useMemo(() => {
     const dataSource = bancas.length > 0 ? bancas : MOCK_BANCAS;
     if (!loc) {
@@ -616,20 +622,19 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
               {/* Filtro preço máximo */}
               <div className="space-y-2">
                 <div className="text-sm font-medium text-gray-800">Preço máximo</div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <input
-                    type="number"
+                    type="range"
                     min={0}
+                    max={maxAvailablePrice}
                     step={1}
-                    value={maxPriceFilter || ''}
-                    onChange={(e) => {
-                      const v = Number(e.target.value.replace(',', '.'));
-                      setMaxPriceFilter(isNaN(v) ? 0 : v);
-                    }}
-                    placeholder="Sem limite"
-                    className="w-28 rounded-md border border-gray-300 px-2 py-1 text-sm"
+                    value={maxPriceFilter}
+                    onChange={(e) => setMaxPriceFilter(Number(e.target.value))}
+                    className="accent-[#ff5c00] range-orange flex-1"
                   />
-                  <span className="text-xs text-gray-500">R$</span>
+                  <span className="text-xs text-gray-700 w-24 text-right">
+                    {maxPriceFilter <= 0 ? 'Sem limite' : `Até R$ ${maxPriceFilter.toFixed(0)}`}
+                  </span>
                 </div>
               </div>
 

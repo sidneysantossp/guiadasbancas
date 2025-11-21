@@ -68,13 +68,8 @@ export default function CampaignSection() {
   };
 
   if (loading) {
-    return (
-      <section className="py-12 bg-gradient-to-r from-orange-50 to-red-50">
-        <div className="container-max">
-          <div className="text-center">Carregando ofertas...</div>
-        </div>
-      </section>
-    );
+    // Enquanto carrega, não exibe nada para não bloquear o layout da home
+    return null;
   }
 
   const campaignsWithProducts: CampaignWithProduct[] = campaigns.filter((campaign): campaign is CampaignWithProduct => {
