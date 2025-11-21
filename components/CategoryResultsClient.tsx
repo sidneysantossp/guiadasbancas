@@ -325,6 +325,10 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
   // Filtros (aba Bancas)
   const [maxKm, setMaxKm] = useState<number>(5);
   const [minStars, setMinStars] = useState<number>(0);
+  // Filtros (aba Produtos)
+  const [prodMaxKm, setProdMaxKm] = useState<number>(5);
+  const [prodMinStars, setProdMinStars] = useState<number>(0);
+  const [maxPriceFilter, setMaxPriceFilter] = useState<number>(0); // 0 = qualquer preço
   
   // Estados para dados reais
   const [products, setProducts] = useState<Product[]>([]);
@@ -466,11 +470,33 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
 
   const sortedProducts = useMemo(() => {
     const dataSource = products.length > 0 ? products : MOCK_PRODUCTS;
-    if (!loc) return dataSource.map((p) => ({ p, km: null as number | null }));
+
+    const withinKm = (d: number | null) => {
+      if (d == null) return true; // sem loc, não filtra por km
+      if (prodMaxKm >= 5) return true; // 5+ km = mostrar todos
+      return d <= prodMaxKm + 1e-9;
+    };
+
+    const meetsStars = (r?: number) => {
+      if (prodMinStars === 0) return true;
+      return (r ?? 0) >= prodMinStars;
+    };
+
+    const meetsPrice = (price: number) => {
+      if (maxPriceFilter <= 0) return true; // 0 = qualquer preço
+      return price <= maxPriceFilter + 1e-9;
+    };
+
+    if (!loc) {
+      const filtered = dataSource.filter((p) => meetsStars(p.rating) && meetsPrice(p.price));
+      return filtered.map((p) => ({ p, km: null as number | null }));
+    }
+
     return [...dataSource]
       .map((p) => ({ p, km: haversineKm({ lat: loc.lat, lng: loc.lng }, { lat: p.lat, lng: p.lng }) }))
+      .filter(({ p, km }) => withinKm(km) && meetsStars(p.rating) && meetsPrice(p.price))
       .sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity));
-  }, [loc, products]);
+  }, [loc, products, prodMaxKm, prodMinStars, maxPriceFilter]);
 
   const sortedBancas = useMemo(() => {
     const dataSource = bancas.length > 0 ? bancas : MOCK_BANCAS;
@@ -579,11 +605,98 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
 
       {/* Content */}
       {tab === "produtos" ? (
-        <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {sortedProducts.map(({ p, km }) => (
-            <ProductCard key={p.id} p={p} km={km} />
-          ))}
-        </div>
+        <>
+          {/* Layout Produtos: sidebar de filtros + lista de produtos */}
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-[260px,1fr] gap-4 items-start">
+            {/* Sidebar filtros Produtos */}
+            <aside className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
+              <div className="text-sm font-semibold text-gray-800">Filtros</div>
+              <div className="text-xs text-gray-600">Resultados: <span className="font-semibold">{sortedProducts.length}</span></div>
+
+              {/* Filtro preço máximo */}
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-gray-800">Preço máximo</div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={maxPriceFilter || ''}
+                    onChange={(e) => {
+                      const v = Number(e.target.value.replace(',', '.'));
+                      setMaxPriceFilter(isNaN(v) ? 0 : v);
+                    }}
+                    placeholder="Sem limite"
+                    className="w-28 rounded-md border border-gray-300 px-2 py-1 text-sm"
+                  />
+                  <span className="text-xs text-gray-500">R$</span>
+                </div>
+              </div>
+
+              {/* Filtro distância */}
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-gray-800">Bancas mais próximas</div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0}
+                    max={5}
+                    step={0.5}
+                    value={prodMaxKm}
+                    onChange={(e)=>setProdMaxKm(Number(e.target.value))}
+                    className="accent-[#ff5c00] range-orange flex-1"
+                  />
+                  <span className="text-xs text-gray-700 w-12 text-right">{prodMaxKm>=5? '5+Km' : `${prodMaxKm.toFixed(1)}Km`}</span>
+                </div>
+              </div>
+
+              {/* Filtro avaliação */}
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-gray-800">Avaliação</div>
+                <div className="flex flex-wrap gap-2">
+                  {[0,1,2,3,4,5].map((n)=> (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={()=>setProdMinStars(n)}
+                      className={`h-8 px-2 rounded-md border text-sm ${prodMinStars===n? 'bg-[#fff3ec] border-[#ffd7bd] text-[#ff5c00]' : 'bg-white border-gray-300 text-gray-700'}`}
+                    >
+                      {n===0? 'Qualquer' : `${n}+★`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </aside>
+
+            {/* Lista de produtos */}
+            <div>
+              {sortedProducts.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <svg viewBox="0 0 24 24" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M8 15s1.5 2 4 2 4-2 4-2"/>
+                    <path d="M9 9h.01M15 9h.01"/>
+                  </svg>
+                  <p className="text-gray-600 font-medium">Nenhum produto encontrado com esses filtros</p>
+                  <p className="text-sm text-gray-500 mt-1">Tente ajustar o preço, a distância ou a avaliação mínima</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  {sortedProducts.map(({ p, km }) => (
+                    <ProductCard key={p.id} p={p} km={km} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <style jsx>{`
+            .range-orange::-webkit-slider-runnable-track{background:#ffe2d2;height:6px;border-radius:9999px}
+            .range-orange::-moz-range-track{background:#ffe2d2;height:6px;border-radius:9999px}
+            .range-orange::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;background:#ff5c00;border-radius:9999px;margin-top:-5px;border:2px solid #fff;box-shadow:0 0 0 1px #ffd7bd}
+            .range-orange::-moz-range-thumb{width:16px;height:16px;background:#ff5c00;border:2px solid #fff;border-radius:9999px;box-shadow:0 0 0 1px #ffd7bd}
+          `}</style>
+        </>
       ) : (
         <>
           <p className="mt-6 text-sm text-gray-700">
