@@ -160,9 +160,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     updateProfile,
-    isAdmin: profile?.role === "admin",
-    isJornaleiro: profile?.role === "jornaleiro",
-    isCliente: profile?.role === "cliente",
+    isAdmin: profile?.role === "admin" || (session?.user as any)?.role === "admin",
+    isJornaleiro:
+      profile?.role === "jornaleiro" ||
+      (session?.user as any)?.role === "jornaleiro" ||
+      (session?.user as any)?.role === "seller",
+    isCliente:
+      profile?.role === "cliente" ||
+      (!profile && (session?.user as any)?.role === "cliente"),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
