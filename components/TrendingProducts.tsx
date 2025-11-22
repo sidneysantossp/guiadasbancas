@@ -185,7 +185,7 @@ export default function TrendingProducts() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  const perView = w < 640 ? 2 : w < 1024 ? 2 : 4;
+  const perView = w < 640 ? 2 : w < 1024 ? 2 : 5;
 
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);

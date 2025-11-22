@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type ApiProduct = {
   id: string;
@@ -212,6 +212,17 @@ function MonicaCard({ p }: { p: MonicaProduct }) {
 export default function TurmaMonicaStrip() {
   const [items, setItems] = useState<MonicaProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [w, setW] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
+  const [index, setIndex] = useState(0);
+  const [animating, setAnimating] = useState(true);
+
+  const perView = w < 640 ? 2 : w < 1024 ? 2 : 5;
+
+  useEffect(() => {
+    const onResize = () => setW(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -296,6 +307,17 @@ export default function TurmaMonicaStrip() {
     };
   }, []);
 
+  const track = useMemo(() => [...items, ...items], [items]);
+
+  useEffect(() => {
+    if (items.length === 0) return;
+    const id = setInterval(() => {
+      setIndex((i) => i + 1);
+      setAnimating(true);
+    }, 4500);
+    return () => clearInterval(id);
+  }, [items.length]);
+
   if (!loading && items.length === 0) return null;
 
   return (
@@ -318,10 +340,33 @@ export default function TurmaMonicaStrip() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {items.map((p) => (
-              <MonicaCard key={p.id} p={p} />
-            ))}
+          <div className="relative">
+            <div className="overflow-hidden">
+              <div
+                className="flex gap-4"
+                style={{
+                  transform: `translateX(-${(index * (100 / perView))}%)`,
+                  transition: animating ? "transform 600ms ease" : "none",
+                }}
+                onTransitionEnd={() => {
+                  if (index >= items.length) {
+                    setAnimating(false);
+                    setIndex(0);
+                    requestAnimationFrame(() => setAnimating(true));
+                  }
+                }}
+              >
+                {track.map((p, i) => (
+                  <div
+                    key={`${p.id}-${i}`}
+                    style={{ flex: `0 0 calc(${100 / perView}% - 1rem)` }}
+                    className="shrink-0"
+                  >
+                    <MonicaCard p={p} />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
