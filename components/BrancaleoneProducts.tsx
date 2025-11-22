@@ -329,7 +329,7 @@ export default function BrancaleoneProducts() {
   }
 
   return (
-    <section className="w-full py-8 bg-gray-50">
+    <section className="w-full py-8">
       <div className="container-max">
         {/* Título */}
         <div className="mb-6">
