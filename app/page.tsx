@@ -87,6 +87,13 @@ export default function HomePage() {
         <BrancaleoneProducts />
       </Suspense>
 
+      {/* Banner de Indicação da Plataforma (Referral) logo após Mundo Marvel */}
+      <Suspense fallback={null}>
+        <div className="py-6">
+          <ReferralBanner />
+        </div>
+      </Suspense>
+
       {/* LAZY LOADING: Carrega conforme scroll, apenas com dados reais */}
       <Suspense fallback={null}>
         <MostSearchedProducts />
@@ -105,12 +112,6 @@ export default function HomePage() {
       <Suspense fallback={null}>
         <div className="py-6">
           <CampaignSection />
-        </div>
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <div className="py-6">
-          <ReferralBanner />
         </div>
       </Suspense>
 
