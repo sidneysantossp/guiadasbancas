@@ -223,8 +223,27 @@ export default function BrancaleoneProducts() {
         
         console.log('Produtos Brancaleone encontrados:', items.length);
         
+        const marvelPatterns = [
+          /marvel/i,
+          /homem-?aranha/i,
+          /spider[- ]?man/i,
+          /x[- ]?men/i,
+          /deadpool/i,
+          /vingadores/i,
+          /avengers/i,
+          /wolverine/i,
+          /thor/i,
+          /hulk/i,
+          /homem de ferro/i,
+          /iron man/i,
+        ];
+
         const mapped: BrancaleoneProduct[] = items
-          .filter((p: any) => p?.id && typeof p.price === 'number' && p.price > 0 && p.images && p.images[0])
+          .filter((p: any) => {
+            if (!p?.id || typeof p.price !== 'number' || p.price <= 0 || !p.images || !p.images[0]) return false;
+            const name = String(p.name || "");
+            return marvelPatterns.some((re) => re.test(name));
+          })
           .map((p: any) => ({
             id: p.id,
             name: p.name || 'Produto',
@@ -315,7 +334,7 @@ export default function BrancaleoneProducts() {
         {/* Título */}
         <div className="mb-6">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-            HQ's e DC Comics
+            Mundo Marvel
           </h2>
         </div>
 

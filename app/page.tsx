@@ -82,6 +82,11 @@ export default function HomePage() {
         <TrendingProducts />
       </Suspense>
 
+      {/* Mundo Marvel (Brancaleone) logo após HQs & Comics */}
+      <Suspense fallback={null}>
+        <BrancaleoneProducts />
+      </Suspense>
+
       {/* LAZY LOADING: Carrega conforme scroll, apenas com dados reais */}
       <Suspense fallback={null}>
         <MostSearchedProducts />
@@ -101,10 +106,6 @@ export default function HomePage() {
         <div className="py-6">
           <CampaignSection />
         </div>
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <BrancaleoneProducts />
       </Suspense>
 
       <Suspense fallback={null}>
