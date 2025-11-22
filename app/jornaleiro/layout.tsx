@@ -219,8 +219,10 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         return;
       }
 
-      // Verificar role
-      if (profile && profile.role !== 'jornaleiro') {
+      // Verificar role (aceitando roles legadas como 'seller' como jornaleiro)
+      const role = (profile as any)?.role;
+      const isJornaleiroRole = role === 'jornaleiro' || role === 'seller';
+      if (profile && !isJornaleiroRole) {
         console.error('[Security] Usuário não é jornaleiro');
         sessionStorage.clear();
         await signOut();

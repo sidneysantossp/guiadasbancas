@@ -51,10 +51,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(status === "loading");
     if (status === "authenticated" && session?.user) {
       const u = session.user as any;
+      const rawRole = (u.role as string) || "cliente";
+      // Normalizar roles legadas (ex: 'seller') para manter compatibilidade
+      const normalizedRole: UserRole = (rawRole === "jornaleiro" || rawRole === "seller")
+        ? "jornaleiro"
+        : (rawRole === "admin" ? "admin" : "cliente");
+
       setUser({ id: u.id, email: u.email, name: u.name });
       setProfile({
         id: u.id,
-        role: (u.role as UserRole) || "cliente",
+        role: normalizedRole,
         full_name: u.name ?? null,
         phone: null,
         avatar_url: (u.avatar_url as string) ?? null,

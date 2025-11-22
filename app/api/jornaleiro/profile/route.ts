@@ -74,8 +74,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verificar se é jornaleiro (somente se o campo existir)
-    if (typeof (profile as any).role !== 'undefined' && (profile as any).role !== "jornaleiro") {
+    // Verificar se é jornaleiro (aceitando roles legadas como 'seller')
+    const role = (profile as any).role;
+    const isJornaleiroRole = role === 'jornaleiro' || role === 'seller';
+    if (typeof role !== 'undefined' && !isJornaleiroRole) {
       return NextResponse.json(
         { error: "Acesso negado" },
         { status: 403 }
