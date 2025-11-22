@@ -2,6 +2,9 @@ import FullBanner from "@/components/FullBanner";
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const ReferralPlatformBannerWrapper = dynamic(
   () => import("@/components/ReferralPlatformBannerWrapper"),
   { ssr: false }
