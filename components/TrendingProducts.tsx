@@ -48,7 +48,6 @@ function slugify(text: string) {
 function TrendCard({ p }: { p: TrendProduct }) {
   const { addToCart } = useCart();
   const { show } = useToast();
-  const [favorite, setFavorite] = useState(false);
 
   const price = p.price ?? 0;
   const baseDiscount = typeof p.discountPercent === 'number' ? Math.round(p.discountPercent) : undefined;
@@ -64,54 +63,53 @@ function TrendCard({ p }: { p: TrendProduct }) {
     addToCart({ id: p.id, name: p.name, price: p.price, image: p.image }, 1);
     show(<span>Adicionado ao carrinho.</span>);
   };
+  const href = ("/produto/" + slugify(p.name) + "-" + p.id) as Route;
 
   return (
-    <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="group flex h-full flex-col rounded-[24px] border border-gray-200 bg-white shadow-[0_22px_60px_-32px_rgba(124,58,237,0.45)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_32px_90px_-40px_rgba(124,58,237,0.55)] overflow-hidden">
-      <div className="relative px-5 pt-6 pb-4">
-        {discount > 0 && (
-          <span className="absolute left-5 top-6 z-10 inline-flex items-center rounded-md bg-[#ff5c00] px-2.5 py-1 text-xs font-bold uppercase tracking-tight text-white shadow">
-            -{discount}%
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={(event) => {
-            event.preventDefault();
-            setFavorite((prev) => !prev);
-          }}
-          className="absolute right-5 top-6 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#7c3aed]/30 bg-white text-[#7c3aed] shadow-sm transition hover:border-[#7c3aed] hover:bg-[#f6f0ff]"
-          aria-label={favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill={favorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8">
-            <path d="M12 21s-6.3-4.35-9-8.4C-0.6 7.2 2.4 2 6.9 2c2.1 0 3.9 1.2 5.1 3 1.2-1.8 3-3 5.1-3 4.5 0 7.5 5.1 3.9 10.6-2.7 4.05-9 8.4-9 8.4z" />
-          </svg>
-        </button>
-        <div className="relative mx-auto h-44 w-full max-w-[180px]">
-          <div className="absolute inset-0 rounded-[18px] bg-[#f7f5ff]" aria-hidden></div>
-          <Image
-            src={p.image}
-            alt={p.name}
-            fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
-            className="object-contain p-4"
-          />
-          <span className="pointer-events-none absolute inset-0" aria-hidden />
+    <div className="h-full rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">
+      <div className="relative w-full group h-48 sm:h-56">
+        <div className="absolute inset-0 p-2">
+          <div className="relative h-full w-full rounded-[14px] overflow-hidden">
+            <Image
+              src={p.image}
+              alt={p.name}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-contain bg-gray-50"
+            />
+            <Link
+              href={href}
+              aria-label={`Ver detalhes de ${p.name}`}
+              className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5c00]"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/5 transition" />
+            {discount > 0 && (
+              <span className="absolute left-2 top-2 z-10 inline-flex items-center rounded-md bg-[#1e73ff] text-white px-2 py-[2px] text-[11px] font-semibold shadow">
+                -{discount}%
+              </span>
+            )}
+          </div>
         </div>
+        <button
+          onClick={handleAddToCart}
+          aria-label="Adicionar ao carrinho"
+          className="absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white shadow hover:bg-gray-50"
+        >
+          <Image
+            src="https://cdn-icons-png.flaticon.com/128/4982/4982841.png"
+            alt="Carrinho"
+            width={20}
+            height={20}
+            className="h-5 w-5 object-contain"
+          />
+        </button>
       </div>
 
-      <div className="flex flex-1 flex-col px-5 pb-6">
-        {(discount > 0) && (
-          <span className="inline-flex w-max items-center gap-1 rounded-full bg-black px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-white">
-            November Black
-            <span aria-hidden className="text-base leading-none">🔥</span>
-          </span>
-        )}
-
-        <h3 className="mt-3 text-sm font-extrabold uppercase leading-snug text-gray-900">
+      <div className="p-2.5 flex flex-col flex-1">
+        <Link href={href} className="mt-1 text-[13px] font-semibold hover:underline line-clamp-2 min-h-[2.5rem]">
           {p.name}
-        </h3>
-
-        <div className="mt-3 flex items-center gap-2 text-[#f59e0b]">
+        </Link>
+        <div className="mt-1 flex items-center gap-2 text-[#f59e0b]">
           {(() => {
             const v = Math.max(0, Math.min(5, Number(p.ratingAvg ?? 0)));
             const full = Math.floor(v);
@@ -134,47 +132,54 @@ function TrendCard({ p }: { p: TrendProduct }) {
           })()}
           <span className="text-[11px] text-gray-500">{Number(p.reviewsCount ?? 0)} avaliação{Number(p.reviewsCount ?? 0) === 1 ? '' : 's'}</span>
         </div>
-
-        <div className="mt-4 flex flex-col gap-1 text-gray-700">
-          {oldPrice && isFinite(oldPrice) && (
-            <span className="text-xs text-gray-500">
-              R$ <span className="line-through">{oldPrice.toFixed(2)}</span>
-            </span>
-          )}
-          <span className="text-xl font-extrabold text-[#ff5c00]">
-            R$ {price.toFixed(2)}
-          </span>
-          {installment && (
-            <span className="text-xs text-gray-600">10x R$ {Number(installment.toFixed(2)).toFixed(2)} sem juros</span>
-          )}
-        </div>
-
-        <div className="mt-auto flex flex-col gap-1 pt-6">
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            aria-label="Adicionar ao carrinho"
-            className="w-full rounded px-2.5 py-1 text-[11px] font-semibold bg-[#ff5c00] text-white hover:opacity-95"
-          >
-            Adicionar ao Carrinho
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.preventDefault();
-              const message = encodeURIComponent(`Olá! Tenho interesse em ${p.name}.`);
-              if (typeof window !== "undefined") {
-                window.open(`https://wa.me/?text=${message}`, "_blank", "noopener,noreferrer");
-              }
-            }}
-            className="w-full inline-flex items-center justify-center gap-1.5 rounded border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15 px-2.5 py-1 text-[11px] font-semibold"
-          >
-            <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
-            Comprar
-          </button>
+        <div className="mt-auto pt-2 flex flex-col gap-2">
+          <div className="flex flex-col gap-0.5">
+            {oldPrice && isFinite(oldPrice) ? (
+              <>
+                <div className="text-[12px] text-gray-600">
+                  De: <span className="text-gray-400 line-through">R$ {oldPrice.toFixed(2)}</span>
+                </div>
+                <div className="text-[18px] text-[#ff5c00] font-extrabold">Por: R$ {price.toFixed(2)}</div>
+                {installment && (
+                  <div className="text-[11px] text-gray-600">10x R$ {Number(installment.toFixed(2)).toFixed(2)} sem juros</div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="text-[18px] text-[#ff5c00] font-extrabold">R$ {price.toFixed(2)}</div>
+                {installment && (
+                  <div className="text-[11px] text-gray-600">10x R$ {Number(installment.toFixed(2)).toFixed(2)} sem juros</div>
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              aria-label="Adicionar ao carrinho"
+              className="w-full rounded px-2.5 py-1 text-[11px] font-semibold bg-[#ff5c00] text-white hover:opacity-95"
+            >
+              Adicionar ao Carrinho
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                const message = encodeURIComponent(`Olá! Tenho interesse em ${p.name}.`);
+                if (typeof window !== "undefined") {
+                  window.open(`https://wa.me/?text=${message}`, "_blank", "noopener,noreferrer");
+                }
+              }}
+              className="w-full inline-flex items-center justify-center gap-1.5 rounded border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15 px-2.5 py-1 text-[11px] font-semibold"
+            >
+              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
+              Comprar pelo WhatsApp
+            </button>
+          </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 

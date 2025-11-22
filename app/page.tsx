@@ -77,6 +77,11 @@ export default function HomePage() {
         <TurmaMonicaStrip />
       </Suspense>
 
+      {/* HQs & Comics logo após Turma da Mônica */}
+      <Suspense fallback={null}>
+        <TrendingProducts />
+      </Suspense>
+
       {/* LAZY LOADING: Carrega conforme scroll, apenas com dados reais */}
       <Suspense fallback={null}>
         <MostSearchedProducts />
@@ -90,11 +95,6 @@ export default function HomePage() {
       {/* Bebidas */}
       <Suspense fallback={null}>
         <FavoritePicks />
-      </Suspense>
-
-      {/* HQs & Comics */}
-      <Suspense fallback={null}>
-        <TrendingProducts />
       </Suspense>
 
       <Suspense fallback={null}>
