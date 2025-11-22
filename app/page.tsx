@@ -66,6 +66,17 @@ export default function HomePage() {
         <FeaturedBancas />
       </Suspense>
 
+      {/* Mini banners + Turma da Mônica logo abaixo das bancas */}
+      <Suspense fallback={null}>
+        <div className="py-6">
+          <MiniBanners />
+        </div>
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <TurmaMonicaStrip />
+      </Suspense>
+
       {/* LAZY LOADING: Carrega conforme scroll, apenas com dados reais */}
       <Suspense fallback={null}>
         <MostSearchedProducts />
@@ -94,16 +105,6 @@ export default function HomePage() {
 
       <Suspense fallback={null}>
         <BrancaleoneProducts />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <div className="py-6">
-          <MiniBanners />
-        </div>
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <TurmaMonicaStrip />
       </Suspense>
 
       <Suspense fallback={null}>
