@@ -1,52 +1,52 @@
 import FullBanner from "@/components/FullBanner";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const ReferralPlatformBannerWrapper = dynamic(
+const ReferralPlatformBannerWrapper = nextDynamic(
   () => import("@/components/ReferralPlatformBannerWrapper"),
   { ssr: false }
 );
 
-const MiniCategoryBar = dynamic(() => import("@/components/MiniCategoryBar"));
-const MobileCategoryScroller = dynamic(() => import("@/components/MobileCategoryScroller"));
-const CategoryCarousel = dynamic(() => import("@/components/CategoryCarousel"), { 
+const MiniCategoryBar = nextDynamic(() => import("@/components/MiniCategoryBar"));
+const MobileCategoryScroller = nextDynamic(() => import("@/components/MobileCategoryScroller"));
+const CategoryCarousel = nextDynamic(() => import("@/components/CategoryCarousel"), { 
   ssr: false
 });
-const FeaturedBancas = dynamic(() => import("@/components/FeaturedBancas"), { 
+const FeaturedBancas = nextDynamic(() => import("@/components/FeaturedBancas"), { 
   ssr: false
 });
 
-const MostSearchedProducts = dynamic(() => import("@/components/MostSearchedProducts"), { 
+const MostSearchedProducts = nextDynamic(() => import("@/components/MostSearchedProducts"), { 
   ssr: false
 });
-const CampaignSection = dynamic(() => import("@/components/CampaignSection"), { 
+const CampaignSection = nextDynamic(() => import("@/components/CampaignSection"), { 
   ssr: false
 });
-const BrancaleoneProducts = dynamic(() => import("@/components/BrancaleoneProducts"), { 
+const BrancaleoneProducts = nextDynamic(() => import("@/components/BrancaleoneProducts"), { 
   ssr: false
 });
-const MiniBanners = dynamic(() => import("@/components/MiniBanners"), { 
+const MiniBanners = nextDynamic(() => import("@/components/MiniBanners"), { 
   ssr: false
 });
-const TurmaMonicaStrip = dynamic(() => import("@/components/TurmaMonicaStrip"), {
+const TurmaMonicaStrip = nextDynamic(() => import("@/components/TurmaMonicaStrip"), {
   ssr: false
 });
-const TopReviewed = dynamic(() => import("@/components/TopReviewed"), {
+const TopReviewed = nextDynamic(() => import("@/components/TopReviewed"), {
   ssr: false
 });
-const FavoritePicks = dynamic(() => import("@/components/FavoritePicks"), {
+const FavoritePicks = nextDynamic(() => import("@/components/FavoritePicks"), {
   ssr: false
 });
-const TrendingProducts = dynamic(() => import("@/components/TrendingProducts"), {
+const TrendingProducts = nextDynamic(() => import("@/components/TrendingProducts"), {
   ssr: false
 });
-const ReferralBanner = dynamic(() => import("@/components/ReferralBanner"), { 
+const ReferralBanner = nextDynamic(() => import("@/components/ReferralBanner"), { 
   ssr: false
 });
-const Newsletter = dynamic(() => import("@/components/Newsletter"), { 
+const Newsletter = nextDynamic(() => import("@/components/Newsletter"), { 
   ssr: false
 });
 
