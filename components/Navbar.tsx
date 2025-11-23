@@ -775,7 +775,7 @@ useEffect(() => {
                     aria-label="Painel do Jornaleiro"
                   >
                     <IconBuildingStore size={18} stroke={2} />
-                    <span>Painel</span>
+                    <span>Painel do Jornaleiro</span>
                   </Link>
                 ) : (
                   <Link
