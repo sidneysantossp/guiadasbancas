@@ -306,14 +306,14 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
   const showCta1 = Boolean(slide?.cta1Text?.trim() && slide?.cta1Link?.trim());
   const showCta2 = Boolean(slide?.cta2Text?.trim() && slide?.cta2Link?.trim());
 
-  // Evitar mostrar apenas o fundo/gradiente sem imagem: só renderizar o banner
-  // após a primeira imagem ter sido carregada pelo browser.
-  if (!heroLoaded) {
-    return null;
-  }
+  // Renderizar o banner mesmo antes da imagem carregar, mas com transição suave
+  // A verificação anterior causava o problema: se heroLoaded=false, retornava null
+  // e a imagem nunca carregava porque o componente não renderizava!
 
   return (
-    <section className="relative w-full z-0 mb-3 pt-1 pb-1 sm:mb-6 sm:pt-0 sm:pb-4 px-0 sm:px-0 mt-[50px] sm:mt-0">
+    <section 
+      className={`relative w-full z-0 mb-3 pt-1 pb-1 sm:mb-6 sm:pt-0 sm:pb-4 px-0 sm:px-0 mt-[50px] sm:mt-0 transition-opacity duration-500 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}
+    >
       <div 
         className="relative w-full overflow-hidden fb-h"
         style={{ height: `${mobileHeight}px` }}
