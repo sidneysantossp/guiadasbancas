@@ -312,12 +312,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <div className="flex">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out`}>
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#334257] border-r border-gray-200 transition-transform duration-300 ease-in-out`}>
           <div className="h-full overflow-y-auto">
             <nav className="p-4 space-y-6">
               {ADMIN_MENU.map((section) => (
                 <div key={section.section}>
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
                     {section.section}
                   </h3>
                   <div className="space-y-1">
@@ -333,7 +333,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                           className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                             isActive
                               ? 'bg-[#fff7f2] text-[#ff5c00] border-r-2 border-[#ff5c00]'
-                              : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                              : 'text-gray-100 hover:bg-white/10 hover:text-white'
                           }`}
                         >
                           <IconComponent size={20} stroke={1.7} />
