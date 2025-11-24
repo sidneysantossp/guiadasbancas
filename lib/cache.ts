@@ -40,11 +40,39 @@ class MemoryCache {
 
 export const memoryCache = new MemoryCache();
 
-// Limpar cache a cada 5 minutos
+// Limpar entradas expiradas do cache em memória a cada 5 minutos
 if (typeof window !== 'undefined') {
   setInterval(() => {
     memoryCache.cleanup();
   }, 5 * 60 * 1000);
+}
+
+// Limpa caches de frontend (memória + storages com prefixo "gb:")
+export function clearFrontendCaches() {
+  memoryCache.clear();
+
+  if (typeof window === 'undefined') return;
+
+  try {
+    const storages: (Storage | null)[] = [
+      window.sessionStorage ?? null,
+      window.localStorage ?? null,
+    ];
+
+    storages.forEach((storage) => {
+      if (!storage) return;
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < storage.length; i++) {
+        const key = storage.key(i);
+        if (key && key.startsWith('gb:')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => storage.removeItem(key));
+    });
+  } catch (error) {
+    console.error('Erro ao limpar caches de frontend:', error);
+  }
 }
 
 // Hook para fetch com cache
