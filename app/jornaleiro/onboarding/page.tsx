@@ -14,13 +14,10 @@ export default function JornaleiroOnboardingPage() {
 
   useEffect(() => {
     let cancelled = false;
-    // Poll por até 10s aguardando a sessão ficar disponível
-    const maxWaitMs = 10000;
-    const stepMs = 1000;
-    let waited = 0;
 
-    const tick = async () => {
+    const checkAndProceed = async () => {
       if (cancelled) return;
+      if (loading) return;
 
       // Se o usuário já é jornaleiro, verificar se já tem banca na tabela bancas
       // (não confiar apenas no profile.banca_id que pode estar desatualizado)
@@ -37,36 +34,43 @@ export default function JornaleiroOnboardingPage() {
             setStatus("success");
             setMessage("Você já possui uma banca cadastrada. Redirecionando...");
             setTimeout(() => {
-              router.push("/jornaleiro/dashboard" as Route);
+              if (!cancelled) {
+                router.push("/jornaleiro/dashboard" as Route);
+              }
             }, 1000);
             return;
           }
 
           // Se não tem banca, segue para criação
           console.log('[Onboarding] 📝 Banca não encontrada, iniciando criação');
-          createBanca();
+          if (!cancelled) {
+            createBanca();
+          }
           return;
         } catch (error) {
           console.error('[Onboarding] Erro ao verificar banca:', error);
           // Em caso de erro, tenta criar mesmo assim
-          createBanca();
+          if (!cancelled) {
+            createBanca();
+          }
           return;
         }
       }
 
-      if (waited >= maxWaitMs) {
-        // Timeout: voltar para login do jornaleiro
-        router.push(("/jornaleiro" as Route));
-        return;
+      // Se não é jornaleiro ainda, aguarda ou timeout
+      if (!user || !profile) {
+        setStatus("loading");
+        setMessage("Aguardando autenticação...");
+        // Timeout de 10s
+        setTimeout(() => {
+          if (!cancelled && (!user || !profile)) {
+            router.push("/jornaleiro" as Route);
+          }
+        }, 10000);
       }
-      // Atualiza mensagem e segue aguardando
-      setStatus("loading");
-      setMessage(`Aguardando autenticação... (${Math.floor(waited / 1000)}s)`);
-      waited += stepMs;
-      setTimeout(tick, stepMs);
     };
 
-    if (!loading) tick();
+    checkAndProceed();
     return () => { cancelled = true; };
   }, [user, profile, loading, router]);
 
