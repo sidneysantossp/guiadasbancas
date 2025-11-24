@@ -20,11 +20,7 @@ function Stars({ value }: { value: number }) {
     if (i === full && half) return (
       <svg key={i} viewBox="0 0 24 24" className="h-4 w-4 text-amber-400" fill="currentColor"><defs><linearGradient id="half"><stop offset="50%" stopColor="currentColor"/><stop offset="50%" stopColor="transparent"/></linearGradient></defs><path d="M12 2l3.09 6.26L22 9.27l-5 4.88L18.18 22 12 18.77 5.82 22 7 14.15l-5-4.88 6.91-1.01L12 2z" fill="url(#half)"/><path d="M12 2l3.09 6.26L22 9.27l-5 4.88L18.18 22 12 18.77 5.82 22 7 14.15l-5-4.88 6.91-1.01L12 2z" fill="none" stroke="currentColor"/></svg>
     );
-    if (!normalized.length) {
-    return null; // Não exibir seção se não houver nenhuma banca real
-  }
-
-  return (
+    return (
       <svg key={i} viewBox="0 0 24 24" className="h-4 w-4 text-gray-300" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.88L18.18 22 12 18.77 5.82 22 7 14.15l-5-4.88 6.91-1.01L12 2z"/></svg>
     );
   });
@@ -214,6 +210,11 @@ export default function FeaturedBancas() {
 
   const prev = () => setIndex((i) => Math.max(0, i - 1));
   const next = () => setIndex((i) => i + 1);
+
+  // Não renderizar se não houver bancas reais
+  if (!normalized.length) {
+    return null;
+  }
 
   return (
     <section className="w-full px-5">
