@@ -120,20 +120,8 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     setMounted(true);
   }, []);
 
-  // Evitar erros de hydration: enquanto ainda não montou no client,
-  // renderizar apenas um shell neutro de loading, igual no server e no client.
-  if (!mounted) {
-    return (
-      <ToastProvider>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff5c00] mx-auto"></div>
-            <p className="mt-2 text-sm text-gray-600">Carregando painel...</p>
-          </div>
-        </div>
-      </ToastProvider>
-    );
-  }
+  // IMPORTANTE: TODOS os hooks devem vir ANTES de qualquer return condicional!
+  // Isso evita o erro React #310 "Rendered fewer hooks than during the previous render"
 
   // Ouvir atualizações da banca geradas pela página de edição para refletir no header em tempo real
   useEffect(() => {
@@ -433,6 +421,23 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     };
     loadBranding();
   }, []);
+
+  // TODOS os hooks foram declarados acima. Agora podemos fazer returns condicionais.
+  
+  // Evitar erros de hydration: enquanto ainda não montou no client,
+  // renderizar apenas um shell neutro de loading, igual no server e no client.
+  if (!mounted) {
+    return (
+      <ToastProvider>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff5c00] mx-auto"></div>
+            <p className="mt-2 text-sm text-gray-600">Carregando painel...</p>
+          </div>
+        </div>
+      </ToastProvider>
+    );
+  }
 
   if (isAuthRoute) {
     return <ToastProvider>{children}</ToastProvider>;
