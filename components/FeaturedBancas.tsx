@@ -163,7 +163,7 @@ export default function FeaturedBancas() {
       const distance = (loc && typeof b.lat === 'number' && typeof b.lng === 'number')
         ? haversineKm({ lat: loc.lat, lng: loc.lng }, { lat: b.lat, lng: b.lng })
         : null;
-      return { id: b.id, name: b.name, address: b.address || '', distance, cover: b.cover, rating: b.rating || 4.7, featured: b.featured };
+      return { id: b.id, name: b.name, address: b.address || '', distance, cover: b.cover, rating: b.rating || 4.7, featured: b.featured, categories: [] };
     }).sort((a, b) => {
       // Destaque primeiro
       if (Boolean(a.featured) !== Boolean(b.featured)) return Boolean(b.featured) ? 1 * -1 : 1; // featured true vem antes
