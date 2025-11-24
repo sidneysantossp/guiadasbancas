@@ -21,6 +21,20 @@ export default function JornaleiroOnboardingPage() {
 
     const tick = () => {
       if (cancelled) return;
+
+      // Se o usuário já é jornaleiro E já tem banca vinculada ao perfil,
+      // não deve passar pelo fluxo de onboarding novamente.
+      // Redireciona direto para o dashboard.
+      if (user && profile?.role === "jornaleiro" && (profile as any)?.banca_id) {
+        setStatus("success");
+        setMessage("Você já possui uma banca cadastrada. Redirecionando...");
+        setTimeout(() => {
+          router.push("/jornaleiro/dashboard" as Route);
+        }, 1000);
+        return;
+      }
+
+      // Se é jornaleiro mas ainda não tem banca, segue para criação
       if (user && profile?.role === "jornaleiro") {
         createBanca();
         return;
