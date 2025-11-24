@@ -64,7 +64,15 @@ export function clearFrontendCaches() {
       const keysToRemove: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const key = storage.key(i);
-        if (key && key.startsWith('gb:')) {
+        if (!key) continue;
+
+        // Não apagar chaves de autenticação/admin
+        if (key.startsWith('gb:admin') || key === 'gb:adminAuth') {
+          continue;
+        }
+
+        // Limpar apenas caches de frontend (banca, branding, wizards, etc.)
+        if (key.startsWith('gb:')) {
           keysToRemove.push(key);
         }
       }

@@ -78,7 +78,7 @@ export default function SellerCouponCreatePage() {
       <section className="container-max py-6">
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff5c00] mx-auto"></div>
-          <p className="mt-2 text-sm text-gray-600">Carregando...</p>
+          <p className="mt-2 text-sm text-gray-600">Carregando painel...</p>
         </div>
       </section>
     );

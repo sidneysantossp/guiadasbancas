@@ -56,7 +56,7 @@ type JournaleiroIconKey = keyof typeof journaleiroIconComponents;
 
 const JOURNALEIRO_MENU: { label: string; href: Route; icon: JournaleiroIconKey; disabled?: boolean }[] = [
   { label: "Dashboard", href: "/jornaleiro/dashboard" as Route, icon: "dashboard" },
-  { label: "Minha Banca", href: "/jornaleiro/banca" as Route, icon: "banca" },
+  { label: "Minha Banca", href: "/jornaleiro/banca-v2" as Route, icon: "banca" },
   { label: "Notificações", href: "/jornaleiro/notificacoes" as Route, icon: "notifications" },
   { label: "Pedidos", href: "/jornaleiro/pedidos" as Route, icon: "orders" },
   { label: "Produtos", href: "/jornaleiro/produtos" as Route, icon: "products" },
@@ -89,6 +89,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   const [banca, setBanca] = useState<any>(null);
   const [bancaValidated, setBancaValidated] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const useBancaCache = false;
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
@@ -118,6 +119,21 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Evitar erros de hydration: enquanto ainda não montou no client,
+  // renderizar apenas um shell neutro de loading, igual no server e no client.
+  if (!mounted) {
+    return (
+      <ToastProvider>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff5c00] mx-auto"></div>
+            <p className="mt-2 text-sm text-gray-600">Carregando painel...</p>
+          </div>
+        </div>
+      </ToastProvider>
+    );
+  }
 
   // Ouvir atualizações da banca geradas pela página de edição para refletir no header em tempo real
   useEffect(() => {
@@ -175,6 +191,8 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
   // Limpar cache de bancas antigas quando user.id muda
   useEffect(() => {
+    if (!useBancaCache) return;
+
     if (!user?.id) return;
     
     // Limpar todos os caches de banca exceto o atual
@@ -245,35 +263,37 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
       // Cache da banca em sessionStorage para evitar múltiplas chamadas
       // IMPORTANTE: Usar chave específica do usuário para evitar conflito
-      const cacheKey = `gb:banca:${user.id}`;
-      const cachedBanca = sessionStorage.getItem(cacheKey);
-      if (cachedBanca) {
-        try {
-          const bancaData = JSON.parse(cachedBanca);
-          console.log('[Cache] 📦 Cache encontrado:', {
-            cache_key: cacheKey,
-            banca_name: bancaData.name,
-            banca_user_id: bancaData.user_id,
-            user_autenticado: user.id,
-            MATCH: bancaData.user_id === user.id
-          });
-          
-          // Validar se o cache é mesmo deste usuário
-          if (bancaData.user_id === user.id) {
-            console.log('[Cache] ✅ Cache válido, usando banca do cache');
-            setBanca(bancaData);
-            setBancaValidated(true);
-            return;
-          } else {
-            // Cache inválido, remover
-            console.error('[Cache] ❌ Cache INVÁLIDO detectado!');
-            console.error('[Cache] Esperado user_id:', user.id);
-            console.error('[Cache] Cache tinha user_id:', bancaData.user_id);
-            console.error('[Cache] Limpando cache inválido...');
-            sessionStorage.removeItem(cacheKey);
+      if (useBancaCache) {
+        const cacheKey = `gb:banca:${user.id}`;
+        const cachedBanca = sessionStorage.getItem(cacheKey);
+        if (cachedBanca) {
+          try {
+            const bancaData = JSON.parse(cachedBanca);
+            console.log('[Cache] 📦 Cache encontrado:', {
+              cache_key: cacheKey,
+              banca_name: bancaData.name,
+              banca_user_id: bancaData.user_id,
+              user_autenticado: user.id,
+              MATCH: bancaData.user_id === user.id
+            });
+            
+            // Validar se o cache é mesmo deste usuário
+            if (bancaData.user_id === user.id) {
+              console.log('[Cache] ✅ Cache válido, usando banca do cache');
+              setBanca(bancaData);
+              setBancaValidated(true);
+              return;
+            } else {
+              // Cache inválido, remover
+              console.error('[Cache] ❌ Cache INVÁLIDO detectado!');
+              console.error('[Cache] Esperado user_id:', user.id);
+              console.error('[Cache] Cache tinha user_id:', bancaData.user_id);
+              console.error('[Cache] Limpando cache inválido...');
+              sessionStorage.removeItem(cacheKey);
+            }
+          } catch (e) {
+            console.error('[Cache] Erro ao parsear cache:', e);
           }
-        } catch (e) {
-          console.error('[Cache] Erro ao parsear cache:', e);
         }
       }
 
@@ -325,8 +345,10 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           return;
         }
 
-        // Salvar no cache
-        sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(bancaData));
+        // Salvar no cache (opcional)
+        if (useBancaCache) {
+          sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(bancaData));
+        }
         setBanca(bancaData);
         setBancaValidated(true);
       } catch (error) {
@@ -342,6 +364,8 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
   // Listener para atualizar a banca quando houver alteração (ex: mudança de imagem)
   useEffect(() => {
+    if (!useBancaCache) return;
+
     const handleBancaUpdate = () => {
       console.log('[Layout] 🔄 Evento de atualização de banca recebido');
       // Limpar cache e recarregar
@@ -414,14 +438,14 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     return <ToastProvider>{children}</ToastProvider>;
   }
 
-  // Aguardar carregamento da autenticação e validação de banca
-  if (authLoading || !bancaValidated) {
+  // Aguardar apenas carregamento da autenticação
+  if (authLoading) {
     return (
       <ToastProvider>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff5c00] mx-auto"></div>
-            <p className="mt-2 text-sm text-gray-600">Carregando...</p>
+            <p className="mt-2 text-sm text-gray-600">Carregando painel...</p>
           </div>
         </div>
       </ToastProvider>
@@ -442,15 +466,29 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   // IMPORTANTE: Não redirecionar aqui!
   // A lógica de redirecionamento está no useEffect (linhas 293-305)
   // Este bloco causava redirecionamentos indesejados para usuários não autenticados
-  // Se não tiver banca e não for rota de autenticação, mostrar loading
-  // (o useEffect irá redirecionar corretamente para /jornaleiro/registrar)
-  if (!banca && !isAuthRoute && user) {
+  // Se não tiver banca e não for rota de autenticação, mostrar loading temporário
+  // enquanto a validação assíncrona roda. Após o timeout de segurança (2s),
+  // bancaValidated será true e o painel é liberado mesmo se a banca ainda não
+  // tiver carregado, evitando esperas muito longas.
+  if (!banca && !isAuthRoute && user && !bancaValidated) {
     return (
       <ToastProvider>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-          <div className="text-center">
+          <div className="text-center max-w-md">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Carregando...</p>
+            <p className="mt-4 text-gray-700 font-medium">
+              Estamos verificando sua banca.
+            </p>
+            <p className="mt-2 text-sm text-gray-500">
+              Se esta tela ficar parada, é possível que sua conta ainda não tenha uma banca
+              cadastrada. Clique no botão abaixo para ir direto para o cadastro.
+            </p>
+            <Link
+              href="/jornaleiro/registrar"
+              className="mt-4 inline-flex items-center justify-center rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#e65300]"
+            >
+              Cadastrar minha banca
+            </Link>
           </div>
         </div>
       </ToastProvider>
@@ -582,7 +620,11 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
             <nav className="p-4 space-y-4 text-gray-100">
               {JOURNALEIRO_MENU.map((item) => {
                 const IconComponent = journaleiroIconComponents[item.icon];
-                const isActive = pathname === item.href;
+                // Enquanto "Minha Banca" aponta para o mesmo href do Dashboard,
+                // apenas o item Dashboard deve aparecer como ativo.
+                const isDashboard = item.label === "Dashboard";
+                const isMinhaBanca = item.label === "Minha Banca";
+                const isActive = pathname === item.href && !isMinhaBanca;
                 const classes = item.disabled
                   ? "flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-300 bg-white/5 cursor-not-allowed"
                   : `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${

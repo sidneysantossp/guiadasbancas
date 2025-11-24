@@ -136,9 +136,6 @@ export default async function BancaSlugPage({ params }: { params: { uf: string; 
         addressCountry: "BR",
       },
       url,
-      image: [
-        "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1200&q=60"
-      ],
       openingHoursSpecification: [
         { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday"], opens: "08:00", closes: "18:00" },
         { "@type": "OpeningHoursSpecification", dayOfWeek: ["Saturday"], opens: "08:00", closes: "13:00" }

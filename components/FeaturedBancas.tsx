@@ -5,48 +5,10 @@ import Link from "next/link";
 import { buildBancaHref } from "@/lib/slug";
 import { useEffect, useMemo, useState } from "react";
 import { useCategories } from "@/lib/useCategories";
-import { BANCAS_MOCK } from "@/data/bancas";
 import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
 import type { Route } from "next";
 
-// Mock de capas e categorias por banca (substituível futuramente por API)
-const COVER_BY_ID: Record<string, { image: string; openText?: string; rating: number; categories: { name: string; icon: string }[] }> = {
-  "b1": {
-    image: "https://images.unsplash.com/photo-1561644248-0380c8900032?q=80&w=1200&auto=format&fit=crop",
-    openText: "ABRE às 07:00",
-    rating: 4.8,
-    categories: [
-      { name: "Revistas", icon: "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=40&w=40&auto=format&fit=crop" },
-      { name: "Jornais", icon: "https://images.unsplash.com/photo-1495020689067-958852a7765e?q=40&w=40&auto=format&fit=crop" },
-      { name: "Papelaria", icon: "https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?q=40&w=40&auto=format&fit=crop" },
-    ],
-  },
-  "b2": {
-    image: "https://storage.caosplanejado.com/uploads/2024/09/Banca-Capa.webp",
-    rating: 4.6,
-    categories: [
-      { name: "Colecionáveis", icon: "https://images.unsplash.com/photo-1520975916090-3105956dac38?q=40&w=40&auto=format&fit=crop" },
-      { name: "Quadrinhos", icon: "https://images.unsplash.com/photo-1558888400-16fdd38fbb47?q=40&w=40&auto=format&fit=crop" },
-      { name: "Snacks", icon: "https://images.unsplash.com/photo-1499028344343-cd173ffc68a9?q=40&w=40&auto=format&fit=crop" },
-    ],
-  },
-  "b3": {
-    image: "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?q=80&w=1200&auto=format&fit=crop",
-    rating: 4.9,
-    categories: [
-      { name: "Bebidas", icon: "https://images.unsplash.com/photo-1514361892635-6b07e31e75fb?q=40&w=40&auto=format&fit=crop" },
-      { name: "Recargas", icon: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=40&w=40&auto=format&fit=crop" },
-      { name: "Conveniência", icon: "https://images.unsplash.com/photo-1542838132-92c53300491e?q=40&w=40&auto=format&fit=crop" },
-    ],
-  },
-};
-
-// Fallback de produtos/categorias (quando não houver mapeamento específico)
-const DEFAULT_CATEGORIES: { name: string; icon: string }[] = [
-  { name: "Sanduíches", icon: "https://images.unsplash.com/photo-1550547660-8b1290f252a9?q=40&w=40&auto=format&fit=crop" },
-  { name: "Bebidas", icon: "https://images.unsplash.com/photo-1514361892635-6b07e31e75fb?q=40&w=40&auto=format&fit=crop" },
-  { name: "Snacks", icon: "https://images.unsplash.com/photo-1499028344343-cd173ffc68a9?q=40&w=40&auto=format&fit=crop" },
-];
+// Removidos mocks de capas/categorias. Apenas dados reais da API serão exibidos.
 
 function Stars({ value }: { value: number }) {
   const full = Math.floor(value);
@@ -58,7 +20,11 @@ function Stars({ value }: { value: number }) {
     if (i === full && half) return (
       <svg key={i} viewBox="0 0 24 24" className="h-4 w-4 text-amber-400" fill="currentColor"><defs><linearGradient id="half"><stop offset="50%" stopColor="currentColor"/><stop offset="50%" stopColor="transparent"/></linearGradient></defs><path d="M12 2l3.09 6.26L22 9.27l-5 4.88L18.18 22 12 18.77 5.82 22 7 14.15l-5-4.88 6.91-1.01L12 2z" fill="url(#half)"/><path d="M12 2l3.09 6.26L22 9.27l-5 4.88L18.18 22 12 18.77 5.82 22 7 14.15l-5-4.88 6.91-1.01L12 2z" fill="none" stroke="currentColor"/></svg>
     );
-    return (
+    if (!normalized.length) {
+    return null; // Não exibir seção se não houver nenhuma banca real
+  }
+
+  return (
       <svg key={i} viewBox="0 0 24 24" className="h-4 w-4 text-gray-300" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.88L18.18 22 12 18.77 5.82 22 7 14.15l-5-4.88 6.91-1.01L12 2z"/></svg>
     );
   });
@@ -90,57 +56,7 @@ function BancaCard({
   featured?: boolean;
   priority?: boolean;
 }) {
-  // badges reais de categorias derivadas dos produtos
-  const [catBadges, setCatBadges] = useState<Array<{ name: string; icon: string }>>([]);
-  const { items: allCats } = useCategories();
-  useEffect(() => {
-    // OTIMIZAÇÃO: Usar dados mock primeiro para carregamento instantâneo
-    const mockData = COVER_BY_ID[id];
-    if (mockData) {
-      setCatBadges(mockData.categories);
-    }
-
-    // Carregar dados reais em background (não bloqueia renderização)
-    let alive = true;
-    const loadRealData = async () => {
-      try {
-        const res = await fetch(`/api/bancas/${id}/products`, {
-          next: { revalidate: 300 } // Cache por 5 minutos
-        });
-        if (!res.ok) return;
-        const j = await res.json();
-        const list: any[] = Array.isArray(j?.data) ? j.data : [];
-        const mapped = list
-          .map((p) => ({
-            id: p.id,
-            name: p.name || 'Produto',
-            image: Array.isArray(p.images) && p.images.length ? p.images[0] : (p.image || ''),
-            price: p.price || 0,
-            category_id: p.category_id || '',
-          }))
-          .filter((p) => p.image);
-        if (alive) {
-          // gerar badges de categorias a partir dos produtos
-          const counts = new Map<string, number>();
-          mapped.forEach(p => { if (p.category_id) counts.set(p.category_id, (counts.get(p.category_id) || 0) + 1); });
-          const top = Array.from(counts.entries()).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([catId])=>{
-            const found = allCats.find(c=>c.key===catId);
-            return { name: found?.name || 'Categoria', icon: found?.image || 'https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?q=40&w=40&auto=format&fit=crop' };
-          });
-          setCatBadges(top);
-        }
-      } catch {
-        // silencioso: mantém fallback
-      }
-    };
-    
-    // Executar após um pequeno delay para não bloquear renderização
-    setTimeout(loadRealData, 100);
-    
-    return () => {
-      alive = false;
-    };
-  }, [id, allCats]);
+  // Removido uso de categorias mockadas; quando houver no futuro, virão direto da API.
   const distanceLabel = distance == null ? null : (distance > 3 ? "+3Km" : `${Math.max(1, Math.round(distance))}Km`);
   const openNow = useMemo(() => {
     try {
@@ -232,45 +148,26 @@ export default function FeaturedBancas() {
     })();
   }, []);
 
-  // Descrições curtas temporárias (meta-história)
-  const DESCRIPTIONS: Record<string, string> = {
-    b1: "Desde 1982 conectando leitores com as melhores revistas e jornais da Paulista.",
-    b2: "Tradição no centro histórico com atendimento rápido e seleção especial de títulos.",
-    b3: "Referência em Pinheiros: quadrinhos, papelaria e um papo com o jornaleiro.",
-    b4: "Ponto clássico de Moema, com conveniência e novidades toda semana.",
-    b5: "No Ibirapuera, perfeita para um passeio com parada para revistas e snacks.",
-  };
-
   const rawItems = useMemo(() => {
-    const source: Array<{ id: string; name: string; address?: string; lat?: number; lng?: number; cover: string; rating?: number; featured?: boolean; categories?: { name: string; icon: string }[] }>
-      = (apiBancas && apiBancas.length) ?
-        apiBancas.map((b) => ({
-          id: b.id,
-          name: b.name,
-          address: b.address,
-          lat: b.lat,
-          lng: b.lng,
-          cover: b.cover,
-          rating: typeof b.rating === 'number' ? b.rating : 4.7,
-          featured: Boolean(b.featured),
-          categories: DEFAULT_CATEGORIES, // placeholder até termos ícones reais por categoria
-        }))
-      : BANCAS_MOCK.map((b) => ({
-          id: b.id,
-          name: b.name,
-          address: b.address,
-          lat: b.lat,
-          lng: b.lng,
-          cover: COVER_BY_ID[b.id]?.image || "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?q=80&w=1200&auto=format&fit=crop",
-          rating: COVER_BY_ID[b.id]?.rating ?? 4.7,
-          categories: (COVER_BY_ID[b.id]?.categories ?? DEFAULT_CATEGORIES),
-        }));
+    const source: Array<{ id: string; name: string; address?: string; lat?: number; lng?: number; cover: string; rating?: number; featured?: boolean }>
+      = (apiBancas && apiBancas.length)
+        ? apiBancas.map((b) => ({
+            id: b.id,
+            name: b.name,
+            address: b.address,
+            lat: b.lat,
+            lng: b.lng,
+            cover: b.cover,
+            rating: typeof b.rating === 'number' ? b.rating : 4.7,
+            featured: Boolean(b.featured),
+          }))
+        : [];
 
     const mapped = source.map((b) => {
       const distance = (loc && typeof b.lat === 'number' && typeof b.lng === 'number')
         ? haversineKm({ lat: loc.lat, lng: loc.lng }, { lat: b.lat, lng: b.lng })
         : null;
-      return { id: b.id, name: b.name, address: b.address || '', distance, cover: b.cover, rating: b.rating || 4.7, featured: b.featured, categories: b.categories || DEFAULT_CATEGORIES };
+      return { id: b.id, name: b.name, address: b.address || '', distance, cover: b.cover, rating: b.rating || 4.7, featured: b.featured };
     }).sort((a, b) => {
       // Destaque primeiro
       if (Boolean(a.featured) !== Boolean(b.featured)) return Boolean(b.featured) ? 1 * -1 : 1; // featured true vem antes
@@ -282,11 +179,6 @@ export default function FeaturedBancas() {
       return (b.rating || 0) - (a.rating || 0);
     });
 
-    if (mapped.length < 9) {
-      const fill = [] as typeof mapped;
-      while (fill.length + mapped.length < 9) fill.push(...mapped);
-      return [...mapped, ...fill].slice(0, 9);
-    }
     return mapped.slice(0, 12);
   }, [apiBancas, loc]);
 
@@ -304,15 +196,10 @@ export default function FeaturedBancas() {
   const [animating, setAnimating] = useState(true);
   const gapRem = 1.5;
   const normalized = useMemo(() => {
-    const minCount = 6;
+    const minCount = 1;
+    if (rawItems.length === 0) return [];
     if (rawItems.length >= minCount) return rawItems;
-    const out: typeof rawItems = [] as any;
-    let i = 0;
-    while (out.length < minCount) {
-      out.push(rawItems[i % rawItems.length]);
-      i++;
-    }
-    return out;
+    return rawItems;
   }, [rawItems]);
   const trackItems = useMemo(() => [...normalized, ...normalized], [normalized]);
 
@@ -345,7 +232,7 @@ export default function FeaturedBancas() {
               <div className="flex gap-4 snap-x snap-mandatory">
                 {normalized.map((b, i) => (
                   <div key={`${b.id}-${i}`} className="shrink-0 snap-start" style={{ flex: `0 0 calc(88%)` }}>
-                    <BancaCard {...b} uf={uf} description={DESCRIPTIONS[b.id as keyof typeof DESCRIPTIONS]} priority={i === 0} />
+                    <BancaCard {...b} uf={uf} description={b.address} priority={i === 0} />
                   </div>
                 ))}
               </div>
@@ -375,7 +262,7 @@ export default function FeaturedBancas() {
                     className="shrink-0"
                     style={{ flex: `0 0 calc((100% - ${(perView - 1) * gapRem}rem) / ${perView})` }}
                   >
-                    <BancaCard {...b} uf={uf} description={DESCRIPTIONS[b.id as keyof typeof DESCRIPTIONS]} priority={i < perView} />
+                    <BancaCard {...b} uf={uf} description={b.address} priority={i < perView} />
                   </div>
                 ))}
               </div>

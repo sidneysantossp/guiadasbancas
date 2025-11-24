@@ -57,21 +57,9 @@ export type ProdutoResumo = {
   codigo_mercos?: string; // Código do produto (ex: ACBKA004)
 };
 
-const FALLBACK_BANCA: BancaDetail = {
-  id: "banca-fallback",
-  name: "Banca",
-  cover: "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1200&q=60",
-  avatar: "https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=200&auto=format&fit=crop",
-  open: true,
-  rating: 4.7,
-  reviews: 0,
-  lat: -23.5617,
-  lng: -46.6560,
-  description: "Estamos atualizando as informações desta banca.",
-  phone: undefined,
-  address: "",
-  hours: "Seg a Sáb, 08h - 20h",
-};
+// Não usar mock de banca na interface pública.
+// Quando não houver dados reais, a página simplesmente não renderiza a
+// seção de header em vez de mostrar imagens/textos genéricos.
 
 function Stars({ value = 5 }: { value?: number }) {
   const full = Math.floor(value);
@@ -154,7 +142,6 @@ function ClosedBadge() {
 function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone?: string; bancaId: string; bancaName?: string }) {
   const [liked, setLiked] = useState(false);
   const { addToCart, items } = useCart();
-  const { show } = useToast();
   const subtotal = items.reduce((s, it) => s + (it.price ?? 0) * it.qty, 0);
   const qualifies = shippingConfig.freeShippingEnabled || subtotal >= shippingConfig.freeShippingThreshold;
   
@@ -204,7 +191,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
         </div>
         {/* Ícone flutuante de carrinho sob a imagem */}
         <button
-          onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: bancaId, banca_name: bancaName }, 1); show(<span>Adicionado ao carrinho.</span>); } }}
+          onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: bancaId, banca_name: bancaName }, 1); } }}
           aria-label="Adicionar ao carrinho"
           disabled={outOfStock}
           className={`absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border ${outOfStock ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed' : 'border-gray-200 bg-white shadow hover:bg-gray-50'}`}
@@ -284,7 +271,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
           {/* Ações: botão carrinho laranja + botão Whats verde */}
           <div className="flex flex-col gap-1">
             <button
-              onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: bancaId, banca_name: bancaName }, 1); show(<span>Adicionado ao carrinho.</span>); } }}
+              onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: bancaId, banca_name: bancaName }, 1); } }}
               disabled={outOfStock}
               className={`w-full rounded px-2.5 py-1 text-[11px] font-semibold ${outOfStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#ff5c00] text-white hover:opacity-95'}`}
             >
@@ -353,7 +340,8 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   const [loc, setLoc] = useState<UserLocation | null>(null);
   useEffect(() => setLoc(loadStoredLocation()), []);
 
-  const [banca, setBanca] = useState<BancaDetail>(FALLBACK_BANCA);
+  // Começa sem banca; só exibe header quando houver dados reais da API
+  const [banca, setBanca] = useState<BancaDetail | null>(null);
   const [produtos, setProdutos] = useState<ProdutoResumo[]>([]);
   const [produtosDestaque, setProdutosDestaque] = useState<ProdutoResumo[]>([]);
   const [categoriesMap, setCategoriesMap] = useState<Map<string, string>>(new Map());
@@ -434,24 +422,24 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         const j = await res.json();
         const it = j?.data || null;
         if (!it) throw new Error('Banca not found');
-        const cover = it.cover || it.images?.cover || FALLBACK_BANCA.cover;
-        const avatar = it.avatar || it.images?.avatar || FALLBACK_BANCA.avatar;
-        const lat = typeof it.lat === 'number' ? it.lat : (it.location?.lat ?? FALLBACK_BANCA.lat);
-        const lng = typeof it.lng === 'number' ? it.lng : (it.location?.lng ?? FALLBACK_BANCA.lng);
+        const cover = it.cover || it.images?.cover || "";
+        const avatar = it.avatar || it.images?.avatar || "";
+        const lat = typeof it.lat === 'number' ? it.lat : (it.location?.lat ?? 0);
+        const lng = typeof it.lng === 'number' ? it.lng : (it.location?.lng ?? 0);
         const address = it.address || formatAddress(it.addressObj);
         const phone = it.contact?.whatsapp;
         const { open, label } = summarizeHours(it.hours);
         const mapped: BancaDetail = {
           id: it.id,
-          name: it.name || FALLBACK_BANCA.name,
+          name: it.name || 'Banca',
           cover,
           avatar,
           open,
-          rating: typeof it.rating === 'number' ? it.rating : FALLBACK_BANCA.rating,
-          reviews: typeof it.reviews === 'number' ? it.reviews : FALLBACK_BANCA.reviews,
+          rating: typeof it.rating === 'number' ? it.rating : undefined,
+          reviews: typeof it.reviews === 'number' ? it.reviews : undefined,
           lat,
           lng,
-          description: it.description || FALLBACK_BANCA.description,
+          description: it.description || undefined,
           phone,
           address,
           hours: label,
@@ -468,7 +456,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           setDeliveryEnabled(Boolean(it.delivery_enabled));
         }
       } catch {
-        if (active) setBanca(FALLBACK_BANCA);
+        if (active) setBanca(null);
       }
     })();
     return () => { active = false; };
@@ -492,6 +480,8 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         const items = Array.isArray(json.products) ? json.products : [];
         const mapped = items.map((item: any) => {
           const images = Array.isArray(item.images) ? item.images : [];
+          const firstImage = images[0] || item.image || "";
+          if (!firstImage) return null; // sem imagem real, não exibir produto
           const price = Number(item.price ?? 0);
           const priceOriginal = item.price_original != null ? Number(item.price_original) : undefined;
           const discountPercentRaw = item.discount_percent != null ? Number(item.discount_percent) : undefined;
@@ -503,7 +493,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           return {
             id: item.id,
             name: item.name || 'Produto',
-            image: images[0] || "https://via.placeholder.com/400x300?text=Produto",
+            image: firstImage,
             price,
             priceOriginal,
             rating: item.rating_avg,
@@ -521,8 +511,8 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             distribuidor_nome: item.distribuidor_nome || '',
             codigo_mercos: item.codigo_mercos || '',
           } as any;
-        });
-        if (active) setProdutos(mapped);
+        }).filter(Boolean);
+        if (active) setProdutos(mapped as ProdutoResumo[]);
       } catch {
         if (active) setProdutos([]);
       } finally {
@@ -579,8 +569,8 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             distribuidor_nome: item.distribuidor_nome || '',
             codigo_mercos: item.codigo_mercos || '',
           } as any;
-        });
-        if (active) setProdutosDestaque(mapped);
+        }).filter(Boolean);
+        if (active) setProdutosDestaque(mapped as ProdutoResumo[]);
       } catch {
         if (active) setProdutosDestaque([]);
       } finally {
@@ -1147,15 +1137,9 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         </div>
 
         <div className="pt-4 pb-4 border-b border-gray-200">
-          {infoTab === 'Sobre' && (
+          {infoTab === 'Sobre' && banca.description && (
             <div>
-              {banca.description ? (
-                <div className="prose prose-sm max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: banca.description }} />
-              ) : (
-                <p className="text-sm text-gray-700">
-                  Jornaleiro é uma plataforma que conecta você às melhores bancas do seu bairro. Entre em contato com o jornaleiro para saber mais sobre produtos, promoções e serviços disponíveis nesta banca.
-                </p>
-              )}
+              <div className="prose prose-sm max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: banca.description }} />
             </div>
           )}
           {infoTab === 'Horários' && (
@@ -1510,9 +1494,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
               </div>
             </div>
           </div>
-          {loadingProdutos ? (
-            <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">Carregando produtos...</div>
-          ) : visibleProducts.length === 0 ? (
+          {visibleProducts.length === 0 ? (
             <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
               {searchTerm.trim() ? (
                 <>

@@ -141,7 +141,7 @@ export default function JornaleiroDashboardPage() {
             Para começar a vender, você precisa cadastrar sua banca com informações como nome, endereço e horário de funcionamento.
           </p>
           <Link
-            href="/jornaleiro/banca"
+            href="/jornaleiro/banca-v2"
             className="inline-block bg-[#ff5c00] text-white px-6 py-3 rounded-md hover:opacity-90 font-semibold"
           >
             Cadastrar Minha Banca
@@ -188,7 +188,7 @@ export default function JornaleiroDashboardPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link
-                  href="/jornaleiro/banca"
+                  href="/jornaleiro/banca-v2"
                   className="inline-flex items-center justify-center px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

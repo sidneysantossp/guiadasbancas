@@ -770,7 +770,7 @@ useEffect(() => {
 
                 {isJornaleiro || isAdmin ? (
                   <Link
-                    href={"/jornaleiro/banca" as Route}
+                    href={"/jornaleiro/dashboard" as Route}
                     className="inline-flex items-center gap-2 rounded-md border border-[#ff5c00] text-[#ff5c00] bg-white px-3 py-2 text-sm font-semibold hover:bg-orange-50 transition-colors"
                     aria-label="Painel do Jornaleiro"
                   >
@@ -1060,7 +1060,7 @@ useEffect(() => {
               </Link>
             )}
             {isJornaleiro || isAdmin ? (
-              <Link href="/jornaleiro/banca" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-100">
+              <Link href="/jornaleiro/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-100">
                 <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#ff5c00]" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16v4H4zM6 11v7a1 1 0 001 1h10a1 1 0 001-1v-7"/></svg>
                 <span>Painel</span>
               </Link>

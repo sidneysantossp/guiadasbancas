@@ -177,6 +177,7 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
   const [index, setIndex] = useState(0);
   const [coupon, setCoupon] = useState<{ title: string; code: string; discountText: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [heroLoaded, setHeroLoaded] = useState(false);
 
   useEffect(() => {
     // Carregar slides da API (com cache habilitado)
@@ -190,7 +191,10 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
           if (result.success) {
             const adminSlides = Array.isArray(result.data) ? result.data : [];
             const onlyActive = adminSlides.filter((s: any) => s?.active);
-            const ordered = onlyActive.sort((a: any, b: any) => (a?.order ?? 999) - (b?.order ?? 999));
+            const ordered = onlyActive
+              .sort((a: any, b: any) => (a?.order ?? 999) - (b?.order ?? 999))
+              // Não exibir slides com imagens de Unsplash (mock)
+              .filter((s: any) => typeof s.imageUrl === 'string' && !s.imageUrl.includes('images.unsplash.com'));
             setSlides(ordered.length > 0 ? ordered : []);
             if (result.config) {
               setConfig(result.config);
@@ -302,6 +306,12 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
   const showCta1 = Boolean(slide?.cta1Text?.trim() && slide?.cta1Link?.trim());
   const showCta2 = Boolean(slide?.cta2Text?.trim() && slide?.cta2Link?.trim());
 
+  // Evitar mostrar apenas o fundo/gradiente sem imagem: só renderizar o banner
+  // após a primeira imagem ter sido carregada pelo browser.
+  if (!heroLoaded) {
+    return null;
+  }
+
   return (
     <section className="relative w-full z-0 mb-3 pt-1 pb-1 sm:mb-6 sm:pt-0 sm:pb-4 px-0 sm:px-0 mt-[50px] sm:mt-0">
       <div 
@@ -331,6 +341,7 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
             alt={slide.imageAlt}
             fill
             priority
+            onLoadingComplete={() => setHeroLoaded(true)}
             className="object-cover"
             sizes="100vw"
           />
