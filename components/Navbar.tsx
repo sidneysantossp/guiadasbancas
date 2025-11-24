@@ -17,6 +17,7 @@ import { shippingConfig } from "@/components/shippingConfig";
 import FreeShippingProgress from "@/components/FreeShippingProgress";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useCategories } from "@/lib/useCategories";
+import { useSession, signOut as nextAuthSignOut } from "next-auth/react";
 import {
   IconBell,
   IconChevronDown,
@@ -207,7 +208,25 @@ export default function Navbar() {
   const [cartOpen, setCartOpen] = useState(false);
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const cartRef = useRef<HTMLDivElement | null>(null);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  
+  // IMPORTANTE: Evitar mismatch de hidratação - mounted DEVE ser declarado ANTES de usar
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  
+  // IMPORTANTE: Usar useSession do NextAuth como fonte primária de autenticação
+  const { data: session, status: sessionStatus } = useSession();
+  const [localUser, setLocalUser] = useState<{ name: string; email: string } | null>(null);
+  
+  // Combinar NextAuth session com localStorage (fallback para clientes)
+  // Só usar após mounted para evitar hydration mismatch
+  const user = useMemo(() => {
+    if (!mounted) return null; // Antes de montar, sempre null (consistente servidor/cliente)
+    if (session?.user) {
+      return { name: session.user.name || '', email: session.user.email || '' };
+    }
+    return localUser;
+  }, [session, localUser, mounted]);
+  
   const [profileAvatar, setProfileAvatar] = useState<string>("");
   const [profilePhone, setProfilePhone] = useState<string>("");
   const hoverCloseTimer = useRef<number | null>(null);
@@ -234,10 +253,6 @@ export default function Navbar() {
     ];
     return entries.filter((item) => typeof item.href === "string" && item.href.trim().length > 0);
   }, [branding]);
-
-  // Evitar mismatch de hidratação: só renderizar blocos dinâmicos após montar no cliente
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
 
   const renderSocialIcon = (key: string) => {
     switch (key) {
@@ -335,8 +350,8 @@ export default function Navbar() {
     const readUserFromStorage = () => {
       try {
         const raw = localStorage.getItem("gb:user");
-        setUser(raw ? JSON.parse(raw) : null);
-      } catch { setUser(null); }
+        setLocalUser(raw ? JSON.parse(raw) : null);
+      } catch { setLocalUser(null); }
       try {
         const pr = localStorage.getItem('gb:userProfile');
         if (pr) {
@@ -372,7 +387,7 @@ export default function Navbar() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem("gb:user");
-      setUser(raw ? JSON.parse(raw) : null);
+      setLocalUser(raw ? JSON.parse(raw) : null);
       const pr = localStorage.getItem('gb:userProfile');
       if (pr) {
         const p = JSON.parse(pr);
@@ -382,10 +397,17 @@ export default function Navbar() {
     } catch {}
   }, [pathname]);
 
-  const logout = () => {
+  const logout = async () => {
     try { localStorage.removeItem("gb:user"); } catch {}
-    setUser(null);
-    if (pathname.startsWith("/minha-conta")) router.push("/");
+    try { localStorage.removeItem("gb:userProfile"); } catch {}
+    try { sessionStorage.clear(); } catch {}
+    setLocalUser(null);
+    // Se tem sessão NextAuth, fazer signOut
+    if (session) {
+      await nextAuthSignOut({ callbackUrl: "/" });
+    } else if (pathname.startsWith("/minha-conta")) {
+      router.push("/");
+    }
   };
 
   // Fecha dropdown do carrinho ao clicar/tocar fora
