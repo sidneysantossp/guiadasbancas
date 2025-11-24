@@ -402,12 +402,16 @@ export default function Navbar() {
     };
   }, []);
 
-  // Cleanup do timer de hover ao desmontar
+  // Cleanup dos timers de hover ao desmontar
   useEffect(() => {
     return () => {
       if (hoverCloseTimer.current) {
         clearTimeout(hoverCloseTimer.current as any);
         hoverCloseTimer.current = null;
+      }
+      if (accountHoverTimer.current) {
+        clearTimeout(accountHoverTimer.current as any);
+        accountHoverTimer.current = null;
       }
     };
   }, []);
@@ -662,7 +666,7 @@ useEffect(() => {
                   </button>
                 )}
 
-                {user ? (
+                {mounted && user ? (
                   <div
                     id="account-menu"
                     onMouseEnter={() => {
@@ -700,7 +704,7 @@ useEffect(() => {
                       </div>
                     )}
                   </div>
-                ) : (
+                ) : mounted ? (
                   <button
                     type="button"
                     onClick={() => router.push('/minha-conta')}
@@ -713,7 +717,7 @@ useEffect(() => {
                     </span>
                     <IconChevronDown size={14} stroke={2} className="text-gray-400" />
                   </button>
-                )}
+                ) : null}
 
                 <div
                   ref={cartRef}
