@@ -211,6 +211,7 @@ export default function Navbar() {
   const [profileAvatar, setProfileAvatar] = useState<string>("");
   const [profilePhone, setProfilePhone] = useState<string>("");
   const hoverCloseTimer = useRef<number | null>(null);
+  const accountHoverTimer = useRef<number | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const inDashboard = pathname.startsWith("/minha-conta") && user !== null;
   const [catsOpen, setCatsOpen] = useState<boolean>(true);
@@ -664,8 +665,14 @@ useEffect(() => {
                 {user ? (
                   <div
                     id="account-menu"
-                    onMouseEnter={() => setAccountOpen(true)}
-                    onMouseLeave={() => setAccountOpen(false)}
+                    onMouseEnter={() => {
+                      if (accountHoverTimer.current) { clearTimeout(accountHoverTimer.current as any); accountHoverTimer.current = null; }
+                      setAccountOpen(true);
+                    }}
+                    onMouseLeave={() => {
+                      if (accountHoverTimer.current) { clearTimeout(accountHoverTimer.current as any); }
+                      accountHoverTimer.current = window.setTimeout(() => { setAccountOpen(false); }, 280);
+                    }}
                     className="relative inline-flex items-center"
                   >
                     <button
