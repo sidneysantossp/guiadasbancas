@@ -466,9 +466,16 @@ export default function BancasPertoDeMimPage() {
           {/* Distância */}
           <div>
             <div className="text-sm font-semibold">Distância</div>
-            <div className="mt-2 flex items-center gap-3">
-              <input type="range" min={0} max={5} step={0.5} value={maxKm} onChange={(e)=>setMaxKm(Number(e.target.value))} className="flex-1 accent-[#ff5c00] range-orange" />
-              <div className="text-sm text-gray-700 w-14 text-right">{maxKm >= 5 ? '5+Km' : `${maxKm.toFixed(1)}Km`}</div>
+            <div className="mt-2">
+              <input type="range" min={0} max={5} step={1} value={maxKm} onChange={(e)=>setMaxKm(Number(e.target.value))} className="w-full accent-[#ff5c00] range-orange" />
+              <div className="flex justify-between text-xs text-gray-500 mt-1 px-0.5">
+                <span>0</span>
+                <span>1</span>
+                <span>2</span>
+                <span>3</span>
+                <span>4</span>
+                <span>+5Km</span>
+              </div>
             </div>
           </div>
           {/* Categorias */}
@@ -517,9 +524,16 @@ export default function BancasPertoDeMimPage() {
         <aside className="hidden md:block rounded-2xl border border-gray-200 bg-white p-4 md:sticky top-20 md:self-start md:h-full md:min-h-full">
           <div>
             <div className="text-sm font-semibold">Distância</div>
-            <div className="mt-2 flex items-center gap-3">
-              <input type="range" min={0} max={5} step={0.5} value={maxKm} onChange={(e)=>setMaxKm(Number(e.target.value))} className="flex-1 accent-[#ff5c00] range-orange" />
-              <div className="text-sm text-gray-700 w-14 text-right">{maxKm >= 5 ? '5+Km' : `${maxKm.toFixed(1)}Km`}</div>
+            <div className="mt-2">
+              <input type="range" min={0} max={5} step={1} value={maxKm} onChange={(e)=>setMaxKm(Number(e.target.value))} className="w-full accent-[#ff5c00] range-orange" />
+              <div className="flex justify-between text-xs text-gray-500 mt-1 px-0.5">
+                <span>0</span>
+                <span>1</span>
+                <span>2</span>
+                <span>3</span>
+                <span>4</span>
+                <span>+5Km</span>
+              </div>
             </div>
           </div>
           <div className="mt-4">
