@@ -46,9 +46,6 @@ function MinhaContaPageContent() {
   const [coupons, setCoupons] = useState<Array<{id:string; code:string; label:string; type:'percent'|'free_shipping'; value:number; min:number; start:string; end:string;}>>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   
-  // Verificar se vem do checkout
-  const fromCheckout = searchParams?.get('checkout') === 'true';
-  
   // Helper para atualizar estado e URL (?editar=1)
   const setEditMode = (val: boolean) => {
     setEditingProfile(val);
@@ -62,6 +59,9 @@ function MinhaContaPageContent() {
   };
 
   useEffect(() => {
+    // Verificar se vem do checkout
+    const fromCheckout = searchParams?.get('checkout') === 'true';
+    
     // Inicializa o modo de edição do perfil a partir da URL (?editar=1)
     try {
       const e = searchParams?.get('editar');
