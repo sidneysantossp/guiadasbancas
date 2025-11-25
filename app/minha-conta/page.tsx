@@ -19,6 +19,7 @@ function MinhaContaPageContent() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   
   // REGRA: Apenas UMA sessão pode estar ativa por vez
   const { data: nextAuthSession } = useSession();
@@ -705,89 +706,209 @@ function MinhaContaPageContent() {
   }
 
   return (
-    <section className="container-max py-8">
-      <h1 className="text-xl font-semibold">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
-      
-      {/* Mensagem do checkout */}
-      {fromCheckout && (
-        <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.19-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-              </svg>
+    <div className="min-h-screen w-full flex flex-col lg:flex-row">
+      {/* Coluna esquerda: imagem + texto (desktop) */}
+      <div className="relative hidden lg:flex lg:w-1/2 items-stretch overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage: "url('https://images.unsplash.com/photo-1585241936939-be4099591252?q=80&w=1200&auto=format')",
+          }}
+        />
+        {/* Overlay laranja */}
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[70%] py-12 px-10 bg-[#ff7a1f]/90">
+          <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight">
+            BEM-VINDO AO<br />
+            <span className="text-white">GUIA DAS BANCAS</span>
+          </h1>
+          <p className="mt-4 text-white/90 text-lg">
+            Sua banca favorita na palma da mão
+          </p>
+        </div>
+      </div>
+
+      {/* Coluna direita: formulário (desktop) / Card centralizado (mobile) */}
+      <div className="flex-1 flex items-center justify-center min-h-screen lg:min-h-0 relative">
+        {/* Background mobile */}
+        <div 
+          className="absolute inset-0 lg:hidden bg-cover bg-center"
+          style={{
+            backgroundImage: "url('https://images.unsplash.com/photo-1585241936939-be4099591252?q=80&w=800&auto=format')",
+          }}
+        />
+        <div className="absolute inset-0 lg:hidden bg-[#3d3d3d]/70" />
+
+        {/* Card do formulário */}
+        <div className="relative z-10 w-full max-w-md mx-4 lg:mx-0 bg-white rounded-3xl lg:rounded-none lg:bg-transparent shadow-2xl lg:shadow-none">
+          {/* Versão mobile: curva laranja decorativa no topo */}
+          <div className="lg:hidden absolute -top-6 left-0 right-0 h-32 bg-[#ff7a1f] rounded-t-[100px] opacity-20" />
+          
+          <div className="relative px-8 py-10 lg:px-12 lg:py-0">
+            {/* Logo e título */}
+            <div className="text-center mb-8">
+              <div className="flex items-center justify-center gap-2">
+                <div className="h-10 w-10 rounded-full bg-[#ff7a1f] flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" className="h-6 w-6 text-white" fill="currentColor">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                  </svg>
+                </div>
+                <span className="text-2xl font-bold text-[#ff7a1f]">Guia das Bancas</span>
+              </div>
+              <h2 className="mt-6 text-xl font-semibold text-gray-900">
+                {mode === "login" ? "Acesse sua Conta" : "Criar nova Conta"}
+              </h2>
             </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-orange-800">
-                Para finalizar o seu pedido, é necessário se{' '}
-                <button 
-                  onClick={() => setMode('register')}
-                  className="underline hover:no-underline font-semibold"
-                >
-                  Registrar
-                </button>
-                {' '}ou Entre com suas credenciais de acesso
-              </h3>
-              <p className="mt-1 text-xs text-orange-700">
-                Seu carrinho será mantido após o login/registro.
+
+            {/* Mensagem do checkout */}
+            {fromCheckout && (
+              <div className="mb-6 rounded-lg bg-orange-50 border border-orange-200 p-3">
+                <p className="text-sm text-orange-800">
+                  Para finalizar seu pedido, faça login ou{" "}
+                  <button onClick={() => setMode("register")} className="font-semibold underline">
+                    crie uma conta
+                  </button>
+                </p>
+              </div>
+            )}
+
+            <form onSubmit={onSubmit} className="space-y-5">
+              {/* Nome (apenas registro) */}
+              {mode === "register" && (
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Seu Nome
+                  </label>
+                  <input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full rounded-lg border-0 bg-[#E8F0FE] px-4 py-3.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#ff7a1f]/50"
+                    placeholder="Digite seu nome completo"
+                  />
+                </div>
+              )}
+
+              {/* Email */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Seu E-mail
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-lg border-0 bg-[#E8F0FE] px-4 py-3.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#ff7a1f]/50"
+                  placeholder="seu@email.com"
+                />
+              </div>
+
+              {/* Senha */}
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Senha
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-lg border-0 bg-[#E8F0FE] px-4 py-3.5 pr-12 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#ff7a1f]/50"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? (
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                        <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Lembrar + Esqueci senha (apenas login) */}
+              {mode === "login" && (
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-[#ff7a1f] focus:ring-[#ff7a1f]" />
+                    <span className="text-sm text-gray-600">Lembrar de mim</span>
+                  </label>
+                  <Link href="/esqueci-senha" className="text-sm font-medium text-[#00a6c0] hover:underline">
+                    Esqueci a Senha
+                  </Link>
+                </div>
+              )}
+
+              {/* Erro */}
+              {error && (
+                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
+              {/* Botão */}
+              <button
+                type="submit"
+                className="w-full rounded-lg bg-[#ff7a1f] hover:bg-[#ff8c3a] px-4 py-3.5 text-base font-semibold text-white transition-colors focus:outline-none focus:ring-2 focus:ring-[#ff7a1f]/50 focus:ring-offset-2"
+              >
+                {mode === "login" ? "Entrar" : "Criar Conta"}
+              </button>
+            </form>
+
+            {/* Alternar login/registro */}
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                {mode === "login" ? (
+                  <>
+                    Não tem conta?{" "}
+                    <button onClick={() => setMode("register")} className="font-semibold text-[#ff7a1f] hover:underline">
+                      Crie agora
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Já tem conta?{" "}
+                    <button onClick={() => setMode("login")} className="font-semibold text-[#ff7a1f] hover:underline">
+                      Entrar
+                    </button>
+                  </>
+                )}
               </p>
+            </div>
+
+            {/* Link jornaleiro */}
+            <div className="mt-4 pt-4 border-t border-gray-200 text-center">
+              <p className="text-sm text-gray-600">
+                É jornaleiro?{" "}
+                <Link href="/jornaleiro" className="font-semibold text-[#ff7a1f] hover:underline">
+                  Acesse o painel aqui
+                </Link>
+              </p>
+            </div>
+
+            {/* Voltar */}
+            <div className="mt-4 text-center">
+              <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">
+                ← Voltar para a Home
+              </Link>
             </div>
           </div>
         </div>
-      )}
-      
-      <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <form onSubmit={onSubmit} className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
-          {mode === "register" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo</label>
-              <input className="input" placeholder="Digite seu nome completo" value={name} onChange={(e)=>setName(e.target.value)} />
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-            <input className="input" type="email" placeholder="seu@email.com" value={email} onChange={(e)=>setEmail(e.target.value)} required />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-            <input className="input" type="password" placeholder="Digite sua senha" value={password} onChange={(e)=>setPassword(e.target.value)} required />
-          </div>
-          {error && <div className="text-[12px] text-red-600">{error}</div>}
-          <div className="pt-1">
-            <button type="submit" className="w-full rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-3 text-sm font-semibold text-white shadow hover:opacity-95">
-              {mode === "login" ? "Entrar" : "Registrar"}
-            </button>
-          </div>
-          <div className="text-[12px] text-gray-700 space-y-2">
-            <div>
-              {mode === "login" ? (
-                <>Não tem conta? <button type="button" onClick={()=>setMode("register")} className="underline">Crie agora</button></>
-              ) : (
-                <>Já tem conta? <button type="button" onClick={()=>setMode("login")} className="underline">Entrar</button></>
-              )}
-            </div>
-            <div className="pt-3 border-t border-gray-200">
-              <div className="text-sm text-gray-600">
-                É jornaleiro? 
-                <Link href="/jornaleiro" className="ml-1 text-[#ff5c00] font-semibold hover:underline">
-                  Cadastre sua banca aqui
-                </Link>
-              </div>
-            </div>
-          </div>
-        </form>
-        <aside className="rounded-2xl border border-gray-200 bg-white overflow-hidden relative h-full min-h-[400px]">
-          <Image
-            src="https://rgqlncxrzwgjreggrjcq.supabase.co/storage/v1/object/public/images/bancas/loginpubli.jpg"
-            alt="Como funciona"
-            fill
-            className="object-cover"
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            priority
-          />
-        </aside>
       </div>
-    </section>
+    </div>
   );
 }
 
