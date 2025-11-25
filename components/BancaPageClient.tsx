@@ -279,7 +279,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
             </button>
             {phone ? (
               <a
-                href={`https://wa.me/${phone.replace(/\D/g, "")}\?text=${encodeURIComponent(`Olá! Gostaria de comprar ${p.name}.\n\nVer produto: https://guiadasbancas.com/produto/${slugify(p.name)}-${p.id}`)}`}
+                href={`https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá! Gostaria de comprar: ${p.name}\n\nPreço: R$ ${p.price.toFixed(2)}\n\nVer produto: https://guiadasbancas.com.br/produto/${slugify(p.name)}-${p.id}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`w-full inline-flex items-center justify-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold ${outOfStock ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50 pointer-events-none' : 'border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15'}`}

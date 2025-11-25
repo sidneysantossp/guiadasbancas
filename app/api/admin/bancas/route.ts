@@ -55,12 +55,15 @@ async function readBancas(): Promise<AdminBanca[]> {
       lng: typeof banca.lng === 'number' ? banca.lng : (banca.lng != null ? parseFloat(banca.lng) : undefined),
       cover: banca.cover_image || '',
       avatar: banca.cover_image || '',
-      description: banca.address,
+      description: banca.description || banca.address,
       tpu_url: banca.tpu_url || undefined,
       addressObj: banca.addressObj || undefined,
       location: banca.location || undefined,
+      contact: { whatsapp: banca.whatsapp || undefined },
+      socials: { facebook: banca.facebook || undefined, instagram: banca.instagram || undefined, gmb: banca.gmb || undefined },
+      hours: banca.hours || undefined,
       categories: banca.categories || [],
-      active: banca.active !== false, // Usar valor real do banco
+      active: banca.active !== false,
       order: banca.order || 0,
       createdAt: banca.created_at,
       user_id: banca.user_id || null
