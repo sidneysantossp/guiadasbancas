@@ -683,7 +683,7 @@ useEffect(() => {
 
           {/* Busca - ocultar apenas na página da banca (tem busca própria) */}
           {!isOnBancaPage && (
-            <form onSubmit={onSearch} className="flex-1 max-w-2xl">
+            <form onSubmit={onSearch} className="flex-1 max-w-md">
               <div className="relative">
                 <IconSearch size={20} stroke={1.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                 <SearchAutocomplete
