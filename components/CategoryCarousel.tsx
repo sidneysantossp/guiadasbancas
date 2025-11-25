@@ -5,25 +5,27 @@ import Link from "next/link";
 import SafeImage from "./SafeImage";
 import { useCategories } from "@/lib/useCategories";
 
-function useScrolled(elementId: string) {
+function useScrolled(sentinelId: string) {
   const [scrolled, setScrolled] = useState(false);
   
   useEffect(() => {
-    const handleScroll = () => {
-      const el = document.getElementById(elementId);
-      if (!el) return setScrolled(false);
-      
-      const rect = el.getBoundingClientRect();
-      // Fica sticky somente quando a seção de categorias sai completamente da tela
-      // (quando o bottom da seção passa pelo top da viewport + altura da navbar)
-      setScrolled(rect.bottom < 72);
-    };
-    
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll(); // Check inicial
-    
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [elementId]);
+    const sentinel = document.getElementById(sentinelId);
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Quando o sentinel não está mais visível, ativa o sticky
+        setScrolled(!entry.isIntersecting);
+      },
+      { 
+        threshold: 0,
+        rootMargin: '-72px 0px 0px 0px' // Considera altura da navbar
+      }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [sentinelId]);
   
   return scrolled;
 }
@@ -44,7 +46,7 @@ function useItemsPerView(length: number) {
 
 export default function CategoryCarousel() {
   const { items } = useCategories();
-  const scrolled = useScrolled("buy-by-category");
+  const scrolled = useScrolled("category-sentinel");
   const filtered = items.filter((c) => {
     const n = (c.name || '').trim().toLowerCase();
     const link = (c.link || '').toLowerCase();
@@ -99,6 +101,9 @@ export default function CategoryCarousel() {
 
   return (
     <>
+    {/* Sentinel - elemento invisível que serve de referência para o IntersectionObserver */}
+    <div id="category-sentinel" className="hidden md:block h-0" />
+    
     {/* Placeholder para manter o espaço quando fixed */}
     {!isMobile && scrolled && (
       <div className="hidden md:block md:h-[120px]" />
