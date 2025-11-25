@@ -256,23 +256,6 @@ function MinhaContaPageContent() {
                     <path d="M12 21s-6.5-4.2-8.5-7.7A5.2 5.2 0 0 1 12 5.8a5.2 5.2 0 0 1 8.5 7.5C18.5 16.8 12 21 12 21Z" />
                   </svg>
                 )},
-                { key: "pontos", label: "Pontos de Fidelidade", icon: (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="m12 3 3 6 6 .9-4.5 4.3 1.1 6.5L12 17.8 6.4 20.7 7.5 14 3 9.9 9 9z" />
-                  </svg>
-                )},
-                { key: "indicacao", label: "Código de Indicação", icon: (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M10 13a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z" />
-                    <path d="M14 11l6 6" />
-                  </svg>
-                )},
-                { key: "inbox", label: "Caixa de Entrada", icon: (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M4 7h16v10H4z" />
-                    <path d="M4 13h5l2 3h2l2-3h5" />
-                  </svg>
-                )},
               ].map((m) => (
                 <button
                   key={m.key}

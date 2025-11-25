@@ -158,7 +158,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           onClose={() => setShowAlert(false)}
           title="Produto de outra banca"
           type="warning"
-          message={`Seu carrinho já contém produtos da "${alertData.currentBanca}".\n\nVocê só pode comprar de uma banca por vez.\n\n💡 Dica: Verifique se a "${alertData.currentBanca}" também vende este produto!`}
+          message={`Seu carrinho já contém produtos da "${alertData.currentBanca}".\n\nPara adicionar produtos da "${alertData.newBanca}", você precisa:\n\n1. Finalizar o pedido atual, ou\n2. Esvaziar o carrinho`}
           primaryButton={{
             label: "Manter carrinho atual",
             onClick: () => setShowAlert(false)
