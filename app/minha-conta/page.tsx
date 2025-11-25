@@ -22,7 +22,7 @@ function MinhaContaPageContent() {
     | "pontos"
     | "indicacao"
     | "inbox"
-  >("pedidos");
+  >("perfil");
   const [ordersTab, setOrdersTab] = useState<"andamento" | "anteriores" | "assinaturas">("andamento");
   const [orders, setOrders] = useState<any[]>([]);
   const [userCreatedAt, setUserCreatedAt] = useState<string | null>(null);
@@ -90,7 +90,11 @@ function MinhaContaPageContent() {
       if (wantMenu) {
         setActiveMenu(wantMenu as any);
         localStorage.removeItem("gb:dashboardActiveMenu");
+      } else if (fromCheckout) {
+        // Se vem do checkout (após compra), ir para pedidos
+        setActiveMenu("pedidos");
       }
+      // Caso contrário, mantém o padrão "perfil"
       // Carregar perfil
       const profileRaw = localStorage.getItem('gb:userProfile');
       let phoneFromCheckout = '';
