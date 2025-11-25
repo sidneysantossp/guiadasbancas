@@ -7,8 +7,17 @@ import { useCategories } from "@/lib/useCategories";
 
 function useScrolled(sentinelId: string) {
   const [scrolled, setScrolled] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  
+  // Delay para evitar piscar na navegação
+  useEffect(() => {
+    const timer = setTimeout(() => setMounted(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
   
   useEffect(() => {
+    if (!mounted) return;
+    
     const sentinel = document.getElementById(sentinelId);
     if (!sentinel) return;
 
@@ -25,9 +34,9 @@ function useScrolled(sentinelId: string) {
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [sentinelId]);
+  }, [sentinelId, mounted]);
   
-  return scrolled;
+  return mounted ? scrolled : false;
 }
 
 function useItemsPerView(length: number) {
@@ -110,15 +119,11 @@ export default function CategoryCarousel() {
     )}
     <section 
       id="buy-by-category" 
-      className={`w-full transition-all duration-300 ease-out ${
+      className={`w-full ${
         !isMobile && scrolled 
-          ? 'md:fixed md:top-[72px] md:left-0 md:right-0 md:z-40 md:py-1 md:shadow-sm md:border-b md:border-gray-200 md:bg-white/80 md:backdrop-blur-md md:supports-[backdrop-filter]:bg-white/70' 
+          ? 'md:fixed md:top-[72px] md:left-0 md:right-0 md:z-40 md:py-1 md:shadow-sm md:border-b md:border-gray-200 md:bg-white' 
           : 'md:-mt-3 lg:-mt-4 xl:-mt-4 md:pt-2 lg:pt-3 bg-white'
       }`}
-      style={{
-        opacity: !isMobile && scrolled ? 1 : undefined,
-        transform: !isMobile && scrolled ? 'translateY(0)' : undefined,
-      }}
     >
       <div className="w-full overflow-hidden">
         <div className="container-max">
