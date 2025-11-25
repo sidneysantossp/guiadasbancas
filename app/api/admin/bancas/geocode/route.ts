@@ -172,3 +172,34 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+
+// PATCH para atualizar coordenadas de uma banca específica
+export async function PATCH(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader || authHeader !== "Bearer admin-token") {
+      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { id, lat, lng } = body;
+
+    if (!id || typeof lat !== 'number' || typeof lng !== 'number') {
+      return NextResponse.json({ success: false, error: "id, lat e lng são obrigatórios" }, { status: 400 });
+    }
+
+    const { error } = await supabaseAdmin
+      .from('bancas')
+      .update({ lat, lng })
+      .eq('id', id);
+
+    if (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, message: "Coordenadas atualizadas" });
+
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}
