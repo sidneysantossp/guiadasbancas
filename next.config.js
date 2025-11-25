@@ -25,8 +25,9 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-    unoptimized: false, // Sempre otimizar
-    loader: 'default', // Usar otimizador do Next.js
+    // IMPORTANTE: unoptimized=true evita erro 402 Payment Required na Vercel
+    // O plano gratuito tem limite de otimização de imagens
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
