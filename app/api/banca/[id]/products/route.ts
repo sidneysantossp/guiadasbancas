@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Cache de 60 segundos para melhorar performance
+export const revalidate = 60;
 
 const CATEGORIA_DISTRIBUIDORES_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
 const CATEGORIA_DISTRIBUIDORES_NOME = 'Diversos';
@@ -14,6 +14,14 @@ const DISTRIBUIDORES_PUBLICOS = [
   '1511df09-1f4a-4e68-9f8c-05cd06be6269'  // Brancaleone
 ];
 
+// Campos mínimos necessários para produtos (reduz payload)
+const PRODUCT_FIELDS = `
+  id, name, price, images, description, category_id, 
+  distribuidor_id, stock_qty, status, codigo_mercos,
+  pronta_entrega, sob_encomenda, pre_venda, track_stock, featured,
+  categories!category_id(name)
+`;
+
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
     const bancaId = context.params.id;
@@ -23,113 +31,114 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     const supabase = supabaseAdmin;
 
-    // 0. Verificar se a banca é cotista
-    const { data: banca } = await supabase
-      .from('bancas')
-      .select('is_cotista, cotista_id')
-      .eq('id', bancaId)
-      .single();
+    // OTIMIZAÇÃO: Executar TODAS as queries em paralelo
+    const [
+      bancaResult,
+      produtosPropriosResult,
+      produtosBambinoResult,
+      produtosBrancaleoneResult,
+      distribuidoresResult
+    ] = await Promise.all([
+      // Query 1: Verificar se é cotista
+      supabase
+        .from('bancas')
+        .select('is_cotista, cotista_id')
+        .eq('id', bancaId)
+        .single(),
+      
+      // Query 2: Produtos próprios da banca
+      supabase
+        .from('products')
+        .select(PRODUCT_FIELDS)
+        .eq('banca_id', bancaId)
+        .eq('active', true)
+        .is('distribuidor_id', null)
+        .limit(500),
+      
+      // Query 3: Produtos Bambino
+      supabase
+        .from('products')
+        .select(PRODUCT_FIELDS)
+        .eq('active', true)
+        .eq('distribuidor_id', DISTRIBUIDORES_PUBLICOS[0])
+        .order('name', { ascending: true })
+        .limit(2000),
+      
+      // Query 4: Produtos Brancaleone
+      supabase
+        .from('products')
+        .select(PRODUCT_FIELDS)
+        .eq('active', true)
+        .eq('distribuidor_id', DISTRIBUIDORES_PUBLICOS[1])
+        .order('name', { ascending: true })
+        .limit(3000),
+      
+      // Query 5: Nomes dos distribuidores (pré-carregar)
+      supabase
+        .from('distribuidores')
+        .select('id, nome')
+        .in('id', DISTRIBUIDORES_PUBLICOS)
+    ]);
 
+    const banca = bancaResult.data;
+    const produtosProprios = produtosPropriosResult.data;
     const isCotista = banca?.is_cotista === true && !!banca?.cotista_id;
-    console.log(`[PRODUCTS] Banca ${bancaId}`);
-    console.log(`[PRODUCTS] - is_cotista no banco: ${banca?.is_cotista}`);
-    console.log(`[PRODUCTS] - cotista_id: ${banca?.cotista_id}`);
-    console.log(`[PRODUCTS] - É cotista (final): ${isCotista}`);
 
-    // 1. Buscar produtos próprios da banca
-    const { data: produtosProprios } = await supabase
-      .from('products')
-      .select(`
-        *,
-        categories!category_id(name)
-      `)
-      .eq('banca_id', bancaId)
-      .eq('active', true)
-      .is('distribuidor_id', null);
-
-    // 2. Buscar produtos de distribuidor
-    // - Distribuidores públicos (Bambino, Brancaleone): SEMPRE para todas as bancas
-    // - Outros distribuidores: SOMENTE se for cotista
-    let todosProdutosDistribuidor: any[] = [];
-    
-    // Buscar produtos dos distribuidores públicos (sempre)
-    // IMPORTANTE: Supabase ignora .limit() com .in(), então buscar separadamente
-    const produtosBambino = await supabase
-      .from('products')
-      .select(`
-        *,
-        categories!category_id(name)
-      `)
-      .eq('active', true)
-      .eq('distribuidor_id', DISTRIBUIDORES_PUBLICOS[0]) // Bambino
-      .order('name', { ascending: true });
-
-    const produtosBrancaleone = await supabase
-      .from('products')
-      .select(`
-        *,
-        categories!category_id(name)
-      `)
-      .eq('active', true)
-      .eq('distribuidor_id', DISTRIBUIDORES_PUBLICOS[1]) // Brancaleone
-      .order('name', { ascending: true })
-      .limit(5000); // Brancaleone tem >3000 produtos
-    
-    // IMPORTANTE: Brancaleone primeiro, depois Bambino (ordem de exibição)
-    todosProdutosDistribuidor = [
-      ...(produtosBrancaleone.data || []),
-      ...(produtosBambino.data || [])
+    // Montar produtos de distribuidores
+    let todosProdutosDistribuidor: any[] = [
+      ...(produtosBrancaleoneResult.data || []),
+      ...(produtosBambinoResult.data || [])
     ];
-    console.log(`[PRODUCTS] ${todosProdutosDistribuidor.length} produtos de distribuidores públicos (Brancaleone primeiro, depois Bambino)`);
     
-    // Se for cotista, buscar TAMBÉM produtos de outros distribuidores
+    // Se for cotista, buscar outros distribuidores em paralelo
     if (isCotista) {
       const { data: outrosDistribuidores } = await supabase
         .from('products')
-        .select(`
-          *,
-          categories!category_id(name)
-        `)
+        .select(PRODUCT_FIELDS)
         .eq('active', true)
         .not('distribuidor_id', 'is', null)
         .not('distribuidor_id', 'in', `(${DISTRIBUIDORES_PUBLICOS.join(',')})`)
         .order('name', { ascending: true })
-        .limit(5000);
+        .limit(2000);
       
-      if (outrosDistribuidores && outrosDistribuidores.length > 0) {
+      if (outrosDistribuidores?.length) {
         todosProdutosDistribuidor = [...todosProdutosDistribuidor, ...outrosDistribuidores];
-        console.log(`[PRODUCTS] Cotista - ${outrosDistribuidores.length} produtos de outros distribuidores`);
       }
     }
     
-    console.log(`[PRODUCTS] Total de produtos de distribuidores: ${todosProdutosDistribuidor.length}`);
-    
-    // Buscar nomes dos distribuidores separadamente
-    if (todosProdutosDistribuidor.length > 0) {
-      const distribuidorIds = [...new Set(todosProdutosDistribuidor.map(p => p.distribuidor_id).filter(Boolean))];
-      const { data: distribuidores } = await supabase
-        .from('distribuidores')
-        .select('id, nome')
-        .in('id', distribuidorIds);
+    // Buscar distribuidores e customizações em paralelo
+    const [distribuidoresExtras, customizacoesResult] = await Promise.all([
+      // Query: Nomes dos distribuidores
+      (async () => {
+        if (todosProdutosDistribuidor.length === 0) return [];
+        const distribuidorIds = [...new Set(todosProdutosDistribuidor.map(p => p.distribuidor_id).filter(Boolean))];
+        const { data } = await supabase
+          .from('distribuidores')
+          .select('id, nome')
+          .in('id', distribuidorIds);
+        return data || [];
+      })(),
       
-      // Criar mapa de distribuidores
-      const distribuidorMap = new Map((distribuidores || []).map(d => [d.id, d.nome]));
-      
-      // Adicionar nome do distribuidor a cada produto
-      todosProdutosDistribuidor = todosProdutosDistribuidor.map(p => ({
-        ...p,
-        distribuidor_nome: distribuidorMap.get(p.distribuidor_id) || ''
-      }));
-    }
-
-    let produtosDistribuidor: any[] = [];
-
-    if (todosProdutosDistribuidor && todosProdutosDistribuidor.length > 0) {
-      // Buscar customizações desta banca (se houver)
-      const { data: customizacoes } = await supabase
+      // Query: Customizações da banca
+      supabase
         .from('banca_produtos_distribuidor')
         .select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty')
-        .eq('banca_id', bancaId);
+        .eq('banca_id', bancaId)
+    ]);
+    
+    // Criar mapa de distribuidores
+    const distribuidorMap = new Map((distribuidoresExtras || []).map((d: any) => [d.id, d.nome]));
+    
+    // Adicionar nome do distribuidor a cada produto
+    todosProdutosDistribuidor = todosProdutosDistribuidor.map(p => ({
+      ...p,
+      distribuidor_nome: distribuidorMap.get(p.distribuidor_id) || ''
+    }));
+
+    let produtosDistribuidor: any[] = [];
+    const customizacoes = customizacoesResult.data;
+
+    if (todosProdutosDistribuidor && todosProdutosDistribuidor.length > 0) {
 
       // Mapear customizações por product_id
       const customMap = new Map(
@@ -223,13 +232,13 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       // 1. Brancaleone PRIMEIRO
       ...produtosBrancaleoneFilter,
       // 2. Produtos próprios da banca
-      ...(produtosProprios || []).map(p => {
+      ...(produtosProprios || []).map((p: any) => {
         let images = p.images || [];
         if (!Array.isArray(images) || images.length === 0) {
           images = [DEFAULT_PRODUCT_IMAGE];
         }
         // Extrair nome da categoria (vem como objeto do join)
-        const categoryName = p.categories?.name;
+        const categoryName = p.categories?.name || CATEGORIA_DISTRIBUIDORES_NOME;
         
         // Remover objeto categories (nested) para evitar problemas no frontend
         const { categories, ...produtoLimpo } = p;
