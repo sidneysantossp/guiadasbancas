@@ -142,6 +142,17 @@ export default function BancasPertoDeMimPage() {
     }
   }, []);
 
+  // Ouvir atualizações de localização da Navbar
+  useEffect(() => {
+    const handleLocationUpdate = (e: CustomEvent<UserLocation>) => {
+      console.log('[BancasPerto] Localização atualizada via evento:', e.detail);
+      setLoc(e.detail);
+    };
+    
+    window.addEventListener('gdb:location-updated', handleLocationUpdate as EventListener);
+    return () => window.removeEventListener('gdb:location-updated', handleLocationUpdate as EventListener);
+  }, []);
+
   // Buscar bancas reais do Admin CMS; se tiver localização, usar endpoint com lat/lng para reduzir payload
   useEffect(() => {
     (async () => {
