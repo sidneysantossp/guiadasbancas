@@ -106,128 +106,162 @@ export default function JornaleiroLoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-white flex flex-col lg:flex-row">
-      {/* Coluna esquerda: imagem + texto */}
+    <div className="min-h-screen w-full flex flex-col lg:flex-row">
+      {/* Coluna esquerda: imagem + texto (desktop) */}
       <div className="relative hidden lg:flex lg:w-1/2 items-stretch overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage:
-              "url('https://as2.ftcdn.net/v2/jpg/11/20/53/79/1000_F_1120537938_14oq2ICAOJO5rajUWMqFQfV8hsqOnW8Q.jpg')",
+            backgroundImage: "url('https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200&auto=format')",
           }}
         />
-        <div className="absolute inset-0 bg-black/60" />
-        <div className="relative z-10 flex flex-col justify-center px-12 py-10 text-white max-w-xl">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1 text-sm font-semibold uppercase tracking-wide text-white/80">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
-              <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v5a7 7 0 0 1-7 7H6a2 2 0 0 1-2-2Z" opacity="0.35" />
-              <path d="M7 10h5M7 13h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M6 4h12a2 2 0 0 1 2 2v3H4V6a2 2 0 0 1 2-2Z" />
-            </svg>
-            Portal do Jornaleiro
-          </span>
-          <h1 className="mt-6 text-3xl font-bold leading-tight sm:text-4xl md:text-5xl">
-            Você faz tudo pela sua banca. O Guia das Bancas faz por você também.
+        {/* Overlay laranja */}
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[70%] py-12 px-10 bg-[#ff7a1f]/90">
+          <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight">
+            BEM-VINDO AO<br />
+            <span className="text-white">GUIA DAS BANCAS</span>
           </h1>
-          <p className="mt-4 text-base text-white/85 sm:text-lg">
-            Gerencie pedidos, catálogo e campanhas em um só lugar. Acesse o portal exclusivo para parceiros e impulsione o seu negócio.
+          <p className="mt-4 text-white/90 text-lg">
+            Gerencie sua banca de forma fácil e rápida
           </p>
         </div>
       </div>
 
-      {/* Coluna direita: login */}
-      <div className="flex-1 flex items-center justify-center px-4 py-10 bg-gradient-to-b from-orange-50/40 to-white">
-        <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Portal do Parceiro</h2>
-            <p className="text-sm text-gray-500">Gerencie sua banca de forma rápida e segura</p>
-          </div>
+      {/* Coluna direita: formulário (desktop) / Card centralizado (mobile) */}
+      <div className="flex-1 flex items-center justify-center min-h-screen lg:min-h-0 relative">
+        {/* Background mobile */}
+        <div 
+          className="absolute inset-0 lg:hidden bg-cover bg-center"
+          style={{
+            backgroundImage: "url('https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800&auto=format')",
+          }}
+        />
+        <div className="absolute inset-0 lg:hidden bg-[#3d3d3d]/70" />
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                E-mail
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm shadow-sm focus:border-[#ff2d55] focus:outline-none focus:ring-2 focus:ring-[#ff2d55]/40"
-                placeholder="voce@suabanca.com"
-              />
+        {/* Card do formulário */}
+        <div className="relative z-10 w-full max-w-md mx-4 lg:mx-0 bg-white rounded-3xl lg:rounded-none lg:bg-transparent shadow-2xl lg:shadow-none">
+          {/* Versão mobile: curva laranja decorativa no topo */}
+          <div className="lg:hidden absolute -top-6 left-0 right-0 h-32 bg-[#ff7a1f] rounded-t-[100px] opacity-20" />
+          
+          <div className="relative px-8 py-10 lg:px-12 lg:py-0">
+            {/* Logo e título */}
+            <div className="text-center mb-8">
+              {branding?.logoUrl ? (
+                <Image
+                  src={branding.logoUrl}
+                  alt={branding.logoAlt}
+                  width={160}
+                  height={48}
+                  className="mx-auto h-12 w-auto object-contain"
+                />
+              ) : (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="h-10 w-10 rounded-full bg-[#ff7a1f] flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" className="h-6 w-6 text-white" fill="currentColor">
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                    </svg>
+                  </div>
+                  <span className="text-2xl font-bold text-[#ff7a1f]">Guia das Bancas</span>
+                </div>
+              )}
+              <h2 className="mt-6 text-xl font-semibold text-gray-900">Acesse o Painel</h2>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Senha
-              </label>
-              <div className="relative">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Email */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Seu E-mail
+                </label>
                 <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
+                  id="email"
+                  type="email"
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-12 text-sm shadow-sm focus:border-[#ff2d55] focus:outline-none focus:ring-2 focus:ring-[#ff2d55]/40"
-                  placeholder="Digite sua senha"
-                  aria-describedby="password-visibility-toggle"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-lg border-0 bg-[#E8F0FE] px-4 py-3.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#ff7a1f]/50"
+                  placeholder="voce@suabanca.com"
                 />
-                <button
-                  type="button"
-                  id="password-visibility-toggle"
-                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                >
-                  {showPassword ? (
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.74-1.73 2.1-3.64 3.95-5.22" />
-                      <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8-" />
-                      <path d="M1 1l22 22" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
-                </button>
               </div>
-              <div className="text-right">
-                <Link href="/jornaleiro/esqueci-senha" className="text-sm font-medium text-[#ff2d55] hover:underline">
-                  Esqueci minha senha
+
+              {/* Senha */}
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Senha
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-lg border-0 bg-[#E8F0FE] px-4 py-3.5 pr-12 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#ff7a1f]/50"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? (
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                        <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Lembrar + Esqueci senha */}
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-[#ff7a1f] focus:ring-[#ff7a1f]" />
+                  <span className="text-sm text-gray-600">Lembrar de mim</span>
+                </label>
+                <Link href="/jornaleiro/esqueci-senha" className="text-sm font-medium text-[#00a6c0] hover:underline">
+                  Esqueci a Senha
                 </Link>
               </div>
+
+              {/* Erro */}
+              {error && (
+                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
+              {/* Botão */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-lg bg-[#ff7a1f] hover:bg-[#ff8c3a] px-4 py-3.5 text-base font-semibold text-white transition-colors focus:outline-none focus:ring-2 focus:ring-[#ff7a1f]/50 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {loading ? "Entrando..." : "Entrar"}
+              </button>
+            </form>
+
+            {/* Links */}
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Quer ser um parceiro?{" "}
+                <Link href="/jornaleiro/registrar" className="font-semibold text-[#ff7a1f] hover:underline">
+                  Cadastre-se aqui
+                </Link>
+              </p>
             </div>
 
-            {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-gradient-to-r from-[#ff6a00] to-[#ff922b] px-4 py-3 text-base font-semibold text-white shadow-lg shadow-[#ff7a1f]/30 transition-all hover:from-[#ff7a1f] hover:to-[#ffad42] focus:outline-none focus:ring-2 focus:ring-[#ff7a1f]/60 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? "Entrando..." : "Continuar"}
-            </button>
-          </form>
-
-          <div className="mt-6 flex flex-col gap-3 text-center text-sm">
-            <p className="text-gray-600">
-              Ainda não tem cadastro?
-              {" "}
-              <Link href="/jornaleiro/registrar" className="font-semibold text-[#ff2d55] hover:underline">
-                Cadastre sua banca
+            {/* Voltar */}
+            <div className="mt-4 text-center">
+              <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">
+                ← Voltar para a Home
               </Link>
-            </p>
-            <Link href="/" className="text-gray-400 hover:text-gray-600">
-              ← Voltar para a Home
-            </Link>
+            </div>
           </div>
         </div>
       </div>
