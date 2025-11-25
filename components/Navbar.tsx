@@ -198,6 +198,7 @@ export default function Navbar() {
     return pathname?.startsWith('/banca/');
   }, [pathname]);
   const [locOpen, setLocOpen] = useState(false);
+  const [locPromptMode, setLocPromptMode] = useState(false); // Modo prompt (após geo negada)
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -604,12 +605,12 @@ useEffect(() => {
 
   // UF atual baseada na localização armazenada
   const ufQuery = (loc?.state || 'sp').toLowerCase();
-  const locationLinePrimary = loc ? 'Sua região' : 'Informe sua';
+  const locationLinePrimary = loc ? 'Sua região' : 'Informe seu';
   const locationLineSecondary = loc
     ? (loc.street
         ? `${loc.street}${loc.houseNumber ? `, ${loc.houseNumber}` : ''}`
         : loc.neighborhood || loc.city || (loc.state ? loc.state.toUpperCase() : 'Localização'))
-    : 'Localização';
+    : 'CEP';
   const locationTooltipParts = loc
     ? [
         loc.street ? `${loc.street}${loc.houseNumber ? `, ${loc.houseNumber}` : ''}` : '',
@@ -865,7 +866,7 @@ useEffect(() => {
                 <span className="font-medium">
                   {loc
                     ? `${locationLineSecondary}${loc.city ? `, ${loc.city}` : ''}`
-                    : 'Informe sua localização'}
+                    : 'Informe seu CEP'}
                 </span>
               </div>
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -954,7 +955,14 @@ useEffect(() => {
       )}
 
       {/* Componente de geolocalização automática */}
-      <AutoGeolocation onLocationUpdate={handleLocationUpdate} />
+      <AutoGeolocation 
+        onLocationUpdate={handleLocationUpdate} 
+        onGeoDenied={() => {
+          // Quando geolocalização é negada, mostrar popup de CEP
+          setLocPromptMode(true);
+          setLocOpen(true);
+        }}
+      />
     </header>
     {/* Mobile Search Bar (full width abaixo da navbar) - Ocultar na página da banca */}
     {!inDashboard && !isOnBancaPage && mobileSearchOpen && (
@@ -989,8 +997,15 @@ useEffect(() => {
     {/* Location Modal */}
     <LocationModal
       open={locOpen}
-      onClose={() => setLocOpen(false)}
-      onSaved={(l) => setLoc(l)}
+      onClose={() => {
+        setLocOpen(false);
+        setLocPromptMode(false);
+      }}
+      onSaved={(l) => {
+        setLoc(l);
+        setLocPromptMode(false);
+      }}
+      showAsPrompt={locPromptMode}
     />
     {/* Offcanvas Mobile */}
     {mobileOpen && (

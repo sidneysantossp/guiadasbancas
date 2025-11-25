@@ -5,9 +5,10 @@ import { loadStoredLocation, saveCoordsAsLocation, UserLocation } from "@/lib/lo
 
 interface AutoGeolocationProps {
   onLocationUpdate?: (location: UserLocation | null) => void;
+  onGeoDenied?: () => void; // Callback quando geolocalização é negada
 }
 
-export default function AutoGeolocation({ onLocationUpdate }: AutoGeolocationProps) {
+export default function AutoGeolocation({ onLocationUpdate, onGeoDenied }: AutoGeolocationProps) {
   const [hasRequested, setHasRequested] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
 
@@ -26,12 +27,21 @@ export default function AutoGeolocation({ onLocationUpdate }: AutoGeolocationPro
     // Verificar se já solicitamos permissão nesta sessão
     const sessionRequested = sessionStorage.getItem('gb:geoRequested');
     if (sessionRequested && !needUpgrade) {
+      // Se já foi solicitado e negado, e não tem localização, mostrar popup de CEP
+      const permanentDenied = localStorage.getItem('gb:geoDenied');
+      if (permanentDenied && !stored) {
+        onGeoDenied?.();
+      }
       return;
     }
 
     // Verificar se o usuário já negou permanentemente
     const permanentDenied = localStorage.getItem('gb:geoDenied');
     if (permanentDenied) {
+      // Se negou e não tem localização salva, mostrar popup de CEP
+      if (!stored) {
+        onGeoDenied?.();
+      }
       return;
     }
 
@@ -54,6 +64,8 @@ export default function AutoGeolocation({ onLocationUpdate }: AutoGeolocationPro
             }));
           } catch (error) {
             console.error('Erro ao salvar localização:', error);
+            // Se falhou ao salvar, mostrar popup de CEP
+            onGeoDenied?.();
           } finally {
             setIsRequesting(false);
           }
@@ -68,6 +80,9 @@ export default function AutoGeolocation({ onLocationUpdate }: AutoGeolocationPro
           
           setIsRequesting(false);
           onLocationUpdate?.(null);
+          
+          // Mostrar popup de CEP quando geolocalização é negada
+          onGeoDenied?.();
         },
         {
           enableHighAccuracy: true,
