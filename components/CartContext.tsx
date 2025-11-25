@@ -144,6 +144,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     clearCart 
   }), [items, totalCount, currentBancaId, currentBancaName, addToCart, removeFromCart, clearCart]);
 
+  const handleClearAndClose = () => {
+    clearCart();
+    setShowAlert(false);
+  };
+
   return (
     <CartContext.Provider value={value}>
       {children}
@@ -151,9 +156,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
         <AlertModal
           isOpen={showAlert}
           onClose={() => setShowAlert(false)}
-          title="Carrinho de outra banca"
+          title="Produto de outra banca"
           type="warning"
-          message={`Seu carrinho já contém produtos de "${alertData.currentBanca}".\n\nPara adicionar produtos de "${alertData.newBanca}", você precisa:\n\n1. Finalizar o pedido atual, ou\n2. Esvaziar o carrinho`}
+          message={`Seu carrinho já contém produtos da "${alertData.currentBanca}".\n\nVocê só pode comprar de uma banca por vez.\n\n💡 Dica: Verifique se a "${alertData.currentBanca}" também vende este produto!`}
+          primaryButton={{
+            label: "Manter carrinho atual",
+            onClick: () => setShowAlert(false)
+          }}
+          secondaryButton={{
+            label: "Limpar carrinho",
+            onClick: handleClearAndClose
+          }}
         />
       )}
     </CartContext.Provider>
