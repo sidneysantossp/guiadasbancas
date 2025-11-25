@@ -96,13 +96,13 @@ export default function CategoryCarousel() {
     <>
     {/* Placeholder para manter o espaço quando fixed */}
     {!isMobile && scrolled && (
-      <div className="hidden md:block md:h-[140px]" />
+      <div className="hidden md:block md:h-[120px]" />
     )}
     <section 
       id="buy-by-category" 
       className={`w-full bg-white transition-all duration-300 ${
         !isMobile && scrolled 
-          ? 'md:fixed md:top-[72px] md:left-0 md:right-0 md:z-40 md:py-2 md:shadow-sm md:border-b md:border-gray-200' 
+          ? 'md:fixed md:top-[72px] md:left-0 md:right-0 md:z-40 md:py-1 md:shadow-sm md:border-b md:border-gray-200' 
           : 'md:-mt-3 lg:-mt-4 xl:-mt-4 md:pt-2 lg:pt-3'
       }`}
     >
@@ -124,23 +124,23 @@ export default function CategoryCarousel() {
                     key={`${c.key}-${i}`}
                     href={c.link as any}
                     className={`group flex shrink-0 flex-col items-center transition-all duration-300 ${
-                      scrolled && !isMobile ? 'gap-1 py-1' : 'gap-2 py-2'
+                      scrolled && !isMobile ? 'gap-0.5 py-0.5' : 'gap-2 py-2'
                     }`}
                     style={{
                       flex: `0 0 ${100 / perView}%`,
                     }}
                   >
                     <div 
-                      className={`relative rounded-[24px] sm:rounded-[28px] overflow-hidden shadow-sm transition-all duration-300 group-hover:-translate-y-0.5 ${
+                      className={`relative overflow-hidden shadow-sm transition-all duration-300 group-hover:-translate-y-0.5 ${
                         scrolled && !isMobile 
-                          ? 'h-16 w-16 md:h-16 md:w-16' 
-                          : 'h-24 w-24 sm:h-28 sm:w-28 md:h-28 md:w-28'
+                          ? 'h-10 w-10 md:h-10 md:w-10 rounded-xl' 
+                          : 'h-24 w-24 sm:h-28 sm:w-28 md:h-28 md:w-28 rounded-[24px] sm:rounded-[28px]'
                       }`}
                     >
                       <SafeImage src={c.image} alt={c.name} fill className="object-cover" />
                     </div>
                     <div className={`text-gray-800 font-medium text-center transition-all duration-300 ${
-                      scrolled && !isMobile ? 'text-xs' : 'text-sm'
+                      scrolled && !isMobile ? 'text-[10px] leading-tight' : 'text-sm'
                     }`}>
                       {c.name}
                     </div>
