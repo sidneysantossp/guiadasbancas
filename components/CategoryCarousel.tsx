@@ -102,7 +102,7 @@ export default function CategoryCarousel() {
       id="buy-by-category" 
       className={`w-full bg-white transition-all duration-300 ${
         !isMobile && scrolled 
-          ? 'md:fixed md:top-0 md:left-0 md:right-0 md:z-40 md:py-2 md:shadow-sm md:border-b md:border-gray-200' 
+          ? 'md:fixed md:top-[72px] md:left-0 md:right-0 md:z-40 md:py-2 md:shadow-sm md:border-b md:border-gray-200' 
           : 'md:-mt-3 lg:-mt-4 xl:-mt-4 md:pt-2 lg:pt-3'
       }`}
     >
