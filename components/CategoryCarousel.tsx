@@ -5,20 +5,25 @@ import Link from "next/link";
 import SafeImage from "./SafeImage";
 import { useCategories } from "@/lib/useCategories";
 
-function useScrolled() {
+function useScrolled(elementId: string) {
   const [scrolled, setScrolled] = useState(false);
   
   useEffect(() => {
     const handleScroll = () => {
-      // Fica sticky após rolar 200px
-      setScrolled(window.scrollY > 200);
+      const el = document.getElementById(elementId);
+      if (!el) return setScrolled(false);
+      
+      const rect = el.getBoundingClientRect();
+      // Fica sticky somente quando a seção de categorias sai completamente da tela
+      // (quando o bottom da seção passa pelo top da viewport + altura da navbar)
+      setScrolled(rect.bottom < 72);
     };
     
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll(); // Check inicial
     
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [elementId]);
   
   return scrolled;
 }
@@ -39,7 +44,7 @@ function useItemsPerView(length: number) {
 
 export default function CategoryCarousel() {
   const { items } = useCategories();
-  const scrolled = useScrolled();
+  const scrolled = useScrolled("buy-by-category");
   const filtered = items.filter((c) => {
     const n = (c.name || '').trim().toLowerCase();
     const link = (c.link || '').toLowerCase();
