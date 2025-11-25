@@ -37,37 +37,49 @@ export type AdminBanca = {
 
 async function readBancas(): Promise<AdminBanca[]> {
   try {
+    // Buscar bancas com join no perfil do usuário para obter telefone
     const { data, error } = await supabaseAdmin
       .from('bancas')
-      .select('*')
+      .select(`
+        *,
+        user_profiles:user_id (
+          phone
+        )
+      `)
       .order('name');
 
     if (error || !data) {
       return [];
     }
 
-    return data.map((banca: any) => ({
-      id: banca.id,
-      name: banca.name,
-      address: banca.address,
-      cep: banca.cep,
-      lat: typeof banca.lat === 'number' ? banca.lat : (banca.lat != null ? parseFloat(banca.lat) : undefined),
-      lng: typeof banca.lng === 'number' ? banca.lng : (banca.lng != null ? parseFloat(banca.lng) : undefined),
-      cover: banca.cover_image || '',
-      avatar: banca.cover_image || '',
-      description: banca.description || banca.address,
-      tpu_url: banca.tpu_url || undefined,
-      addressObj: banca.addressObj || undefined,
-      location: banca.location || undefined,
-      contact: { whatsapp: banca.whatsapp || undefined },
-      socials: { facebook: banca.facebook || undefined, instagram: banca.instagram || undefined, gmb: banca.gmb || undefined },
-      hours: banca.hours || undefined,
-      categories: banca.categories || [],
-      active: banca.active !== false,
-      order: banca.order || 0,
-      createdAt: banca.created_at,
-      user_id: banca.user_id || null
-    }));
+    return data.map((banca: any) => {
+      // Obter telefone: priorizar whatsapp da banca, depois phone da banca, depois telefone do perfil
+      const profilePhone = banca.user_profiles?.phone;
+      const whatsappNumber = banca.whatsapp || banca.phone || profilePhone || undefined;
+      
+      return {
+        id: banca.id,
+        name: banca.name,
+        address: banca.address,
+        cep: banca.cep,
+        lat: typeof banca.lat === 'number' ? banca.lat : (banca.lat != null ? parseFloat(banca.lat) : undefined),
+        lng: typeof banca.lng === 'number' ? banca.lng : (banca.lng != null ? parseFloat(banca.lng) : undefined),
+        cover: banca.cover_image || '',
+        avatar: banca.cover_image || '',
+        description: banca.description || banca.address,
+        tpu_url: banca.tpu_url || undefined,
+        addressObj: banca.addressObj || undefined,
+        location: banca.location || undefined,
+        contact: { whatsapp: whatsappNumber },
+        socials: { facebook: banca.facebook || undefined, instagram: banca.instagram || undefined, gmb: banca.gmb || undefined },
+        hours: banca.hours || undefined,
+        categories: banca.categories || [],
+        active: banca.active !== false,
+        order: banca.order || 0,
+        createdAt: banca.created_at,
+        user_id: banca.user_id || null
+      };
+    });
   } catch {
     return [];
   }
