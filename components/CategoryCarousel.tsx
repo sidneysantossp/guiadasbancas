@@ -110,11 +110,15 @@ export default function CategoryCarousel() {
     )}
     <section 
       id="buy-by-category" 
-      className={`w-full bg-white ${
+      className={`w-full transition-all duration-300 ease-out ${
         !isMobile && scrolled 
-          ? 'md:fixed md:top-[72px] md:left-0 md:right-0 md:z-40 md:py-1 md:shadow-sm md:border-b md:border-gray-200' 
-          : 'md:-mt-3 lg:-mt-4 xl:-mt-4 md:pt-2 lg:pt-3'
+          ? 'md:fixed md:top-[72px] md:left-0 md:right-0 md:z-40 md:py-1 md:shadow-sm md:border-b md:border-gray-200 md:bg-white/80 md:backdrop-blur-md md:supports-[backdrop-filter]:bg-white/70' 
+          : 'md:-mt-3 lg:-mt-4 xl:-mt-4 md:pt-2 lg:pt-3 bg-white'
       }`}
+      style={{
+        opacity: !isMobile && scrolled ? 1 : undefined,
+        transform: !isMobile && scrolled ? 'translateY(0)' : undefined,
+      }}
     >
       <div className="w-full overflow-hidden">
         <div className="container-max">
