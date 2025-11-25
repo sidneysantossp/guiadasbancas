@@ -65,17 +65,23 @@ function BancaCard({
   return (
     <Link href={(buildBancaHref(name, id, uf) as Route)} className="block min-h-[22rem] rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-shadow overflow-hidden">
       <div className="relative h-48 w-full bg-gray-100">
-        <Image 
-          src={cover} 
-          alt={name} 
-          fill 
-          sizes="(max-width: 640px) 88vw, (max-width: 1024px) 45vw, 30vw"
-          className="object-cover" 
-          priority={priority}
-          loading={priority ? undefined : "lazy"}
-          placeholder="blur"
-          blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YzZjRmNiIvPjwvc3ZnPg=="
-        />
+        {cover ? (
+          <Image 
+            src={cover} 
+            alt={name} 
+            fill 
+            sizes="(max-width: 640px) 88vw, (max-width: 1024px) 45vw, 30vw"
+            className="object-cover" 
+            priority={priority}
+            loading={priority ? undefined : "lazy"}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-orange-50">
+            <svg viewBox="0 0 24 24" className="h-12 w-12 text-orange-300" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M3 21h18M5 21V7l8-4 8 4v14M9 21v-6h6v6"/>
+            </svg>
+          </div>
+        )}
         {/* Removido badge de distância para não poluir a imagem */}
         {featured && (
           <div className="absolute left-2 top-2 z-10 inline-flex items-center rounded-full bg-orange-50 text-[#ff5c00] border border-orange-200 px-2 py-[2px] text-[11px]">Destaque</div>
@@ -103,8 +109,10 @@ function BancaCard({
         )}
         {/* Ver no Mapa */}
         <div className="mt-1 flex items-center">
-          <span className="inline-flex items-center gap-1 text-[12px] text-black">
-            <Image src="https://cdn-icons-png.flaticon.com/128/2875/2875433.png" alt="Mapa" width={14} height={14} className="h-3.5 w-3.5 rounded-full object-contain" />
+          <span className="inline-flex items-center gap-1 text-[12px] text-emerald-600 font-medium">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
             Ver no Mapa
           </span>
         </div>
