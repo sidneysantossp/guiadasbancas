@@ -681,26 +681,25 @@ useEffect(() => {
             )}
           </Link>
 
-          {!inDashboard && (
-            <>
-              {/* Ocultar busca na página da banca - haverá busca local lá */}
-              {!isOnBancaPage && (
-                <form onSubmit={onSearch} className="flex-1 max-w-2xl">
-                  <div className="relative">
-                    <IconSearch size={20} stroke={1.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <SearchAutocomplete
-                      query={q}
-                      onQueryChange={setQ}
-                      onSelect={handleSearchSelect}
-                      onSubmit={handleSearchSubmit}
-                      placeholder="O que você procura hoje?"
-                      className="w-full rounded-lg border border-gray-300 bg-white pl-11 pr-4 py-2.5 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00]"
-                    />
-                  </div>
-                </form>
-              )}
+          {/* Busca - ocultar no dashboard e na página da banca */}
+          {!inDashboard && !isOnBancaPage && (
+            <form onSubmit={onSearch} className="flex-1 max-w-2xl">
+              <div className="relative">
+                <IconSearch size={20} stroke={1.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <SearchAutocomplete
+                  query={q}
+                  onQueryChange={setQ}
+                  onSelect={handleSearchSelect}
+                  onSubmit={handleSearchSubmit}
+                  placeholder="O que você procura hoje?"
+                  className="w-full rounded-lg border border-gray-300 bg-white pl-11 pr-4 py-2.5 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00]"
+                />
+              </div>
+            </form>
+          )}
 
-              <div className={`flex items-center gap-6 text-sm ${isOnBancaPage ? 'flex-1 justify-end' : ''}`}>
+          {/* Ações - sempre visíveis */}
+          <div className={`flex items-center gap-6 text-sm ${inDashboard || isOnBancaPage ? 'flex-1 justify-end' : ''}`}>
                 {mounted && (
                   <button
                     type="button"
@@ -848,9 +847,7 @@ useEffect(() => {
                     Sou Jornaleiro
                   </Link>
                 )}
-              </div>
-            </>
-          )}
+          </div>
         </div>
       </div>
 
