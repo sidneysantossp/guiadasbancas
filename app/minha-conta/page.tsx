@@ -149,7 +149,7 @@ function MinhaContaPageContent() {
       } catch {}
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   function logout() {
     try { localStorage.removeItem("gb:user"); } catch {}

@@ -586,7 +586,7 @@ export default function CheckoutPage() {
       } catch {}
       show(`Pedido recebido! Nº ${data.orderId}`);
       clearCart();
-      router.push('/minha-conta');
+      router.push('/minha-conta?checkout=true');
     } catch (err: any) {
       show('Erro ao enviar pedido. Tente novamente.');
     } finally {
