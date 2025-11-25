@@ -217,41 +217,44 @@ export default function Navbar() {
   const { data: session, status: sessionStatus } = useSession();
   const [localUser, setLocalUser] = useState<{ name: string; email: string } | null>(null);
   
-  // REGRA CRÍTICA: Apenas UMA sessão pode estar ativa por vez!
-  // Se há sessão NextAuth (jornaleiro/admin), limpa localStorage do usuário comum
-  // Se há usuário no localStorage, NÃO deve haver sessão NextAuth
+  // Carregar usuário do localStorage (usuário comum)
+  // NÃO limpar automaticamente - deixar coexistir com sessão NextAuth se necessário
   useEffect(() => {
     if (!mounted) return;
     
-    // Se tem sessão NextAuth ativa, limpar localStorage do usuário comum
-    if (session?.user) {
+    // Carregar usuário comum do localStorage
+    try {
       const localUserData = localStorage.getItem("gb:user");
       if (localUserData) {
-        console.log('[Auth] 🚨 Sessão NextAuth ativa - limpando localStorage de usuário comum');
-        localStorage.removeItem("gb:user");
-        localStorage.removeItem("gb:userProfile");
-        setLocalUser(null);
+        setLocalUser(JSON.parse(localUserData));
       }
+    } catch (e) {
+      console.error('[Auth] Erro ao carregar usuário do localStorage:', e);
     }
-  }, [session, mounted]);
+  }, [mounted]);
   
-  // Determinar qual sessão está ativa (APENAS UMA)
-  // Prioridade: NextAuth > localStorage
+  // Determinar qual sessão está ativa
+  // Para páginas públicas: prioridade localStorage > NextAuth
+  // Isso permite que usuários comuns usem o site mesmo se houver sessão NextAuth residual
   const user = useMemo(() => {
     if (!mounted) return null; // Antes de montar, sempre null (consistente servidor/cliente)
     
-    // Se tem sessão NextAuth, essa é a única válida
+    // Se tem usuário no localStorage, usar esse (usuário comum)
+    if (localUser) {
+      return localUser;
+    }
+    
+    // Se não tem localStorage, verificar NextAuth (jornaleiro/admin)
     if (session?.user) {
       return { name: session.user.name || '', email: session.user.email || '' };
     }
     
-    // Se não tem NextAuth, pode usar localStorage
-    return localUser;
+    return null;
   }, [session, localUser, mounted]);
   
   // Determinar se é sessão de jornaleiro/admin (NextAuth) ou usuário comum (localStorage)
-  const isNextAuthSession = Boolean(session?.user);
-  const isLocalUserSession = Boolean(!session?.user && localUser);
+  const isNextAuthSession = Boolean(session?.user && !localUser);
+  const isLocalUserSession = Boolean(localUser);
   
   const [profileAvatar, setProfileAvatar] = useState<string>("");
   const [profilePhone, setProfilePhone] = useState<string>("");
