@@ -93,12 +93,17 @@ export default function CategoryCarousel() {
   };
 
   return (
+    <>
+    {/* Placeholder para manter o espaço quando fixed */}
+    {!isMobile && scrolled && (
+      <div className="hidden md:block md:h-[140px]" />
+    )}
     <section 
       id="buy-by-category" 
-      className={`w-full bg-white md:-mt-3 lg:-mt-4 xl:-mt-4 md:pt-2 lg:pt-3 transition-all duration-300 ${
+      className={`w-full bg-white transition-all duration-300 ${
         !isMobile && scrolled 
-          ? 'md:sticky md:top-[72px] md:z-40 md:py-2' 
-          : ''
+          ? 'md:fixed md:top-0 md:left-0 md:right-0 md:z-40 md:py-2 md:shadow-sm md:border-b md:border-gray-200' 
+          : 'md:-mt-3 lg:-mt-4 xl:-mt-4 md:pt-2 lg:pt-3'
       }`}
     >
       <div className="w-full overflow-hidden">
@@ -187,5 +192,6 @@ export default function CategoryCarousel() {
         </div>
       </div>
     </section>
+    </>
   );
 }
