@@ -68,6 +68,15 @@ const normalizeCategory = (raw: any): string => {
   return CATEGORY_LOOKUP.get(value) ?? value;
 };
 
+// Capitaliza primeira letra de cada palavra (Title Case)
+const toTitleCase = (str: string): string => {
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 export default function BancasPertoDeMimPage() {
   const [loc, setLoc] = useState<UserLocation | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -581,7 +590,7 @@ export default function BancasPertoDeMimPage() {
               <BankCard
                 key={b.id}
                 id={b.id}
-                name={b.name}
+                name={toTitleCase(b.name)}
                 address={b.address}
                 distanceKm={b.distance}
                 rating={(b as any).rating ?? 4.8}
