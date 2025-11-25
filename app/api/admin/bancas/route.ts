@@ -37,24 +37,36 @@ export type AdminBanca = {
 
 async function readBancas(): Promise<AdminBanca[]> {
   try {
-    // Buscar bancas com join no perfil do usuário para obter telefone
+    // Buscar bancas
     const { data, error } = await supabaseAdmin
       .from('bancas')
-      .select(`
-        *,
-        user_profiles:user_id (
-          phone
-        )
-      `)
+      .select('*')
       .order('name');
 
     if (error || !data) {
       return [];
     }
 
+    // Buscar telefones dos perfis em batch
+    const userIds = data.map(b => b.user_id).filter(Boolean);
+    let profilePhones: Map<string, string> = new Map();
+    
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabaseAdmin
+        .from('user_profiles')
+        .select('id, phone')
+        .in('id', userIds);
+      
+      if (profiles) {
+        for (const p of profiles) {
+          if (p.phone) profilePhones.set(p.id, p.phone);
+        }
+      }
+    }
+
     return data.map((banca: any) => {
       // Obter telefone: priorizar whatsapp da banca, depois phone da banca, depois telefone do perfil
-      const profilePhone = banca.user_profiles?.phone;
+      const profilePhone = banca.user_id ? profilePhones.get(banca.user_id) : undefined;
       const whatsappNumber = banca.whatsapp || banca.phone || profilePhone || undefined;
       
       return {
@@ -80,7 +92,8 @@ async function readBancas(): Promise<AdminBanca[]> {
         user_id: banca.user_id || null
       };
     });
-  } catch {
+  } catch (err) {
+    console.error('[readBancas] Error:', err);
     return [];
   }
 }
