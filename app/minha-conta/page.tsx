@@ -72,7 +72,14 @@ function MinhaContaPageContent() {
 
     try {
       const raw = localStorage.getItem("gb:user");
-      if (raw) setUser(JSON.parse(raw));
+      if (raw) {
+        setUser(JSON.parse(raw));
+      } else {
+        // Não está logado - redirecionar para /entrar
+        const checkoutParam = fromCheckout ? '?checkout=true' : '';
+        router.replace(`/entrar${checkoutParam}`);
+        return;
+      }
       const rawOrder = localStorage.getItem("gb:lastOrder");
       if (rawOrder) setLastOrder(JSON.parse(rawOrder));
       const created = localStorage.getItem("gb:userCreatedAt");
@@ -650,18 +657,12 @@ function MinhaContaPageContent() {
     );
   }
 
-  // Se não está logado, redireciona para /entrar
-  useEffect(() => {
-    const checkoutParam = fromCheckout ? '?checkout=true' : '';
-    router.replace(`/entrar${checkoutParam}`);
-  }, [router, fromCheckout]);
-
-  // Mostrar loading enquanto redireciona
+  // Mostrar loading enquanto carrega/redireciona
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Redirecionando...</p>
+        <p className="mt-4 text-gray-600">Carregando...</p>
       </div>
     </div>
   );
