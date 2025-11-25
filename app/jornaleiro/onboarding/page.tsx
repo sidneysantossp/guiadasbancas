@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { geocodeByAddressNominatim, resolveCepToLocation, isValidCep } from "@/lib/location";
 
 export default function JornaleiroOnboardingPage() {
   const router = useRouter();
@@ -133,6 +134,47 @@ export default function JornaleiroOnboardingPage() {
         uf: wizard?.uf || saved.uf || '',
       };
 
+      // Geocodificar endereço para obter coordenadas reais
+      let finalLat = saved.lat ?? (wizard?.lat2 ? Number(wizard.lat2) : null);
+      let finalLng = saved.lng ?? (wizard?.lng2 ? Number(wizard.lng2) : null);
+      
+      // Se não temos coordenadas válidas, tentar geocodificar
+      if (!finalLat || !finalLng || (finalLat === -23.5505 && finalLng === -46.6333)) {
+        console.log('[Onboarding] 📍 Geocodificando endereço...');
+        try {
+          // Primeiro tentar pelo CEP
+          const cepToUse = addressObj.cep || saved.cep || wizard?.cep;
+          if (cepToUse && isValidCep(cepToUse)) {
+            const locFromCep = await resolveCepToLocation(cepToUse);
+            if (locFromCep.lat && locFromCep.lng) {
+              finalLat = locFromCep.lat;
+              finalLng = locFromCep.lng;
+              console.log('[Onboarding] ✅ Coordenadas obtidas via CEP:', finalLat, finalLng);
+            }
+          }
+          
+          // Se ainda não temos coordenadas, tentar pelo endereço completo
+          if (!finalLat || !finalLng) {
+            const addressToGeocode = `${normalizedAddress}, Brasil`;
+            const coords = await geocodeByAddressNominatim(addressToGeocode);
+            if (coords) {
+              finalLat = coords.lat;
+              finalLng = coords.lng;
+              console.log('[Onboarding] ✅ Coordenadas obtidas via endereço:', finalLat, finalLng);
+            }
+          }
+        } catch (geoError) {
+          console.error('[Onboarding] ⚠️ Erro ao geocodificar:', geoError);
+        }
+      }
+      
+      // Fallback para coordenadas de São Paulo se tudo falhar
+      if (!finalLat || !finalLng) {
+        console.log('[Onboarding] ⚠️ Usando coordenadas padrão de São Paulo');
+        finalLat = -23.5505;
+        finalLng = -46.6333;
+      }
+
       const bancaData = {
         name: saved.name,
         description: saved.description || '',
@@ -147,8 +189,8 @@ export default function JornaleiroOnboardingPage() {
         address: normalizedAddress || 'Endereço a configurar',
         // Salvar também o objeto estruturado (temporariamente desabilitado até migração)
         // ...(addressObj.street ? { addressObj: addressObj } : {}),
-        lat: saved.lat ?? (wizard?.lat2 ? Number(wizard.lat2) : -23.5505),
-        lng: saved.lng ?? (wizard?.lng2 ? Number(wizard.lng2) : -46.6333),
+        lat: finalLat,
+        lng: finalLng,
         tpu_url: saved.tpu_url || wizard?.bankTpuUrl || null,
         opening_hours: saved.opening_hours || defaultHours,
         delivery_fee: saved.delivery_fee ?? 0,
