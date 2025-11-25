@@ -14,13 +14,8 @@ const DISTRIBUIDORES_PUBLICOS = [
   '1511df09-1f4a-4e68-9f8c-05cd06be6269'  // Brancaleone
 ];
 
-// Campos mínimos necessários para produtos (reduz payload)
-const PRODUCT_FIELDS = `
-  id, name, price, images, description, category_id, 
-  distribuidor_id, stock_qty, status, codigo_mercos,
-  pronta_entrega, sob_encomenda, pre_venda, track_stock, featured,
-  categories!category_id(name)
-`;
+// Select com join de categorias
+const PRODUCT_FIELDS = `*, categories!category_id(name)`;
 
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
