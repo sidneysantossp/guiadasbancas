@@ -8,6 +8,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Route } from "next";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useSession, signOut as nextAuthSignOut } from "next-auth/react";
 
 function MinhaContaPageContent() {
   const router = useRouter();
@@ -18,6 +19,9 @@ function MinhaContaPageContent() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  
+  // REGRA: Apenas UMA sessão pode estar ativa por vez
+  const { data: nextAuthSession } = useSession();
   const [lastOrder, setLastOrder] = useState<any | null>(null);
   const [activeMenu, setActiveMenu] = useState<
     | "perfil"
@@ -144,11 +148,26 @@ function MinhaContaPageContent() {
     } catch {}
   }, [searchParams]);
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!email.trim()) { setError("Informe seu e-mail"); return; }
     if (mode === "register" && !name.trim()) { setError("Informe seu nome"); return; }
+    
+    // REGRA CRÍTICA: Se há sessão NextAuth ativa (jornaleiro/admin), fazer logout primeiro
+    // Apenas UMA sessão pode estar ativa por vez!
+    if (nextAuthSession?.user) {
+      console.log('[Auth] 🚨 Detectada sessão NextAuth ativa - fazendo logout antes de login como usuário comum');
+      try {
+        // Limpar sessionStorage do jornaleiro
+        sessionStorage.clear();
+        // Fazer logout do NextAuth sem redirect
+        await nextAuthSignOut({ redirect: false });
+      } catch (e) {
+        console.error('[Auth] Erro ao fazer logout do NextAuth:', e);
+      }
+    }
+    
     // Mock auth: aceita qualquer email/senha
     const payload = { name: name || email.split("@")[0], email };
     try {

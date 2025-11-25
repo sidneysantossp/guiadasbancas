@@ -49,6 +49,22 @@ export default function JornaleiroLoginPage() {
     setError("");
     setLoading(true);
 
+    // REGRA CRÍTICA: Limpar sessão de usuário comum antes de login como jornaleiro
+    // Apenas UMA sessão pode estar ativa por vez!
+    try {
+      const localUser = localStorage.getItem("gb:user");
+      if (localUser) {
+        console.log('[Auth] 🚨 Detectada sessão de usuário comum - limpando antes de login como jornaleiro');
+        localStorage.removeItem("gb:user");
+        localStorage.removeItem("gb:userProfile");
+        localStorage.removeItem("gb:userCreatedAt");
+        localStorage.removeItem("gb:orders");
+        localStorage.removeItem("gb:addresses");
+        localStorage.removeItem("gb:wishlist");
+        try { window.dispatchEvent(new Event('gb:user:changed')); } catch {}
+      }
+    } catch {}
+
     try {
       console.log("🔐 Tentando login jornaleiro:", email);
       const result = await signIn("credentials", {
