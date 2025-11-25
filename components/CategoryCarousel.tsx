@@ -109,8 +109,42 @@ export default function CategoryCarousel() {
       <div className="w-full overflow-hidden">
         <div className="container-max">
           {/* Slider: múltiplos por view, avançando 1 por vez com slide */}
-          <div className="relative py-2">
-            <div className="overflow-hidden">
+          <div className={`relative ${scrolled && !isMobile ? 'py-1' : 'py-2'}`}>
+            {/* Seta Esquerda - Desktop */}
+            {hasEnough && (
+              <button
+                type="button"
+                onClick={prev}
+                disabled={index === 0}
+                aria-label="Categorias anteriores"
+                className={`hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 items-center justify-center rounded-full bg-white shadow-md border border-gray-200 hover:bg-gray-50 transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                  scrolled && !isMobile ? 'h-7 w-7' : 'h-9 w-9'
+                }`}
+              >
+                <svg viewBox="0 0 24 24" className={`text-gray-600 ${scrolled && !isMobile ? 'h-4 w-4' : 'h-5 w-5'}`} fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+            )}
+
+            {/* Seta Direita - Desktop */}
+            {hasEnough && (
+              <button
+                type="button"
+                onClick={next}
+                disabled={index >= maxIndex}
+                aria-label="Próximas categorias"
+                className={`hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 items-center justify-center rounded-full bg-white shadow-md border border-gray-200 hover:bg-gray-50 transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                  scrolled && !isMobile ? 'h-7 w-7' : 'h-9 w-9'
+                }`}
+              >
+                <svg viewBox="0 0 24 24" className={`text-gray-600 ${scrolled && !isMobile ? 'h-4 w-4' : 'h-5 w-5'}`} fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
+            )}
+
+            <div className={`overflow-hidden ${hasEnough ? 'md:mx-10' : ''}`}>
               <div
                 className="flex"
                 style={{
