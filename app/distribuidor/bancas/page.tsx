@@ -27,6 +27,9 @@ type Banca = {
   avatar?: string;
   active: boolean;
   created_at: string;
+  lat?: number;
+  lng?: number;
+  tem_produtos_distribuidor: boolean;
   produtos_distribuidor: number;
   produtos_ativos: number;
   total_pedidos: number;
@@ -38,7 +41,7 @@ type Banca = {
 
 type Stats = {
   total_bancas: number;
-  bancas_ativas: number;
+  bancas_com_produtos: number;
   total_pedidos: number;
   valor_total: number;
 };
@@ -65,14 +68,22 @@ export default function DistribuidorBancasPage() {
       setLoading(true);
       const params = new URLSearchParams();
       params.set("id", distribuidor.id);
-      if (statusFilter) params.set("status", statusFilter);
       if (search) params.set("q", search);
 
       const res = await fetch(`/api/distribuidor/bancas?${params.toString()}`);
       const json = await res.json();
 
       if (json.success) {
-        setBancas(json.items || []);
+        let items = json.items || [];
+        
+        // Filtrar no frontend
+        if (statusFilter === "com_produtos") {
+          items = items.filter((b: Banca) => b.tem_produtos_distribuidor);
+        } else if (statusFilter === "sem_produtos") {
+          items = items.filter((b: Banca) => !b.tem_produtos_distribuidor);
+        }
+        
+        setBancas(items);
         setStats(json.stats || null);
       }
     } catch (error) {
@@ -135,9 +146,9 @@ export default function DistribuidorBancasPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Bancas Parceiras</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Bancas</h1>
           <p className="text-gray-600">
-            Acompanhe as bancas que vendem seus produtos
+            Todas as bancas ativas cadastradas no sistema
           </p>
         </div>
         <button
@@ -170,8 +181,8 @@ export default function DistribuidorBancasPage() {
                 <IconCheck className="text-green-600" size={20} />
               </div>
               <div>
-                <p className="text-xl font-bold text-gray-900">{stats.bancas_ativas}</p>
-                <p className="text-xs text-gray-600">Bancas Ativas</p>
+                <p className="text-xl font-bold text-gray-900">{stats.bancas_com_produtos}</p>
+                <p className="text-xs text-gray-600">Com Seus Produtos</p>
               </div>
             </div>
           </div>
@@ -228,36 +239,20 @@ export default function DistribuidorBancasPage() {
               Todas
             </button>
             <button
-              onClick={() => setStatusFilter("ativas")}
+              onClick={() => setStatusFilter("com_produtos")}
               className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
-                statusFilter === "ativas" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                statusFilter === "com_produtos" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Ativas
+              Com Seus Produtos
             </button>
             <button
-              onClick={() => setStatusFilter("inativas")}
+              onClick={() => setStatusFilter("sem_produtos")}
               className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
-                statusFilter === "inativas" ? "bg-red-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                statusFilter === "sem_produtos" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Inativas
-            </button>
-            <button
-              onClick={() => setStatusFilter("com_pedidos")}
-              className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
-                statusFilter === "com_pedidos" ? "bg-purple-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Com Pedidos
-            </button>
-            <button
-              onClick={() => setStatusFilter("sem_pedidos")}
-              className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
-                statusFilter === "sem_pedidos" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Sem Pedidos
+              Sem Seus Produtos
             </button>
           </div>
         </div>
@@ -274,7 +269,7 @@ export default function DistribuidorBancasPage() {
             <p className="text-gray-600">
               {search || statusFilter
                 ? "Tente ajustar os filtros"
-                : "Quando bancas começarem a vender seus produtos, elas aparecerão aqui"}
+                : "Nenhuma banca ativa cadastrada no sistema"}
             </p>
           </div>
         ) : (
@@ -299,14 +294,12 @@ export default function DistribuidorBancasPage() {
                 )}
                 
                 {/* Status badge */}
-                <div className="absolute top-2 right-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    banca.active 
-                      ? "bg-green-100 text-green-700" 
-                      : "bg-red-100 text-red-700"
-                  }`}>
-                    {banca.active ? "Ativa" : "Inativa"}
-                  </span>
+                <div className="absolute top-2 right-2 flex gap-1">
+                  {banca.tem_produtos_distribuidor && (
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                      Seus Produtos
+                    </span>
+                  )}
                 </div>
 
                 {/* Avatar */}
