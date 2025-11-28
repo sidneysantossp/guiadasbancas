@@ -20,6 +20,23 @@ export async function GET(request: NextRequest) {
 
     console.log('[API Distribuidor] Buscando produtos para distribuidor:', distribuidorId);
 
+    // Verificar se o distribuidor existe
+    const { data: distCheck, error: distError } = await supabaseAdmin
+      .from('distribuidores')
+      .select('id, nome')
+      .eq('id', distribuidorId)
+      .single();
+
+    console.log('[API Distribuidor] Distribuidor encontrado:', distCheck?.nome || 'NÃO ENCONTRADO', distError?.message || '');
+
+    // Contar produtos antes da query
+    const { count: countCheck } = await supabaseAdmin
+      .from('products')
+      .select('*', { count: 'exact', head: true })
+      .eq('distribuidor_id', distribuidorId);
+    
+    console.log('[API Distribuidor] Total de produtos com distribuidor_id =', distribuidorId, ':', countCheck);
+
     // Construir query - buscar produtos da tabela products onde distribuidor_id = id do distribuidor
     let query = supabaseAdmin
       .from('products')

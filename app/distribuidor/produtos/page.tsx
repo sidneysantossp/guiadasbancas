@@ -56,8 +56,11 @@ export default function DistribuidorProdutosPage() {
   useEffect(() => {
     // Carregar dados do distribuidor do localStorage
     const raw = localStorage.getItem("gb:distribuidor");
+    console.log('[Produtos] Dados do localStorage:', raw);
     if (raw) {
-      setDistribuidor(JSON.parse(raw));
+      const parsed = JSON.parse(raw);
+      console.log('[Produtos] ID do distribuidor:', parsed?.id);
+      setDistribuidor(parsed);
     }
   }, []);
 
@@ -67,10 +70,13 @@ export default function DistribuidorProdutosPage() {
     try {
       setLoading(true);
       
+      console.log('[Produtos] Chamando API com id:', distribuidor.id);
       const res = await fetch(`/api/distribuidor/products?id=${distribuidor.id}&active=false&limit=1000`);
       const json = await res.json();
+      console.log('[Produtos] Resposta da API:', json);
       
       if (json.success) {
+        console.log('[Produtos] Total recebido:', json.data?.length || 0);
         setProducts(json.data || []);
         
         // Extrair categorias únicas
