@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log('[Stats] Buscando estatísticas para distribuidor:', distribuidorId);
+
     // Buscar total de produtos do distribuidor
     const { count: totalProdutos } = await supabaseAdmin
       .from('products')
@@ -26,7 +28,14 @@ export async function GET(request: NextRequest) {
       .eq('distribuidor_id', distribuidorId)
       .eq('active', true);
 
-    // Buscar pedidos do distribuidor (via produtos)
+    // Buscar dados do distribuidor (para última sincronização, etc)
+    const { data: distribuidor } = await supabaseAdmin
+      .from('distribuidores')
+      .select('nome, ultima_sincronizacao, total_produtos')
+      .eq('id', distribuidorId)
+      .single();
+
+    // Buscar IDs dos produtos do distribuidor para filtrar pedidos
     const { data: produtosDistribuidor } = await supabaseAdmin
       .from('products')
       .select('id')
@@ -40,10 +49,14 @@ export async function GET(request: NextRequest) {
     let faturamentoMes = 0;
 
     if (productIds.length > 0) {
-      // Buscar pedidos que contêm produtos deste distribuidor
+      // Buscar pedidos recentes (últimos 30 dias para performance)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
       const { data: orders } = await supabaseAdmin
         .from('orders')
-        .select('id, total, created_at, items');
+        .select('id, total, created_at, items')
+        .gte('created_at', thirtyDaysAgo.toISOString());
 
       if (orders) {
         const today = new Date();
@@ -72,14 +85,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Buscar bancas que têm produtos deste distribuidor ativos
+    // Contar bancas que têm customizações dos produtos deste distribuidor
     const { data: bancasComProdutos } = await supabaseAdmin
-      .from('banca_produtos_distribuidor')
+      .from('banca_produtos_customizacao')
       .select('banca_id')
-      .eq('distribuidor_id', distribuidorId)
-      .eq('ativo', true);
+      .in('product_id', productIds.length > 0 ? productIds.slice(0, 100) : ['none']);
 
-    const uniqueBancas = new Set(bancasComProdutos?.map(b => b.banca_id) || []);
+    const uniqueBancas = new Set(bancasComProdutos?.map((b: any) => b.banca_id) || []);
+
+    console.log(`[Stats] Distribuidor ${distribuidor?.nome}: ${produtosAtivos}/${totalProdutos} produtos, ${uniqueBancas.size} bancas`);
 
     return NextResponse.json({
       success: true,
@@ -90,10 +104,11 @@ export async function GET(request: NextRequest) {
         totalPedidos,
         totalBancas: uniqueBancas.size,
         faturamentoMes,
+        ultimaSincronizacao: distribuidor?.ultima_sincronizacao || null,
       },
     });
   } catch (error: any) {
-    console.error('Erro ao buscar stats do distribuidor:', error);
+    console.error('[Stats] Erro ao buscar stats do distribuidor:', error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }

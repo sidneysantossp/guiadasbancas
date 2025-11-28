@@ -20,6 +20,7 @@ import {
 type Product = {
   id: string;
   name: string;
+  description?: string;
   price: number;
   original_price?: number;
   stock_qty: number;
@@ -28,8 +29,11 @@ type Product = {
   category?: string;
   category_id?: string;
   codigo_mercos?: string;
+  mercos_id?: number;
   active: boolean;
   track_stock?: boolean;
+  origem?: string;
+  sincronizado_em?: string;
 };
 
 type Category = {
@@ -339,17 +343,24 @@ export default function DistribuidorProdutosPage() {
                   {product.name}
                 </h3>
 
-                {product.codigo_mercos && (
+                {(product.codigo_mercos || product.mercos_id) && (
                   <p className="text-[11px] text-gray-500 font-mono mb-1">
-                    {product.codigo_mercos}
+                    {product.codigo_mercos || `#${product.mercos_id}`}
                   </p>
                 )}
 
-                {product.category && (
-                  <p className="text-xs text-blue-600 font-medium mb-2">
-                    {product.category}
-                  </p>
-                )}
+                <div className="flex items-center gap-2 mb-2">
+                  {product.category && (
+                    <span className="text-xs text-blue-600 font-medium">
+                      {product.category}
+                    </span>
+                  )}
+                  {product.origem === 'mercos' && (
+                    <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+                      Mercos
+                    </span>
+                  )}
+                </div>
 
                 <div className="space-y-1.5 text-xs text-gray-600 mb-3 flex-1">
                   <div className="flex items-center justify-between">
