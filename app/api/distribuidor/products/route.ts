@@ -45,10 +45,8 @@ export async function GET(request: NextRequest) {
         name,
         description,
         price,
-        original_price,
         stock_qty,
         images,
-        image_url,
         active,
         track_stock,
         mercos_id,
@@ -98,8 +96,8 @@ export async function GET(request: NextRequest) {
     // Formatar produtos para o frontend
     const formattedProducts = (products || []).map((product: any) => {
       // Determinar a imagem principal
-      let imageUrl = product.image_url;
-      if (!imageUrl && product.images && Array.isArray(product.images) && product.images.length > 0) {
+      let imageUrl = null;
+      if (product.images && Array.isArray(product.images) && product.images.length > 0) {
         imageUrl = product.images[0];
       }
 
@@ -108,7 +106,6 @@ export async function GET(request: NextRequest) {
         name: product.name,
         description: product.description,
         price: product.price || 0,
-        original_price: product.original_price,
         image_url: imageUrl,
         images: product.images || [],
         category: product.categories?.name || 'Sem categoria',
