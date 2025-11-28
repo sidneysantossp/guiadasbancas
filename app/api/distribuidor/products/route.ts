@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const distribuidorId = searchParams.get('id');
-    const limit = parseInt(searchParams.get('limit') || '1000');
+    const limit = parseInt(searchParams.get('limit') || '10000');
     const sort = searchParams.get('sort') || 'name';
     const activeOnly = searchParams.get('active') !== 'false';
     const search = searchParams.get('search') || '';
@@ -37,61 +37,88 @@ export async function GET(request: NextRequest) {
     
     console.log('[API Distribuidor] Total de produtos com distribuidor_id =', distribuidorId, ':', countCheck);
 
-    // Construir query - buscar produtos da tabela products onde distribuidor_id = id do distribuidor
-    let query = supabaseAdmin
-      .from('products')
-      .select(`
-        id,
-        name,
-        description,
-        price,
-        stock_qty,
-        images,
-        active,
-        track_stock,
-        mercos_id,
-        codigo_mercos,
-        origem,
-        sincronizado_em,
-        created_at,
-        category_id,
-        categories(id, name)
-      `)
-      .eq('distribuidor_id', distribuidorId);
+    // Buscar produtos em lotes para evitar limite do Supabase (1000 por query)
+    const BATCH_SIZE = 1000;
+    let allProducts: any[] = [];
+    let hasMore = true;
+    let offset = 0;
 
-    // Filtrar por status ativo/inativo
-    if (activeOnly) {
-      query = query.eq('active', true);
+    while (hasMore) {
+      let query = supabaseAdmin
+        .from('products')
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          stock_qty,
+          images,
+          active,
+          track_stock,
+          mercos_id,
+          codigo_mercos,
+          origem,
+          sincronizado_em,
+          created_at,
+          category_id,
+          categories(id, name)
+        `)
+        .eq('distribuidor_id', distribuidorId);
+
+      // Filtrar por status ativo/inativo
+      if (activeOnly) {
+        query = query.eq('active', true);
+      }
+
+      // Busca por texto
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,codigo_mercos.ilike.%${search}%`);
+      }
+
+      // Ordenação
+      if (sort === 'vendas') {
+        query = query.order('created_at', { ascending: false });
+      } else if (sort === 'price') {
+        query = query.order('price', { ascending: true });
+      } else if (sort === 'stock') {
+        query = query.order('stock_qty', { ascending: false });
+      } else if (sort === 'recent') {
+        query = query.order('sincronizado_em', { ascending: false });
+      } else {
+        query = query.order('name', { ascending: true });
+      }
+
+      // Paginação
+      query = query.range(offset, offset + BATCH_SIZE - 1);
+
+      const { data: batch, error } = await query;
+
+      if (error) {
+        console.error('[API Distribuidor] Erro na query:', error);
+        throw error;
+      }
+
+      if (batch && batch.length > 0) {
+        allProducts.push(...batch);
+        console.log(`[API Distribuidor] Lote ${Math.floor(offset / BATCH_SIZE) + 1}: ${batch.length} produtos (total: ${allProducts.length})`);
+        
+        if (batch.length < BATCH_SIZE) {
+          hasMore = false;
+        } else {
+          offset += BATCH_SIZE;
+        }
+      } else {
+        hasMore = false;
+      }
+
+      // Limite de segurança para evitar loop infinito
+      if (allProducts.length >= limit) {
+        hasMore = false;
+      }
     }
 
-    // Busca por texto
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,codigo_mercos.ilike.%${search}%`);
-    }
-
-    // Ordenação
-    if (sort === 'vendas') {
-      query = query.order('created_at', { ascending: false });
-    } else if (sort === 'price') {
-      query = query.order('price', { ascending: true });
-    } else if (sort === 'stock') {
-      query = query.order('stock_qty', { ascending: false });
-    } else if (sort === 'recent') {
-      query = query.order('sincronizado_em', { ascending: false });
-    } else {
-      query = query.order('name', { ascending: true });
-    }
-
-    query = query.limit(limit);
-
-    const { data: products, error, count } = await query;
-
-    if (error) {
-      console.error('[API Distribuidor] Erro na query:', error);
-      throw error;
-    }
-
-    console.log(`[API Distribuidor] Encontrados ${products?.length || 0} produtos`);
+    const products = allProducts;
+    console.log(`[API Distribuidor] Total final: ${products.length} produtos`);
 
     // Formatar produtos para o frontend
     const formattedProducts = (products || []).map((product: any) => {
