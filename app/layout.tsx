@@ -17,8 +17,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isAdminRoute = pathname?.startsWith('/admin');
   const isJornaleiroRoute = pathname?.startsWith('/jornaleiro');
+  const isDistribuidorRoute = pathname?.startsWith('/distribuidor');
   const isLoginPage = pathname === '/entrar';
-  const shouldHideNavbar = isAdminRoute || isJornaleiroRoute || isLoginPage;
+  const shouldHideNavbar = isAdminRoute || isJornaleiroRoute || isDistribuidorRoute || isLoginPage;
 
   return (
     <html lang="pt-BR">
