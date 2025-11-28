@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Buscar TODAS as bancas (mesma query do admin)
+        // Buscar TODAS as bancas (mesma query do admin)
     const { data: todasBancas, error: bancasError } = await supabaseAdmin
       .from('bancas')
       .select('*')
