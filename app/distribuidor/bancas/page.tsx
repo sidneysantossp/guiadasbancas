@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   IconSearch,
-  IconStore,
+  IconBuildingStore,
   IconPackage,
   IconCurrencyReal,
   IconClock,
@@ -112,7 +112,7 @@ export default function DistribuidorBancasPage() {
     return configs[status] || { label: status, color: 'text-gray-700', bg: 'bg-gray-100', icon: IconClock };
   };
 
-  const openWhatsApp = (whatsapp: string, bancaName: string) => {
+  const openWhatsApp = (whatsapp: string | undefined, bancaName: string) => {
     if (!whatsapp) {
       alert('WhatsApp não disponível');
       return;
@@ -155,7 +155,7 @@ export default function DistribuidorBancasPage() {
           <div className="bg-white rounded-xl shadow-sm border p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
-                <IconStore className="text-blue-600" size={20} />
+                <IconBuildingStore className="text-blue-600" size={20} />
               </div>
               <div>
                 <p className="text-xl font-bold text-gray-900">{stats.total_bancas}</p>
@@ -267,7 +267,7 @@ export default function DistribuidorBancasPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {bancas.length === 0 ? (
           <div className="col-span-full bg-white rounded-xl shadow-sm border p-12 text-center">
-            <IconStore className="mx-auto text-gray-400 mb-4" size={48} />
+            <IconBuildingStore className="mx-auto text-gray-400 mb-4" size={48} />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               Nenhuma banca encontrada
             </h3>
@@ -294,7 +294,7 @@ export default function DistribuidorBancasPage() {
                   />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <IconStore className="text-gray-400" size={48} />
+                    <IconBuildingStore className="text-gray-400" size={48} />
                   </div>
                 )}
                 
@@ -322,7 +322,7 @@ export default function DistribuidorBancasPage() {
                       />
                     ) : (
                       <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                        <IconStore size={32} className="text-gray-400" />
+                        <IconBuildingStore size={32} className="text-gray-400" />
                       </div>
                     )}
                   </div>
