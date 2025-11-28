@@ -13,15 +13,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buscar distribuidor pelo email
-    const { data: distribuidor, error } = await supabaseAdmin
+    const emailLower = email.toLowerCase().trim();
+    let distribuidor = null;
+
+    // 1. Tentar buscar pelo email (se o campo existir)
+    const { data: distByEmail } = await supabaseAdmin
       .from('distribuidores')
       .select('*')
-      .eq('email', email.toLowerCase().trim())
+      .eq('email', emailLower)
       .eq('ativo', true)
-      .single();
+      .maybeSingle();
 
-    if (error || !distribuidor) {
+    if (distByEmail) {
+      distribuidor = distByEmail;
+    }
+
+    // 2. Se não encontrou por email, tentar pelo nome (case insensitive)
+    if (!distribuidor) {
+      const { data: distByName } = await supabaseAdmin
+        .from('distribuidores')
+        .select('*')
+        .ilike('nome', `%${emailLower.split('@')[0]}%`)
+        .eq('ativo', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (distByName) {
+        distribuidor = distByName;
+      }
+    }
+
+    // 3. Buscar todos os distribuidores ativos para matching parcial
+    if (!distribuidor) {
+      const { data: allDist } = await supabaseAdmin
+        .from('distribuidores')
+        .select('*')
+        .eq('ativo', true);
+
+      if (allDist) {
+        // Tentar encontrar pelo nome parcial
+        const searchTerm = emailLower.split('@')[0].toLowerCase();
+        distribuidor = allDist.find((d: any) => 
+          d.nome?.toLowerCase().includes(searchTerm) ||
+          d.nome?.toLowerCase().replace(/\s+/g, '').includes(searchTerm.replace(/\s+/g, ''))
+        );
+      }
+    }
+
+    if (!distribuidor) {
+      console.log('[Auth] Distribuidor não encontrado para:', emailLower);
       return NextResponse.json(
         { success: false, error: 'Distribuidor não encontrado ou inativo' },
         { status: 401 }
@@ -44,6 +84,8 @@ export async function POST(request: NextRequest) {
     // Retornar dados do distribuidor (sem a senha)
     const { senha, password: pwd, application_token, company_token, ...distribuidorSeguro } = distribuidor;
 
+    console.log('[Auth] Login bem-sucedido para distribuidor:', distribuidorSeguro.nome);
+
     return NextResponse.json({
       success: true,
       distribuidor: distribuidorSeguro,
@@ -52,6 +94,31 @@ export async function POST(request: NextRequest) {
     console.error('Erro na autenticação do distribuidor:', error);
     return NextResponse.json(
       { success: false, error: 'Erro interno do servidor' },
+      { status: 500 }
+    );
+  }
+}
+
+// GET para listar distribuidores disponíveis (debug)
+export async function GET() {
+  try {
+    const { data: distribuidores } = await supabaseAdmin
+      .from('distribuidores')
+      .select('id, nome, email, ativo')
+      .eq('ativo', true);
+
+    return NextResponse.json({
+      success: true,
+      distribuidores: distribuidores?.map((d: any) => ({
+        id: d.id,
+        nome: d.nome,
+        email: d.email || 'Sem email cadastrado',
+        ativo: d.ativo,
+      })) || [],
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message },
       { status: 500 }
     );
   }
