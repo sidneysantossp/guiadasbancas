@@ -30,15 +30,35 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Buscar contagem de produtos por categoria do distribuidor
-    const { data: products, error: prodError } = await supabaseAdmin
-      .from('products')
-      .select('category_id, active')
-      .eq('distribuidor_id', distribuidorId);
+    // Buscar contagem de produtos por categoria do distribuidor (em lotes para evitar limite de 1000)
+    const BATCH_SIZE = 1000;
+    let allProducts: any[] = [];
+    let offset = 0;
+    let hasMore = true;
 
-    if (prodError) {
-      console.error('[Categorias] Erro ao buscar produtos:', prodError);
+    while (hasMore) {
+      const { data: batch, error: prodError } = await supabaseAdmin
+        .from('products')
+        .select('category_id, active')
+        .eq('distribuidor_id', distribuidorId)
+        .range(offset, offset + BATCH_SIZE - 1);
+
+      if (prodError) {
+        console.error('[Categorias] Erro ao buscar produtos:', prodError);
+        break;
+      }
+
+      if (batch && batch.length > 0) {
+        allProducts = [...allProducts, ...batch];
+        offset += BATCH_SIZE;
+        hasMore = batch.length === BATCH_SIZE;
+      } else {
+        hasMore = false;
+      }
     }
+
+    const products = allProducts;
+    console.log(`[Categorias] Total de produtos carregados: ${products.length}`);
 
     // Criar mapa de contagem
     const countMap = new Map<string, { total: number; active: number }>();
