@@ -42,7 +42,7 @@ type Banca = {
 
 type Stats = {
   total_bancas: number;
-  bancas_com_produtos: number;
+  bancas_cotistas: number;
   total_pedidos: number;
   valor_total: number;
 };
@@ -80,10 +80,8 @@ export default function DistribuidorBancasPage() {
         // Filtrar no frontend
         if (statusFilter === "cotistas") {
           items = items.filter((b: Banca) => b.is_cotista);
-        } else if (statusFilter === "com_produtos") {
-          items = items.filter((b: Banca) => b.tem_produtos_distribuidor);
-        } else if (statusFilter === "sem_produtos") {
-          items = items.filter((b: Banca) => !b.tem_produtos_distribuidor);
+        } else if (statusFilter === "com_pedidos") {
+          items = items.filter((b: Banca) => b.total_pedidos > 0);
         }
         
         setBancas(items);
@@ -149,9 +147,9 @@ export default function DistribuidorBancasPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Bancas</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Bancas Parceiras</h1>
           <p className="text-gray-600">
-            Todas as bancas ativas cadastradas no sistema
+            Bancas que possuem seus produtos
           </p>
         </div>
         <button
@@ -184,8 +182,8 @@ export default function DistribuidorBancasPage() {
                 <IconCheck className="text-green-600" size={20} />
               </div>
               <div>
-                <p className="text-xl font-bold text-gray-900">{stats.bancas_com_produtos}</p>
-                <p className="text-xs text-gray-600">Com Seus Produtos</p>
+                <p className="text-xl font-bold text-gray-900">{stats.bancas_cotistas}</p>
+                <p className="text-xs text-gray-600">Cotistas</p>
               </div>
             </div>
           </div>
@@ -250,20 +248,12 @@ export default function DistribuidorBancasPage() {
               Cotistas
             </button>
             <button
-              onClick={() => setStatusFilter("com_produtos")}
+              onClick={() => setStatusFilter("com_pedidos")}
               className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
-                statusFilter === "com_produtos" ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                statusFilter === "com_pedidos" ? "bg-purple-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Com Seus Produtos
-            </button>
-            <button
-              onClick={() => setStatusFilter("sem_produtos")}
-              className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
-                statusFilter === "sem_produtos" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Sem Seus Produtos
+              Com Pedidos
             </button>
           </div>
         </div>
@@ -280,7 +270,7 @@ export default function DistribuidorBancasPage() {
             <p className="text-gray-600">
               {search || statusFilter
                 ? "Tente ajustar os filtros"
-                : "Nenhuma banca ativa cadastrada no sistema"}
+                : "Nenhuma banca possui seus produtos ainda"}
             </p>
           </div>
         ) : (
