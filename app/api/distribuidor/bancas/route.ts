@@ -17,10 +17,10 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Buscar todas as bancas ATIVAS do sistema
+    // Buscar todas as bancas ATIVAS do sistema com info de cotista
     const { data: bancas, error: bancasError } = await supabaseAdmin
       .from('bancas')
-      .select('id, name, address, whatsapp, cover_image, avatar, active, created_at, lat, lng')
+      .select('id, name, address, whatsapp, cover_image, avatar, active, created_at, lat, lng, is_cotista, cotista_id')
       .eq('active', true)
       .order('name');
 
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
 
     // Combinar dados
     const bancasComStats = (bancas || []).map((banca: any) => {
-      // Produtos do distribuidor nesta banca
+      // Produtos do distribuidor customizados nesta banca
       const produtosBanca = bancasComProdutos.filter(b => b.banca_id === banca.id);
       const produtosAtivos = produtosBanca.filter(p => p.enabled);
       
@@ -72,10 +72,14 @@ export async function GET(req: NextRequest) {
       
       // Calcular valor dos pedidos com produtos do distribuidor
       let valorTotalPedidos = 0;
+      let pedidosComProdutosDistribuidor = 0;
       pedidosBanca.forEach((pedido: any) => {
         const items = pedido.items || [];
         const itensDistribuidor = items.filter((item: any) => productIds.includes(item.product_id));
-        valorTotalPedidos += itensDistribuidor.reduce((acc: number, item: any) => acc + (item.total_price || 0), 0);
+        if (itensDistribuidor.length > 0) {
+          pedidosComProdutosDistribuidor++;
+          valorTotalPedidos += itensDistribuidor.reduce((acc: number, item: any) => acc + (item.total_price || 0), 0);
+        }
       });
 
       // Status do pedido mais recente
@@ -83,8 +87,12 @@ export async function GET(req: NextRequest) {
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       )[0];
 
-      // Verificar se a banca tem produtos do distribuidor
-      const temProdutosDistribuidor = produtosBanca.length > 0;
+      // Verificar se a banca tem produtos do distribuidor:
+      // 1. É cotista (tem acesso ao catálogo de distribuidores) OU
+      // 2. Tem customizações na tabela banca_produtos_distribuidor OU
+      // 3. Tem pedidos com produtos do distribuidor
+      const isCotista = banca.is_cotista === true && !!banca.cotista_id;
+      const temProdutosDistribuidor = isCotista || produtosBanca.length > 0 || pedidosComProdutosDistribuidor > 0;
 
       return {
         id: banca.id,
@@ -97,11 +105,12 @@ export async function GET(req: NextRequest) {
         created_at: banca.created_at,
         lat: banca.lat,
         lng: banca.lng,
+        is_cotista: isCotista,
         // Estatísticas
         tem_produtos_distribuidor: temProdutosDistribuidor,
         produtos_distribuidor: produtosBanca.length,
         produtos_ativos: produtosAtivos.length,
-        total_pedidos: pedidosBanca.length,
+        total_pedidos: pedidosComProdutosDistribuidor,
         pedidos_pendentes: pedidosBanca.filter((p: any) => ['novo', 'confirmado'].includes(p.status)).length,
         valor_total: valorTotalPedidos,
         ultimo_pedido_status: ultimoPedido?.status || null,

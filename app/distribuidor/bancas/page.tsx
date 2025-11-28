@@ -29,6 +29,7 @@ type Banca = {
   created_at: string;
   lat?: number;
   lng?: number;
+  is_cotista: boolean;
   tem_produtos_distribuidor: boolean;
   produtos_distribuidor: number;
   produtos_ativos: number;
@@ -77,7 +78,9 @@ export default function DistribuidorBancasPage() {
         let items = json.items || [];
         
         // Filtrar no frontend
-        if (statusFilter === "com_produtos") {
+        if (statusFilter === "cotistas") {
+          items = items.filter((b: Banca) => b.is_cotista);
+        } else if (statusFilter === "com_produtos") {
           items = items.filter((b: Banca) => b.tem_produtos_distribuidor);
         } else if (statusFilter === "sem_produtos") {
           items = items.filter((b: Banca) => !b.tem_produtos_distribuidor);
@@ -239,9 +242,17 @@ export default function DistribuidorBancasPage() {
               Todas
             </button>
             <button
+              onClick={() => setStatusFilter("cotistas")}
+              className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
+                statusFilter === "cotistas" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Cotistas
+            </button>
+            <button
               onClick={() => setStatusFilter("com_produtos")}
               className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
-                statusFilter === "com_produtos" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                statusFilter === "com_produtos" ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
               Com Seus Produtos
@@ -295,7 +306,12 @@ export default function DistribuidorBancasPage() {
                 
                 {/* Status badge */}
                 <div className="absolute top-2 right-2 flex gap-1">
-                  {banca.tem_produtos_distribuidor && (
+                  {banca.is_cotista && (
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                      Cotista
+                    </span>
+                  )}
+                  {banca.tem_produtos_distribuidor && !banca.is_cotista && (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                       Seus Produtos
                     </span>
