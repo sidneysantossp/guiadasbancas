@@ -249,12 +249,18 @@ function EntrarPageContent() {
               </p>
             </div>
 
-            {/* Link jornaleiro */}
-            <div className="mt-4 pt-4 border-t border-gray-200 text-center">
+            {/* Links jornaleiro e distribuidor */}
+            <div className="mt-4 pt-4 border-t border-gray-200 text-center space-y-2">
               <p className="text-sm text-gray-600">
                 É jornaleiro?{" "}
                 <Link href="/jornaleiro" className="font-semibold text-[#ff7a1f] hover:underline">
                   Acesse o painel aqui
+                </Link>
+              </p>
+              <p className="text-sm text-gray-600">
+                É distribuidor?{" "}
+                <Link href="/distribuidor" className="font-semibold text-blue-600 hover:underline">
+                  Acesse o portal
                 </Link>
               </p>
             </div>
