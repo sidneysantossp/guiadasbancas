@@ -17,11 +17,10 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Buscar TODAS as bancas ativas (mesma query do admin)
-    const { data: bancas, error: bancasError } = await supabaseAdmin
+    // Buscar TODAS as bancas (mesma query do admin)
+    const { data: todasBancas, error: bancasError } = await supabaseAdmin
       .from('bancas')
-      .select('id, name, address, whatsapp, cover_image, avatar, active, created_at, lat, lng')
-      .eq('active', true)
+      .select('*')
       .order('name');
 
     if (bancasError) {
@@ -31,6 +30,9 @@ export async function GET(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Filtrar apenas ativas (mesma lógica do admin)
+    const bancas = (todasBancas || []).filter((b: any) => b.active !== false);
 
     // Buscar IDs dos produtos do distribuidor
     const { data: produtosDistribuidor } = await supabaseAdmin
@@ -95,10 +97,10 @@ export async function GET(req: NextRequest) {
         id: banca.id,
         name: banca.name,
         address: banca.address,
-        whatsapp: banca.whatsapp,
+        whatsapp: banca.whatsapp || banca.phone,
         cover_image: banca.cover_image,
-        avatar: banca.avatar,
-        active: banca.active,
+        avatar: banca.cover_image, // usar cover_image como avatar também
+        active: banca.active !== false,
         created_at: banca.created_at,
         lat: banca.lat,
         lng: banca.lng,
