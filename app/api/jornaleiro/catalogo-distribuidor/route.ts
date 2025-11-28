@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
     if (distribuidorIds.length > 0) {
       const { data: distRows } = await supabase
         .from('distribuidores')
-        .select('id, nome, markup_global_percentual, markup_global_fixo')
+        .select('id, nome, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor, tipo_calculo')
         .in('id', distribuidorIds as any);
       distMap = new Map<string, any>((distRows || []).map((d: any) => [d.id, d]));
       console.log(`[CATALOGO] ${distRows?.length || 0} distribuidores mapeados:`, Array.from(distMap.values()).map(d => d.nome));
@@ -155,7 +155,7 @@ export async function GET(req: NextRequest) {
       });
     });
 
-    // Função para calcular preço com markup
+    // Função para calcular preço com markup ou margem
     const calcularPrecoComMarkup = (precoBase: number, produtoId: string, distribuidorId: string, categoryId: string) => {
       // Prioridade: Produto > Categoria > Global
       
@@ -171,9 +171,20 @@ export async function GET(req: NextRequest) {
         return precoBase * (1 + markupCat.percentual / 100) + markupCat.fixo;
       }
 
-      // 3. Usar markup global do distribuidor
+      // 3. Usar configuração global do distribuidor
       const dist = distMap.get(distribuidorId);
       if (dist) {
+        const tipoCalculo = dist.tipo_calculo || 'markup';
+        
+        // Se usar margem (divisor)
+        if (tipoCalculo === 'margem') {
+          const divisor = dist.margem_divisor || 1;
+          if (divisor > 0 && divisor < 1) {
+            return precoBase / divisor;
+          }
+        }
+        
+        // Se usar markup simples
         const globalPerc = dist.markup_global_percentual || 0;
         const globalFixo = dist.markup_global_fixo || 0;
         if (globalPerc > 0 || globalFixo > 0) {
@@ -181,7 +192,7 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // 4. Sem markup, retornar preço base
+      // 4. Sem configuração, retornar preço base
       return precoBase;
     };
 

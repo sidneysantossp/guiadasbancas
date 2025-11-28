@@ -5,7 +5,10 @@
 -- Configuração global de markup do distribuidor
 ALTER TABLE distribuidores 
 ADD COLUMN IF NOT EXISTS markup_global_percentual DECIMAL(5,2) DEFAULT 0,
-ADD COLUMN IF NOT EXISTS markup_global_fixo DECIMAL(10,2) DEFAULT 0;
+ADD COLUMN IF NOT EXISTS markup_global_fixo DECIMAL(10,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS margem_percentual DECIMAL(5,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS margem_divisor DECIMAL(5,2) DEFAULT 1,
+ADD COLUMN IF NOT EXISTS tipo_calculo VARCHAR(20) DEFAULT 'markup';
 
 -- Markup por categoria
 CREATE TABLE IF NOT EXISTS distribuidor_markup_categorias (

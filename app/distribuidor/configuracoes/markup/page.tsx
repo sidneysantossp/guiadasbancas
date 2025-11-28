@@ -46,6 +46,9 @@ export default function MarkupConfigPage() {
   // Markup global
   const [globalPercentual, setGlobalPercentual] = useState(0);
   const [globalFixo, setGlobalFixo] = useState(0);
+  const [globalMargem, setGlobalMargem] = useState(0);
+  const [globalDivisor, setGlobalDivisor] = useState(1);
+  const [tipoCalculo, setTipoCalculo] = useState<'markup' | 'margem'>('markup');
 
   // Markups por categoria
   const [markupCategorias, setMarkupCategorias] = useState<MarkupCategoria[]>([]);
@@ -84,6 +87,9 @@ export default function MarkupConfigPage() {
       if (json.success) {
         setGlobalPercentual(json.data.global.markup_percentual || 0);
         setGlobalFixo(json.data.global.markup_fixo || 0);
+        setGlobalMargem(json.data.global.margem_percentual || 0);
+        setGlobalDivisor(json.data.global.margem_divisor || 1);
+        setTipoCalculo(json.data.global.tipo_calculo || 'markup');
         setMarkupCategorias(json.data.categorias || []);
         setMarkupProdutos(json.data.produtos || []);
         setCategoriasDisponiveis(json.data.categorias_disponiveis || []);
@@ -109,19 +115,22 @@ export default function MarkupConfigPage() {
         body: JSON.stringify({
           distribuidor_id: distribuidor.id,
           tipo: 'global',
+          tipo_calculo: tipoCalculo,
           markup_percentual: globalPercentual,
           markup_fixo: globalFixo,
+          margem_percentual: globalMargem,
+          margem_divisor: globalDivisor,
         }),
       });
 
       const json = await res.json();
       if (json.success) {
-        showMessage('success', 'Markup global salvo com sucesso!');
+        showMessage('success', 'Configuração salva com sucesso!');
       } else {
         showMessage('error', json.error || 'Erro ao salvar');
       }
     } catch (error) {
-      showMessage('error', 'Erro ao salvar markup global');
+      showMessage('error', 'Erro ao salvar configuração');
     } finally {
       setSaving(false);
     }
@@ -246,9 +255,37 @@ export default function MarkupConfigPage() {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
-  // Exemplo de cálculo de preço
+  // Cálculo de preço final
   const calcularPrecoFinal = (precoBase: number, percentual: number, fixo: number) => {
     return precoBase * (1 + percentual / 100) + fixo;
+  };
+
+  // Cálculo com margem (divisor)
+  const calcularPrecoComMargem = (precoBase: number, divisor: number) => {
+    if (divisor <= 0 || divisor >= 1) return precoBase;
+    return precoBase / divisor;
+  };
+
+  // Calcula divisor a partir da margem percentual
+  const calcularDivisorDaMargem = (margem: number) => {
+    if (margem <= 0 || margem >= 100) return 1;
+    return 1 - (margem / 100);
+  };
+
+  // Quando margem muda, atualiza o divisor automaticamente
+  const handleMargemChange = (valor: number) => {
+    setGlobalMargem(valor);
+    if (valor > 0 && valor < 100) {
+      setGlobalDivisor(Number((1 - valor / 100).toFixed(2)));
+    }
+  };
+
+  // Quando divisor muda, atualiza a margem automaticamente
+  const handleDivisorChange = (valor: number) => {
+    setGlobalDivisor(valor);
+    if (valor > 0 && valor < 1) {
+      setGlobalMargem(Number(((1 - valor) * 100).toFixed(1)));
+    }
   };
 
   if (loading) {
@@ -298,67 +335,168 @@ export default function MarkupConfigPage() {
         </div>
       </div>
 
-      {/* Markup Global */}
+      {/* Configuração de Preços Global */}
       <div className="bg-white rounded-xl shadow-sm border p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <IconPercentage className="text-blue-600" size={24} />
-          Markup Global
+          Configuração Global de Preços
         </h2>
         <p className="text-sm text-gray-600 mb-4">
-          Este markup será aplicado a todos os produtos que não possuem markup específico de categoria ou produto.
+          Escolha o método de cálculo e configure os valores. Esta configuração será aplicada a todos os produtos.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Markup Percentual (%)
-            </label>
-            <div className="relative">
-              <input
-                type="number"
-                value={globalPercentual}
-                onChange={(e) => setGlobalPercentual(parseFloat(e.target.value) || 0)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Ex: 30"
-                min="0"
-                max="500"
-                step="0.5"
-              />
-              <span className="absolute right-3 top-2.5 text-gray-500">%</span>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Markup Fixo (R$)
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-2.5 text-gray-500">R$</span>
-              <input
-                type="number"
-                value={globalFixo}
-                onChange={(e) => setGlobalFixo(parseFloat(e.target.value) || 0)}
-                className="w-full px-4 py-2 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Ex: 5.00"
-                min="0"
-                step="0.10"
-              />
-            </div>
-          </div>
+        {/* Toggle de método */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setTipoCalculo('margem')}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+              tipoCalculo === 'margem'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            📊 Margem sobre Venda (Divisor)
+          </button>
+          <button
+            onClick={() => setTipoCalculo('markup')}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+              tipoCalculo === 'markup'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            ➕ Markup Simples (Adição)
+          </button>
         </div>
 
-        <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm">
-          <strong>Simulação:</strong> Produto de R$ 100,00 → {formatPrice(calcularPrecoFinal(100, globalPercentual, globalFixo))} para o jornaleiro
-        </div>
+        {/* Método: Margem sobre Venda */}
+        {tipoCalculo === 'margem' && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
+              <p className="font-medium text-blue-900 mb-1">Fórmula: Preço Final = Preço Base ÷ Divisor</p>
+              <p className="text-blue-800">
+                Para 40% de margem, use divisor 0,60. Para 50% de margem, use divisor 0,50.
+              </p>
+            </div>
 
-        <div className="mt-4 flex justify-end">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Margem Desejada (%)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={globalMargem}
+                    onChange={(e) => handleMargemChange(parseFloat(e.target.value) || 0)}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ex: 40"
+                    min="0"
+                    max="99"
+                    step="1"
+                  />
+                  <span className="absolute right-3 top-2.5 text-gray-500">%</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Digite a margem e o divisor será calculado</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Divisor
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={globalDivisor}
+                    onChange={(e) => handleDivisorChange(parseFloat(e.target.value) || 1)}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ex: 0.60"
+                    min="0.01"
+                    max="0.99"
+                    step="0.01"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Ou digite o divisor diretamente</p>
+              </div>
+            </div>
+
+            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="text-sm space-y-1">
+                <p><strong>Simulação com Margem {globalMargem}%:</strong></p>
+                <p>Produto de <strong>R$ 100,00</strong> ÷ {globalDivisor} = <strong className="text-green-700">{formatPrice(calcularPrecoComMargem(100, globalDivisor))}</strong></p>
+                <p>Produto de <strong>R$ 50,00</strong> ÷ {globalDivisor} = <strong className="text-green-700">{formatPrice(calcularPrecoComMargem(50, globalDivisor))}</strong></p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Método: Markup Simples */}
+        {tipoCalculo === 'markup' && (
+          <div className="space-y-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm">
+              <p className="font-medium text-gray-900 mb-1">Fórmula: Preço Final = Preço Base × (1 + %) + Fixo</p>
+              <p className="text-gray-700">
+                Adiciona um percentual e/ou valor fixo ao preço base.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Markup Percentual (%)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={globalPercentual}
+                    onChange={(e) => setGlobalPercentual(parseFloat(e.target.value) || 0)}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ex: 30"
+                    min="0"
+                    max="500"
+                    step="0.5"
+                  />
+                  <span className="absolute right-3 top-2.5 text-gray-500">%</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Markup Fixo (R$)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-gray-500">R$</span>
+                  <input
+                    type="number"
+                    value={globalFixo}
+                    onChange={(e) => setGlobalFixo(parseFloat(e.target.value) || 0)}
+                    className="w-full px-4 py-2 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ex: 5.00"
+                    min="0"
+                    step="0.10"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="text-sm space-y-1">
+                <p><strong>Simulação com Markup {globalPercentual}% + {formatPrice(globalFixo)}:</strong></p>
+                <p>Produto de <strong>R$ 100,00</strong> → <strong>{formatPrice(calcularPrecoFinal(100, globalPercentual, globalFixo))}</strong></p>
+                <p>Produto de <strong>R$ 50,00</strong> → <strong>{formatPrice(calcularPrecoFinal(50, globalPercentual, globalFixo))}</strong></p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 flex justify-end">
           <button
             onClick={saveGlobalMarkup}
             disabled={saving}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 font-medium"
           >
             <IconDeviceFloppy size={18} />
-            Salvar Markup Global
+            Salvar Configuração
           </button>
         </div>
       </div>

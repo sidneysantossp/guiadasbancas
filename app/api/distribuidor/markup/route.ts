@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     // Buscar configuração global do distribuidor
     const { data: distribuidor, error: distError } = await supabaseAdmin
       .from('distribuidores')
-      .select('id, nome, markup_global_percentual, markup_global_fixo')
+      .select('id, nome, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor, tipo_calculo')
       .eq('id', distribuidorId)
       .single();
 
@@ -66,6 +66,9 @@ export async function GET(request: NextRequest) {
         global: {
           markup_percentual: distribuidor.markup_global_percentual || 0,
           markup_fixo: distribuidor.markup_global_fixo || 0,
+          margem_percentual: distribuidor.margem_percentual || 0,
+          margem_divisor: distribuidor.margem_divisor || 1,
+          tipo_calculo: distribuidor.tipo_calculo || 'markup',
         },
         categorias: (markupCategorias || []).map((m: any) => ({
           id: m.id,
@@ -117,6 +120,9 @@ export async function POST(request: NextRequest) {
           .update({
             markup_global_percentual: dados.markup_percentual || 0,
             markup_global_fixo: dados.markup_fixo || 0,
+            margem_percentual: dados.margem_percentual || 0,
+            margem_divisor: dados.margem_divisor || 1,
+            tipo_calculo: dados.tipo_calculo || 'markup',
           })
           .eq('id', distribuidor_id);
 
