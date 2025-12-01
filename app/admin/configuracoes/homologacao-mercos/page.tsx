@@ -93,6 +93,7 @@ export default function HomologacaoMercosPage() {
       });
       const json = (await res.json()) as HealthResponse;
       setResult(json);
+      setPage(json.page || 1);
     } catch (err) {
       setResult({ success: false, error: (err as Error).message });
     } finally {
@@ -118,13 +119,19 @@ export default function HomologacaoMercosPage() {
       });
       const json = (await res.json()) as HealthResponse;
       setResult(json);
-      setPage(newPage);
+      setPage(json.page || newPage);
     } catch (err) {
       setResult({ success: false, error: (err as Error).message });
     } finally {
       setLoading(false);
     }
   };
+
+  const totalPaginas = useMemo(() => {
+    if (result?.totalPaginas) return result.totalPaginas;
+    if (result?.encontrados && pageSize) return Math.max(1, Math.ceil(result.encontrados / pageSize));
+    return 1;
+  }, [result, pageSize]);
 
   return (
     <div className="p-6">
@@ -204,8 +211,8 @@ export default function HomologacaoMercosPage() {
                   {result.fallback && <p className="text-amber-700">Sem resultados com alterado_apos; buscando sem filtro para exibir.</p>}
                   {result.matchMode && <p className="text-gray-700">Modo de busca: {result.matchMode}</p>}
                   <div className="flex items-center gap-2 text-gray-700">
-                    <span>Página: {result.page || 1} / {result.totalPaginas || 1}</span>
-                    <span>Itens por página: {result.pageSize || pageSize}</span>
+                    <span>Página: {page} / {totalPaginas}</span>
+                    <span>Itens por página: {pageSize}</span>
                   </div>
 
                   <div className="mt-2 max-h-72 overflow-auto rounded border bg-white">
@@ -236,16 +243,18 @@ export default function HomologacaoMercosPage() {
                   <div className="flex items-center justify-between gap-2 pt-2 text-xs text-gray-700">
                     <div className="flex items-center gap-2">
                       <button
+                        type="button"
                         className="rounded border px-2 py-1 disabled:opacity-50"
-                        onClick={() => paginate(Math.max(1, (result.page || 1) - 1))}
-                        disabled={(result.page || 1) <= 1 || loading}
+                        onClick={() => paginate(Math.max(1, page - 1))}
+                        disabled={page <= 1 || loading}
                       >
                         Anterior
                       </button>
                       <button
+                        type="button"
                         className="rounded border px-2 py-1 disabled:opacity-50"
-                        onClick={() => paginate(Math.min(result.totalPaginas || 1, (result.page || 1) + 1))}
-                        disabled={(result.page || 1) >= (result.totalPaginas || 1) || loading}
+                        onClick={() => paginate(Math.min(totalPaginas, page + 1))}
+                        disabled={page >= totalPaginas || loading}
                       >
                         Próxima
                       </button>
@@ -253,14 +262,15 @@ export default function HomologacaoMercosPage() {
                     <div className="flex items-center gap-2">
                       <span>Itens/página:</span>
                       <select
+                        disabled={loading}
                         className="rounded border px-2 py-1"
                         value={pageSize}
                         onChange={(e) => {
                           const newSize = Number(e.target.value) || 10;
                           setPageSize(newSize);
+                          setPage(1);
                           paginate(1);
                         }}
-                        disabled={loading}
                       >
                         {[5, 10, 20, 50, 100].map((n) => (
                           <option key={n} value={n}>{n}</option>
