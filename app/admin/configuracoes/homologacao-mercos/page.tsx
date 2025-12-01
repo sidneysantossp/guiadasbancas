@@ -35,6 +35,7 @@ export default function HomologacaoMercosPage() {
   const [prefix, setPrefix] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<HealthResponse | null>(null);
+  const [useSandbox, setUseSandbox] = useState(true);
 
   const currentDist = useMemo(
     () => distribuidores.find((d) => d.id === selected),
@@ -70,7 +71,7 @@ export default function HomologacaoMercosPage() {
       const res = await fetch('/api/admin/mercos/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prefix: prefix.trim(), distribuidorId: selected }),
+        body: JSON.stringify({ prefix: prefix.trim(), distribuidorId: selected, useSandbox }),
       });
       const json = (await res.json()) as HealthResponse;
       setResult(json);
@@ -115,6 +116,16 @@ export default function HomologacaoMercosPage() {
               placeholder="Digite o prefixo informado pela Mercos"
               className="w-full rounded-lg border px-3 py-2 text-sm"
             />
+
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <input
+                type="checkbox"
+                checked={useSandbox}
+                onChange={(e) => setUseSandbox(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Usar tokens do Sandbox (recomendado para homologação)
+            </label>
 
             <button
               onClick={buscarCategorias}
