@@ -12,6 +12,10 @@ type Body = {
   useSandbox?: boolean;
 };
 
+const SANDBOX_DEFAULT_APP = 'd39001ac-0b14-11f0-8ed7-6e1485be00f2';
+const SANDBOX_DEFAULT_COMPANY = '4b866744-a086-11f0-ada6-5e65486a6283';
+const SANDBOX_DEFAULT_URL = 'https://sandbox.mercos.com/api/v1';
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Body;
@@ -26,13 +30,9 @@ export async function POST(request: Request) {
 
     // Se usar sandbox, ignorar tokens do distribuidor e usar envs de sandbox
     if (useSandbox) {
-      const appToken = process.env.MERCOS_SANDBOX_APPLICATION_TOKEN || process.env.MERCOS_APPLICATION_TOKEN;
-      const companyToken = process.env.MERCOS_SANDBOX_COMPANY_TOKEN || process.env.MERCOS_COMPANY_TOKEN;
-      const baseUrl = process.env.MERCOS_SANDBOX_API_URL || 'https://sandbox.mercos.com/api/v1';
-
-      if (!appToken || !companyToken) {
-        return NextResponse.json({ success: false, error: 'Tokens sandbox não configurados' }, { status: 400 });
-      }
+      const appToken = process.env.MERCOS_SANDBOX_APPLICATION_TOKEN || process.env.MERCOS_APPLICATION_TOKEN || SANDBOX_DEFAULT_APP;
+      const companyToken = process.env.MERCOS_SANDBOX_COMPANY_TOKEN || process.env.MERCOS_COMPANY_TOKEN || SANDBOX_DEFAULT_COMPANY;
+      const baseUrl = process.env.MERCOS_SANDBOX_API_URL || SANDBOX_DEFAULT_URL;
 
       const mercos = new MercosAPI({
         applicationToken: appToken,
