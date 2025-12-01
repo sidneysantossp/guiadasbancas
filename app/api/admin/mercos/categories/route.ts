@@ -10,6 +10,9 @@ type Body = {
   distribuidorId?: string;
   limit?: number;
   useSandbox?: boolean;
+  alteradoApos?: string | null;
+  page?: number;
+  pageSize?: number;
 };
 
 const SANDBOX_DEFAULT_APP = 'd39001ac-0b14-11f0-8ed7-6e1485be00f2';
@@ -23,6 +26,9 @@ export async function POST(request: Request) {
     const distribuidorId = body.distribuidorId;
     const limit = body.limit && body.limit > 0 ? Math.min(body.limit, 200) : 50;
     const useSandbox = !!body.useSandbox;
+    const alteradoApos = body.alteradoApos || null;
+    const page = body.page && body.page > 0 ? body.page : 1;
+    const pageSize = body.pageSize && body.pageSize > 0 ? Math.min(body.pageSize, 200) : 50;
 
     if (!prefix) {
       return NextResponse.json({ success: false, error: 'Prefixo é obrigatório' }, { status: 400 });
@@ -40,16 +46,24 @@ export async function POST(request: Request) {
         baseUrl,
       });
 
-      const categorias = await mercos.getAllCategorias();
+      const categorias = await mercos.getAllCategorias({ batchSize: 200, alteradoApos });
       const filtradas = categorias.filter((c) => (c?.nome || '').toLowerCase().startsWith(prefix.toLowerCase()));
+
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize;
+      const paginadas = filtradas.slice(start, end);
 
       return NextResponse.json({
         success: true,
         distribuidor: { id: 'sandbox', nome: 'Sandbox Mercos' },
         prefix,
+        alteradoApos,
         total_categorias: categorias.length,
         encontrados: filtradas.length,
-        categorias: filtradas.slice(0, limit),
+        page,
+        pageSize,
+        totalPaginas: Math.max(1, Math.ceil(filtradas.length / pageSize)),
+        categorias: paginadas,
       });
     }
 
@@ -77,16 +91,24 @@ export async function POST(request: Request) {
       baseUrl: dist.base_url || process.env.MERCOS_API_URL || 'https://app.mercos.com/api/v1',
     });
 
-    const categorias = await mercos.getAllCategorias();
+    const categorias = await mercos.getAllCategorias({ batchSize: 200, alteradoApos });
     const filtradas = categorias.filter((c) => (c?.nome || '').toLowerCase().startsWith(prefix.toLowerCase()));
+
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const paginadas = filtradas.slice(start, end);
 
     return NextResponse.json({
       success: true,
       distribuidor: { id: dist.id, nome: dist.nome },
       prefix,
+      alteradoApos,
       total_categorias: categorias.length,
       encontrados: filtradas.length,
-      categorias: filtradas.slice(0, limit),
+      page,
+      pageSize,
+      totalPaginas: Math.max(1, Math.ceil(filtradas.length / pageSize)),
+      categorias: paginadas,
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

@@ -464,20 +464,26 @@ export class MercosAPI {
   /**
    * Busca todas as categorias
    */
-  async getAllCategorias(): Promise<MercosCategoria[]> {
-    console.log('[MERCOS-API] getAllCategorias - Iniciando busca de categorias');
+  async getAllCategorias(params: { batchSize?: number; alteradoApos?: string | null } = {}): Promise<MercosCategoria[]> {
+    const { batchSize = 200, alteradoApos = '2020-01-01T00:00:00' } = params;
+    console.log('[MERCOS-API] getAllCategorias - Iniciando busca de categorias', { batchSize, alteradoApos });
     console.log('[MERCOS-API] ApplicationToken:', this.config.applicationToken?.substring(0, 20) + '...');
     console.log('[MERCOS-API] CompanyToken:', this.config.companyToken?.substring(0, 20) + '...');
     
     let allCategorias: MercosCategoria[] = [];
-    let dataInicial = '2020-01-01T00:00:00';
+    let dataInicial = alteradoApos || '2020-01-01T00:00:00';
     let hasMore = true;
 
     while (hasMore) {
-      const endpoint = `/categorias?alterado_apos=${dataInicial}`;
+      const qp = new URLSearchParams();
+      qp.append('alterado_apos', dataInicial);
+      qp.append('limit', Math.min(batchSize, 200).toString());
+      qp.append('order_by', 'ultima_alteracao');
+      qp.append('order_direction', 'asc');
+
+      const endpoint = `/categorias?${qp.toString()}`;
       console.log('[MERCOS-API] Buscando:', `${this.baseUrl}${endpoint}`);
       
-      // Fazer requisição e capturar headers
       const url = `${this.baseUrl}${endpoint}`;
       const headers = {
         'ApplicationToken': this.config.applicationToken,
@@ -485,22 +491,15 @@ export class MercosAPI {
         'Content-Type': 'application/json',
       };
 
-      console.log('[MERCOS-API] Headers sendo enviados:', {
-        'ApplicationToken': headers['ApplicationToken']?.substring(0, 20) + '...',
-        'CompanyToken': headers['CompanyToken']?.substring(0, 20) + '...',
-      });
-
       const response = await fetch(url, { headers });
 
       console.log('[MERCOS-API] Response status:', response.status);
       console.log('[MERCOS-API] Response headers:', Object.fromEntries(response.headers.entries()));
 
-      // Tratamento de throttling
       if (response.status === 429) {
-        const throttleError = await response.json();
-        const waitTime = throttleError.tempo_ate_permitir_novamente * 1000;
-        
-        console.log(`[MERCOS-API] Throttling detectado. Aguardando ${throttleError.tempo_ate_permitir_novamente}s...`);
+        const throttleError = await response.json().catch(() => ({ tempo_ate_permitir_novamente: 5 }));
+        const waitTime = (throttleError.tempo_ate_permitir_novamente || 5) * 1000;
+        console.log(`[MERCOS-API] Throttling detectado. Aguardando ${waitTime / 1000}s...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
         continue;
       }
@@ -517,7 +516,6 @@ export class MercosAPI {
 
       console.log(`[MERCOS-API] Recebidas ${categoriasArray.length} categorias nesta página`);
 
-      // CORREÇÃO CRÍTICA: Verificar headers corretamente
       const limitouRegistros = response.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
       
       if (limitouRegistros && categoriasArray.length > 0) {

@@ -20,6 +20,10 @@ type HealthResponse = {
   total_categorias?: number;
   encontrados?: number;
   prefix?: string;
+  alteradoApos?: string | null;
+  page?: number;
+  pageSize?: number;
+  totalPaginas?: number;
   categorias?: Categoria[];
 };
 
@@ -36,6 +40,9 @@ export default function HomologacaoMercosPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<HealthResponse | null>(null);
   const [useSandbox, setUseSandbox] = useState(true);
+  const [alteradoApos, setAlteradoApos] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const currentDist = useMemo(
     () => distribuidores.find((d) => d.id === selected),
@@ -67,14 +74,48 @@ export default function HomologacaoMercosPage() {
 
     setLoading(true);
     setResult(null);
+    setPage(1);
     try {
       const res = await fetch('/api/admin/mercos/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prefix: prefix.trim(), distribuidorId: selected, useSandbox }),
+        body: JSON.stringify({
+          prefix: prefix.trim(),
+          distribuidorId: selected,
+          useSandbox,
+          alteradoApos: alteradoApos || null,
+          page: 1,
+          pageSize,
+        }),
       });
       const json = (await res.json()) as HealthResponse;
       setResult(json);
+    } catch (err) {
+      setResult({ success: false, error: (err as Error).message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const paginate = async (newPage: number) => {
+    if (!prefix.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/mercos/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prefix: prefix.trim(),
+          distribuidorId: selected,
+          useSandbox,
+          alteradoApos: alteradoApos || null,
+          page: newPage,
+          pageSize,
+        }),
+      });
+      const json = (await res.json()) as HealthResponse;
+      setResult(json);
+      setPage(newPage);
     } catch (err) {
       setResult({ success: false, error: (err as Error).message });
     } finally {
@@ -117,6 +158,14 @@ export default function HomologacaoMercosPage() {
               className="w-full rounded-lg border px-3 py-2 text-sm"
             />
 
+            <label className="text-sm font-medium text-gray-700">alterado_apos (opcional)</label>
+            <input
+              type="datetime-local"
+              value={alteradoApos}
+              onChange={(e) => setAlteradoApos(e.target.value)}
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+            />
+
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
               <input
                 type="checkbox"
@@ -145,8 +194,13 @@ export default function HomologacaoMercosPage() {
                     Distribuidor: <strong>{result.distribuidor?.nome || currentDist?.nome}</strong>
                   </p>
                   <p className="text-gray-700">Prefixo: {result.prefix}</p>
+                  <p className="text-gray-700">alterado_apos: {result.alteradoApos || '(padrão)'}</p>
                   <p className="text-gray-700">Total categorias (Mercos): {result.total_categorias}</p>
                   <p className="text-gray-700">Encontrados com prefixo: {result.encontrados}</p>
+                  <div className="flex items-center gap-2 text-gray-700">
+                    <span>Página: {result.page || 1} / {result.totalPaginas || 1}</span>
+                    <span>Itens por página: {result.pageSize || pageSize}</span>
+                  </div>
 
                   <div className="mt-2 max-h-72 overflow-auto rounded border bg-white">
                     <table className="min-w-full text-xs">
@@ -172,6 +226,41 @@ export default function HomologacaoMercosPage() {
                         )}
                       </tbody>
                     </table>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-2 text-xs text-gray-700">
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="rounded border px-2 py-1 disabled:opacity-50"
+                        onClick={() => paginate(Math.max(1, (result.page || 1) - 1))}
+                        disabled={(result.page || 1) <= 1 || loading}
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        className="rounded border px-2 py-1 disabled:opacity-50"
+                        onClick={() => paginate(Math.min(result.totalPaginas || 1, (result.page || 1) + 1))}
+                        disabled={(result.page || 1) >= (result.totalPaginas || 1) || loading}
+                      >
+                        Próxima
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span>Itens/página:</span>
+                      <select
+                        className="rounded border px-2 py-1"
+                        value={pageSize}
+                        onChange={(e) => {
+                          const newSize = Number(e.target.value) || 10;
+                          setPageSize(newSize);
+                          paginate(1);
+                        }}
+                        disabled={loading}
+                      >
+                        {[5, 10, 20, 50, 100].map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
               )}
