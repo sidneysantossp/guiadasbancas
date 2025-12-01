@@ -24,6 +24,9 @@ type HealthResponse = {
   page?: number;
   pageSize?: number;
   totalPaginas?: number;
+  warning?: string;
+  fallback?: boolean;
+  matchMode?: 'startsWith' | 'includes' | 'all';
   categorias?: Categoria[];
 };
 
@@ -197,6 +200,9 @@ export default function HomologacaoMercosPage() {
                   <p className="text-gray-700">alterado_apos: {result.alteradoApos || '(padrão)'}</p>
                   <p className="text-gray-700">Total categorias (Mercos): {result.total_categorias}</p>
                   <p className="text-gray-700">Encontrados com prefixo: {result.encontrados}</p>
+                  {result.warning && <p className="text-amber-700">Aviso: {result.warning}</p>}
+                  {result.fallback && <p className="text-amber-700">Sem resultados com alterado_apos; buscando sem filtro para exibir.</p>}
+                  {result.matchMode && <p className="text-gray-700">Modo de busca: {result.matchMode}</p>}
                   <div className="flex items-center gap-2 text-gray-700">
                     <span>Página: {result.page || 1} / {result.totalPaginas || 1}</span>
                     <span>Itens por página: {result.pageSize || pageSize}</span>

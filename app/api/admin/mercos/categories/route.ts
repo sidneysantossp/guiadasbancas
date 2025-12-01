@@ -19,6 +19,33 @@ const SANDBOX_DEFAULT_APP = 'd39001ac-0b14-11f0-8ed7-6e1485be00f2';
 const SANDBOX_DEFAULT_COMPANY = '4b866744-a086-11f0-ada6-5e65486a6283';
 const SANDBOX_DEFAULT_URL = 'https://sandbox.mercos.com/api/v1';
 
+const parseAlteradoApos = (value: string | null | undefined): { cursor: string | null; warning?: string } => {
+  if (!value) return { cursor: null };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { cursor: null, warning: 'alterado_apos inválido, usando padrão.' };
+  const now = new Date();
+  if (date > now) return { cursor: null, warning: 'alterado_apos no futuro, usando padrão.' };
+  return { cursor: date.toISOString() };
+};
+
+const filterCategorias = (categorias: any[], prefix: string) => {
+  const lower = prefix.toLowerCase();
+  let matchMode: 'startsWith' | 'includes' | 'all' = 'startsWith';
+  let filtradas = categorias.filter((c) => (c?.nome || '').toLowerCase().startsWith(lower));
+
+  if (filtradas.length === 0 && prefix) {
+    matchMode = 'includes';
+    filtradas = categorias.filter((c) => (c?.nome || '').toLowerCase().includes(lower));
+  }
+
+  if (filtradas.length === 0) {
+    matchMode = 'all';
+    filtradas = categorias;
+  }
+
+  return { filtradas, matchMode };
+};
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Body;
@@ -26,7 +53,7 @@ export async function POST(request: Request) {
     const distribuidorId = body.distribuidorId;
     const limit = body.limit && body.limit > 0 ? Math.min(body.limit, 200) : 50;
     const useSandbox = !!body.useSandbox;
-    const alteradoApos = body.alteradoApos || null;
+    const { cursor: alteradoApos, warning: alterWarn } = parseAlteradoApos(body.alteradoApos);
     const page = body.page && body.page > 0 ? body.page : 1;
     const pageSize = body.pageSize && body.pageSize > 0 ? Math.min(body.pageSize, 200) : 50;
 
@@ -47,22 +74,34 @@ export async function POST(request: Request) {
       });
 
       const categorias = await mercos.getAllCategorias({ batchSize: 200, alteradoApos });
-      const filtradas = categorias.filter((c) => (c?.nome || '').toLowerCase().startsWith(prefix.toLowerCase()));
+      const { filtradas, matchMode } = filterCategorias(categorias, prefix);
+      const fallback = matchMode === 'all';
+
+      // Se nada com cursor e matchMode all, tentar full fetch sem cursor
+      let finalFiltradas = filtradas;
+      if (fallback && alteradoApos) {
+        const categoriasFull = await mercos.getAllCategorias({ batchSize: 200, alteradoApos: null });
+        const second = filterCategorias(categoriasFull, prefix);
+        finalFiltradas = second.filtradas;
+      }
 
       const start = (page - 1) * pageSize;
       const end = start + pageSize;
-      const paginadas = filtradas.slice(start, end);
+      const paginadas = finalFiltradas.slice(start, end);
 
       return NextResponse.json({
         success: true,
         distribuidor: { id: 'sandbox', nome: 'Sandbox Mercos' },
         prefix,
         alteradoApos,
+        warning: alterWarn,
+        fallback,
+        matchMode,
         total_categorias: categorias.length,
-        encontrados: filtradas.length,
+        encontrados: finalFiltradas.length,
         page,
         pageSize,
-        totalPaginas: Math.max(1, Math.ceil(filtradas.length / pageSize)),
+        totalPaginas: Math.max(1, Math.ceil(finalFiltradas.length / pageSize)),
         categorias: paginadas,
       });
     }
@@ -92,22 +131,33 @@ export async function POST(request: Request) {
     });
 
     const categorias = await mercos.getAllCategorias({ batchSize: 200, alteradoApos });
-    const filtradas = categorias.filter((c) => (c?.nome || '').toLowerCase().startsWith(prefix.toLowerCase()));
+    const { filtradas, matchMode } = filterCategorias(categorias, prefix);
+    const fallback = matchMode === 'all';
+
+    let finalFiltradas = filtradas;
+    if (fallback && alteradoApos) {
+      const categoriasFull = await mercos.getAllCategorias({ batchSize: 200, alteradoApos: null });
+      const second = filterCategorias(categoriasFull, prefix);
+      finalFiltradas = second.filtradas;
+    }
 
     const start = (page - 1) * pageSize;
     const end = start + pageSize;
-    const paginadas = filtradas.slice(start, end);
+    const paginadas = finalFiltradas.slice(start, end);
 
     return NextResponse.json({
       success: true,
       distribuidor: { id: dist.id, nome: dist.nome },
       prefix,
+      warning: alterWarn,
+      fallback,
+      matchMode,
       alteradoApos,
       total_categorias: categorias.length,
-      encontrados: filtradas.length,
+      encontrados: finalFiltradas.length,
       page,
       pageSize,
-      totalPaginas: Math.max(1, Math.ceil(filtradas.length / pageSize)),
+      totalPaginas: Math.max(1, Math.ceil(finalFiltradas.length / pageSize)),
       categorias: paginadas,
     });
   } catch (error: any) {
