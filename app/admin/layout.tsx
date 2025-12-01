@@ -150,6 +150,7 @@ const ADMIN_MENU = [
     items: [
       { label: "Plataforma", href: "/admin/settings", icon: "settings" as IconKey },
       { label: "WhatsApp", href: "/admin/configuracoes/whatsapp", icon: "brandWhatsapp" as IconKey },
+      { label: "Sync Mercos", href: "/admin/configuracoes/sync-mercos", icon: "truck" as IconKey },
     ]
   }
 ];

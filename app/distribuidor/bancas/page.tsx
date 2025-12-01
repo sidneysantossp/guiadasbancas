@@ -260,7 +260,7 @@ export default function DistribuidorBancasPage() {
       </div>
 
       {/* Bancas Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {bancas.length === 0 ? (
           <div className="col-span-full bg-white rounded-xl shadow-sm border p-12 text-center">
             <IconBuildingStore className="mx-auto text-gray-400 mb-4" size={48} />

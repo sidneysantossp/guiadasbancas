@@ -34,7 +34,13 @@ export async function GET(req: NextRequest) {
     // Filtrar apenas ativas (mesma lógica do admin)
     const bancas = (todasBancas || []).filter((b: any) => b.active !== false);
 
-    // Buscar IDs dos produtos do distribuidor
+    // 1) Contar TODOS os produtos do distribuidor (mesma lógica da rota /api/distribuidor/products)
+    const { count: totalProdutosDistribuidor } = await supabaseAdmin
+      .from('products')
+      .select('*', { count: 'exact', head: true })
+      .eq('distribuidor_id', distribuidorId);
+
+    // 2) Buscar IDs dos produtos do distribuidor (para relacionar com pedidos)
     const { data: produtosDistribuidor } = await supabaseAdmin
       .from('products')
       .select('id')
@@ -63,11 +69,18 @@ export async function GET(req: NextRequest) {
       pedidos = data || [];
     }
 
+    const totalProdutosBase = totalProdutosDistribuidor || 0;
+
     // Mapear bancas com estatísticas
     const bancasComStats = (bancas || []).map((banca: any) => {
-      // Produtos do distribuidor vinculados a esta banca
+      // Customizações desta banca para produtos do distribuidor
       const produtosBanca = bancasProdutos.filter(bp => bp.banca_id === banca.id);
-      const produtosAtivos = produtosBanca.filter(p => p.enabled);
+      const produtosDesativados = produtosBanca.filter(p => p.enabled === false);
+
+      // Visão do distribuidor: por padrão, TODAS as bancas têm acesso
+      // a todo o catálogo de produtos do distribuidor, a menos que desativem
+      // explicitamente produtos na tabela banca_produtos_distribuidor.
+      const produtosAtivosCount = Math.max(totalProdutosBase - produtosDesativados.length, 0);
       
       // Pedidos desta banca
       const pedidosBanca = pedidos.filter(p => p.banca_id === banca.id);
@@ -91,7 +104,7 @@ export async function GET(req: NextRequest) {
       )[0];
 
       // Determinar se tem produtos do distribuidor
-      const temProdutosDistribuidor = produtosBanca.length > 0 || pedidosComProdutos > 0;
+      const temProdutosDistribuidor = produtosAtivosCount > 0 || produtosBanca.length > 0 || pedidosComProdutos > 0;
 
       return {
         id: banca.id,
@@ -104,10 +117,12 @@ export async function GET(req: NextRequest) {
         created_at: banca.created_at,
         lat: banca.lat,
         lng: banca.lng,
-        is_cotista: false,
+        is_cotista: banca.is_cotista === true && !!banca.cotista_id,
         tem_produtos_distribuidor: temProdutosDistribuidor,
-        produtos_distribuidor: produtosBanca.length,
-        produtos_ativos: produtosAtivos.length,
+        // Do ponto de vista do distribuidor, o catálogo completo está disponível
+        // para a banca, exceto o que foi desativado explicitamente.
+        produtos_distribuidor: totalProdutosBase,
+        produtos_ativos: produtosAtivosCount,
         total_pedidos: pedidosComProdutos,
         pedidos_pendentes: pedidosBanca.filter((p: any) => ['novo', 'confirmado'].includes(p.status)).length,
         valor_total: valorTotal,
