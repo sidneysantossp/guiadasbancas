@@ -472,6 +472,7 @@ export class MercosAPI {
     
     let allCategorias: MercosCategoria[] = [];
     let dataInicial = alteradoApos || '2020-01-01T00:00:00';
+    let lastId: number | null = null;
     let hasMore = true;
 
     while (hasMore) {
@@ -480,6 +481,7 @@ export class MercosAPI {
       qp.append('limit', Math.min(batchSize, 200).toString());
       qp.append('order_by', 'ultima_alteracao');
       qp.append('order_direction', 'asc');
+      if (lastId) qp.append('id_maior_que', String(lastId));
 
       const endpoint = `/categorias?${qp.toString()}`;
       console.log('[MERCOS-API] Buscando:', `${this.baseUrl}${endpoint}`);
@@ -521,7 +523,8 @@ export class MercosAPI {
       if (limitouRegistros && categoriasArray.length > 0) {
         const ultimaCategoria = categoriasArray[categoriasArray.length - 1];
         dataInicial = ultimaCategoria.ultima_alteracao;
-        console.log(`[MERCOS-API] Próxima página com alterado_apos: ${dataInicial}`);
+        lastId = ultimaCategoria.id;
+        console.log(`[MERCOS-API] Próxima página com alterado_apos: ${dataInicial} e id_maior_que: ${lastId}`);
       } else {
         hasMore = false;
         console.log(`[MERCOS-API] ✅ Paginação concluída. Total: ${allCategorias.length} categorias`);
