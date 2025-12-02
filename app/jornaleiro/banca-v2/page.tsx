@@ -1531,9 +1531,51 @@ export default function BancaV2Page() {
               Descartar alterações
             </button>
             
-            {/* Botão de teste para debug */}
             <button
-              type="button"
+              onClick={async () => {
+                // TEST: Debug específico do endereço
+                const currentAddressData = watch('addressObj');
+                console.log('🏠 [TEST ENDEREÇO] Dados atuais do addressObj:', currentAddressData);
+                console.log('🏠 [TEST ENDEREÇO] Detalhado:');
+                console.log('  - CEP:', currentAddressData?.cep);
+                console.log('  - Street:', currentAddressData?.street);
+                console.log('  - Number:', currentAddressData?.number);
+                console.log('  - Number (ref):', numberRef.current?.value);
+                console.log('  - Neighborhood:', currentAddressData?.neighborhood);
+                console.log('  - City:', currentAddressData?.city);
+                console.log('  - UF:', currentAddressData?.uf);
+                console.log('  - Complement:', currentAddressData?.complement);
+                
+                try {
+                  const testRes = await fetch('/api/jornaleiro/banca', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      data: {
+                        name: watch('name'),
+                        addressObj: currentAddressData,
+                      }
+                    }),
+                  });
+                  
+                  const testData = await testRes.json();
+                  console.log('✅ [TEST ENDEREÇO] Resposta da API:', testData);
+                  
+                  if (testRes.ok) {
+                    console.log('🧪 Teste de endereço executado com sucesso!');
+                  } else {
+                    console.error('❌ Erro no teste de endereço:', testData.error || 'Desconhecido');
+                  }
+                } catch (err: any) {
+                  console.error('❌ [TEST ENDEREÇO] Erro:', err);
+                }
+              }}
+              className="rounded-md border border-green-300 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100"
+            >
+              🏠 Teste Debug Endereço
+            </button>
+            
+            <button
               onClick={async () => {
                 console.log('🧪 [TESTE] Valores atuais dos campos:');
                 console.log('📱 WhatsApp (ref):', phoneRef.current?.value);
