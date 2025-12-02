@@ -59,45 +59,69 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Buscar TODOS os produtos de distribuidores com paginação (sem limite de 1000)
-    console.log('[CATALOGO] Buscando produtos de distribuidores com paginação...');
-    const produtos: any[] = [];
-    let hasMore = true;
-    let offset = 0;
-    const BATCH_SIZE = 1000;
+    // 1. Buscar LISTA COMPLETA de distribuidores disponíveis para o filtro do frontend
+    // Isso é leve e permite que o usuário filtre mesmo sem carregar todos os produtos
+    let listaDistribuidores: string[] = [];
+    const { data: dists } = await supabase.from('distribuidores').select('nome').order('nome');
+    if (dists) {
+      listaDistribuidores = dists.map(d => d.nome).filter(Boolean);
+    }
 
-    while (hasMore) {
-      const { data: batch, error: prodError } = await supabase
-        .from('products')
-        .select('id, name, description, price, stock_qty, images, mercos_id, codigo_mercos, distribuidor_id, track_stock, pronta_entrega, sob_encomenda, pre_venda, created_at, category_id, active')
-        .not('distribuidor_id', 'is', null)
-        .eq('active', true) // Apenas produtos ativos
-        .order('created_at', { ascending: false })
-        .range(offset, offset + BATCH_SIZE - 1);
+    // 2. Buscar produtos de distribuidores com FILTROS no BANCO
+    console.log('[CATALOGO] Buscando produtos com filtros no banco...');
+    
+    const { searchParams } = new URL(req.url);
+    const q = (searchParams.get('q') || '').toLowerCase();
+    const distribuidorFilter = searchParams.get('distribuidor') || '';
 
-      if (prodError) {
-        console.error('[CATALOGO] Erro ao buscar produtos:', prodError.message);
-        return NextResponse.json(
-          { success: false, error: prodError.message },
-          { status: 500 }
-        );
-      }
+    // Iniciar query
+    let query = supabase
+      .from('products')
+      .select('id, name, description, price, stock_qty, images, mercos_id, codigo_mercos, distribuidor_id, track_stock, pronta_entrega, sob_encomenda, pre_venda, created_at, category_id, active')
+      .not('distribuidor_id', 'is', null)
+      .eq('active', true)
+      .order('created_at', { ascending: false });
 
-      if (batch && batch.length > 0) {
-        produtos.push(...batch);
-        console.log(`[CATALOGO] Lote ${Math.floor(offset / BATCH_SIZE) + 1}: ${batch.length} produtos`);
-        
-        if (batch.length < BATCH_SIZE) {
-          hasMore = false;
-        } else {
-          offset += BATCH_SIZE;
-        }
-      } else {
-        hasMore = false;
+    // Aplicar filtros
+    if (q) {
+      query = query.or(`name.ilike.%${q}%,codigo_mercos.ilike.%${q}%`);
+    }
+
+    // Se tiver filtro de distribuidor, precisamos pegar o ID dele pelo nome
+    if (distribuidorFilter) {
+      // Buscar ID do distribuidor pelo nome (poderia ter passado ID do front, mas o front usa nome no value)
+      const { data: distData } = await supabase
+        .from('distribuidores')
+        .select('id')
+        .eq('nome', distribuidorFilter)
+        .single();
+      
+      if (distData) {
+        query = query.eq('distribuidor_id', distData.id);
       }
     }
 
-    console.log(`[CATALOGO] Total de produtos carregados: ${produtos.length}`);
+    // Limitar resultados para evitar timeout
+    // Se tem busca específica, traz mais. Se é listagem geral, traz menos.
+    const limit = q ? 200 : 100;
+    query = query.limit(limit);
+
+    const { data: produtos, error: prodError } = await query;
+
+    if (prodError) {
+      console.error('[CATALOGO] Erro ao buscar produtos:', prodError.message);
+      return NextResponse.json(
+        { success: false, error: prodError.message },
+        { status: 500 }
+      );
+    }
+
+    console.log(`[CATALOGO] ${produtos?.length || 0} produtos carregados (limit: ${limit})`);
+    
+    // O resto do código segue igual (mapeamento de markups, etc) mas usando 'produtos' que já foi carregado
+    // Remover o loop while antigo
+    
+    /* CÓDIGO ANTIGO REMOVIDO: Loop while(hasMore) */
 
     // Buscar nomes de distribuidores e categorias para mapear manualmente
     const distribuidorIds = Array.from(new Set((produtos || []).map((p: any) => p.distribuidor_id).filter(Boolean)));
@@ -269,6 +293,7 @@ export async function GET(req: NextRequest) {
       success: true,
       products: produtosComCustom,
       data: produtosComCustom, // backward compatibility
+      distribuidores: listaDistribuidores, // Lista de nomes de todos os distribuidores
       total: produtosComCustom.length,
       is_cotista: true,
     }, {

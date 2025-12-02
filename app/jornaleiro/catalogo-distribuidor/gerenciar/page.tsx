@@ -25,19 +25,32 @@ type Product = {
 export default function GerenciarCatalogoPage() {
   const toast = useToast();
   const [products, setProducts] = useState<Product[]>([]);
+  const [allDistribuidores, setAllDistribuidores] = useState<string[]>([]); // Lista completa de distribuidores
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selectedDistribuidor, setSelectedDistribuidor] = useState<string>("");
+  // Debounce para busca
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
       
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.set('q', debouncedSearch);
+      if (selectedDistribuidor) params.set('distribuidor', selectedDistribuidor);
+      
       const timestamp = Date.now();
-      const res = await fetch(`/api/jornaleiro/catalogo-distribuidor?t=${timestamp}`, {
+      const res = await fetch(`/api/jornaleiro/catalogo-distribuidor?${params.toString()}&t=${timestamp}`, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
@@ -46,14 +59,11 @@ export default function GerenciarCatalogoPage() {
       const json = await res.json();
       
       if (json.success) {
-        console.log('[DEBUG] Produtos carregados:', json.products?.slice(0, 3).map((p: any) => ({
-          name: p.name,
-          price: p.price,
-          custom_price: p.custom_price,
-          type_price: typeof p.price,
-          type_custom: typeof p.custom_price
-        })));
         setProducts(json.products || []);
+        // Se a API retornar a lista de todos os distribuidores, usamos ela
+        if (json.distribuidores) {
+            setAllDistribuidores(json.distribuidores);
+        }
       } else {
         toast.error(json.error || "Erro ao carregar produtos");
       }
@@ -67,24 +77,19 @@ export default function GerenciarCatalogoPage() {
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [debouncedSearch, selectedDistribuidor]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, products.length, pageSize, selectedDistribuidor]);
+  }, [debouncedSearch, products.length, pageSize, selectedDistribuidor]);
 
-  // Extrair lista única de distribuidores
-  const distribuidores = Array.from(
-    new Set(products.map(p => p.distribuidor_nome).filter(Boolean))
-  ).sort();
+  // Usar a lista retornada pela API ou extrair dos produtos (fallback)
+  const distribuidores = allDistribuidores.length > 0 
+    ? allDistribuidores 
+    : Array.from(new Set(products.map(p => p.distribuidor_nome).filter(Boolean))).sort();
 
-  const filteredProducts = products.filter(p => {
-    const matchSearch = search === "" || 
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.codigo_mercos && p.codigo_mercos.toLowerCase().includes(search.toLowerCase()));
-    const matchDistribuidor = selectedDistribuidor === "" || p.distribuidor_nome === selectedDistribuidor;
-    return matchSearch && matchDistribuidor;
-  });
+  // Filtragem local apenas para paginação, já que o grosso é feito no servidor
+  const filteredProducts = products; // Os produtos já vêm filtrados do servidor
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   const pagedProducts = filteredProducts.slice((page - 1) * pageSize, page * pageSize);
 
