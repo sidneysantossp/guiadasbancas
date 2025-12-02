@@ -134,6 +134,19 @@ export default function HomologacaoMercosPage() {
     return 1;
   }, [result, pageSize]);
 
+  const formatDate = (value?: string) => {
+    if (!value) return '-';
+    const date = new Date(value.replace(' ', 'T'));
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
+  };
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -230,7 +243,7 @@ export default function HomologacaoMercosPage() {
                           <tr key={cat.id} className="border-b last:border-0">
                             <td className="px-3 py-2 align-top font-mono">{cat.id}</td>
                             <td className="px-3 py-2 align-top">{cat.nome}</td>
-                            <td className="px-3 py-2 align-top text-gray-600">{cat.ultima_alteracao || '-'}</td>
+                            <td className="px-3 py-2 align-top text-gray-600">{formatDate(cat.ultima_alteracao)}</td>
                           </tr>
                         ))}
                         {(!result.categorias || result.categorias.length === 0) && (
