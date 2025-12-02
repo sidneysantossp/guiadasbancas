@@ -1534,7 +1534,6 @@ export default function BancaV2Page() {
 
         {/* Botões */}
         <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4">
-          <div className="flex gap-2">
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
