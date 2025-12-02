@@ -145,6 +145,12 @@ async function loadBancaForUser(userId: string): Promise<any> {
       addressObj = parseAddressString(data.address || '', data.cep || '');
     }
     
+    // Garantir que complemento está incluído no addressObj
+    if (data.complement && !addressObj.complement) {
+      addressObj.complement = data.complement;
+      console.log('[GET] ✅ Incluindo complemento no addressObj:', data.complement);
+    }
+    
     const result = {
       id: data.id,
       user_id: data.user_id, // 🚨 INCLUIR user_id para validação no frontend
@@ -368,6 +374,12 @@ export async function PUT(request: NextRequest) {
     if (fullAddress) updateData.address = fullAddress;
     if (data.addressObj?.cep) updateData.cep = data.addressObj.cep;
     
+    // Tentar salvar complemento se a coluna existir
+    if (data.addressObj?.complement) {
+      updateData.complement = data.addressObj.complement;
+      console.log('[PUT] ✅ Salvando complemento:', data.addressObj.complement);
+    }
+    
     // Localização
     if (data.location?.lat) updateData.lat = data.location.lat;
     if (data.location?.lng) updateData.lng = data.location.lng;
@@ -445,6 +457,12 @@ export async function PUT(request: NextRequest) {
     
     // Reconstruir addressObj para manter consistência com o GET
     const updatedAddressObj = parseAddressString(updatedData.address || '', updatedData.cep || '');
+    
+    // Adicionar complemento se foi salvo
+    if (updatedData.complement) {
+      updatedAddressObj.complement = updatedData.complement;
+      console.log('[PUT] ✅ Incluindo complemento no addressObj de retorno:', updatedData.complement);
+    }
 
     // Retornar dados formatados para o frontend
     const responseData = {
