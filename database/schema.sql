@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS bancas (
     rating DECIMAL(3, 2) DEFAULT NULL,
     categories TEXT[] DEFAULT NULL,
     cover_image TEXT DEFAULT NULL,
+    address_obj JSONB DEFAULT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
