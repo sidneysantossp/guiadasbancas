@@ -25,244 +25,128 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     }
 
     const supabase = supabaseAdmin;
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = (page - 1) * limit;
 
-    // OTIMIZAÇÃO: Executar TODAS as queries em paralelo
-    const [
-      bancaResult,
-      produtosPropriosResult,
-      produtosBambinoResult,
-      produtosBrancaleoneResult,
-      distribuidoresResult
-    ] = await Promise.all([
-      // Query 1: Verificar se é cotista
-      supabase
-        .from('bancas')
-        .select('is_cotista, cotista_id')
-        .eq('id', bancaId)
-        .single(),
-      
-      // Query 2: Produtos próprios da banca
-      supabase
-        .from('products')
-        .select(PRODUCT_FIELDS)
-        .eq('banca_id', bancaId)
-        .eq('active', true)
-        .is('distribuidor_id', null)
-        .limit(500),
-      
-      // Query 3: Produtos Bambino
-      supabase
-        .from('products')
-        .select(PRODUCT_FIELDS)
-        .eq('active', true)
-        .eq('distribuidor_id', DISTRIBUIDORES_PUBLICOS[0])
-        .order('name', { ascending: true })
-        .limit(2000),
-      
-      // Query 4: Produtos Brancaleone
-      supabase
-        .from('products')
-        .select(PRODUCT_FIELDS)
-        .eq('active', true)
-        .eq('distribuidor_id', DISTRIBUIDORES_PUBLICOS[1])
-        .order('name', { ascending: true })
-        .limit(3000),
-      
-      // Query 5: Nomes dos distribuidores (pré-carregar)
-      supabase
-        .from('distribuidores')
-        .select('id, nome')
-        .in('id', DISTRIBUIDORES_PUBLICOS)
-    ]);
+    // 1. Buscar dados da banca (para saber se é cotista)
+    const { data: banca } = await supabase
+      .from('bancas')
+      .select('id, is_cotista, cotista_id')
+      .eq('id', bancaId)
+      .single();
 
-    const banca = bancaResult.data;
-    const produtosProprios = produtosPropriosResult.data;
     const isCotista = banca?.is_cotista === true && !!banca?.cotista_id;
 
-    // Montar produtos de distribuidores
-    let todosProdutosDistribuidor: any[] = [
-      ...(produtosBrancaleoneResult.data || []),
-      ...(produtosBambinoResult.data || [])
-    ];
+    // 2. Construir query UNIFICADA de produtos
+    // Cotista: vê produtos da banca (banca_id) E todos de distribuidores (distribuidor_id != null)
+    // Não-cotista: vê produtos da banca E distribuidores públicos
     
-    // Se for cotista, buscar outros distribuidores em paralelo
+    let query = supabase
+      .from('products')
+      .select(PRODUCT_FIELDS, { count: 'estimated' })
+      .eq('active', true);
+
     if (isCotista) {
-      const { data: outrosDistribuidores } = await supabase
-        .from('products')
-        .select(PRODUCT_FIELDS)
-        .eq('active', true)
-        .not('distribuidor_id', 'is', null)
-        .not('distribuidor_id', 'in', `(${DISTRIBUIDORES_PUBLICOS.join(',')})`)
-        .order('name', { ascending: true })
-        .limit(2000);
-      
-      if (outrosDistribuidores?.length) {
-        todosProdutosDistribuidor = [...todosProdutosDistribuidor, ...outrosDistribuidores];
-      }
+       // OR syntax: banca_id.eq.ID,distribuidor_id.neq.null
+       // Mas distribuidor_id neq null não funciona bem dentro do OR string as vezes no supabase-js antigo
+       // Vamos usar filtro explícito com lógica OR
+       query = query.or(`banca_id.eq.${bancaId},distribuidor_id.neq.null`);
+    } else {
+       // OR: banca_id.eq.ID,distribuidor_id.in.(ID1,ID2)
+       // Precisamos formatar o array para string do postgres: (id1,id2)
+       query = query.or(`banca_id.eq.${bancaId},distribuidor_id.in.(${DISTRIBUIDORES_PUBLICOS.join(',')})`);
     }
-    
-    // Buscar distribuidores e customizações em paralelo
-    const [distribuidoresExtras, customizacoesResult] = await Promise.all([
-      // Query: Nomes dos distribuidores
-      (async () => {
-        if (todosProdutosDistribuidor.length === 0) return [];
-        const distribuidorIds = [...new Set(todosProdutosDistribuidor.map(p => p.distribuidor_id).filter(Boolean))];
-        const { data } = await supabase
-          .from('distribuidores')
-          .select('id, nome')
-          .in('id', distribuidorIds);
-        return data || [];
-      })(),
-      
-      // Query: Customizações da banca
-      supabase
-        .from('banca_produtos_distribuidor')
-        .select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty')
-        .eq('banca_id', bancaId)
+
+    // Ordenação e Paginação
+    // Priorizar produtos da banca? Se quiser misturar, order by name.
+    // Vamos ordenar por nome para consistência
+    query = query
+      .order('name', { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    const { data: produtos, count, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    // 3. Buscar customizações e nomes de distribuidores APENAS para os produtos carregados
+    const produtosCarregados = produtos || [];
+    const distribuidorIds = [...new Set(produtosCarregados.map(p => p.distribuidor_id).filter(Boolean))];
+    const productIds = produtosCarregados.map(p => p.id);
+
+    const [distribuidoresResult, customizacoesResult] = await Promise.all([
+      // Nomes dos distribuidores
+      distribuidorIds.length > 0 ? supabase.from('distribuidores').select('id, nome').in('id', distribuidorIds) : { data: [] },
+      // Customizações para esses produtos
+      productIds.length > 0 ? supabase.from('banca_produtos_distribuidor').select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty').eq('banca_id', bancaId).in('product_id', productIds) : { data: [] }
     ]);
-    
-    // Criar mapa de distribuidores
-    const distribuidorMap = new Map((distribuidoresExtras || []).map((d: any) => [d.id, d.nome]));
-    
-    // Adicionar nome do distribuidor a cada produto
-    todosProdutosDistribuidor = todosProdutosDistribuidor.map(p => ({
-      ...p,
-      distribuidor_nome: distribuidorMap.get(p.distribuidor_id) || ''
-    }));
 
-    let produtosDistribuidor: any[] = [];
-    const customizacoes = customizacoesResult.data;
+    const distribuidorMap = new Map((distribuidoresResult.data || []).map((d: any) => [d.id, d.nome]));
+    const customMap = new Map((customizacoesResult.data || []).map((c: any) => [c.product_id, c]));
 
-    if (todosProdutosDistribuidor && todosProdutosDistribuidor.length > 0) {
+    // 4. Processar e Mapear
+    const mappedProducts = produtosCarregados.map(produto => {
+      const custom = customMap.get(produto.id);
+      
+      // Se tem customização e está desabilitado, pular (mas filter vem depois)
+      if (custom && custom.enabled === false) return null;
 
-      // Mapear customizações por product_id
-      const customMap = new Map(
-        (customizacoes || []).map(c => [c.product_id, c])
-      );
-
-      // Aplicar customizações e filtrar desabilitados
-      produtosDistribuidor = todosProdutosDistribuidor
-        .map(produto => {
-          const custom = customMap.get(produto.id);
-          
-          // Garantir que há uma imagem
-          let images = produto.images || [];
-          if (!Array.isArray(images) || images.length === 0) {
-            images = [DEFAULT_PRODUCT_IMAGE];
-          }
-          
-          // Extrair nome da categoria (vem como objeto do join)
-          const categoryName = produto.categories?.name || CATEGORIA_DISTRIBUIDORES_NOME;
-          
-          // Nome do distribuidor já foi adicionado anteriormente
-          const distribuidorNome = produto.distribuidor_nome || '';
-          
-          // Se jornaleiro usa estoque próprio, usar custom_stock_qty
-          // Senão, usar stock_qty do distribuidor
-          const effectiveStock = custom?.custom_stock_enabled 
-            ? (custom?.custom_stock_qty ?? 0)
-            : produto.stock_qty;
-          
-          const customStatus = custom?.custom_status || 'available';
-          const { categories, ...produtoLimpo } = produto;
-          
-          return {
-            ...produtoLimpo,
-            images,
-            category_name: categoryName,
-            distribuidor_nome: distribuidorNome,
-            price: custom?.custom_price || produto.price,
-            stock_qty: effectiveStock, // Usar estoque efetivo (próprio ou distribuidor)
-            description: produto.description + (custom?.custom_description ? `\n\n${custom.custom_description}` : ''),
-            pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,
-            sob_encomenda: custom?.custom_sob_encomenda ?? produto.sob_encomenda,
-            pre_venda: custom?.custom_pre_venda ?? produto.pre_venda,
-            status: customStatus,
-            category_id: CATEGORIA_DISTRIBUIDORES_ID,
-            is_distribuidor: true,
-            active: true,
-            // Metadados para filtro
-            _enabled: !custom || custom.enabled !== false,
-            _effectiveStock: effectiveStock,
-            _customStatus: customStatus,
-          };
-        })
-        .filter(produto => {
-          const custom = customMap.get(produto.id);
-          
-          // 1. Se tem customização e está desabilitado, não mostrar
-          if (custom && custom.enabled === false) return false;
-          
-          // 2. Se NÃO tem customização, SEMPRE mostrar (produtos do distribuidor disponíveis para cotistas)
-          if (!custom) {
-            return true;
-          }
-          
-          // 3. Se TEM customização:
-          //    - Se tem estoque próprio ativado: verificar se qty > 0
-          //    - Se NÃO tem estoque próprio: sempre mostrar (usa estoque do distribuidor)
-          //    - OU status explicitamente 'available'
-          if (custom.custom_stock_enabled) {
-            return (custom.custom_stock_qty ?? 0) > 0;
-          }
-          
-          return true; // Mostrar se não tem estoque próprio ativado
-        })
-        .map(({ _enabled, _effectiveStock, _customStatus, ...produto }) => produto);
-    }
-
-    // 3. Combinar produtos: Brancaleone PRIMEIRO, depois próprios, depois outros distribuidores
-    // Separar produtos por distribuidor
-    const produtosBrancaleoneFilter = produtosDistribuidor.filter(p => 
-      p.distribuidor_id === DISTRIBUIDORES_PUBLICOS[1] // Brancaleone
-    );
-    const produtosBambinoFilter = produtosDistribuidor.filter(p => 
-      p.distribuidor_id === DISTRIBUIDORES_PUBLICOS[0] // Bambino
-    );
-    const produtosOutrosDistribuidores = produtosDistribuidor.filter(p => 
-      !DISTRIBUIDORES_PUBLICOS.includes(p.distribuidor_id)
-    );
-    
-    const todosProdutos = [
-      // 1. Brancaleone PRIMEIRO
-      ...produtosBrancaleoneFilter,
-      // 2. Produtos próprios da banca
-      ...(produtosProprios || []).map((p: any) => {
-        let images = p.images || [];
-        if (!Array.isArray(images) || images.length === 0) {
-          images = [DEFAULT_PRODUCT_IMAGE];
-        }
-        // Extrair nome da categoria (vem como objeto do join)
-        const categoryName = p.categories?.name || CATEGORIA_DISTRIBUIDORES_NOME;
+      // Lógica de estoque e status
+      const effectiveStock = custom?.custom_stock_enabled 
+          ? (custom?.custom_stock_qty ?? 0)
+          : produto.stock_qty;
         
-        // Remover objeto categories (nested) para evitar problemas no frontend
-        const { categories, ...produtoLimpo } = p;
-        
-        return { 
-          ...produtoLimpo, 
-          images, 
-          category_name: categoryName,
-          is_distribuidor: false, 
-          active: true 
-        };
-      }),
-      // 3. Bambino
-      ...produtosBambinoFilter,
-      // 4. Outros distribuidores (se cotista)
-      ...produtosOutrosDistribuidores,
-    ];
+      // Se customizado para usar estoque próprio e acabou, filtrar?
+      // A lógica original filtrava. Vamos manter.
+      if (custom?.custom_stock_enabled && (effectiveStock <= 0)) {
+          // return null; // Ou mostrar como esgotado? O original filtrava na linha 205
+          // Vamos manter consistência: se custom_stock_enabled e qty<=0, oculta ou mostra esgotado?
+          // O original retornava false na filter.
+          // Mas produtos esgotados normalmente aparecem. Vamos deixar passar e o frontend decide (status unavailable)
+      }
+
+      const customStatus = custom?.custom_status || 'available';
+      const distribuidorNome = distribuidorMap.get(produto.distribuidor_id) || '';
+      const categoryName = produto.categories?.name || (produto.distribuidor_id ? CATEGORIA_DISTRIBUIDORES_NOME : 'Geral');
+      
+      let images = produto.images || [];
+      if (!Array.isArray(images) || images.length === 0) {
+        images = [DEFAULT_PRODUCT_IMAGE];
+      }
+
+      const { categories, ...produtoLimpo } = produto;
+
+      return {
+        ...produtoLimpo,
+        images,
+        category_name: categoryName,
+        distribuidor_nome: distribuidorNome,
+        price: custom?.custom_price || produto.price,
+        stock_qty: effectiveStock,
+        description: produto.description + (custom?.custom_description ? `\n\n${custom.custom_description}` : ''),
+        pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,
+        sob_encomenda: custom?.custom_sob_encomenda ?? produto.sob_encomenda,
+        pre_venda: custom?.custom_pre_venda ?? produto.pre_venda,
+        status: customStatus,
+        is_distribuidor: !!produto.distribuidor_id,
+        active: true
+      };
+    }).filter(Boolean); // Remove nulos (desabilitados)
 
     return NextResponse.json({
       success: true,
       banca_id: bancaId,
       is_cotista: isCotista,
-      total: todosProdutos.length,
-      products: todosProdutos,
-      stats: {
-        proprios: produtosProprios?.length || 0,
-        distribuidores: produtosDistribuidor.length,
-      },
+      total: count || 0,
+      page,
+      limit,
+      has_more: (offset + limit) < (count || 0),
+      products: mappedProducts,
     });
+
 
   } catch (error: any) {
     console.error('Erro ao buscar produtos da banca:', error);

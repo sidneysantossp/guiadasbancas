@@ -194,8 +194,8 @@ export default function JornaleiroProdutosPage() {
           setStatus("");
         }}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 w-full">
-          <div className="sm:col-span-2">
+        <div className="flex flex-col sm:flex-row gap-3 w-full">
+          <div className="flex-1">
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -206,7 +206,7 @@ export default function JornaleiroProdutosPage() {
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full sm:w-auto min-w-[180px] rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">Todas categorias</option>
             {categories.map((c) => (
@@ -216,7 +216,7 @@ export default function JornaleiroProdutosPage() {
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full sm:w-auto min-w-[140px] rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">Todos status</option>
             <option value="ativo">Ativo</option>
