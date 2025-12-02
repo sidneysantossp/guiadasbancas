@@ -69,58 +69,64 @@ export async function GET(request: NextRequest) {
   let produtosAdmin: any[] = [];
   
   if (isCotista) {
-    // Buscar TODOS os produtos de distribuidores (sem limite de 1000)
-    // Supabase tem limite padrão de 1000, então vamos buscar em lotes se necessário
-    let allProducts: any[] = [];
-    let page = 0;
-    const pageSize = 1000;
-    let hasMore = true;
+    console.log('[JORNALEIRO/PRODUCTS] Buscando produtos de distribuidores com filtros no banco...');
     
-    while (hasMore) {
-      const { data, error: fetchError } = await supabaseAdmin
-        .from('products')
-        .select(`
-          *,
-          categories(name),
-          bancas(name)
-        `)
-        .not('distribuidor_id', 'is', null)
-        .eq('active', true)
-        .order('created_at', { ascending: false })
-        .range(page * pageSize, (page + 1) * pageSize - 1);
-      
-      if (fetchError) {
-        console.error(`[JORNALEIRO/PRODUCTS] Erro ao buscar página ${page}:`, fetchError);
-        break;
-      }
-      
-      if (data && data.length > 0) {
-        allProducts = allProducts.concat(data);
-        page++;
-        hasMore = data.length === pageSize; // Se retornou menos que pageSize, não há mais páginas
-      } else {
-        hasMore = false;
-      }
+    let queryAdmin = supabaseAdmin
+      .from('products')
+      .select(`
+        *,
+        categories(name),
+        bancas(name)
+      `)
+      .not('distribuidor_id', 'is', null)
+      .eq('active', true)
+      .order('created_at', { ascending: false });
+
+    // Aplicar filtros DIRETAMENTE no banco para evitar trazer dados desnecessários
+    if (q) {
+      queryAdmin = queryAdmin.or(`name.ilike.%${q}%,codigo_mercos.ilike.%${q}%`);
     }
     
-    produtosAdmin = allProducts;
-    console.log(`[JORNALEIRO/PRODUCTS] Cotista - ${produtosAdmin.length} produtos de distribuidores encontrados (${page} páginas)`);
+    if (category) {
+      queryAdmin = queryAdmin.eq('category_id', category);
+    }
+
+    // Limitar resultados para evitar timeout e lentidão extrema
+    // Se tiver busca, traz mais resultados, se for listagem geral, limita a 100 recentes
+    const limit = q ? 200 : 100;
+    queryAdmin = queryAdmin.limit(limit);
+
+    const { data, error: fetchError } = await queryAdmin;
+      
+    if (fetchError) {
+      console.error(`[JORNALEIRO/PRODUCTS] Erro ao buscar produtos admin:`, fetchError);
+    } else {
+      produtosAdmin = data || [];
+      console.log(`[JORNALEIRO/PRODUCTS] Cotista - ${produtosAdmin.length} produtos de distribuidores encontrados (limit: ${limit})`);
+    }
   } else {
     console.log(`[JORNALEIRO/PRODUCTS] Não-cotista - produtos de distribuidores NÃO disponíveis`);
   }
 
-  // Buscar customizações desta banca para produtos do admin
-  const { data: customizacoes } = await supabaseAdmin
-    .from('banca_produtos_distribuidor')
-    .select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda')
-    .eq('banca_id', banca.id);
+  // Se não trouxe produtos do admin, não precisa buscar customizações
+  let customMap = new Map();
+  
+  if (produtosAdmin.length > 0) {
+    // Buscar customizações desta banca APENAS para os produtos retornados (otimização)
+    // Ou buscar todas da banca se for mais simples (geralmente a banca não customiza tantos produtos)
+    // Vamos buscar todas da banca pois é filtrado por ID e deve ser rápido
+    const { data: customizacoes } = await supabaseAdmin
+      .from('banca_produtos_distribuidor')
+      .select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda')
+      .eq('banca_id', banca.id);
 
-  // Mapear customizações por product_id
-  const customMap = new Map(
-    (customizacoes || []).map(c => [c.product_id, c])
-  );
+    // Mapear customizações por product_id
+    customMap = new Map(
+      (customizacoes || []).map(c => [c.product_id, c])
+    );
+  }
 
-  // Aplicar customizações e filtrar produtos do admin
+  // Aplicar customizações
   const produtosAdminCustomizados = (produtosAdmin || [])
     .filter(produto => {
       const custom = customMap.get(produto.id);
@@ -140,21 +146,11 @@ export async function GET(request: NextRequest) {
       };
     });
 
-  // Aplicar filtros nos produtos do admin
-  let produtosAdminFiltrados = produtosAdminCustomizados;
-  if (q) {
-    produtosAdminFiltrados = produtosAdminFiltrados.filter(p => 
-      p.name.toLowerCase().includes(q)
-    );
-  }
-  if (category) {
-    produtosAdminFiltrados = produtosAdminFiltrados.filter(p => 
-      p.category_id === category
-    );
-  }
-
   // Combinar produtos da banca + produtos do admin
-  const allItems = [...(produtosBanca || []), ...produtosAdminFiltrados];
+  // (Os filtros q e category já foram aplicados na query do admin, e na query da banca (linha 54-57?))
+  // Verificando query da banca... sim, linhas 54-59 aplicam filtros.
+  
+  const allItems = [...(produtosBanca || []), ...produtosAdminCustomizados];
 
   return NextResponse.json({ 
     success: true, 
@@ -163,7 +159,7 @@ export async function GET(request: NextRequest) {
     is_cotista: isCotista,
     stats: {
       proprios: produtosBanca?.length || 0,
-      distribuidores: produtosAdminFiltrados.length
+      distribuidores: produtosAdminCustomizados.length
     },
     timestamp: new Date().toISOString()
   }, {
