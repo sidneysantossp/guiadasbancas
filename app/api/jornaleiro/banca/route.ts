@@ -136,16 +136,19 @@ async function loadBancaForUser(userId: string): Promise<any> {
       console.warn('[loadBancaForUser] ⚠️ Não foi possível carregar profile:', profileErr.message);
     }
 
-    // Usar addressObj do banco se existir, senão fazer parse do endereço
-    let addressObj;
-    if (data.addressObj && typeof data.addressObj === 'object') {
-      addressObj = data.addressObj;
-    } else {
-      // Fallback: Parse robusto do endereço completo para addressObj
-      addressObj = parseAddressString(data.address || '', data.cep || '');
-    }
+    // 🔥 CRITICAL: NÃO usar parseAddressString que está confundindo campos
+    // Criar addressObj vazio e popular apenas com dados que temos certeza
+    let addressObj = {
+      cep: data.cep || '',
+      street: '',
+      number: '', 
+      neighborhood: '',
+      city: '',
+      uf: '',
+      complement: ''
+    };
     
-    // Complemento não é armazenado em coluna separada, apenas na string address
+    console.log('[GET] ⚠️ Usando addressObj vazio - parseAddressString desabilitado para evitar confusão de campos');
     
     const result = {
       id: data.id,
@@ -454,11 +457,19 @@ export async function PUT(request: NextRequest) {
 
     console.log('Banca atualizada com sucesso:', updatedData);
     
-    // Reconstruir addressObj para manter consistência com o GET
-    const updatedAddressObj = parseAddressString(updatedData.address || '', updatedData.cep || '');
+    // 🔥 CRITICAL: NÃO reconstruir addressObj com parseAddressString (confunde campos)
+    // Retornar addressObj vazio para evitar dados incorretos
+    const updatedAddressObj = {
+      cep: updatedData.cep || '',
+      street: '',
+      number: '', 
+      neighborhood: '',
+      city: '',
+      uf: '',
+      complement: ''
+    };
     
-    // Complemento está incluído na string address, extrair de volta para addressObj se necessário
-    // (não há coluna complement individual para recuperar)
+    console.log('[PUT] ⚠️ Retornando addressObj vazio - parseAddressString desabilitado');
 
     // Retornar dados formatados para o frontend
     const responseData = {
