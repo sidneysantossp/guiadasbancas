@@ -720,77 +720,15 @@ export default function BancaV2Page() {
     },
     onSuccess: (response) => {
       console.log('✅ [V2] Salvamento concluído:', response.data);
-      console.log('🎉 [V2] Exibindo toast de sucesso...');
       
       // 🔥 CRITICAL: Marcar que acabou de salvar para evitar reset pelo useLayoutEffect
       setJustSaved(true);
       
       // Atualizar cache do React Query diretamente com os dados salvos
-      // Isso evita que o useLayoutEffect resete o form com dados antigos
       queryClient.setQueryData(['banca', session?.user?.id], response.data);
       
       // Disparar evento para atualizar navbar
       window.dispatchEvent(new Event('banca-updated'));
-      console.log('📢 [V2] Evento banca-updated disparado para atualizar navbar');
-      
-      // Resetar flag após um tempo para permitir reloads futuros
-      setTimeout(() => {
-        setJustSaved(false);
-        console.log('🔄 [V2] Flag justSaved resetada');
-      }, 2000);
-      
-      // Reset imediato com os dados retornados do servidor (mapeados para o formulário)
-      const r = response.data || {};
-      const adr = r.addressObj || {};
-      const mapped: BancaFormData = {
-        name: r.name || '',
-        description: stripHtml(r.description) || '',
-        tpu_url: r.tpu_url || '',
-        contact: { whatsapp: r.whatsapp || '' },
-        socials: {
-          instagram: r.instagram || '',
-          facebook: r.facebook || '',
-          gmb: r.socials?.gmb || '',
-        },
-        addressObj: {
-          cep: adr.cep || r.cep || '',
-          street: adr.street || (r.address?.split(',')[0] || ''),
-          number: adr.number || '',
-          neighborhood: adr.neighborhood || '',
-          city: adr.city || (r.address?.split(',')[1]?.trim() || ''),
-          uf: adr.uf || '',
-          complement: adr.complement || '',
-        },
-        payments: Array.isArray(r.payment_methods) ? r.payment_methods : (Array.isArray(r.payments) ? r.payments : []),
-        categories: Array.isArray(r.categories) ? r.categories : [],
-        hours: Array.isArray(r.hours) ? r.hours : DAYS.map((d) => ({ key: d.key, label: d.label, open: false, start: '08:00', end: '18:00' })),
-        // featured/ctaUrl removidos
-        delivery_enabled: r.delivery_enabled || false,
-        free_shipping_threshold: typeof r.free_shipping_threshold === 'number' ? r.free_shipping_threshold : 120,
-        origin_cep: r.origin_cep || '',
-        location: { lat: r.lat, lng: r.lng },
-      } as any;
-      // Usar os dados do perfil que foram salvos (não do watch que pode estar desatualizado)
-      const savedProfile = response.savedProfile || {};
-      reset({
-        ...mapped,
-        profile: {
-          full_name: savedProfile.full_name || '',
-          phone: savedProfile.phone || '',
-          email: savedProfile.email || session?.user?.email || '',
-          cpf: savedProfile.cpf || '',
-          avatar_url: savedProfile.avatar_url || '',
-        },
-      } as any);
-      setFormKey(Date.now());
-      try {
-        const seed = r.updated_at || Date.now();
-        const cover = r.cover_image || r.cover || '';
-        const avatar = r.profile_image || r.avatar || '';
-        setCoverImages(cover ? [withCacheBust(cover, seed)] : []);
-        setAvatarImages(avatar ? [withCacheBust(avatar, seed)] : []);
-        setImagesChanged(false);
-      } catch {}
       
       // Disparar evento para atualizar header
       if (typeof window !== 'undefined') {
@@ -804,9 +742,14 @@ export default function BancaV2Page() {
         }));
       }
       
-      console.log('🎉 [V2] Chamando toast.success...');
+      // Resetar flag após um tempo para permitir reloads futuros
+      setTimeout(() => {
+        setJustSaved(false);
+        console.log('🔄 [V2] Flag justSaved resetada - dados mantidos no formulário');
+      }, 3000); // Aumentado para 3 segundos
+      
+      console.log('🎉 [V2] Salvamento concluído - mantendo dados no formulário');
       toast.success('✅ Dados salvos com sucesso!');
-      console.log('🎉 [V2] Toast.success executado!');
     },
     onError: (error: Error) => {
       console.log('❌ [V2] Erro no salvamento:', error.message);
