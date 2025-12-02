@@ -322,6 +322,7 @@ export async function PUT(request: NextRequest) {
     const data = body?.data ?? body;
     
     console.log('[PUT] Dados recebidos:', data);
+    console.log('[PUT] 🏠 addressObj recebido:', data.addressObj);
     
     console.log('Dados recebidos para atualização:', JSON.stringify(data, null, 2));
 
@@ -341,6 +342,10 @@ export async function PUT(request: NextRequest) {
       numberNeighborhood || undefined,
       cityUf || undefined
     ].filter(Boolean).join(', ');
+
+    console.log('[PUT] 🏠 fullAddress montado:', fullAddress);
+    console.log('[PUT] 🏠 numberNeighborhood:', numberNeighborhood);
+    console.log('[PUT] 🏠 cityUf:', cityUf);
 
     // LOG: Verificar o que está sendo enviado
     console.log('[PUT] 🖼️  Imagens recebidas:', {
@@ -381,10 +386,13 @@ export async function PUT(request: NextRequest) {
     console.log('[PUT] 👥 Salvando is_cotista:', updateData.is_cotista);
     console.log('[PUT] 🏢 Salvando cotista_id:', updateData.cotista_id);
 
-    // Adicionar addressObj apenas se tiver dados estruturados (temporariamente desabilitado)
-    // if (data.addressObj && (data.addressObj.street || data.addressObj.city)) {
-    //   updateData.addressObj = data.addressObj;
-    // }
+    // Adicionar addressObj se tiver dados estruturados
+    if (data.addressObj && (data.addressObj.street || data.addressObj.city || data.addressObj.cep)) {
+      console.log('[PUT] ✅ Salvando addressObj estruturado:', data.addressObj);
+      updateData.addressObj = data.addressObj;
+    } else {
+      console.log('[PUT] ⏭️  addressObj não tem dados suficientes, pulando');
+    }
 
     // CRÍTICO: Imagens são completamente independentes
     // Só atualizar se foi explicitamente enviado (aceita string vazia também)
