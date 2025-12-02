@@ -117,6 +117,7 @@ export default function BancaV2Page() {
   const [cotistaDirty, setCotistaDirty] = useState(false);
   const [addressFieldsEnabled, setAddressFieldsEnabled] = useState(false);
   const [justSaved, setJustSaved] = useState(false); // Flag para evitar reset após salvar
+  const [saveMessage, setSaveMessage] = useState('');
 
   const withCacheBust = (url?: string, seed?: number | string) => {
     if (!url) return '';
@@ -815,11 +816,13 @@ export default function BancaV2Page() {
       
       // Apenas marcar que salvou com sucesso
       setJustSaved(true);
+      setSaveMessage('Informações atualizadas com sucesso!');
       
       // Resetar flag após delay
       setTimeout(() => {
         setJustSaved(false);
         console.log('🔄 [V2] Flag justSaved resetada');
+        setSaveMessage('');
       }, 2000);
     },
     onError: (error: Error) => {
@@ -1532,122 +1535,27 @@ export default function BancaV2Page() {
         {/* Botões */}
         <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4">
           <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={() => {
-                reset();
-                setCotistaDirty(false);
-              }}
+              onClick={() => { reset(); setCotistaDirty(false); }}
               disabled={(!isDirty && !imagesChanged) || saveMutation.isPending}
               className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               Descartar alterações
             </button>
-            
+
             <button
-              onClick={async () => {
-                // TEST: Debug específico do endereço
-                const currentAddressData = watch('addressObj');
-                console.log('🏠 [TEST ENDEREÇO] Dados atuais do addressObj:', currentAddressData);
-                console.log('🏠 [TEST ENDEREÇO] Detalhado:');
-                console.log('  - CEP:', currentAddressData?.cep);
-                console.log('  - Street:', currentAddressData?.street);
-                console.log('  - Number:', currentAddressData?.number);
-                console.log('  - Number (ref):', numberRef.current?.value);
-                console.log('  - Neighborhood:', currentAddressData?.neighborhood);
-                console.log('  - City:', currentAddressData?.city);
-                console.log('  - UF:', currentAddressData?.uf);
-                console.log('  - Complement:', currentAddressData?.complement);
-                console.log('  - Complement (direct watch):', watch('addressObj.complement'));
-                console.log('  - Complement (ref):', complementRef.current?.value);
-                
-                try {
-                  const testRes = await fetch('/api/jornaleiro/banca', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      data: {
-                        name: watch('name'),
-                        addressObj: {
-                          ...currentAddressData,
-                          complement: complementRef.current?.value || currentAddressData?.complement
-                        },
-                      }
-                    }),
-                  });
-                  
-                  const testData = await testRes.json();
-                  console.log('✅ [TEST ENDEREÇO] Resposta da API:', testData);
-                  
-                  if (testRes.ok) {
-                    console.log('🧪 Teste de endereço executado com sucesso!');
-                  } else {
-                    console.error('❌ Erro no teste de endereço:', testData.error || 'Desconhecido');
-                  }
-                } catch (err: any) {
-                  console.error('❌ [TEST ENDEREÇO] Erro:', err);
-                }
-              }}
-              className="rounded-md border border-green-300 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100"
+              type="submit"
+              disabled={(!isDirty && !imagesChanged && !cotistaDirty) || saveMutation.isPending}
+              className="rounded-md bg-purple-600 px-6 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
             >
-              🏠 Teste Debug Endereço
-            </button>
-            
-            <button
-              onClick={async () => {
-                console.log('🧪 [TESTE] Valores atuais dos campos:');
-                console.log('📱 WhatsApp (ref):', phoneRef.current?.value);
-                console.log('📄 CPF (ref):', cpfRef.current?.value);
-                console.log('📱 WhatsApp (form):', watch('profile.phone'));
-                console.log('📄 CPF (form):', watch('profile.cpf'));
-                console.log('🔄 isDirty:', isDirty);
-                console.log('🖼️ imagesChanged:', imagesChanged);
-                console.log('👥 cotistaDirty:', cotistaDirty);
-                
-                // Testar salvamento direto
-                console.log('\n🧪 [TESTE] Testando salvamento direto...');
-                try {
-                  const testRes = await fetch('/api/jornaleiro/profile', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      profile: {
-                        full_name: watch('profile.full_name'),
-                        phone: phoneRef.current?.value || watch('profile.phone'),
-                        cpf: cpfRef.current?.value || watch('profile.cpf'),
-                        avatar_url: watch('profile.avatar_url'),
-                      }
-                    }),
-                  });
-                  
-                  const testData = await testRes.json();
-                  console.log('✅ [TESTE] Resposta da API:', testData);
-                  
-                  if (testRes.ok) {
-                    // toast.success('🧪 Teste executado com sucesso! Veja o console.'); // REMOVIDO
-                    console.log('🧪 Teste executado com sucesso!');
-                  } else {
-                    // toast.error('❌ Erro no teste: ' + (testData.error || 'Desconhecido')); // REMOVIDO
-                    console.error('❌ Erro no teste:', testData.error || 'Desconhecido');
-                  }
-                } catch (err: any) {
-                  console.error('❌ [TESTE] Erro:', err);
-                  // toast.error('❌ Erro no teste: ' + err.message); // REMOVIDO
-                }
-              }}
-              className="rounded-md border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
-            >
-              🧪 Teste Debug + Salvar
+              {saveMutation.isPending ? 'Salvando...' : 'Salvar alterações'}
             </button>
           </div>
-
-          <button
-            type="submit"
-            disabled={(!isDirty && !imagesChanged && !cotistaDirty) || saveMutation.isPending}
-            className="rounded-md bg-purple-600 px-6 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
-          >
-            {saveMutation.isPending ? 'Salvando...' : 'Salvar alterações'}
-          </button>
+          {saveMessage && (
+            <p className="mt-3 text-sm text-green-700">{saveMessage}</p>
+          )}
         </div>
       </form>
     </div>
