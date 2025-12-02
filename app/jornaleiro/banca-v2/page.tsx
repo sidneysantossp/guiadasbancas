@@ -144,7 +144,7 @@ export default function BancaV2Page() {
       const json = await res.json();
       return json.data;
     },
-    enabled: status === 'authenticated' && !justSaved, // Não buscar quando acabou de salvar
+    enabled: status === 'authenticated', // Sempre buscar quando autenticado
     staleTime: 0, // Sem cache
     refetchOnWindowFocus: false, 
     refetchOnMount: false,
@@ -274,7 +274,7 @@ export default function BancaV2Page() {
   const [initialLoaded, setInitialLoaded] = useState(false);
   
   useEffect(() => {
-    if (bancaData && !initialLoaded && !justSaved) {
+    if (bancaData && !initialLoaded) {
       console.log('📥 [V2] Carregando dados INICIAL apenas - SEM reset posterior');
       
       const adr = bancaData.addressObj || {};
@@ -806,16 +806,19 @@ export default function BancaV2Page() {
       };
     },
     onSuccess: (response) => {
-      console.log('✅ [V2] Salvamento concluído - MANTENDO FORMULÁRIO INTOCADO');
+      console.log('✅ [V2] Salvamento concluído - ATUALIZANDO FORMULÁRIO');
       
-      // 🔥 CRITICAL: Marcar que acabou de salvar para evitar qualquer reset
-      setJustSaved(true);
+      // Forçar reload dos dados da API após salvar
+      queryClient.invalidateQueries({ queryKey: ['banca'] });
       
-      // Resetar flag após 5 segundos para permitir reloads futuros se necessário
+      // Marcar como não carregado inicialmente para permitir novo reset
+      setInitialLoaded(false);
+      
+      // Após um pequeno delay, permitir que os dados sejam recarregados
       setTimeout(() => {
         setJustSaved(false);
-        console.log('🔄 [V2] Flag justSaved resetada');
-      }, 5000);
+        console.log('🔄 [V2] Permitindo reload dos dados');
+      }, 100);
     },
     onError: (error: Error) => {
       console.log('❌ [V2] Erro no salvamento:', error.message);
