@@ -46,7 +46,7 @@ export default function HomologacaoMercosPage() {
   const [useSandbox, setUseSandbox] = useState(true);
   const [alteradoApos, setAlteradoApos] = useState<string>("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(100);
 
   const currentDist = useMemo(
     () => distribuidores.find((d) => d.id === selected),
