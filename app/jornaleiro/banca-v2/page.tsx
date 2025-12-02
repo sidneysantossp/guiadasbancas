@@ -315,6 +315,39 @@ export default function BancaV2Page() {
         },
       });
       
+      // Configurar estado do cotista
+      try {
+        console.log('[Banca-V2] 🏢 bancaData.is_cotista:', bancaData.is_cotista);
+        console.log('[Banca-V2] 👥 bancaData.cotista_razao_social:', bancaData.cotista_razao_social);
+        const isCotistaValue = bancaData.is_cotista === true;
+        setIsCotista(isCotistaValue);
+        if (isCotistaValue && bancaData.cotista_razao_social) {
+          setSelectedCotista({
+            id: bancaData.cotista_id || null,
+            codigo: bancaData.cotista_codigo || '',
+            razao_social: bancaData.cotista_razao_social || '',
+            cnpj_cpf: bancaData.cotista_cnpj_cpf || '',
+          });
+        } else {
+          setSelectedCotista(null);
+        }
+        setCotistaDirty(false);
+      } catch {
+        console.warn('Erro ao configurar dados do cotista');
+      }
+      
+      // Configurar imagens
+      try {
+        const seed = bancaData.updated_at || Date.now();
+        const cover = bancaData.cover_image || bancaData.cover || '';
+        const avatar = bancaData.profile_image || bancaData.avatar || '';
+        setCoverImages(cover ? [withCacheBust(cover, seed)] : []);
+        setAvatarImages(avatar ? [withCacheBust(avatar, seed)] : []);
+        setImagesChanged(false);
+      } catch {
+        console.warn('Erro ao configurar imagens');
+      }
+      
       // Marcar como carregado para nunca mais fazer reset
       setInitialLoaded(true);
       console.log('✅ [V2] Dados carregados INICIALMENTE - nunca mais resetará');
