@@ -136,19 +136,27 @@ async function loadBancaForUser(userId: string): Promise<any> {
       console.warn('[loadBancaForUser] ⚠️ Não foi possível carregar profile:', profileErr.message);
     }
 
-    // 🔥 CRITICAL: NÃO usar parseAddressString que está confundindo campos
-    // Criar addressObj vazio e popular apenas com dados que temos certeza
-    let addressObj = {
-      cep: data.cep || '',
-      street: '',
-      number: '', 
-      neighborhood: '',
-      city: '',
-      uf: '',
-      complement: ''
-    };
+    // 🔥 CRITICAL: Usar address_obj do banco se existir (JSON salvo)
+    // Senão, criar addressObj vazio (não usar parseAddressString que confunde campos)
+    let addressObj;
     
-    console.log('[GET] ⚠️ Usando addressObj vazio - parseAddressString desabilitado para evitar confusão de campos');
+    if (data.address_obj && typeof data.address_obj === 'object') {
+      // Usar dados estruturados salvos no banco
+      addressObj = data.address_obj;
+      console.log('[GET] ✅ Usando address_obj do banco:', addressObj);
+    } else {
+      // Fallback: addressObj vazio com apenas CEP
+      addressObj = {
+        cep: data.cep || '',
+        street: '',
+        number: '', 
+        neighborhood: '',
+        city: '',
+        uf: '',
+        complement: ''
+      };
+      console.log('[GET] ⚠️ address_obj não encontrado no banco, usando vazio com CEP');
+    }
     
     const result = {
       id: data.id,
@@ -378,9 +386,12 @@ export async function PUT(request: NextRequest) {
     if (fullAddress) updateData.address = fullAddress;
     if (data.addressObj?.cep) updateData.cep = data.addressObj.cep;
     
-    // REMOVIDO: coluna 'complement' não existe na tabela bancas
-    // Complemento será incluído apenas na string 'address' concatenada
-    console.log('[PUT] ℹ️ Complemento incluído apenas na string address, coluna complement não existe');
+    // 🔥 CRITICAL: Salvar addressObj como JSON para persistir dados estruturados
+    // Isso permite recuperar os campos individuais quando a página recarrega
+    if (data.addressObj) {
+      updateData.address_obj = data.addressObj;
+      console.log('[PUT] ✅ Salvando address_obj como JSON:', data.addressObj);
+    }
     
     // Localização
     if (data.location?.lat) updateData.lat = data.location.lat;
@@ -457,9 +468,8 @@ export async function PUT(request: NextRequest) {
 
     console.log('Banca atualizada com sucesso:', updatedData);
     
-    // 🔥 CRITICAL: NÃO reconstruir addressObj com parseAddressString (confunde campos)
-    // Retornar addressObj vazio para evitar dados incorretos
-    const updatedAddressObj = {
+    // 🔥 CRITICAL: Usar address_obj salvo no banco
+    const updatedAddressObj = updatedData.address_obj || {
       cep: updatedData.cep || '',
       street: '',
       number: '', 
@@ -469,7 +479,7 @@ export async function PUT(request: NextRequest) {
       complement: ''
     };
     
-    console.log('[PUT] ⚠️ Retornando addressObj vazio - parseAddressString desabilitado');
+    console.log('[PUT] ✅ Retornando address_obj salvo:', updatedAddressObj);
 
     // Retornar dados formatados para o frontend
     const responseData = {
