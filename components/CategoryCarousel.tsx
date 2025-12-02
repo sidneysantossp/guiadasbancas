@@ -7,17 +7,8 @@ import { useCategories } from "@/lib/useCategories";
 
 function useScrolled(sentinelId: string) {
   const [scrolled, setScrolled] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  
-  // Delay para evitar piscar na navegação
-  useEffect(() => {
-    const timer = setTimeout(() => setMounted(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
   
   useEffect(() => {
-    if (!mounted) return;
-    
     const sentinel = document.getElementById(sentinelId);
     if (!sentinel) return;
 
@@ -34,9 +25,9 @@ function useScrolled(sentinelId: string) {
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [sentinelId, mounted]);
+  }, [sentinelId]);
   
-  return mounted ? scrolled : false;
+  return scrolled;
 }
 
 function useItemsPerView(length: number) {
@@ -169,6 +160,8 @@ export default function CategoryCarousel() {
                 style={{
                   transform: `translateX(-${(index * 100) / perView}%)`,
                   transition: animating ? "transform 600ms ease" : "none",
+                  willChange: "transform",
+                  backfaceVisibility: "hidden"
                 }}
                 onTransitionEnd={() => { /* no-op */ }}
               >
