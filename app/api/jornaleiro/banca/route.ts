@@ -145,11 +145,7 @@ async function loadBancaForUser(userId: string): Promise<any> {
       addressObj = parseAddressString(data.address || '', data.cep || '');
     }
     
-    // Garantir que complemento está incluído no addressObj
-    if (data.complement && !addressObj.complement) {
-      addressObj.complement = data.complement;
-      console.log('[GET] ✅ Incluindo complemento no addressObj:', data.complement);
-    }
+    // Complemento não é armazenado em coluna separada, apenas na string address
     
     const result = {
       id: data.id,
@@ -343,8 +339,13 @@ export async function PUT(request: NextRequest) {
       data.addressObj?.uf
     ].filter(Boolean).join(' - ');
 
+    // Incluir complemento na string address se existir
+    const streetWithComplement = data.addressObj?.complement 
+      ? `${data.addressObj?.street}, ${data.addressObj.complement}`
+      : data.addressObj?.street;
+
     const fullAddress = [
-      data.addressObj?.street,
+      streetWithComplement,
       numberNeighborhood || undefined,
       cityUf || undefined
     ].filter(Boolean).join(', ');
@@ -374,11 +375,9 @@ export async function PUT(request: NextRequest) {
     if (fullAddress) updateData.address = fullAddress;
     if (data.addressObj?.cep) updateData.cep = data.addressObj.cep;
     
-    // Tentar salvar complemento se a coluna existir
-    if (data.addressObj?.complement) {
-      updateData.complement = data.addressObj.complement;
-      console.log('[PUT] ✅ Salvando complemento:', data.addressObj.complement);
-    }
+    // REMOVIDO: coluna 'complement' não existe na tabela bancas
+    // Complemento será incluído apenas na string 'address' concatenada
+    console.log('[PUT] ℹ️ Complemento incluído apenas na string address, coluna complement não existe');
     
     // Localização
     if (data.location?.lat) updateData.lat = data.location.lat;
@@ -458,11 +457,8 @@ export async function PUT(request: NextRequest) {
     // Reconstruir addressObj para manter consistência com o GET
     const updatedAddressObj = parseAddressString(updatedData.address || '', updatedData.cep || '');
     
-    // Adicionar complemento se foi salvo
-    if (updatedData.complement) {
-      updatedAddressObj.complement = updatedData.complement;
-      console.log('[PUT] ✅ Incluindo complemento no addressObj de retorno:', updatedData.complement);
-    }
+    // Complemento está incluído na string address, extrair de volta para addressObj se necessário
+    // (não há coluna complement individual para recuperar)
 
     // Retornar dados formatados para o frontend
     const responseData = {
