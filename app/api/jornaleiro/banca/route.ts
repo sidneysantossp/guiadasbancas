@@ -356,33 +356,46 @@ export async function PUT(request: NextRequest) {
     });
 
     // Preparar dados para atualização no Supabase
-    // APENAS campos que existem na tabela bancas
-    const updateData: any = {
-      name: data.name,
-      description: data.description,
-      tpu_url: data.tpu_url,
-      address: fullAddress || data.address,
-      cep: data.addressObj?.cep || data.cep,
-      // Apenas address e cep existem na tabela bancas
-      lat: data.location?.lat || data.lat,
-      lng: data.location?.lng || data.lng,
-      categories: data.categories || [],
-      whatsapp: data.contact?.whatsapp,
-      instagram: data.socials?.instagram,
-      facebook: data.socials?.facebook,
-      payment_methods: data.payments || [],
-      hours: Array.isArray(data?.hours) ? data.hours : undefined,
-      delivery_enabled: data.delivery_enabled !== undefined ? data.delivery_enabled : false,
-      free_shipping_threshold: data.free_shipping_threshold || 120,
-      origin_cep: data.origin_cep || null,
-      // Cotista info
-      is_cotista: data.is_cotista !== undefined ? data.is_cotista : false,
-      cotista_id: data.cotista_id || null,
-      cotista_codigo: data.cotista_codigo || null,
-      cotista_razao_social: data.cotista_razao_social || null,
-      cotista_cnpj_cpf: data.cotista_cnpj_cpf || null,
-      updated_at: new Date().toISOString()
-    };
+    // APENAS campos que sabemos que existem na tabela bancas
+    const updateData: any = {};
+
+    // Campos de texto básicos
+    if (data.name) updateData.name = data.name;
+    if (data.description) updateData.description = data.description;
+    if (data.tpu_url) updateData.tpu_url = data.tpu_url;
+    
+    // Endereço (apenas address e cep)
+    if (fullAddress) updateData.address = fullAddress;
+    if (data.addressObj?.cep) updateData.cep = data.addressObj.cep;
+    
+    // Localização
+    if (data.location?.lat) updateData.lat = data.location.lat;
+    if (data.location?.lng) updateData.lng = data.location.lng;
+    
+    // Arrays e objetos
+    if (data.categories) updateData.categories = data.categories;
+    if (data.payments) updateData.payment_methods = data.payments;
+    if (data.hours) updateData.hours = data.hours;
+    
+    // Contato e redes sociais
+    if (data.contact?.whatsapp) updateData.whatsapp = data.contact.whatsapp;
+    if (data.socials?.instagram) updateData.instagram = data.socials.instagram;
+    if (data.socials?.facebook) updateData.facebook = data.socials.facebook;
+    
+    // Delivery
+    if (data.delivery_enabled !== undefined) updateData.delivery_enabled = data.delivery_enabled;
+    if (data.free_shipping_threshold) updateData.free_shipping_threshold = data.free_shipping_threshold;
+    if (data.origin_cep) updateData.origin_cep = data.origin_cep;
+    
+    // Cotista info
+    if (data.is_cotista !== undefined) updateData.is_cotista = data.is_cotista;
+    if (data.cotista_id) updateData.cotista_id = data.cotista_id;
+    if (data.cotista_codigo) updateData.cotista_codigo = data.cotista_codigo;
+    if (data.cotista_razao_social) updateData.cotista_razao_social = data.cotista_razao_social;
+    if (data.cotista_cnpj_cpf) updateData.cotista_cnpj_cpf = data.cotista_cnpj_cpf;
+    
+    // Timestamp sempre
+    updateData.updated_at = new Date().toISOString();
     
     console.log('[PUT] 👥 Salvando is_cotista:', updateData.is_cotista);
     console.log('[PUT] 🏢 Salvando cotista_id:', updateData.cotista_id);
@@ -407,14 +420,7 @@ export async function PUT(request: NextRequest) {
       console.log('[PUT] ⏭️  profile_image não foi enviado, mantendo valor existente');
     }
 
-    // Remover apenas campos básicos que são undefined/null (NÃO imagens)
-    Object.keys(updateData).forEach(key => {
-      if (key !== 'cover_image' && key !== 'profile_image') {
-        if (updateData[key] === undefined || updateData[key] === null || updateData[key] === '') {
-          delete updateData[key];
-        }
-      }
-    });
+    // Não remover campos - já construímos updateData apenas com campos que existem
 
     console.log('Dados que serão atualizados no Supabase:', JSON.stringify(updateData, null, 2));
 
