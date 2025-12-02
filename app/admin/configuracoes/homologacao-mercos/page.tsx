@@ -28,6 +28,7 @@ type HealthResponse = {
   fallback?: boolean;
   matchMode?: 'startsWith' | 'includes' | 'all';
   categorias?: Categoria[];
+  log?: any;
 };
 
 type DistribuidoresResponse = {
@@ -280,6 +281,26 @@ export default function HomologacaoMercosPage() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {result?.log && (
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                className="rounded border px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50"
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(result.log, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `mercos-categorias-log-${Date.now()}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                Baixar log JSON
+              </button>
             </div>
           )}
         </div>

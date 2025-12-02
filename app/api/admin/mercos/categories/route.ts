@@ -46,6 +46,40 @@ const filterCategorias = (categorias: any[], prefix: string) => {
   return { filtradas, matchMode };
 };
 
+const buildLog = (params: {
+  source: 'sandbox' | 'prod';
+  distribuidor: { id: string; nome: string };
+  prefix: string;
+  alteradoApos: string | null;
+  page: number;
+  pageSize: number;
+  matchMode: 'startsWith' | 'includes' | 'all';
+  fallback: boolean;
+  totalCategorias: number;
+  encontrados: number;
+  paginadas: any[];
+  warning?: string;
+}) => ({
+  timestamp: new Date().toISOString(),
+  source: params.source,
+  distribuidor: params.distribuidor,
+  request: {
+    prefix: params.prefix,
+    alteradoApos: params.alteradoApos,
+    page: params.page,
+    pageSize: params.pageSize,
+    matchMode: params.matchMode,
+  },
+  counts: {
+    total_categorias: params.totalCategorias,
+    encontrados: params.encontrados,
+    paginadas: params.paginadas.length,
+  },
+  fallback: params.fallback,
+  warning: params.warning,
+  pageData: params.paginadas,
+});
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Body;
@@ -103,6 +137,20 @@ export async function POST(request: Request) {
         pageSize,
         totalPaginas: Math.max(1, Math.ceil(finalFiltradas.length / pageSize)),
         categorias: paginadas,
+        log: buildLog({
+          source: 'sandbox',
+          distribuidor: { id: 'sandbox', nome: 'Sandbox Mercos' },
+          prefix,
+          alteradoApos,
+          page,
+          pageSize,
+          matchMode,
+          fallback,
+          totalCategorias: categorias.length,
+          encontrados: finalFiltradas.length,
+          paginadas,
+          warning: alterWarn,
+        }),
       });
     }
 
@@ -159,6 +207,20 @@ export async function POST(request: Request) {
       pageSize,
       totalPaginas: Math.max(1, Math.ceil(finalFiltradas.length / pageSize)),
       categorias: paginadas,
+      log: buildLog({
+        source: 'prod',
+        distribuidor: { id: dist.id, nome: dist.nome },
+        prefix,
+        alteradoApos,
+        page,
+        pageSize,
+        matchMode,
+        fallback,
+        totalCategorias: categorias.length,
+        encontrados: finalFiltradas.length,
+        paginadas,
+        warning: alterWarn,
+      }),
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
