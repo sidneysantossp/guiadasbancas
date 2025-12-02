@@ -135,6 +135,11 @@ export default function BancaV2Page() {
   const { data: bancaData, isLoading, error } = useQuery({
     queryKey: ['banca', session?.user?.id],
     queryFn: async () => {
+      // Se acabou de salvar, não refetch (usar dados do cache)
+      if (justSaved) {
+        console.log('🔒 [V2] Bloqueando refetch - justSaved=true');
+        return queryClient.getQueryData(['banca', session?.user?.id]);
+      }
       const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}` , {
         cache: 'no-store',
         credentials: 'include',
@@ -143,10 +148,10 @@ export default function BancaV2Page() {
       const json = await res.json();
       return json.data;
     },
-    enabled: status === 'authenticated',
-    staleTime: 0,
-    refetchOnWindowFocus: true,
-    refetchOnMount: 'always',
+    enabled: status === 'authenticated' && !justSaved,
+    staleTime: 30000, // 30 segundos - evitar refetch imediato
+    refetchOnWindowFocus: false, // Desabilitar refetch ao focar janela
+    refetchOnMount: false, // Não refetch ao montar se já tem dados
   });
 
   // React Query - categorias
@@ -485,6 +490,9 @@ export default function BancaV2Page() {
   }, [bancaData, profileResp, reset, session?.user?.email, session?.user?.name, justSaved]);
 
   // 🔔 Realtime: ouvir alterações na tabela bancas para este user_id e sincronizar automaticamente
+  // DESABILITADO: O realtime estava causando problemas ao sobrescrever dados após salvar
+  // O usuário pode recarregar a página manualmente se precisar ver mudanças externas
+  /*
   useEffect(() => {
     if (!session?.user?.id) return;
     const channel = supabase
@@ -513,6 +521,7 @@ export default function BancaV2Page() {
       } catch {}
     };
   }, [session?.user?.id, queryClient]);
+  */
 
   // Função para comprimir imagem antes do upload (evita erro 413 na Vercel)
   const compressImage = async (dataUrl: string, maxSizeMB: number = 2): Promise<Blob> => {
