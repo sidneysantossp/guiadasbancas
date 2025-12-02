@@ -5,31 +5,6 @@ import Link from "next/link";
 import SafeImage from "./SafeImage";
 import { useCategories } from "@/lib/useCategories";
 
-function useScrolled(sentinelId: string) {
-  const [scrolled, setScrolled] = useState(false);
-  
-  useEffect(() => {
-    const sentinel = document.getElementById(sentinelId);
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // Quando o sentinel não está mais visível, ativa o sticky
-        setScrolled(!entry.isIntersecting);
-      },
-      { 
-        threshold: 0,
-        rootMargin: '0px 0px 0px 0px' // Sentinel já está posicionado considerando a navbar
-      }
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [sentinelId]);
-  
-  return scrolled;
-}
-
 function useItemsPerView(length: number) {
   const [w, setW] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1024);
   useEffect(() => {
@@ -46,7 +21,6 @@ function useItemsPerView(length: number) {
 
 export default function CategoryCarousel() {
   const { items } = useCategories();
-  const scrolled = useScrolled("category-sentinel");
   const filtered = items.filter((c) => {
     const n = (c.name || '').trim().toLowerCase();
     const link = (c.link || '').toLowerCase();
@@ -100,26 +74,14 @@ export default function CategoryCarousel() {
   };
 
   return (
-    <>
-    {/* Sentinel - elemento invisível para detectar scroll */}
-    <div id="category-sentinel" className="absolute top-0 h-px w-full -translate-y-[72px]" />
-    
     <section 
       id="buy-by-category" 
-      className={`w-full transition-all duration-300 bg-white z-30 ${
-        !isMobile 
-          ? 'md:sticky md:top-[72px]' 
-          : ''
-      } ${
-        scrolled && !isMobile 
-          ? 'md:py-1 md:shadow-sm md:border-b md:border-gray-200' 
-          : 'md:-mt-3 lg:-mt-4 xl:-mt-4 md:pt-2 lg:pt-3'
-      }`}
+      className="w-full bg-white z-30 md:-mt-3 lg:-mt-4 xl:-mt-4 md:pt-2 lg:pt-3"
     >
       <div className="w-full overflow-hidden">
         <div className="container-max">
           {/* Slider: múltiplos por view, avançando 1 por vez com slide */}
-          <div className={`relative ${scrolled && !isMobile ? 'py-1' : 'py-2'}`}>
+          <div className="relative py-2">
             {/* Seta Esquerda - Desktop */}
             {hasEnough && (
               <button
@@ -127,11 +89,9 @@ export default function CategoryCarousel() {
                 onClick={prev}
                 disabled={index === 0}
                 aria-label="Categorias anteriores"
-                className={`hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 items-center justify-center rounded-full bg-white shadow-md border border-gray-200 hover:bg-gray-50 transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                  scrolled && !isMobile ? 'h-7 w-7' : 'h-9 w-9'
-                }`}
+                className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 items-center justify-center rounded-full bg-white shadow-md border border-gray-200 hover:bg-gray-50 transition-all disabled:opacity-30 disabled:cursor-not-allowed h-9 w-9"
               >
-                <svg viewBox="0 0 24 24" className={`text-gray-600 ${scrolled && !isMobile ? 'h-4 w-4' : 'h-5 w-5'}`} fill="none" stroke="currentColor" strokeWidth="2.5">
+                <svg viewBox="0 0 24 24" className="text-gray-600 h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M15 18l-6-6 6-6" />
                 </svg>
               </button>
@@ -144,11 +104,9 @@ export default function CategoryCarousel() {
                 onClick={next}
                 disabled={index >= maxIndex}
                 aria-label="Próximas categorias"
-                className={`hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 items-center justify-center rounded-full bg-white shadow-md border border-gray-200 hover:bg-gray-50 transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                  scrolled && !isMobile ? 'h-7 w-7' : 'h-9 w-9'
-                }`}
+                className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 items-center justify-center rounded-full bg-white shadow-md border border-gray-200 hover:bg-gray-50 transition-all disabled:opacity-30 disabled:cursor-not-allowed h-9 w-9"
               >
-                <svg viewBox="0 0 24 24" className={`text-gray-600 ${scrolled && !isMobile ? 'h-4 w-4' : 'h-5 w-5'}`} fill="none" stroke="currentColor" strokeWidth="2.5">
+                <svg viewBox="0 0 24 24" className="text-gray-600 h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M9 18l6-6-6-6" />
                 </svg>
               </button>
@@ -169,25 +127,17 @@ export default function CategoryCarousel() {
                   <Link
                     key={`${c.key}-${i}`}
                     href={c.link as any}
-                    className={`group flex shrink-0 flex-col items-center ${
-                      scrolled && !isMobile ? 'gap-0.5 py-0.5' : 'gap-2 py-2'
-                    }`}
+                    className="group flex shrink-0 flex-col items-center gap-2 py-2"
                     style={{
                       flex: `0 0 ${100 / perView}%`,
                     }}
                   >
                     <div 
-                      className={`relative overflow-hidden shadow-sm group-hover:-translate-y-0.5 transition-transform ${
-                        scrolled && !isMobile 
-                          ? 'h-10 w-10 md:h-10 md:w-10 rounded-xl' 
-                          : 'h-24 w-24 sm:h-28 sm:w-28 md:h-28 md:w-28 rounded-[24px] sm:rounded-[28px]'
-                      }`}
+                      className="relative overflow-hidden shadow-sm group-hover:-translate-y-0.5 transition-transform h-24 w-24 sm:h-28 sm:w-28 md:h-28 md:w-28 rounded-[24px] sm:rounded-[28px]"
                     >
                       <SafeImage src={c.image} alt={c.name} fill className="object-cover" />
                     </div>
-                    <div className={`text-gray-800 font-medium text-center ${
-                      scrolled && !isMobile ? 'text-[10px] leading-tight' : 'text-sm'
-                    }`}>
+                    <div className="text-gray-800 font-medium text-center text-sm">
                       {c.name}
                     </div>
                   </Link>
@@ -238,6 +188,5 @@ export default function CategoryCarousel() {
         </div>
       </div>
     </section>
-    </>
   );
 }
