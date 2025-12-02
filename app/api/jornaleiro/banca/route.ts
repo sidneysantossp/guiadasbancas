@@ -9,85 +9,75 @@ import type { AdminBanca } from "@/app/api/admin/bancas/route";
 // Parser robusto de endereço brasileiro
 // Aceita formatos como:
 // - "Rua Exemplo, 1234 - Bairro, Cidade - SP"
-// - "Rua Exemplo, 1234, Bairro, Cidade, SP"
-// - "Rua Exemplo, 1234 - Bairro, Cidade/SP"
-// - "Rua Exemplo, 1234, Cidade - SP" (sem bairro)
-function parseAddressString(address: string, cep?: string) {
+// - "Rua Exemplo, Comp, 1234 - Bairro - Cidade - UF"
+function smartParseAddress(fullAddress: string, cep: string) {
+  // Inicializar objeto vazio
   const result = {
-    cep: cep || "",
-    street: "",
-    number: "",
-    neighborhood: "",
-    city: "",
-    uf: "",
-    complement: "",
+    cep: cep || '',
+    street: '',
+    number: '',
+    neighborhood: '',
+    city: '',
+    uf: '',
+    complement: ''
   };
+  
+  if (!fullAddress) return result;
 
-  if (!address) return result;
-
-  // Normalizar espaços
-  const raw = address.replace(/\s+/g, " ").trim();
-
-  // Quebrar por vírgula respeitando o padrão principal
-  const parts = raw.split(",").map(p => p.trim());
-
-  // street sempre é o primeiro
-  result.street = parts[0] || "";
-
-  // Se houver segunda parte, pode conter "numero - bairro" ou apenas numero
-  if (parts[1]) {
-    const p1 = parts[1];
-    if (p1.includes(" - ")) {
-      const [num, neigh] = p1.split(" - ").map(s => s.trim());
-      result.number = num || "";
-      result.neighborhood = neigh || "";
-    } else {
-      result.number = p1;
-    }
-  }
-
-  // Terceira parte normalmente é "cidade - UF" ou apenas bairro (quando numero não trouxe o bairro)
-  if (parts[2]) {
-    const p2 = parts[2];
-    // Se ainda não temos bairro e a parte 2 parece bairro
-    const looksCityUf = /\b[A-Z]{2}\b/.test(p2) || p2.includes(" - ") || p2.includes("/");
-    if (!result.neighborhood && !looksCityUf) {
-      result.neighborhood = p2;
-    } else {
-      // Pode ser cidade - UF
-      const tmp = p2.replace("/", " - ");
-      const [cityMaybe, ufMaybe] = tmp.split(" - ").map(s => s.trim());
-      if (ufMaybe && /^[A-Z]{2}$/.test(ufMaybe)) {
-        result.city = cityMaybe || result.city;
-        result.uf = ufMaybe;
+  try {
+    // Tentar separar por " - " primeiro (separador maior)
+    const parts = fullAddress.split(' - ').map((p: string) => p.trim());
+    
+    // Parte 1: Rua, Complemento, Número
+    const streetPart = parts[0];
+    
+    if (streetPart) {
+      const streetComponents = streetPart.split(',').map((s: string) => s.trim());
+      
+      if (streetComponents.length >= 3) {
+        // Caso: Rua, Complemento, Número
+        result.street = streetComponents[0];
+        result.complement = streetComponents.slice(1, -1).join(', '); // Pega tudo do meio como complemento
+        result.number = streetComponents[streetComponents.length - 1];
+      } else if (streetComponents.length === 2) {
+        // Caso: Rua, Número
+        result.street = streetComponents[0];
+        result.number = streetComponents[1];
       } else {
-        // Se não tem UF aqui, assumir como cidade
-        result.city = cityMaybe || result.city;
+        // Caso: Apenas Rua
+        result.street = streetPart;
       }
     }
-  }
-
-  // Quarta parte (se existir) quase sempre é UF, ou cidade quando a terceira foi bairro
-  if (parts[3]) {
-    const p3 = parts[3];
-    const tmp = p3.replace("/", " - ");
-    const [maybeCity, maybeUf] = tmp.split(" - ").map(s => s.trim());
-    if (maybeUf && /^[A-Z]{2}$/.test(maybeUf)) {
-      result.city = result.city || maybeCity;
-      result.uf = maybeUf;
-    } else if (/^[A-Z]{2}$/.test(p3)) {
-      result.uf = p3;
-    } else if (!result.city) {
-      result.city = p3;
+    
+    // Parte 2: Bairro (se existir)
+    if (parts.length > 1) {
+      const p2 = parts[1];
+      const looksLikeUF = /^[A-Z]{2}$/.test(p2);
+      
+      if (!looksLikeUF) {
+        result.neighborhood = p2;
+      }
     }
+    
+    // Procurar UF no final
+    const lastPart = parts[parts.length - 1];
+    if (/^[A-Z]{2}$/.test(lastPart)) {
+      result.uf = lastPart;
+      
+      // Se tem UF, o anterior pode ser cidade
+      if (parts.length >= 3) {
+        const penultPart = parts[parts.length - 2];
+        if (penultPart !== result.neighborhood && penultPart !== streetPart) {
+           result.city = penultPart;
+        }
+      }
+    }
+    
+    return result;
+  } catch (e) {
+    console.error('Erro no smartParseAddress:', e);
+    return result;
   }
-
-  // Quinta parte pode sobrar UF em endereços com muitas vírgulas
-  if (parts[4] && /^[A-Z]{2}$/.test(parts[4])) {
-    result.uf = parts[4];
-  }
-
-  return result;
 }
 
 async function loadBancaForUser(userId: string): Promise<any> {
@@ -145,17 +135,9 @@ async function loadBancaForUser(userId: string): Promise<any> {
       addressObj = data.address_obj;
       console.log('[GET] ✅ Usando address_obj do banco:', addressObj);
     } else {
-      // Fallback: addressObj vazio com apenas CEP
-      addressObj = {
-        cep: data.cep || '',
-        street: '',
-        number: '', 
-        neighborhood: '',
-        city: '',
-        uf: '',
-        complement: ''
-      };
-      console.log('[GET] ⚠️ address_obj não encontrado no banco, usando vazio com CEP');
+      // Fallback: Usar parser inteligente para recuperar dados da string
+      addressObj = smartParseAddress(data.address || '', data.cep || '');
+      console.log('[GET] ⚠️ address_obj não encontrado no banco, usando smartParseAddress:', addressObj);
     }
     
     const result = {
@@ -386,12 +368,13 @@ export async function PUT(request: NextRequest) {
     if (fullAddress) updateData.address = fullAddress;
     if (data.addressObj?.cep) updateData.cep = data.addressObj.cep;
     
-    // 🔥 CRITICAL: Salvar addressObj como JSON para persistir dados estruturados
-    // Isso permite recuperar os campos individuais quando a página recarrega
-    if (data.addressObj) {
-      updateData.address_obj = data.addressObj;
-      console.log('[PUT] ✅ Salvando address_obj como JSON:', data.addressObj);
-    }
+    // 🔥 CRITICAL: NÃO tentar salvar JSON em coluna que pode não existir
+    // Confiar apenas na string address concatenada e no parser inteligente
+    // if (data.addressObj) {
+    //   updateData.address_obj = data.addressObj;
+    // }
+    
+    console.log('[PUT] ℹ️ Salvando apenas string address concatenada (compatibilidade máxima)');
     
     // Localização
     if (data.location?.lat) updateData.lat = data.location.lat;
@@ -468,18 +451,16 @@ export async function PUT(request: NextRequest) {
 
     console.log('Banca atualizada com sucesso:', updatedData);
     
-    // 🔥 CRITICAL: Usar address_obj salvo no banco
-    const updatedAddressObj = updatedData.address_obj || {
-      cep: updatedData.cep || '',
-      street: '',
-      number: '', 
-      neighborhood: '',
-      city: '',
-      uf: '',
-      complement: ''
-    };
+    // 🔥 CRITICAL: Usar address_obj salvo no banco OU reconstruir com smart parser
+    // Como removemos o salvamento do JSON, precisamos confiar no smart parser
+    let updatedAddressObj = updatedData.address_obj;
     
-    console.log('[PUT] ✅ Retornando address_obj salvo:', updatedAddressObj);
+    if (!updatedAddressObj) {
+       updatedAddressObj = smartParseAddress(updatedData.address || '', updatedData.cep || '');
+       console.log('[PUT] ⚠️ address_obj não salvo, reconstruído com smartParseAddress:', updatedAddressObj);
+    } else {
+       console.log('[PUT] ✅ Retornando address_obj salvo:', updatedAddressObj);
+    }
 
     // Retornar dados formatados para o frontend
     const responseData = {
