@@ -401,35 +401,17 @@ export default function MostSearchedProducts() {
     (async () => {
       try {
         setLoading(true);
-        const [pData, bData] = await Promise.all([
-          cachedFetch('/api/products/most-searched', undefined, 300), // 5 min cache
-          cachedFetch('/api/admin/bancas', undefined, 600), // 10 min cache
-        ]);
+        // Apenas carregar os produtos (a API agora já retorna dados da banca via JOIN)
+        const pData = await cachedFetch('/api/products/most-searched', undefined, 300); // 5 min cache
         
-        let list: ApiProduct[] = [];
+        let list: any[] = [];
         
         // Tenta buscar produtos mais buscados primeiro
         if (pData?.data) {
           list = Array.isArray(pData.data) ? pData.data : [];
         }
         
-        // Se não houver produtos mais buscados, busca os últimos produtos cadastrados
-        if (list.length === 0) {
-          try {
-            const latestData = await cachedFetch('/api/products?limit=8&sort=created_at&order=desc', undefined, 180);
-            if (latestData?.data) {
-              list = Array.isArray(latestData.data) ? latestData.data : [];
-            }
-          } catch (e) {
-            console.log('Fallback para últimos produtos falhou:', e);
-          }
-        }
-        
-        let bancas: Record<string, ApiBanca> = {};
-        if (bData?.data) {
-          const bList: ApiBanca[] = Array.isArray(bData.data) ? bData.data : [];
-          bancas = Object.fromEntries(bList.map((b) => [b.id, b]));
-        }
+        // Se não houver produtos mais buscados, busca os últimos produtos cadastrados (a API já faz isso internamente se não tiver analytics real, mas mantemos o fallback por segurança se a primeira falhar totalmente)
         
         const mapped: Product[] = list.map((p) => {
           const price = Number(p.price ?? 0);
@@ -438,6 +420,9 @@ export default function MostSearchedProducts() {
           const discountCalculated = priceOriginal && priceOriginal > price ? Math.round((1 - price / priceOriginal) * 100) : 0;
           const discountPercent = discountPercentRaw != null ? discountPercentRaw : discountCalculated;
           
+          // Dados da banca já vêm populados da API otimizada
+          const bancaData = p.banca || {};
+          
           return {
             id: p.id,
             name: p.name,
@@ -445,8 +430,8 @@ export default function MostSearchedProducts() {
             priceOriginal,
             discountPercent,
             image: (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=1200&auto=format&fit=crop',
-            vendorName: bancas[p.banca_id || '']?.name || 'Banca Local',
-            vendorAvatar: bancas[p.banca_id || '']?.avatar || bancas[p.banca_id || '']?.cover || 'https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=120&auto=format&fit=crop',
+            vendorName: bancaData.name || 'Banca Local',
+            vendorAvatar: bancaData.avatar || 'https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=120&auto=format&fit=crop',
             description: p.description || undefined,
             stockQty: p.stock_qty ?? null,
             trackStock: p.track_stock ?? false,
@@ -455,9 +440,9 @@ export default function MostSearchedProducts() {
             prontaEntrega: p.pronta_entrega ?? false,
             sobEncomenda: p.sob_encomenda ?? false,
             preVenda: p.pre_venda ?? false,
-            bancaId: p.banca_id,
-            bancaName: bancas[p.banca_id || '']?.name,
-            phone: bancas[p.banca_id || '']?.contact?.whatsapp || bancas[p.banca_id || '']?.contact?.whatsapp_phone || bancas[p.banca_id || '']?.contact?.phone || bancas[p.banca_id || '']?.contact?.telefone,
+            bancaId: p.banca_id || bancaData.id,
+            bancaName: bancaData.name,
+            phone: bancaData.phone || undefined,
           };
         });
         

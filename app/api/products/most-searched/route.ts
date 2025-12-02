@@ -10,13 +10,17 @@ export async function GET(req: NextRequest) {
     
     const supabase = supabaseAdmin;
     
-    // Buscar produtos do banco de dados
+    // Buscar produtos do banco de dados com JOIN para bancas
+    // Otimização: limitar a 20 produtos em vez de 5000
+    // Ordenar por created_at desc para pegar produtos recentes (simulando "trending")
     let query = supabase
       .from('products')
       .select(`
         id,
         name,
         price,
+        price_original,
+        discount_percent,
         images,
         banca_id,
         distribuidor_id,
@@ -27,10 +31,25 @@ export async function GET(req: NextRequest) {
         active,
         codigo_mercos,
         categories!category_id(name),
-        distribuidores!distribuidor_id(nome)
+        distribuidores!distribuidor_id(nome),
+        bancas!banca_id(name, cover_image, avatar:cover_image, contact:whatsapp)
       `)
       .eq('active', true)
-      .limit(5000); // Limite alto para buscar todos os produtos disponíveis
+      .order('created_at', { ascending: false }); // Produtos mais recentes primeiro
+
+    // Aplicar filtros no banco se existirem
+    if (category) {
+      // Filtrar no banco se possível, ou manter memória se complexo
+      // Como category_id é string, podemos usar ilike
+      query = query.ilike('category_id', `%${category}%`);
+    }
+
+    if (search) {
+      const searchTerm = search.toLowerCase();
+      query = query.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,codigo_mercos.ilike.%${searchTerm}%`);
+    }
+
+    query = query.limit(limit || 20); // Limitar no banco
     
     const { data: items, error } = await query;
     
@@ -39,66 +58,42 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, success: false, error: error.message }, { status: 500 });
     }
     
-    // Filtrar por categoria se especificada
-    let filtered = [...(items || [])].filter(p => p.active !== false);
-    
-    if (category) {
-      filtered = filtered.filter(p => {
-        const productCategory = p.category_id || '';
-        return productCategory.toLowerCase().includes(category.toLowerCase());
-      });
-    }
-    
-    // Filtrar por busca se especificada
-    if (search) {
-      filtered = filtered.filter(p => {
-        const searchTerm = search.toLowerCase();
-        const categoryName = (p.categories as any)?.name || '';
-        const distributorName = (p.distribuidores as any)?.nome || '';
-        
-        return p.name.toLowerCase().includes(searchTerm) ||
-               (p.description || '').toLowerCase().includes(searchTerm) ||
-               (p.codigo_mercos || '').toLowerCase().includes(searchTerm) ||
-               categoryName.toLowerCase().includes(searchTerm) ||
-               distributorName.toLowerCase().includes(searchTerm);
-      });
-    }
-    
-    // Ordenar por nome e limitar resultados
-    const sorted = filtered
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .slice(0, limit);
-
-    // Map reduzido para o front com informações da banca
-    const data = sorted.map(p => {
-      const categoryName = (p.categories as any)?.name || '';
-      const distributorName = (p.distribuidores as any)?.nome || '';
+    // Map reduzido para o front com informações da banca extraídas do JOIN
+    const data = (items || []).map((p: any) => {
+      const categoryName = p.categories?.name || '';
+      const distributorName = p.distribuidores?.nome || '';
+      const bancaData = p.bancas || {};
+      const bancaName = bancaData.name || distributorName || 'Banca';
+      const bancaAvatar = bancaData.cover_image || bancaData.avatar || null;
+      const bancaPhone = bancaData.contact || null; // Ajustar conforme estrutura do JOIN (pode vir como objeto ou string dependendo do select)
+      // O select pede 'contact:whatsapp', então deve vir como 'contact'
       
       return {
         id: p.id,
         name: p.name,
         price: p.price,
-        price_original: null,
+        price_original: p.price_original,
         images: p.images || [],
         banca_id: p.banca_id,
         distribuidor_id: p.distribuidor_id,
         distribuidor_nome: distributorName,
         category_id: p.category_id,
-        category: categoryName, // Nome da categoria para exibição
+        category: categoryName,
         description: p.description || '',
-        rating_avg: null, // Não implementado ainda
-        reviews_count: 0, // Não implementado ainda
+        rating_avg: null,
+        reviews_count: 0,
         stock_qty: p.stock_qty ?? null,
         track_stock: p.track_stock ?? false,
         sob_encomenda: false,
         pre_venda: false,
         pronta_entrega: true,
-        discount_percent: null,
-        // Informações da banca/distribuidor
+        discount_percent: p.discount_percent,
+        // Informações da banca já populadas
         banca: {
           id: p.banca_id || p.distribuidor_id,
-          name: distributorName || getBancaName(p.banca_id),
-          avatar: null
+          name: bancaName,
+          avatar: bancaAvatar,
+          phone: bancaPhone
         }
       };
     });
