@@ -19,7 +19,7 @@ function useScrolled(sentinelId: string) {
       },
       { 
         threshold: 0,
-        rootMargin: '-72px 0px 0px 0px' // Considera altura da navbar
+        rootMargin: '0px 0px 0px 0px' // Sentinel já está posicionado considerando a navbar
       }
     );
 
@@ -101,19 +101,19 @@ export default function CategoryCarousel() {
 
   return (
     <>
-    {/* Sentinel - elemento invisível que serve de referência para o IntersectionObserver */}
-    <div id="category-sentinel" className="hidden md:block h-0" />
+    {/* Sentinel - elemento invisível para detectar scroll */}
+    <div id="category-sentinel" className="absolute top-0 h-px w-full -translate-y-[72px]" />
     
-    {/* Placeholder para manter o espaço quando fixed */}
-    {!isMobile && scrolled && (
-      <div className="hidden md:block md:h-[120px]" />
-    )}
     <section 
       id="buy-by-category" 
-      className={`w-full ${
-        !isMobile && scrolled 
-          ? 'md:fixed md:top-[72px] md:left-0 md:right-0 md:z-40 md:py-1 md:shadow-sm md:border-b md:border-gray-200 md:bg-white' 
-          : 'md:-mt-3 lg:-mt-4 xl:-mt-4 md:pt-2 lg:pt-3 bg-white'
+      className={`w-full transition-all duration-300 bg-white z-30 ${
+        !isMobile 
+          ? 'md:sticky md:top-[72px]' 
+          : ''
+      } ${
+        scrolled && !isMobile 
+          ? 'md:py-1 md:shadow-sm md:border-b md:border-gray-200' 
+          : 'md:-mt-3 lg:-mt-4 xl:-mt-4 md:pt-2 lg:pt-3'
       }`}
     >
       <div className="w-full overflow-hidden">
