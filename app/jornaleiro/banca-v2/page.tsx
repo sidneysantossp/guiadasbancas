@@ -106,6 +106,7 @@ export default function BancaV2Page() {
   const phoneRef = useRef<HTMLInputElement | null>(null);
   const cpfRef = useRef<HTMLInputElement | null>(null);
   const numberRef = useRef<HTMLInputElement | null>(null);
+  const complementRef = useRef<HTMLInputElement | null>(null);
   const [coverImages, setCoverImages] = useState<string[]>([]);
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
   const [imagesChanged, setImagesChanged] = useState(false);
@@ -755,7 +756,10 @@ export default function BancaV2Page() {
             tpu_url: data.tpu_url || '',
             contact: data.contact,
             socials: data.socials,
-            addressObj: data.addressObj,
+            addressObj: {
+              ...data.addressObj,
+              complement: complementRef.current?.value || data.addressObj?.complement
+            },
             payments: data.payments,
             categories: data.categories,
             hours: data.hours,
@@ -1402,6 +1406,10 @@ export default function BancaV2Page() {
               <label className="block text-sm font-medium text-gray-700">Complemento</label>
               <input
                 {...register('addressObj.complement')}
+                ref={(e) => {
+                  register('addressObj.complement').ref(e);
+                  complementRef.current = e;
+                }}
                 key={`complement-${bancaData?.updated_at || formKey}`}
                 autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -1545,6 +1553,8 @@ export default function BancaV2Page() {
                 console.log('  - City:', currentAddressData?.city);
                 console.log('  - UF:', currentAddressData?.uf);
                 console.log('  - Complement:', currentAddressData?.complement);
+                console.log('  - Complement (direct watch):', watch('addressObj.complement'));
+                console.log('  - Complement (ref):', complementRef.current?.value);
                 
                 try {
                   const testRes = await fetch('/api/jornaleiro/banca', {
@@ -1553,7 +1563,10 @@ export default function BancaV2Page() {
                     body: JSON.stringify({
                       data: {
                         name: watch('name'),
-                        addressObj: currentAddressData,
+                        addressObj: {
+                          ...currentAddressData,
+                          complement: complementRef.current?.value || currentAddressData?.complement
+                        },
                       }
                     }),
                   });
