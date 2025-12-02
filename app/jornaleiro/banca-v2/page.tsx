@@ -115,6 +115,7 @@ export default function BancaV2Page() {
   const [selectedCotista, setSelectedCotista] = useState<SelectedCotistaInfo | null>(null);
   const [cotistaDirty, setCotistaDirty] = useState(false);
   const [addressFieldsEnabled, setAddressFieldsEnabled] = useState(false);
+  const [justSaved, setJustSaved] = useState(false); // Flag para evitar reset após salvar
 
   const withCacheBust = (url?: string, seed?: number | string) => {
     if (!url) return '';
@@ -268,8 +269,9 @@ export default function BancaV2Page() {
   }, [bancaData?.profile, profileResp?.profile, bancaData?.addressObj, bancaData?.cep, setValue]);
 
   // 🔥 CRITICAL: Reset form quando dados da API mudarem (antes da pintura)
+  // Mas NÃO resetar se acabou de salvar (justSaved = true)
   useLayoutEffect(() => {
-    if (bancaData) {
+    if (bancaData && !justSaved) {
       const adr = bancaData.addressObj || {};
       const prof = (profileResp?.profile) ?? (bancaData?.profile) ?? {};
       const formData = {
@@ -480,7 +482,7 @@ export default function BancaV2Page() {
       
       setFormKey(Date.now());
     }
-  }, [bancaData, profileResp, reset, session?.user?.email, session?.user?.name]);
+  }, [bancaData, profileResp, reset, session?.user?.email, session?.user?.name, justSaved]);
 
   // 🔔 Realtime: ouvir alterações na tabela bancas para este user_id e sincronizar automaticamente
   useEffect(() => {
@@ -711,14 +713,22 @@ export default function BancaV2Page() {
       console.log('✅ [V2] Salvamento concluído:', response.data);
       console.log('🎉 [V2] Exibindo toast de sucesso...');
       
-      // Invalidar queries para forçar reload - o useEffect vai resetar o form automaticamente
-      queryClient.invalidateQueries({ queryKey: ['banca'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
-      console.log('🔄 [V2] Queries invalidadas - dados serão recarregados');
+      // 🔥 CRITICAL: Marcar que acabou de salvar para evitar reset pelo useLayoutEffect
+      setJustSaved(true);
+      
+      // Atualizar cache do React Query diretamente com os dados salvos
+      // Isso evita que o useLayoutEffect resete o form com dados antigos
+      queryClient.setQueryData(['banca', session?.user?.id], response.data);
       
       // Disparar evento para atualizar navbar
       window.dispatchEvent(new Event('banca-updated'));
       console.log('📢 [V2] Evento banca-updated disparado para atualizar navbar');
+      
+      // Resetar flag após um tempo para permitir reloads futuros
+      setTimeout(() => {
+        setJustSaved(false);
+        console.log('🔄 [V2] Flag justSaved resetada');
+      }, 2000);
       
       // Reset imediato com os dados retornados do servidor (mapeados para o formulário)
       const r = response.data || {};
