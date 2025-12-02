@@ -693,7 +693,19 @@ export default function BancaV2Page() {
       console.log('✅ [SAVE] Banca salva com sucesso!');
       console.log('🎉 [SAVE] Salvamento completo - Perfil + Banca atualizados!');
 
-      return res.json();
+      const bancaResponse = await res.json();
+      
+      // Retornar dados da banca + dados do perfil que foram salvos
+      return {
+        ...bancaResponse,
+        savedProfile: {
+          full_name: data.profile?.full_name || '',
+          phone: data.profile?.phone || '',
+          cpf: data.profile?.cpf || '',
+          avatar_url: data.profile?.avatar_url || '',
+          email: session?.user?.email || '',
+        }
+      };
     },
     onSuccess: (response) => {
       console.log('✅ [V2] Salvamento concluído:', response.data);
@@ -739,14 +751,16 @@ export default function BancaV2Page() {
         origin_cep: r.origin_cep || '',
         location: { lat: r.lat, lng: r.lng },
       } as any;
+      // Usar os dados do perfil que foram salvos (não do watch que pode estar desatualizado)
+      const savedProfile = response.savedProfile || {};
       reset({
         ...mapped,
         profile: {
-          full_name: (watch('profile') as any)?.full_name || '',
-          phone: (watch('profile') as any)?.phone || '',
-          email: session?.user?.email || '',
-          cpf: (watch('profile') as any)?.cpf || '',
-          avatar_url: (watch('profile') as any)?.avatar_url || '',
+          full_name: savedProfile.full_name || '',
+          phone: savedProfile.phone || '',
+          email: savedProfile.email || session?.user?.email || '',
+          cpf: savedProfile.cpf || '',
+          avatar_url: savedProfile.avatar_url || '',
         },
       } as any);
       setFormKey(Date.now());
