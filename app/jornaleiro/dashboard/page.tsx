@@ -59,23 +59,35 @@ export default function JornaleiroDashboardPage() {
     try {
       setLoadingMetrics(true);
       
-      // Buscar pedidos e produtos em PARALELO com cache
-      const [ordersRes, productsRes] = await Promise.all([
+      // Buscar pedidos, produtos próprios e catálogo do distribuidor em PARALELO
+      const fetchPromises: Promise<Response>[] = [
         fetch('/api/orders?limit=50', { 
           next: { revalidate: 30 } // Cache por 30 segundos
         }),
         fetch('/api/products?limit=50', { 
           next: { revalidate: 60 } // Cache por 60 segundos
-        })
-      ]);
+        }),
+      ];
       
-      const [ordersData, productsData] = await Promise.all([
-        ordersRes.json(),
-        productsRes.json()
-      ]);
+      // Se for cotista, buscar também produtos do distribuidor
+      if (banca?.is_cotista) {
+        fetchPromises.push(
+          fetch('/api/jornaleiro/catalogo-distribuidor', { 
+            next: { revalidate: 60 }
+          })
+        );
+      }
+      
+      const responses = await Promise.all(fetchPromises);
+      const [ordersData, productsData, catalogoData] = await Promise.all(
+        responses.map(r => r.json())
+      );
       
       const orders = ordersData.items || [];
       const products = productsData.items || productsData.products || [];
+      
+      // Produtos do catálogo do distribuidor (se cotista)
+      const catalogoProdutos = catalogoData?.data || catalogoData?.products || [];
 
       // Calcular data de hoje no timezone local
       const hoje = new Date();
@@ -91,8 +103,8 @@ export default function JornaleiroDashboardPage() {
         !['entregue', 'cancelado'].includes(o.status)
       ).length;
       
-      // Produtos ativos: visíveis e com estoque (se rastrear)
-      const produtosAtivos = products.filter((p: any) => {
+      // Produtos próprios ativos: visíveis e com estoque (se rastrear)
+      const produtosProprios = products.filter((p: any) => {
         // Se o produto está oculto/inativo, não conta
         if (p.is_hidden || p.status === 'inactive') {
           return false;
@@ -106,6 +118,16 @@ export default function JornaleiroDashboardPage() {
         // Se não rastreia estoque, está ativo
         return true;
       }).length;
+      
+      // Produtos do distribuidor ativos (já vem filtrados pela API)
+      const produtosDistribuidor = catalogoProdutos.length;
+      
+      // Total de produtos ativos = próprios + distribuidor
+      const produtosAtivos = produtosProprios + produtosDistribuidor;
+      
+      console.log('[Dashboard] 📊 Produtos próprios:', produtosProprios);
+      console.log('[Dashboard] 📊 Produtos distribuidor:', produtosDistribuidor);
+      console.log('[Dashboard] 📊 Total produtos ativos:', produtosAtivos);
 
       setMetrics({
         pedidosHoje: pedidosHoje.length,
@@ -240,7 +262,9 @@ export default function JornaleiroDashboardPage() {
           <div className="mt-1 text-3xl font-semibold text-gray-900">
             {loadingMetrics ? "--" : memoizedMetrics.produtosAtivos}
           </div>
-          <div className="mt-1 text-xs text-gray-400">Itens visíveis na vitrine</div>
+          <div className="mt-1 text-xs text-gray-400">
+            {banca?.is_cotista ? 'Próprios + catálogo do distribuidor' : 'Itens visíveis na vitrine'}
+          </div>
         </div>
       </div>
 
