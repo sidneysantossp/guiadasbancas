@@ -363,13 +363,7 @@ export async function PUT(request: NextRequest) {
       tpu_url: data.tpu_url,
       address: fullAddress || data.address,
       cep: data.addressObj?.cep || data.cep,
-      // Tentar salvar campos individuais se existirem na tabela
-      street: data.addressObj?.street || null,
-      number: data.addressObj?.number || null,
-      neighborhood: data.addressObj?.neighborhood || null,
-      city: data.addressObj?.city || null,
-      uf: data.addressObj?.uf || null,
-      complement: data.addressObj?.complement || null,
+      // Apenas address e cep existem na tabela bancas
       lat: data.location?.lat || data.lat,
       lng: data.location?.lng || data.lng,
       categories: data.categories || [],
