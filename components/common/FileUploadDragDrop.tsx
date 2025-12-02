@@ -80,7 +80,8 @@ export default function FileUploadDragDrop({
       if (result.ok && result.url) {
         onChange(result.url);
       } else {
-        alert('Erro ao fazer upload: ' + (result.error || 'Erro desconhecido'));
+        const detail = result.error || `status ${response.status}`;
+        alert('Erro ao fazer upload: ' + detail);
       }
     } catch (error) {
       console.error('Upload error:', error);
