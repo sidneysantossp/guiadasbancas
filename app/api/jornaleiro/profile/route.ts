@@ -140,8 +140,12 @@ export async function PUT(request: NextRequest) {
 
     console.log('👤 [API Profile PUT] Perfil atual:', currentProfile);
 
-    if (!currentProfile || (currentProfile as any).role !== "jornaleiro") {
-      console.error('❌ [API Profile PUT] Acesso negado - não é jornaleiro');
+    // Verificar se é jornaleiro (aceitando roles legadas como 'seller')
+    const role = (currentProfile as any)?.role;
+    const isJornaleiroRole = role === 'jornaleiro' || role === 'seller';
+    
+    if (!currentProfile || !isJornaleiroRole) {
+      console.error('❌ [API Profile PUT] Acesso negado - role:', role, '- não é jornaleiro/seller');
       return NextResponse.json(
         { error: "Acesso negado" },
         { status: 403 }
