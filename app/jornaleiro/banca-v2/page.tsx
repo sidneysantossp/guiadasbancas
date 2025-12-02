@@ -274,7 +274,8 @@ export default function BancaV2Page() {
   const [initialLoaded, setInitialLoaded] = useState(false);
   
   useEffect(() => {
-    if (bancaData && !initialLoaded) {
+    // 🔥 CRITICAL: Não resetar se acabou de salvar (justSaved=true)
+    if (bancaData && !initialLoaded && !justSaved) {
       console.log('📥 [V2] Carregando dados INICIAL apenas - SEM reset posterior');
       
       const adr = bancaData.addressObj || {};
@@ -806,19 +807,20 @@ export default function BancaV2Page() {
       };
     },
     onSuccess: (response) => {
-      console.log('✅ [V2] Salvamento concluído - ATUALIZANDO FORMULÁRIO');
+      console.log('✅ [V2] Salvamento concluído - MANTENDO DADOS DO FORMULÁRIO');
       
-      // Forçar reload dos dados da API após salvar
-      queryClient.invalidateQueries({ queryKey: ['banca'] });
+      // 🔥 CRITICAL: NÃO invalidar queries nem resetar formulário
+      // Os dados já estão corretos no formulário, não precisamos recarregar da API
+      // A API retorna addressObj vazio que iria limpar os campos
       
-      // Marcar como não carregado inicialmente para permitir novo reset
-      setInitialLoaded(false);
+      // Apenas marcar que salvou com sucesso
+      setJustSaved(true);
       
-      // Após um pequeno delay, permitir que os dados sejam recarregados
+      // Resetar flag após delay
       setTimeout(() => {
         setJustSaved(false);
-        console.log('🔄 [V2] Permitindo reload dos dados');
-      }, 100);
+        console.log('🔄 [V2] Flag justSaved resetada');
+      }, 2000);
     },
     onError: (error: Error) => {
       console.log('❌ [V2] Erro no salvamento:', error.message);
