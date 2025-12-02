@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Configuração para Vercel - aumentar limite de tempo e tamanho
+export const maxDuration = 60; // 60 segundos
 
 const ALLOWED_TOKENS = new Set([
   "Bearer admin-token",

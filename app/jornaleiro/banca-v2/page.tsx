@@ -512,6 +512,55 @@ export default function BancaV2Page() {
     };
   }, [session?.user?.id, queryClient]);
 
+  // Função para comprimir imagem antes do upload (evita erro 413 na Vercel)
+  const compressImage = async (dataUrl: string, maxSizeMB: number = 2): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+        
+        // Redimensionar se muito grande (max 1920px)
+        const maxDimension = 1920;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = (height / width) * maxDimension;
+            width = maxDimension;
+          } else {
+            width = (width / height) * maxDimension;
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Comprimir com qualidade reduzida
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              console.log(`📸 Imagem comprimida para ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
+              resolve(blob);
+            } else {
+              // Fallback: converter dataUrl para blob original
+              fetch(dataUrl).then(r => r.blob()).then(resolve);
+            }
+          },
+          'image/jpeg',
+          0.8 // Qualidade 80%
+        );
+      };
+      img.onerror = () => {
+        // Fallback: converter dataUrl para blob original
+        fetch(dataUrl).then(r => r.blob()).then(resolve);
+      };
+      img.src = dataUrl;
+    });
+  };
+
   // Mutation para salvar
   const saveMutation = useMutation({
     mutationFn: async (data: BancaFormData) => {
@@ -529,20 +578,34 @@ export default function BancaV2Page() {
             }
           }
           if (isDataUrl) {
-            const blob = await (await fetch(src)).blob();
+            // Comprimir imagem antes do upload para evitar erro 413
+            console.log('📸 Comprimindo imagem antes do upload...');
+            const compressedBlob = await compressImage(src, 2);
+            
+            // Verificar tamanho após compressão
+            if (compressedBlob.size > 4 * 1024 * 1024) {
+              throw new Error('Imagem muito grande. O tamanho máximo é 4MB. Tente uma imagem menor.');
+            }
+            
             const formData = new FormData();
-            formData.append('file', blob, `img-${Date.now()}.png`);
+            formData.append('file', compressedBlob, `img-${Date.now()}.jpg`);
             const res = await fetch('/api/upload', {
               method: 'POST',
               headers: { Authorization: `Bearer jornaleiro-token` },
               body: formData,
             });
+            
+            // Verificar erro 413 especificamente
+            if (res.status === 413) {
+              throw new Error('Imagem muito grande para o servidor. Tente uma imagem menor (máximo 4MB).');
+            }
+            
             const json = await res.json();
             if (!res.ok || !json?.ok || !json.url) {
               if (json?.url) {
                 uploaded.push(json.url as string);
               } else {
-                throw new Error('Falha no upload de imagem');
+                throw new Error(json?.error || 'Falha no upload de imagem');
               }
             } else {
               uploaded.push(json.url as string);

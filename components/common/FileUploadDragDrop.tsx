@@ -57,6 +57,64 @@ export default function FileUploadDragDrop({
     }
   };
 
+  // Função para comprimir imagem antes do upload
+  const compressImage = async (file: File, maxSizeMB: number = 2): Promise<File> => {
+    // Se não for imagem ou já for pequena, retorna original
+    if (!file.type.startsWith('image/') || file.size <= maxSizeMB * 1024 * 1024) {
+      return file;
+    }
+
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          
+          // Redimensionar se muito grande (max 1920px)
+          const maxDimension = 1920;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = (height / width) * maxDimension;
+              width = maxDimension;
+            } else {
+              width = (width / height) * maxDimension;
+              height = maxDimension;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Comprimir com qualidade reduzida
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                console.log(`📸 Imagem comprimida: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
+                resolve(compressedFile);
+              } else {
+                resolve(file);
+              }
+            },
+            'image/jpeg',
+            0.8 // Qualidade 80%
+          );
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  };
+
   const uploadFile = async (file: File) => {
     try {
       setUploading(true);
@@ -66,14 +124,33 @@ export default function FileUploadDragDrop({
         return;
       }
 
+      // Comprimir imagem se necessário (limite de 4MB para Vercel)
+      let fileToUpload = file;
+      if (file.type.startsWith('image/') && file.size > 2 * 1024 * 1024) {
+        console.log(`📸 Comprimindo imagem de ${(file.size / 1024 / 1024).toFixed(2)}MB...`);
+        fileToUpload = await compressImage(file, 2);
+      }
+
+      // Verificar tamanho final
+      if (fileToUpload.size > 4 * 1024 * 1024) {
+        alert('Arquivo muito grande. O tamanho máximo é 4MB. Tente uma imagem menor.');
+        return;
+      }
+
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', fileToUpload);
 
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Authorization': authHeader },
         body: formData,
       });
+
+      // Verificar erro 413 especificamente
+      if (response.status === 413) {
+        alert('Arquivo muito grande para o servidor. Tente uma imagem menor (máximo 4MB).');
+        return;
+      }
 
       const result = await response.json();
 
