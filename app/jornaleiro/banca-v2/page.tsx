@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { useToast } from '@/components/admin/ToastProvider';
+// import { useToast } from '@/components/admin/ToastProvider'; // REMOVIDO
 import { supabase } from '@/lib/supabase';
 import ImageUploader from '@/components/admin/ImageUploader';
 import FileUploadDragDrop from '@/components/common/FileUploadDragDrop';
@@ -99,7 +99,7 @@ export default function BancaV2Page() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const toast = useToast();
+  // const toast = useToast(); // REMOVIDO
   const [formKey, setFormKey] = useState<number>(() => Date.now());
   const nameRef = useRef<HTMLInputElement | null>(null);
   const sellerNameRef = useRef<HTMLInputElement | null>(null);
@@ -131,15 +131,10 @@ export default function BancaV2Page() {
     return (div.textContent || div.innerText || '').trim();
   };
 
-  // React Query - buscar dados da banca
+  // React Query - buscar dados da banca (SIMPLIFICADO - SEM CACHE)
   const { data: bancaData, isLoading, error } = useQuery({
     queryKey: ['banca', session?.user?.id],
     queryFn: async () => {
-      // Se acabou de salvar, não refetch (usar dados do cache)
-      if (justSaved) {
-        console.log('🔒 [V2] Bloqueando refetch - justSaved=true');
-        return queryClient.getQueryData(['banca', session?.user?.id]);
-      }
       const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}` , {
         cache: 'no-store',
         credentials: 'include',
@@ -148,10 +143,10 @@ export default function BancaV2Page() {
       const json = await res.json();
       return json.data;
     },
-    enabled: status === 'authenticated' && !justSaved,
-    staleTime: 30000, // 30 segundos - evitar refetch imediato
-    refetchOnWindowFocus: false, // Desabilitar refetch ao focar janela
-    refetchOnMount: false, // Não refetch ao montar se já tem dados
+    enabled: status === 'authenticated' && !justSaved, // Não buscar quando acabou de salvar
+    staleTime: 0, // Sem cache
+    refetchOnWindowFocus: false, 
+    refetchOnMount: false,
   });
 
   // React Query - categorias
@@ -273,8 +268,61 @@ export default function BancaV2Page() {
     }
   }, [bancaData?.profile, profileResp?.profile, bancaData?.addressObj, bancaData?.cep, setValue]);
 
-  // 🔥 CRITICAL: Reset form quando dados da API mudarem (antes da pintura)
-  // Mas NÃO resetar se acabou de salvar (justSaved = true)
+  // 🔥 CRITICAL: useEffect SIMPLIFICADO - apenas para carregar dados INICIAL (uma vez)
+  // SEM reset posterior que sobrescreve dados do usuário
+  const [initialLoaded, setInitialLoaded] = useState(false);
+  
+  useEffect(() => {
+    if (bancaData && !initialLoaded && !justSaved) {
+      console.log('📥 [V2] Carregando dados INICIAL apenas - SEM reset posterior');
+      
+      const adr = bancaData.addressObj || {};
+      const prof = (profileResp?.profile) ?? (bancaData?.profile) ?? {};
+      
+      // Reset APENAS na primeira vez
+      reset({
+        name: bancaData.name || '',
+        description: stripHtml(bancaData.description) || '',
+        tpu_url: bancaData.tpu_url || '',
+        contact: { whatsapp: bancaData.contact?.whatsapp || bancaData.whatsapp || '' },
+        socials: {
+          instagram: bancaData.socials?.instagram || bancaData.instagram || '',
+          facebook: bancaData.socials?.facebook || bancaData.facebook || '',
+          gmb: bancaData.socials?.gmb || '',
+        },
+        addressObj: {
+          cep: adr.cep || bancaData.cep || '',
+          street: adr.street || (bancaData.address?.split(',')[0] || ''),
+          number: adr.number || '',
+          neighborhood: adr.neighborhood || '',
+          city: adr.city || (bancaData.address?.split(',')[1]?.trim() || ''),
+          uf: adr.uf || '',
+          complement: adr.complement || '',
+        },
+        payments: Array.isArray(bancaData.payments) ? bancaData.payments : (Array.isArray(bancaData.payment_methods) ? bancaData.payment_methods : []),
+        categories: Array.isArray(bancaData.categories) ? bancaData.categories : [],
+        hours: Array.isArray(bancaData.hours) ? bancaData.hours : DAYS.map((d) => ({ key: d.key, label: d.label, open: false, start: '08:00', end: '18:00' })),
+        delivery_enabled: bancaData.delivery_enabled || false,
+        free_shipping_threshold: typeof bancaData.free_shipping_threshold === 'number' ? bancaData.free_shipping_threshold : 120,
+        origin_cep: bancaData.origin_cep || '',
+        location: { lat: bancaData.lat, lng: bancaData.lng },
+        profile: {
+          full_name: prof.full_name || '',
+          phone: prof.phone || '',
+          email: session?.user?.email || '',
+          cpf: prof.cpf || '',
+          avatar_url: prof.avatar_url || '',
+        },
+      });
+      
+      // Marcar como carregado para nunca mais fazer reset
+      setInitialLoaded(true);
+      console.log('✅ [V2] Dados carregados INICIALMENTE - nunca mais resetará');
+    }
+  }, [bancaData, profileResp, initialLoaded, justSaved, reset, session?.user?.email]);
+
+  /*
+  // CÓDIGO ANTIGO COMENTADO QUE CAUSAVA O PROBLEMA:
   useLayoutEffect(() => {
     if (bancaData && !justSaved) {
       const adr = bancaData.addressObj || {};
@@ -488,6 +536,7 @@ export default function BancaV2Page() {
       setFormKey(Date.now());
     }
   }, [bancaData, profileResp, reset, session?.user?.email, session?.user?.name, justSaved]);
+  */
 
   // 🔔 Realtime: ouvir alterações na tabela bancas para este user_id e sincronizar automaticamente
   // DESABILITADO: O realtime estava causando problemas ao sobrescrever dados após salvar
@@ -719,41 +768,20 @@ export default function BancaV2Page() {
       };
     },
     onSuccess: (response) => {
-      console.log('✅ [V2] Salvamento concluído:', response.data);
+      console.log('✅ [V2] Salvamento concluído - MANTENDO FORMULÁRIO INTOCADO');
       
-      // 🔥 CRITICAL: Marcar que acabou de salvar para evitar reset pelo useLayoutEffect
+      // 🔥 CRITICAL: Marcar que acabou de salvar para evitar qualquer reset
       setJustSaved(true);
       
-      // Atualizar cache do React Query diretamente com os dados salvos
-      queryClient.setQueryData(['banca', session?.user?.id], response.data);
-      
-      // Disparar evento para atualizar navbar
-      window.dispatchEvent(new Event('banca-updated'));
-      
-      // Disparar evento para atualizar header
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('gb:banca:updated', {
-          detail: {
-            id: response.data.id,
-            user_id: session?.user?.id,
-            name: response.data.name,
-            email: response.data.email,
-          }
-        }));
-      }
-      
-      // Resetar flag após um tempo para permitir reloads futuros
+      // Resetar flag após 5 segundos para permitir reloads futuros se necessário
       setTimeout(() => {
         setJustSaved(false);
-        console.log('🔄 [V2] Flag justSaved resetada - dados mantidos no formulário');
-      }, 3000); // Aumentado para 3 segundos
-      
-      console.log('🎉 [V2] Salvamento concluído - mantendo dados no formulário');
-      toast.success('✅ Dados salvos com sucesso!');
+        console.log('🔄 [V2] Flag justSaved resetada');
+      }, 5000);
     },
     onError: (error: Error) => {
       console.log('❌ [V2] Erro no salvamento:', error.message);
-      toast.error(`❌ ${error.message}`);
+      // toast.error(`❌ ${error.message}`); // REMOVIDO
     },
   });
 
@@ -1258,14 +1286,14 @@ export default function BancaV2Page() {
                             }, 100);
                             
                             // Mensagem de sucesso
-                            toast.success('✅ Endereço encontrado com sucesso!');
+                            // toast.success('✅ Endereço encontrado com sucesso!'); // REMOVIDO
                           } else {
                             console.error('❌ CEP não encontrado');
-                            toast.error('❌ CEP não encontrado. Verifique o número digitado.');
+                            // toast.error('❌ CEP não encontrado. Verifique o número digitado.'); // REMOVIDO
                           }
                         } catch (error) {
                           console.error('Erro ao buscar CEP:', error);
-                          toast.error('❌ Erro ao buscar CEP. Verifique sua conexão com a internet.');
+                          // toast.error('❌ Erro ao buscar CEP. Verifique sua conexão com a internet.'); // REMOVIDO
                         }
                       }
                     }}
@@ -1502,13 +1530,15 @@ export default function BancaV2Page() {
                   console.log('✅ [TESTE] Resposta da API:', testData);
                   
                   if (testRes.ok) {
-                    toast.success('🧪 Teste executado com sucesso! Veja o console.');
+                    // toast.success('🧪 Teste executado com sucesso! Veja o console.'); // REMOVIDO
+                    console.log('🧪 Teste executado com sucesso!');
                   } else {
-                    toast.error('❌ Erro no teste: ' + (testData.error || 'Desconhecido'));
+                    // toast.error('❌ Erro no teste: ' + (testData.error || 'Desconhecido')); // REMOVIDO
+                    console.error('❌ Erro no teste:', testData.error || 'Desconhecido');
                   }
                 } catch (err: any) {
                   console.error('❌ [TESTE] Erro:', err);
-                  toast.error('❌ Erro no teste: ' + err.message);
+                  // toast.error('❌ Erro no teste: ' + err.message); // REMOVIDO
                 }
               }}
               className="rounded-md border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
