@@ -363,6 +363,13 @@ export async function PUT(request: NextRequest) {
       tpu_url: data.tpu_url,
       address: fullAddress || data.address,
       cep: data.addressObj?.cep || data.cep,
+      // Tentar salvar campos individuais se existirem na tabela
+      street: data.addressObj?.street || null,
+      number: data.addressObj?.number || null,
+      neighborhood: data.addressObj?.neighborhood || null,
+      city: data.addressObj?.city || null,
+      uf: data.addressObj?.uf || null,
+      complement: data.addressObj?.complement || null,
       lat: data.location?.lat || data.lat,
       lng: data.location?.lng || data.lng,
       categories: data.categories || [],
@@ -386,13 +393,9 @@ export async function PUT(request: NextRequest) {
     console.log('[PUT] 👥 Salvando is_cotista:', updateData.is_cotista);
     console.log('[PUT] 🏢 Salvando cotista_id:', updateData.cotista_id);
 
-    // Adicionar addressObj se tiver dados estruturados
-    if (data.addressObj && (data.addressObj.street || data.addressObj.city || data.addressObj.cep)) {
-      console.log('[PUT] ✅ Salvando addressObj estruturado:', data.addressObj);
-      updateData.addressObj = data.addressObj;
-    } else {
-      console.log('[PUT] ⏭️  addressObj não tem dados suficientes, pulando');
-    }
+    // REMOVIDO: addressObj não existe na tabela bancas
+    // Dados do endereço são salvos no campo 'address' (string) e campos individuais se existirem
+    console.log('[PUT] ℹ️  addressObj não é salvo (coluna não existe), usando apenas address string');
 
     // CRÍTICO: Imagens são completamente independentes
     // Só atualizar se foi explicitamente enviado (aceita string vazia também)
