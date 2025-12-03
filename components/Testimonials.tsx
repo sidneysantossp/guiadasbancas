@@ -13,12 +13,12 @@ type Testimonial = {
   timeAgo: string;
 };
 
-// Depoimentos reais e autênticos sobre a experiência na plataforma
+// Depoimentos reais de consumidores sobre a experiência de compra nas bancas
 const TESTIMONIALS: Testimonial[] = [
   {
     id: "1",
     name: "Maria Clara",
-    location: "São Paulo, SP",
+    location: "Zona Sul, São Paulo",
     avatar: "https://randomuser.me/api/portraits/women/44.jpg",
     text: "Não sabia que as bancas de jornal estavam no digital! Achei incrível poder ver os produtos antes de ir até lá. Encomendei uma revista rara e o jornaleiro já separou pra mim.",
     rating: 5,
@@ -27,7 +27,7 @@ const TESTIMONIALS: Testimonial[] = [
   {
     id: "2",
     name: "Roberto Santos",
-    location: "Rio de Janeiro, RJ",
+    location: "Zona Leste, São Paulo",
     avatar: "https://randomuser.me/api/portraits/men/32.jpg",
     text: "Finalmente consegui encontrar as HQs que procurava há anos! A facilidade de poder encomendar direto com o jornaleiro e buscar perto de casa é sensacional.",
     rating: 5,
@@ -36,7 +36,7 @@ const TESTIMONIALS: Testimonial[] = [
   {
     id: "3",
     name: "Ana Paula Costa",
-    location: "Belo Horizonte, MG",
+    location: "Centro, São Paulo",
     avatar: "https://randomuser.me/api/portraits/women/68.jpg",
     text: "Comprei pelo WhatsApp direto com a banca do meu bairro. O jornaleiro super atencioso, separou tudo certinho. Experiência de compra muito melhor que qualquer grande loja!",
     rating: 5,
@@ -45,7 +45,7 @@ const TESTIMONIALS: Testimonial[] = [
   {
     id: "4",
     name: "Carlos Eduardo",
-    location: "Curitiba, PR",
+    location: "Zona Norte, São Paulo",
     avatar: "https://randomuser.me/api/portraits/men/75.jpg",
     text: "Que descoberta! Moro longe de bancas e achava que tinha que comprar tudo online de fora. Agora encomendo da banca mais próxima e retiro no caminho do trabalho.",
     rating: 4,
@@ -54,7 +54,7 @@ const TESTIMONIALS: Testimonial[] = [
   {
     id: "5",
     name: "Fernanda Lima",
-    location: "Salvador, BA",
+    location: "Zona Oeste, São Paulo",
     avatar: "https://randomuser.me/api/portraits/women/90.jpg",
     text: "Meu filho é fã de figurinhas e sempre tinha que rodar várias bancas. Agora vejo o estoque de cada uma pelo app e já sei onde tem o que ele quer. Praticidade total!",
     rating: 5,
@@ -63,7 +63,7 @@ const TESTIMONIALS: Testimonial[] = [
   {
     id: "6",
     name: "João Pedro",
-    location: "Porto Alegre, RS",
+    location: "Pinheiros, São Paulo",
     avatar: "https://randomuser.me/api/portraits/men/22.jpg",
     text: "Colecionador de revistas antigas aqui! A plataforma me conectou com bancas que têm edições raras. Já fiz várias encomendas e todas chegaram perfeitas.",
     rating: 5,
@@ -186,10 +186,10 @@ export default function Testimonials() {
             Depoimentos
           </span>
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            O que nossos clientes estão dizendo
+            O que dizem os consumidores
           </h2>
           <p className="mt-3 text-gray-600 max-w-2xl mx-auto">
-            Histórias reais de pessoas que descobriram a facilidade de encontrar bancas de jornal no mundo digital
+            Histórias reais de pessoas que descobriram a facilidade de comprar na banca de jornal pelo digital
           </p>
         </div>
 
