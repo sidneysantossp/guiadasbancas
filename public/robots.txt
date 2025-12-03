@@ -1,0 +1,43 @@
+# Robots.txt para Guia das Bancas
+# Otimizado para SEO e indexação
+
+User-agent: *
+Allow: /
+Allow: /blog/
+Allow: /bancas/
+Allow: /banca/
+Allow: /sobre
+Allow: /contato
+
+# Bloquear áreas admin e APIs
+Disallow: /admin/
+Disallow: /jornaleiro/
+Disallow: /api/
+Disallow: /_next/
+Disallow: /static/
+
+# Bloquear parâmetros de tracking
+Disallow: /*?utm_source=
+Disallow: /*?utm_medium=
+Disallow: /*?utm_campaign=
+Disallow: /*?fbclid=
+Disallow: /*?gclid=
+
+# Sitemap
+Sitemap: https://www.guiadasbancas.com.br/sitemap.xml
+
+# Crawl-delay para não sobrecarregar servidor
+Crawl-delay: 1
+
+# User agents específicos
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+Disallow: /jornaleiro/
+Disallow: /api/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /admin/
+Disallow: /jornaleiro/
+Disallow: /api/
