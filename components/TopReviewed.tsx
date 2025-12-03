@@ -196,9 +196,7 @@ export default function TopReviewed() {
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);
   const loopCards = useMemo(() => [...cards, ...cards], [cards]);
-  if (!loading && cards.length === 0) {
-    return null;
-  }
+  
   useEffect(() => {
     const id = setInterval(() => {
       setIndex((i) => i + 1);
@@ -206,6 +204,11 @@ export default function TopReviewed() {
     }, 4500);
     return () => clearInterval(id);
   }, []);
+
+  // IMPORTANTE: Return condicional deve vir DEPOIS de todos os hooks
+  if (!loading && cards.length === 0) {
+    return null;
+  }
 
   const next = () => {
     setAnimating(true);
