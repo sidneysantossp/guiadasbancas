@@ -49,6 +49,9 @@ const ReferralBanner = nextDynamic(() => import("@/components/ReferralBanner"), 
 const Newsletter = nextDynamic(() => import("@/components/Newsletter"), { 
   ssr: false
 });
+const Testimonials = nextDynamic(() => import("@/components/Testimonials"), { 
+  ssr: false
+});
 
 export default function HomePage() {
   return (
@@ -120,6 +123,11 @@ export default function HomePage() {
 
       {/* Banner de Indicação da Plataforma */}
       <ReferralPlatformBannerWrapper />
+
+      {/* Depoimentos de clientes */}
+      <Suspense fallback={null}>
+        <Testimonials />
+      </Suspense>
 
       <Suspense fallback={null}>
         <div className="pt-6 pb-0">

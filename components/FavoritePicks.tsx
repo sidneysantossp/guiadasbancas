@@ -38,7 +38,7 @@ type ApiProduct = {
   codigo_mercos?: string;
 };
 
-type ApiBanca = { id: string; name: string };
+// ApiBanca type removed - banca_name now comes directly from API via JOIN
 
 function FireIcon() {
   return (
@@ -319,15 +319,12 @@ export default function FavoritePicks() {
     (async () => {
       try {
         setLoading(true);
-        // Buscar DIRETAMENTE produtos de Bebidas (não filtrar por distribuidor)
-        const [pRes, bRes] = await Promise.all([
-          fetch(`/api/products/public?category=${BEBIDAS_ID}&limit=12&sort=created_at&order=desc`, {
-            next: { revalidate: 60 } as any
-          }),
-          fetch('/api/bancas', {
-            next: { revalidate: 60 } as any
-          }),
-        ]);
+        // OTIMIZAÇÃO: Buscar produtos de Bebidas - API agora retorna banca_name via JOIN
+        // Não precisa mais chamar /api/bancas separadamente
+        const pRes = await fetch(`/api/products/public?category=${BEBIDAS_ID}&limit=12&sort=created_at&order=desc`, {
+          next: { revalidate: 60 } as any
+        });
+        
         let list: ApiProduct[] = [];
         
         if (pRes.ok) {
@@ -338,12 +335,6 @@ export default function FavoritePicks() {
         }
         
         console.log(`[FavoritePicks] Total de produtos: ${list.length}`);
-        let bancas: Record<string, ApiBanca> = {};
-        if (bRes.ok) {
-          const bj = await bRes.json();
-          const bList: ApiBanca[] = Array.isArray(bj?.data) ? bj.data : [];
-          bancas = Object.fromEntries(bList.map((b) => [b.id, b]));
-        }
 
         const mapped: FavItem[] = list.map((p) => {
           const price = Number(p.price || 0);
@@ -358,7 +349,8 @@ export default function FavoritePicks() {
           return {
             id: p.id,
             name: p.name,
-            vendorName: bancas[p.banca_id || '']?.name,
+            // OTIMIZAÇÃO: Usar banca_name que já vem da API via JOIN
+            vendorName: (p as any).banca_name || undefined,
             image: imageUrl,
             price,
             priceOriginal,

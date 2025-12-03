@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
     const order = searchParams.get("order") || "asc"; // Mudado de desc para asc
 
     // Query otimizada - apenas produtos ativos
+    // OTIMIZAÇÃO: Incluir JOIN com bancas e distribuidores para evitar requisição extra no frontend
     let query = supabaseAdmin
       .from('products')
       .select(`
@@ -37,7 +38,9 @@ export async function GET(req: NextRequest) {
         codigo_mercos,
         pronta_entrega,
         sob_encomenda,
-        pre_venda
+        pre_venda,
+        bancas!banca_id(id, name),
+        distribuidores!distribuidor_id(id, nome)
       `)
       .eq('active', true);
 
@@ -68,6 +71,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Formatar produtos para o formato esperado
+    // OTIMIZAÇÃO: Incluir banca_name e distribuidor_name do JOIN para evitar requisições extras
     const items = (products || []).map((p: any) => ({
       id: p.id,
       name: p.name,
@@ -81,6 +85,9 @@ export async function GET(req: NextRequest) {
       category_id: p.category_id,
       banca_id: p.banca_id,
       distribuidor_id: p.distribuidor_id,
+      // Dados do JOIN - evita requisição separada para /api/bancas
+      banca_name: p.bancas?.name || null,
+      distribuidor_name: p.distribuidores?.nome || null,
       rating_avg: p.rating_avg || null,
       reviews_count: p.reviews_count || null,
       codigo_mercos: p.codigo_mercos || null,

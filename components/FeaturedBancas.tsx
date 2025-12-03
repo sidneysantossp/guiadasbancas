@@ -133,19 +133,21 @@ export default function FeaturedBancas() {
   useEffect(() => setLoc(loadStoredLocation()), []);
   const uf = (loc?.state || "SP").toLowerCase();
 
-  // Bancas reais do Admin CMS
+  // Bancas reais do Admin CMS - usando endpoint otimizado que traz apenas 20 bancas
   type ApiBanca = { id: string; name: string; address?: string; lat?: number; lng?: number; cover: string; rating?: number; featured?: boolean; categories?: string[]; active: boolean; order: number };
   const [apiBancas, setApiBancas] = useState<ApiBanca[] | null>(null);
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/admin/bancas', { 
+        // OTIMIZAÇÃO: Usar endpoint dedicado que retorna apenas 20 bancas em destaque
+        // em vez de carregar todas as bancas do sistema
+        const res = await fetch('/api/bancas/featured?limit=20', { 
           next: { revalidate: 60 } as any // Cache de 60 segundos
         });
         if (!res.ok) throw new Error('fail');
         const j = await res.json();
         const list = Array.isArray(j?.data) ? (j.data as ApiBanca[]) : [];
-        setApiBancas(list.filter(b => b.active));
+        setApiBancas(list); // Já vem filtrado por active=true no backend
       } catch {
         setApiBancas([]);
       }

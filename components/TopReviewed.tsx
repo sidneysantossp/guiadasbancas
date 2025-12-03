@@ -116,10 +116,7 @@ export default function TopReviewed() {
       try {
         setLoading(true);
         // 1) Tentar vitrine curada desta seção
-        const [curRes, bRes] = await Promise.all([
-          fetch('/api/featured-products?section=topreviewed_ei&limit=8', { next: { revalidate: 60 } as any }),
-          fetch('/api/bancas', { cache: 'no-store' })
-        ]);
+        const curRes = await fetch('/api/featured-products?section=topreviewed_ei&limit=8', { next: { revalidate: 60 } as any });
 
         let source: ApiProduct[] = [];
         if (curRes.ok) {
@@ -128,6 +125,7 @@ export default function TopReviewed() {
         }
 
         // 2) Se não houver curados, buscar DIRETAMENTE produtos de Bomboniere
+        // OTIMIZAÇÃO: API agora retorna banca_name via JOIN, não precisa mais chamar /api/bancas
         if (!source.length) {
           const BOMBONIERE_ID = '6337c11f-c5ab-4f4b-ab9c-73c754d6eaae';
           
@@ -152,13 +150,6 @@ export default function TopReviewed() {
           }
         }
 
-        let bancaMap: Record<string, { name: string }> = {};
-        try {
-          const bj = await bRes.json();
-          const bList: Array<{ id: string; name: string }> = Array.isArray(bj?.data) ? bj.data : [];
-          bancaMap = Object.fromEntries(bList.map(b => [b.id, { name: b.name }]));
-        } catch {}
-
         // Ordenar: melhor avaliação desc, depois número de reviews desc, depois fallback
         source.sort((a, b) => {
           const ra = Number(a.rating_avg ?? 0);
@@ -177,7 +168,8 @@ export default function TopReviewed() {
           return {
             id: p.id,
             title: p.name,
-            vendor: (p.banca_id && bancaMap[p.banca_id]?.name) || '',
+            // OTIMIZAÇÃO: Usar banca_name que já vem da API via JOIN
+            vendor: (p as any).banca_name || '',
             description: p.description,
             image: imageUrl,
             price: Number(p.price || 0),
