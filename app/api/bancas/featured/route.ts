@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+// Force dynamic to prevent static generation errors
+export const dynamic = 'force-dynamic';
+
 /**
  * API otimizada para FeaturedBancas - retorna apenas as bancas em destaque
  * Limita a 20 resultados, ordenados por: featured DESC, rating DESC, name ASC
