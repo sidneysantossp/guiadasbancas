@@ -17,7 +17,7 @@ export async function generateStaticParams() {
   }));
 }
 
-// Metadados dinâmicos para SEO
+// Metadados dinâmicos otimizados para SEO On-Page
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = getPostBySlug(params.slug);
   
@@ -27,35 +27,53 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
+  // Combina palavra-chave principal com secundárias para keywords
+  const allKeywords = [post.focusKeyword, ...post.secondaryKeywords, ...post.tags];
+
   return {
-    title: `${post.title} | Blog Guia das Bancas`,
-    description: post.excerpt,
-    keywords: post.tags,
+    title: post.metaTitle, // Title tag otimizado (50-60 caracteres)
+    description: post.metaDescription, // Meta description otimizada (150-160 caracteres)
+    keywords: [...new Set(allKeywords)], // Remove duplicatas
     authors: [{ name: post.author.name }],
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
+    },
     openGraph: {
-      title: post.title,
-      description: post.excerpt,
+      title: post.metaTitle,
+      description: post.metaDescription,
       url: `https://www.guiadasbancas.com.br/blog/${post.slug}`,
       siteName: "Guia das Bancas",
       locale: "pt_BR",
       type: "article",
       publishedTime: post.publishedAt,
+      modifiedTime: post.updatedAt,
       authors: [post.author.name],
       tags: post.tags,
+      section: post.category,
       images: [
         {
           url: post.coverImage,
           width: 1200,
           height: 630,
-          alt: post.title,
+          alt: post.coverImageAlt, // Alt text otimizado para SEO
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: post.title,
-      description: post.excerpt,
+      title: post.metaTitle,
+      description: post.metaDescription,
       images: [post.coverImage],
+      creator: "@guiadasbancas",
+      site: "@guiadasbancas",
     },
     alternates: {
       canonical: `https://www.guiadasbancas.com.br/blog/${post.slug}`,
@@ -98,35 +116,55 @@ export default function BlogPostPage({ params }: Props) {
   
   const relatedPosts = getRelatedPosts(params.slug, 3);
 
-  // Schema.org para SEO
+  // Schema.org Article completo para SEO
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "BlogPosting",
+    "@type": "Article",
+    "@id": `https://www.guiadasbancas.com.br/blog/${post.slug}#article`,
     "headline": post.title,
-    "description": post.excerpt,
-    "image": post.coverImage,
+    "name": post.metaTitle,
+    "description": post.metaDescription,
+    "image": {
+      "@type": "ImageObject",
+      "url": post.coverImage,
+      "width": 1200,
+      "height": 630,
+      "caption": post.coverImageAlt
+    },
     "datePublished": post.publishedAt,
-    "dateModified": post.publishedAt,
+    "dateModified": post.updatedAt,
     "author": {
       "@type": "Person",
-      "name": post.author.name
+      "name": post.author.name,
+      "description": post.author.bio,
+      "url": "https://www.guiadasbancas.com.br"
     },
     "publisher": {
       "@type": "Organization",
       "name": "Guia das Bancas",
+      "url": "https://www.guiadasbancas.com.br",
       "logo": {
         "@type": "ImageObject",
-        "url": "https://www.guiadasbancas.com.br/logo.png"
+        "url": "https://www.guiadasbancas.com.br/logo.png",
+        "width": 512,
+        "height": 512
       }
     },
     "mainEntityOfPage": {
       "@type": "WebPage",
       "@id": `https://www.guiadasbancas.com.br/blog/${post.slug}`
     },
-    "keywords": post.tags.join(", "),
+    "keywords": [post.focusKeyword, ...post.secondaryKeywords].join(", "),
     "articleSection": post.category,
-    "wordCount": post.content.split(/\s+/).length,
-    "timeRequired": `PT${post.readTime}M`
+    "articleBody": post.content.replace(/<[^>]*>/g, '').trim(),
+    "wordCount": post.wordCount,
+    "timeRequired": `PT${post.readTime}M`,
+    "inLanguage": "pt-BR",
+    "isAccessibleForFree": true,
+    "speakable": {
+      "@type": "SpeakableSpecification",
+      "cssSelector": ["h1", ".prose h2", ".prose h3"]
+    }
   };
 
   // Breadcrumb Schema
@@ -230,7 +268,7 @@ export default function BlogPostPage({ params }: Props) {
               </div>
               <div>
                 <p className="font-semibold text-gray-900">{post.author.name}</p>
-                <p className="text-sm text-gray-500">Autor</p>
+                <p className="text-sm text-gray-500" title={post.author.bio}>Autor</p>
               </div>
             </div>
             
@@ -245,7 +283,7 @@ export default function BlogPostPage({ params }: Props) {
         <div className="relative w-full aspect-[21/9] max-h-[500px] mb-10">
           <Image
             src={post.coverImage}
-            alt={post.title}
+            alt={post.coverImageAlt}
             fill
             priority
             sizes="100vw"
@@ -282,17 +320,37 @@ export default function BlogPostPage({ params }: Props) {
             }}
           />
           
-          {/* Tags */}
+          {/* Palavras-chave e Tags para SEO */}
           <div className="mt-10 pt-6 border-t border-gray-200">
-            <div className="flex flex-wrap gap-2">
-              {post.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-3 py-1 bg-gray-100 text-gray-600 text-sm rounded-full"
-                >
-                  #{tag}
+            <div className="mb-4">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Palavras-chave</span>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <span className="px-3 py-1 bg-[#ff5c00]/10 text-[#ff5c00] text-sm font-medium rounded-full">
+                  {post.focusKeyword}
                 </span>
-              ))}
+                {post.secondaryKeywords.slice(0, 3).map((keyword) => (
+                  <span
+                    key={keyword}
+                    className="px-3 py-1 bg-orange-50 text-orange-600 text-sm rounded-full"
+                  >
+                    {keyword}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tags</span>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {post.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/blog?tag=${encodeURIComponent(tag)}`}
+                    className="px-3 py-1 bg-gray-100 text-gray-600 text-sm rounded-full hover:bg-gray-200 transition-colors"
+                  >
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
           

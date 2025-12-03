@@ -3,13 +3,33 @@ import Link from "next/link";
 import Image from "next/image";
 import { getAllPosts, getAllCategories, BlogPost } from "./posts";
 
+// Metadata SEO otimizado para a página do Blog
 export const metadata: Metadata = {
-  title: "Blog | Guia das Bancas - Dicas, Novidades e Cultura das Bancas de Jornal",
-  description: "Descubra dicas para colecionadores, novidades sobre HQs, figurinhas e tudo sobre o universo das bancas de jornal. Conteúdo exclusivo para amantes de revistas e quadrinhos.",
-  keywords: ["blog bancas", "hqs", "figurinhas", "revistas", "quadrinhos", "colecionadores", "banca de jornal"],
+  title: "Blog Guia das Bancas | Dicas de HQs, Figurinhas e Bancas de Jornal",
+  description: "Descubra dicas para colecionadores, novidades sobre HQs, figurinhas da Copa 2026 e cultura das bancas de jornal. Artigos exclusivos sobre quadrinhos Marvel, DC e muito mais.",
+  keywords: [
+    "blog bancas de jornal",
+    "dicas colecionadores",
+    "HQs marvel dc",
+    "figurinhas copa 2026",
+    "revistas quadrinhos",
+    "banca de jornal perto de mim",
+    "guia das bancas"
+  ],
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   openGraph: {
-    title: "Blog | Guia das Bancas",
-    description: "Dicas, novidades e cultura das bancas de jornal. Conteúdo para colecionadores e amantes de HQs.",
+    title: "Blog Guia das Bancas | HQs, Figurinhas e Cultura",
+    description: "Artigos sobre bancas de jornal, HQs, figurinhas e coleções. Dicas exclusivas para colecionadores.",
     url: "https://www.guiadasbancas.com.br/blog",
     siteName: "Guia das Bancas",
     locale: "pt_BR",
@@ -19,14 +39,16 @@ export const metadata: Metadata = {
         url: "https://www.guiadasbancas.com.br/og-blog.jpg",
         width: 1200,
         height: 630,
-        alt: "Blog Guia das Bancas",
+        alt: "Blog Guia das Bancas - Dicas sobre HQs, figurinhas e bancas de jornal",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Blog | Guia das Bancas",
-    description: "Dicas, novidades e cultura das bancas de jornal.",
+    title: "Blog Guia das Bancas | HQs, Figurinhas e Cultura",
+    description: "Artigos sobre bancas de jornal, HQs, figurinhas e coleções.",
+    creator: "@guiadasbancas",
+    site: "@guiadasbancas",
   },
   alternates: {
     canonical: "https://www.guiadasbancas.com.br/blog",
@@ -44,7 +66,7 @@ function PostCard({ post, featured = false }: { post: BlogPost; featured?: boole
       <Link href={`/blog/${post.slug}`} className="block relative aspect-video overflow-hidden">
         <Image
           src={post.coverImage}
-          alt={post.title}
+          alt={post.coverImageAlt}
           fill
           sizes={featured ? "(max-width: 768px) 100vw, 66vw" : "(max-width: 768px) 100vw, 33vw"}
           className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -144,33 +166,78 @@ export default function BlogPage({
   
   const [featuredPost, ...otherPosts] = posts;
 
-  // Schema.org para SEO
+  // Schema.org Blog completo para SEO
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Blog",
+    "@id": "https://www.guiadasbancas.com.br/blog#blog",
     "name": "Blog Guia das Bancas",
-    "description": "Dicas, novidades e cultura das bancas de jornal",
+    "description": "Dicas, novidades e cultura das bancas de jornal. Artigos sobre HQs, figurinhas, quadrinhos e coleções.",
     "url": "https://www.guiadasbancas.com.br/blog",
+    "inLanguage": "pt-BR",
     "publisher": {
       "@type": "Organization",
       "name": "Guia das Bancas",
+      "url": "https://www.guiadasbancas.com.br",
       "logo": {
         "@type": "ImageObject",
-        "url": "https://www.guiadasbancas.com.br/logo.png"
+        "url": "https://www.guiadasbancas.com.br/logo.png",
+        "width": 512,
+        "height": 512
       }
     },
     "blogPost": posts.map(post => ({
       "@type": "BlogPosting",
       "headline": post.title,
-      "description": post.excerpt,
+      "name": post.metaTitle,
+      "description": post.metaDescription,
       "datePublished": post.publishedAt,
+      "dateModified": post.updatedAt,
       "url": `https://www.guiadasbancas.com.br/blog/${post.slug}`,
-      "image": post.coverImage,
+      "image": {
+        "@type": "ImageObject",
+        "url": post.coverImage,
+        "caption": post.coverImageAlt
+      },
       "author": {
         "@type": "Person",
         "name": post.author.name
-      }
+      },
+      "keywords": post.focusKeyword,
+      "articleSection": post.category,
+      "wordCount": post.wordCount
     }))
+  };
+
+  // Schema.org WebPage
+  const webPageJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": "https://www.guiadasbancas.com.br/blog#webpage",
+    "url": "https://www.guiadasbancas.com.br/blog",
+    "name": "Blog Guia das Bancas",
+    "description": "Artigos sobre bancas de jornal, HQs, figurinhas e coleções",
+    "isPartOf": {
+      "@type": "WebSite",
+      "@id": "https://www.guiadasbancas.com.br#website"
+    },
+    "breadcrumb": {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://www.guiadasbancas.com.br"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Blog",
+          "item": "https://www.guiadasbancas.com.br/blog"
+        }
+      ]
+    }
   };
 
   return (
@@ -178,6 +245,10 @@ export default function BlogPage({
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
       />
       
       <main className="min-h-screen bg-gray-50">

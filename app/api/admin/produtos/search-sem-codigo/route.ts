@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/admin/produtos/search-sem-codigo
  * Busca produtos por nome, mercos_id ou codigo_mercos
