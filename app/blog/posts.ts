@@ -23,7 +23,7 @@ export type BlogPost = {
   wordCount: number;
 };
 
-const AUTHOR = {
+export const AUTHOR = {
   name: "Equipe Guia das Bancas",
   avatar: "https://www.guiadasbancas.com.br/logo-icon.png",
   bio: "Somos apaixonados por bancas de jornal e trabalhamos para conectar leitores aos melhores jornaleiros do Brasil."
