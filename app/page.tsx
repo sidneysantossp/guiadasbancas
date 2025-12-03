@@ -130,7 +130,7 @@ export default function HomePage() {
       </Suspense>
 
       <Suspense fallback={null}>
-        <div className="pt-6 pb-0">
+        <div className="pt-6 pb-16">
           <Newsletter />
         </div>
       </Suspense>
