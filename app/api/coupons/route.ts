@@ -1,8 +1,5 @@
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-const DATA_PATH = path.join(process.cwd(), 'data', 'coupons.json');
+import { supabaseAdmin } from '@/lib/supabase';
 
 type Coupon = {
   id: string;
@@ -16,34 +13,39 @@ type Coupon = {
   createdAt: string; // ISO
 };
 
-async function readCoupons(): Promise<Coupon[]> {
-  try {
-    const raw = await fs.readFile(DATA_PATH, 'utf-8');
-    return JSON.parse(raw || '[]');
-  } catch (e) {
-    return [];
-  }
-}
-
-async function writeCoupons(list: Coupon[]) {
-  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await fs.writeFile(DATA_PATH, JSON.stringify(list, null, 2), 'utf-8');
-}
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const sellerId = searchParams.get('sellerId') || undefined;
   const onlyActive = searchParams.get('active') === 'true';
-  const coupons = await readCoupons();
-  const filtered = coupons.filter((c) => {
-    if (sellerId && c.sellerId !== sellerId) return false;
+  const { data, error } = await supabaseAdmin
+    .from('coupons')
+    .select('*')
+    .match(sellerId ? { seller_id: sellerId } : {})
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+
+  const mapped = (data || []).filter((c: any) => {
     if (onlyActive && !c.active) return false;
-    if (onlyActive && c.expiresAt) {
-      try { if (Date.now() > Date.parse(c.expiresAt)) return false; } catch {}
+    if (onlyActive && c.expires_at) {
+      try { if (Date.now() > Date.parse(c.expires_at)) return false; } catch {}
     }
     return true;
-  });
-  return NextResponse.json({ ok: true, data: filtered });
+  }).map((c: any) => ({
+    id: c.id,
+    sellerId: c.seller_id,
+    title: c.title,
+    code: c.code,
+    discountText: c.discount_text,
+    active: c.active,
+    highlight: c.highlight,
+    expiresAt: c.expires_at,
+    createdAt: c.created_at,
+  }));
+
+  return NextResponse.json({ ok: true, data: mapped });
 }
 
 export async function POST(request: Request) {
@@ -55,29 +57,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'Campos obrigatórios: sellerId, title, code, discountText' }, { status: 400 });
     }
 
-    const coupons = await readCoupons();
+    const insertData = {
+      seller_id: sellerId,
+      title: String(title),
+      code: String(code).toUpperCase().trim(),
+      discount_text: String(discountText),
+      active: Boolean(active),
+      highlight: Boolean(highlight),
+      expires_at: expiresAt ? String(expiresAt) : null,
+    };
 
-    // Se highlight=true, desmarca outros highlights do mesmo sellerId
+    // Se highlight=true, desmarca outros do mesmo seller
     if (highlight) {
-      for (const c of coupons) {
-        if (c.sellerId === sellerId) c.highlight = false;
-      }
+      await supabaseAdmin.from('coupons').update({ highlight: false }).eq('seller_id', sellerId);
+    }
+
+    const { data, error } = await supabaseAdmin.from('coupons').insert(insertData).select().single();
+    if (error) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     }
 
     const item: Coupon = {
-      id: `c_${Date.now()}`,
-      sellerId,
-      title: String(title),
-      code: String(code).toUpperCase().trim(),
-      discountText: String(discountText),
-      active: Boolean(active),
-      highlight: Boolean(highlight),
-      expiresAt: expiresAt ? String(expiresAt) : undefined,
-      createdAt: new Date().toISOString(),
+      id: data.id,
+      sellerId: data.seller_id,
+      title: data.title,
+      code: data.code,
+      discountText: data.discount_text,
+      active: data.active,
+      highlight: data.highlight,
+      expiresAt: data.expires_at,
+      createdAt: data.created_at,
     };
-
-    coupons.push(item);
-    await writeCoupons(coupons);
 
     return NextResponse.json({ ok: true, data: item });
   } catch (e) {

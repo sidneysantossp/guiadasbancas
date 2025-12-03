@@ -1,66 +1,52 @@
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { supabaseAdmin } from '@/lib/supabase';
 
-const DATA_PATH = path.join(process.cwd(), 'data', 'coupons.json');
+const mapRow = (data: any) => data && ({
+  id: data.id,
+  sellerId: data.seller_id,
+  title: data.title,
+  code: data.code,
+  discountText: data.discount_text,
+  active: data.active,
+  highlight: data.highlight,
+  expiresAt: data.expires_at,
+  createdAt: data.created_at,
+});
 
-type Coupon = {
-  id: string;
-  sellerId: string;
-  title: string;
-  code: string;
-  discountText: string;
-  active: boolean;
-  highlight: boolean;
-  expiresAt?: string;
-  createdAt: string;
-};
-
-async function readCoupons(): Promise<Coupon[]> {
+export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
-    const raw = await fs.readFile(DATA_PATH, 'utf-8');
-    return JSON.parse(raw || '[]');
-  } catch (e) {
-    return [];
-  }
-}
+    const body = await request.json();
+    const updates: any = {};
+    if (body.active !== undefined) updates.active = Boolean(body.active);
+    if (body.highlight !== undefined) updates.highlight = Boolean(body.highlight);
+    if (body.title !== undefined) updates.title = String(body.title);
+    if (body.discountText !== undefined) updates.discount_text = String(body.discountText);
+    if (body.expiresAt !== undefined) updates.expires_at = body.expiresAt ? String(body.expiresAt) : null;
 
-async function writeCoupons(list: Coupon[]) {
-  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await fs.writeFile(DATA_PATH, JSON.stringify(list, null, 2), 'utf-8');
-}
-
-export async function PUT(_: Request, ctx: { params: { id: string } }) {
-  try {
-    const id = ctx.params.id;
-    const body = await _.json();
-    const coupons = await readCoupons();
-    const idx = coupons.findIndex(c => c.id === id);
-    if (idx === -1) return NextResponse.json({ ok: false, error: 'Cupom não encontrado' }, { status: 404 });
-
-    // Se highlight=true, desmarcar outros do mesmo seller
-    if (body && body.highlight === true) {
-      for (const c of coupons) {
-        if (c.sellerId === coupons[idx].sellerId) c.highlight = false;
+    if (updates.highlight === true) {
+      // Desmarca outros destaques do mesmo seller
+      const { data: couponRow } = await supabaseAdmin.from('coupons').select('seller_id').eq('id', params.id).single();
+      if (couponRow?.seller_id) {
+        await supabaseAdmin.from('coupons').update({ highlight: false }).eq('seller_id', couponRow.seller_id);
       }
     }
 
-    coupons[idx] = { ...coupons[idx], ...body };
-    await writeCoupons(coupons);
-    return NextResponse.json({ ok: true, data: coupons[idx] });
+    const { data, error } = await supabaseAdmin.from('coupons').update(updates).eq('id', params.id).select().single();
+    if (error) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, data: mapRow(data) });
   } catch (e) {
     return NextResponse.json({ ok: false, error: 'Erro ao atualizar cupom' }, { status: 500 });
   }
 }
 
-export async function DELETE(_: Request, ctx: { params: { id: string } }) {
+export async function DELETE(_: Request, { params }: { params: { id: string } }) {
   try {
-    const id = ctx.params.id;
-    const coupons = await readCoupons();
-    const idx = coupons.findIndex(c => c.id === id);
-    if (idx === -1) return NextResponse.json({ ok: false, error: 'Cupom não encontrado' }, { status: 404 });
-    coupons.splice(idx, 1);
-    await writeCoupons(coupons);
+    const { error } = await supabaseAdmin.from('coupons').delete().eq('id', params.id);
+    if (error) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ ok: false, error: 'Erro ao excluir cupom' }, { status: 500 });

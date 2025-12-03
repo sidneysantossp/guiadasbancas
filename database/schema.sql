@@ -73,6 +73,22 @@ CREATE TABLE IF NOT EXISTS orders (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Coupons table (jornaleiro)
+CREATE TABLE IF NOT EXISTS coupons (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    seller_id UUID NOT NULL,
+    title TEXT NOT NULL,
+    code TEXT NOT NULL,
+    discount_text TEXT NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
+    highlight BOOLEAN DEFAULT FALSE,
+    expires_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_coupons_seller_code ON coupons(seller_id, code);
+
 -- Branding table (singleton)
 CREATE TABLE IF NOT EXISTS branding (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -110,12 +126,14 @@ DROP TRIGGER IF EXISTS update_categories_updated_at ON categories;
 DROP TRIGGER IF EXISTS update_products_updated_at ON products;
 DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
 DROP TRIGGER IF EXISTS update_branding_updated_at ON branding;
+DROP TRIGGER IF EXISTS update_coupons_updated_at ON coupons;
 
 CREATE TRIGGER update_bancas_updated_at BEFORE UPDATE ON bancas FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_categories_updated_at BEFORE UPDATE ON categories FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_branding_updated_at BEFORE UPDATE ON branding FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_coupons_updated_at BEFORE UPDATE ON coupons FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert default branding record
 INSERT INTO branding (logo_url, logo_alt, site_name, primary_color, secondary_color, favicon)
@@ -128,6 +146,7 @@ ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE branding ENABLE ROW LEVEL SECURITY;
+ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies if they exist
 DROP POLICY IF EXISTS "Allow public read access on bancas" ON bancas;
@@ -139,12 +158,15 @@ DROP POLICY IF EXISTS "Allow service role all access on categories" ON categorie
 DROP POLICY IF EXISTS "Allow service role all access on products" ON products;
 DROP POLICY IF EXISTS "Allow service role all access on orders" ON orders;
 DROP POLICY IF EXISTS "Allow service role all access on branding" ON branding;
+DROP POLICY IF EXISTS "Allow public read access on coupons" ON coupons;
+DROP POLICY IF EXISTS "Allow service role all access on coupons" ON coupons;
 
 -- Create policies for public access (adjust as needed)
 CREATE POLICY "Allow public read access on bancas" ON bancas FOR SELECT USING (true);
 CREATE POLICY "Allow public read access on categories" ON categories FOR SELECT USING (true);
 CREATE POLICY "Allow public read access on products" ON products FOR SELECT USING (true);
 CREATE POLICY "Allow public read access on branding" ON branding FOR SELECT USING (true);
+CREATE POLICY "Allow public read access on coupons" ON coupons FOR SELECT USING (true);
 
 -- Admin policies (service role can do everything)
 CREATE POLICY "Allow service role all access on bancas" ON bancas USING (auth.role() = 'service_role');
@@ -152,3 +174,4 @@ CREATE POLICY "Allow service role all access on categories" ON categories USING 
 CREATE POLICY "Allow service role all access on products" ON products USING (auth.role() = 'service_role');
 CREATE POLICY "Allow service role all access on orders" ON orders USING (auth.role() = 'service_role');
 CREATE POLICY "Allow service role all access on branding" ON branding USING (auth.role() = 'service_role');
+CREATE POLICY "Allow service role all access on coupons" ON coupons USING (auth.role() = 'service_role');
