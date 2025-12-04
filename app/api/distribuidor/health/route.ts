@@ -15,10 +15,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Buscar dados do distribuidor
+    // Buscar dados do distribuidor incluindo status ativo
     const { data: distribuidor, error: distError } = await supabaseAdmin
       .from('distribuidores')
-      .select('id, nome, mercos_application_token, mercos_company_token')
+      .select('id, nome, ativo, mercos_application_token, mercos_company_token')
       .eq('id', distribuidorId)
       .single();
 
@@ -27,6 +27,16 @@ export async function GET(request: NextRequest) {
         distribuidor: 'Desconhecido',
         success: false,
         error: 'Distribuidor não encontrado',
+      });
+    }
+
+    // Verificar se o distribuidor está ativo no admin
+    if (!distribuidor.ativo) {
+      return NextResponse.json({
+        distribuidor: distribuidor.nome,
+        success: false,
+        error: 'Integração desativada pelo administrador.',
+        isDisabled: true,
       });
     }
 

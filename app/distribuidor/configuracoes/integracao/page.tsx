@@ -9,6 +9,7 @@ type HealthResult = {
   error?: string;
   latency_ms?: number;
   needsSetup?: boolean;
+  isDisabled?: boolean;
   sample?: {
     id: number;
     nome: string;
@@ -119,7 +120,32 @@ export default function IntegracaoMercosPage() {
 
           {health && (
             <div className="mt-4">
-              {health.needsSetup ? (
+              {health.isDisabled ? (
+                // Mensagem quando desativado pelo admin
+                <div className="rounded-lg p-4 bg-red-50 border border-red-200">
+                  <div className="flex items-start gap-3">
+                    <IconX className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+                    <div>
+                      <p className="font-semibold text-red-800">Integração Desativada</p>
+                      <p className="text-sm text-red-700 mt-1">
+                        A integração com a API Mercos foi desativada pelo administrador.
+                      </p>
+                      <div className="mt-3 p-3 bg-white rounded-lg border border-red-200">
+                        <p className="text-sm text-gray-600">
+                          Entre em contato com o suporte para mais informações.
+                        </p>
+                        <a 
+                          href="mailto:suporte@guiadasbancas.com.br?subject=Integração Mercos Desativada - {distribuidor?.nome}"
+                          className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+                        >
+                          <IconMail size={16} />
+                          suporte@guiadasbancas.com.br
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : health.needsSetup ? (
                 // Mensagem especial quando precisa de configuração pelo admin
                 <div className="rounded-lg p-4 bg-amber-50 border border-amber-200">
                   <div className="flex items-start gap-3">
@@ -196,7 +222,13 @@ export default function IntegracaoMercosPage() {
             Sincronize seus produtos com a API Mercos manualmente.
           </p>
           
-          {health?.needsSetup ? (
+          {health?.isDisabled ? (
+            <div className="bg-red-50 rounded-lg p-4 border border-red-200 text-center">
+              <p className="text-sm text-red-600">
+                Sincronização indisponível. Integração desativada.
+              </p>
+            </div>
+          ) : health?.needsSetup ? (
             <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
               <p className="text-sm text-gray-500">
                 Sincronização disponível após ativação da integração.
@@ -306,11 +338,11 @@ export default function IntegracaoMercosPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Status da Conexão</h2>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-            <div className={`h-3 w-3 rounded-full ${health?.success ? 'bg-green-500' : health?.needsSetup ? 'bg-amber-500' : 'bg-gray-300'}`}></div>
+            <div className={`h-3 w-3 rounded-full ${health?.success ? 'bg-green-500' : health?.isDisabled ? 'bg-red-500' : health?.needsSetup ? 'bg-amber-500' : 'bg-gray-300'}`}></div>
             <div>
               <p className="font-medium text-gray-900">API Mercos</p>
               <p className="text-sm text-gray-600">
-                {health?.success ? 'Conectado' : health?.needsSetup ? 'Pendente' : 'Verificando...'}
+                {health?.success ? 'Conectado' : health?.isDisabled ? 'Desativado' : health?.needsSetup ? 'Pendente' : 'Verificando...'}
               </p>
             </div>
           </div>
@@ -324,11 +356,11 @@ export default function IntegracaoMercosPage() {
           </div>
           
           <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-            <div className={`h-3 w-3 rounded-full ${health?.success ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+            <div className={`h-3 w-3 rounded-full ${health?.success ? 'bg-green-500' : health?.isDisabled ? 'bg-red-500' : 'bg-gray-300'}`}></div>
             <div>
               <p className="font-medium text-gray-900">Sync Automático</p>
               <p className="text-sm text-gray-600">
-                {health?.success ? 'Ativo (a cada 15 min)' : health?.needsSetup ? 'Aguardando ativação' : 'Verificando...'}
+                {health?.success ? 'Ativo (a cada 15 min)' : health?.isDisabled ? 'Desativado' : health?.needsSetup ? 'Aguardando ativação' : 'Verificando...'}
               </p>
             </div>
           </div>

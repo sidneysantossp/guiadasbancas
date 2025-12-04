@@ -19,10 +19,10 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Sync] Iniciando sincronização para distribuidor ${distribuidorId} (full: ${full})`);
 
-    // Buscar dados do distribuidor
+    // Buscar dados do distribuidor incluindo status ativo
     const { data: distribuidor, error: distError } = await supabaseAdmin
       .from('distribuidores')
-      .select('id, nome, mercos_application_token, mercos_company_token, ultima_sincronizacao')
+      .select('id, nome, ativo, mercos_application_token, mercos_company_token, ultima_sincronizacao')
       .eq('id', distribuidorId)
       .single();
 
@@ -30,6 +30,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: false,
         error: 'Distribuidor não encontrado',
+      });
+    }
+
+    // Verificar se o distribuidor está ativo no admin
+    if (!distribuidor.ativo) {
+      return NextResponse.json({
+        success: false,
+        error: 'Integração desativada pelo administrador.',
+        isDisabled: true,
       });
     }
 
