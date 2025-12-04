@@ -110,6 +110,21 @@ export async function POST(
     console.log(`[SYNC] Última sincronização registrada: ${ultimaSincronizacaoBase || 'nunca'}`);
     console.log(`[SYNC] Timestamp utilizado nesta execução: ${syncInitialTimestamp || 'padrão (2020-01-01T00:00:00)'}`);
 
+    // Buscar mapa de categorias do distribuidor (mercos_id -> uuid)
+    console.log(`[SYNC] Carregando categorias do distribuidor...`);
+    const { data: distCategories } = await supabase
+      .from('distribuidor_categories')
+      .select('id, mercos_id')
+      .eq('distribuidor_id', params.id);
+    
+    const categoryMap = new Map<number, string>();
+    for (const cat of distCategories || []) {
+      if (cat.mercos_id) {
+        categoryMap.set(cat.mercos_id, cat.id);
+      }
+    }
+    console.log(`[SYNC] ✓ ${categoryMap.size} categorias mapeadas`);
+
     // Buscar produtos da API Mercos por lotes (streaming) e processar respeitando o tempo máximo
     console.log(`[SYNC] Iniciando busca na API Mercos (streaming por lotes)...`);
 
@@ -164,6 +179,10 @@ export async function POST(
           if (processados % 50 === 0) {
             console.log(`[SYNC] Progresso: ${processados} processados (de ${recebidos} recebidos)`);
           }
+          // Mapear categoria: usar mapa do distribuidor ou fallback
+          const mercosCatId = produtoMercos.categoria_id;
+          const mappedCategoryId = mercosCatId ? categoryMap.get(mercosCatId) : null;
+          
           const produtoData = {
             name: produtoMercos.nome,
             description: produtoMercos.observacoes || '',
@@ -174,7 +193,7 @@ export async function POST(
             distribuidor_id: params.id,
             mercos_id: produtoMercos.id,
             codigo_mercos: produtoMercos.codigo || null,
-            category_id: CATEGORIA_SEM_CATEGORIA_ID,
+            category_id: mappedCategoryId || CATEGORIA_SEM_CATEGORIA_ID,
             origem: 'mercos' as const,
             sincronizado_em: new Date().toISOString(),
             track_stock: true,
