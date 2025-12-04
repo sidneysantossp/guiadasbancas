@@ -4,6 +4,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getPostBySlug, getRelatedPosts, getAllPosts, BlogPost } from "../posts";
 import ShareButtons from "@/components/blog/ShareButtons";
+import { marked } from "marked";
 
 type Props = {
   params: { slug: string };
@@ -305,19 +306,7 @@ export default function BlogPostPage({ params }: Props) {
               prose-ol:my-4
               prose-blockquote:border-l-[#ff5c00] prose-blockquote:bg-gray-50 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:rounded-r-lg
             "
-            dangerouslySetInnerHTML={{ 
-              __html: post.content
-                .replace(/^## /gm, '<h2>')
-                .replace(/^### /gm, '<h3>')
-                .replace(/\n\n/g, '</p><p>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/- (.*)/g, '<li>$1</li>')
-                .replace(/(\d+)\. (.*)/g, '<li>$2</li>')
-                .replace(/<li>/g, '</ul><ul><li>')
-                .replace(/<\/li>\n<li>/g, '</li><li>')
-                .replace(/<\/ul><ul>/g, '')
-                .replace(/^<\/ul>/, '')
-            }}
+            dangerouslySetInnerHTML={{ __html: marked(post.content) }}
           />
           
           {/* Palavras-chave e Tags para SEO */}
