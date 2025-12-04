@@ -60,22 +60,7 @@ export default function MarkdownEditor({
         renderHTML={renderHTML}
         onChange={handleEditorChange}
         placeholder={placeholder}
-        config={{
-          view: {
-            menu: true,
-            md: true,
-            html: true,
-          },
-          canView: {
-            menu: true,
-            md: true,
-            html: true,
-            fullScreen: true,
-            hideMenu: true,
-          },
-          markdownClass: "prose max-w-none",
-          htmlClass: "prose max-w-none",
-        }}
+        view={{ menu: true, md: true, html: false }}
       />
       <style jsx global>{`
         .markdown-editor-wrapper .rc-md-editor {
