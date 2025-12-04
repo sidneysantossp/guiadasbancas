@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   IconBox,
   IconClipboardList,
-  IconTruck,
+  IconBuildingStore,
   IconTrendingUp,
   IconArrowUpRight,
   IconArrowDownRight,
@@ -139,7 +139,7 @@ export default function DistribuidorDashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <Link href="/distribuidor/bancas" className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md hover:border-green-200 transition-all cursor-pointer block">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Bancas Parceiras</p>
@@ -149,10 +149,10 @@ export default function DistribuidorDashboardPage() {
               <p className="text-xs text-gray-500 mt-1">vendendo seus produtos</p>
             </div>
             <div className="h-12 w-12 bg-green-100 rounded-xl flex items-center justify-center">
-              <IconTruck className="h-6 w-6 text-green-600" />
+              <IconBuildingStore className="h-6 w-6 text-green-600" />
             </div>
           </div>
-        </div>
+        </Link>
 
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center justify-between">
@@ -210,7 +210,7 @@ export default function DistribuidorDashboardPage() {
               className="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-green-50 hover:border-green-200 transition-colors group"
             >
               <span className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-green-200">
-                <IconTruck className="h-5 w-5 text-green-600" />
+                <IconBuildingStore className="h-5 w-5 text-green-600" />
               </span>
               <div>
                 <div className="font-medium text-gray-900">Bancas Parceiras</div>

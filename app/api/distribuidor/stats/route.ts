@@ -87,15 +87,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Contar bancas que têm customizações dos produtos deste distribuidor
-    const { data: bancasComProdutos } = await supabaseAdmin
-      .from('banca_produtos_customizacao')
-      .select('banca_id')
-      .in('product_id', productIds.length > 0 ? productIds.slice(0, 100) : ['none']);
+    // Contar TODAS as bancas ativas da plataforma (todas vendem produtos dos distribuidores)
+    const { count: totalBancasAtivas } = await supabaseAdmin
+      .from('bancas')
+      .select('*', { count: 'exact', head: true })
+      .eq('active', true);
 
-    const uniqueBancas = new Set(bancasComProdutos?.map((b: any) => b.banca_id) || []);
-
-    console.log(`[Stats] Distribuidor ${distribuidor?.nome}: ${produtosAtivos}/${totalProdutos} produtos, ${uniqueBancas.size} bancas`);
+    console.log(`[Stats] Distribuidor ${distribuidor?.nome}: ${produtosAtivos}/${totalProdutos} produtos, ${totalBancasAtivas} bancas ativas`);
 
     return NextResponse.json({
       success: true,
@@ -104,7 +102,7 @@ export async function GET(request: NextRequest) {
         produtosAtivos: produtosAtivos || 0,
         totalPedidosHoje,
         totalPedidos,
-        totalBancas: uniqueBancas.size,
+        totalBancas: totalBancasAtivas || 0,
         faturamentoMes,
         ultimaSincronizacao: distribuidor?.ultima_sincronizacao || null,
       },
