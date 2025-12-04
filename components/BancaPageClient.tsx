@@ -463,62 +463,70 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   }, [banca?.id, bancaId]);
 
   // Fetch produtos da banca usando endpoint direto
+  // Função para mapear produtos da API para o formato do frontend
+  const mapProducts = (items: any[]) => {
+    return items.map((item: any) => {
+      const images = Array.isArray(item.images) ? item.images : [];
+      const firstImage = images[0] || item.image || "";
+      if (!firstImage) return null;
+      const price = Number(item.price ?? 0);
+      const categoryRaw = item.category_name || item.category_id || item.category;
+      const stockQty = item.stock_qty != null ? Number(item.stock_qty) : undefined;
+      return {
+        id: item.id,
+        name: item.name || 'Produto',
+        image: firstImage,
+        price,
+        stockQty,
+        category: normalizeCategory(categoryRaw, categoriesMap),
+        sob_encomenda: Boolean(item.sob_encomenda),
+        pre_venda: Boolean(item.pre_venda),
+        pronta_entrega: Boolean(item.pronta_entrega),
+        status: item.status || 'available',
+        is_distribuidor: Boolean(item.is_distribuidor),
+        codigo_mercos: item.codigo_mercos || '',
+      } as any;
+    }).filter(Boolean);
+  };
+
+  // Carregamento progressivo: primeiro 100 produtos rápido, depois o resto
   useEffect(() => {
     let active = true;
+    const idForProducts = banca?.id || bancaId;
+    
     (async () => {
       try {
         setLoadingProdutos(true);
-        const idForProducts = banca?.id || bancaId;
-        const res = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/products?limit=5000`, { cache: 'no-store' });
-        const json = await res.json();
         
-        if (!res.ok || !json.success) {
+        // 1. Carregar primeiros 100 produtos rapidamente (modo fast)
+        const resInitial = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/products?limit=100&fast=true`);
+        const jsonInitial = await resInitial.json();
+        
+        if (resInitial.ok && jsonInitial.success && active) {
+          const initialItems = Array.isArray(jsonInitial.products) ? jsonInitial.products : [];
+          setProdutos(mapProducts(initialItems) as ProdutoResumo[]);
+          setLoadingProdutos(false);
+          
+          // 2. Se há mais produtos, carregar o resto em background (modo fast)
+          if (jsonInitial.total > 100) {
+            const resAll = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/products?limit=10000&fast=true`);
+            const jsonAll = await resAll.json();
+            
+            if (resAll.ok && jsonAll.success && active) {
+              const allItems = Array.isArray(jsonAll.products) ? jsonAll.products : [];
+              setProdutos(mapProducts(allItems) as ProdutoResumo[]);
+            }
+          }
+        } else {
           if (active) setProdutos([]);
-          return;
+          if (active) setLoadingProdutos(false);
         }
-        
-        const items = Array.isArray(json.products) ? json.products : [];
-        const mapped = items.map((item: any) => {
-          const images = Array.isArray(item.images) ? item.images : [];
-          const firstImage = images[0] || item.image || "";
-          if (!firstImage) return null; // sem imagem real, não exibir produto
-          const price = Number(item.price ?? 0);
-          const priceOriginal = item.price_original != null ? Number(item.price_original) : undefined;
-          const discountPercentRaw = item.discount_percent != null ? Number(item.discount_percent) : undefined;
-          const discountCalculated = priceOriginal && priceOriginal > price ? Math.round((1 - price / priceOriginal) * 100) : 0;
-          const discountPercent = discountPercentRaw != null ? discountPercentRaw : discountCalculated;
-          const categoryRaw = item.category_name || item.category_id || item.category;
-          const stockQty = item.stock_qty != null ? Number(item.stock_qty) : undefined;
-          const couponCode = typeof item.coupon_code === 'string' ? item.coupon_code : undefined;
-          return {
-            id: item.id,
-            name: item.name || 'Produto',
-            image: firstImage,
-            price,
-            priceOriginal,
-            rating: item.rating_avg,
-            reviews: item.reviews_count,
-            ready: Boolean(item.track_stock),
-            stockQty,
-            category: normalizeCategory(categoryRaw, categoriesMap),
-            discountPercent,
-            couponCode,
-            sob_encomenda: Boolean(item.sob_encomenda),
-            pre_venda: Boolean(item.pre_venda),
-            pronta_entrega: Boolean(item.pronta_entrega),
-            status: item.status || 'available',
-            is_distribuidor: Boolean(item.is_distribuidor),
-            distribuidor_nome: item.distribuidor_nome || '',
-            codigo_mercos: item.codigo_mercos || '',
-          } as any;
-        }).filter(Boolean);
-        if (active) setProdutos(mapped as ProdutoResumo[]);
       } catch {
         if (active) setProdutos([]);
-      } finally {
         if (active) setLoadingProdutos(false);
       }
     })();
+    
     return () => { active = false; };
   }, [banca?.id, bancaId]);
 

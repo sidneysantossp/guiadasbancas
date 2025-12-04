@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// Sem cache para garantir dados atualizados
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Cache de 30 segundos para melhor performance
+export const revalidate = 30;
 
-const CATEGORIA_DISTRIBUIDORES_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
 const CATEGORIA_DISTRIBUIDORES_NOME = 'Diversos';
 const DEFAULT_PRODUCT_IMAGE = 'https://placehold.co/400x600/e5e7eb/6b7280.png';
 
@@ -15,8 +13,21 @@ const DISTRIBUIDORES_PUBLICOS = [
   '1511df09-1f4a-4e68-9f8c-05cd06be6269'  // Brancaleone
 ];
 
-// Select com join de categorias
-const PRODUCT_FIELDS = `*, categories!category_id(name)`;
+// Select OTIMIZADO - apenas campos necessários para exibição
+const PRODUCT_FIELDS_MINIMAL = `
+  id,
+  name,
+  price,
+  images,
+  stock_qty,
+  category_id,
+  distribuidor_id,
+  pronta_entrega,
+  sob_encomenda,
+  pre_venda,
+  codigo_mercos,
+  categories!category_id(name)
+`;
 
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
@@ -28,6 +39,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const supabase = supabaseAdmin;
     const { searchParams } = new URL(request.url);
     const requestedLimit = parseInt(searchParams.get('limit') || '50');
+    const fastMode = searchParams.get('fast') === 'true'; // Modo rápido sem markup/customizações
 
     // 1. Buscar dados da banca (para saber se é cotista)
     const { data: banca } = await supabase
@@ -38,11 +50,11 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     const isCotista = banca?.is_cotista === true && !!banca?.cotista_id;
 
-    // 2. Construir filtro base
+    // 2. Construir filtro base com campos otimizados
     const buildBaseQuery = () => {
       let q = supabase
         .from('products')
-        .select(PRODUCT_FIELDS, { count: 'estimated' })
+        .select(PRODUCT_FIELDS_MINIMAL, { count: 'estimated' })
         .eq('active', true);
 
       if (isCotista) {
@@ -53,36 +65,73 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       return q;
     };
 
-    // 3. Buscar produtos em lotes para evitar limite do Supabase (1000 por query)
-    const BATCH_SIZE = 1000;
-    let allProducts: any[] = [];
-    let hasMore = true;
-    let currentOffset = 0;
+    // 3. Buscar produtos - otimizado para requests pequenos
+    let produtos: any[] = [];
     let totalCount = 0;
 
-    while (hasMore && allProducts.length < requestedLimit) {
-      const batchLimit = Math.min(BATCH_SIZE, requestedLimit - allProducts.length);
-      
-      const { data: batch, count, error } = await buildBaseQuery()
+    if (requestedLimit <= 1000) {
+      // Query única para requests pequenos (mais rápido)
+      const { data, count, error } = await buildBaseQuery()
         .order('name', { ascending: true })
-        .range(currentOffset, currentOffset + batchLimit - 1);
+        .limit(requestedLimit);
 
       if (error) throw error;
-      
-      if (count && totalCount === 0) totalCount = count;
+      produtos = data || [];
+      totalCount = count || produtos.length;
+    } else {
+      // Buscar em lotes para requests grandes
+      const BATCH_SIZE = 1000;
+      let hasMore = true;
+      let currentOffset = 0;
 
-      if (batch && batch.length > 0) {
-        allProducts.push(...batch);
-        currentOffset += batch.length;
-        hasMore = batch.length === batchLimit;
-      } else {
-        hasMore = false;
+      while (hasMore && produtos.length < requestedLimit) {
+        const batchLimit = Math.min(BATCH_SIZE, requestedLimit - produtos.length);
+        
+        const { data: batch, count, error } = await buildBaseQuery()
+          .order('name', { ascending: true })
+          .range(currentOffset, currentOffset + batchLimit - 1);
+
+        if (error) throw error;
+        if (count && totalCount === 0) totalCount = count;
+
+        if (batch && batch.length > 0) {
+          produtos.push(...batch);
+          currentOffset += batch.length;
+          hasMore = batch.length === batchLimit;
+        } else {
+          hasMore = false;
+        }
       }
     }
 
-    const produtos = allProducts;
+    // 4. Modo rápido: retornar produtos sem processamento adicional
+    if (fastMode) {
+      const fastProducts = produtos.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        images: p.images?.slice(0, 1) || [],
+        stock_qty: p.stock_qty,
+        category_name: p.categories?.name || CATEGORIA_DISTRIBUIDORES_NOME,
+        pronta_entrega: p.pronta_entrega ?? false,
+        sob_encomenda: p.sob_encomenda ?? false,
+        pre_venda: p.pre_venda ?? false,
+        status: 'available',
+        is_distribuidor: !!p.distribuidor_id,
+        codigo_mercos: p.codigo_mercos,
+      }));
 
-    // 4. Buscar customizações e nomes de distribuidores APENAS para os produtos carregados
+      return NextResponse.json({
+        success: true,
+        banca_id: bancaId,
+        total: totalCount || produtos.length,
+        limit: requestedLimit,
+        products: fastProducts,
+        fast_mode: true,
+      });
+    }
+
+    // 5. Modo completo: buscar customizações e markup
     const produtosCarregados = produtos || [];
     const distribuidorIds = [...new Set(produtosCarregados.map(p => p.distribuidor_id).filter(Boolean))];
     const productIds = produtosCarregados.map(p => p.id);
@@ -181,20 +230,20 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         precoFinal = calcularPrecoComMarkup(produto.price, distribuidor);
       }
 
+      // Retornar apenas campos necessários para o frontend (otimizado)
       return {
-        ...produtoLimpo,
-        images,
-        category_name: categoryName,
-        distribuidor_nome: distribuidorNome,
+        id: produto.id,
+        name: produto.name,
         price: precoFinal,
+        images: images.slice(0, 1), // Apenas primeira imagem para listagem
         stock_qty: effectiveStock,
-        description: produto.description + (custom?.custom_description ? `\n\n${custom.custom_description}` : ''),
-        pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,
-        sob_encomenda: custom?.custom_sob_encomenda ?? produto.sob_encomenda,
-        pre_venda: custom?.custom_pre_venda ?? produto.pre_venda,
+        category_name: categoryName,
+        pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega ?? false,
+        sob_encomenda: custom?.custom_sob_encomenda ?? produto.sob_encomenda ?? false,
+        pre_venda: custom?.custom_pre_venda ?? produto.pre_venda ?? false,
         status: customStatus,
         is_distribuidor: !!produto.distribuidor_id,
-        active: true
+        codigo_mercos: produto.codigo_mercos,
       };
     }).filter(Boolean); // Remove nulos (desabilitados)
 
