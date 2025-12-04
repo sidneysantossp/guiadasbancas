@@ -6,6 +6,22 @@ import { getPostBySlug, getRelatedPosts, getAllPosts, BlogPost } from "../posts"
 import ShareButtons from "@/components/blog/ShareButtons";
 import { marked } from "marked";
 
+// Função para detectar se o conteúdo é HTML ou Markdown
+function isHTML(content: string): boolean {
+  // Se contém tags HTML comuns, é HTML
+  return /<(h[1-6]|p|ul|ol|li|strong|em|blockquote|a|br|div|span)[^>]*>/i.test(content);
+}
+
+// Função para renderizar conteúdo (HTML ou Markdown)
+function renderContent(content: string): string {
+  if (isHTML(content)) {
+    // Já é HTML, retorna direto
+    return content;
+  }
+  // É Markdown, converte para HTML
+  return marked(content) as string;
+}
+
 type Props = {
   params: { slug: string };
 };
@@ -306,7 +322,7 @@ export default function BlogPostPage({ params }: Props) {
               prose-ol:my-4
               prose-blockquote:border-l-[#ff5c00] prose-blockquote:bg-gray-50 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:rounded-r-lg
             "
-            dangerouslySetInnerHTML={{ __html: marked(post.content) }}
+            dangerouslySetInnerHTML={{ __html: renderContent(post.content) }}
           />
           
           {/* Palavras-chave e Tags para SEO */}
