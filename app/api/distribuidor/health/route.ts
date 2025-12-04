@@ -30,12 +30,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Verificar se tem tokens configurados
+    // Verificar se tem tokens configurados (sem expor detalhes sensíveis)
     if (!distribuidor.mercos_application_token || !distribuidor.mercos_company_token) {
       return NextResponse.json({
         distribuidor: distribuidor.nome,
         success: false,
-        error: 'Tokens da API Mercos não configurados',
+        error: 'Integração não configurada. Entre em contato com o suporte para ativar.',
+        needsSetup: true,
       });
     }
 

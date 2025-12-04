@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconRefresh, IconCheck, IconX, IconClock, IconPlugConnected } from "@tabler/icons-react";
+import { IconRefresh, IconCheck, IconX, IconClock, IconPlugConnected, IconAlertCircle, IconMail } from "@tabler/icons-react";
 
 type HealthResult = {
   distribuidor: string;
   success: boolean;
   error?: string;
   latency_ms?: number;
+  needsSetup?: boolean;
   sample?: {
     id: number;
     nome: string;
@@ -16,14 +17,6 @@ type HealthResult = {
     ativo?: boolean;
     excluido?: boolean;
   } | null;
-};
-
-type HealthResponse = {
-  success: boolean;
-  executado_em?: string;
-  total?: number;
-  resultados?: HealthResult[];
-  error?: string;
 };
 
 export default function IntegracaoMercosPage() {
@@ -126,43 +119,72 @@ export default function IntegracaoMercosPage() {
 
           {health && (
             <div className="mt-4">
-              <div className={`rounded-lg p-4 ${health.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-semibold text-gray-900">{health.distribuidor}</span>
-                  <span className={`flex items-center gap-1 font-medium ${health.success ? 'text-green-600' : 'text-red-600'}`}>
-                    {health.success ? (
-                      <>
-                        <IconCheck size={16} />
-                        OK
-                      </>
-                    ) : (
-                      <>
-                        <IconX size={16} />
-                        Erro
-                      </>
-                    )}
-                  </span>
-                </div>
-                
-                {health.latency_ms !== undefined && (
-                  <p className="text-sm text-gray-600 flex items-center gap-1">
-                    <IconClock size={14} />
-                    Latência: {health.latency_ms}ms
-                  </p>
-                )}
-                
-                {health.error && (
-                  <p className="text-sm text-red-600 mt-2">{health.error}</p>
-                )}
-                
-                {health.sample && (
-                  <div className="mt-2 pt-2 border-t border-gray-200">
-                    <p className="text-xs text-gray-500">Produto exemplo:</p>
-                    <p className="text-sm text-gray-700 font-medium">{health.sample.nome}</p>
-                    <p className="text-xs text-gray-500">ID: {health.sample.id}</p>
+              {health.needsSetup ? (
+                // Mensagem especial quando precisa de configuração pelo admin
+                <div className="rounded-lg p-4 bg-amber-50 border border-amber-200">
+                  <div className="flex items-start gap-3">
+                    <IconAlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
+                    <div>
+                      <p className="font-semibold text-amber-800">Integração Pendente</p>
+                      <p className="text-sm text-amber-700 mt-1">
+                        A integração com a API Mercos ainda não foi configurada para sua conta.
+                      </p>
+                      <div className="mt-3 p-3 bg-white rounded-lg border border-amber-200">
+                        <p className="text-sm text-gray-700 font-medium mb-2">Para ativar:</p>
+                        <p className="text-sm text-gray-600">
+                          Entre em contato com o suporte do Guia das Bancas para solicitar a ativação da integração.
+                        </p>
+                        <a 
+                          href="mailto:suporte@guiadasbancas.com.br?subject=Ativar Integração Mercos - {distribuidor?.nome}"
+                          className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+                        >
+                          <IconMail size={16} />
+                          suporte@guiadasbancas.com.br
+                        </a>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                // Status normal (sucesso ou erro de conexão)
+                <div className={`rounded-lg p-4 ${health.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-gray-900">{health.distribuidor}</span>
+                    <span className={`flex items-center gap-1 font-medium ${health.success ? 'text-green-600' : 'text-red-600'}`}>
+                      {health.success ? (
+                        <>
+                          <IconCheck size={16} />
+                          Conectado
+                        </>
+                      ) : (
+                        <>
+                          <IconX size={16} />
+                          Erro
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  
+                  {health.latency_ms !== undefined && (
+                    <p className="text-sm text-gray-600 flex items-center gap-1">
+                      <IconClock size={14} />
+                      Latência: {health.latency_ms}ms
+                    </p>
+                  )}
+                  
+                  {health.error && !health.needsSetup && (
+                    <p className="text-sm text-red-600 mt-2">{health.error}</p>
+                  )}
+                  
+                  {health.sample && (
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      <p className="text-xs text-gray-500">Produto exemplo:</p>
+                      <p className="text-sm text-gray-700 font-medium">{health.sample.nome}</p>
+                      <p className="text-xs text-gray-500">ID: {health.sample.id}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -174,23 +196,31 @@ export default function IntegracaoMercosPage() {
             Sincronize seus produtos com a API Mercos manualmente.
           </p>
           
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={() => runSync(false)}
-              disabled={syncLoading || !distribuidor}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-60 transition-colors"
-            >
-              {syncLoading ? 'Sincronizando...' : 'Sync incremental'}
-            </button>
-            
-            <button
-              onClick={() => runSync(true)}
-              disabled={syncLoading || !distribuidor}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-orange-700 disabled:opacity-60 transition-colors"
-            >
-              {syncLoading ? 'Sincronizando...' : 'Sync completo (full)'}
-            </button>
-          </div>
+          {health?.needsSetup ? (
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
+              <p className="text-sm text-gray-500">
+                Sincronização disponível após ativação da integração.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => runSync(false)}
+                disabled={syncLoading || !distribuidor || !health?.success}
+                className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-60 transition-colors"
+              >
+                {syncLoading ? 'Sincronizando...' : 'Sync incremental'}
+              </button>
+              
+              <button
+                onClick={() => runSync(true)}
+                disabled={syncLoading || !distribuidor || !health?.success}
+                className="w-full flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-orange-700 disabled:opacity-60 transition-colors"
+              >
+                {syncLoading ? 'Sincronizando...' : 'Sync completo (full)'}
+              </button>
+            </div>
+          )}
 
           {syncResult && (
             <div className="mt-4">
@@ -276,10 +306,12 @@ export default function IntegracaoMercosPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Status da Conexão</h2>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-            <div className={`h-3 w-3 rounded-full ${health?.success ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+            <div className={`h-3 w-3 rounded-full ${health?.success ? 'bg-green-500' : health?.needsSetup ? 'bg-amber-500' : 'bg-gray-300'}`}></div>
             <div>
               <p className="font-medium text-gray-900">API Mercos</p>
-              <p className="text-sm text-gray-600">{health?.success ? 'Conectado' : 'Verificando...'}</p>
+              <p className="text-sm text-gray-600">
+                {health?.success ? 'Conectado' : health?.needsSetup ? 'Pendente' : 'Verificando...'}
+              </p>
             </div>
           </div>
           
@@ -292,10 +324,12 @@ export default function IntegracaoMercosPage() {
           </div>
           
           <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-            <div className="h-3 w-3 rounded-full bg-green-500"></div>
+            <div className={`h-3 w-3 rounded-full ${health?.success ? 'bg-green-500' : 'bg-gray-300'}`}></div>
             <div>
               <p className="font-medium text-gray-900">Sync Automático</p>
-              <p className="text-sm text-gray-600">Ativo (a cada 15 min)</p>
+              <p className="text-sm text-gray-600">
+                {health?.success ? 'Ativo (a cada 15 min)' : health?.needsSetup ? 'Aguardando ativação' : 'Verificando...'}
+              </p>
             </div>
           </div>
         </div>
