@@ -57,18 +57,34 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
         const customMap = new Map(customizacoesFeatured.map(c => [c.product_id, c]));
 
-        // Buscar nomes dos distribuidores
+        // Buscar dados dos distribuidores incluindo markup
         const distribuidorIds = [...new Set((produtos || []).map(p => p.distribuidor_id).filter(Boolean))];
         const { data: distribuidores } = await supabase
           .from('distribuidores')
-          .select('id, nome')
+          .select('id, nome, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor')
           .in('id', distribuidorIds);
         
-        const distribuidorMap = new Map((distribuidores || []).map(d => [d.id, d.nome]));
+        const distribuidorMap = new Map((distribuidores || []).map(d => [d.id, d]));
+
+        // Função para calcular preço com markup do distribuidor
+        function calcularPrecoComMarkup(precoBase: number, distribuidor: any): number {
+          if (!distribuidor) return precoBase;
+          const tipoCalculo = distribuidor.tipo_calculo || 'markup';
+          if (tipoCalculo === 'margem') {
+            const divisor = distribuidor.margem_divisor || 1;
+            if (divisor <= 0) return precoBase;
+            return precoBase / divisor;
+          } else {
+            const percentual = distribuidor.markup_global_percentual || 0;
+            const fixo = distribuidor.markup_global_fixo || 0;
+            return precoBase * (1 + percentual / 100) + fixo;
+          }
+        }
 
         produtosDistribuidor = (produtos || [])
           .map(produto => {
             const custom = customMap.get(produto.id);
+            const distribuidor = distribuidorMap.get(produto.distribuidor_id);
             
             // Calcular estoque efetivo
             const effectiveStock = custom?.custom_stock_enabled 
@@ -83,8 +99,13 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
             const { categories, ...produtoLimpo } = produto;
 
-            // Calcular desconto
-            const price = custom?.custom_price || produto.price;
+            // Calcular preço: prioridade é custom_price do jornaleiro, depois markup do distribuidor
+            let price = produto.price;
+            if (custom?.custom_price) {
+              price = custom.custom_price;
+            } else if (distribuidor) {
+              price = calcularPrecoComMarkup(produto.price, distribuidor);
+            }
             const priceOriginal = produto.price_original || produto.price;
             const discountPercent = produto.discount_percent || 
               (priceOriginal > price ? Math.round((1 - price / priceOriginal) * 100) : 0);
@@ -98,7 +119,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
               discount_percent: discountPercent,
               stock_qty: effectiveStock,
               is_distribuidor: true,
-              distribuidor_nome: distribuidorMap.get(produto.distribuidor_id) || '',
+              distribuidor_nome: distribuidor?.nome || '',
               codigo_mercos: produto.codigo_mercos || '',
             };
           })

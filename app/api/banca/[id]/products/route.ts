@@ -76,14 +76,34 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const productIds = produtosCarregados.map(p => p.id);
 
     const [distribuidoresResult, customizacoesResult] = await Promise.all([
-      // Nomes dos distribuidores
-      distribuidorIds.length > 0 ? supabase.from('distribuidores').select('id, nome').in('id', distribuidorIds) : { data: [] },
+      // Dados dos distribuidores incluindo markup
+      distribuidorIds.length > 0 ? supabase.from('distribuidores').select('id, nome, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor').in('id', distribuidorIds) : { data: [] },
       // Customizações para esses produtos
       productIds.length > 0 ? supabase.from('banca_produtos_distribuidor').select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty').eq('banca_id', bancaId).in('product_id', productIds) : { data: [] }
     ]);
 
-    const distribuidorMap = new Map((distribuidoresResult.data || []).map((d: any) => [d.id, d.nome]));
+    // Mapa de distribuidores com dados de markup
+    const distribuidorMap = new Map((distribuidoresResult.data || []).map((d: any) => [d.id, d]));
     const customMap = new Map((customizacoesResult.data || []).map((c: any) => [c.product_id, c]));
+
+    // Função para calcular preço com markup do distribuidor
+    function calcularPrecoComMarkup(precoBase: number, distribuidor: any): number {
+      if (!distribuidor) return precoBase;
+      
+      const tipoCalculo = distribuidor.tipo_calculo || 'markup';
+      
+      if (tipoCalculo === 'margem') {
+        // Margem sobre Venda (Divisor): Preço Final = Preço Base / Divisor
+        const divisor = distribuidor.margem_divisor || 1;
+        if (divisor <= 0) return precoBase;
+        return precoBase / divisor;
+      } else {
+        // Markup Simples (Adição): Preço Final = Preço Base × (1 + %) + Fixo
+        const percentual = distribuidor.markup_global_percentual || 0;
+        const fixo = distribuidor.markup_global_fixo || 0;
+        return precoBase * (1 + percentual / 100) + fixo;
+      }
+    }
 
     // 4. Processar e Mapear
     const mappedProducts = produtosCarregados.map(produto => {
@@ -107,7 +127,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       }
 
       const customStatus = custom?.custom_status || 'available';
-      const distribuidorNome = distribuidorMap.get(produto.distribuidor_id) || '';
+      const distribuidor = distribuidorMap.get(produto.distribuidor_id);
+      const distribuidorNome = distribuidor?.nome || '';
       const categoryName = produto.categories?.name || (produto.distribuidor_id ? CATEGORIA_DISTRIBUIDORES_NOME : 'Geral');
       
       let images = produto.images || [];
@@ -117,12 +138,22 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
       const { categories, ...produtoLimpo } = produto;
 
+      // Calcular preço: prioridade é custom_price do jornaleiro, depois markup do distribuidor
+      let precoFinal = produto.price;
+      if (custom?.custom_price) {
+        // Jornaleiro definiu preço customizado - usar esse
+        precoFinal = custom.custom_price;
+      } else if (produto.distribuidor_id && distribuidor) {
+        // Aplicar markup do distribuidor
+        precoFinal = calcularPrecoComMarkup(produto.price, distribuidor);
+      }
+
       return {
         ...produtoLimpo,
         images,
         category_name: categoryName,
         distribuidor_nome: distribuidorNome,
-        price: custom?.custom_price || produto.price,
+        price: precoFinal,
         stock_qty: effectiveStock,
         description: produto.description + (custom?.custom_description ? `\n\n${custom.custom_description}` : ''),
         pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,
