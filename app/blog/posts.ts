@@ -25,7 +25,7 @@ export type BlogPost = {
 
 export const AUTHOR = {
   name: "Equipe Guia das Bancas",
-  avatar: "https://www.guiadasbancas.com.br/logo-icon.png",
+  avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face",
   bio: "Somos apaixonados por bancas de jornal e trabalhamos para conectar leitores aos melhores jornaleiros do Brasil."
 };
 
