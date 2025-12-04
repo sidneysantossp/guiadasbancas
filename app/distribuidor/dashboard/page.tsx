@@ -50,7 +50,7 @@ export default function DistribuidorDashboardPage() {
         const [statsRes, ordersRes, productsRes] = await Promise.all([
           fetch(`/api/distribuidor/stats?id=${dist.id}`),
           fetch(`/api/distribuidor/orders?id=${dist.id}&limit=5`),
-          fetch(`/api/distribuidor/products?id=${dist.id}&limit=5&sort=vendas`),
+          fetch(`/api/distribuidor/products?id=${dist.id}&limit=10&sort=vendas`),
         ]);
 
         const [statsJson, ordersJson, productsJson] = await Promise.all([
@@ -280,17 +280,17 @@ export default function DistribuidorDashboardPage() {
               <p>Nenhum dado disponível</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
               {topProducts.map((product, index) => (
                 <div key={product.id} className="flex items-center gap-3">
-                  <span className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center text-sm font-bold text-gray-600">
+                  <span className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center text-sm font-bold text-gray-600 flex-shrink-0">
                     {index + 1}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-gray-900 truncate">{product.name}</div>
                     <div className="text-sm text-gray-500">{product.vendas || 0} vendas</div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0">
                     <div className="font-medium text-gray-900">
                       {formatCurrency(product.price || 0)}
                     </div>
