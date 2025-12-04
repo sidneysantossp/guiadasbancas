@@ -742,16 +742,19 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     } catch {}
   }, []);
 
-  // Categorias - sempre mostra todas as categorias do banco, independente de terem produtos
+  // Categorias - extrair dos produtos carregados (mostra apenas categorias que têm produtos)
   const allCategories = useMemo(() => {
-    // Retornar todas as categorias do banco, ordenadas por nome
-    if (allCategoriesFromDB.length > 0) {
-      return allCategoriesFromDB
-        .map(c => c.name)
-        .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    // Extrair categorias únicas dos produtos
+    const categorySet = new Set<string>();
+    for (const p of produtos) {
+      const catName = p.category;
+      if (catName && typeof catName === 'string' && catName.trim()) {
+        categorySet.add(catName.trim());
+      }
     }
-    return [];
-  }, [allCategoriesFromDB]);
+    // Ordenar alfabeticamente
+    return Array.from(categorySet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [produtos]);
   const [activeCategory, setActiveCategory] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState<string>(''); // Busca local de produtos
   const catScrollerRef = useRef<HTMLDivElement | null>(null);
@@ -848,7 +851,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       const searchLower = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(p => {
         const name = p.name?.toLowerCase() || '';
-        const category = normalizeCategory(p.category, categoriesMap).toLowerCase();
+        const category = (p.category || '').toLowerCase();
         const codigo = p.codigo_mercos?.toLowerCase() || '';
         
         return name.includes(searchLower) || category.includes(searchLower) || codigo.includes(searchLower);
@@ -858,14 +861,14 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     // 2. Filtrar por categoria ativa (se não for 'Todos')
     if (activeCategory && activeCategory !== 'Todos') {
       filtered = filtered.filter(p => {
-        const pCatName = normalizeCategory(p.category, categoriesMap);
+        const pCatName = (p.category || '').trim();
         return pCatName.toLowerCase() === activeCategory.toLowerCase();
       });
     }
     
     // 3. Ordenar por disponibilidade
     return filtered.sort((a, b) => (b.ready ? 1 : 0) - (a.ready ? 1 : 0));
-  }, [produtos, activeCategory, searchTerm, categoriesMap]);
+  }, [produtos, activeCategory, searchTerm]);
 
   // Paginação com carregamento incremental por página (30 itens/page)
   const pageSize = 30;

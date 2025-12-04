@@ -59,12 +59,21 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
         // Buscar dados dos distribuidores incluindo markup
         const distribuidorIds = [...new Set((produtos || []).map(p => p.distribuidor_id).filter(Boolean))];
-        const { data: distribuidores } = await supabase
-          .from('distribuidores')
-          .select('id, nome, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor')
-          .in('id', distribuidorIds);
         
-        const distribuidorMap = new Map((distribuidores || []).map(d => [d.id, d]));
+        // Coletar category_ids dos produtos de distribuidores para buscar nomes
+        const distribuidorCategoryIds = [...new Set(
+          (produtos || [])
+            .filter(p => p.distribuidor_id && p.category_id)
+            .map(p => p.category_id)
+        )];
+        
+        const [distribuidoresRes, distribuidorCategoriesRes] = await Promise.all([
+          supabase.from('distribuidores').select('id, nome, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor').in('id', distribuidorIds),
+          distribuidorCategoryIds.length > 0 ? supabase.from('distribuidor_categories').select('id, nome').in('id', distribuidorCategoryIds) : { data: [] }
+        ]);
+        
+        const distribuidorMap = new Map((distribuidoresRes.data || []).map(d => [d.id, d]));
+        const distribuidorCategoryMap = new Map((distribuidorCategoriesRes.data || []).map((c: any) => [c.id, c.nome]));
 
         // Função para calcular preço com markup do distribuidor
         function calcularPrecoComMarkup(precoBase: number, distribuidor: any): number {
@@ -99,6 +108,15 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
             const { categories, ...produtoLimpo } = produto;
 
+            // Determinar nome da categoria (buscar em distribuidor_categories se não houver em categories)
+            let categoryName = categories?.name;
+            if (!categoryName && produto.category_id) {
+              categoryName = distribuidorCategoryMap.get(produto.category_id);
+            }
+            if (!categoryName) {
+              categoryName = 'Diversos';
+            }
+
             // Calcular preço: prioridade é custom_price do jornaleiro, depois markup do distribuidor
             let price = produto.price;
             if (custom?.custom_price) {
@@ -113,7 +131,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
             return {
               ...produtoLimpo,
               images,
-              category_name: categories?.name,
+              category_name: categoryName,
               price,
               price_original: priceOriginal,
               discount_percent: discountPercent,

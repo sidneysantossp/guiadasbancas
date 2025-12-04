@@ -75,16 +75,27 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const distribuidorIds = [...new Set(produtosCarregados.map(p => p.distribuidor_id).filter(Boolean))];
     const productIds = produtosCarregados.map(p => p.id);
 
-    const [distribuidoresResult, customizacoesResult] = await Promise.all([
+    // Coletar category_ids dos produtos de distribuidores para buscar nomes
+    const distribuidorCategoryIds = [...new Set(
+      produtosCarregados
+        .filter(p => p.distribuidor_id && p.category_id)
+        .map(p => p.category_id)
+    )];
+
+    const [distribuidoresResult, customizacoesResult, distribuidorCategoriesResult] = await Promise.all([
       // Dados dos distribuidores incluindo markup
       distribuidorIds.length > 0 ? supabase.from('distribuidores').select('id, nome, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor').in('id', distribuidorIds) : { data: [] },
       // Customizações para esses produtos
-      productIds.length > 0 ? supabase.from('banca_produtos_distribuidor').select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty').eq('banca_id', bancaId).in('product_id', productIds) : { data: [] }
+      productIds.length > 0 ? supabase.from('banca_produtos_distribuidor').select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty').eq('banca_id', bancaId).in('product_id', productIds) : { data: [] },
+      // Categorias de distribuidores (para produtos de distribuidores)
+      distribuidorCategoryIds.length > 0 ? supabase.from('distribuidor_categories').select('id, nome').in('id', distribuidorCategoryIds) : { data: [] }
     ]);
 
     // Mapa de distribuidores com dados de markup
     const distribuidorMap = new Map((distribuidoresResult.data || []).map((d: any) => [d.id, d]));
     const customMap = new Map((customizacoesResult.data || []).map((c: any) => [c.product_id, c]));
+    // Mapa de categorias de distribuidores (id -> nome)
+    const distribuidorCategoryMap = new Map((distribuidorCategoriesResult.data || []).map((c: any) => [c.id, c.nome]));
 
     // Função para calcular preço com markup do distribuidor
     function calcularPrecoComMarkup(precoBase: number, distribuidor: any): number {
@@ -129,7 +140,17 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       const customStatus = custom?.custom_status || 'available';
       const distribuidor = distribuidorMap.get(produto.distribuidor_id);
       const distribuidorNome = distribuidor?.nome || '';
-      const categoryName = produto.categories?.name || (produto.distribuidor_id ? CATEGORIA_DISTRIBUIDORES_NOME : 'Geral');
+      
+      // Determinar nome da categoria:
+      // 1. Se produto de banca, usar join com categories
+      // 2. Se produto de distribuidor, buscar em distribuidor_categories
+      let categoryName = produto.categories?.name;
+      if (!categoryName && produto.distribuidor_id && produto.category_id) {
+        categoryName = distribuidorCategoryMap.get(produto.category_id);
+      }
+      if (!categoryName) {
+        categoryName = produto.distribuidor_id ? CATEGORIA_DISTRIBUIDORES_NOME : 'Geral';
+      }
       
       let images = produto.images || [];
       if (!Array.isArray(images) || images.length === 0) {
