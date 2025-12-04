@@ -49,13 +49,11 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       .eq('active', true);
 
     if (isCotista) {
-       // OR syntax: banca_id.eq.ID,distribuidor_id.neq.null
-       // Mas distribuidor_id neq null não funciona bem dentro do OR string as vezes no supabase-js antigo
-       // Vamos usar filtro explícito com lógica OR
-       query = query.or(`banca_id.eq.${bancaId},distribuidor_id.neq.null`);
+       // Cotista vê produtos da banca + todos de distribuidores
+       // Usar not.is.null para verificar distribuidor_id não nulo
+       query = query.or(`banca_id.eq.${bancaId},distribuidor_id.not.is.null`);
     } else {
-       // OR: banca_id.eq.ID,distribuidor_id.in.(ID1,ID2)
-       // Precisamos formatar o array para string do postgres: (id1,id2)
+       // Não-cotista vê produtos da banca + distribuidores públicos
        query = query.or(`banca_id.eq.${bancaId},distribuidor_id.in.(${DISTRIBUIDORES_PUBLICOS.join(',')})`);
     }
 
