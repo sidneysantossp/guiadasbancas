@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Buscar dados do distribuidor incluindo status ativo
     const { data: distribuidor, error: distError } = await supabaseAdmin
       .from('distribuidores')
-      .select('id, nome, ativo, mercos_application_token, mercos_company_token, ultima_sincronizacao')
+      .select('id, nome, ativo, application_token, company_token, ultima_sincronizacao')
       .eq('id', distribuidorId)
       .single();
 
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar se tem tokens configurados (sem expor detalhes sensíveis)
-    if (!distribuidor.mercos_application_token || !distribuidor.mercos_company_token) {
+    if (!distribuidor.application_token || !distribuidor.company_token) {
       return NextResponse.json({
         success: false,
         error: 'Integração não configurada. Entre em contato com o suporte para ativar.',
@@ -65,8 +65,8 @@ export async function POST(request: NextRequest) {
     // Buscar produtos da API Mercos
     const mercosRes = await fetch(url, {
       headers: {
-        'ApplicationToken': distribuidor.mercos_application_token,
-        'CompanyToken': distribuidor.mercos_company_token,
+        'ApplicationToken': distribuidor.application_token,
+        'CompanyToken': distribuidor.company_token,
         'Content-Type': 'application/json',
       },
     });
