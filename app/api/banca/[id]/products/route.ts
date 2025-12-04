@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// Cache de 60 segundos para melhorar performance
-export const revalidate = 60;
+// Sem cache para garantir dados atualizados
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const CATEGORIA_DISTRIBUIDORES_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
 const CATEGORIA_DISTRIBUIDORES_NOME = 'Diversos';
