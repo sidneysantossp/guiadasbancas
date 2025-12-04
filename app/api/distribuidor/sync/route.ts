@@ -19,10 +19,10 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Sync] Iniciando sincronização para distribuidor ${distribuidorId} (full: ${full})`);
 
-    // Buscar dados do distribuidor incluindo status ativo
+    // Buscar dados do distribuidor incluindo status ativo e base_url
     const { data: distribuidor, error: distError } = await supabaseAdmin
       .from('distribuidores')
-      .select('id, nome, ativo, application_token, company_token, ultima_sincronizacao')
+      .select('id, nome, ativo, application_token, company_token, base_url, ultima_sincronizacao')
       .eq('id', distribuidorId)
       .single();
 
@@ -51,8 +51,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Preparar parâmetros da requisição
-    let url = 'https://app.mercos.com/api/v2/produtos?limite=100&ordenar_por=ultima_alteracao&ordem=desc';
+    // Preparar parâmetros da requisição usando base_url configurada
+    const baseUrl = distribuidor.base_url || 'https://app.mercos.com/api/v1';
+    let url = `${baseUrl}/produtos?limit=100&order_by=ultima_alteracao&order_direction=desc`;
     
     // Se não for full e tiver última sincronização, usar alterado_apos
     if (!full && distribuidor.ultima_sincronizacao) {

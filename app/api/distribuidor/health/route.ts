@@ -15,10 +15,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Buscar dados do distribuidor incluindo status ativo
+    // Buscar dados do distribuidor incluindo status ativo e base_url
     const { data: distribuidor, error: distError } = await supabaseAdmin
       .from('distribuidores')
-      .select('id, nome, ativo, application_token, company_token')
+      .select('id, nome, ativo, application_token, company_token, base_url')
       .eq('id', distribuidorId)
       .single();
 
@@ -50,12 +50,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Testar conexão com a API Mercos
+    // Testar conexão com a API Mercos usando a base_url configurada
     const startTime = Date.now();
+    const baseUrl = distribuidor.base_url || 'https://app.mercos.com/api/v1';
     
     try {
       const mercosRes = await fetch(
-        'https://app.mercos.com/api/v2/produtos?limite=1&ordenar_por=ultima_alteracao&ordem=desc',
+        `${baseUrl}/produtos?limit=1&order_by=ultima_alteracao&order_direction=desc`,
         {
           headers: {
             'ApplicationToken': distribuidor.application_token,
