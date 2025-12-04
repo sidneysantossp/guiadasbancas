@@ -71,7 +71,10 @@ export default function DistribuidorProdutosPage() {
       setLoading(true);
       
       console.log('[Produtos] Chamando API com id:', distribuidor.id);
-      const res = await fetch(`/api/distribuidor/products?id=${distribuidor.id}&active=false`);
+      const res = await fetch(`/api/distribuidor/products?id=${distribuidor.id}&active=false`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
       const json = await res.json();
       console.log('[Produtos] Resposta da API:', json);
       
