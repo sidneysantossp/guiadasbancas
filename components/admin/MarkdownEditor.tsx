@@ -2,11 +2,10 @@
 
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
-import ReactMarkdown from "react-markdown";
-import "react-markdown-editor-lite/lib/index.css";
+import "react-quill-new/dist/quill.snow.css";
 
 // Importar dinamicamente para evitar erros de SSR
-const MdEditor = dynamic(() => import("react-markdown-editor-lite"), {
+const ReactQuill = dynamic(() => import("react-quill-new"), {
   ssr: false,
   loading: () => (
     <div className="w-full h-96 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
@@ -15,32 +14,53 @@ const MdEditor = dynamic(() => import("react-markdown-editor-lite"), {
   ),
 });
 
-interface MarkdownEditorProps {
+interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   height?: number;
 }
 
+const modules = {
+  toolbar: [
+    [{ header: [1, 2, 3, 4, 5, 6, false] }],
+    ["bold", "italic", "underline", "strike"],
+    [{ list: "ordered" }, { list: "bullet" }],
+    [{ indent: "-1" }, { indent: "+1" }],
+    ["blockquote"],
+    ["link"],
+    [{ align: [] }],
+    ["clean"],
+  ],
+  clipboard: {
+    matchVisual: true,
+  },
+};
+
+const formats = [
+  "header",
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "list",
+  "indent",
+  "blockquote",
+  "link",
+  "align",
+];
+
 export default function MarkdownEditor({
   value,
   onChange,
   placeholder = "Digite o conteúdo do seu artigo aqui...",
   height = 500,
-}: MarkdownEditorProps) {
+}: RichTextEditorProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  const handleEditorChange = ({ text }: { text: string }) => {
-    onChange(text);
-  };
-
-  const renderHTML = (text: string) => {
-    return <ReactMarkdown>{text}</ReactMarkdown>;
-  };
 
   if (!mounted) {
     return (
@@ -53,38 +73,72 @@ export default function MarkdownEditor({
   }
 
   return (
-    <div className="markdown-editor-wrapper">
-      <MdEditor
+    <div className="rich-text-editor-wrapper">
+      <ReactQuill
+        theme="snow"
         value={value}
-        style={{ height }}
-        renderHTML={renderHTML}
-        onChange={handleEditorChange}
+        onChange={onChange}
+        modules={modules}
+        formats={formats}
         placeholder={placeholder}
-        view={{ menu: true, md: true, html: false }}
+        style={{ height: height - 42 }}
       />
       <style jsx global>{`
-        .markdown-editor-wrapper .rc-md-editor {
-          border: 1px solid #d1d5db;
-          border-radius: 0.5rem;
-          overflow: hidden;
+        .rich-text-editor-wrapper .ql-container {
+          font-size: 16px;
+          font-family: inherit;
+          border-bottom-left-radius: 0.5rem;
+          border-bottom-right-radius: 0.5rem;
         }
-        .markdown-editor-wrapper .rc-md-editor .rc-md-navigation {
+        .rich-text-editor-wrapper .ql-toolbar {
+          border-top-left-radius: 0.5rem;
+          border-top-right-radius: 0.5rem;
           background: #f9fafb;
-          border-bottom: 1px solid #e5e7eb;
         }
-        .markdown-editor-wrapper .rc-md-editor .button-wrap .button {
-          color: #374151;
-        }
-        .markdown-editor-wrapper .rc-md-editor .button-wrap .button:hover {
+        .rich-text-editor-wrapper .ql-toolbar button:hover,
+        .rich-text-editor-wrapper .ql-toolbar button.ql-active {
           color: #ff5c00;
         }
-        .markdown-editor-wrapper .rc-md-editor .editor-container .sec-md .input {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-          font-size: 14px;
-          line-height: 1.6;
+        .rich-text-editor-wrapper .ql-toolbar button:hover .ql-stroke,
+        .rich-text-editor-wrapper .ql-toolbar button.ql-active .ql-stroke {
+          stroke: #ff5c00;
         }
-        .markdown-editor-wrapper .rc-md-editor .editor-container .sec-html {
-          padding: 16px;
+        .rich-text-editor-wrapper .ql-toolbar button:hover .ql-fill,
+        .rich-text-editor-wrapper .ql-toolbar button.ql-active .ql-fill {
+          fill: #ff5c00;
+        }
+        .rich-text-editor-wrapper .ql-editor {
+          min-height: ${height - 80}px;
+          line-height: 1.8;
+        }
+        .rich-text-editor-wrapper .ql-editor h1 {
+          font-size: 2em;
+          font-weight: bold;
+          margin-bottom: 0.5em;
+        }
+        .rich-text-editor-wrapper .ql-editor h2 {
+          font-size: 1.5em;
+          font-weight: bold;
+          margin-bottom: 0.5em;
+        }
+        .rich-text-editor-wrapper .ql-editor h3 {
+          font-size: 1.25em;
+          font-weight: bold;
+          margin-bottom: 0.5em;
+        }
+        .rich-text-editor-wrapper .ql-editor p {
+          margin-bottom: 1em;
+        }
+        .rich-text-editor-wrapper .ql-editor ul,
+        .rich-text-editor-wrapper .ql-editor ol {
+          margin-bottom: 1em;
+          padding-left: 1.5em;
+        }
+        .rich-text-editor-wrapper .ql-editor blockquote {
+          border-left: 4px solid #ff5c00;
+          padding-left: 1em;
+          margin: 1em 0;
+          color: #666;
         }
       `}</style>
     </div>
