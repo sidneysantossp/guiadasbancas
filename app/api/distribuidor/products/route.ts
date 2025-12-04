@@ -161,6 +161,10 @@ export async function GET(request: NextRequest) {
       data: finalProducts,
       total: finalProducts.length,
       distribuidor_id: distribuidorId,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
     });
   } catch (error: any) {
     console.error('[API Distribuidor] Erro ao buscar produtos:', error);
