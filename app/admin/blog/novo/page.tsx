@@ -17,7 +17,8 @@ const generateSlug = (title: string): string => {
 };
 
 const countWords = (text: string): number => {
-  return text.replace(/<[^>]*>/g, '').split(/\s+/).filter(word => word.length > 0).length;
+  if (!text || text.trim() === '') return 0;
+  return text.replace(/\s+/g, ' ').trim().split(' ').filter(word => word.length > 0).length;
 };
 
 export default function NewBlogPostPage() {
@@ -205,19 +206,32 @@ export default function NewBlogPostPage() {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Conteúdo do Post (HTML) *
+                Conteúdo do Post (Texto Simples) *
               </label>
               <textarea
                 value={formData.content || ""}
                 onChange={(e) => handleInputChange("content", e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff5c00] focus:border-transparent font-mono text-sm"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff5c00] focus:border-transparent text-gray-900 leading-relaxed resize-none"
                 rows={20}
-                placeholder="Contúdo em formato HTML"
+                placeholder="Digite o conteúdo do seu artigo aqui...
+
+Use parágrafos curtos e claros. Cada quebra de linha será convertida automaticamente em um novo parágrafo.
+
+Dicas:
+- Escreva de forma natural e conversacional
+- Use subtítulos para organizar o conteúdo
+- Mantenha as frases curtas e diretas
+- Inclua exemplos práticos quando possível"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
-                {formData.content?.replace(/<[^>]*>/g, '').split(/\s+/).filter(word => word.length > 0).length || 0} palavras
-              </p>
+              <div className="mt-2 flex justify-between items-center">
+                <p className="text-xs text-gray-500">
+                  {formData.content?.replace(/\s+/g, ' ').trim().split(' ').filter(word => word.length > 0).length || 0} palavras
+                </p>
+                <p className="text-xs text-gray-400">
+                  Editor de texto simples • Sem formatação markdown
+                </p>
+              </div>
             </div>
           </div>
         </div>
