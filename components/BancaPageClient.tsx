@@ -469,7 +469,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       try {
         setLoadingProdutos(true);
         const idForProducts = banca?.id || bancaId;
-        const res = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/products`, { cache: 'no-store' });
+        const res = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/products?limit=5000`, { cache: 'no-store' });
         const json = await res.json();
         
         if (!res.ok || !json.success) {

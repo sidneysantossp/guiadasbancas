@@ -27,9 +27,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     const supabase = supabaseAdmin;
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = (page - 1) * limit;
+    const requestedLimit = parseInt(searchParams.get('limit') || '50');
 
     // 1. Buscar dados da banca (para saber se é cotista)
     const { data: banca } = await supabase
@@ -40,38 +38,51 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     const isCotista = banca?.is_cotista === true && !!banca?.cotista_id;
 
-    // 2. Construir query UNIFICADA de produtos
-    // Cotista: vê produtos da banca (banca_id) E todos de distribuidores (distribuidor_id != null)
-    // Não-cotista: vê produtos da banca E distribuidores públicos
-    
-    let query = supabase
-      .from('products')
-      .select(PRODUCT_FIELDS, { count: 'estimated' })
-      .eq('active', true);
+    // 2. Construir filtro base
+    const buildBaseQuery = () => {
+      let q = supabase
+        .from('products')
+        .select(PRODUCT_FIELDS, { count: 'estimated' })
+        .eq('active', true);
 
-    if (isCotista) {
-       // Cotista vê produtos da banca + todos de distribuidores
-       // Usar not.is.null para verificar distribuidor_id não nulo
-       query = query.or(`banca_id.eq.${bancaId},distribuidor_id.not.is.null`);
-    } else {
-       // Não-cotista vê produtos da banca + distribuidores públicos
-       query = query.or(`banca_id.eq.${bancaId},distribuidor_id.in.(${DISTRIBUIDORES_PUBLICOS.join(',')})`);
+      if (isCotista) {
+        q = q.or(`banca_id.eq.${bancaId},distribuidor_id.not.is.null`);
+      } else {
+        q = q.or(`banca_id.eq.${bancaId},distribuidor_id.in.(${DISTRIBUIDORES_PUBLICOS.join(',')})`);
+      }
+      return q;
+    };
+
+    // 3. Buscar produtos em lotes para evitar limite do Supabase (1000 por query)
+    const BATCH_SIZE = 1000;
+    let allProducts: any[] = [];
+    let hasMore = true;
+    let currentOffset = 0;
+    let totalCount = 0;
+
+    while (hasMore && allProducts.length < requestedLimit) {
+      const batchLimit = Math.min(BATCH_SIZE, requestedLimit - allProducts.length);
+      
+      const { data: batch, count, error } = await buildBaseQuery()
+        .order('name', { ascending: true })
+        .range(currentOffset, currentOffset + batchLimit - 1);
+
+      if (error) throw error;
+      
+      if (count && totalCount === 0) totalCount = count;
+
+      if (batch && batch.length > 0) {
+        allProducts.push(...batch);
+        currentOffset += batch.length;
+        hasMore = batch.length === batchLimit;
+      } else {
+        hasMore = false;
+      }
     }
 
-    // Ordenação e Paginação
-    // Priorizar produtos da banca? Se quiser misturar, order by name.
-    // Vamos ordenar por nome para consistência
-    query = query
-      .order('name', { ascending: true })
-      .range(offset, offset + limit - 1);
+    const produtos = allProducts;
 
-    const { data: produtos, count, error } = await query;
-
-    if (error) {
-      throw error;
-    }
-
-    // 3. Buscar customizações e nomes de distribuidores APENAS para os produtos carregados
+    // 4. Buscar customizações e nomes de distribuidores APENAS para os produtos carregados
     const produtosCarregados = produtos || [];
     const distribuidorIds = [...new Set(produtosCarregados.map(p => p.distribuidor_id).filter(Boolean))];
     const productIds = produtosCarregados.map(p => p.id);
@@ -191,10 +202,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       success: true,
       banca_id: bancaId,
       is_cotista: isCotista,
-      total: count || 0,
-      page,
-      limit,
-      has_more: (offset + limit) < (count || 0),
+      total: totalCount || produtos.length,
+      limit: requestedLimit,
       products: mappedProducts,
     });
 
