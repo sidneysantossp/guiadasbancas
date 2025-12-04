@@ -20,6 +20,7 @@ import {
   IconReportMoney,
   IconPackage,
   IconPercentage,
+  IconPlugConnected,
 } from "@tabler/icons-react";
 
 const hedvig = Hedvig_Letters_Serif({
@@ -42,6 +43,7 @@ const iconComponents = {
   money: IconReportMoney,
   package: IconPackage,
   percentage: IconPercentage,
+  plug: IconPlugConnected,
 } as const;
 
 type IconKey = keyof typeof iconComponents;
@@ -80,6 +82,7 @@ const DISTRIBUIDOR_MENU = [
     section: "Configurações",
     items: [
       { label: "Markup / Preços", href: "/distribuidor/configuracoes/markup", icon: "percentage" as IconKey },
+      { label: "Integração Mercos", href: "/distribuidor/configuracoes/integracao", icon: "plug" as IconKey },
       { label: "Minha Conta", href: "/distribuidor/configuracoes", icon: "settings" as IconKey },
     ]
   }
