@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { BlogPost, AUTHOR } from "@/app/blog/posts";
+import MarkdownEditor from "@/components/admin/MarkdownEditor";
 
 const generateSlug = (title: string): string => {
   return title
@@ -205,31 +206,21 @@ export default function NewBlogPostPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Conteúdo</h2>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Conteúdo do Post (Texto Simples) *
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Conteúdo do Post (Markdown) *
               </label>
-              <textarea
+              <MarkdownEditor
                 value={formData.content || ""}
-                onChange={(e) => handleInputChange("content", e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff5c00] focus:border-transparent text-gray-900 leading-relaxed resize-none"
-                rows={20}
-                placeholder="Digite o conteúdo do seu artigo aqui...
-
-Use parágrafos curtos e claros. Cada quebra de linha será convertida automaticamente em um novo parágrafo.
-
-Dicas:
-- Escreva de forma natural e conversacional
-- Use subtítulos para organizar o conteúdo
-- Mantenha as frases curtas e diretas
-- Inclua exemplos práticos quando possível"
-                required
+                onChange={(value) => handleInputChange("content", value)}
+                placeholder="Digite o conteúdo do seu artigo aqui usando Markdown..."
+                height={500}
               />
               <div className="mt-2 flex justify-between items-center">
                 <p className="text-xs text-gray-500">
                   {formData.content?.replace(/\s+/g, ' ').trim().split(' ').filter(word => word.length > 0).length || 0} palavras
                 </p>
                 <p className="text-xs text-gray-400">
-                  Editor de texto simples • Sem formatação markdown
+                  Editor Markdown com preview em tempo real
                 </p>
               </div>
             </div>
