@@ -100,6 +100,20 @@ export async function POST(request: NextRequest) {
 
         console.log(`[CRON] ${deveSerCompleta ? 'SINCRONIZAÇÃO COMPLETA' : 'Sincronização incremental'} desde: ${ultimaSincronizacao || '2020-01-01'}`);
 
+        // Buscar mapa de categorias do distribuidor (mercos_id -> uuid)
+        const { data: distCategories } = await supabase
+          .from('distribuidor_categories')
+          .select('id, mercos_id')
+          .eq('distribuidor_id', distribuidor.id);
+        
+        const categoryMap = new Map<number, string>();
+        for (const cat of distCategories || []) {
+          if (cat.mercos_id) {
+            categoryMap.set(cat.mercos_id, cat.id);
+          }
+        }
+        console.log(`[CRON] ✓ ${categoryMap.size} categorias mapeadas para ${distribuidor.nome}`);
+
         for await (const lote of mercosApi.getAllProdutosGenerator({ batchSize: 200, alteradoApos: ultimaSincronizacao })) {
           recebidos += lote.length;
           if ((Date.now() - startTime) > MAX_EXECUTION_TIME) { atingiuLimiteTempo = true; break; }
@@ -137,6 +151,10 @@ export async function POST(request: NextRequest) {
             }
             
             // Produto ATIVO - processar normalmente
+            // Mapear categoria: usar mapa do distribuidor ou null (sem categoria)
+            const mercosCatId = produtoMercos.categoria_id;
+            const mappedCategoryId = mercosCatId ? categoryMap.get(mercosCatId) : null;
+            
             const produtoData = {
               name: produtoMercos.nome,
               description: produtoMercos.observacoes || '',
@@ -146,13 +164,14 @@ export async function POST(request: NextRequest) {
               banca_id: null,
               distribuidor_id: distribuidor.id,
               mercos_id: produtoMercos.id,
-              codigo_mercos: produtoMercos.codigo || null, // Salvar código da Mercos
+              codigo_mercos: produtoMercos.codigo || null,
+              category_id: mappedCategoryId || null, // Categoria mapeada do distribuidor
               origem: 'mercos' as const,
               track_stock: true,
               sob_encomenda: false,
               pre_venda: false,
               pronta_entrega: true,
-              active: true, // Sempre true, pois já filtramos acima
+              active: true,
               sincronizado_em: new Date().toISOString(),
             };
 
