@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
         price: product.price || 0,
         image_url: imageUrl,
         images: product.images || [],
-        category: product.categories?.name || 'Sem categoria',
+        category: product.categories?.name || 'Sem Categoria',
         category_id: product.category_id,
         active: product.active ?? true,
         stock_qty: product.stock_qty || 0,
