@@ -121,20 +121,20 @@ export default function DistribuidorDashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm relative overflow-hidden">
+          <div className="absolute top-2 right-2">
+            <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
+              Em breve
+            </span>
+          </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Pedidos Hoje</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">
-                {loading ? '...' : stats.totalPedidosHoje}
-              </p>
-              <div className="flex items-center gap-1 mt-1">
-                <IconArrowUpRight className="h-4 w-4 text-green-500" />
-                <span className="text-xs text-green-600">+12% vs ontem</span>
-              </div>
+              <p className="text-sm font-medium text-gray-600">Pedidos</p>
+              <p className="text-3xl font-bold text-gray-400 mt-1">-</p>
+              <p className="text-xs text-gray-400 mt-1">integração em desenvolvimento</p>
             </div>
-            <div className="h-12 w-12 bg-orange-100 rounded-xl flex items-center justify-center">
-              <IconClipboardList className="h-6 w-6 text-orange-600" />
+            <div className="h-12 w-12 bg-gray-100 rounded-xl flex items-center justify-center">
+              <IconClipboardList className="h-6 w-6 text-gray-400" />
             </div>
           </div>
         </div>
@@ -154,20 +154,20 @@ export default function DistribuidorDashboardPage() {
           </div>
         </Link>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm relative overflow-hidden">
+          <div className="absolute top-2 right-2">
+            <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
+              Em breve
+            </span>
+          </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Faturamento (Mês)</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">
-                {loading ? '...' : formatCurrency(stats.faturamentoMes)}
-              </p>
-              <div className="flex items-center gap-1 mt-1">
-                <IconTrendingUp className="h-4 w-4 text-green-500" />
-                <span className="text-xs text-green-600">+8% vs mês anterior</span>
-              </div>
+              <p className="text-sm font-medium text-gray-600">Faturamento</p>
+              <p className="text-3xl font-bold text-gray-400 mt-1">-</p>
+              <p className="text-xs text-gray-400 mt-1">integração em desenvolvimento</p>
             </div>
-            <div className="h-12 w-12 bg-purple-100 rounded-xl flex items-center justify-center">
-              <IconTrendingUp className="h-6 w-6 text-purple-600" />
+            <div className="h-12 w-12 bg-gray-100 rounded-xl flex items-center justify-center">
+              <IconTrendingUp className="h-6 w-6 text-gray-400" />
             </div>
           </div>
         </div>
@@ -220,85 +220,52 @@ export default function DistribuidorDashboardPage() {
           </div>
         </div>
 
-        {/* Pedidos Recentes */}
+        {/* Pedidos - Em breve */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Pedidos Recentes</h3>
-            <Link href="/distribuidor/pedidos" className="text-sm text-blue-600 hover:underline">
-              Ver todos
-            </Link>
+            <h3 className="text-lg font-semibold text-gray-900">Pedidos</h3>
+            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">
+              Em breve
+            </span>
           </div>
           
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <div className="text-center py-6">
+            <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <IconClipboardList className="h-8 w-8 text-gray-400" />
             </div>
-          ) : recentOrders.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <IconClipboardList className="h-12 w-12 mx-auto text-gray-300 mb-2" />
-              <p>Nenhum pedido recente</p>
+            <p className="text-gray-600 font-medium mb-2">Integração em desenvolvimento</p>
+            <p className="text-sm text-gray-500 max-w-xs mx-auto">
+              Em breve você poderá receber e gerenciar pedidos diretamente pela plataforma.
+            </p>
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-xs text-blue-700">
+                💡 Por enquanto, os jornaleiros acessam o catálogo e realizam pedidos diretamente pelo site da Mercos.
+              </p>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                  <div>
-                    <div className="font-medium text-gray-900">#{order.id}</div>
-                    <div className="text-sm text-gray-500">{order.banca_name || 'Banca'}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-medium text-gray-900">
-                      {formatCurrency(order.total || 0)}
-                    </div>
-                    <div className="text-xs text-gray-500">{order.created_at || 'Agora'}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
       {/* Top Products & Info */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Produtos Mais Vendidos */}
+        {/* Relatórios - Em breve */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Produtos Mais Vendidos</h3>
-            <Link href="/distribuidor/relatorios/produtos" className="text-sm text-blue-600 hover:underline">
-              Ver relatório
-            </Link>
+            <h3 className="text-lg font-semibold text-gray-900">Relatórios</h3>
+            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">
+              Em breve
+            </span>
           </div>
           
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <div className="text-center py-6">
+            <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <IconTrendingUp className="h-8 w-8 text-gray-400" />
             </div>
-          ) : topProducts.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <IconBox className="h-12 w-12 mx-auto text-gray-300 mb-2" />
-              <p>Nenhum dado disponível</p>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-              {topProducts.map((product, index) => (
-                <div key={product.id} className="flex items-center gap-3">
-                  <span className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center text-sm font-bold text-gray-600 flex-shrink-0">
-                    {index + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 truncate">{product.name}</div>
-                    <div className="text-sm text-gray-500">{product.vendas || 0} vendas</div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="font-medium text-gray-900">
-                      {formatCurrency(product.price || 0)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+            <p className="text-gray-600 font-medium mb-2">Relatórios em desenvolvimento</p>
+            <p className="text-sm text-gray-500 max-w-xs mx-auto">
+              Em breve você terá acesso a relatórios de vendas, produtos mais vendidos e análises detalhadas.
+            </p>
+          </div>
         </div>
 
         {/* Informações do Distribuidor */}
