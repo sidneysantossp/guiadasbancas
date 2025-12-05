@@ -40,6 +40,7 @@ type Category = {
   id: string;
   name: string;
   count: number;
+  visible?: boolean;
 };
 
 export default function DistribuidorProdutosPage() {
@@ -64,6 +65,33 @@ export default function DistribuidorProdutosPage() {
     }
   }, []);
 
+  // Buscar categorias da API
+  const fetchCategories = async () => {
+    if (!distribuidor?.id) return;
+    
+    try {
+      const res = await fetch(`/api/distribuidor/categories?id=${distribuidor.id}`);
+      const json = await res.json();
+      
+      if (json.success) {
+        // Mapear para o formato esperado e filtrar apenas categorias visíveis com produtos
+        const cats: Category[] = (json.data || [])
+          .filter((c: any) => c.visible !== false && c.product_count > 0)
+          .map((c: any) => ({
+            id: c.name, // Usar nome como ID para filtro
+            name: c.name,
+            count: c.product_count,
+            visible: c.visible,
+          }))
+          .sort((a: Category, b: Category) => a.name.localeCompare(b.name));
+        
+        setCategories(cats);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
   const fetchProducts = async () => {
     if (!distribuidor?.id) return;
     
@@ -81,20 +109,6 @@ export default function DistribuidorProdutosPage() {
       if (json.success) {
         console.log('[Produtos] Total recebido:', json.data?.length || 0);
         setProducts(json.data || []);
-        
-        // Extrair categorias únicas
-        const catMap = new Map<string, number>();
-        (json.data || []).forEach((p: Product) => {
-          if (p.category) {
-            catMap.set(p.category, (catMap.get(p.category) || 0) + 1);
-          }
-        });
-        
-        const cats: Category[] = Array.from(catMap.entries())
-          .map(([name, count]) => ({ id: name, name, count }))
-          .sort((a, b) => a.name.localeCompare(b.name));
-        
-        setCategories(cats);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -106,6 +120,7 @@ export default function DistribuidorProdutosPage() {
   useEffect(() => {
     if (distribuidor?.id) {
       fetchProducts();
+      fetchCategories();
     }
   }, [distribuidor?.id]);
 
