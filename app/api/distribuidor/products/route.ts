@@ -74,9 +74,48 @@ export async function GET(request: NextRequest) {
         query = query.eq('active', true);
       }
 
-      // Busca por texto
+      // Busca por texto (com suporte a acentos)
       if (search) {
-        query = query.or(`name.ilike.%${search}%,codigo_mercos.ilike.%${search}%`);
+        // Mapa de substituições comuns em português
+        const accentMap: Record<string, string> = {
+          'a': 'á', 'e': 'é', 'i': 'í', 'o': 'ó', 'u': 'ú', 'c': 'ç',
+          'á': 'a', 'à': 'a', 'ã': 'a', 'â': 'a',
+          'é': 'e', 'è': 'e', 'ê': 'e',
+          'í': 'i', 'ì': 'i', 'î': 'i',
+          'ó': 'o', 'ò': 'o', 'õ': 'o', 'ô': 'o',
+          'ú': 'u', 'ù': 'u', 'û': 'u',
+          'ç': 'c',
+        };
+        
+        // Gerar variantes: original, sem acentos, e com acento agudo na primeira vogal
+        const variantes = new Set<string>();
+        variantes.add(search);
+        
+        // Versão sem acentos
+        const semAcento = search.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        variantes.add(semAcento);
+        
+        // Versão com acento agudo na primeira vogal (caso comum: agua -> água)
+        const vogais = ['a', 'e', 'i', 'o', 'u'];
+        const acentosAgudos: Record<string, string> = { 'a': 'á', 'e': 'é', 'i': 'í', 'o': 'ó', 'u': 'ú' };
+        
+        for (const vogal of vogais) {
+          const idx = semAcento.toLowerCase().indexOf(vogal);
+          if (idx !== -1) {
+            const comAcento = semAcento.substring(0, idx) + acentosAgudos[vogal] + semAcento.substring(idx + 1);
+            variantes.add(comAcento);
+            break; // Apenas primeira vogal
+          }
+        }
+        
+        // Criar condições OR para cada variante
+        const conditions = [...variantes]
+          .filter(v => v.length >= 2)
+          .slice(0, 3) // Limitar a 3 variantes
+          .map(s => `name.ilike.%${s}%,codigo_mercos.ilike.%${s}%`)
+          .join(',');
+        
+        query = query.or(conditions);
       }
 
       // Ordenação

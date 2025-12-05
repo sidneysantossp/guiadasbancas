@@ -185,11 +185,15 @@ export default function MarkupConfigPage() {
     }
   };
 
-  const searchProducts = async () => {
-    if (!searchProduto || searchProduto.length < 2) return;
+  const searchProducts = async (termo?: string) => {
+    const searchTerm = termo ?? searchProduto;
+    if (!searchTerm || searchTerm.length < 2) {
+      setProdutosEncontrados([]);
+      return;
+    }
 
     try {
-      const res = await fetch(`/api/distribuidor/products?id=${distribuidor.id}&search=${searchProduto}&limit=20`);
+      const res = await fetch(`/api/distribuidor/products?id=${distribuidor.id}&search=${searchTerm}&limit=20`);
       const json = await res.json();
 
       if (json.success) {
@@ -199,6 +203,28 @@ export default function MarkupConfigPage() {
       console.error('Erro ao buscar produtos:', error);
     }
   };
+
+  // Busca automática com debounce ao digitar
+  useEffect(() => {
+    if (!distribuidor?.id || !searchProduto || searchProduto.length < 2) {
+      setProdutosEncontrados([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/distribuidor/products?id=${distribuidor.id}&search=${searchProduto}&limit=20`);
+        const json = await res.json();
+        if (json.success) {
+          setProdutosEncontrados(json.data || []);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar produtos:', error);
+      }
+    }, 300); // 300ms de debounce
+
+    return () => clearTimeout(timer);
+  }, [searchProduto, distribuidor?.id]);
 
   const addProdutoMarkup = async () => {
     if (!selectedProduto) return;
@@ -561,21 +587,25 @@ export default function MarkupConfigPage() {
               min="0"
               step="0.5"
             />
+            <p className="text-xs text-gray-500 mt-1">Percentual sobre o preço base</p>
           </div>
           <div className="flex gap-2">
-            <input
-              type="number"
-              value={newCatFixo}
-              onChange={(e) => setNewCatFixo(parseFloat(e.target.value) || 0)}
-              className="w-full px-3 py-2 border rounded-lg"
-              placeholder="R$ fixo"
-              min="0"
-              step="0.10"
-            />
+            <div className="flex-1">
+              <input
+                type="number"
+                value={newCatFixo}
+                onChange={(e) => setNewCatFixo(parseFloat(e.target.value) || 0)}
+                className="w-full px-3 py-2 border rounded-lg"
+                placeholder="R$ fixo"
+                min="0"
+                step="0.10"
+              />
+              <p className="text-xs text-gray-500 mt-1">Valor fixo adicional (R$)</p>
+            </div>
             <button
               onClick={addCategoriaMarkup}
               disabled={!selectedCategoria || saving}
-              className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+              className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 h-fit"
             >
               <IconPlus size={20} />
             </button>
@@ -635,7 +665,7 @@ export default function MarkupConfigPage() {
               />
             </div>
             <button
-              onClick={searchProducts}
+              onClick={() => searchProducts()}
               className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
             >
               Buscar
@@ -644,18 +674,36 @@ export default function MarkupConfigPage() {
 
           {/* Resultados da busca */}
           {produtosEncontrados.length > 0 && !selectedProduto && (
-            <div className="border rounded-lg max-h-40 overflow-y-auto">
+            <div className="border rounded-lg max-h-60 overflow-y-auto">
               {produtosEncontrados.map((prod) => (
                 <button
                   key={prod.id}
                   onClick={() => setSelectedProduto(prod)}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-50 border-b last:border-b-0"
+                  className="w-full px-3 py-2 text-left hover:bg-gray-50 border-b last:border-b-0 flex items-center gap-3"
                 >
-                  <span className="font-medium">{prod.name}</span>
-                  {prod.codigo_mercos && (
-                    <span className="ml-2 text-xs text-gray-500 font-mono">{prod.codigo_mercos}</span>
-                  )}
-                  <span className="ml-2 text-sm text-gray-600">{formatPrice(prod.price)}</span>
+                  {/* Thumbnail do produto */}
+                  <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-gray-100">
+                    {prod.image_url || prod.images?.[0] ? (
+                      <img 
+                        src={prod.image_url || prod.images?.[0]} 
+                        alt={prod.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <IconPackage size={20} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium block truncate">{prod.name}</span>
+                    <div className="flex items-center gap-2 text-sm">
+                      {prod.codigo_mercos && (
+                        <span className="text-xs text-gray-500 font-mono">{prod.codigo_mercos}</span>
+                      )}
+                      <span className="text-gray-600">{formatPrice(prod.price)}</span>
+                    </div>
+                  </div>
                 </button>
               ))}
             </div>
@@ -678,36 +726,47 @@ export default function MarkupConfigPage() {
               </div>
               
               <div className="grid grid-cols-3 gap-2">
-                <input
-                  type="number"
-                  value={newProdPercentual}
-                  onChange={(e) => setNewProdPercentual(parseFloat(e.target.value) || 0)}
-                  className="px-3 py-2 border rounded-lg"
-                  placeholder="% markup"
-                  min="0"
-                  step="0.5"
-                />
-                <input
-                  type="number"
-                  value={newProdFixo}
-                  onChange={(e) => setNewProdFixo(parseFloat(e.target.value) || 0)}
-                  className="px-3 py-2 border rounded-lg"
-                  placeholder="R$ fixo"
-                  min="0"
-                  step="0.10"
-                />
+                <div>
+                  <input
+                    type="number"
+                    value={newProdPercentual}
+                    onChange={(e) => setNewProdPercentual(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="% markup"
+                    min="0"
+                    step="0.5"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Percentual sobre o preço base</p>
+                </div>
+                <div>
+                  <input
+                    type="number"
+                    value={newProdFixo}
+                    onChange={(e) => setNewProdFixo(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="R$ fixo"
+                    min="0"
+                    step="0.10"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Valor fixo adicional (R$)</p>
+                </div>
                 <button
                   onClick={addProdutoMarkup}
                   disabled={saving}
-                  className="px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2 h-fit"
                 >
                   <IconPlus size={18} />
                   Adicionar
                 </button>
               </div>
               
-              <div className="mt-2 text-sm text-gray-600">
-                Preço final: {formatPrice(calcularPrecoFinal(selectedProduto.price, newProdPercentual, newProdFixo))}
+              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800">
+                  <strong>Preço final para o consumidor:</strong> {formatPrice(calcularPrecoFinal(selectedProduto.price, newProdPercentual, newProdFixo))}
+                </p>
+                <p className="text-xs text-green-600 mt-1">
+                  Este é o valor que será exibido para o cliente final no perfil da banca.
+                </p>
               </div>
             </div>
           )}
