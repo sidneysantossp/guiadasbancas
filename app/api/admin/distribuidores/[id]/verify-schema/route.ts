@@ -61,6 +61,7 @@ export async function GET(
       pre_venda: false,
       pronta_entrega: true,
       ativo: true,
+      active: true, // Campo usado pela API de stats
     };
 
     console.log('[VERIFY-SCHEMA] Tentando inserir produto de teste:', testProduct);

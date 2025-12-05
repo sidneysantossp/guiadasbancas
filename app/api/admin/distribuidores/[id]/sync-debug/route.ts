@@ -125,6 +125,7 @@ export async function POST(
       pre_venda: false,
       pronta_entrega: true,
       ativo: produtoTeste.ativo && !produtoTeste.excluido,
+      active: produtoTeste.ativo && !produtoTeste.excluido, // Campo usado pela API de stats
       updated_at: new Date().toISOString(),
     };
 

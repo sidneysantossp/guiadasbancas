@@ -247,6 +247,7 @@ async function processSingleProduct(
       throw fetchError;
     }
 
+    const isAtivo = produto.ativo && !produto.excluido;
     const productData = {
       name: produto.nome,
       description: produto.observacoes || '',
@@ -263,7 +264,8 @@ async function processSingleProduct(
       sob_encomenda: false,
       pre_venda: false,
       pronta_entrega: true,
-      ativo: produto.ativo && !produto.excluido,
+      ativo: isAtivo,
+      active: isAtivo, // Campo usado pela API de stats
       updated_at: new Date().toISOString(),
     };
 

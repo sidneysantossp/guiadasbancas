@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const distribuidorId = searchParams.get('id');
+    const debug = searchParams.get('debug') === 'true';
 
     if (!distribuidorId) {
       return NextResponse.json(
@@ -17,18 +18,28 @@ export async function GET(request: NextRequest) {
 
     console.log('[Stats] Buscando estatísticas para distribuidor:', distribuidorId);
 
-    // Buscar total de produtos do distribuidor
-    const { count: totalProdutos } = await supabaseAdmin
+    // CORREÇÃO: Buscar todos os produtos e contar manualmente
+    // O Supabase count com filtros combinados pode retornar valores incorretos
+    const { data: todosProdutos, error: errProdutos } = await supabaseAdmin
       .from('products')
-      .select('*', { count: 'exact', head: true })
+      .select('id, active')
       .eq('distribuidor_id', distribuidorId);
 
-    // Buscar produtos ativos do distribuidor
-    const { count: produtosAtivos } = await supabaseAdmin
-      .from('products')
-      .select('*', { count: 'exact', head: true })
-      .eq('distribuidor_id', distribuidorId)
-      .eq('active', true);
+    const totalProdutos = todosProdutos?.length || 0;
+    const produtosAtivos = todosProdutos?.filter(p => p.active === true).length || 0;
+    const produtosInativos = todosProdutos?.filter(p => p.active === false).length || 0;
+    const produtosNull = todosProdutos?.filter(p => p.active === null).length || 0;
+
+    // Log detalhado para debug
+    console.log('[Stats] Contagens (manual):', {
+      distribuidorId,
+      totalProdutos,
+      produtosAtivos,
+      produtosInativos,
+      produtosNull,
+      soma: produtosAtivos + produtosInativos + produtosNull,
+      errProdutos: errProdutos?.message,
+    });
 
     // Buscar dados do distribuidor (para última sincronização, etc)
     const { data: distribuidor } = await supabaseAdmin
@@ -95,10 +106,44 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Stats] Distribuidor ${distribuidor?.nome}: ${produtosAtivos}/${totalProdutos} produtos, ${totalBancasAtivas} bancas ativas`);
 
+    // Se houver inconsistência (ativos > total), usar a soma real como total
+    const totalReal = (produtosAtivos || 0) + (produtosInativos || 0) + (produtosNull || 0);
+    const totalFinal = totalReal > (totalProdutos || 0) ? totalReal : (totalProdutos || 0);
+
+    // Se debug=true, retornar dados detalhados
+    if (debug) {
+      return NextResponse.json({
+        success: true,
+        debug: true,
+        contagens: {
+          totalProdutos: totalProdutos || 0,
+          produtosAtivos: produtosAtivos || 0,
+          produtosInativos: produtosInativos || 0,
+          produtosNull: produtosNull || 0,
+          soma: totalReal,
+          totalFinal,
+          inconsistente: (produtosAtivos || 0) > (totalProdutos || 0),
+        },
+        distribuidor: {
+          nome: distribuidor?.nome,
+          total_produtos_campo: distribuidor?.total_produtos,
+        },
+        data: {
+          totalProdutos: totalFinal,
+          produtosAtivos: produtosAtivos || 0,
+          totalPedidosHoje,
+          totalPedidos,
+          totalBancas: totalBancasAtivas || 0,
+          faturamentoMes,
+          ultimaSincronizacao: distribuidor?.ultima_sincronizacao || null,
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: {
-        totalProdutos: totalProdutos || 0,
+        totalProdutos: totalFinal,
         produtosAtivos: produtosAtivos || 0,
         totalPedidosHoje,
         totalPedidos,
