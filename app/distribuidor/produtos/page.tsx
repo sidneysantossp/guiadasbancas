@@ -74,9 +74,9 @@ export default function DistribuidorProdutosPage() {
       const json = await res.json();
       
       if (json.success) {
-        // Mapear para o formato esperado e filtrar apenas categorias visíveis com produtos
+        // Mapear para o formato esperado - mostrar apenas categorias com produtos do distribuidor
         const cats: Category[] = (json.data || [])
-          .filter((c: any) => c.visible !== false && c.product_count > 0)
+          .filter((c: any) => c.product_count > 0) // Apenas categorias que têm produtos do distribuidor
           .map((c: any) => ({
             id: c.name, // Usar nome como ID para filtro
             name: c.name,
