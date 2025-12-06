@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     // Criar mapas
     const distribuidoresMap = new Map((distribuidores || []).map(d => [d.id, d]));
     const categoriasBancasMap = new Map((categoriesBancas || []).map(c => [c.id, c.name]));
-    const categoriasDistribuidoresMap = new Map((categoriesDistribuidores || []).map(c => [c.id, c.name]));
+    const categoriasDistribuidoresMap = new Map((categoriesDistribuidores || []).map(c => [c.id, c.nome]));
     
     const markupProdMap = new Map();
     (markupProdutos || []).forEach((m: any) => markupProdMap.set(m.product_id, m));
