@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { auth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // GET /api/jornaleiro/catalogo-distribuidor
 // Lista todos os produtos de distribuidores com customizações da banca

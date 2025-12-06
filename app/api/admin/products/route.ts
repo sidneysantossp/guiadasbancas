@@ -48,10 +48,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Erro ao buscar produtos', details: productsError }, { status: 500 });
     }
 
-    // Buscar distribuidores
+    // Buscar distribuidores com markup global
     const { data: distribuidores } = await supabaseAdmin
       .from('distribuidores')
-      .select('id, nome');
+      .select('id, nome, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor, tipo_calculo');
 
     // Buscar categorias de bancas
     const { data: categoriesBancas } = await supabaseAdmin
@@ -63,11 +63,64 @@ export async function GET(request: NextRequest) {
       .from('distribuidor_categories')
       .select('id, nome');
 
-    // Mapear produtos com nome do distribuidor e categoria
-    const distribuidoresMap = new Map((distribuidores || []).map(d => [d.id, d.nome]));
+    // Mapear markups
+    const productIds = (products || []).map((p: any) => p.id);
+    const distribuidorIds = (products || []).map((p: any) => p.distribuidor_id).filter(Boolean);
+
+    // Buscar markups por produto
+    const { data: markupProdutos } = await supabaseAdmin
+      .from('distribuidor_markup_produtos')
+      .select('distribuidor_id, product_id, markup_percentual, markup_fixo')
+      .in('product_id', productIds);
+
+    // Buscar markups por categoria
+    const { data: markupCategorias } = await supabaseAdmin
+      .from('distribuidor_markup_categorias')
+      .select('distribuidor_id, category_id, markup_percentual, markup_fixo')
+      .in('distribuidor_id', distribuidorIds);
+
+    // Criar mapas
+    const distribuidoresMap = new Map((distribuidores || []).map(d => [d.id, d]));
     const categoriasBancasMap = new Map((categoriesBancas || []).map(c => [c.id, c.name]));
-    const categoriasDistribuidoresMap = new Map((categoriesDistribuidores || []).map(c => [c.id, c.nome]));
+    const categoriasDistribuidoresMap = new Map((categoriesDistribuidores || []).map(c => [c.id, c.name]));
     
+    const markupProdMap = new Map();
+    (markupProdutos || []).forEach((m: any) => markupProdMap.set(m.product_id, m));
+
+    const markupCatMap = new Map();
+    (markupCategorias || []).forEach((m: any) => markupCatMap.set(`${m.distribuidor_id}:${m.category_id}`, m));
+    
+    // Função auxiliar de cálculo
+    const calcularPreco = (precoBase: number, p: any) => {
+      if (!p.distribuidor_id) return precoBase;
+
+      // 1. Produto
+      const mp = markupProdMap.get(p.id);
+      if (mp && (mp.markup_percentual > 0 || mp.markup_fixo > 0)) {
+        return precoBase * (1 + mp.markup_percentual / 100) + mp.markup_fixo;
+      }
+
+      // 2. Categoria
+      const mc = markupCatMap.get(`${p.distribuidor_id}:${p.category_id}`);
+      if (mc && (mc.markup_percentual > 0 || mc.markup_fixo > 0)) {
+        return precoBase * (1 + mc.markup_percentual / 100) + mc.markup_fixo;
+      }
+
+      // 3. Global
+      const dist = distribuidoresMap.get(p.distribuidor_id);
+      if (dist) {
+        if (dist.tipo_calculo === 'margem' && dist.margem_divisor > 0 && dist.margem_divisor < 1) {
+          return precoBase / dist.margem_divisor;
+        }
+        const perc = dist.markup_global_percentual || 0;
+        const fixo = dist.markup_global_fixo || 0;
+        if (perc > 0 || fixo > 0) {
+          return precoBase * (1 + perc / 100) + fixo;
+        }
+      }
+      return precoBase;
+    };
+
     const mappedData = (products || []).map((product: any) => {
       let categoriaNome = 'Sem Categoria';
       
@@ -79,10 +132,13 @@ export async function GET(request: NextRequest) {
       else if (product.category_id && categoriasDistribuidoresMap.has(product.category_id)) {
         categoriaNome = categoriasDistribuidoresMap.get(product.category_id)!;
       }
+
+      const precoFinal = calcularPreco(product.price || 0, product);
       
       return {
         ...product,
-        distribuidor_nome: product.distribuidor_id ? distribuidoresMap.get(product.distribuidor_id) || null : null,
+        price_final: precoFinal,
+        distribuidor_nome: product.distribuidor_id ? (distribuidoresMap.get(product.distribuidor_id) as any)?.nome || null : null,
         categoria_nome: categoriaNome,
       };
     });

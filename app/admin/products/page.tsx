@@ -70,7 +70,8 @@ export default function AdminProductsPage() {
         name: p.name,
         category: p.categoria_nome || "Sem Categoria",
         category_id: p.category_id || null,
-        price: p.price ?? 0,
+        price: p.price_final || p.price || 0, // Preço com markup se disponível
+        cost_price: p.price || 0, // Preço de custo original
         stock: p.stock_qty ?? 0,
         active: true, // produtos sempre ativos por enquanto
         updatedAt: p.updated_at || "",
