@@ -166,6 +166,13 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     // Mapa de markup por categoria (distribuidor_id:category_id -> {percentual, fixo})
     const markupCategoriaMap = new Map((markupCategoriasResult.data || []).map((m: any) => [`${m.distribuidor_id}:${m.category_id}`, { percentual: m.markup_percentual || 0, fixo: m.markup_fixo || 0 }]));
 
+    // DEBUG: Log dos markups encontrados
+    const markupData = markupProdutosResult.data || [];
+    console.log('[BANCA PRODUCTS] Markups por produto encontrados:', markupData.length);
+    if (markupData.length > 0) {
+      console.log('[BANCA PRODUCTS] Primeiro markup:', markupData[0]);
+    }
+
     // Função para calcular preço com markup do distribuidor
     // Prioridade: Produto > Categoria > Global
     function calcularPrecoComMarkup(precoBase: number, produtoId: string, distribuidorId: string, categoryId: string, distribuidor: any): number {
@@ -261,6 +268,17 @@ export async function GET(request: NextRequest, context: { params: { id: string 
           produto.category_id,
           distribuidor
         );
+        
+        // DEBUG: Log para produto específico
+        if (produto.name?.includes('Água Crystal') && produto.name?.includes('Com Gás')) {
+          console.log('[DEBUG AGUA]', {
+            id: produto.id,
+            preco_base: produto.price,
+            preco_final: precoFinal,
+            markup_encontrado: markupProdutoMap.get(produto.id),
+            distribuidor_id: produto.distribuidor_id
+          });
+        }
       }
 
       // Retornar apenas campos necessários para o frontend (otimizado)
