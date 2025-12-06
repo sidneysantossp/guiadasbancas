@@ -143,15 +143,18 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         .map(p => p.category_id)
     )];
 
+    // Buscar markups por distribuidor (não por product_id para evitar limite de query)
     const [distribuidoresResult, customizacoesResult, distribuidorCategoriesResult, markupProdutosResult, markupCategoriasResult] = await Promise.all([
       // Dados dos distribuidores incluindo markup
       distribuidorIds.length > 0 ? supabase.from('distribuidores').select('id, nome, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor').in('id', distribuidorIds) : { data: [] },
-      // Customizações para esses produtos
-      productIds.length > 0 ? supabase.from('banca_produtos_distribuidor').select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty').eq('banca_id', bancaId).in('product_id', productIds) : { data: [] },
+      // Customizações para esses produtos (buscar em lotes se necessário)
+      productIds.length > 0 && productIds.length <= 500 
+        ? supabase.from('banca_produtos_distribuidor').select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty').eq('banca_id', bancaId).in('product_id', productIds) 
+        : supabase.from('banca_produtos_distribuidor').select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty').eq('banca_id', bancaId),
       // Categorias de distribuidores (para produtos de distribuidores)
       distribuidorCategoryIds.length > 0 ? supabase.from('distribuidor_categories').select('id, nome').in('id', distribuidorCategoryIds) : { data: [] },
-      // Markup por produto do distribuidor
-      productIds.length > 0 ? supabase.from('distribuidor_markup_produtos').select('product_id, markup_percentual, markup_fixo').in('product_id', productIds) : { data: [] },
+      // Markup por produto do distribuidor - buscar por distribuidor_id (menos registros)
+      distribuidorIds.length > 0 ? supabase.from('distribuidor_markup_produtos').select('product_id, markup_percentual, markup_fixo, distribuidor_id').in('distribuidor_id', distribuidorIds) : { data: [] },
       // Markup por categoria do distribuidor
       distribuidorIds.length > 0 ? supabase.from('distribuidor_markup_categorias').select('distribuidor_id, category_id, markup_percentual, markup_fixo').in('distribuidor_id', distribuidorIds) : { data: [] }
     ]);
@@ -165,13 +168,6 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const markupProdutoMap = new Map((markupProdutosResult.data || []).map((m: any) => [m.product_id, { percentual: m.markup_percentual || 0, fixo: m.markup_fixo || 0 }]));
     // Mapa de markup por categoria (distribuidor_id:category_id -> {percentual, fixo})
     const markupCategoriaMap = new Map((markupCategoriasResult.data || []).map((m: any) => [`${m.distribuidor_id}:${m.category_id}`, { percentual: m.markup_percentual || 0, fixo: m.markup_fixo || 0 }]));
-
-    // DEBUG: Log dos markups encontrados
-    const markupData = markupProdutosResult.data || [];
-    console.log('[BANCA PRODUCTS] Markups por produto encontrados:', markupData.length);
-    if (markupData.length > 0) {
-      console.log('[BANCA PRODUCTS] Primeiro markup:', markupData[0]);
-    }
 
     // Função para calcular preço com markup do distribuidor
     // Prioridade: Produto > Categoria > Global
@@ -268,17 +264,6 @@ export async function GET(request: NextRequest, context: { params: { id: string 
           produto.category_id,
           distribuidor
         );
-        
-        // DEBUG: Log para produto específico
-        if (produto.name?.includes('Água Crystal') && produto.name?.includes('Com Gás')) {
-          console.log('[DEBUG AGUA]', {
-            id: produto.id,
-            preco_base: produto.price,
-            preco_final: precoFinal,
-            markup_encontrado: markupProdutoMap.get(produto.id),
-            distribuidor_id: produto.distribuidor_id
-          });
-        }
       }
 
       // Retornar apenas campos necessários para o frontend (otimizado)
