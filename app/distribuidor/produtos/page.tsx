@@ -53,6 +53,7 @@ export default function DistribuidorProdutosPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [filterActive, setFilterActive] = useState<string>("all"); // all, active, inactive
   const [distribuidor, setDistribuidor] = useState<any>(null);
+  const [markups, setMarkups] = useState<any>(null);
 
   useEffect(() => {
     // Carregar dados do distribuidor do localStorage
@@ -64,6 +65,53 @@ export default function DistribuidorProdutosPage() {
       setDistribuidor(parsed);
     }
   }, []);
+
+  // Buscar markups
+  useEffect(() => {
+    if (distribuidor?.id) {
+      fetch(`/api/distribuidor/markup?id=${distribuidor.id}`)
+        .then(res => res.json())
+        .then(json => {
+          if (json.success) setMarkups(json.data);
+        })
+        .catch(err => console.error('Erro ao buscar markups:', err));
+    }
+  }, [distribuidor?.id]);
+
+  // Função para calcular preço com markup
+  const calculateFinalPrice = (product: Product) => {
+    if (!markups) return product.price;
+
+    let price = product.price;
+    const { global, categorias, produtos: markupProdutos } = markups;
+
+    // 1. Markup por Produto (prioridade máxima)
+    const markupProd = markupProdutos.find((m: any) => m.product_id === product.id);
+    if (markupProd) {
+      return price * (1 + markupProd.markup_percentual / 100) + markupProd.markup_fixo;
+    }
+
+    // 2. Markup por Categoria
+    if (product.category_id) {
+      const markupCat = categorias.find((m: any) => m.category_id === product.category_id);
+      if (markupCat) {
+        return price * (1 + markupCat.markup_percentual / 100) + markupCat.markup_fixo;
+      }
+    }
+
+    // 3. Markup Global
+    if (global.tipo_calculo === 'margem' && global.margem_divisor && global.margem_divisor > 0 && global.margem_divisor < 1) {
+      return price / global.margem_divisor;
+    } else {
+      const percentual = global.markup_percentual || 0;
+      const fixo = global.markup_fixo || 0;
+      if (percentual > 0 || fixo > 0) {
+        return price * (1 + percentual / 100) + fixo;
+      }
+    }
+
+    return price;
+  };
 
   // Buscar categorias da API
   const fetchCategories = async () => {
@@ -387,13 +435,21 @@ export default function DistribuidorProdutosPage() {
                 </div>
 
                 <div className="space-y-1.5 text-xs text-gray-600 mb-3 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span>Preço:</span>
-                    <span className="font-semibold text-gray-900">
-                      {formatPrice(product.price)}
-                    </span>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span>Custo:</span>
+                      <span className="text-gray-500">
+                        {formatPrice(product.price)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-blue-700">Venda:</span>
+                      <span className="font-bold text-blue-700 text-sm">
+                        {formatPrice(calculateFinalPrice(product))}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between pt-1 border-t border-gray-100">
                     <span>Estoque:</span>
                     <span className={`font-semibold ${product.stock_qty > 0 ? 'text-green-600' : 'text-red-500'}`}>
                       {product.stock_qty}
