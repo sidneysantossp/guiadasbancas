@@ -110,6 +110,7 @@ export async function GET(request: NextRequest) {
 
   // Se não trouxe produtos do admin, não precisa buscar customizações
   let customMap = new Map();
+  let calcularPrecoMarkup = (precoBase: number, produtoId: string, distribuidorId: string, categoryId: string) => precoBase;
   
   if (produtosAdmin.length > 0) {
     // Buscar customizações desta banca APENAS para os produtos retornados (otimização)
@@ -120,13 +121,75 @@ export async function GET(request: NextRequest) {
       .select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda')
       .eq('banca_id', banca.id);
 
+    // Buscar markups para calcular preço sugerido
+    const distribuidorIds = Array.from(new Set(produtosAdmin.map(p => p.distribuidor_id).filter(Boolean)));
+    const productIds = produtosAdmin.map(p => p.id);
+    const categoryIds = Array.from(new Set(produtosAdmin.map(p => p.category_id).filter(Boolean)));
+
+    let distMap = new Map();
+    let markupCatMap = new Map();
+    let markupProdMap = new Map();
+    // let calcularPrecoMarkup: (precoBase: number, produtoId: string, distribuidorId: string, categoryId: string) => number;
+
+    if (distribuidorIds.length > 0) {
+      // Buscar distribuidores
+      const { data: dists } = await supabaseAdmin
+        .from('distribuidores')
+        .select('id, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor, tipo_calculo')
+        .in('id', distribuidorIds);
+      distMap = new Map((dists || []).map((d: any) => [d.id, d]));
+
+      // Buscar markups por categoria
+      const { data: mCats } = await supabaseAdmin
+        .from('distribuidor_markup_categorias')
+        .select('distribuidor_id, category_id, markup_percentual, markup_fixo')
+        .in('distribuidor_id', distribuidorIds);
+      (mCats || []).forEach((m: any) => markupCatMap.set(`${m.distribuidor_id}:${m.category_id}`, m));
+
+      // Buscar markups por produto
+      const { data: mProds } = await supabaseAdmin
+        .from('distribuidor_markup_produtos')
+        .select('distribuidor_id, product_id, markup_percentual, markup_fixo')
+        .in('product_id', productIds);
+      (mProds || []).forEach((m: any) => markupProdMap.set(m.product_id, m));
+
+      calcularPrecoMarkup = (precoBase: number, produtoId: string, distribuidorId: string, categoryId: string) => {
+        // 1. Produto
+        const mp = markupProdMap.get(produtoId);
+        if (mp && (mp.markup_percentual > 0 || mp.markup_fixo > 0)) {
+          return precoBase * (1 + mp.markup_percentual / 100) + mp.markup_fixo;
+        }
+        // 2. Categoria
+        const mc = markupCatMap.get(`${distribuidorId}:${categoryId}`);
+        if (mc && (mc.markup_percentual > 0 || mc.markup_fixo > 0)) {
+          return precoBase * (1 + mc.markup_percentual / 100) + mc.markup_fixo;
+        }
+        // 3. Global
+        const dist = distMap.get(distribuidorId);
+        if (dist) {
+          if (dist.tipo_calculo === 'margem' && dist.margem_divisor > 0 && dist.margem_divisor < 1) {
+            return precoBase / dist.margem_divisor;
+          }
+          const perc = dist.markup_global_percentual || 0;
+          const fixo = dist.markup_global_fixo || 0;
+          if (perc > 0 || fixo > 0) {
+            return precoBase * (1 + perc / 100) + fixo;
+          }
+        }
+        return precoBase;
+      };
+    } 
+    // else {
+    //   calcularPrecoMarkup = (p) => p; // fallback
+    // }
+
     // Mapear customizações por product_id
     customMap = new Map(
       (customizacoes || []).map(c => [c.product_id, c])
     );
-  }
+  } // Fim do if (produtosAdmin.length > 0)
 
-  // Aplicar customizações
+  // Aplicar customizações e markups
   const produtosAdminCustomizados = (produtosAdmin || [])
     .filter(produto => {
       const custom = customMap.get(produto.id);
@@ -134,10 +197,18 @@ export async function GET(request: NextRequest) {
     })
     .map(produto => {
       const custom = customMap.get(produto.id);
+      const precoBase = produto.price || 0;
+      // Se não tiver markups carregados (ex: lista vazia), calcularPrecoMarkup não vai existir se estiver dentro do if
+      // Precisamos mover a função para fora ou garantir que ela exista
+      
+      let precoComMarkup = precoBase;
+      if (typeof calcularPrecoMarkup === 'function') {
+        precoComMarkup = calcularPrecoMarkup(precoBase, produto.id, produto.distribuidor_id, produto.category_id);
+      }
       
       return {
         ...produto,
-        price: custom?.custom_price || produto.price,
+        price: custom?.custom_price || precoComMarkup,
         description: produto.description + (custom?.custom_description ? `\n\n${custom.custom_description}` : ''),
         pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,
         sob_encomenda: custom?.custom_sob_encomenda ?? produto.sob_encomenda,
