@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// Cache de 30 segundos para melhor performance
-export const revalidate = 30;
+// Sem cache para garantir dados atualizados
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
 const CATEGORIA_DISTRIBUIDORES_NOME = 'Diversos';
 const DEFAULT_PRODUCT_IMAGE = 'https://placehold.co/400x600/e5e7eb/6b7280.png';
