@@ -187,15 +187,9 @@ export default function JornaleiroProdutosPage() {
         </div>
       </div>
 
-      <FiltersBar
-        onReset={() => {
-          setQ("");
-          setCategory("");
-          setStatus("");
-        }}
-      >
-        <div className="flex flex-col sm:flex-row gap-3 w-full">
-          <div className="flex-1">
+      <div className="bg-white border border-gray-200 rounded-lg p-3">
+        <div className="flex flex-col sm:flex-row gap-3 w-full items-end sm:items-center">
+          <div className="flex-1 w-full sm:w-auto">
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -222,8 +216,21 @@ export default function JornaleiroProdutosPage() {
             <option value="ativo">Ativo</option>
             <option value="inativo">Inativo</option>
           </select>
+          
+          {(q || category || status) && (
+            <button
+              onClick={() => {
+                setQ("");
+                setCategory("");
+                setStatus("");
+              }}
+              className="px-3 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+            >
+              Limpar
+            </button>
+          )}
         </div>
-      </FiltersBar>
+      </div>
 
       {loading && <div className="rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">Carregando produtos...</div>}
 
