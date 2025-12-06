@@ -9,6 +9,7 @@ type Product = {
   id: string;
   name: string;
   price: number;
+  distribuidor_price?: number; // Preço com markup
   stock_qty: number;
   images: string[];
   distribuidor_nome?: string;
@@ -261,7 +262,7 @@ export default function GerenciarCatalogoPage() {
                   <div className="flex items-center justify-between">
                     <span>Preço:</span>
                     <span className="font-semibold text-gray-900">
-                      {formatPrice(product.custom_price || product.price)}
+                      {formatPrice(product.custom_price || product.distribuidor_price || product.price)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
