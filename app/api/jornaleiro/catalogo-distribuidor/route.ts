@@ -67,31 +67,29 @@ export async function GET(req: NextRequest) {
     const { data: dists } = await supabase.from('distribuidores').select('id, nome').order('nome');
     
     if (dists) {
-      // Buscar todos os produtos ativos (apenas id e distribuidor_id para ser leve)
-      // Isso é necessário porque o Supabase não suporta GROUP BY count facilmente via client
-      const { data: allProds } = await supabase
-        .from('products')
-        .select('distribuidor_id')
-        .eq('active', true)
-        .not('distribuidor_id', 'is', null);
-        
-      // Contar produtos por distribuidor
-      const counts = new Map();
-      (allProds || []).forEach((p: any) => {
-        if (p.distribuidor_id) {
-          counts.set(p.distribuidor_id, (counts.get(p.distribuidor_id) || 0) + 1);
-        }
+      // Para contornar o limite de 1000 linhas do Supabase, vamos fazer uma query de count para cada distribuidor
+      // Como são poucos distribuidores, isso é performático e garante o número exato
+      const countPromises = dists.map(async (dist) => {
+        const { count } = await supabase
+          .from('products')
+          .select('*', { count: 'exact', head: true })
+          .eq('distribuidor_id', dist.id)
+          .eq('active', true);
+          
+        return {
+          nome: dist.nome,
+          count: count || 0
+        };
       });
       
-      // Mapear distribuidores com suas contagens
-      listaDistribuidores = dists
-        .map(d => ({
-          nome: d.nome,
-          count: counts.get(d.id) || 0
-        }))
-        .filter(d => d.count > 0); // Mostrar apenas quem tem produtos
+      const results = await Promise.all(countPromises);
+      
+      // Filtrar apenas quem tem produtos e ordenar por nome
+      listaDistribuidores = results
+        .filter(d => d.count > 0)
+        .sort((a, b) => a.nome.localeCompare(b.nome));
         
-      console.log(`[CATALOGO] Distribuidores encontrados: ${listaDistribuidores.length}`);
+      console.log(`[CATALOGO] Contagem final por distribuidor:`, listaDistribuidores);
     }
 
     // 2. Buscar produtos de distribuidores com FILTROS no BANCO

@@ -210,15 +210,15 @@ export default function GerenciarCatalogoPage() {
           <p className="text-sm text-gray-600">
             {selectedDistribuidor ? `Produtos - ${selectedDistribuidor}` : 'Total de Produtos'}
           </p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{filteredProducts.length}</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{totalDisplay}</p>
           {selectedDistribuidor && (
-            <p className="text-xs text-gray-500 mt-1">de {products.length} no total</p>
+            <p className="text-xs text-gray-500 mt-1">de {allDistribuidores.reduce((acc, d) => acc + d.count, 0)} no total</p>
           )}
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <p className="text-sm text-gray-600">Habilitados</p>
           <p className="text-2xl font-bold text-green-600 mt-1">
-            {filteredProducts.filter(p => p.enabled !== false).length}
+            {totalDisplay}
           </p>
         </div>
       </div>
