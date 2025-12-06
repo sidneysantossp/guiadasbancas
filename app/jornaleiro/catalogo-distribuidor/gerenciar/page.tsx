@@ -23,10 +23,15 @@ type Product = {
   enabled?: boolean;
 };
 
+type DistribuidorInfo = {
+  nome: string;
+  count: number;
+};
+
 export default function GerenciarCatalogoPage() {
   const toast = useToast();
   const [products, setProducts] = useState<Product[]>([]);
-  const [allDistribuidores, setAllDistribuidores] = useState<string[]>([]); // Lista completa de distribuidores
+  const [allDistribuidores, setAllDistribuidores] = useState<DistribuidorInfo[]>([]); // Lista completa de distribuidores com contagem
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -63,7 +68,13 @@ export default function GerenciarCatalogoPage() {
         setProducts(json.products || []);
         // Se a API retornar a lista de todos os distribuidores, usamos ela
         if (json.distribuidores) {
-            setAllDistribuidores(json.distribuidores);
+            // Verificar se é array de strings (legado) ou objetos (novo)
+            const first = json.distribuidores[0];
+            if (typeof first === 'string') {
+               setAllDistribuidores(json.distribuidores.map((d: string) => ({ nome: d, count: 0 })));
+            } else {
+               setAllDistribuidores(json.distribuidores);
+            }
         }
       } else {
         toast.error(json.error || "Erro ao carregar produtos");
@@ -85,9 +96,18 @@ export default function GerenciarCatalogoPage() {
   }, [debouncedSearch, products.length, pageSize, selectedDistribuidor]);
 
   // Usar a lista retornada pela API ou extrair dos produtos (fallback)
-  const distribuidores = allDistribuidores.length > 0 
+  const distribuidores: DistribuidorInfo[] = allDistribuidores.length > 0 && allDistribuidores[0].count > 0
     ? allDistribuidores 
-    : Array.from(new Set(products.map(p => p.distribuidor_nome).filter(Boolean))).sort();
+    : Array.from(new Set(products.map(p => p.distribuidor_nome).filter(Boolean) as string[])).sort().map(nome => ({
+        nome,
+        count: products.filter(p => p.distribuidor_nome === nome).length
+      }));
+      
+  // Total real aproximado (soma das contagens se disponível, ou products.length se for filtrado)
+  // Se estiver filtrando, queremos mostrar quantos achou. Se não, o total global.
+  const totalDisplay = selectedDistribuidor || search 
+    ? products.length 
+    : (allDistribuidores.reduce((acc, d) => acc + d.count, 0) || products.length);
 
   // Filtragem local apenas para paginação, já que o grosso é feito no servidor
   const filteredProducts = products; // Os produtos já vêm filtrados do servidor
@@ -137,10 +157,10 @@ export default function GerenciarCatalogoPage() {
               onChange={(e) => setSelectedDistribuidor(e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
             >
-              <option value="">Todos os distribuidores ({products.length})</option>
+              <option value="">Todos os distribuidores ({totalDisplay})</option>
               {distribuidores.map((dist) => (
-                <option key={dist} value={dist}>
-                  {dist} ({products.filter(p => p.distribuidor_nome === dist).length})
+                <option key={dist.nome} value={dist.nome}>
+                  {dist.nome} ({dist.count})
                 </option>
               ))}
             </select>

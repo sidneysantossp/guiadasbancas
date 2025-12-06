@@ -60,12 +60,38 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 1. Buscar LISTA COMPLETA de distribuidores disponíveis para o filtro do frontend
-    // Isso é leve e permite que o usuário filtre mesmo sem carregar todos os produtos
-    let listaDistribuidores: string[] = [];
-    const { data: dists } = await supabase.from('distribuidores').select('nome').order('nome');
+    // 1. Buscar LISTA COMPLETA de distribuidores e calcular contagens reais
+    let listaDistribuidores: any[] = [];
+    
+    // Buscar todos os distribuidores
+    const { data: dists } = await supabase.from('distribuidores').select('id, nome').order('nome');
+    
     if (dists) {
-      listaDistribuidores = dists.map(d => d.nome).filter(Boolean);
+      // Buscar todos os produtos ativos (apenas id e distribuidor_id para ser leve)
+      // Isso é necessário porque o Supabase não suporta GROUP BY count facilmente via client
+      const { data: allProds } = await supabase
+        .from('products')
+        .select('distribuidor_id')
+        .eq('active', true)
+        .not('distribuidor_id', 'is', null);
+        
+      // Contar produtos por distribuidor
+      const counts = new Map();
+      (allProds || []).forEach((p: any) => {
+        if (p.distribuidor_id) {
+          counts.set(p.distribuidor_id, (counts.get(p.distribuidor_id) || 0) + 1);
+        }
+      });
+      
+      // Mapear distribuidores com suas contagens
+      listaDistribuidores = dists
+        .map(d => ({
+          nome: d.nome,
+          count: counts.get(d.id) || 0
+        }))
+        .filter(d => d.count > 0); // Mostrar apenas quem tem produtos
+        
+      console.log(`[CATALOGO] Distribuidores encontrados: ${listaDistribuidores.length}`);
     }
 
     // 2. Buscar produtos de distribuidores com FILTROS no BANCO
