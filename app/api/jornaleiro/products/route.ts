@@ -209,6 +209,7 @@ export async function GET(request: NextRequest) {
       return {
         ...produto,
         price: custom?.custom_price || precoComMarkup,
+        cost_price: precoBase, // Preço de custo (base do distribuidor)
         description: produto.description + (custom?.custom_description ? `\n\n${custom.custom_description}` : ''),
         pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,
         sob_encomenda: custom?.custom_sob_encomenda ?? produto.sob_encomenda,

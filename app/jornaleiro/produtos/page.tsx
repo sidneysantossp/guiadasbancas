@@ -15,6 +15,7 @@ type ProdutoListItem = {
   category_id: string;
   category_name?: string;
   price: number;
+  cost_price?: number;
   stock_qty: number;
   active: boolean;
   updated_at?: string;
@@ -79,6 +80,7 @@ export default function JornaleiroProdutosPage() {
           category_id: p.category_id,
           category_name: categoryMap[p.category_id] || p.category_id,
           price: Number(p.price ?? 0),
+          cost_price: p.cost_price ? Number(p.cost_price) : undefined,
           stock_qty: Number(p.stock_qty ?? 0),
           active: Boolean(p.active),
           updated_at: p.updated_at,
@@ -156,9 +158,16 @@ export default function JornaleiroProdutosPage() {
       key: "price",
       header: "Preço",
       render: (r) => (
-        <span className="font-semibold text-gray-900">
-          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(r.price)}
-        </span>
+        <div className="flex flex-col items-end">
+          <span className="font-semibold text-gray-900">
+            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(r.price)}
+          </span>
+          {r.cost_price != null && r.cost_price > 0 && Math.abs(r.cost_price - r.price) > 0.01 && (
+            <span className="text-[11px] text-gray-500 mt-0.5">
+              Custo: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(r.cost_price)}
+            </span>
+          )}
+        </div>
       ),
       align: "right",
     },
