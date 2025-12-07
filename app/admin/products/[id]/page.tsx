@@ -34,6 +34,10 @@ export default function AdminProductEditPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Estados para contexto da IA
+  const [productName, setProductName] = useState("");
+  const [productMiniDesc, setProductMiniDesc] = useState("");
+
   useEffect(() => {
     const loadProduct = async () => {
       try {
@@ -53,6 +57,8 @@ export default function AdminProductEditPage() {
         const productData = json.data;
         
         setProduct(productData);
+        setProductName(productData.name || "");
+        setProductMiniDesc(productData.description || "");
         setImages(Array.isArray(productData.images) ? productData.images : []);
         setDescriptionFull(productData.description_full || "");
         setSpecifications(productData.specifications || "");
@@ -183,6 +189,7 @@ export default function AdminProductEditPage() {
               name="name" 
               required 
               defaultValue={product?.name || ""} 
+              onChange={(e) => setProductName(e.target.value)}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
             />
           </div>
@@ -193,6 +200,7 @@ export default function AdminProductEditPage() {
               rows={3} 
               placeholder="Descrição breve que aparece no card do produto" 
               defaultValue={product?.description || ""} 
+              onChange={(e) => setProductMiniDesc(e.target.value)}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
             />
           </div>
@@ -203,6 +211,10 @@ export default function AdminProductEditPage() {
               value={descriptionFull}
               onChange={setDescriptionFull}
               placeholder="Descrição detalhada que aparece na página do produto..."
+              aiContext={{
+                productName: productName,
+                productDescription: productMiniDesc
+              }}
             />
           </div>
           

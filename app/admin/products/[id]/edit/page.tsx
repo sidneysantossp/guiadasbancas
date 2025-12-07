@@ -45,6 +45,10 @@ export default function AdminProductEditPage() {
   const [imageUrls, setImageUrls] = useState("");
   const [categorySelectRef, setCategorySelectRef] = useState<HTMLSelectElement | null>(null);
 
+  // Estados para contexto da IA
+  const [productName, setProductName] = useState("");
+  const [productMiniDesc, setProductMiniDesc] = useState("");
+
   // Hook adicional para garantir que categoria nunca seja obrigatória
   useEffect(() => {
     const interval = setInterval(() => {
@@ -96,6 +100,8 @@ export default function AdminProductEditPage() {
         const jsonProduct = await resProduct.json();
         const productData = jsonProduct.data;
         setProduct(productData);
+        setProductName(productData.name || "");
+        setProductMiniDesc(productData.description || "");
         
         // Preencher campos
         setImages(productData.images || []);
@@ -261,11 +267,24 @@ export default function AdminProductEditPage() {
         <div className="lg:col-span-2 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
           <div>
             <label className="text-sm font-medium">Nome do Produto</label>
-            <input name="name" required defaultValue={product.name} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+            <input 
+              name="name" 
+              required 
+              defaultValue={product.name} 
+              onChange={(e) => setProductName(e.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+            />
           </div>
           <div>
             <label className="text-sm font-medium">Mini Descrição</label>
-            <textarea name="description" rows={3} defaultValue={product.description} placeholder="Descrição breve que aparece no card do produto" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+            <textarea 
+              name="description" 
+              rows={3} 
+              defaultValue={product.description} 
+              onChange={(e) => setProductMiniDesc(e.target.value)}
+              placeholder="Descrição breve que aparece no card do produto" 
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+            />
           </div>
           
           <div>
@@ -274,6 +293,10 @@ export default function AdminProductEditPage() {
               value={descriptionFull}
               onChange={setDescriptionFull}
               placeholder="Descrição detalhada que aparece na página do produto..."
+              aiContext={{
+                productName: productName,
+                productDescription: productMiniDesc
+              }}
             />
           </div>
           

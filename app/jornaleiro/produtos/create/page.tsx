@@ -49,6 +49,11 @@ export default function SellerProductCreatePage() {
   const [allowReviews, setAllowReviews] = useState(true);
   const [price, setPrice] = useState("");
   const [priceOriginal, setPriceOriginal] = useState("");
+  
+  // Estados para contexto da IA
+  const [productName, setProductName] = useState("");
+  const [productMiniDesc, setProductMiniDesc] = useState("");
+
   const authHeaders = useMemo(() => {
     if (typeof window === "undefined") return {} as Record<string, string>;
     const token = window.localStorage.getItem("gb:sellerToken") || "seller-token";
@@ -160,11 +165,22 @@ export default function SellerProductCreatePage() {
         <div className="lg:col-span-2 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
           <div>
             <label className="text-sm font-medium">Nome do Produto</label>
-            <input name="name" required className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+            <input 
+              name="name" 
+              required 
+              onChange={(e) => setProductName(e.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+            />
           </div>
           <div>
             <label className="text-sm font-medium">Mini Descrição</label>
-            <textarea name="description" rows={3} placeholder="Descrição breve que aparece no card do produto" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+            <textarea 
+              name="description" 
+              rows={3} 
+              onChange={(e) => setProductMiniDesc(e.target.value)}
+              placeholder="Descrição breve que aparece no card do produto" 
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+            />
           </div>
           
           <div>
@@ -173,6 +189,10 @@ export default function SellerProductCreatePage() {
               value={descriptionFull}
               onChange={setDescriptionFull}
               placeholder="Descrição detalhada que aparece na página do produto..."
+              aiContext={{
+                productName: productName,
+                productDescription: productMiniDesc
+              }}
             />
           </div>
           

@@ -78,6 +78,10 @@ export default function SellerProductEditPage() {
   const [discountPercent, setDiscountPercent] = useState(0);
   const [hasCustomPrice, setHasCustomPrice] = useState(false); // Flag para saber se jornaleiro personalizou
 
+  // Estados para contexto da IA
+  const [productName, setProductName] = useState("");
+  const [productMiniDesc, setProductMiniDesc] = useState("");
+
   // Função para atualizar preço de venda baseado no desconto
   const updateSalePriceFromDiscount = (newDiscountPercent: number) => {
     const originalPrice = parseCurrency(price);
@@ -147,6 +151,8 @@ export default function SellerProductEditPage() {
           pre_venda: Boolean(p.pre_venda),
           pronta_entrega: Boolean(p.pronta_entrega),
         });
+        setProductName(p.name || "");
+        setProductMiniDesc(p.description || "");
         setImages(Array.isArray(p.images) ? p.images : []);
         
         // Lógica de preços:
@@ -391,11 +397,24 @@ export default function SellerProductEditPage() {
         <div className="lg:col-span-2 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
           <div>
             <label className="text-sm font-medium">Nome do Produto</label>
-            <input defaultValue={product.name} name="name" required className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+            <input 
+              defaultValue={product.name} 
+              onChange={(e) => setProductName(e.target.value)}
+              name="name" 
+              required 
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+            />
           </div>
           <div>
             <label className="text-sm font-medium">Mini Descrição</label>
-            <textarea defaultValue={product.description} name="description" rows={3} placeholder="Descrição breve que aparece no card do produto" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+            <textarea 
+              defaultValue={product.description} 
+              onChange={(e) => setProductMiniDesc(e.target.value)}
+              name="description" 
+              rows={3} 
+              placeholder="Descrição breve que aparece no card do produto" 
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+            />
           </div>
           
           <div>
@@ -404,6 +423,10 @@ export default function SellerProductEditPage() {
               value={descriptionFull}
               onChange={setDescriptionFull}
               placeholder="Descrição detalhada que aparece na página do produto..."
+              aiContext={{
+                productName: productName,
+                productDescription: productMiniDesc
+              }}
             />
           </div>
           
