@@ -152,6 +152,7 @@ const ADMIN_MENU = [
     section: "Configurações",
     items: [
       { label: "Plataforma", href: "/admin/settings", icon: "settings" as IconKey },
+      { label: "Chaves API", href: "/admin/configuracoes/chaves-api", icon: "settings" as IconKey },
       { label: "WhatsApp", href: "/admin/configuracoes/whatsapp", icon: "brandWhatsapp" as IconKey },
       { label: "Sync Mercos", href: "/admin/configuracoes/sync-mercos", icon: "truck" as IconKey },
       { label: "Homologação Mercos", href: "/admin/configuracoes/homologacao-mercos", icon: "clipboard" as IconKey },

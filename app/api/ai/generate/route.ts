@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,7 +12,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    let apiKey = process.env.OPENAI_API_KEY;
+
+    // Tentar buscar do banco se não estiver no env
+    if (!apiKey) {
+      try {
+        const { data } = await supabaseAdmin
+          .from('settings')
+          .select('value')
+          .eq('key', 'openai_api_key')
+          .single();
+        if (data?.value) {
+          apiKey = data.value;
+        }
+      } catch (e) {
+        console.error("Erro ao buscar chave no banco:", e);
+      }
+    }
 
     // Se não tiver chave de API, retorna um texto simulado (ou erro, dependendo da preferência)
     if (!apiKey) {
@@ -27,7 +44,6 @@ export async function POST(req: NextRequest) {
           <li>Melhor custo-benefício da categoria</li>
         </ul>
         <p>Não perca a oportunidade de adquirir o <em>${productName}</em> e transformar sua experiência. Garanta já o seu!</p>
-        <p><small>(Nota: Configure a chave OPENAI_API_KEY no arquivo .env para gerar descrições reais com Inteligência Artificial)</small></p>
       `;
 
       return NextResponse.json({ 
