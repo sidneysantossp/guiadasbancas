@@ -472,7 +472,7 @@ export default function DistribuidorProdutosPage() {
                     {product.active ? 'Ativo' : 'Inativo'}
                   </button>
                   <Link
-                    href={`/distribuidor/produtos/${product.id}`}
+                    href={`/jornaleiro/catalogo-distribuidor/editar/${product.id}`}
                     className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-blue-600 px-2 py-2 text-xs font-medium text-white hover:bg-blue-700 transition-colors"
                   >
                     <IconEdit size={14} />
