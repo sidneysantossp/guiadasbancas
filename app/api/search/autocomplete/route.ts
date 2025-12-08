@@ -3,12 +3,29 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
 
+// Função para calcular distância entre duas coordenadas (Haversine)
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371; // Raio da Terra em km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('q') || searchParams.get('search');
     const limit = parseInt(searchParams.get('limit') || '6');
     const bancaId = searchParams.get('banca_id');
+    
+    // Coordenadas do usuário para cálculo de distância
+    const userLat = searchParams.get('lat') ? parseFloat(searchParams.get('lat')!) : null;
+    const userLng = searchParams.get('lng') ? parseFloat(searchParams.get('lng')!) : null;
 
     if (!search || search.length < 2) {
       return NextResponse.json({ success: true, results: [] });
@@ -29,6 +46,9 @@ export async function GET(req: NextRequest) {
       banca_name: string;
       banca_id: string;
       address?: string;
+      distance?: number; // Distância em km
+      banca_lat?: number;
+      banca_lng?: number;
     };
 
     const results: SearchResultItem[] = [];
@@ -45,7 +65,7 @@ export async function GET(req: NextRequest) {
         banca_id,
         category_id,
         categories(name),
-        bancas(name)
+        bancas(name, lat, lng)
       `)
       .eq('active', true)
       .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
@@ -61,6 +81,14 @@ export async function GET(req: NextRequest) {
       console.error('Erro na busca de produtos:', productsError);
     } else if (products) {
       products.forEach((p: any) => {
+        const bancaLat = p.bancas?.lat ? parseFloat(p.bancas.lat) : null;
+        const bancaLng = p.bancas?.lng ? parseFloat(p.bancas.lng) : null;
+        let distance: number | undefined;
+        
+        if (userLat && userLng && bancaLat && bancaLng) {
+          distance = calculateDistance(userLat, userLng, bancaLat, bancaLng);
+        }
+        
         results.push({
           type: 'product',
           id: p.id,
@@ -68,8 +96,11 @@ export async function GET(req: NextRequest) {
           image: p.images && p.images.length > 0 ? p.images[0] : null,
           price: p.price,
           category: p.categories?.name || 'Produto',
-          banca_name: p.bancas?.name || 'Banca',
-          banca_id: p.banca_id
+          banca_name: p.bancas?.name || 'Banca não identificada',
+          banca_id: p.banca_id,
+          distance,
+          banca_lat: bancaLat ?? undefined,
+          banca_lng: bancaLng ?? undefined
         });
       });
     }
@@ -78,7 +109,7 @@ export async function GET(req: NextRequest) {
     if (!bancaId) {
       const { data: bancas, error: bancasError } = await supabase
         .from('bancas')
-        .select('id, name, cover_image, address, rating')
+        .select('id, name, cover_image, address, rating, lat, lng')
         .or(`name.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%`)
         .limit(limit);
 
@@ -86,6 +117,14 @@ export async function GET(req: NextRequest) {
         console.error('Erro na busca de bancas:', bancasError);
       } else if (bancas) {
         bancas.forEach((b: any) => {
+          const bancaLat = b.lat ? parseFloat(b.lat) : null;
+          const bancaLng = b.lng ? parseFloat(b.lng) : null;
+          let distance: number | undefined;
+          
+          if (userLat && userLng && bancaLat && bancaLng) {
+            distance = calculateDistance(userLat, userLng, bancaLat, bancaLng);
+          }
+          
           results.push({
             type: 'banca',
             id: b.id,
@@ -95,16 +134,26 @@ export async function GET(req: NextRequest) {
             category: 'Banca',
             banca_name: b.name,
             banca_id: b.id,
-            address: b.address
+            address: b.address,
+            distance,
+            banca_lat: bancaLat ?? undefined,
+            banca_lng: bancaLng ?? undefined
           });
         });
       }
     }
 
-    // Embaralhar ou ordenar resultados (priorizar bancas se o termo bater exato com o nome?)
-    // Por enquanto, vamos intercalar ou apenas limitar o total
-    // Vamos ordenar por "relevância" simples: nome começa com o termo vem antes
+    // Ordenar resultados por proximidade (se tiver coordenadas) e relevância
     results.sort((a, b) => {
+      // Se ambos têm distância, ordenar por proximidade
+      if (a.distance !== undefined && b.distance !== undefined) {
+        return a.distance - b.distance;
+      }
+      // Se apenas um tem distância, priorizar quem tem
+      if (a.distance !== undefined && b.distance === undefined) return -1;
+      if (a.distance === undefined && b.distance !== undefined) return 1;
+      
+      // Fallback: ordenar por relevância (nome começa com o termo)
       const aStarts = a.name.toLowerCase().startsWith(searchTerm);
       const bStarts = b.name.toLowerCase().startsWith(searchTerm);
       if (aStarts && !bStarts) return -1;

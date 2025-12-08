@@ -42,9 +42,28 @@ export default function SearchAutocomplete({
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [userLocation, setUserLocation] = useState<{lat: number; lng: number} | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  // Obter geolocalização do usuário
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.log('Geolocalização não disponível:', error.message);
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
+      );
+    }
+  }, []);
 
   // Buscar produtos/bancas da API
   useEffect(() => {
@@ -63,6 +82,11 @@ export default function SearchAutocomplete({
         // Se estiver na página de uma banca, filtrar por banca_id
         if (bancaId) {
           url += `&banca_id=${bancaId}`;
+        }
+        
+        // Adicionar coordenadas do usuário para cálculo de distância
+        if (userLocation) {
+          url += `&lat=${userLocation.lat}&lng=${userLocation.lng}`;
         }
         
         const response = await fetch(url);
@@ -87,7 +111,7 @@ export default function SearchAutocomplete({
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [query, bancaId]);
+  }, [query, bancaId, userLocation]);
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -216,14 +240,30 @@ export default function SearchAutocomplete({
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                       {result.type === 'banca' ? (
-                        <span className="truncate">{result.address || 'Endereço não disponível'}</span>
+                        <>
+                          <span className="truncate">{result.address || 'Endereço não disponível'}</span>
+                          {result.distance !== undefined && (
+                            <>
+                              <span>•</span>
+                              <span className="text-[#ff5c00] font-medium whitespace-nowrap">
+                                {result.distance < 1 
+                                  ? `${Math.round(result.distance * 1000)}m` 
+                                  : `${result.distance.toFixed(1)}km`}
+                              </span>
+                            </>
+                          )}
+                        </>
                       ) : (
                         <>
                           <span className="truncate">{result.banca_name}</span>
-                          {result.distance && (
+                          {result.distance !== undefined && (
                             <>
                               <span>•</span>
-                              <span>{result.distance}km</span>
+                              <span className="text-gray-400 whitespace-nowrap">
+                                {result.distance < 1 
+                                  ? `${Math.round(result.distance * 1000)}m` 
+                                  : `${result.distance.toFixed(1)}km`}
+                              </span>
                             </>
                           )}
                         </>
