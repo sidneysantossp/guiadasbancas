@@ -268,7 +268,7 @@ export default function SearchAutocomplete({
                       </>
                     ) : (
                       <span className="inline-block px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
-                        {result.type === 'banca' ? 'Banca' : result.category}
+                        {result.type === 'banca' ? 'Ver Banca' : result.category}
                       </span>
                     )}
                   </div>
