@@ -336,15 +336,6 @@ export default function DistribuidorProductEditPage() {
                     <option value="pre_venda">Pré-venda</option>
                   </select>
                 </div>
-                <div className="flex items-center gap-2 mt-6 md:mt-0">
-                  <input
-                    type="checkbox"
-                    checked={formData.custom_featured}
-                    onChange={(e) => setFormData({ ...formData, custom_featured: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300 text-[#ff5c00] focus:ring-[#ff5c00]"
-                  />
-                  <span className="text-sm font-medium text-gray-700">Destacar em Ofertas e Promoções</span>
-                </div>
               </div>
 
               <div className="mt-4 grid gap-4 md:grid-cols-3">
