@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useFetchAuth } from '@/lib/hooks/useFetchAuth';
 import Image from 'next/image';
 import { useToast } from '@/components/ToastProvider';
-import { IconArrowLeft, IconLoader2, IconSave, IconX, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconArrowLeft, IconLoader2, IconCheck, IconX, IconPlus, IconTrash } from '@tabler/icons-react';
 
 interface Product {
   id: string;
@@ -421,7 +421,7 @@ export default function DistribuidorProductEditPage() {
                 </>
               ) : (
                 <>
-                  <IconSave className="h-4 w-4" />
+                  <IconCheck className="h-4 w-4" />
                   Salvar Alterações
                 </>
               )}
