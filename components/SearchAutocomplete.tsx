@@ -238,35 +238,19 @@ export default function SearchAutocomplete({
                     <div className="font-medium text-gray-900 truncate">
                       {result.name}
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <div className="flex items-center gap-2 text-sm">
                       {result.type === 'banca' ? (
-                        <>
-                          <span className="truncate">{result.address || 'Endereço não disponível'}</span>
-                          {result.distance !== undefined && (
-                            <>
-                              <span>•</span>
-                              <span className="text-[#ff5c00] font-medium whitespace-nowrap">
-                                {result.distance < 1 
-                                  ? `${Math.round(result.distance * 1000)}m` 
-                                  : `${result.distance.toFixed(1)}km`}
-                              </span>
-                            </>
-                          )}
-                        </>
+                        // Banca: mostrar apenas badge de distância
+                        result.distance !== undefined && (
+                          <span className="inline-flex items-center px-2 py-0.5 bg-[#ff5c00] text-white text-xs rounded-full font-medium">
+                            {result.distance < 1 
+                              ? `${Math.round(result.distance * 1000)}m` 
+                              : `${result.distance.toFixed(1)}km`}
+                          </span>
+                        )
                       ) : (
-                        <>
-                          <span className="truncate">{result.banca_name}</span>
-                          {result.distance !== undefined && (
-                            <>
-                              <span>•</span>
-                              <span className="text-gray-400 whitespace-nowrap">
-                                {result.distance < 1 
-                                  ? `${Math.round(result.distance * 1000)}m` 
-                                  : `${result.distance.toFixed(1)}km`}
-                              </span>
-                            </>
-                          )}
-                        </>
+                        // Produto: mostrar categoria
+                        <span className="text-gray-500 truncate">{result.category}</span>
                       )}
                     </div>
                   </div>
