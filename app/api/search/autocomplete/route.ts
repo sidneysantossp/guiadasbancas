@@ -17,9 +17,24 @@ export async function GET(req: NextRequest) {
     const searchTerm = search.toLowerCase();
     const supabase = supabaseAdmin;
 
-    const results = [];
+    console.log(`[Search API] Buscando por: "${searchTerm}"`);
+
+    type SearchResultItem = {
+      type: 'product' | 'banca';
+      id: string;
+      name: string;
+      image: string | null;
+      price: number | null;
+      category: string;
+      banca_name: string;
+      banca_id: string;
+      address?: string;
+    };
+
+    const results: SearchResultItem[] = [];
 
     // 1. Buscar produtos
+    // Usando Left Join (sem !) para não excluir produtos sem categoria/banca
     let productsQuery = supabase
       .from('products')
       .select(`
@@ -29,8 +44,8 @@ export async function GET(req: NextRequest) {
         images,
         banca_id,
         category_id,
-        categories!category_id(name),
-        bancas!banca_id(name)
+        categories(name),
+        bancas(name)
       `)
       .eq('active', true)
       .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
