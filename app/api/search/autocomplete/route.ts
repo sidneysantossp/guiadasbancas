@@ -53,33 +53,49 @@ export async function GET(req: NextRequest) {
 
     const results: SearchResultItem[] = [];
 
-    // 1. Buscar produtos
-    // Usando Left Join (sem !) para não excluir produtos sem categoria/banca
-    let productsQuery = supabase
-      .from('products')
-      .select(`
-        id,
-        name,
-        price,
-        images,
-        banca_id,
-        category_id,
-        categories(name),
-        bancas(name, lat, lng)
-      `)
-      .eq('active', true)
-      .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
-      .limit(limit);
+    // Verificar se o termo de busca corresponde a nomes de bancas
+    // Se sim, buscar apenas bancas para evitar misturar resultados
+    const { data: bancasCheck, error: bancasCheckError } = await supabase
+      .from('bancas')
+      .select('name')
+      .ilike('name', `%${searchTerm}%`)
+      .limit(1);
 
-    if (bancaId) {
-      productsQuery = productsQuery.eq('banca_id', bancaId);
+    const isBancaSearch = !bancasCheckError && bancasCheck && bancasCheck.length > 0;
+
+    console.log(`[Search API] Termo "${searchTerm}" ${isBancaSearch ? 'corresponde a banca' : 'não corresponde a banca'}`);
+
+    // 1. Buscar produtos (apenas se não for busca específica de banca)
+    let products = null;
+    if (!isBancaSearch) {
+      // Usando Left Join (sem !) para não excluir produtos sem categoria/banca
+      let productsQuery = supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          price,
+          images,
+          banca_id,
+          category_id,
+          categories(name),
+          bancas(name, lat, lng)
+        `)
+        .eq('active', true)
+        .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+        .limit(limit);
+
+      if (bancaId) {
+        productsQuery = productsQuery.eq('banca_id', bancaId);
+      }
+
+      const { data: productsData, error: productsError } = await productsQuery;
+      products = productsData;
+    } else {
+      products = null;
     }
 
-    const { data: products, error: productsError } = await productsQuery;
-
-    if (productsError) {
-      console.error('Erro na busca de produtos:', productsError);
-    } else if (products) {
+    if (products) {
       products.forEach((p: any) => {
         const bancaLat = p.bancas?.lat ? parseFloat(p.bancas.lat) : null;
         const bancaLng = p.bancas?.lng ? parseFloat(p.bancas.lng) : null;
