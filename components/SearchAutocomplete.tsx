@@ -4,16 +4,19 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { IconBuildingStore } from "@tabler/icons-react";
 
 type SearchResult = {
+  type: 'product' | 'banca';
   id: string;
   name: string;
-  image?: string;
-  price: number;
+  image?: string | null;
+  price: number | null;
   banca_name: string;
   banca_id: string;
   distance?: number;
   category: string;
+  address?: string;
 };
 
 type SearchAutocompleteProps = {
@@ -43,7 +46,7 @@ export default function SearchAutocomplete({
   const resultsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Buscar produtos da API real
+  // Buscar produtos/bancas da API
   useEffect(() => {
     if (query.length < 2) {
       setResults([]);
@@ -55,56 +58,28 @@ export default function SearchAutocomplete({
     
     const timeoutId = setTimeout(async () => {
       try {
-        let url = `/api/products/most-searched?search=${encodeURIComponent(query)}&limit=6`;
+        let url = `/api/search/autocomplete?q=${encodeURIComponent(query)}&limit=6`;
         
-        // Se estiver na página de uma banca, buscar apenas produtos daquela banca
+        // Se estiver na página de uma banca, filtrar por banca_id
         if (bancaId) {
-          url = `/api/banca/${bancaId}/products`;
+          url += `&banca_id=${bancaId}`;
         }
         
         const response = await fetch(url);
         const data = await response.json();
         
-        let products = [];
-        
-        if (bancaId && data.success && Array.isArray(data.products)) {
-          // Filtrar produtos da banca pelo termo de busca
-          products = data.products
-            .filter((p: any) => 
-              p.name.toLowerCase().includes(query.toLowerCase()) ||
-              (p.category_name || '').toLowerCase().includes(query.toLowerCase()) ||
-              (p.distribuidor_nome || '').toLowerCase().includes(query.toLowerCase()) ||
-              (p.description || '').toLowerCase().includes(query.toLowerCase())
-            )
-            .slice(0, 6)
-            .map((p: any) => ({
-              id: p.id,
-              name: p.name,
-              image: Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : '',
-              price: p.price,
-              banca_name: p.distribuidor_nome || 'Esta banca',
-              banca_id: bancaId,
-              category: p.category_name || 'Produtos'
-            }));
-        } else if (data.success && Array.isArray(data.data)) {
-          // Busca global de produtos
-          products = data.data.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            image: Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : '',
-            price: p.price,
-            banca_name: p.distribuidor_nome || p.banca?.name || 'Banca',
-            banca_id: p.banca_id || p.distribuidor_id,
-            category: p.category || 'Produtos'
-          }));
+        if (data.success && Array.isArray(data.results)) {
+          setResults(data.results);
+          setIsOpen(data.results.length > 0);
+        } else {
+          setResults([]);
+          setIsOpen(false);
         }
 
-        setResults(products);
-        setIsOpen(products.length > 0);
         setLoading(false);
         setSelectedIndex(-1);
       } catch (error) {
-        console.error('Erro ao buscar produtos:', error);
+        console.error('Erro ao buscar:', error);
         setResults([]);
         setIsOpen(false);
         setLoading(false);
@@ -161,8 +136,14 @@ export default function SearchAutocomplete({
     onSelect(result);
     setIsOpen(false);
     setSelectedIndex(-1);
-    // Redirecionar para a página do produto
-    router.push(`/produto/${result.name.toLowerCase().replace(/\s+/g, '-')}-prod-${result.id}`);
+    
+    if (result.type === 'banca') {
+      // Redirecionar para a página da banca
+      router.push(`/banca/${result.id}`);
+    } else {
+      // Redirecionar para a página do produto
+      router.push(`/produto/${result.name.toLowerCase().replace(/\s+/g, '-')}-prod-${result.id}`);
+    }
   };
 
   const getCategoryIcon = (category: string) => {
@@ -171,6 +152,7 @@ export default function SearchAutocomplete({
       case 'Revistas': return '📖';
       case 'Jornais': return '📰';
       case 'Livros': return '📗';
+      case 'Banca': return <IconBuildingStore size={24} className="text-gray-400" />;
       default: return '📦';
     }
   };
@@ -204,14 +186,14 @@ export default function SearchAutocomplete({
             <>
               {results.map((result, index) => (
                 <button
-                  key={result.id}
+                  key={`${result.type}-${result.id}`}
                   onClick={() => handleSelect(result)}
                   className={`w-full p-3 flex items-center gap-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 text-left transition-colors ${
                     selectedIndex === index ? 'bg-orange-50 border-orange-200' : ''
                   }`}
                 >
-                  {/* Imagem do produto */}
-                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                  {/* Imagem */}
+                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
                     {result.image ? (
                       <Image
                         src={result.image}
@@ -227,30 +209,44 @@ export default function SearchAutocomplete({
                     )}
                   </div>
 
-                  {/* Informações do produto */}
+                  {/* Informações */}
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-gray-900 truncate">
                       {result.name}
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <span>{result.banca_name}</span>
-                      {result.distance && (
+                      {result.type === 'banca' ? (
+                        <span className="truncate">{result.address || 'Endereço não disponível'}</span>
+                      ) : (
                         <>
-                          <span>•</span>
-                          <span>{result.distance}km</span>
+                          <span className="truncate">{result.banca_name}</span>
+                          {result.distance && (
+                            <>
+                              <span>•</span>
+                              <span>{result.distance}km</span>
+                            </>
+                          )}
                         </>
                       )}
                     </div>
                   </div>
 
-                  {/* Preço */}
+                  {/* Preço ou Tag */}
                   <div className="text-right flex-shrink-0">
-                    <div className="font-semibold text-[#ff5c00]">
-                      R$ {result.price.toFixed(2)}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {result.category}
-                    </div>
+                    {result.type === 'product' && result.price !== null ? (
+                      <>
+                        <div className="font-semibold text-[#ff5c00]">
+                          R$ {result.price.toFixed(2)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {result.category}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="inline-block px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
+                        {result.type === 'banca' ? 'Banca' : result.category}
+                      </span>
+                    )}
                   </div>
                 </button>
               ))}
