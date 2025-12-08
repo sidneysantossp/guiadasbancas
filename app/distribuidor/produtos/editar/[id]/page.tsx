@@ -45,6 +45,7 @@ export default function DistribuidorProductEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [bancas, setBancas] = useState<Banca[]>([]);
+  const [distribuidor, setDistribuidor] = useState<any>(null);
   
   const [formData, setFormData] = useState({
     custom_price: '',
@@ -60,13 +61,32 @@ export default function DistribuidorProductEditPage() {
   });
 
   useEffect(() => {
+    const raw = localStorage.getItem('gb:distribuidor');
+    if (!raw) {
+      router.push('/distribuidor/login');
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      setDistribuidor(parsed);
+    } catch (error) {
+      console.error('Erro ao ler distribuidor do storage:', error);
+      router.push('/distribuidor/login');
+    }
+  }, [router]);
+
+  useEffect(() => {
     const productId = params.id as string;
-    if (!productId) return;
+    if (!productId || !distribuidor?.id) return;
 
     // Carregar produto
     const loadProduct = async () => {
       try {
-        const response = await fetchWithAuth(`/api/distribuidor/products/${productId}`);
+        const response = await fetchWithAuth(`/api/distribuidor/products?id=${distribuidor.id}&productId=${productId}&active=false`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' },
+        });
         if (!response.ok) {
           if (response.status === 401) {
             router.push('/distribuidor/login');
@@ -74,8 +94,12 @@ export default function DistribuidorProductEditPage() {
           }
           throw new Error('Erro ao carregar produto');
         }
-        
-        const data = await response.json();
+        const json = await response.json();
+        const data = json.product || json.data?.[0];
+        if (!data) {
+          throw new Error('Produto não encontrado para este distribuidor');
+        }
+
         setProduct(data);
         
         // Preencher formulário
@@ -114,28 +138,32 @@ export default function DistribuidorProductEditPage() {
 
     loadProduct();
     loadBancas();
-  }, [params.id, fetchWithAuth, router, toast]);
+  }, [params.id, distribuidor?.id, fetchWithAuth, router, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
 
     try {
-      const response = await fetchWithAuth(`/api/distribuidor/products/${params.id}`, {
+      const response = await fetchWithAuth('/api/distribuidor/products', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          custom_price: formData.custom_price ? parseFloat(formData.custom_price) : null,
-          custom_description: formData.custom_description,
-          custom_status: formData.custom_status,
-          custom_pronta_entrega: formData.custom_pronta_entrega,
-          custom_sob_encomenda: formData.custom_sob_encomenda,
-          custom_pre_venda: formData.custom_pre_venda,
-          custom_stock_enabled: formData.custom_stock_enabled,
-          custom_stock_qty: formData.custom_stock_qty ? parseInt(formData.custom_stock_qty) : null,
-          custom_featured: formData.custom_featured,
+          productId: params.id,
+          distribuidorId: distribuidor?.id,
+          updates: {
+            custom_price: formData.custom_price ? parseCurrency(formData.custom_price) : null,
+            custom_description: formData.custom_description,
+            custom_status: formData.custom_status,
+            custom_pronta_entrega: formData.custom_pronta_entrega,
+            custom_sob_encomenda: formData.custom_sob_encomenda,
+            custom_pre_venda: formData.custom_pre_venda,
+            custom_stock_enabled: formData.custom_stock_enabled,
+            custom_stock_qty: formData.custom_stock_qty ? parseInt(formData.custom_stock_qty) : null,
+            custom_featured: formData.custom_featured,
+          }
         }),
       });
 

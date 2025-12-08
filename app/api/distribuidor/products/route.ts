@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const activeOnly = searchParams.get('active') !== 'false';
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
+    const productId = searchParams.get('productId');
 
     if (!distribuidorId) {
       return NextResponse.json(
@@ -51,23 +52,14 @@ export async function GET(request: NextRequest) {
       let query = supabaseAdmin
         .from('products')
         .select(`
-          id,
-          name,
-          description,
-          price,
-          stock_qty,
-          images,
-          active,
-          track_stock,
-          mercos_id,
-          codigo_mercos,
-          origem,
-          sincronizado_em,
-          created_at,
-          category_id,
+          *,
           categories(id, name)
         `)
         .eq('distribuidor_id', distribuidorId);
+
+      if (productId) {
+        query = query.eq('id', productId).limit(1);
+      }
 
       // Filtrar por status ativo/inativo
       if (activeOnly) {
@@ -176,6 +168,16 @@ export async function GET(request: NextRequest) {
         name: product.name,
         description: product.description,
         price: product.price || 0,
+        distribuidor_price: product.distribuidor_price ?? product.price ?? 0,
+        custom_price: product.custom_price ?? null,
+        custom_description: product.custom_description ?? '',
+        custom_status: product.custom_status || 'disponivel',
+        custom_pronta_entrega: product.custom_pronta_entrega ?? product.pronta_entrega ?? false,
+        custom_sob_encomenda: product.custom_sob_encomenda ?? product.sob_encomenda ?? false,
+        custom_pre_venda: product.custom_pre_venda ?? product.pre_venda ?? false,
+        custom_stock_enabled: product.custom_stock_enabled ?? false,
+        custom_stock_qty: product.custom_stock_qty ?? null,
+        custom_featured: product.custom_featured ?? false,
         image_url: imageUrl,
         images: product.images || [],
         category: product.categories?.name || 'Sem Categoria',
@@ -186,6 +188,9 @@ export async function GET(request: NextRequest) {
         mercos_id: product.mercos_id,
         codigo_mercos: product.codigo_mercos,
         origem: product.origem,
+        pronta_entrega: product.pronta_entrega ?? false,
+        sob_encomenda: product.sob_encomenda ?? false,
+        pre_venda: product.pre_venda ?? false,
         sincronizado_em: product.sincronizado_em,
         created_at: product.created_at,
       };
@@ -195,6 +200,27 @@ export async function GET(request: NextRequest) {
     let finalProducts = formattedProducts;
     if (category) {
       finalProducts = formattedProducts.filter((p: any) => p.category === category);
+    }
+
+    if (productId) {
+      const single = finalProducts[0];
+      if (!single) {
+        return NextResponse.json(
+          { success: false, error: 'Produto não encontrado' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: [single],
+        product: single,
+        distribuidor_id: distribuidorId,
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      });
     }
 
     return NextResponse.json({
