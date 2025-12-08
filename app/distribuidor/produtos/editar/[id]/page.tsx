@@ -13,6 +13,7 @@ interface Product {
   name: string;
   description: string;
   price: number;
+  base_price?: number;
   price_original?: number | null;
   category?: string;
   category_id?: string;
@@ -110,10 +111,16 @@ export default function DistribuidorProductEditPage() {
         }
 
         setProduct(data);
-        
+
+        // Valor base (sem markup) e valor final (com markup ou custom)
+        const basePrice = data.base_price ?? data.price ?? 0;
+        const finalPrice = data.custom_price != null
+          ? data.custom_price
+          : (data.distribuidor_price ?? basePrice);
+
         // Preencher formulário
         setFormData({
-          custom_price: data.custom_price != null ? formatCurrency(data.custom_price) : '',
+          custom_price: formatCurrency(finalPrice),
           custom_description: data.custom_description || '',
           custom_status: data.custom_status || 'disponivel',
           custom_pronta_entrega: data.custom_pronta_entrega || false,
@@ -218,7 +225,7 @@ export default function DistribuidorProductEditPage() {
   };
 
   const priceNumber = formData.custom_price ? parseCurrency(formData.custom_price) : null;
-  const finalPrice = priceNumber ?? product?.distribuidor_price ?? 0;
+  const finalPrice = priceNumber ?? product?.distribuidor_price ?? product?.base_price ?? product?.price ?? 0;
 
   if (loading) {
     return (
@@ -440,11 +447,11 @@ export default function DistribuidorProductEditPage() {
               <div className="space-y-1">
                 <p className="text-sm text-gray-600">Preço do distribuidor</p>
                 <input
-                  value={`R$ ${(product.distribuidor_price ?? product.price).toFixed(2)}`}
+                  value={`R$ ${(product.base_price ?? product.price).toFixed(2)}`}
                   disabled
                   className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-gray-900 font-semibold"
                 />
-                <p className="text-xs text-gray-500">Valor sincronizado com o catálogo do distribuidor.</p>
+                <p className="text-xs text-gray-500">Valor bruto sincronizado do catálogo (sem markup).</p>
               </div>
 
               <div className="space-y-1">
@@ -456,7 +463,7 @@ export default function DistribuidorProductEditPage() {
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00]"
                   placeholder="R$ 0,00"
                 />
-                <p className="text-xs text-gray-500">Deixe em branco para usar o preço do distribuidor.</p>
+                <p className="text-xs text-gray-500">Valor final para o jornaleiro (com markup). Deixe em branco para usar o markup padrão.</p>
               </div>
 
               <div className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700">
