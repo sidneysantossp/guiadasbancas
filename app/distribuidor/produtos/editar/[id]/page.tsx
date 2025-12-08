@@ -39,7 +39,7 @@ export default function DistribuidorProductEditPage() {
   const params = useParams();
   const router = useRouter();
   const fetchWithAuth = useFetchAuth();
-  const { showToast } = useToast();
+  const toast = useToast();
   
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,7 +93,7 @@ export default function DistribuidorProductEditPage() {
         });
       } catch (error) {
         console.error('Erro:', error);
-        showToast('Erro ao carregar produto', 'error');
+        toast.error('Erro ao carregar produto');
       } finally {
         setLoading(false);
       }
@@ -114,7 +114,7 @@ export default function DistribuidorProductEditPage() {
 
     loadProduct();
     loadBancas();
-  }, [params.id, fetchWithAuth, router, showToast]);
+  }, [params.id, fetchWithAuth, router, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,11 +143,11 @@ export default function DistribuidorProductEditPage() {
         throw new Error('Erro ao salvar produto');
       }
 
-      showToast('Produto atualizado com sucesso!', 'success');
+      toast.success('Produto atualizado com sucesso!');
       router.push('/distribuidor/produtos');
     } catch (error) {
       console.error('Erro:', error);
-      showToast('Erro ao salvar produto', 'error');
+      toast.error('Erro ao salvar produto');
     } finally {
       setSaving(false);
     }
