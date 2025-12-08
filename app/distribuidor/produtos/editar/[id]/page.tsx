@@ -113,7 +113,7 @@ export default function DistribuidorProductEditPage() {
         
         // Preencher formulário
         setFormData({
-          custom_price: data.custom_price ? formatCurrency(data.custom_price.toString()) : '',
+          custom_price: data.custom_price != null ? formatCurrency(data.custom_price) : '',
           custom_description: data.custom_description || '',
           custom_status: data.custom_status || 'disponivel',
           custom_pronta_entrega: data.custom_pronta_entrega || false,
@@ -190,8 +190,19 @@ export default function DistribuidorProductEditPage() {
     }
   };
 
-  const formatCurrency = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
+  const formatCurrency = (value: string | number) => {
+    if (value === null || value === undefined) return '';
+    // Se já é número ou string decimal, formatar direto
+    if (typeof value === 'number') {
+      return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    const clean = value.replace(',', '.');
+    const parsed = parseFloat(clean);
+    if (!isNaN(parsed) && clean.includes('.')) {
+      return parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    // Máscara ao digitar (centavos)
+    const numbers = value.toString().replace(/\D/g, '');
     if (!numbers) return '';
     const amount = parseFloat(numbers) / 100;
     return amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
