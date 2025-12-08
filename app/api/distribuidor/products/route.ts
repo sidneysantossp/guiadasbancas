@@ -232,6 +232,7 @@ export async function GET(request: NextRequest) {
 
       const precoBase = product.price || 0;
       const precoComMarkup = calcularPrecoComMarkup(precoBase, product.id, product.category_id);
+      const hasMarkupCustom = markupProdMap.has(product.id);
 
       return {
         id: product.id,
@@ -239,7 +240,7 @@ export async function GET(request: NextRequest) {
         description: product.description,
         price: precoBase,
         distribuidor_price: precoComMarkup,
-        custom_price: product.custom_price ?? null,
+        custom_price: hasMarkupCustom ? precoComMarkup : (product.custom_price ?? null),
         custom_description: product.custom_description ?? '',
         custom_status: product.custom_status || 'disponivel',
         custom_pronta_entrega: product.custom_pronta_entrega ?? product.pronta_entrega ?? false,
@@ -316,6 +317,7 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const { productId, distribuidorId, updates } = body;
+    const customPrice = updates?.custom_price;
 
     if (!productId || !distribuidorId) {
       return NextResponse.json(
@@ -339,21 +341,48 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Atualizar produto
-    const { data, error } = await supabaseAdmin
+    // Buscar preço base do produto
+    const { data: produtoBase, error: loadError } = await supabaseAdmin
       .from('products')
-      .update(updates)
+      .select('price')
       .eq('id', productId)
-      .select()
       .single();
 
-    if (error) {
-      throw error;
+    if (loadError) {
+      throw loadError;
+    }
+
+    // Se houver preço personalizado, calcular markup percentual e salvar na tabela de markups
+    if (typeof customPrice === 'number' && produtoBase?.price !== undefined && produtoBase.price !== null) {
+      const precoBase = Number(produtoBase.price) || 0;
+      const markupPercentual = precoBase > 0 ? ((customPrice - precoBase) / precoBase) * 100 : 0;
+
+      const { error: markupError } = await supabaseAdmin
+        .from('distribuidor_markup_produtos')
+        .upsert({
+          distribuidor_id: distribuidorId,
+          product_id: productId,
+          markup_percentual: markupPercentual,
+          markup_fixo: 0,
+        }, {
+          onConflict: 'distribuidor_id,product_id',
+        });
+
+      if (markupError) {
+        throw markupError;
+      }
+    } else {
+      // Se não há preço customizado, remover markup específico do produto
+      await supabaseAdmin
+        .from('distribuidor_markup_produtos')
+        .delete()
+        .eq('distribuidor_id', distribuidorId)
+        .eq('product_id', productId);
     }
 
     return NextResponse.json({
       success: true,
-      data,
+      data: { productId, distribuidorId, custom_price: customPrice ?? null },
     });
   } catch (error: any) {
     console.error('Erro ao atualizar produto:', error);
