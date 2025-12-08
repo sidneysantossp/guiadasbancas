@@ -262,9 +262,9 @@ export default function SearchAutocomplete({
                         <div className="font-semibold text-[#ff5c00]">
                           R$ {result.price.toFixed(2)}
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {result.category}
-                        </div>
+                        <span className="inline-block px-2 py-1 bg-[#ff5c00] text-white text-xs rounded-full font-medium">
+                          Ver produto
+                        </span>
                       </>
                     ) : (
                       <span className="inline-block px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
