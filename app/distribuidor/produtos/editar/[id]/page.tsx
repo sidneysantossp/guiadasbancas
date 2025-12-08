@@ -38,7 +38,7 @@ interface Banca {
 export default function DistribuidorProductEditPage() {
   const params = useParams();
   const router = useRouter();
-  const { fetchWithAuth } = useFetchAuth();
+  const fetchWithAuth = useFetchAuth();
   const { showToast } = useToast();
   
   const [product, setProduct] = useState<Product | null>(null);
