@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 // GET - Buscar configurações de markup do distribuidor
 export async function GET(request: NextRequest) {
   try {
@@ -87,6 +91,12 @@ export async function GET(request: NextRequest) {
         })),
         categorias_disponiveis: categoriasDisponiveis || [],
       },
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
     });
   } catch (error: any) {
     console.error('[Markup] Erro geral:', error);
@@ -171,7 +181,13 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
   } catch (error: any) {
     console.error('[Markup] Erro ao salvar:', error);
     return NextResponse.json(
@@ -206,7 +222,13 @@ export async function DELETE(request: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
   } catch (error: any) {
     console.error('[Markup] Erro ao deletar:', error);
     return NextResponse.json(

@@ -126,6 +126,7 @@ export default function MarkupConfigPage() {
       const json = await res.json();
       if (json.success) {
         showMessage('success', 'Configuração salva com sucesso!');
+        fetchMarkupConfig();
       } else {
         showMessage('error', json.error || 'Erro ao salvar');
       }
@@ -176,10 +177,14 @@ export default function MarkupConfigPage() {
         method: 'DELETE',
       });
 
-      if (res.ok) {
-        showMessage('success', 'Markup removido!');
-        fetchMarkupConfig();
+      const json = await res.json().catch(() => ({} as any));
+      if (!res.ok || json?.success === false) {
+        showMessage('error', json?.error || 'Erro ao remover markup');
+        return;
       }
+
+      showMessage('success', 'Markup removido!');
+      fetchMarkupConfig();
     } catch (error) {
       showMessage('error', 'Erro ao remover markup');
     }
@@ -268,10 +273,14 @@ export default function MarkupConfigPage() {
         method: 'DELETE',
       });
 
-      if (res.ok) {
-        showMessage('success', 'Markup removido!');
-        fetchMarkupConfig();
+      const json = await res.json().catch(() => ({} as any));
+      if (!res.ok || json?.success === false) {
+        showMessage('error', json?.error || 'Erro ao remover markup');
+        return;
       }
+
+      showMessage('success', 'Markup removido!');
+      fetchMarkupConfig();
     } catch (error) {
       showMessage('error', 'Erro ao remover markup');
     }
