@@ -14,6 +14,7 @@ interface Product {
   description: string;
   price: number;
   base_price?: number;
+  has_product_markup?: boolean;
   price_original?: number | null;
   category?: string;
   category_id?: string;
@@ -112,15 +113,13 @@ export default function DistribuidorProductEditPage() {
 
         setProduct(data);
 
-        // Valor base (sem markup) e valor final (com markup ou custom)
         const basePrice = data.base_price ?? data.price ?? 0;
-        const finalPrice = data.custom_price != null
-          ? data.custom_price
-          : (data.distribuidor_price ?? basePrice);
+        const suggestedPrice = data.distribuidor_price ?? basePrice;
+        const hasProductMarkup = data.has_product_markup === true;
 
         // Preencher formulário
         setFormData({
-          custom_price: formatCurrency(finalPrice),
+          custom_price: hasProductMarkup ? formatCurrency(suggestedPrice) : '',
           custom_description: data.custom_description || '',
           custom_status: data.custom_status || 'disponivel',
           custom_pronta_entrega: data.custom_pronta_entrega || false,
@@ -161,6 +160,32 @@ export default function DistribuidorProductEditPage() {
     setSaving(true);
 
     try {
+      const hasProductMarkup = product?.has_product_markup === true;
+      const inputIsEmpty = !formData.custom_price || formData.custom_price.trim() === '';
+
+      const updates: Record<string, any> = {
+        custom_description: formData.custom_description,
+        custom_status: formData.custom_status,
+        custom_pronta_entrega: formData.custom_pronta_entrega,
+        custom_sob_encomenda: formData.custom_sob_encomenda,
+        custom_pre_venda: formData.custom_pre_venda,
+        custom_stock_enabled: formData.custom_stock_enabled,
+        custom_stock_qty: formData.custom_stock_qty ? parseInt(formData.custom_stock_qty) : null,
+        custom_featured: formData.custom_featured,
+      };
+
+      // Regras:
+      // - Se já existe markup por produto e o usuário esvaziar o campo => remover markup (custom_price: null)
+      // - Se não existe markup por produto e o campo estiver vazio => não enviar custom_price (mantém markup padrão)
+      // - Se houver valor digitado => atualizar markup do produto para chegar no preço sugerido
+      if (inputIsEmpty) {
+        if (hasProductMarkup) {
+          updates.custom_price = null;
+        }
+      } else {
+        updates.custom_price = parseCurrency(formData.custom_price);
+      }
+
       const response = await fetchWithAuth('/api/distribuidor/products', {
         method: 'PUT',
         headers: {
@@ -169,17 +194,7 @@ export default function DistribuidorProductEditPage() {
         body: JSON.stringify({
           productId: params.id,
           distribuidorId: distribuidor?.id,
-          updates: {
-            custom_price: formData.custom_price ? parseCurrency(formData.custom_price) : null,
-            custom_description: formData.custom_description,
-            custom_status: formData.custom_status,
-            custom_pronta_entrega: formData.custom_pronta_entrega,
-            custom_sob_encomenda: formData.custom_sob_encomenda,
-            custom_pre_venda: formData.custom_pre_venda,
-            custom_stock_enabled: formData.custom_stock_enabled,
-            custom_stock_qty: formData.custom_stock_qty ? parseInt(formData.custom_stock_qty) : null,
-            custom_featured: formData.custom_featured,
-          }
+          updates,
         }),
       });
 
@@ -226,6 +241,9 @@ export default function DistribuidorProductEditPage() {
 
   const priceNumber = formData.custom_price ? parseCurrency(formData.custom_price) : null;
   const finalPrice = priceNumber ?? product?.distribuidor_price ?? product?.base_price ?? product?.price ?? 0;
+  const suggestedPlaceholder = product
+    ? `R$ ${formatCurrency(product.distribuidor_price ?? product.base_price ?? product.price ?? 0)}`
+    : 'R$ 0,00';
 
   if (loading) {
     return (
@@ -461,7 +479,7 @@ export default function DistribuidorProductEditPage() {
                   value={formData.custom_price ? `R$ ${formData.custom_price}` : ''}
                   onChange={(e) => handlePriceChange(e.target.value)}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00]"
-                  placeholder="R$ 0,00"
+                  placeholder={suggestedPlaceholder}
                 />
                 <p className="text-xs text-gray-500">Valor final para o jornaleiro (com markup). Deixe em branco para usar o markup padrão.</p>
               </div>
