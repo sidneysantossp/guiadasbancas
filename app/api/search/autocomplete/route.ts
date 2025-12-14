@@ -68,6 +68,10 @@ export async function GET(req: NextRequest) {
     // 1. Buscar produtos (apenas se não for busca específica de banca)
     let products = null;
     if (!isBancaSearch) {
+      // Importante: para ordenar por proximidade, precisamos buscar mais itens antes do sort
+      // (senão o limit do banco pode excluir a banca mais próxima)
+      const fetchLimit = Math.min(Math.max(limit * 5, limit), 50);
+
       // Usando Left Join (sem !) para não excluir produtos sem categoria/banca
       let productsQuery = supabase
         .from('products')
@@ -83,7 +87,7 @@ export async function GET(req: NextRequest) {
         `)
         .eq('active', true)
         .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
-        .limit(limit);
+        .limit(fetchLimit);
 
       if (bancaId) {
         productsQuery = productsQuery.eq('banca_id', bancaId);

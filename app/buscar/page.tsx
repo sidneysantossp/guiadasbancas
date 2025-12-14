@@ -68,7 +68,8 @@ function BuscarPageContent() {
         
         // Buscar produtos se houver query de busca
         if (q.trim()) {
-          const productsRes = await fetch(`/api/products/most-searched?search=${encodeURIComponent(q)}&limit=20`);
+          const locQs = loc ? `&lat=${encodeURIComponent(String(loc.lat))}&lng=${encodeURIComponent(String(loc.lng))}` : "";
+          const productsRes = await fetch(`/api/products/most-searched?search=${encodeURIComponent(q)}&limit=20${locQs}`);
           const productsData = await productsRes.json();
           if (productsRes.ok && productsData.data) {
             if (mounted) setProducts(productsData.data);

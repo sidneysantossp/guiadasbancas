@@ -47,6 +47,22 @@ export default function SearchAutocomplete({
   const resultsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
+  // Fallback: usar localização salva (CEP/modal) quando geolocalização não estiver disponível
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('gb:userLocation');
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      const lat = typeof parsed?.lat === 'number' ? parsed.lat : parseFloat(parsed?.lat);
+      const lng = typeof parsed?.lng === 'number' ? parsed.lng : parseFloat(parsed?.lng);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        setUserLocation({ lat, lng });
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Obter geolocalização do usuário
   useEffect(() => {
     if (navigator.geolocation) {
