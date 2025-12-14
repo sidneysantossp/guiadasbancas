@@ -163,10 +163,12 @@ export default function SearchAutocomplete({
     
     if (result.type === 'banca') {
       // Redirecionar para a página da banca
-      router.push(`/banca/${result.id}`);
+      // Rota pública canônica: /bancas/[id]
+      router.push(`/bancas/${result.id}`);
     } else {
       // Redirecionar para a página do produto
-      router.push(`/produto/${result.name.toLowerCase().replace(/\s+/g, '-')}-prod-${result.id}`);
+      // Rota pública canônica: /produto/[id]
+      router.push(`/produto/${result.id}`);
     }
   };
 
