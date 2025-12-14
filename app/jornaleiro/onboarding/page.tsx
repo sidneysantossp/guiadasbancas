@@ -240,52 +240,8 @@ export default function JornaleiroOnboardingPage() {
         return;
       }
 
-      // Criar banca no Supabase
-      console.log('[Onboarding] 👤 user.id:', user!.id);
-      console.log('[Onboarding] 📧 user.email:', (user as any)?.email);
-      console.log('[Onboarding] 🔑 Verificando se usuário existe no banco...');
-      
-      // Verificar se o usuário existe no banco antes de criar a banca
-      const { data: userCheck, error: userCheckError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('id', user!.id)
-        .single();
-      
-      if (userCheckError || !userCheck) {
-        console.error('[Onboarding] ❌ Usuário não encontrado no banco:', userCheckError);
-        throw new Error('Usuário não encontrado. Por favor, faça login novamente.');
-      }
-      
-      console.log('[Onboarding] ✅ Usuário encontrado no banco!');
-      
-      const { data, error } = await supabase
-        .from("bancas")
-        .insert({
-          user_id: user!.id,
-          ...bancaData,
-          active: false, // Aguardando aprovação
-          approved: false,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('[Onboarding] ❌ Erro ao criar banca:', error);
-        throw new Error(`Erro ao criar banca: ${error.message || JSON.stringify(error)}`);
-      }
-      
-      console.log('[Onboarding] ✅ Banca criada com sucesso!');
-      console.log('[Onboarding] 🏢 is_cotista salvo:', data.is_cotista);
-      console.log('[Onboarding] 👥 cotista_razao_social salvo:', data.cotista_razao_social);
-
-      // Atualizar perfil com banca_id E dados do cadastro (phone, cpf)
-      console.log('[Onboarding] Atualizando user_profiles com banca_id:', data.id);
-      
-      // Tentar recuperar dados do perfil do wizard
-      const profileUpdates: any = { banca_id: data.id };
-      
-      // Extrair telefone e CPF do wizard ou saved (bancaData)
+      // Preparar dados de perfil para salvar junto
+      const profileUpdates: any = {};
       const phoneToSave = saved.phone || wizard?.phone || wizard?.servicePhone;
       const cpfToSave = saved.cpf || wizard?.cpf;
       
@@ -297,20 +253,36 @@ export default function JornaleiroOnboardingPage() {
         profileUpdates.cpf = cpfToSave;
         console.log('[Onboarding] 🆔 Salvando CPF no perfil:', cpfToSave);
       }
-      
-      console.log('[Onboarding] 📋 Dados para atualizar perfil:', profileUpdates);
-      
-      const { error: profileError } = await supabase
-        .from("user_profiles")
-        .update(profileUpdates)
-        .eq("id", user!.id);
 
-      if (profileError) {
-        console.error('[Onboarding] ❌ ERRO ao atualizar user_profiles:', profileError);
-        throw new Error(`Erro ao vincular banca ao perfil: ${profileError.message}`);
+      console.log('[Onboarding] 🔗 Chamando API /api/jornaleiro/banca para criar banca no servidor...');
+      const response = await fetch("/api/jornaleiro/banca", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          banca: bancaData,
+          profile: profileUpdates,
+        }),
+      });
+
+      const responseText = await response.text();
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(responseText);
+      } catch (parseErr) {
+        console.error('[Onboarding] ❌ Resposta inválida da API:', responseText);
+        throw new Error('Resposta inválida da API de criação da banca');
       }
-      
-      console.log('[Onboarding] ✅ Banca criada e vinculada ao perfil com sucesso!');
+
+      if (!response.ok || !parsed?.success) {
+        const apiError = parsed?.error || `HTTP ${response.status}`;
+        console.error('[Onboarding] ❌ Erro ao criar banca via API:', apiError);
+        throw new Error(apiError);
+      }
+
+      const data = parsed.data;
+      console.log('[Onboarding] ✅ Banca criada com sucesso via API!', data);
+      console.log('[Onboarding] 🏢 is_cotista salvo:', data?.is_cotista);
+      console.log('[Onboarding] 👥 cotista_razao_social salvo:', data?.cotista_razao_social);
 
       // Salvar banca no cache imediatamente
       sessionStorage.setItem(`gb:banca:${user!.id}`, JSON.stringify(data));

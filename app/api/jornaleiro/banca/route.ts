@@ -212,6 +212,99 @@ async function loadBancaForUser(userId: string): Promise<any> {
   }
 }
 
+export async function POST(request: NextRequest) {
+  console.log('\n========== [API /jornaleiro/banca POST] INÍCIO ==========');
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    console.error('[POST] ❌ Usuário não autenticado');
+    return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const banca = body?.banca || body;
+    const profile = body?.profile || {};
+
+    if (!banca?.name) {
+      return NextResponse.json({ success: false, error: "Nome da banca é obrigatório" }, { status: 400 });
+    }
+
+    // Se já existe banca vinculada ao usuário, retorna sem recriar
+    const existing = await loadBancaForUser(session.user.id);
+    if (existing) {
+      console.log('[POST] ✅ Banca já existe, retornando existente');
+      return NextResponse.json({ success: true, data: existing, alreadyExists: true });
+    }
+
+    const now = new Date().toISOString();
+    const insertData = {
+      user_id: session.user.id,
+      name: banca.name || '',
+      description: banca.description || '',
+      profile_image: banca.profile_image || banca.profileImage || null,
+      cover_image: banca.cover_image || banca.coverImage || null,
+      phone: banca.phone || null,
+      whatsapp: banca.whatsapp || null,
+      email: banca.email || session.user.email || null,
+      instagram: banca.instagram || null,
+      facebook: banca.facebook || null,
+      cep: banca.cep || '',
+      address: banca.address || '',
+      lat: banca.lat ?? banca.location?.lat ?? null,
+      lng: banca.lng ?? banca.location?.lng ?? null,
+      tpu_url: banca.tpu_url || null,
+      opening_hours: banca.opening_hours || null,
+      delivery_fee: banca.delivery_fee ?? 0,
+      min_order_value: banca.min_order_value ?? 0,
+      delivery_radius: banca.delivery_radius ?? 5,
+      preparation_time: banca.preparation_time ?? 30,
+      payment_methods: banca.payment_methods || [],
+      is_cotista: banca.is_cotista ?? false,
+      cotista_id: banca.cotista_id ?? null,
+      cotista_codigo: banca.cotista_codigo ?? null,
+      cotista_razao_social: banca.cotista_razao_social ?? null,
+      cotista_cnpj_cpf: banca.cotista_cnpj_cpf ?? null,
+      active: false,
+      approved: false,
+      created_at: now,
+      updated_at: now,
+    };
+
+    const { data, error } = await supabaseAdmin
+      .from('bancas')
+      .insert(insertData)
+      .select()
+      .single();
+
+    if (error || !data) {
+      console.error('[POST] ❌ Erro ao criar banca:', error);
+      return NextResponse.json({ success: false, error: error?.message || 'Erro ao criar banca' }, { status: 500 });
+    }
+
+    // Atualizar perfil com banca_id e dados básicos
+    const profileUpdates: any = { banca_id: data.id };
+    if (profile.phone) profileUpdates.phone = profile.phone;
+    if (profile.cpf) profileUpdates.cpf = profile.cpf;
+
+    const { error: profileError } = await supabaseAdmin
+      .from('user_profiles')
+      .update(profileUpdates)
+      .eq('id', session.user.id);
+
+    if (profileError) {
+      console.error('[POST] ❌ Erro ao atualizar user_profiles:', profileError);
+      return NextResponse.json({ success: false, error: profileError.message }, { status: 500 });
+    }
+
+    console.log('[POST] ✅ Banca criada e perfil atualizado');
+    return NextResponse.json({ success: true, data });
+  } catch (e: any) {
+    console.error('[POST] ❌ Erro inesperado na criação da banca:', e);
+    return NextResponse.json({ success: false, error: e?.message || 'Erro inesperado' }, { status: 500 });
+  }
+}
+
 
 export async function GET(request: NextRequest) {
   console.log('\n========== [API /jornaleiro/banca GET] INÍCIO ==========');
