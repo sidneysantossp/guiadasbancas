@@ -186,11 +186,14 @@ export async function GET(req: NextRequest) {
       const bancaConditions = bancaSearchTerms
         .flatMap((t) => [`name.ilike.%${t}%`, `address.ilike.%${t}%`])
         .join(',');
-      const { data: bancas, error: bancasError } = await supabase
+      let bancasQuery = supabase
         .from('bancas')
         .select('id, name, cover_image, address, rating, lat, lng')
-        .or(bancaConditions || undefined)
         .limit(limit);
+      if (bancaConditions) {
+        bancasQuery = bancasQuery.or(bancaConditions);
+      }
+      const { data: bancas, error: bancasError } = await bancasQuery;
 
       if (bancasError) {
         console.error('Erro na busca de bancas:', bancasError);
