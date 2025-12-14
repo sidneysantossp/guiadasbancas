@@ -162,13 +162,34 @@ export async function POST(request: NextRequest) {
 
     // Se sincronização full, desativar produtos que não vieram na resposta
     if (full) {
-      const mercosIds = allProdutos.map((p: any) => p.id);
-      const productsTable = supabaseAdmin.from('products').update({ active: false }).eq('distribuidor_id', distribuidorId);
-      if (mercosIds.length > 0) {
-        await productsTable.not('mercos_id', 'in', `(${mercosIds.join(',')})`);
-      } else {
-        // Resposta vazia - desativar todos deste distribuidor
-        await productsTable;
+      const mercosIdsSet = new Set(allProdutos.map((p: any) => String(p.id)));
+      // Buscar todos mercos_id existentes para desativar apenas os que não vieram
+      const { data: existingMercosIds } = await supabaseAdmin
+        .from('products')
+        .select('id, mercos_id')
+        .eq('distribuidor_id', distribuidorId)
+        .not('mercos_id', 'is', null);
+
+      const toDeactivate = (existingMercosIds || [])
+        .filter((p: any) => !mercosIdsSet.has(String(p.mercos_id)))
+        .map((p: any) => p.id);
+
+      // Desativar em lotes para evitar limites de IN
+      const chunkSize = 500;
+      for (let i = 0; i < toDeactivate.length; i += chunkSize) {
+        const chunk = toDeactivate.slice(i, i + chunkSize);
+        await supabaseAdmin
+          .from('products')
+          .update({ active: false })
+          .in('id', chunk);
+      }
+
+      // Se resposta veio vazia, desativar todos deste distribuidor
+      if (allProdutos.length === 0) {
+        await supabaseAdmin
+          .from('products')
+          .update({ active: false })
+          .eq('distribuidor_id', distribuidorId);
       }
     }
 
@@ -181,7 +202,7 @@ export async function POST(request: NextRequest) {
     // Contar total de produtos ativos
     const { count: totalProdutos } = await supabaseAdmin
       .from('products')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('distribuidor_id', distribuidorId)
       .eq('active', true);
 
