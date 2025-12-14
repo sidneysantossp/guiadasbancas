@@ -28,6 +28,7 @@ type MarkupProduto = {
   product_id: string;
   product_name: string;
   product_codigo: string;
+  product_price?: number | null;
   markup_percentual: number;
   markup_fixo: number;
 };
@@ -647,6 +648,11 @@ export default function MarkupConfigPage() {
                     {mp.markup_percentual > 0 && mp.markup_fixo > 0 && ' + '}
                     {mp.markup_fixo > 0 && formatPrice(mp.markup_fixo)}
                   </span>
+                  {typeof mp.product_price === 'number' && (
+                    <span className="ml-2 text-sm text-gray-700">
+                      Total: <strong>{formatPrice(calcularPrecoFinal(mp.product_price, mp.markup_percentual || 0, mp.markup_fixo || 0))}</strong>
+                    </span>
+                  )}
                 </div>
                 <button
                   onClick={() => mp.id && deleteProdutoMarkup(mp.id)}

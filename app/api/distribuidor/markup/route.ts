@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         product_id,
         markup_percentual,
         markup_fixo,
-        products(id, name, codigo_mercos)
+        products(id, name, codigo_mercos, price)
       `)
       .eq('distribuidor_id', distribuidorId);
 
@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
           product_id: m.product_id,
           product_name: m.products?.name || 'Produto',
           product_codigo: m.products?.codigo_mercos || '',
+          product_price: m.products?.price ?? null,
           markup_percentual: m.markup_percentual || 0,
           markup_fixo: m.markup_fixo || 0,
         })),
