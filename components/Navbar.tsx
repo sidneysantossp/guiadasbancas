@@ -136,7 +136,7 @@ function MiniCartSheet({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 md:hidden">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white shadow-2xl max-h-[80vh] overflow-y-auto">
+      <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white shadow-2xl max-h-[80vh] overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+88px)]">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <div className="text-base font-semibold">Seu carrinho</div>
           <button aria-label="Fechar" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-gray-100">

@@ -261,13 +261,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
   }
 
-  const body = await request.json();
+  let body: any;
+  try {
+    body = await request.json();
+  } catch (e) {
+    console.error('[API/Jornaleiro/Products] Payload inválido:', e);
+    return NextResponse.json({ success: false, error: "JSON inválido no corpo da requisição" }, { status: 400 });
+  }
   
   const novo = {
     banca_id: banca.id,
     category_id: body.category_id || null,
     name: body.name,
-    slug: (body.slug || body.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, ""),
     description: body.description || "",
     images: Array.isArray(body.images) ? body.images : [],
     price: Number(body.price || 0),
@@ -297,7 +302,7 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     console.error('Erro ao criar produto:', error);
-    return NextResponse.json({ success: false, error: 'Erro ao criar produto' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message || 'Erro ao criar produto', details: error }, { status: 500 });
   }
 
   return NextResponse.json({ success: true, data: created }, { status: 201 });
