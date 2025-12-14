@@ -135,9 +135,58 @@ export async function GET(req: NextRequest) {
     if (distribRes?.error) {
       console.error('[SEARCH] Erro ao buscar distribuidores para produtos:', distribRes.error);
     }
-
+    
     const bancaMap = new Map<string, any>((bancasRes?.data || []).map((b: any) => [b.id, b]));
     const distribMap = new Map<string, any>((distribRes?.data || []).map((d: any) => [d.id, d]));
+
+    // Buscar markups e customizações para produtos de distribuidores
+    const productIds = (items || []).map((p: any) => p.id);
+    const categoryIds = Array.from(new Set((items || []).map((p: any) => p.category_id).filter(Boolean)));
+
+    const [
+      markupProdutosRes,
+      markupCategoriasRes,
+      customizacoesRes
+    ] = await Promise.all([
+      distribuidorIds.length ? supabase.from('distribuidor_markup_produtos').select('product_id, distribuidor_id, markup_percentual, markup_fixo').in('distribuidor_id', distribuidorIds) : { data: [] },
+      distribuidorIds.length ? supabase.from('distribuidor_markup_categorias').select('distribuidor_id, category_id, markup_percentual, markup_fixo').in('distribuidor_id', distribuidorIds).in('category_id', categoryIds.length ? categoryIds : ['__none__']) : { data: [] },
+      productIds.length && bancaIds.length ? supabase.from('banca_produtos_distribuidor').select('product_id, banca_id, enabled, custom_price').in('product_id', productIds).in('banca_id', bancaIds) : { data: [] }
+    ]);
+
+    const markupProdMap = new Map((markupProdutosRes.data || []).map((m: any) => [m.product_id, { percentual: m.markup_percentual || 0, fixo: m.markup_fixo || 0 }]));
+    const markupCatMap = new Map((markupCategoriasRes.data || []).map((m: any) => [`${m.distribuidor_id}:${m.category_id}`, { percentual: m.markup_percentual || 0, fixo: m.markup_fixo || 0 }]));
+    const customMap = new Map((customizacoesRes.data || []).map((c: any) => [`${c.banca_id}:${c.product_id}`, c]));
+
+    const calcularPrecoComMarkup = (precoBase: number, produtoId: string, distribuidorId: string, categoryId: string) => {
+      const distribuidor = distribMap.get(distribuidorId);
+      if (!distribuidor) return precoBase;
+
+      const markupProd = markupProdMap.get(produtoId);
+      if (markupProd && (markupProd.percentual > 0 || markupProd.fixo > 0)) {
+        return precoBase * (1 + markupProd.percentual / 100) + markupProd.fixo;
+      }
+
+      const markupCat = markupCatMap.get(`${distribuidorId}:${categoryId}`);
+      if (markupCat && (markupCat.percentual > 0 || markupCat.fixo > 0)) {
+        return precoBase * (1 + markupCat.percentual / 100) + markupCat.fixo;
+      }
+
+      const tipoCalculo = distribuidor.tipo_calculo || 'markup';
+      if (tipoCalculo === 'margem') {
+        const divisor = distribuidor.margem_divisor || 1;
+        if (divisor > 0 && divisor < 1) {
+          return precoBase / divisor;
+        }
+      } else {
+        const percentual = distribuidor.markup_global_percentual || 0;
+        const fixo = distribuidor.markup_global_fixo || 0;
+        if (percentual > 0 || fixo > 0) {
+          return precoBase * (1 + percentual / 100) + fixo;
+        }
+      }
+
+      return precoBase;
+    };
 
     // Map reduzido para o front com informações da banca/distribuidor resolvidas via Map
     const data = (items || []).map((p: any) => {
@@ -156,10 +205,23 @@ export async function GET(req: NextRequest) {
         distance = calculateDistance(userLat, userLng, bancaLat, bancaLng);
       }
 
+      // Aplicar markup e customização
+      let finalPrice = p.price;
+      if (p.distribuidor_id) {
+        finalPrice = calcularPrecoComMarkup(p.price, p.id, p.distribuidor_id, p.category_id);
+      }
+      const custom = customMap.get(`${p.banca_id}:${p.id}`);
+      if (custom && custom.enabled === false) {
+        return null; // Produto desabilitado para essa banca
+      }
+      if (custom && typeof custom.custom_price === 'number') {
+        finalPrice = custom.custom_price;
+      }
+
       return {
         id: p.id,
         name: p.name,
-        price: p.price,
+        price: finalPrice,
         price_original: p.price_original,
         images: p.images || [],
         banca_id: p.banca_id,
@@ -186,7 +248,7 @@ export async function GET(req: NextRequest) {
           lng: bancaLng
         }
       };
-    });
+    }).filter(Boolean);
 
     // Ordenar:
     // - sempre por nome (alfabético)
