@@ -53,49 +53,69 @@ export async function POST(request: NextRequest) {
 
     // Preparar parâmetros da requisição usando base_url configurada
     const baseUrl = distribuidor.base_url || 'https://app.mercos.com/api/v1';
-    let url = `${baseUrl}/produtos?limit=100&order_by=ultima_alteracao&order_direction=desc`;
-    
-    // Se não for full e tiver última sincronização, usar alterado_apos
-    if (!full && distribuidor.ultima_sincronizacao) {
-      const lastSync = new Date(distribuidor.ultima_sincronizacao);
-      url += `&alterado_apos=${lastSync.toISOString()}`;
-    }
+    const limit = 500; // buscar em páginas grandes para aproximar real time
+    const allProdutos: any[] = [];
 
-    console.log(`[Sync] URL: ${url}`);
+    const lastSyncParam = (!full && distribuidor.ultima_sincronizacao)
+      ? `&alterado_apos=${new Date(distribuidor.ultima_sincronizacao).toISOString()}`
+      : '';
 
-    // Buscar produtos da API Mercos
-    const mercosRes = await fetch(url, {
-      headers: {
-        'ApplicationToken': distribuidor.application_token,
-        'CompanyToken': distribuidor.company_token,
-        'Content-Type': 'application/json',
-      },
-    });
+    for (let page = 1; page <= 50; page++) { // safety cap
+      let url = `${baseUrl}/produtos?limit=${limit}&page=${page}&order_by=ultima_alteracao&order_direction=desc${lastSyncParam}`;
+      console.log(`[Sync] Fetching page ${page}: ${url}`);
 
-    if (!mercosRes.ok) {
-      return NextResponse.json({
-        success: false,
-        error: `Erro na API Mercos: ${mercosRes.status} ${mercosRes.statusText}`,
+      const mercosRes = await fetch(url, {
+        headers: {
+          'ApplicationToken': distribuidor.application_token,
+          'CompanyToken': distribuidor.company_token,
+          'Content-Type': 'application/json',
+        },
       });
+
+      if (!mercosRes.ok) {
+        return NextResponse.json({
+          success: false,
+          error: `Erro na API Mercos: ${mercosRes.status} ${mercosRes.statusText}`,
+        });
+      }
+
+      const contentType = mercosRes.headers.get('content-type') || '';
+      let produtosPage: any;
+      try {
+        if (contentType.includes('application/json')) {
+          produtosPage = await mercosRes.json();
+        } else {
+          const text = await mercosRes.text();
+          throw new Error(`Resposta não-JSON da Mercos: ${text.slice(0, 200)}`);
+        }
+      } catch (parseErr: any) {
+        return NextResponse.json({
+          success: false,
+          error: `Resposta inválida da API Mercos (page ${page}): ${parseErr?.message || parseErr}`,
+        }, { status: 502 });
+      }
+
+      if (!Array.isArray(produtosPage)) {
+        return NextResponse.json({
+          success: false,
+          error: `Resposta inválida da API Mercos (page ${page})`,
+        });
+      }
+
+      allProdutos.push(...produtosPage);
+      if (produtosPage.length < limit) {
+        break; // última página
+      }
     }
 
-    const produtos = await mercosRes.json();
-    
-    if (!Array.isArray(produtos)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Resposta inválida da API Mercos',
-      });
-    }
-
-    console.log(`[Sync] ${produtos.length} produtos recebidos da Mercos`);
+    console.log(`[Sync] ${allProdutos.length} produtos recebidos da Mercos (full=${full})`);
 
     let produtosAtualizados = 0;
     let produtosNovos = 0;
     let erros = 0;
 
     // Processar cada produto
-    for (const produto of produtos) {
+    for (const produto of allProdutos) {
       try {
         // Verificar se produto já existe
         const { data: existente } = await supabaseAdmin
@@ -137,6 +157,18 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         console.error(`[Sync] Erro ao processar produto ${produto.id}:`, err);
         erros++;
+      }
+    }
+
+    // Se sincronização full, desativar produtos que não vieram na resposta
+    if (full) {
+      const mercosIds = allProdutos.map((p: any) => p.id);
+      const productsTable = supabaseAdmin.from('products').update({ active: false }).eq('distribuidor_id', distribuidorId);
+      if (mercosIds.length > 0) {
+        await productsTable.not('mercos_id', 'in', `(${mercosIds.join(',')})`);
+      } else {
+        // Resposta vazia - desativar todos deste distribuidor
+        await productsTable;
       }
     }
 

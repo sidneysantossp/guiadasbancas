@@ -457,17 +457,22 @@ export default function ProductPageClient({ productId }: { productId: string }) 
         const galleryImages = Array.isArray(p.gallery_images) ? p.gallery_images : [];
         const allImages = [...mainImages, ...galleryImages].filter(Boolean);
         
+        const hasDiscount = typeof p.discount_percent === 'number' && p.discount_percent > 0;
+        const computedOldPrice = hasDiscount
+          ? (p.price_original || (p.price && p.discount_percent ? p.price / (1 - p.discount_percent / 100) : undefined))
+          : undefined;
+
         // Mapear dados do backend para o formato esperado
         const mappedProduct: ProductDetail = {
           id: p.id,
           name: p.name || "Produto sem nome",
           images: allImages.length > 0 ? allImages : ["https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=1200&auto=format&fit=crop"],
           price: p.price || 0,
-          oldPrice: p.price_original || (p.discount_percent ? p.price / (1 - p.discount_percent / 100) : undefined),
+          oldPrice: computedOldPrice,
           rating: p.rating_avg || 4.5,
           reviews: p.reviews_count || 0,
           ready: Boolean(p.pronta_entrega || p.ready),
-          discountLabel: p.discount_percent ? `-${p.discount_percent}%` : undefined,
+          discountLabel: hasDiscount ? `-${p.discount_percent}%` : undefined,
           vendor: {
             id: p.banca_id || "banca-unknown",
             name: bancaData?.name || "Banca Local",
