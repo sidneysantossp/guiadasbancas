@@ -267,8 +267,8 @@ export default function SearchAutocomplete({
                           </span>
                         )
                       ) : (
-                        // Produto: mostrar categoria
-                        <span className="text-gray-500 truncate">{result.category}</span>
+                        // Produto: mostrar nome da banca
+                        <span className="text-gray-500 truncate">{(result.banca_name || '').split(' ')[0] || 'Banca'}</span>
                       )}
                     </div>
                   </div>
