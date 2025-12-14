@@ -21,9 +21,8 @@ export async function GET(req: NextRequest) {
     
     const supabase = supabaseAdmin;
     
-    // Buscar produtos do banco de dados com JOIN para bancas
-    // Otimização: limitar a 20 produtos em vez de 5000
-    // Ordenar por created_at desc para pegar produtos recentes (simulando "trending")
+    // Buscar produtos (sem JOINs) para não depender de FKs no schema
+    // Em muitos bancos, category_id/distribuidor_id não possuem FK, o que quebra selects relacionais no Supabase.
     let query = supabase
       .from('products')
       .select(`
@@ -40,10 +39,7 @@ export async function GET(req: NextRequest) {
         stock_qty,
         track_stock,
         active,
-        codigo_mercos,
-        categories!category_id(name),
-        distribuidores!distribuidor_id(nome),
-        bancas!banca_id(name, cover_image, avatar:cover_image, contact:whatsapp, lat, lng)
+        codigo_mercos
       `)
       .eq('active', true)
       .order('created_at', { ascending: false }); // Produtos mais recentes primeiro
@@ -78,23 +74,64 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, success: false, error: error.message }, { status: 500 });
     }
     
-    // Map reduzido para o front com informações da banca extraídas do JOIN
-    const data = (items || []).map((p: any) => {
-      const categoryName = p.categories?.name || '';
-      const distributorName = p.distribuidores?.nome || '';
-      const bancaData = p.bancas || {};
-      const bancaName = bancaData.name || distributorName || 'Banca';
-      const bancaAvatar = bancaData.cover_image || bancaData.avatar || null;
-      const bancaPhone = bancaData.contact || null; // Ajustar conforme estrutura do JOIN (pode vir como objeto ou string dependendo do select)
-      // O select pede 'contact:whatsapp', então deve vir como 'contact'
+    const bancaIds = Array.from(
+      new Set(
+        (items || [])
+          .map((p: any) => p?.banca_id)
+          .filter((v: any) => typeof v === 'string' && v.length > 0)
+      )
+    );
 
-      const bancaLat = bancaData.lat != null ? parseFloat(bancaData.lat) : null;
-      const bancaLng = bancaData.lng != null ? parseFloat(bancaData.lng) : null;
+    const distribuidorIds = Array.from(
+      new Set(
+        (items || [])
+          .map((p: any) => p?.distribuidor_id)
+          .filter((v: any) => typeof v === 'string' && v.length > 0)
+      )
+    );
+
+    const [bancasRes, distribRes] = await Promise.all([
+      bancaIds.length
+        ? supabase
+            .from('bancas')
+            .select('id, name, cover_image, avatar, whatsapp, lat, lng')
+            .in('id', bancaIds)
+        : Promise.resolve({ data: [], error: null } as any),
+      distribuidorIds.length
+        ? supabase
+            .from('distribuidores')
+            .select('id, nome')
+            .in('id', distribuidorIds)
+        : Promise.resolve({ data: [], error: null } as any),
+    ]);
+
+    if (bancasRes?.error) {
+      console.error('[SEARCH] Erro ao buscar bancas para produtos:', bancasRes.error);
+    }
+    if (distribRes?.error) {
+      console.error('[SEARCH] Erro ao buscar distribuidores para produtos:', distribRes.error);
+    }
+
+    const bancaMap = new Map<string, any>((bancasRes?.data || []).map((b: any) => [b.id, b]));
+    const distribMap = new Map<string, any>((distribRes?.data || []).map((d: any) => [d.id, d]));
+
+    // Map reduzido para o front com informações da banca/distribuidor resolvidas via Map
+    const data = (items || []).map((p: any) => {
+      const bancaData = p?.banca_id ? bancaMap.get(p.banca_id) : null;
+      const distribData = p?.distribuidor_id ? distribMap.get(p.distribuidor_id) : null;
+
+      const distributorName = distribData?.nome || '';
+      const bancaName = bancaData?.name || distributorName || 'Banca';
+      const bancaAvatar = bancaData?.avatar || bancaData?.cover_image || null;
+      const bancaPhone = bancaData?.whatsapp || null;
+
+      const bancaLat = bancaData?.lat != null ? parseFloat(bancaData.lat) : null;
+      const bancaLng = bancaData?.lng != null ? parseFloat(bancaData.lng) : null;
       let distance: number | null = null;
       if (userLat && userLng && bancaLat != null && bancaLng != null) {
         distance = calculateDistance(userLat, userLng, bancaLat, bancaLng);
       }
-      
+
       return {
         id: p.id,
         name: p.name,
@@ -105,7 +142,7 @@ export async function GET(req: NextRequest) {
         distribuidor_id: p.distribuidor_id,
         distribuidor_nome: distributorName,
         category_id: p.category_id,
-        category: categoryName,
+        category: '',
         description: p.description || '',
         rating_avg: null,
         reviews_count: 0,
@@ -116,7 +153,6 @@ export async function GET(req: NextRequest) {
         pronta_entrega: true,
         discount_percent: p.discount_percent,
         distance,
-        // Informações da banca já populadas
         banca: {
           id: p.banca_id || p.distribuidor_id,
           name: bancaName,

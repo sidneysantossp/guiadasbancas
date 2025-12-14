@@ -78,9 +78,10 @@ function BuscarPageContent() {
           const locQs = loc ? `&lat=${encodeURIComponent(String(loc.lat))}&lng=${encodeURIComponent(String(loc.lng))}` : "";
           const productsRes = await fetch(`/api/products/most-searched?search=${encodeURIComponent(qTerm)}&limit=20${locQs}`);
           const productsData = await productsRes.json();
-          if (productsRes.ok && productsData.data) {
-            if (mounted) setProducts(productsData.data);
+          if (!productsRes.ok) {
+            throw new Error(productsData?.error || 'Erro ao buscar produtos');
           }
+          if (mounted) setProducts(Array.isArray(productsData?.data) ? productsData.data : []);
         } else {
           if (mounted) setProducts([]);
         }
