@@ -292,16 +292,24 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           user_id: user.id,
           user_email: (user as any)?.email
         });
-        console.log('[Layout] 🔍 Buscando banca para user_id:', user.id);
+        console.log('[Layout] 🔍 Buscando banca para user_id via API (avoid RLS issues):', user.id);
         
-        const { data: bancaData, error } = await supabase
-          .from('bancas')
-          .select('id, name, user_id, email, profile_image')
-          .eq('user_id', user.id)
-          .single();
+        const response = await fetch('/api/jornaleiro/banca', {
+          method: 'GET',
+          cache: 'no-store',
+        });
 
-        if (error || !bancaData) {
-          console.error('[Layout] ❌ Usuário sem banca associada!', error?.message);
+        const responseText = await response.text();
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(responseText);
+        } catch (parseErr) {
+          console.error('[Layout] ❌ Resposta inválida da API /jornaleiro/banca:', responseText);
+        }
+
+        if (!response.ok || !parsed?.success || !parsed?.data) {
+          const apiError = parsed?.error || `HTTP ${response.status}`;
+          console.error('[Layout] ❌ Usuário sem banca ou erro na API!', apiError);
           console.log('[Layout] Usuário sem banca associada. Redirecionando para fluxo de cadastro, NÃO para onboarding.');
           setBanca(null);
           setBancaValidated(true);
@@ -316,17 +324,17 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         }
 
         console.log('[Layout] ✅ Banca encontrada:', {
-          banca_id: bancaData.id,
-          banca_name: bancaData.name,
-          banca_user_id: bancaData.user_id,
-          banca_email: bancaData.email
+          banca_id: parsed.data.id,
+          banca_name: parsed.data.name,
+          banca_user_id: parsed.data.user_id,
+          banca_email: parsed.data.email
         });
         
         // SEGURANÇA CRÍTICA: Verificar se os dados batem
-        if (bancaData.user_id !== user.id) {
+        if (parsed.data.user_id !== user.id) {
           console.error('🚨🚨🚨 ALERTA DE SEGURANÇA: user_id NÃO BATE! 🚨🚨🚨');
           console.error('[SECURITY] user_id esperado:', user.id);
-          console.error('[SECURITY] user_id da banca:', bancaData.user_id);
+          console.error('[SECURITY] user_id da banca:', parsed.data.user_id);
           console.error('[SECURITY] Forçando logout por segurança!');
           sessionStorage.clear();
           await signOut();
@@ -335,9 +343,9 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
         // Salvar no cache (opcional)
         if (useBancaCache) {
-          sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(bancaData));
+          sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(parsed.data));
         }
-        setBanca(bancaData);
+        setBanca(parsed.data);
         setBancaValidated(true);
       } catch (error) {
         console.error('[Security] Erro ao validar banca:', error);
