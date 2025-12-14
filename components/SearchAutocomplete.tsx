@@ -276,14 +276,9 @@ export default function SearchAutocomplete({
                   {/* Preço ou Tag */}
                   <div className="text-right flex-shrink-0">
                     {result.type === 'product' && result.price !== null ? (
-                      <>
-                        <div className="font-semibold text-[#ff5c00]">
-                          R$ {result.price.toFixed(2)}
-                        </div>
-                        <span className="inline-block px-2 py-1 bg-[#ff5c00] text-white text-xs rounded-full font-medium">
-                          Ver produto
-                        </span>
-                      </>
+                      <div className="font-semibold text-[#ff5c00]">
+                        R$ {result.price.toFixed(2)}
+                      </div>
                     ) : (
                       <span className="inline-block px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
                         {result.type === 'banca' ? 'Ver Banca' : result.category}
