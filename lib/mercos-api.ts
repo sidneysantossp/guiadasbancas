@@ -352,10 +352,18 @@ export class MercosAPI {
         // Ler headers de paginação da Mercos
         const limitouRegistros = response.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
 
-        const raw = await response.json();
-        const data = (raw && typeof raw === 'object' && 'data' in raw && Array.isArray(raw.data))
-          ? raw.data
-          : raw;
+        // Parse robusto: ler como texto e tentar JSON; se falhar, mostrar trecho
+        const bodyText = await response.text();
+        let parsed: any;
+        try {
+          parsed = JSON.parse(bodyText);
+        } catch (jsonErr: any) {
+          throw new Error(`Resposta não-JSON (getAllProdutosGenerator): ${jsonErr?.message || jsonErr} | Trecho: ${bodyText.slice(0, 200)}`);
+        }
+
+        const data = (parsed && typeof parsed === 'object' && 'data' in parsed && Array.isArray(parsed.data))
+          ? parsed.data
+          : parsed;
 
         const produtosArray: MercosProduto[] = Array.isArray(data) ? data : [];
 
