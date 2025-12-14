@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+function normalizeSearchTerm(value: string) {
+  return String(value || "")
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -48,8 +56,15 @@ export async function GET(req: NextRequest) {
     }
 
     if (search) {
-      const searchTerm = search.toLowerCase();
-      query = query.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,codigo_mercos.ilike.%${searchTerm}%`);
+      const raw = String(search || '').trim().toLowerCase();
+      const normalized = normalizeSearchTerm(search);
+      const terms = Array.from(new Set([raw, normalized])).filter(Boolean);
+      const orParts = terms.flatMap((t) => ([
+        `name.ilike.%${t}%`,
+        `description.ilike.%${t}%`,
+        `codigo_mercos.ilike.%${t}%`,
+      ]));
+      query = query.or(orParts.join(','));
     }
 
     // Importante: para ordenar por proximidade, buscamos mais itens antes do sort

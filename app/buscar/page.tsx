@@ -29,9 +29,17 @@ function toUF(b: Banca): string {
   return uf.toLowerCase();
 }
 
+function normalizeText(value: string) {
+  return String(value || "")
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 function BuscarPageContent() {
   const params = useSearchParams();
   const q = params.get("q") || "";
+  const qTerm = q.trim();
 
   const [loc, setLoc] = useState<{ lat: number; lng: number; state?: string } | null>(null);
   const { addToCart } = useCart();
@@ -66,9 +74,9 @@ function BuscarPageContent() {
         if (mounted) setList(Array.isArray(bancasData?.data) ? bancasData.data : []);
         
         // Buscar produtos se houver query de busca
-        if (q.trim()) {
+        if (qTerm) {
           const locQs = loc ? `&lat=${encodeURIComponent(String(loc.lat))}&lng=${encodeURIComponent(String(loc.lng))}` : "";
-          const productsRes = await fetch(`/api/products/most-searched?search=${encodeURIComponent(q)}&limit=20${locQs}`);
+          const productsRes = await fetch(`/api/products/most-searched?search=${encodeURIComponent(qTerm)}&limit=20${locQs}`);
           const productsData = await productsRes.json();
           if (productsRes.ok && productsData.data) {
             if (mounted) setProducts(productsData.data);
@@ -84,12 +92,16 @@ function BuscarPageContent() {
     };
     fetchData();
     return () => { mounted = false; };
-  }, [loc?.lat, loc?.lng, q]);
+  }, [loc?.lat, loc?.lng, qTerm]);
 
   const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
+    const term = normalizeText(qTerm);
     let arr = list.filter((b) => {
-      const matchQ = !term || b.name.toLowerCase().includes(term) || (b.address || "").toLowerCase().includes(term) || (b.addressObj?.city || "").toLowerCase().includes(term) || (b.categories || []).some((c) => (c || "").toLowerCase().includes(term));
+      const matchQ = !term
+        || normalizeText(b.name).includes(term)
+        || normalizeText(b.address || "").includes(term)
+        || normalizeText(b.addressObj?.city || "").includes(term)
+        || (b.categories || []).some((c) => normalizeText(c || "").includes(term));
       const matchUF = !ufFilter || (b.addressObj?.uf || "").toLowerCase() === ufFilter.toLowerCase();
       const matchCat = !catFilter || (b.categories || []).some((c) => c.toLowerCase() === catFilter.toLowerCase());
       const matchOpen = !openNow || isOpenNow(b.hours || []);
@@ -109,16 +121,16 @@ function BuscarPageContent() {
       arr = arr.slice().sort((a, b) => hav(a.lat ?? a.location?.lat, a.lng ?? a.location?.lng) - hav(b.lat ?? b.location?.lat, b.lng ?? b.location?.lng));
     }
     return arr;
-  }, [list, q, ufFilter, catFilter, openNow, sortBy, loc?.lat, loc?.lng]);
+  }, [list, qTerm, ufFilter, catFilter, openNow, sortBy, loc?.lat, loc?.lng]);
   
   // Filtrar produtos também
   const filteredProducts = useMemo(() => {
-    if (!q.trim()) return [];
+    if (!qTerm) return [];
     return products.filter(p => {
       const matchCat = !catFilter || (p.category_id || '').toLowerCase().includes(catFilter.toLowerCase());
       return matchCat;
     });
-  }, [products, catFilter, q]);
+  }, [products, catFilter, qTerm]);
   
   // Verificar se há resultados (bancas ou produtos)
   const hasResults = filtered.length > 0 || filteredProducts.length > 0;

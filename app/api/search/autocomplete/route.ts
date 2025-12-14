@@ -23,6 +23,14 @@ function normalizeKeyName(value: string): string {
     .replace(/\s+/g, ' ');
 }
 
+function normalizeSearchTerm(value: string): string {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -38,7 +46,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, results: [] });
     }
 
-    const searchTerm = search.toLowerCase();
+    const rawTerm = String(search || '').trim().toLowerCase();
+    const normalizedTerm = normalizeSearchTerm(search);
+    const terms = Array.from(new Set([rawTerm, normalizedTerm])).filter(Boolean);
+    const searchTerm = rawTerm;
     const supabase = supabaseAdmin;
 
     console.log(`[Search API] Buscando por: "${searchTerm}"`);
@@ -65,7 +76,7 @@ export async function GET(req: NextRequest) {
     const { data: bancasCheck, error: bancasCheckError } = await supabase
       .from('bancas')
       .select('name')
-      .ilike('name', `%${searchTerm}%`)
+      .or(terms.map((t) => `name.ilike.%${t}%`).join(','))
       .limit(1);
 
     const isBancaSearch = !bancasCheckError && bancasCheck && bancasCheck.length > 0;
@@ -93,7 +104,7 @@ export async function GET(req: NextRequest) {
           bancas(name, lat, lng)
         `)
         .eq('active', true)
-        .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+        .or(terms.flatMap((t) => ([`name.ilike.%${t}%`, `description.ilike.%${t}%`])).join(','))
         .limit(fetchLimit);
 
       if (bancaId) {
@@ -137,7 +148,7 @@ export async function GET(req: NextRequest) {
       const { data: bancas, error: bancasError } = await supabase
         .from('bancas')
         .select('id, name, cover_image, address, rating, lat, lng')
-        .or(`name.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%`)
+        .or(terms.flatMap((t) => ([`name.ilike.%${t}%`, `address.ilike.%${t}%`])).join(','))
         .limit(limit);
 
       if (bancasError) {
