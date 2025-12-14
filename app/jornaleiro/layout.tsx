@@ -89,7 +89,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   const [banca, setBanca] = useState<any>(null);
   const [bancaValidated, setBancaValidated] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const useBancaCache = false;
+  const useBancaCache = true;
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");

@@ -58,7 +58,13 @@ export default function IntegracaoMercosPage() {
       const res = await fetch(`/api/distribuidor/sync?id=${distribuidor.id}${full ? '&full=true' : ''}`, {
         method: 'POST',
       });
-      const json = await res.json();
+      const text = await res.text();
+      let json: any;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        json = { success: false, error: `Resposta inesperada da API: ${text.slice(0, 200)}` };
+      }
       setSyncResult(json);
       // Atualizar health após sync
       if (json.success) {
