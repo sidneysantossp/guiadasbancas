@@ -83,7 +83,12 @@ export async function POST(request: NextRequest) {
       let produtosPage: any;
       try {
         if (contentType.includes('application/json')) {
-          produtosPage = await mercosRes.json();
+          const raw = await mercosRes.text();
+          try {
+            produtosPage = JSON.parse(raw);
+          } catch (jsonErr: any) {
+            throw new Error(`Falha ao parsear JSON (page ${page}): ${jsonErr?.message || jsonErr}. Trecho: ${raw.slice(0, 200)}`);
+          }
         } else {
           const text = await mercosRes.text();
           throw new Error(`Resposta não-JSON da Mercos: ${text.slice(0, 200)}`);
