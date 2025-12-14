@@ -163,22 +163,30 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Ordenar resultados por proximidade (se tiver coordenadas) e relevância
+    // Ordenação:
+    // - Busca de produto: primeiro produtos em ordem alfabética; para nomes iguais, ordenar por distância
+    // - Busca de banca: apenas bancas em ordem alfabética; para nomes iguais, ordenar por distância
     results.sort((a, b) => {
-      // Se ambos têm distância, ordenar por proximidade
-      if (a.distance !== undefined && b.distance !== undefined) {
-        return a.distance - b.distance;
+      // Prioridade por tipo depende do contexto da busca
+      if (!isBancaSearch && a.type !== b.type) {
+        // Em busca de produto, mostrar produtos antes de bancas
+        if (a.type === 'product') return -1;
+        if (b.type === 'product') return 1;
       }
-      // Se apenas um tem distância, priorizar quem tem
-      if (a.distance !== undefined && b.distance === undefined) return -1;
-      if (a.distance === undefined && b.distance !== undefined) return 1;
-      
-      // Fallback: ordenar por relevância (nome começa com o termo)
-      const aStarts = a.name.toLowerCase().startsWith(searchTerm);
-      const bStarts = b.name.toLowerCase().startsWith(searchTerm);
-      if (aStarts && !bStarts) return -1;
-      if (!aStarts && bStarts) return 1;
-      return 0;
+
+      // Ordenar alfabeticamente por nome (case-insensitive)
+      const nameCmp = a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
+      if (nameCmp !== 0) return nameCmp;
+
+      // Desempate: ordenar por proximidade (se ambos têm distância)
+      const ad = typeof a.distance === 'number' ? a.distance : Number.POSITIVE_INFINITY;
+      const bd = typeof b.distance === 'number' ? b.distance : Number.POSITIVE_INFINITY;
+      if (ad !== bd) return ad - bd;
+
+      // Último fallback: tipo e id para estabilidade
+      const typeCmp = a.type.localeCompare(b.type);
+      if (typeCmp !== 0) return typeCmp;
+      return a.id.localeCompare(b.id);
     });
 
     // Limitar total de resultados

@@ -113,14 +113,21 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // Ordenar por proximidade quando houver lat/lng
-    const sorted = (userLat && userLng)
-      ? data.slice().sort((a: any, b: any) => {
-          const ad = typeof a.distance === 'number' ? a.distance : Number.POSITIVE_INFINITY;
-          const bd = typeof b.distance === 'number' ? b.distance : Number.POSITIVE_INFINITY;
-          return ad - bd;
-        })
-      : data;
+    // Ordenar:
+    // - sempre por nome (alfabético)
+    // - para nomes iguais, ordenar por distância (quando houver)
+    const sorted = data.slice().sort((a: any, b: any) => {
+      const nameA = String(a?.name || '');
+      const nameB = String(b?.name || '');
+      const nameCmp = nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
+      if (nameCmp !== 0) return nameCmp;
+
+      const ad = typeof a.distance === 'number' ? a.distance : Number.POSITIVE_INFINITY;
+      const bd = typeof b.distance === 'number' ? b.distance : Number.POSITIVE_INFINITY;
+      if (ad !== bd) return ad - bd;
+
+      return String(a?.id || '').localeCompare(String(b?.id || ''));
+    });
 
     const finalData = sorted.slice(0, limit || 20);
     
