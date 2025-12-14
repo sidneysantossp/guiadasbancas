@@ -16,6 +16,13 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c;
 }
 
+function normalizeKeyName(value: string): string {
+  return String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -189,8 +196,21 @@ export async function GET(req: NextRequest) {
       return a.id.localeCompare(b.id);
     });
 
-    // Limitar total de resultados
-    const finalResults = results.slice(0, limit);
+    // Deduplicar mantendo a prioridade da ordenação:
+    // - não permitir mesmo produto repetido na mesma banca
+    // - bancas deduplicadas por id
+    const seen = new Set<string>();
+    const finalResults: SearchResultItem[] = [];
+    for (const item of results) {
+      const key = item.type === 'product'
+        ? `product:${item.banca_id}:${normalizeKeyName(item.name)}`
+        : `banca:${item.id}`;
+
+      if (seen.has(key)) continue;
+      seen.add(key);
+      finalResults.push(item);
+      if (finalResults.length >= limit) break;
+    }
 
     return NextResponse.json({
       success: true,
