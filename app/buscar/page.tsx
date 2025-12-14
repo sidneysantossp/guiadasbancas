@@ -127,9 +127,11 @@ function BuscarPageContent() {
   // Filtrar produtos também
   const filteredProducts = useMemo(() => {
     if (!qTerm) return [];
+    const term = normalizeText(qTerm);
     return products.filter(p => {
       const matchCat = !catFilter || (p.category_id || '').toLowerCase().includes(catFilter.toLowerCase());
-      return matchCat;
+      const matchSearch = !term || normalizeText(p.name).includes(term) || normalizeText(p.description || '').includes(term);
+      return matchCat && matchSearch;
     });
   }, [products, catFilter, qTerm]);
   
