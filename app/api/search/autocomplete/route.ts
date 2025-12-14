@@ -31,6 +31,30 @@ function normalizeSearchTerm(value: string): string {
     .toLowerCase();
 }
 
+// Gera variações para busca tolerante a acentos (ex.: agua -> água)
+function buildSearchVariants(value: string): string[] {
+  const normalized = normalizeSearchTerm(value);
+  const base = String(value || '').trim().toLowerCase();
+  const variants = new Set<string>();
+  if (base) variants.add(base);
+  if (normalized) variants.add(normalized);
+
+  const vowels = ['a', 'e', 'i', 'o', 'u'] as const;
+  const acuteMap: Record<typeof vowels[number], string> = {
+    a: 'á', e: 'é', i: 'í', o: 'ó', u: 'ú'
+  };
+
+  for (const v of vowels) {
+    const idx = normalized.indexOf(v);
+    if (idx !== -1) {
+      variants.add(normalized.slice(0, idx) + acuteMap[v] + normalized.slice(idx + 1));
+      break; // apenas a primeira vogal já cobre o caso mais comum (agua -> água)
+    }
+  }
+
+  return Array.from(variants).filter((v) => v.length >= 2).slice(0, 4);
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -50,6 +74,7 @@ export async function GET(req: NextRequest) {
     const normalizedTerm = normalizeSearchTerm(search);
     const terms = Array.from(new Set([rawTerm, normalizedTerm])).filter(Boolean);
     const searchTerm = rawTerm;
+    const searchVariants = buildSearchVariants(searchTerm);
     const supabase = supabaseAdmin;
 
     console.log(`[Search API] Buscando por: "${searchTerm}"`);
@@ -73,10 +98,15 @@ export async function GET(req: NextRequest) {
 
     // Verificar se o termo de busca corresponde a nomes de bancas
     // Se sim, buscar apenas bancas para evitar misturar resultados
+    const bancaSearchTerms = (searchVariants.length ? searchVariants : terms);
+    const bancaOr = bancaSearchTerms
+      .map((t) => `name.ilike.%${t}%`)
+      .join(',');
+
     const { data: bancasCheck, error: bancasCheckError } = await supabase
       .from('bancas')
       .select('name')
-      .or(terms.map((t) => `name.ilike.%${t}%`).join(','))
+      .or(bancaOr)
       .limit(1);
 
     const isBancaSearch = !bancasCheckError && bancasCheck && bancasCheck.length > 0;
@@ -104,8 +134,16 @@ export async function GET(req: NextRequest) {
           bancas(name, lat, lng)
         `)
         .eq('active', true)
-        .or(terms.flatMap((t) => ([`name.ilike.%${t}%`, `description.ilike.%${t}%`])).join(','))
         .limit(fetchLimit);
+
+      // Busca mais precisa: apenas pelo nome/código para evitar falsos positivos (ex: "agua" encontrando "aguardado" na descrição)
+      const productOr = (searchVariants.length ? searchVariants : terms)
+        .flatMap((t) => ([`name.ilike.%${t}%`, `codigo_mercos.ilike.%${t}%`]))
+        .join(',');
+
+      if (productOr) {
+        productsQuery = productsQuery.or(productOr);
+      }
 
       if (bancaId) {
         productsQuery = productsQuery.eq('banca_id', bancaId);
@@ -145,10 +183,13 @@ export async function GET(req: NextRequest) {
 
     // 2. Buscar bancas (apenas se não estiver filtrando por uma banca específica)
     if (!bancaId) {
+      const bancaConditions = bancaSearchTerms
+        .flatMap((t) => [`name.ilike.%${t}%`, `address.ilike.%${t}%`])
+        .join(',');
       const { data: bancas, error: bancasError } = await supabase
         .from('bancas')
         .select('id, name, cover_image, address, rating, lat, lng')
-        .or(terms.flatMap((t) => ([`name.ilike.%${t}%`, `address.ilike.%${t}%`])).join(','))
+        .or(bancaConditions || undefined)
         .limit(limit);
 
       if (bancasError) {

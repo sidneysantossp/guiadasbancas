@@ -9,6 +9,29 @@ function normalizeSearchTerm(value: string) {
     .toLowerCase();
 }
 
+// Gera variações tolerantes a acentos (ex.: agua -> água)
+function buildSearchVariants(value: string): string[] {
+  const normalized = normalizeSearchTerm(value);
+  const base = String(value || "").trim().toLowerCase();
+  const variants = new Set<string>();
+  if (base) variants.add(base);
+  if (normalized) variants.add(normalized);
+
+  const vowels = ['a', 'e', 'i', 'o', 'u'] as const;
+  const acuteMap: Record<typeof vowels[number], string> = {
+    a: 'á', e: 'é', i: 'í', o: 'ó', u: 'ú'
+  };
+  for (const v of vowels) {
+    const idx = normalized.indexOf(v);
+    if (idx !== -1) {
+      variants.add(normalized.slice(0, idx) + acuteMap[v] + normalized.slice(idx + 1));
+      break;
+    }
+  }
+
+  return Array.from(variants).filter((v) => v.length >= 2).slice(0, 4);
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -52,15 +75,16 @@ export async function GET(req: NextRequest) {
     }
 
     if (search) {
-      const raw = String(search || '').trim().toLowerCase();
-      const normalized = normalizeSearchTerm(search);
-      const terms = Array.from(new Set([raw, normalized])).filter(Boolean);
-      const orParts = terms.flatMap((t) => ([
+      const variants = buildSearchVariants(search);
+      const searchTerms = variants.length ? variants : [normalizeSearchTerm(search)];
+      // Busca só em nome/código para evitar falsos positivos (ex.: "agua" casando com "aguardado" na descrição)
+      const orParts = searchTerms.flatMap((t) => ([
         `name.ilike.%${t}%`,
-        `description.ilike.%${t}%`,
         `codigo_mercos.ilike.%${t}%`,
       ]));
-      query = query.or(orParts.join(','));
+      if (orParts.length > 0) {
+        query = query.or(orParts.join(','));
+      }
     }
 
     // Importante: para ordenar por proximidade, buscamos mais itens antes do sort
