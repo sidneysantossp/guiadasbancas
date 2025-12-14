@@ -28,79 +28,6 @@ export default function RelatedProductsSlider({ searchQuery, category }: Related
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Mock de produtos relacionados baseado na busca
-  const mockProducts: Product[] = [
-    {
-      id: "prod-1",
-      name: "Chico Bento - Edição 450",
-      image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400",
-      price: 8.90,
-      price_original: 12.90,
-      discount_percent: 31,
-      category: "Gibis",
-      banca_name: "Banca São Jorge",
-      banca_id: "banca-1",
-      rating_avg: 4.5,
-      reviews_count: 23
-    },
-    {
-      id: "prod-2",
-      name: "Turma da Mônica - Clássicos",
-      image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400",
-      price: 9.90,
-      category: "Gibis",
-      banca_name: "Banca Central",
-      banca_id: "banca-2",
-      rating_avg: 4.8,
-      reviews_count: 45
-    },
-    {
-      id: "prod-3",
-      name: "Cebolinha - Aventuras",
-      image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400",
-      price: 7.50,
-      category: "Gibis",
-      banca_name: "Banca do Centro",
-      banca_id: "banca-3",
-      rating_avg: 4.2,
-      reviews_count: 18
-    },
-    {
-      id: "prod-4",
-      name: "Cascão - Diversão Garantida",
-      price: 8.50,
-      category: "Gibis",
-      banca_name: "Banca São Jorge",
-      banca_id: "banca-1",
-      rating_avg: 4.6,
-      reviews_count: 31
-    },
-    {
-      id: "prod-5",
-      name: "Magali - Guloseimas",
-      image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400",
-      price: 9.50,
-      price_original: 11.90,
-      discount_percent: 20,
-      category: "Gibis",
-      banca_name: "Banca Central",
-      banca_id: "banca-2",
-      rating_avg: 4.7,
-      reviews_count: 28
-    },
-    {
-      id: "prod-6",
-      name: "Revista Recreio",
-      image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400",
-      price: 12.90,
-      category: "Revistas",
-      banca_name: "Banca do Centro",
-      banca_id: "banca-3",
-      rating_avg: 4.3,
-      reviews_count: 15
-    }
-  ];
-
   useEffect(() => {
     const fetchRelatedProducts = async () => {
       setLoading(true);
@@ -138,7 +65,7 @@ export default function RelatedProductsSlider({ searchQuery, category }: Related
             discount_percent: p.discount_percent,
             category: p.category || 'Produtos',
             banca_name: p.banca?.name || 'Banca',
-            banca_id: p.banca?.id || 'banca-1',
+            banca_id: p.banca?.id || p.banca_id || '',
             rating_avg: p.rating_avg,
             reviews_count: p.reviews_count
           }));
@@ -159,40 +86,17 @@ export default function RelatedProductsSlider({ searchQuery, category }: Related
               discount_percent: p.discount_percent,
               category: p.category || 'Produtos',
               banca_name: p.banca?.name || 'Banca',
-              banca_id: p.banca?.id || 'banca-1',
+              banca_id: p.banca?.id || p.banca_id || '',
               rating_avg: p.rating_avg,
               reviews_count: p.reviews_count
             }));
           }
         }
         
-        // Se ainda não há produtos da API, usar mock como fallback
-        if (fetchedProducts.length === 0) {
-          const filtered = mockProducts.filter(product => {
-            const matchesQuery = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                               product.category.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesCategory = !category || product.category.toLowerCase() === category.toLowerCase();
-            
-            return matchesQuery || matchesCategory;
-          });
-          
-          fetchedProducts = filtered;
-        }
-        
         setProducts(fetchedProducts.slice(0, 8));
       } catch (error) {
         console.error('Erro ao buscar produtos relacionados:', error);
-        
-        // Fallback para produtos mock em caso de erro
-        const filtered = mockProducts.filter(product => {
-          const matchesQuery = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                             product.category.toLowerCase().includes(searchQuery.toLowerCase());
-          const matchesCategory = !category || product.category.toLowerCase() === category.toLowerCase();
-          
-          return matchesQuery || matchesCategory;
-        });
-        
-        setProducts(filtered.slice(0, 8));
+        setProducts([]);
       } finally {
         setLoading(false);
       }
@@ -285,7 +189,7 @@ export default function RelatedProductsSlider({ searchQuery, category }: Related
               className="w-full sm:w-1/2 lg:w-1/4 flex-shrink-0 px-2"
             >
               <Link
-                href={`/produto/${product.name.toLowerCase().replace(/\s+/g, '-')}-prod-${product.id}`}
+                href={`/produto/${product.id}`}
                 className="block bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
               >
                 {/* Imagem do produto */}

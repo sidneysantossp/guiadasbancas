@@ -149,16 +149,3 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
-
-// Função helper para obter nome da banca
-function getBancaName(bancaId: string): string {
-  const bancaNames: Record<string, string> = {
-    'banca-1': 'Banca São Jorge',
-    'banca-2': 'Banca Central',
-    'banca-3': 'Banca do Centro',
-    'seller-1': 'Banca Demo',
-    'demo': 'Banca Demo'
-  };
-  
-  return bancaNames[bancaId] || 'Banca';
-}

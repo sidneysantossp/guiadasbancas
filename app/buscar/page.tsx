@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useCategories } from "@/lib/useCategories";
-import RelatedProductsSlider from "@/components/RelatedProductsSlider";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 
@@ -64,7 +63,7 @@ function BuscarPageContent() {
         const bancasRes = await fetch(`/api/bancas${qs}`, { cache: 'no-store' });
         const bancasData = await bancasRes.json();
         if (!bancasRes.ok) throw new Error(bancasData?.error || 'Erro ao buscar bancas');
-        if (mounted) setList(Array.isArray(bancasData) ? bancasData : []);
+        if (mounted) setList(Array.isArray(bancasData?.data) ? bancasData.data : []);
         
         // Buscar produtos se houver query de busca
         if (q.trim()) {
@@ -231,7 +230,7 @@ function BuscarPageContent() {
               <h2 className="text-lg font-semibold mb-4">Produtos ({filteredProducts.length})</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {filteredProducts.map((product) => {
-                  const productHref = `/produto/${product.name.toLowerCase().replace(/\s+/g, '-')}-prod-${product.id}`;
+                  const productHref = `/produto/${product.id}`;
                   const bancaPhone = product.banca?.phone || product.banca?.whatsapp || product.banca?.telefone || product.banca?.whatsapp_phone;
                   return (
                     <div
@@ -381,14 +380,6 @@ function BuscarPageContent() {
               Tente usar termos diferentes ou verifique os filtros aplicados.
             </div>
           </div>
-
-          {/* Produtos relacionados */}
-          {q && (
-            <RelatedProductsSlider 
-              searchQuery={q}
-              category={catFilter || undefined}
-            />
-          )}
         </div>
       )}
     </section>

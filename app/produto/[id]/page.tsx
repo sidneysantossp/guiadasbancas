@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import ProductPageClient from "@/components/ProductPageClient";
-import { readProducts, type ProdutoItem } from "@/lib/server/productsStore";
+import type { Produto } from "@/types/admin";
 
 function parseSlugId(slugId: string) {
   // Formato esperado: "nome-do-produto-UUID" onde UUID tem padrão xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
@@ -32,7 +32,7 @@ function deslugify(slug: string) {
     .replace(/\b\w/g, (s) => s.toUpperCase());
 }
 
-async function getProductData(productId: string): Promise<ProdutoItem | null> {
+async function getProductData(productId: string): Promise<Produto | null> {
   try {
     // Primeiro tenta buscar do Supabase
     const { supabaseAdmin } = await import("@/lib/supabase");
@@ -43,17 +43,10 @@ async function getProductData(productId: string): Promise<ProdutoItem | null> {
       .single();
     
     if (data) {
-      return data as ProdutoItem;
+      return data as Produto;
     }
 
-    // Fallback para arquivo JSON local
-    let items = await readProducts();
-    if (!items.length) {
-      const legacy = (globalThis as any).__PRODUCTS_STORE__ as ProdutoItem[] | undefined;
-      if (Array.isArray(legacy) && legacy.length) items = legacy;
-    }
-    const product = items.find((p: ProdutoItem) => p.id === productId);
-    return product || null;
+    return null;
   } catch (error) {
     console.error("Erro ao buscar produto para SEO:", error);
     return null;
