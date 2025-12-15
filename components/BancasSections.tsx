@@ -38,11 +38,11 @@ export default function BancasSections() {
 
   return (
     <>
-      {/* Seção 1: Bancas em Destaque (ordenadas por rating) */}
-      <FeaturedBancas bancas={apiBancas} />
-      
-      {/* Seção 2: Bancas perto de você (ordenadas por distância) */}
+      {/* Seção 1: Bancas perto de você (ordenadas por distância) */}
       <NearbyBancas bancas={apiBancas} />
+      
+      {/* Seção 2: Bancas em Destaque (ordenadas por rating) */}
+      <FeaturedBancas bancas={apiBancas} />
     </>
   );
 }

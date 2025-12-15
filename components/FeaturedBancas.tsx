@@ -186,14 +186,11 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
     })();
   }, []);
 
-  // Filtrar apenas bancas em destaque e ordenar por rating (melhor avaliação primeiro)
+  // Ordenar por rating (melhor avaliação primeiro) - prioriza featured mas mostra todas
   const rawItems = useMemo(() => {
     if (!apiBancas || !apiBancas.length) return [];
     
-    // Filtrar apenas bancas marcadas como destaque
-    const featuredOnly = apiBancas.filter(b => b.featured === true);
-    
-    const mapped = featuredOnly.map((b) => {
+    const mapped = apiBancas.map((b) => {
       const distance = (loc && typeof b.lat === 'number' && typeof b.lng === 'number')
         ? haversineKm({ lat: loc.lat, lng: loc.lng }, { lat: b.lat, lng: b.lng })
         : null;
@@ -204,7 +201,7 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
         distance, 
         cover: b.cover, 
         rating: typeof b.rating === 'number' ? b.rating : 4.7, 
-        featured: true, 
+        featured: Boolean(b.featured), 
         categories: [] 
       };
     });
