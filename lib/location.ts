@@ -120,10 +120,14 @@ export function loadStoredLocation(): UserLocation | null {
 export function saveStoredLocation(loc: UserLocation) {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(loc));
+  console.log('[Location] Salvando localização:', loc);
   try {
     const ev = new CustomEvent('gdb:location-updated', { detail: loc });
     window.dispatchEvent(ev);
-  } catch {}
+    console.log('[Location] Evento gdb:location-updated disparado');
+  } catch (e) {
+    console.error('[Location] Erro ao disparar evento:', e);
+  }
 }
 
 // Resolve CEP to lat/lng using BrasilAPI; fallback to Nominatim by city+state if coordinates missing

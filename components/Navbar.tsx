@@ -334,17 +334,22 @@ export default function Navbar() {
 
   useEffect(() => {
     const stored = loadStoredLocation();
+    console.log('[Navbar] Localização inicial carregada:', stored);
     if (stored) setLoc(stored);
     // Live update when any part of the app saves a new location
     const onLoc = (e: Event) => {
       try {
         const detail = (e as CustomEvent).detail as UserLocation;
+        console.log('[Navbar] Evento gdb:location-updated recebido:', detail);
         if (detail) setLoc(detail);
-      } catch {}
+      } catch (err) {
+        console.error('[Navbar] Erro ao processar evento:', err);
+      }
     };
     const onLocationUpdate = (e: Event) => {
       try {
         const detail = (e as CustomEvent).detail as UserLocation;
+        console.log('[Navbar] Evento locationUpdate recebido:', detail);
         if (detail) setLoc(detail);
       } catch {}
     };
