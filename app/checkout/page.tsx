@@ -596,7 +596,7 @@ export default function CheckoutPage() {
 
   return (
     <section className="container-max pt-24 sm:pt-8 py-8 pb-40 md:pb-24">
-      <h1 className="text-xl sm:text-2xl font-semibold mt-0">Checkout</h1>
+      <h1 className="text-xl sm:text-2xl font-semibold -mt-2 sm:mt-0">Checkout</h1>
 
       {/* Aviso de login no topo */}
       {!isLogged && (
@@ -1059,13 +1059,6 @@ export default function CheckoutPage() {
             <div className="text-sm min-w-0">
               <div className="text-gray-600 leading-tight">Itens ({totalCount})</div>
               <div className="font-extrabold">Total: R$ {total.toFixed(2)}</div>
-              <div className="mt-0.5 text-[11px] text-gray-600 truncate max-w-[55vw]">
-                {shipping === "retirada" ? (
-                  <span className="text-emerald-700">Retirar na banca</span>
-                ) : street ? (
-                  <>Entrega: {street}{houseNumber ? `, ${houseNumber}` : ''}{(city || uf) ? ` · ${city || ''}${city && uf ? ' - ' : ''}${uf || ''}` : ''}</>
-                ) : null}
-              </div>
             </div>
             <div className="flex items-center gap-2">
               <Link href="/carrinho" className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold hover:bg-gray-50">Editar carrinho</Link>
