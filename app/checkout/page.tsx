@@ -596,7 +596,7 @@ export default function CheckoutPage() {
 
   return (
     <section className="container-max pt-24 sm:pt-8 py-8 pb-40 md:pb-24">
-      <h1 className="text-xl sm:text-2xl font-semibold mt-2 sm:mt-0">Checkout</h1>
+      <h1 className="text-xl sm:text-2xl font-semibold mt-0">Checkout</h1>
 
       {/* Aviso de login no topo */}
       {!isLogged && (
@@ -624,9 +624,9 @@ export default function CheckoutPage() {
                   <input className="input" placeholder="Telefone (XX) XXXXX-XXXX" value={phone} onChange={(e)=>setPhone(formatPhone(e.target.value))} inputMode="tel" />
                 </div>
                 {/* CEP para iniciar preenchimento do endereço */}
-                <div className="mt-3 flex gap-2 items-start">
+                <div className="mt-3">
                   <input
-                    className={`input max-w-xs ${cepTouched && !isValidCEP ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''}`}
+                    className={`input w-full ${cepTouched && !isValidCEP ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''}`}
                     placeholder="CEP (00000-000)"
                     value={destCEP}
                     onChange={(e)=>{ setDestCEP(formatCEP(e.target.value)); }}
