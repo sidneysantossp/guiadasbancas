@@ -598,6 +598,22 @@ export default function CheckoutPage() {
     <section className="container-max pt-24 sm:pt-8 py-8 pb-40 md:pb-24">
       <h1 className="text-xl sm:text-2xl font-semibold mt-10 sm:mt-0">Checkout</h1>
 
+      {/* Aviso de login/registro no topo */}
+      {!isLogged && (
+        <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-blue-900">Já tem uma conta?</h3>
+              <p className="text-sm text-blue-700">Faça login para agilizar seu pedido ou continue como visitante.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href="/minha-conta?redirect=/checkout" className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Entrar</Link>
+              <Link href="/registrar?redirect=/checkout" className="rounded-md border border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50">Registrar</Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Formulário */}
         <form id="checkout-form" onSubmit={onSubmit} className="lg:col-span-2 rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
@@ -982,11 +998,6 @@ export default function CheckoutPage() {
           </div>
 
           <div className="pt-2">
-            {!isLogged && (
-              <div className="mb-2 text-[12px] text-gray-700">
-                Para finalizar, faça <Link href="/minha-conta" className="underline">login</Link> ou registre-se.
-              </div>
-            )}
             <Link href="/" className="inline-block rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white hover:opacity-95">Continuar comprando</Link>
           </div>
         </form>
@@ -1044,8 +1055,8 @@ export default function CheckoutPage() {
         </aside>
       </div>
 
-      {/* Barra fixa inferior (mobile e tablets) */}
-      <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] p-3">
+      {/* Barra fixa inferior (mobile e tablets) - posicionada acima do menu mobile */}
+      <div className="lg:hidden fixed inset-x-0 bottom-[72px] z-40 bg-white/95 backdrop-blur border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] p-3">
         <div className="container-max">
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm min-w-0">

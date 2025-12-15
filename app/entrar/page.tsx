@@ -17,6 +17,7 @@ function EntrarPageContent() {
   
   const { data: nextAuthSession } = useSession();
   const fromCheckout = searchParams?.get('checkout') === 'true';
+  const redirectParam = searchParams?.get('redirect');
 
   // Verificar se já está logado
   useEffect(() => {
@@ -55,8 +56,10 @@ function EntrarPageContent() {
       }
     } catch {}
     
-    // Redirecionar
-    if (fromCheckout) {
+    // Redirecionar - prioridade: 1) parâmetro redirect da URL, 2) checkout, 3) localStorage, 4) minha-conta
+    if (redirectParam) {
+      router.push(redirectParam as any);
+    } else if (fromCheckout) {
       router.push('/checkout');
     } else {
       const redirect = localStorage.getItem("gb:redirectAfterLogin") || "/minha-conta";

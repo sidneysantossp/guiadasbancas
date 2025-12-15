@@ -76,8 +76,14 @@ function MinhaContaPageContent() {
         setUser(JSON.parse(raw));
       } else {
         // Não está logado - redirecionar para /entrar
-        const checkoutParam = fromCheckout ? '?checkout=true' : '';
-        router.replace(`/entrar${checkoutParam}`);
+        const redirectParam = searchParams?.get('redirect');
+        let entrarUrl = '/entrar';
+        if (redirectParam) {
+          entrarUrl += `?redirect=${encodeURIComponent(redirectParam)}`;
+        } else if (fromCheckout) {
+          entrarUrl += '?checkout=true';
+        }
+        router.replace(entrarUrl);
         return;
       }
       const rawOrder = localStorage.getItem("gb:lastOrder");

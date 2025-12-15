@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, Suspense } from "react";
 import type { Route } from "next";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function RegisterPage() {
+function RegisterPageContent() {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -17,6 +17,8 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const { signUp } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams?.get('redirect');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -44,7 +46,9 @@ export default function RegisterPage() {
       setError(error.message || "Erro ao criar conta");
       setLoading(false);
     } else {
-      router.push(("/entrar?registered=true" as Route));
+      // Redirecionar para login com parâmetro redirect se existir
+      const redirectQuery = redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : '';
+      router.push((`/entrar?registered=true${redirectQuery}` as Route));
     }
   };
 
@@ -217,5 +221,13 @@ export default function RegisterPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div></div>}>
+      <RegisterPageContent />
+    </Suspense>
   );
 }
