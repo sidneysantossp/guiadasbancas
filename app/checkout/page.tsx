@@ -1062,11 +1062,13 @@ export default function CheckoutPage() {
             <div className="text-sm min-w-0">
               <div className="text-gray-600 leading-tight">Itens ({totalCount})</div>
               <div className="font-extrabold">Total: R$ {total.toFixed(2)}</div>
-              {street && (
-                <div className="mt-0.5 text-[11px] text-gray-600 truncate max-w-[55vw]">
-                  Entrega: {street}{houseNumber ? `, ${houseNumber}` : ''}{(city || uf) ? ` · ${city || ''}${city && uf ? ' - ' : ''}${uf || ''}` : ''}
-                </div>
-              )}
+              <div className="mt-0.5 text-[11px] text-gray-600 truncate max-w-[55vw]">
+                {shipping === "retirada" ? (
+                  <span className="text-emerald-700">Retirar na banca</span>
+                ) : street ? (
+                  <>Entrega: {street}{houseNumber ? `, ${houseNumber}` : ''}{(city || uf) ? ` · ${city || ''}${city && uf ? ' - ' : ''}${uf || ''}` : ''}</>
+                ) : null}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Link href="/carrinho" className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold hover:bg-gray-50">Editar carrinho</Link>
