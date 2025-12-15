@@ -165,8 +165,8 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
   const [fetchedBancas, setFetchedBancas] = useState<ApiBanca[] | null>(null);
   
   useEffect(() => {
-    // Só buscar da API se não receber bancas via props
-    if (propBancas !== undefined) {
+    // Só buscar da API se não receber bancas via props (ou se for null)
+    if (propBancas !== undefined && propBancas !== null) {
       return;
     }
     
@@ -185,12 +185,11 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
     })();
   }, [propBancas]);
   
-  // Usar props se disponível, senão usar dados buscados
-  const apiBancas = propBancas !== undefined ? propBancas : fetchedBancas;
+  // Usar props se disponível e não null, senão usar dados buscados
+  const apiBancas = (propBancas !== undefined && propBancas !== null) ? propBancas : fetchedBancas;
 
   // Ordenar por rating (melhor avaliação primeiro) - prioriza featured mas mostra todas
   const rawItems = useMemo(() => {
-    console.log('[FeaturedBancas] apiBancas:', apiBancas?.length, apiBancas);
     if (!apiBancas || !apiBancas.length) return [];
     
     const mapped = apiBancas.map((b) => {
@@ -249,9 +248,7 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
   const next = () => setIndex((i) => i + 1);
 
   // Não renderizar se não houver bancas reais
-  console.log('[FeaturedBancas] normalized:', normalized.length, 'rawItems:', rawItems.length);
   if (!normalized.length) {
-    console.log('[FeaturedBancas] Retornando null - sem bancas');
     return null;
   }
 
