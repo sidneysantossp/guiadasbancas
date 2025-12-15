@@ -229,31 +229,44 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
     const admin = searchParams.get("admin");
+    console.log('[hero-slides GET] Params:', { type, admin });
 
     // Buscar configuração
     if (type === "config") {
       const config = await readConfig() || DEFAULT_CONFIG;
+      console.log('[hero-slides GET] Retornando config:', config);
       return NextResponse.json({ success: true, data: config });
     }
 
     // Buscar slides do banco
+    console.log('[hero-slides GET] Buscando slides do banco...');
     const heroSlides = await readSlides();
+    console.log('[hero-slides GET] Slides do banco:', heroSlides.length, 'slides');
     const sliderConfig = await readConfig() || DEFAULT_CONFIG;
     
     // Usar fallback se não houver slides
     const slides = heroSlides.length > 0 ? heroSlides : DEFAULT_SLIDES;
+    console.log('[hero-slides GET] Slides finais:', slides.length, 'slides');
 
     // Se for admin, retornar todos os slides
     if (admin === "true") {
+      console.log('[hero-slides GET] Retornando para admin:', slides.map(s => ({ id: s.id, title: s.title })));
       return NextResponse.json({ 
         success: true, 
         data: slides, 
         config: sliderConfig 
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
     }
 
     // Retornar apenas slides ativos para o frontend público
     const publicSlides = slides.filter(slide => slide.active);
+    console.log('[hero-slides GET] Retornando slides públicos:', publicSlides.length, 'slides');
 
     return NextResponse.json({ 
       success: true, 

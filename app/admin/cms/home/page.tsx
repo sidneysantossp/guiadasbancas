@@ -99,23 +99,33 @@ export default function AdminHomePageCMS() {
 
   const loadSlides = async () => {
     try {
-      const response = await fetch('/api/admin/hero-slides?admin=true', {
+      // Cache-busting para forçar reload
+      const timestamp = Date.now();
+      console.log('[CMS Home] loadSlides chamado - timestamp:', timestamp);
+      const response = await fetch(`/api/admin/hero-slides?admin=true&_t=${timestamp}`, {
         headers: {
           'Authorization': 'Bearer admin-token'
-        }
+        },
+        cache: 'no-store'
       });
       
+      console.log('[CMS Home] loadSlides response status:', response.status);
       if (response.ok) {
         const result = await response.json();
+        console.log('[CMS Home] loadSlides result:', result);
         if (result.success) {
+          console.log('[CMS Home] Atualizando slides com:', result.data);
           setSlides(result.data || DEFAULT_SLIDES);
         } else {
+          console.warn('[CMS Home] loadSlides sem sucesso, usando DEFAULT_SLIDES');
           setSlides(DEFAULT_SLIDES);
         }
       } else {
+        console.error('[CMS Home] loadSlides response não ok:', response.status);
         setSlides(DEFAULT_SLIDES);
       }
-    } catch {
+    } catch (error) {
+      console.error('[CMS Home] loadSlides exception:', error);
       setSlides(DEFAULT_SLIDES);
     }
   };
