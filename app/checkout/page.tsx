@@ -598,18 +598,15 @@ export default function CheckoutPage() {
     <section className="container-max pt-24 sm:pt-8 py-8 pb-40 md:pb-24">
       <h1 className="text-xl sm:text-2xl font-semibold mt-10 sm:mt-0">Checkout</h1>
 
-      {/* Aviso de login/registro no topo */}
+      {/* Aviso de login no topo */}
       {!isLogged && (
         <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-blue-900">Já tem uma conta?</h3>
-              <p className="text-sm text-blue-700">Faça login para agilizar seu pedido ou continue como visitante.</p>
+              <p className="text-sm text-blue-700">Faça login para agilizar seu pedido.</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Link href="/minha-conta?redirect=/checkout" className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Entrar</Link>
-              <Link href="/registrar?redirect=/checkout" className="rounded-md border border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50">Registrar</Link>
-            </div>
+            <Link href="/minha-conta?redirect=/checkout" className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 text-center">Entrar</Link>
           </div>
         </div>
       )}
