@@ -617,48 +617,10 @@ export default function CheckoutPage() {
           <div>
             <h2 className="text/base font-semibold">Seus dados</h2>
             {!isLogged ? (
-              <>
-                <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <input className="input" placeholder="Nome completo" value={name} onChange={(e)=>setName(e.target.value)} required />
-                  <input className="input" type="email" placeholder="E-mail" value={email} onChange={(e)=>setEmail(e.target.value)} required />
-                  <input className="input" placeholder="Telefone (XX) XXXXX-XXXX" value={phone} onChange={(e)=>setPhone(formatPhone(e.target.value))} inputMode="tel" />
-                </div>
-                {/* CEP para iniciar preenchimento do endereço */}
-                <div className="mt-3">
-                  <input
-                    className={`input w-full ${cepTouched && !isValidCEP ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''}`}
-                    placeholder="CEP (00000-000)"
-                    value={destCEP}
-                    onChange={(e)=>{ setDestCEP(formatCEP(e.target.value)); }}
-                    onBlur={()=> setCepTouched(true)}
-                    inputMode="numeric"
-                    aria-invalid={cepTouched && !isValidCEP}
-                  />
-                  {addrLoading && <div className="text-[12px] text-gray-600 mt-2">Buscando endereço...</div>}
-                  {addrError && <div className="text-[12px] text-red-600 mt-2">{addrError}</div>}
-                </div>
-                {/* Endereço aparece somente após CEP válido e busca */}
-                {(isValidCEP && (addrLoading || street || city || uf)) && (
-                  <>
-                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-6 gap-3">
-                      <input className="input sm:col-span-2" placeholder="Endereço" value={street} readOnly />
-                      <input className={`input ${!isValidHouseNumber && houseNumber ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''}`} placeholder="Número" value={houseNumber} onChange={(e)=>setHouseNumber(e.target.value)} required />
-                      <input className="input" placeholder="Bairro" value={neighborhood} readOnly />
-                      <input className="input" placeholder="Cidade" value={city} readOnly />
-                      <select className={`input ${uf && !isValidUF ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''}`} value={uf} onChange={(e)=>setUf(e.target.value)} disabled>
-                        <option value="">UF</option>
-                        {UF_OPTIONS.map((u)=> (
-                          <option key={u} value={u}>{u}</option>
-                        ))}
-                      </select>
-                    </div>
-                    {!isValidHouseNumber && houseNumber && (<div className="mt-1 text-[12px] text-red-600">Número inválido. Informe um número ou "s/n".</div>)}
-                    <div className="mt-2 grid grid-cols-1">
-                      <input className="input" placeholder="Complemento (opcional)" value={complement} onChange={(e)=>setComplement(e.target.value)} />
-                    </div>
-                  </>
-                )}
-              </>
+              <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-center">
+                <p className="text-sm text-blue-900 font-medium">Para finalizar sua compra, você precisa fazer login ou criar uma conta.</p>
+                <p className="text-xs text-blue-700 mt-2">Seus dados serão preenchidos automaticamente após o login.</p>
+              </div>
             ) : (
               <>
                 {/* Resumo do usuário */}
