@@ -105,7 +105,7 @@ export default function CookieConsent() {
     <div className="fixed inset-0 z-[70] flex items-end justify-center pointer-events-none">
       <div className="absolute inset-0 bg-black/50 pointer-events-auto sm:hidden" aria-hidden />
       <div className="relative w-full pointer-events-auto sm:max-w-6xl sm:px-6 sm:pb-8">
-        <div className="mx-auto w-full max-w-[calc(100%-2rem)] px-4 pb-6 sm:max-w-none sm:px-0 sm:pb-0">
+        <div className="mx-auto w-full max-w-[calc(100%-2rem)] px-4 pb-20 sm:max-w-none sm:px-0 sm:pb-0">
           <div className="rounded-2xl border border-[#ff5c00]/30 bg-white shadow-2xl sm:rounded-xl sm:border sm:shadow-[0_-16px_48px_-24px_rgba(0,0,0,0.35)]">
             <div className="hidden sm:block h-1 w-full bg-gradient-to-r from-[#ff6b18] via-[#ff5c00] to-[#ff7a33]" aria-hidden />
             <div className="px-4 py-4 sm:px-6 sm:py-4">

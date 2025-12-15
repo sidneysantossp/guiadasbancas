@@ -130,7 +130,20 @@ function BancaCard({
 
 export default function FeaturedBancas() {
   const [loc, setLoc] = useState<UserLocation | null>(null);
-  useEffect(() => setLoc(loadStoredLocation()), []);
+  
+  // Carregar localização inicial e escutar atualizações
+  useEffect(() => {
+    setLoc(loadStoredLocation());
+    
+    // Escutar evento de atualização de localização
+    const handleLocationUpdate = (e: CustomEvent<UserLocation>) => {
+      setLoc(e.detail);
+    };
+    
+    window.addEventListener('gdb:location-updated', handleLocationUpdate as EventListener);
+    return () => window.removeEventListener('gdb:location-updated', handleLocationUpdate as EventListener);
+  }, []);
+  
   const uf = (loc?.state || "SP").toLowerCase();
 
   // Bancas reais do Admin CMS - usando endpoint otimizado que traz apenas 20 bancas

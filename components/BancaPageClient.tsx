@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import TrustBadges from "@/components/TrustBadges";
 import { buildBancaHref } from "@/lib/slug";
+import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
 import { useCart } from "@/components/CartContext";
@@ -141,6 +142,7 @@ function ClosedBadge() {
 
 function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone?: string; bancaId: string; bancaName?: string }) {
   const [liked, setLiked] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
   const { addToCart, items } = useCart();
   const subtotal = items.reduce((s, it) => s + (it.price ?? 0) * it.qty, 0);
   const qualifies = shippingConfig.freeShippingEnabled || subtotal >= shippingConfig.freeShippingThreshold;
@@ -161,7 +163,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
         {/* Wrapper com padding para a imagem, mantendo cantos arredondados internos */}
         <div className="absolute inset-0 p-2">
           <div className="relative h-full w-full rounded-[14px] overflow-hidden">
-            <Image src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-contain bg-gray-50" />
+            <ImagePlaceholder src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-contain bg-gray-50" />
             {/* Link absoluto cobrindo a imagem para ir à página do produto */}
             <Link
               href={("/produto/" + slugify(p.name) + "-" + p.id) as Route}
@@ -271,11 +273,26 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
           {/* Ações: botão carrinho laranja + botão Whats verde */}
           <div className="flex flex-col gap-1">
             <button
-              onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: bancaId, banca_name: bancaName }, 1); } }}
+              onClick={() => { 
+                if (!outOfStock && !justAdded) { 
+                  addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: bancaId, banca_name: bancaName }, 1); 
+                  setJustAdded(true);
+                  setTimeout(() => setJustAdded(false), 2000);
+                } 
+              }}
               disabled={outOfStock}
-              className={`w-full rounded px-2.5 py-1 text-[11px] font-semibold ${outOfStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#ff5c00] text-white hover:opacity-95'}`}
+              className={`w-full rounded px-2.5 py-1 text-[11px] font-semibold inline-flex items-center justify-center gap-1 ${
+                outOfStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 
+                justAdded ? 'bg-emerald-500 text-white' : 
+                'bg-[#ff5c00] text-white hover:opacity-95'
+              }`}
             >
-              {outOfStock ? 'Esgotado' : 'Adicionar ao Carrinho'}
+              {outOfStock ? 'Esgotado' : justAdded ? (
+                <>
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                  Adicionado
+                </>
+              ) : 'Adicionar ao Carrinho'}
             </button>
             {phone ? (
               <a
