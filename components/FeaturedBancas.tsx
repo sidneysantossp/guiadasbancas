@@ -160,19 +160,12 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
   
   const uf = (loc?.state || "SP").toLowerCase();
 
-  // Bancas reais do Admin CMS - usando endpoint otimizado que traz apenas 20 bancas
-  // Se receber bancas via props, usar essas; senão, buscar da API
-  const [apiBancas, setApiBancas] = useState<ApiBanca[] | null>(propBancas || null);
-  
-  // Atualizar quando propBancas mudar
-  useEffect(() => {
-    if (propBancas !== undefined && propBancas !== null) {
-      setApiBancas(propBancas);
-    }
-  }, [propBancas]);
+  // Usar bancas das props diretamente (sem estado interno quando recebe props)
+  // Se não receber props, buscar da API
+  const [fetchedBancas, setFetchedBancas] = useState<ApiBanca[] | null>(null);
   
   useEffect(() => {
-    // Se já recebeu bancas via props, não buscar novamente
+    // Só buscar da API se não receber bancas via props
     if (propBancas !== undefined) {
       return;
     }
@@ -185,15 +178,19 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
         if (!res.ok) throw new Error('fail');
         const j = await res.json();
         const list = Array.isArray(j?.data) ? (j.data as ApiBanca[]) : [];
-        setApiBancas(list);
+        setFetchedBancas(list);
       } catch {
-        setApiBancas([]);
+        setFetchedBancas([]);
       }
     })();
   }, [propBancas]);
+  
+  // Usar props se disponível, senão usar dados buscados
+  const apiBancas = propBancas !== undefined ? propBancas : fetchedBancas;
 
   // Ordenar por rating (melhor avaliação primeiro) - prioriza featured mas mostra todas
   const rawItems = useMemo(() => {
+    console.log('[FeaturedBancas] apiBancas:', apiBancas?.length, apiBancas);
     if (!apiBancas || !apiBancas.length) return [];
     
     const mapped = apiBancas.map((b) => {
@@ -252,7 +249,9 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
   const next = () => setIndex((i) => i + 1);
 
   // Não renderizar se não houver bancas reais
+  console.log('[FeaturedBancas] normalized:', normalized.length, 'rawItems:', rawItems.length);
   if (!normalized.length) {
+    console.log('[FeaturedBancas] Retornando null - sem bancas');
     return null;
   }
 
