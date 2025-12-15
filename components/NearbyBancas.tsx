@@ -7,23 +7,6 @@ import { useEffect, useMemo, useState } from "react";
 import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
 import type { Route } from "next";
 
-type ApiBanca = { 
-  id: string; 
-  name: string; 
-  address?: string; 
-  lat?: number; 
-  lng?: number; 
-  cover: string; 
-  rating?: number; 
-  featured?: boolean; 
-  active: boolean; 
-  order: number;
-};
-
-interface FeaturedBancasProps {
-  bancas?: ApiBanca[] | null;
-}
-
 function Stars({ value }: { value: number }) {
   const full = Math.floor(value);
   const half = value - full >= 0.5;
@@ -32,7 +15,7 @@ function Stars({ value }: { value: number }) {
       <svg key={i} viewBox="0 0 24 24" className="h-4 w-4 text-amber-400" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.88L18.18 22 12 18.77 5.82 22 7 14.15l-5-4.88 6.91-1.01L12 2z"/></svg>
     );
     if (i === full && half) return (
-      <svg key={i} viewBox="0 0 24 24" className="h-4 w-4 text-amber-400" fill="currentColor"><defs><linearGradient id="half"><stop offset="50%" stopColor="currentColor"/><stop offset="50%" stopColor="transparent"/></linearGradient></defs><path d="M12 2l3.09 6.26L22 9.27l-5 4.88L18.18 22 12 18.77 5.82 22 7 14.15l-5-4.88 6.91-1.01L12 2z" fill="url(#half)"/><path d="M12 2l3.09 6.26L22 9.27l-5 4.88L18.18 22 12 18.77 5.82 22 7 14.15l-5-4.88 6.91-1.01L12 2z" fill="none" stroke="currentColor"/></svg>
+      <svg key={i} viewBox="0 0 24 24" className="h-4 w-4 text-amber-400" fill="currentColor"><defs><linearGradient id="half-nearby"><stop offset="50%" stopColor="currentColor"/><stop offset="50%" stopColor="transparent"/></linearGradient></defs><path d="M12 2l3.09 6.26L22 9.27l-5 4.88L18.18 22 12 18.77 5.82 22 7 14.15l-5-4.88 6.91-1.01L12 2z" fill="url(#half-nearby)"/><path d="M12 2l3.09 6.26L22 9.27l-5 4.88L18.18 22 12 18.77 5.82 22 7 14.15l-5-4.88 6.91-1.01L12 2z" fill="none" stroke="currentColor"/></svg>
     );
     return (
       <svg key={i} viewBox="0 0 24 24" className="h-4 w-4 text-gray-300" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.88L18.18 22 12 18.77 5.82 22 7 14.15l-5-4.88 6.91-1.01L12 2z"/></svg>
@@ -48,10 +31,8 @@ function BancaCard({
   distance,
   cover,
   rating,
-  categories,
   uf,
   description,
-  featured,
   priority = false,
 }: {
   id: string;
@@ -60,22 +41,20 @@ function BancaCard({
   distance: number | null;
   cover: string;
   rating: number;
-  categories: { name: string; icon: string }[];
   uf: string;
   description?: string;
-  featured?: boolean;
   priority?: boolean;
 }) {
-  // Removido uso de categorias mockadas; quando houver no futuro, virão direto da API.
-  const distanceLabel = distance == null ? null : (distance > 3 ? "+3Km" : `${Math.max(1, Math.round(distance))}Km`);
+  const distanceLabel = distance == null ? null : (distance > 3 ? `${distance.toFixed(1)}Km` : `${Math.max(0.1, distance).toFixed(1)}Km`);
   const openNow = useMemo(() => {
     try {
       const h = new Date().getHours();
-      return h >= 6 && h < 20; // janela padrão 06:00-19:59
+      return h >= 6 && h < 20;
     } catch {
       return true;
     }
   }, []);
+  
   return (
     <Link href={(buildBancaHref(name, id, uf) as Route)} className="block min-h-[22rem] rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-shadow overflow-hidden">
       <div className="relative h-48 w-full bg-gray-100">
@@ -96,13 +75,14 @@ function BancaCard({
             </svg>
           </div>
         )}
-        {/* Removido badge de distância para não poluir a imagem */}
-        {featured && (
-          <div className="absolute left-2 top-2 z-10 inline-flex items-center rounded-full bg-orange-50 text-[#ff5c00] border border-orange-200 px-2 py-[2px] text-[11px]">Destaque</div>
+        {/* Badge de distância */}
+        {distanceLabel && (
+          <div className="absolute right-2 top-2 z-10 inline-flex items-center rounded-full bg-white/90 text-gray-700 border border-gray-200 px-2 py-[2px] text-[11px] font-medium shadow-sm">
+            📍 {distanceLabel}
+          </div>
         )}
       </div>
       <div className="p-3 space-y-2">
-        {/* Estrelas + nota + status de abertura */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs">
             <Stars value={rating} />
@@ -110,18 +90,14 @@ function BancaCard({
           </div>
           <span
             className={`inline-flex items-center gap-1 rounded-md border px-2 py-[2px] text-[11px] font-semibold ${openNow ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}
-            aria-label={openNow ? 'Banca aberta agora' : 'Banca fechada agora'}
           >
             {openNow ? 'Aberta' : 'Fechada'}
           </span>
         </div>
-        {/* Nome */}
         <div className="text-[13px] font-semibold leading-snug line-clamp-2">{name}</div>
-        {/* Descrição curta */}
         {description && (
           <div className="-mt-1 text-[12px] text-gray-700 line-clamp-2">{description}</div>
         )}
-        {/* Ver no Mapa */}
         <div className="mt-1 flex items-center">
           <span className="inline-flex items-center gap-1 text-[12px] text-emerald-600 font-medium">
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
@@ -142,14 +118,28 @@ function BancaCard({
   );
 }
 
-export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasProps) {
+type ApiBanca = { 
+  id: string; 
+  name: string; 
+  address?: string; 
+  lat?: number; 
+  lng?: number; 
+  cover: string; 
+  rating?: number; 
+  featured?: boolean; 
+  active: boolean; 
+};
+
+interface NearbyBancasProps {
+  bancas: ApiBanca[] | null;
+}
+
+export default function NearbyBancas({ bancas }: NearbyBancasProps) {
   const [loc, setLoc] = useState<UserLocation | null>(null);
   
-  // Carregar localização inicial e escutar atualizações
   useEffect(() => {
     setLoc(loadStoredLocation());
     
-    // Escutar evento de atualização de localização
     const handleLocationUpdate = (e: CustomEvent<UserLocation>) => {
       setLoc(e.detail);
     };
@@ -160,40 +150,11 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
   
   const uf = (loc?.state || "SP").toLowerCase();
 
-  // Bancas reais do Admin CMS - usando endpoint otimizado que traz apenas 20 bancas
-  // Se receber bancas via props, usar essas; senão, buscar da API
-  const [apiBancas, setApiBancas] = useState<ApiBanca[] | null>(propBancas || null);
-  
-  useEffect(() => {
-    // Se já recebeu bancas via props, não buscar novamente
-    if (propBancas !== undefined) {
-      setApiBancas(propBancas);
-      return;
-    }
+  // Ordenar por distância (menor primeiro)
+  const nearbyItems = useMemo(() => {
+    if (!bancas || !bancas.length) return [];
     
-    (async () => {
-      try {
-        const res = await fetch('/api/bancas/featured?limit=20', { 
-          next: { revalidate: 60 } as any
-        });
-        if (!res.ok) throw new Error('fail');
-        const j = await res.json();
-        const list = Array.isArray(j?.data) ? (j.data as ApiBanca[]) : [];
-        setApiBancas(list);
-      } catch {
-        setApiBancas([]);
-      }
-    })();
-  }, []);
-
-  // Filtrar apenas bancas em destaque e ordenar por rating (melhor avaliação primeiro)
-  const rawItems = useMemo(() => {
-    if (!apiBancas || !apiBancas.length) return [];
-    
-    // Filtrar apenas bancas marcadas como destaque
-    const featuredOnly = apiBancas.filter(b => b.featured === true);
-    
-    const mapped = featuredOnly.map((b) => {
+    const mapped = bancas.map((b) => {
       const distance = (loc && typeof b.lat === 'number' && typeof b.lng === 'number')
         ? haversineKm({ lat: loc.lat, lng: loc.lng }, { lat: b.lat, lng: b.lng })
         : null;
@@ -203,53 +164,58 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
         address: b.address || '', 
         distance, 
         cover: b.cover, 
-        rating: typeof b.rating === 'number' ? b.rating : 4.7, 
-        featured: true, 
-        categories: [] 
+        rating: typeof b.rating === 'number' ? b.rating : 4.7
       };
     });
 
-    // Ordenar por rating (melhor avaliação primeiro)
+    // Ordenar por distância (menor primeiro), depois por rating
     return mapped
-      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+      .filter(b => b.distance !== null) // Só mostrar bancas com coordenadas
+      .sort((a, b) => {
+        // Primeiro por distância
+        if (a.distance != null && b.distance != null) {
+          return a.distance - b.distance;
+        }
+        // Fallback por rating
+        return (b.rating || 0) - (a.rating || 0);
+      })
       .slice(0, 12);
-  }, [apiBancas, loc]);
+  }, [bancas, loc]);
 
-  // Slider responsivo: 1/2/3 por view
   const [w, setW] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
   useEffect(() => {
     const onResize = () => setW(window.innerWidth);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  const perView = w < 640 ? 1 : w < 1024 ? 2 : 4; // 4 por view no desktop
+  const perView = w < 640 ? 1 : w < 1024 ? 2 : 4;
   const isMobile = w < 768;
 
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);
   const gapRem = 1.5;
+  
   const normalized = useMemo(() => {
-    const minCount = 1;
-    if (rawItems.length === 0) return [];
-    if (rawItems.length >= minCount) return rawItems;
-    return rawItems;
-  }, [rawItems]);
+    if (nearbyItems.length === 0) return [];
+    return nearbyItems;
+  }, [nearbyItems]);
+  
   const trackItems = useMemo(() => [...normalized, ...normalized], [normalized]);
 
   useEffect(() => {
-    if (isMobile) return; // autoplay somente no desktop/tablet
+    if (isMobile) return;
     const id = setInterval(() => {
       setIndex((i) => i + 1);
       setAnimating(true);
-    }, 5000);
+    }, 6000);
     return () => clearInterval(id);
   }, [isMobile]);
 
   const prev = () => setIndex((i) => Math.max(0, i - 1));
   const next = () => setIndex((i) => i + 1);
 
-  // Não renderizar se não houver bancas reais
-  if (!normalized.length) {
+  // Não renderizar se não houver bancas ou localização
+  if (!normalized.length || !loc) {
     return null;
   }
 
@@ -258,18 +224,18 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
       <div className="container-max relative px-3 sm:px-6 md:px-8 py-6">
         <div className="relative z-10 mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg sm:text-xl font-semibold">Bancas em Destaque</h2>
-            <p className="text-sm text-gray-600">As melhores avaliadas pelos clientes</p>
+            <h2 className="text-lg sm:text-xl font-semibold">Bancas perto de você</h2>
+            <p className="text-sm text-gray-600">Ordenadas pela menor distância</p>
           </div>
-          <Link href="/bancas-perto-de-mim?sort=rating" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todas</Link>
+          <Link href="/bancas-perto-de-mim" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todas</Link>
         </div>
-        {/* Carrossel: mobile scroll-snap manual, desktop slider com setas */}
+        
         {isMobile ? (
           <div className="relative z-10 py-6">
             <div className="overflow-x-auto no-scrollbar">
               <div className="flex gap-4 snap-x snap-mandatory">
                 {normalized.map((b, i) => (
-                  <div key={`${b.id}-${i}`} className="shrink-0 snap-start" style={{ flex: `0 0 calc(88%)` }}>
+                  <div key={`nearby-${b.id}-${i}`} className="shrink-0 snap-start" style={{ flex: `0 0 calc(88%)` }}>
                     <BancaCard {...b} uf={uf} description={b.address} priority={i === 0} />
                   </div>
                 ))}
@@ -278,7 +244,6 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
           </div>
         ) : (
           <div className="relative z-10 py-6">
-            {/* Viewport com gutters para as setas (evita que o card entre sob a seta) */}
             <div className="overflow-hidden px-6">
               <div
                 className="flex gap-6"
@@ -296,7 +261,7 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
               >
                 {trackItems.map((b, i) => (
                   <div
-                    key={`${b.id}-${i}`}
+                    key={`nearby-${b.id}-${i}`}
                     className="shrink-0"
                     style={{ flex: `0 0 calc((100% - ${(perView - 1) * gapRem}rem) / ${perView})` }}
                   >
@@ -305,7 +270,6 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
                 ))}
               </div>
             </div>
-            {/* Arrows desktop */}
             <button
               type="button"
               onClick={prev}

@@ -15,7 +15,7 @@ const MobileCategoryScroller = nextDynamic(() => import("@/components/MobileCate
 const CategoryCarousel = nextDynamic(() => import("@/components/CategoryCarousel"), { 
   ssr: false
 });
-const FeaturedBancas = nextDynamic(() => import("@/components/FeaturedBancas"), { 
+const BancasSections = nextDynamic(() => import("@/components/BancasSections"), { 
   ssr: false
 });
 
@@ -69,7 +69,7 @@ export default function HomePage() {
       </Suspense>
 
       <Suspense fallback={null}>
-        <FeaturedBancas />
+        <BancasSections />
       </Suspense>
 
       {/* Mini banners + Turma da Mônica logo abaixo das bancas */}
