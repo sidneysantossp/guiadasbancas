@@ -595,8 +595,27 @@ function SlideForm({
   const [imgUploading, setImgUploading] = useState<boolean>(false);
   const [dragOverMain, setDragOverMain] = useState<boolean>(false);
 
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  
   const doUpload = async (file: File) => {
     try {
+      setUploadError(null);
+      
+      // Validar tamanho do arquivo (máximo 4MB para Vercel)
+      const maxSize = 4 * 1024 * 1024; // 4MB
+      if (file.size > maxSize) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+        setUploadError(`Arquivo muito grande (${sizeMB}MB). Máximo permitido: 4MB. Reduza o tamanho da imagem.`);
+        return;
+      }
+      
+      // Validar tipo de arquivo
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        setUploadError('Tipo de arquivo não suportado. Use JPG, PNG, WebP ou GIF.');
+        return;
+      }
+      
       setImgUploading(true);
       console.log('[SlideForm] Iniciando upload de arquivo:', file.name, file.type, file.size);
       const form = new FormData();
@@ -607,9 +626,16 @@ function SlideForm({
         body: form 
       });
       console.log('[SlideForm] Upload response status:', res.status);
+      
+      if (res.status === 403) {
+        setUploadError('Erro de permissão. Tente reduzir o tamanho da imagem para menos de 4MB.');
+        return;
+      }
+      
       const j = await res.json();
       console.log('[SlideForm] Upload response body:', j);
       if (!res.ok || !j?.ok) {
+        setUploadError(j?.error || 'Erro ao fazer upload da imagem.');
         console.error('[SlideForm] Upload falhou:', j?.error || res.statusText);
         return;
       }
@@ -617,6 +643,7 @@ function SlideForm({
       setFormData(prev => ({ ...prev, imageUrl: j.url }));
     } catch (error) {
       console.error('[SlideForm] Upload exception:', error);
+      setUploadError('Erro inesperado ao fazer upload. Tente novamente.');
     } finally { setImgUploading(false); }
   };
 
@@ -704,11 +731,17 @@ function SlideForm({
                   {imgUploading ? 'Enviando...' : (
                     <>
                       <div>Arraste e solte uma imagem aqui, ou clique para selecionar.</div>
+                      <div className="text-xs text-gray-500 mt-1">Máximo 4MB • JPG, PNG, WebP ou GIF</div>
                       <input type="file" accept="image/*" id="hero-image-file" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if (f) doUpload(f); }} />
                       <label htmlFor="hero-image-file" className="mt-2 inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-50 cursor-pointer">Selecionar arquivo</label>
                     </>
                   )}
                 </div>
+                {uploadError && (
+                  <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    ⚠️ {uploadError}
+                  </div>
+                )}
                 {formData.imageUrl && (
                   <div className="mt-2 relative h-28 w-full max-w-xl overflow-hidden rounded-lg ring-1 ring-black/10">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
