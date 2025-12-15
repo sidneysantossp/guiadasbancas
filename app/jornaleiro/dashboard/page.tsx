@@ -62,10 +62,12 @@ export default function JornaleiroDashboardPage() {
       // Buscar pedidos, produtos próprios e catálogo do distribuidor em PARALELO
       const fetchPromises: Promise<Response>[] = [
         fetch('/api/orders?limit=50', { 
-          next: { revalidate: 30 } // Cache por 30 segundos
+          cache: 'no-store',
+          credentials: 'include'
         }),
         fetch('/api/products?limit=50', { 
-          next: { revalidate: 60 } // Cache por 60 segundos
+          cache: 'no-store',
+          credentials: 'include'
         }),
       ];
       
@@ -73,14 +75,23 @@ export default function JornaleiroDashboardPage() {
       if (banca?.is_cotista) {
         fetchPromises.push(
           fetch('/api/jornaleiro/catalogo-distribuidor', { 
-            next: { revalidate: 60 }
+            cache: 'no-store',
+            credentials: 'include'
           })
         );
       }
       
       const responses = await Promise.all(fetchPromises);
       const [ordersData, productsData, catalogoData] = await Promise.all(
-        responses.map(r => r.json())
+        responses.map(async (r) => {
+          const text = await r.text();
+          try {
+            return JSON.parse(text);
+          } catch (parseErr) {
+            console.error('[Dashboard] ❌ Resposta inválida ao carregar métricas:', text);
+            return {};
+          }
+        })
       );
       
       const orders = ordersData.items || [];

@@ -24,18 +24,7 @@ type Product = {
   sellerLng?: number;
 };
 
-const seedProducts: Product[] = [
-  { id: "p1", name: "Chocolate Donut", price: 14.9, priceOriginal: 19.9, image: "/images/sample/donut1.jpg", promo: true, category: "doces", rating: 4.5, sellerName: "Banca Central", sellerAvatar: "/images/sample/seller1.jpg", readyToShip: true, sellerLat: -23.55052, sellerLng: -46.633308 },
-  { id: "p2", name: "Revista Tech", price: 29.9, priceOriginal: 39.9, image: "/images/sample/mag1.jpg", promo: true, category: "revistas", rating: 4.2, sellerName: "Banca da Praça", sellerAvatar: "/images/sample/seller2.jpg", readyToShip: true, sellerLat: -23.559616, sellerLng: -46.658043 },
-  { id: "p3", name: "Água 500ml", price: 4.5, priceOriginal: 5.5, image: "/images/sample/water.jpg", promo: true, category: "bebidas", rating: 4.8, sellerName: "Banca 24h", sellerAvatar: "/images/sample/seller3.jpg", readyToShip: true, sellerLat: -23.563099, sellerLng: -46.654387 },
-  { id: "p4", name: "Café Moído Premium", price: 39.9, priceOriginal: 49.9, image: "/images/sample/coffee.jpg", promo: true, category: "cafe", rating: 4.0, sellerName: "Banca Gourmet", sellerAvatar: "/images/sample/seller4.jpg", readyToShip: false, sellerLat: -23.562, sellerLng: -46.64 },
-  { id: "p5", name: "Biscoito Integral", price: 7.9, priceOriginal: 10.9, image: "/images/sample/biscuit.jpg", promo: true, category: "snacks", rating: 4.1, sellerName: "Banca Vida", sellerAvatar: "/images/sample/seller2.jpg", readyToShip: true, sellerLat: -23.553, sellerLng: -46.63 },
-  { id: "p6", name: "Suco Natural 1L", price: 8.9, priceOriginal: 12.9, image: "/images/sample/juice.jpg", promo: true, category: "bebidas", rating: 4.6, sellerName: "Banca Natural", sellerAvatar: "/images/sample/seller1.jpg", readyToShip: true, sellerLat: -23.548, sellerLng: -46.636 },
-  { id: "p7", name: "Revista Games", price: 24.9, priceOriginal: 34.9, image: "/images/sample/mag2.jpg", promo: true, category: "revistas", rating: 3.9, sellerName: "Banca Geek", sellerAvatar: "/images/sample/seller3.jpg", readyToShip: false, sellerLat: -23.57, sellerLng: -46.65 },
-  { id: "p8", name: "Barra de Cereal", price: 3.9, priceOriginal: 5.9, image: "/images/sample/cereal.jpg", promo: true, category: "snacks", rating: 4.3, sellerName: "Banca Fit", sellerAvatar: "/images/sample/seller4.jpg", readyToShip: true, sellerLat: -23.545, sellerLng: -46.62 },
-  { id: "p9", name: "Chá Verde", price: 12.9, priceOriginal: 15.9, image: "/images/sample/tea.jpg", promo: true, category: "bebidas", rating: 4.0, sellerName: "Banca Oriente", sellerAvatar: "/images/sample/seller2.jpg", readyToShip: true, sellerLat: -23.58, sellerLng: -46.66 },
-  { id: "p10", name: "Cookie Artesanal", price: 9.9, priceOriginal: 13.9, image: "/images/sample/cookie.jpg", promo: true, category: "doces", rating: 4.7, sellerName: "Banca Doce", sellerAvatar: "/images/sample/seller1.jpg", readyToShip: true, sellerLat: -23.552, sellerLng: -46.642 },
-];
+// seedProducts removido - dados devem vir exclusivamente da API
 
 function PromocoesPageContent() {
   const router = useRouter();
@@ -55,20 +44,36 @@ function PromocoesPageContent() {
   const [geoError, setGeoError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Poderíamos integrar com API. Por hora, seed simples
-    try {
-      const raw = localStorage.getItem("gb:promos");
-      if (raw) {
-        const list = JSON.parse(raw);
-        if (Array.isArray(list)) { setAll(list); }
-      } else {
-        setAll(seedProducts);
-        localStorage.setItem("gb:promos", JSON.stringify(seedProducts));
+    // Buscar promoções da API
+    const fetchPromos = async () => {
+      try {
+        const res = await fetch('/api/products/most-searched?limit=20&promo=true');
+        const data = await res.json();
+        if (data?.data && Array.isArray(data.data)) {
+          const mapped = data.data.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            priceOriginal: p.price_original,
+            image: p.images?.[0],
+            promo: true,
+            category: p.category_id,
+            rating: p.rating_avg || 4.5,
+            sellerName: p.banca?.name,
+            sellerAvatar: p.banca?.avatar,
+            readyToShip: p.pronta_entrega,
+            sellerLat: p.banca?.lat,
+            sellerLng: p.banca?.lng,
+          }));
+          setAll(mapped);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar promoções:', err);
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      setAll(seedProducts);
-    }
-    setLoading(false);
+    };
+    fetchPromos();
   }, []);
 
   // Geolocalização e cálculo de distância

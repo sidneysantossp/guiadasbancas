@@ -33,36 +33,7 @@ export type ProductDetail = {
   specs?: Record<string, string>;
 };
 
-const MOCK: ProductDetail = {
-  id: "p1",
-  name: "Chocolate Sprinkle Donut",
-  images: [
-    "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=1200&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1559622214-06fa8f6b5f4b?q=80&w=1200&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1542831371-29b0f74f9713?q=80&w=1200&auto=format&fit=crop",
-  ],
-  price: 120,
-  oldPrice: 140,
-  rating: 4.7,
-  reviews: 23,
-  ready: true,
-  discountLabel: "-14%",
-  vendor: {
-    id: "b1",
-    name: "Banca Centro",
-    avatar: "https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=200&auto=format&fit=crop",
-    distanceKm: 1.3,
-  },
-  stock: 12,
-  description:
-    "Donut macio com cobertura de chocolate e granulados. Perfeito para acompanhar um café. Produção diária com ingredientes selecionados.",
-  specs: {
-    Peso: "120 g",
-    Validade: "3 dias",
-    Conservação: "Manter refrigerado",
-    Origem: "Artesanal",
-  },
-};
+// MOCK removido - dados devem vir exclusivamente da API
 
 // Tipos para produtos relacionados
 type RelatedProduct = {

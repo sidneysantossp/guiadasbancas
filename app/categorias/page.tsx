@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 async function fetchCategories() {
   try {
     const url = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/categories`;
-    console.log('[fetchCategories] Buscando de:', url);
+    // Debug removido para produção
     
     const res = await fetch(url, { 
       cache: 'no-store',
@@ -25,19 +25,17 @@ async function fetchCategories() {
     });
     
     if (!res.ok) {
-      console.error('[fetchCategories] Resposta não OK:', res.status);
+      // Erro silenciado em produção
       throw new Error('failed');
     }
     
     const j = await res.json();
-    console.log('[fetchCategories] Resposta:', j);
-    
+        
     const list = Array.isArray(j?.data) ? j.data as Array<{ id:string; name:string; image:string; link:string; }> : [];
     
-    console.log('[fetchCategories] Categorias encontradas:', list.length);
-    return list.length ? list : null;
+        return list.length ? list : null;
   } catch (err) {
-    console.error('[fetchCategories] Erro:', err);
+    // Erro silenciado em produção
     return null as any;
   }
 }

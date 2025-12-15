@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BANCAS_MOCK } from "@/data/bancas";
+// BANCAS_MOCK removido - dados vêm exclusivamente da API
 import homeCategories from "@/data/categories.json";
 import { haversineKm, loadStoredLocation, saveStoredLocation, UserLocation, formatCep, isValidCep, resolveCepToLocation, saveCoordsAsLocation, geocodeByAddressNominatim } from "@/lib/location";
 import BankCard from "@/components/BankCard";
@@ -364,7 +364,7 @@ export default function BancasPertoDeMimPage() {
             featured: Boolean(b.featured),
           };
           })
-        : BANCAS_MOCK.map((b) => ({ id: b.id, name: b.name, address: b.address, lat: b.lat, lng: b.lng, rating: RATINGS[b.id] ?? 4.5, cover: undefined, avatar: undefined, openNow: isOpenNowDefault(), close: closeTimeDefault() || undefined, categories: [], description: undefined, featured: false }));
+        : []; // Sem fallback - dados devem vir da API
 
     // Quando não há localização, ordena por nome
     if (!loc) {
