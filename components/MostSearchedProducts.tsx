@@ -8,6 +8,7 @@ import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import { shippingConfig } from "@/components/shippingConfig";
 import { cachedFetch } from "@/lib/cache";
+import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 
 export type Product = {
   id: string;
@@ -124,7 +125,7 @@ function FeaturedCard({ p }: { p: Product }) {
         {/* Wrapper com padding para a imagem, mantendo cantos arredondados internos */}
         <div className="absolute inset-0 p-2">
           <div className="relative h-full w-full rounded-[14px] overflow-hidden">
-            <Image src={p.image} alt={p.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-contain bg-gray-50" />
+            <ImagePlaceholder src={p.image} alt={p.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-contain bg-gray-50" />
             {/* Link absoluto cobrindo a imagem para ir à página do produto */}
             <Link
               href={("/produto/" + slugify(p.name) + "-" + p.id) as Route}
@@ -174,7 +175,7 @@ function FeaturedCard({ p }: { p: Product }) {
           {/* Avatar e nome da banca acima do produto */}
           <div className="mb-1 flex items-center gap-2">
             <div className="h-6 w-6 rounded-full overflow-hidden border border-white shadow ring-1 ring-[#ff5c00]/20">
-              <Image src={p.vendorAvatar} alt={p.vendorName} width={24} height={24} className="h-full w-full object-cover" />
+              <ImagePlaceholder src={p.vendorAvatar} alt={p.vendorName} width={24} height={24} className="h-full w-full object-cover" />
             </div>
             <span className="text-xs text-gray-700 font-medium">{p.vendorName}</span>
           </div>
@@ -248,7 +249,7 @@ function SmallCard({ p }: { p: Product }) {
         {/* Wrapper com padding para a imagem, mantendo cantos arredondados internos */}
         <div className="absolute inset-0 p-2">
           <div className="relative h-full w-full rounded-[14px] overflow-hidden">
-            <Image src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 25vw" className="object-contain bg-gray-50" />
+            <ImagePlaceholder src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 25vw" className="object-contain bg-gray-50" />
             {/* Link absoluto cobrindo a imagem para ir à página do produto */}
             <Link
               href={("/produto/" + slugify(p.name) + "-" + p.id) as Route}
@@ -429,9 +430,9 @@ export default function MostSearchedProducts() {
             price,
             priceOriginal,
             discountPercent,
-            image: (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=1200&auto=format&fit=crop',
+            image: (p.images && p.images[0]) || '',
             vendorName: bancaData.name || 'Banca Local',
-            vendorAvatar: bancaData.avatar || 'https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=120&auto=format&fit=crop',
+            vendorAvatar: bancaData.avatar || '',
             description: p.description || undefined,
             stockQty: p.stock_qty ?? null,
             trackStock: p.track_stock ?? false,

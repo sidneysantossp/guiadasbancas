@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { geocodeByAddressNominatim, resolveCepToLocation, isValidCep } from "@/lib/location";
+import logger from "@/lib/logger";
 
 export default function JornaleiroOnboardingPage() {
   const router = useRouter();
@@ -31,7 +32,7 @@ export default function JornaleiroOnboardingPage() {
             .single();
 
           if (existingBanca) {
-            console.log('[Onboarding] ✅ Banca já existe, redirecionando para dashboard');
+            logger.log('[Onboarding] ✅ Banca já existe, redirecionando para dashboard');
             setStatus("success");
             setMessage("Você já possui uma banca cadastrada. Redirecionando...");
             setTimeout(() => {
@@ -43,13 +44,13 @@ export default function JornaleiroOnboardingPage() {
           }
 
           // Se não tem banca, segue para criação
-          console.log('[Onboarding] 📝 Banca não encontrada, iniciando criação');
+          logger.log('[Onboarding] 📝 Banca não encontrada, iniciando criação');
           if (!cancelled) {
             createBanca();
           }
           return;
         } catch (error) {
-          console.error('[Onboarding] Erro ao verificar banca:', error);
+          logger.error('[Onboarding] Erro ao verificar banca:', error);
           // Em caso de erro, tenta criar mesmo assim
           if (!cancelled) {
             createBanca();
@@ -62,12 +63,13 @@ export default function JornaleiroOnboardingPage() {
       if (!user || !profile) {
         setStatus("loading");
         setMessage("Aguardando autenticação...");
-        // Timeout de 10s
+        // Timeout de 5s (reduzido de 10s para melhor UX)
         setTimeout(() => {
           if (!cancelled && (!user || !profile)) {
+            logger.warn('[Onboarding] Timeout de autenticação, redirecionando para login');
             router.push("/jornaleiro" as Route);
           }
-        }, 10000);
+        }, 5000);
       }
     };
 
@@ -85,8 +87,8 @@ export default function JornaleiroOnboardingPage() {
       // Se não tem dados no localStorage, redirecionar para o cadastro
       let saved: any = null;
       if (!bancaDataStr) {
-        console.log('[Onboarding] ❌ Dados não encontrados no localStorage!');
-        console.log('[Onboarding] 🔄 Redirecionando para página de cadastro...');
+        logger.warn('[Onboarding] ❌ Dados não encontrados no localStorage!');
+        logger.log('[Onboarding] 🔄 Redirecionando para página de cadastro...');
         setStatus("error");
         setMessage("Dados de cadastro não encontrados. Redirecionando...");
         setTimeout(() => {
@@ -95,11 +97,8 @@ export default function JornaleiroOnboardingPage() {
         return;
       } else {
         saved = JSON.parse(bancaDataStr);
-        console.log('[Onboarding] 📦 Dados recuperados do localStorage:', saved);
-        console.log('[Onboarding] 🏢 is_cotista do localStorage:', saved.is_cotista);
-        console.log('[Onboarding] 🏢 cotista_id do localStorage:', saved.cotista_id);
-        console.log('[Onboarding] 👥 cotista_razao_social do localStorage:', saved.cotista_razao_social);
-        console.log('[Onboarding] 📋 CNPJ/CPF do localStorage:', saved.cotista_cnpj_cpf);
+        logger.log('[Onboarding] 📦 Dados recuperados do localStorage');
+        logger.log('[Onboarding] 🏢 is_cotista:', saved.is_cotista);
       }
 
       // Tentar recuperar os dados completos do wizard para normalizar campos
@@ -140,7 +139,7 @@ export default function JornaleiroOnboardingPage() {
       
       // Se não temos coordenadas válidas, tentar geocodificar
       if (!finalLat || !finalLng || (finalLat === -23.5505 && finalLng === -46.6333)) {
-        console.log('[Onboarding] 📍 Geocodificando endereço...');
+        logger.log('[Onboarding] 📍 Geocodificando endereço...');
         try {
           // Primeiro tentar pelo CEP
           const cepToUse = addressObj.cep || saved.cep || wizard?.cep;
@@ -149,7 +148,7 @@ export default function JornaleiroOnboardingPage() {
             if (locFromCep.lat && locFromCep.lng) {
               finalLat = locFromCep.lat;
               finalLng = locFromCep.lng;
-              console.log('[Onboarding] ✅ Coordenadas obtidas via CEP:', finalLat, finalLng);
+              logger.log('[Onboarding] ✅ Coordenadas obtidas via CEP:', finalLat, finalLng);
             }
           }
           
@@ -160,17 +159,17 @@ export default function JornaleiroOnboardingPage() {
             if (coords) {
               finalLat = coords.lat;
               finalLng = coords.lng;
-              console.log('[Onboarding] ✅ Coordenadas obtidas via endereço:', finalLat, finalLng);
+              logger.log('[Onboarding] ✅ Coordenadas obtidas via endereço:', finalLat, finalLng);
             }
           }
         } catch (geoError) {
-          console.error('[Onboarding] ⚠️ Erro ao geocodificar:', geoError);
+          logger.warn('[Onboarding] ⚠️ Erro ao geocodificar:', geoError);
         }
       }
       
       // Fallback para coordenadas de São Paulo se tudo falhar
       if (!finalLat || !finalLng) {
-        console.log('[Onboarding] ⚠️ Usando coordenadas padrão de São Paulo');
+        logger.warn('[Onboarding] ⚠️ Usando coordenadas padrão de São Paulo');
         finalLat = -23.5505;
         finalLng = -46.6333;
       }
@@ -206,10 +205,7 @@ export default function JornaleiroOnboardingPage() {
         cotista_cnpj_cpf: saved.cotista_cnpj_cpf ?? null,
       } as any;
       
-      console.log('[Onboarding] 🏢 ANTES DE SALVAR - is_cotista:', bancaData.is_cotista);
-      console.log('[Onboarding] 🏢 ANTES DE SALVAR - cotista_id:', bancaData.cotista_id);
-      console.log('[Onboarding] 👥 ANTES DE SALVAR - cotista_razao_social:', bancaData.cotista_razao_social);
-      console.log('[Onboarding] 📋 ANTES DE SALVAR - cotista_cnpj_cpf:', bancaData.cotista_cnpj_cpf);
+      logger.log('[Onboarding] 🏢 Preparando dados da banca - is_cotista:', bancaData.is_cotista);
 
       // Se já existe uma banca para este usuário, não criar novamente
       const { data: existing, error: existingErr } = await supabase
@@ -220,18 +216,18 @@ export default function JornaleiroOnboardingPage() {
 
       if (existing?.id) {
         // Garante vinculação no perfil
-        console.log('[Onboarding] Banca já existe, vinculando ao perfil:', existing.id);
+        logger.log('[Onboarding] Banca já existe, vinculando ao perfil:', existing.id);
         const { error: linkError } = await supabase
           .from("user_profiles")
           .update({ banca_id: existing.id })
           .eq("id", user!.id);
 
         if (linkError) {
-          console.error('[Onboarding] ERRO ao vincular banca existente:', linkError);
+          logger.error('[Onboarding] ERRO ao vincular banca existente:', linkError);
           throw new Error(`Erro ao vincular banca: ${linkError.message}`);
         }
 
-        console.log('[Onboarding] Banca existente vinculada ao perfil!');
+        logger.log('[Onboarding] Banca existente vinculada ao perfil!');
         setStatus("success");
         setMessage("Você já possui uma banca cadastrada. Redirecionando...");
         setTimeout(() => {
@@ -247,14 +243,12 @@ export default function JornaleiroOnboardingPage() {
       
       if (phoneToSave) {
         profileUpdates.phone = phoneToSave;
-        console.log('[Onboarding] 📞 Salvando telefone no perfil:', phoneToSave);
       }
       if (cpfToSave) {
         profileUpdates.cpf = cpfToSave;
-        console.log('[Onboarding] 🆔 Salvando CPF no perfil:', cpfToSave);
       }
 
-      console.log('[Onboarding] 🔗 Chamando API /api/jornaleiro/banca para criar banca no servidor...');
+      logger.log('[Onboarding] 🔗 Chamando API para criar banca...');
       const response = await fetch("/api/jornaleiro/banca", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -269,24 +263,21 @@ export default function JornaleiroOnboardingPage() {
       try {
         parsed = JSON.parse(responseText);
       } catch (parseErr) {
-        console.error('[Onboarding] ❌ Resposta inválida da API:', responseText);
+        logger.error('[Onboarding] ❌ Resposta inválida da API');
         throw new Error('Resposta inválida da API de criação da banca');
       }
 
       if (!response.ok || !parsed?.success) {
         const apiError = parsed?.error || `HTTP ${response.status}`;
-        console.error('[Onboarding] ❌ Erro ao criar banca via API:', apiError);
+        logger.error('[Onboarding] ❌ Erro ao criar banca via API:', apiError);
         throw new Error(apiError);
       }
 
       const data = parsed.data;
-      console.log('[Onboarding] ✅ Banca criada com sucesso via API!', data);
-      console.log('[Onboarding] 🏢 is_cotista salvo:', data?.is_cotista);
-      console.log('[Onboarding] 👥 cotista_razao_social salvo:', data?.cotista_razao_social);
+      logger.log('[Onboarding] ✅ Banca criada com sucesso!');
 
       // Salvar banca no cache imediatamente
       sessionStorage.setItem(`gb:banca:${user!.id}`, JSON.stringify(data));
-      console.log('[Onboarding] 📦 Banca salva no cache');
 
       // Limpar localStorage do wizard
       localStorage.removeItem("gb:bancaData");
@@ -295,18 +286,16 @@ export default function JornaleiroOnboardingPage() {
       setStatus("success");
       setMessage("Banca criada com sucesso! Redirecionando...");
       
-      console.log('[Onboarding] 🎉 Sucesso! Redirecionando para dashboard em 1.5s...');
-      console.log('[Onboarding] 📊 Banca criada com ID:', data.id);
-      console.log('[Onboarding] 🏢 is_cotista final:', data.is_cotista);
+      logger.log('[Onboarding] 🎉 Sucesso! Redirecionando para dashboard...');
 
       // Redirecionar para dashboard (com hard reload para garantir que o layout detecte a banca)
       setTimeout(() => {
-        console.log('[Onboarding] 🔄 Executando redirecionamento agora...');
+        logger.log('[Onboarding] 🔄 Executando redirecionamento agora...');
         window.location.href = '/jornaleiro/dashboard';
       }, 1500);
 
     } catch (error: any) {
-      console.error("Erro ao criar banca:", error);
+      logger.error("Erro ao criar banca:", error);
       setStatus("error");
       const errorMsg = error?.message || error?.toString() || "Erro desconhecido";
       setMessage(`Erro ao criar banca: ${errorMsg}`);

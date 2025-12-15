@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { supabaseAdmin } from "@/lib/supabase";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
 import CotistaSearch from "@/components/CotistaSearch";
+import logger from "@/lib/logger";
 
 export default function JornaleiroRegisterPage() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function JornaleiroRegisterPage() {
     cnpj_cpf: string;
   } | null>(null);
   
-  console.log('[Wizard] 🔄 Estado atual do componente:', {
+  logger.log('[Wizard] 🔄 Estado atual do componente:', {
     step,
     isCotaAtiva,
     selectedCotaAtiva: selectedCotaAtiva ? 'SELECIONADO' : 'NÃO SELECIONADO'
@@ -341,7 +342,7 @@ export default function JornaleiroRegisterPage() {
     if (step === 3 && phone && phone.length >= 10) {
       // Se servicePhone está vazio ou muito curto (incompleto), preenche com phone
       if (!servicePhone || servicePhone.length < 10) {
-        console.log('🔄 Sincronizando WhatsApp:', phone, '->', servicePhone);
+        logger.log('🔄 Sincronizando WhatsApp:', phone, '->', servicePhone);
         setServicePhone(phone);
       }
     }
@@ -425,7 +426,7 @@ export default function JornaleiroRegisterPage() {
   const onNext = async () => {
     setError(null);
     if (step === 1) {
-      console.log('[Wizard] 📋 Avançando do Step 1 - Estado atual:', {
+      logger.log('[Wizard] 📋 Avançando do Step 1 - Estado atual:', {
         isCotaAtiva,
         selectedCotaAtiva
       });
@@ -483,9 +484,9 @@ export default function JornaleiroRegisterPage() {
 
   const onFinish = async () => {
     setError(null);
-    console.log('[Wizard] 🚀 Iniciando conclusão do cadastro...');
-    console.log('[Wizard] 🏢 isCotaAtiva atual:', isCotaAtiva);
-    console.log('[Wizard] 👥 selectedCotaAtiva atual:', selectedCotaAtiva);
+    logger.log('[Wizard] 🚀 Iniciando conclusão do cadastro...');
+    logger.log('[Wizard] 🏢 isCotaAtiva atual:', isCotaAtiva);
+    logger.log('[Wizard] 👥 selectedCotaAtiva atual:', selectedCotaAtiva);
     const err1 = validateStep1();
     if (err1) { setError(err1); setStep(1); return; }
     const err2 = validateStep2();
@@ -578,26 +579,32 @@ export default function JornaleiroRegisterPage() {
       };
 
       // Salvar backup local (apenas dados da banca)
-      console.log('[Wizard] 💾 Salvando bancaData:', bancaData);
-      console.log('[Wizard] 🏢 is_cotista:', bancaData.is_cotista);
-      console.log('[Wizard] 🏢 cotista_id:', bancaData.cotista_id);
-      console.log('[Wizard] 👥 cotista_razao_social:', bancaData.cotista_razao_social);
-      console.log('[Wizard] 📋 cotista_cnpj_cpf:', bancaData.cotista_cnpj_cpf);
-      console.log('[Wizard] 🔍 Estado isCotaAtiva:', isCotaAtiva);
-      console.log('[Wizard] 🔍 selectedCotaAtiva:', selectedCotaAtiva);
+      logger.log('[Wizard] 💾 Salvando bancaData:', bancaData);
+      logger.log('[Wizard] 🏢 is_cotista:', bancaData.is_cotista);
+      logger.log('[Wizard] 🏢 cotista_id:', bancaData.cotista_id);
       localStorage.setItem("gb:bancaData", JSON.stringify(bancaData));
       
       setToast('✅ Cadastro concluído! Redirecionando...');
       
-      // Aguardar um pouco para garantir que a sessão foi estabelecida
-      // e então redirecionar para onboarding (com fallback hard navigation)
-      setTimeout(() => {
-        try { router.push('/jornaleiro/onboarding'); } catch {}
-        try { window.location.assign('/jornaleiro/onboarding'); } catch {}
-      }, 1500);
+      // Aguardar sessão ser estabelecida com polling (máximo 5 tentativas)
+      let sessionReady = false;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await new Promise(r => setTimeout(r, 500));
+        // Verificar se a sessão foi estabelecida
+        if (profile?.role === 'jornaleiro') {
+          sessionReady = true;
+          logger.log('[Wizard] ✅ Sessão estabelecida na tentativa', attempt + 1);
+          break;
+        }
+        logger.log('[Wizard] ⏳ Aguardando sessão... tentativa', attempt + 1);
+      }
+      
+      // Redirecionar para onboarding (usar hard navigation para garantir)
+      logger.log('[Wizard] 🔄 Redirecionando para onboarding...');
+      window.location.href = '/jornaleiro/onboarding';
       
     } catch (err) {
-      console.error('Erro no cadastro:', err);
+      logger.error('Erro no cadastro:', err);
       setError("Não foi possível concluir o cadastro. Tente novamente.");
     }
   };

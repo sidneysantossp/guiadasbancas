@@ -595,7 +595,7 @@ export default function CheckoutPage() {
   };
 
   return (
-    <section className="container-max py-8 pb-40 md:pb-24">
+    <section className="container-max pt-24 sm:pt-8 py-8 pb-40 md:pb-24">
       <h1 className="text-xl sm:text-2xl font-semibold">Checkout</h1>
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
