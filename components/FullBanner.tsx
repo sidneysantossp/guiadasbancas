@@ -193,8 +193,7 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
             const onlyActive = adminSlides.filter((s: any) => s?.active);
             const ordered = onlyActive
               .sort((a: any, b: any) => (a?.order ?? 999) - (b?.order ?? 999))
-              // Não exibir slides com imagens de Unsplash (mock)
-              .filter((s: any) => typeof s.imageUrl === 'string' && !s.imageUrl.includes('images.unsplash.com'));
+              .filter((s: any) => typeof s.imageUrl === 'string' && s.imageUrl.trim());
             setSlides(ordered.length > 0 ? ordered : []);
             if (result.config) {
               setConfig(result.config);
