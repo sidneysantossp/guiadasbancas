@@ -139,6 +139,7 @@ export default function AdminHomePageCMS() {
 
   const saveSlides = async (newSlides: HeroSlide[]) => {
     setSaving(true);
+    console.log('[CMS Home] Salvando slides:', newSlides);
     try {
       const response = await fetch('/api/admin/hero-slides', {
         method: 'PUT',
@@ -152,16 +153,20 @@ export default function AdminHomePageCMS() {
         })
       });
 
+      console.log('[CMS Home] Response status:', response.status);
       const result = await response.json();
+      console.log('[CMS Home] Response result:', result);
       
       if (result.success) {
         setSlides(newSlides);
         setMessage({ type: 'success', text: 'Slides salvos com sucesso!' });
         setTimeout(() => setMessage(null), 3000);
       } else {
+        console.error('[CMS Home] Erro ao salvar:', result.error);
         setMessage({ type: 'error', text: result.error || 'Erro ao salvar slides' });
       }
-    } catch {
+    } catch (error) {
+      console.error('[CMS Home] Exception ao salvar:', error);
       setMessage({ type: 'error', text: 'Erro ao salvar slides' });
     } finally {
       setSaving(false);
@@ -199,10 +204,13 @@ export default function AdminHomePageCMS() {
   };
 
   const handleSaveSlide = (slide: HeroSlide) => {
+    console.log('[CMS Home] handleSaveSlide chamado com:', slide);
+    console.log('[CMS Home] editingSlide:', editingSlide);
     const newSlides = editingSlide 
       ? slides.map(s => s.id === slide.id ? slide : s)
       : [...slides, { ...slide, id: `slide-${Date.now()}`, order: slides.length + 1 }];
     
+    console.log('[CMS Home] newSlides gerado:', newSlides);
     saveSlides(newSlides);
     setEditingSlide(null);
     setShowForm(false);

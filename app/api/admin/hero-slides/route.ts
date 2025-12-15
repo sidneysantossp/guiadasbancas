@@ -309,6 +309,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     if (!verifyAdminAuth(request)) {
+      console.error('[hero-slides PUT] Não autorizado');
       return NextResponse.json(
         { success: false, error: "Não autorizado" },
         { status: 401 }
@@ -317,24 +318,31 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
     const { type, data } = body;
+    console.log('[hero-slides PUT] Recebido:', { type, dataLength: Array.isArray(data) ? data.length : 'not array' });
 
     if (type === "config") {
+      console.log('[hero-slides PUT] Salvando config:', data);
       await writeConfig(data);
       return NextResponse.json({ success: true, data });
     }
 
     if (type === "bulk") {
+      console.log('[hero-slides PUT] Salvando bulk - total de slides:', data.length);
       // Atualização em lote (reordenação, ativação/desativação)
       for (const slide of data) {
+        console.log('[hero-slides PUT] Salvando slide:', slide.id, slide.title);
         await writeSlide(slide);
       }
+      console.log('[hero-slides PUT] Bulk salvo com sucesso');
       return NextResponse.json({ success: true, data });
     }
 
     // Atualizar slide individual
+    console.log('[hero-slides PUT] Atualizando slide individual:', data.id);
     const heroSlides = await readSlides();
     const existingSlide = heroSlides.find(s => s.id === data.id);
     if (!existingSlide) {
+      console.error('[hero-slides PUT] Slide não encontrado:', data.id);
       return NextResponse.json(
         { success: false, error: "Slide não encontrado" },
         { status: 404 }
@@ -343,8 +351,10 @@ export async function PUT(request: NextRequest) {
 
     const updatedSlide = { ...existingSlide, ...data };
     await writeSlide(updatedSlide);
+    console.log('[hero-slides PUT] Slide individual salvo:', updatedSlide.id);
     return NextResponse.json({ success: true, data: updatedSlide });
   } catch (error) {
+    console.error('[hero-slides PUT] Erro ao atualizar slide:', error);
     return NextResponse.json(
       { success: false, error: "Erro ao atualizar slide" },
       { status: 500 }
