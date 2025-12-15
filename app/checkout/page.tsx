@@ -596,7 +596,7 @@ export default function CheckoutPage() {
 
   return (
     <section className="container-max pt-24 sm:pt-8 py-8 pb-40 md:pb-24">
-      <h1 className="text-xl sm:text-2xl font-semibold mt-10 sm:mt-0">Checkout</h1>
+      <h1 className="text-xl sm:text-2xl font-semibold mt-2 sm:mt-0">Checkout</h1>
 
       {/* Aviso de login no topo */}
       {!isLogged && (

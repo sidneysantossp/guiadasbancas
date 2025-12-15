@@ -121,7 +121,7 @@ function MiniCartDropdown({ onClose }: { onClose: () => void }) {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Link href={("/carrinho" as Route)} onClick={onClose} className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-black hover:bg-gray-50 text-center">Ver carrinho</Link>
-          <Link href={("/checkout" as Route)} onClick={onClose} className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-3 py-2 text-sm font-semibold text-white shadow hover:opacity-95 text-center">Checkout</Link>
+          <Link href={("/checkout" as Route)} onClick={onClose} className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-3 py-2 text-sm font-semibold text-white shadow hover:opacity-95 text-center">Finalizar Compra</Link>
         </div>
       </div>
     </div>
@@ -179,7 +179,7 @@ function MiniCartSheet({ onClose }: { onClose: () => void }) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Link href={("/carrinho" as Route)} onClick={onClose} className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-black hover:bg-gray-50 text-center">Ver carrinho</Link>
-            <Link href={("/checkout" as Route)} onClick={onClose} className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-3 py-2 text-sm font-semibold text-white shadow hover:opacity-95 text-center">Checkout</Link>
+            <Link href={("/checkout" as Route)} onClick={onClose} className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-3 py-2 text-sm font-semibold text-white shadow hover:opacity-95 text-center">Finalizar Compra</Link>
           </div>
         </div>
       </div>
