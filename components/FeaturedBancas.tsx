@@ -164,10 +164,16 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
   // Se receber bancas via props, usar essas; senão, buscar da API
   const [apiBancas, setApiBancas] = useState<ApiBanca[] | null>(propBancas || null);
   
+  // Atualizar quando propBancas mudar
+  useEffect(() => {
+    if (propBancas !== undefined && propBancas !== null) {
+      setApiBancas(propBancas);
+    }
+  }, [propBancas]);
+  
   useEffect(() => {
     // Se já recebeu bancas via props, não buscar novamente
     if (propBancas !== undefined) {
-      setApiBancas(propBancas);
       return;
     }
     
@@ -184,7 +190,7 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
         setApiBancas([]);
       }
     })();
-  }, []);
+  }, [propBancas]);
 
   // Ordenar por rating (melhor avaliação primeiro) - prioriza featured mas mostra todas
   const rawItems = useMemo(() => {
