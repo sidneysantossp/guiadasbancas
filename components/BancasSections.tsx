@@ -36,6 +36,11 @@ export default function BancasSections() {
     })();
   }, []);
 
+  // Aguardar dados carregarem antes de renderizar
+  if (apiBancas === null) {
+    return null;
+  }
+
   return (
     <>
       {/* Seção 1: Bancas perto de você (ordenadas por distância) */}
