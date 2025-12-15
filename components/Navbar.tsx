@@ -1004,8 +1004,8 @@ useEffect(() => {
       onSaved={(l) => {
         setLoc(l);
         setLocPromptMode(false);
-        // Recarregar página para atualizar bancas próximas com nova localização
-        window.location.reload();
+        // O evento 'gdb:location-updated' já é disparado pelo saveStoredLocation
+        // Os componentes que precisam reagir à mudança de localização escutam esse evento
       }}
       showAsPrompt={locPromptMode}
     />
