@@ -598,12 +598,25 @@ function SlideForm({
   const doUpload = async (file: File) => {
     try {
       setImgUploading(true);
+      console.log('[SlideForm] Iniciando upload de arquivo:', file.name, file.type, file.size);
       const form = new FormData();
       form.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', headers: { 'Authorization': 'Bearer admin-token' }, body: form });
+      const res = await fetch('/api/upload', { 
+        method: 'POST', 
+        headers: { 'Authorization': 'Bearer admin-token' }, 
+        body: form 
+      });
+      console.log('[SlideForm] Upload response status:', res.status);
       const j = await res.json();
-      if (!res.ok || !j?.ok) return;
+      console.log('[SlideForm] Upload response body:', j);
+      if (!res.ok || !j?.ok) {
+        console.error('[SlideForm] Upload falhou:', j?.error || res.statusText);
+        return;
+      }
+      console.log('[SlideForm] Upload sucesso, URL:', j.url);
       setFormData(prev => ({ ...prev, imageUrl: j.url }));
+    } catch (error) {
+      console.error('[SlideForm] Upload exception:', error);
     } finally { setImgUploading(false); }
   };
 

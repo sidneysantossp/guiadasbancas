@@ -19,10 +19,16 @@ function verifyUploadAuth(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authHeader = request.headers.get("authorization");
+    console.log('[upload] Authorization header:', authHeader);
+    console.log('[upload] Headers:', Object.fromEntries(request.headers.entries()));
+    
     if (!verifyUploadAuth(request)) {
+      console.error('[upload] Autenticação falhou - header:', authHeader);
       return NextResponse.json({ ok: false, error: "Não autorizado" }, { status: 401 });
     }
-
+    
+    console.log('[upload] Autenticação OK, processando formData...');
     const form = await request.formData();
     const file = form.get("file");
 
