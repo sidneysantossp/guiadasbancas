@@ -15,21 +15,19 @@ export default function AutoGeolocation({ onLocationUpdate, onGeoDenied }: AutoG
   useEffect(() => {
     // Verificar se já temos localização armazenada
     const stored = loadStoredLocation();
-    let needUpgrade = false;
     if (stored) {
       onLocationUpdate?.(stored);
-      // Se a localização armazenada não for precisa (ex.: via CEP/IP), tentar melhorar
-      const isPrecise = (stored as any)?.accuracy === 'precise' || (stored as any)?.source === 'geolocation';
-      needUpgrade = !isPrecise;
-      if (!needUpgrade) return; // já é precisa, não precisa pedir de novo
+      // Se já tem localização salva (seja por CEP ou geolocalização), não tentar melhorar
+      // Isso evita sobrescrever a escolha do usuário
+      return;
     }
 
     // Verificar se já solicitamos permissão nesta sessão
     const sessionRequested = sessionStorage.getItem('gb:geoRequested');
-    if (sessionRequested && !needUpgrade) {
-      // Se já foi solicitado e negado, e não tem localização, mostrar popup de CEP
+    if (sessionRequested) {
+      // Se já foi solicitado e negado, mostrar popup de CEP
       const permanentDenied = localStorage.getItem('gb:geoDenied');
-      if (permanentDenied && !stored) {
+      if (permanentDenied) {
         onGeoDenied?.();
       }
       return;
@@ -79,10 +77,15 @@ export default function AutoGeolocation({ onLocationUpdate, onGeoDenied }: AutoG
           }
           
           setIsRequesting(false);
-          onLocationUpdate?.(null);
           
-          // Mostrar popup de CEP quando geolocalização é negada
-          onGeoDenied?.();
+          // Só chamar onLocationUpdate(null) se não houver localização salva
+          // Isso evita sobrescrever uma localização já existente
+          const existingLoc = loadStoredLocation();
+          if (!existingLoc) {
+            onLocationUpdate?.(null);
+            // Mostrar popup de CEP quando geolocalização é negada e não há localização
+            onGeoDenied?.();
+          }
         },
         {
           enableHighAccuracy: true,
