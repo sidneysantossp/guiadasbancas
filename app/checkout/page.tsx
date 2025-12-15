@@ -598,28 +598,19 @@ export default function CheckoutPage() {
     <section className="container-max pt-24 sm:pt-8 py-8 pb-40 md:pb-24">
       <h1 className="text-xl sm:text-2xl font-semibold -mt-2 sm:mt-0">Checkout</h1>
 
-      {/* Aviso de login no topo */}
-      {!isLogged && (
-        <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold text-blue-900">Já tem uma conta?</h3>
-              <p className="text-sm text-blue-700">Faça login para agilizar seu pedido.</p>
-            </div>
-            <Link href="/minha-conta?redirect=/checkout" className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 text-center">Entrar</Link>
-          </div>
-        </div>
-      )}
-
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Formulário */}
         <form id="checkout-form" onSubmit={onSubmit} className="lg:col-span-2 rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
           <div>
             <h2 className="text/base font-semibold">Seus dados</h2>
             {!isLogged ? (
-              <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-center">
-                <p className="text-sm text-blue-900 font-medium">Para finalizar sua compra, você precisa fazer login ou criar uma conta.</p>
-                <p className="text-xs text-blue-700 mt-2">Seus dados serão preenchidos automaticamente após o login.</p>
+              <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm text-blue-900 font-medium text-center">Para finalizar sua compra, você precisa fazer login ou criar uma conta.</p>
+                <p className="text-xs text-blue-700 mt-2 text-center">Seus dados serão preenchidos automaticamente após o login.</p>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <Link href="/minha-conta?redirect=/checkout" className="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 text-center">Entrar</Link>
+                  <Link href="/registrar?redirect=/checkout" className="rounded-md border-2 border-blue-600 bg-white px-4 py-2.5 text-sm font-semibold text-blue-600 hover:bg-blue-50 text-center">Criar Conta</Link>
+                </div>
               </div>
             ) : (
               <>
