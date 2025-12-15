@@ -215,7 +215,7 @@ export default function AdminHomePageCMS() {
     }
   };
 
-  const handleSaveSlide = (slide: HeroSlide) => {
+  const handleSaveSlide = async (slide: HeroSlide) => {
     console.log('[CMS Home] handleSaveSlide chamado com:', slide);
     console.log('[CMS Home] editingSlide:', editingSlide);
     const newSlides = editingSlide 
@@ -223,7 +223,8 @@ export default function AdminHomePageCMS() {
       : [...slides, { ...slide, id: `slide-${Date.now()}`, order: slides.length + 1 }];
     
     console.log('[CMS Home] newSlides gerado:', newSlides);
-    saveSlides(newSlides);
+    await saveSlides(newSlides);
+    console.log('[CMS Home] Salvamento concluído, fechando modal');
     setEditingSlide(null);
     setShowForm(false);
   };
