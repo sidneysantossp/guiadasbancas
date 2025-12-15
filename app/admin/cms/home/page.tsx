@@ -161,6 +161,8 @@ export default function AdminHomePageCMS() {
         setSlides(newSlides);
         setMessage({ type: 'success', text: 'Slides salvos com sucesso!' });
         setTimeout(() => setMessage(null), 3000);
+        // Recarregar slides do servidor para garantir sincronização
+        await loadSlides();
       } else {
         console.error('[CMS Home] Erro ao salvar:', result.error);
         setMessage({ type: 'error', text: result.error || 'Erro ao salvar slides' });
