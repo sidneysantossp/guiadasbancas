@@ -1004,6 +1004,8 @@ useEffect(() => {
       onSaved={(l) => {
         setLoc(l);
         setLocPromptMode(false);
+        // Recarregar página para atualizar bancas próximas com nova localização
+        window.location.reload();
       }}
       showAsPrompt={locPromptMode}
     />

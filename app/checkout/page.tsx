@@ -187,7 +187,7 @@ export default function CheckoutPage() {
   const [shipOpts, setShipOpts] = useState<{ code: string; price: number; days: number }[]>([]);
   const [shipLoading, setShipLoading] = useState(false);
   const [shipError, setShipError] = useState<string | null>(null);
-  const [shipping, setShipping] = useState<"retirada" | "SEDEX" | "MOTOBOY">("SEDEX");
+  const [shipping, setShipping] = useState<"retirada" | "SEDEX" | "MOTOBOY">("retirada");
 
   const discount = useMemo(() => {
     if (!couponApplied) return 0;
