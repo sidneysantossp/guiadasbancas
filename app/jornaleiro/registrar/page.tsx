@@ -532,9 +532,7 @@ export default function JornaleiroRegisterPage() {
       
       // Verificar se CPF já está cadastrado (cotista ou banca) - bloqueia
       if (cpfExists) {
-        setError(isCotista 
-          ? 'Este CPF/CNPJ já está cadastrado como Cota Ativa no sistema.'
-          : 'Este CPF/CNPJ já possui cadastro. Acesse o Painel Administrativo para adicionar outra banca.');
+        setError('Este CPF/CNPJ já está cadastrado. Para prosseguir altere o documento ou acesse o Painel Administrativo.');
         return;
       }
       
