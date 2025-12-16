@@ -284,40 +284,19 @@ export async function POST(request: NextRequest) {
     active: body.active ?? true,
   };
 
-  if (typeof body.specifications === "string") {
-    novo.specifications = body.specifications;
-  }
-  if (typeof body.description_full === "string") {
-    novo.description_full = body.description_full;
-  }
-
   console.log('[API/Jornaleiro/Products] Objeto a inserir:', JSON.stringify(novo, null, 2));
+  
+  const { data: created, error } = await supabaseAdmin
+    .from('products')
+    .insert(novo)
+    .select()
+    .single();
 
-  let payload: Record<string, any> = { ...novo };
-
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const { data: created, error } = await supabaseAdmin
-      .from('products')
-      .insert(payload)
-      .select()
-      .single();
-
-    if (!error) {
-      return NextResponse.json({ success: true, data: created }, { status: 201 });
-    }
-
-    const match = (error.message || "").match(/Could not find the '(.+?)' column/);
-    const missingColumn = match?.[1];
-
-    if (missingColumn && Object.prototype.hasOwnProperty.call(payload, missingColumn)) {
-      delete payload[missingColumn];
-      continue;
-    }
-
+  if (error) {
     console.error('[API/Jornaleiro/Products] Erro ao criar produto:', error);
     console.error('[API/Jornaleiro/Products] Detalhes:', JSON.stringify(error, null, 2));
     return NextResponse.json({ success: false, error: error.message || 'Erro ao criar produto', details: error }, { status: 500 });
   }
 
-  return NextResponse.json({ success: false, error: 'Erro ao criar produto' }, { status: 500 });
+  return NextResponse.json({ success: true, data: created }, { status: 201 });
 }
