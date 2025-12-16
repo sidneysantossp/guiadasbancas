@@ -79,59 +79,69 @@ export async function GET(req: NextRequest) {
     
     let allData = data || [];
     
-    // Se filtrar por banca_id, incluir produtos de distribuidor
+    // Se filtrar por banca_id, incluir produtos de distribuidor APENAS SE FOR COTISTA
     if (bancaId && !error) {
-      // Buscar TODOS os produtos de distribuidor
-      const { data: todosProdutosDistribuidor } = await supabaseAdmin
-        .from('products')
-        .select(`
-          *,
-          categories(name),
-          bancas(name)
-        `)
-        .not('distribuidor_id', 'is', null);
+      // Verificar se a banca é cotista antes de incluir produtos do distribuidor
+      const { data: bancaInfo } = await supabaseAdmin
+        .from('bancas')
+        .select('is_cotista')
+        .eq('id', bancaId)
+        .single();
+      
+      // APENAS cotistas podem ver produtos do distribuidor
+      if (bancaInfo?.is_cotista) {
+        // Buscar TODOS os produtos de distribuidor
+        const { data: todosProdutosDistribuidor } = await supabaseAdmin
+          .from('products')
+          .select(`
+            *,
+            categories(name),
+            bancas(name)
+          `)
+          .not('distribuidor_id', 'is', null);
 
-      if (todosProdutosDistribuidor && todosProdutosDistribuidor.length > 0) {
-        // Buscar customizações desta banca (se houver)
-        const { data: customizacoes } = await supabaseAdmin
-          .from('banca_produtos_distribuidor')
-          .select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda')
-          .eq('banca_id', bancaId);
+        if (todosProdutosDistribuidor && todosProdutosDistribuidor.length > 0) {
+          // Buscar customizações desta banca (se houver)
+          const { data: customizacoes } = await supabaseAdmin
+            .from('banca_produtos_distribuidor')
+            .select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda')
+            .eq('banca_id', bancaId);
 
-        // Mapear customizações por product_id
-        const customMap = new Map(
-          (customizacoes || []).map(c => [c.product_id, c])
-        );
+          // Mapear customizações por product_id
+          const customMap = new Map(
+            (customizacoes || []).map(c => [c.product_id, c])
+          );
 
-        // Aplicar customizações e filtrar desabilitados
-        const produtosCustomizados = todosProdutosDistribuidor
-          .filter(produto => {
-            const custom = customMap.get(produto.id);
-            return !custom || custom.enabled !== false;
-          })
-          .map(produto => {
-            const custom = customMap.get(produto.id);
-            
-            // Garantir que há uma imagem
-            let images = produto.images || [];
-            if (!Array.isArray(images) || images.length === 0) {
-              images = [DEFAULT_PRODUCT_IMAGE];
-            }
-            
-            return {
-              ...produto,
-              images,
-              price: custom?.custom_price || produto.price,
-              description: produto.description + (custom?.custom_description ? `\n\n${custom.custom_description}` : ''),
-              pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,
-              sob_encomenda: custom?.custom_sob_encomenda ?? produto.sob_encomenda,
-              pre_venda: custom?.custom_pre_venda ?? produto.pre_venda,
-              category_id: CATEGORIA_DISTRIBUIDORES_ID,
-              is_distribuidor: true,
-            };
-          });
+          // Aplicar customizações e filtrar desabilitados
+          const produtosCustomizados = todosProdutosDistribuidor
+            .filter(produto => {
+              const custom = customMap.get(produto.id);
+              return !custom || custom.enabled !== false;
+            })
+            .map(produto => {
+              const custom = customMap.get(produto.id);
+              
+              // Garantir que há uma imagem
+              let images = produto.images || [];
+              if (!Array.isArray(images) || images.length === 0) {
+                images = [DEFAULT_PRODUCT_IMAGE];
+              }
+              
+              return {
+                ...produto,
+                images,
+                price: custom?.custom_price || produto.price,
+                description: produto.description + (custom?.custom_description ? `\n\n${custom.custom_description}` : ''),
+                pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,
+                sob_encomenda: custom?.custom_sob_encomenda ?? produto.sob_encomenda,
+                pre_venda: custom?.custom_pre_venda ?? produto.pre_venda,
+                category_id: CATEGORIA_DISTRIBUIDORES_ID,
+                is_distribuidor: true,
+              };
+            });
 
-        allData = [...allData, ...produtosCustomizados];
+          allData = [...allData, ...produtosCustomizados];
+        }
       }
     }
 
