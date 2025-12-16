@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     // Buscar apenas campos necessários, ordenar por featured e rating
     const { data, error } = await supabaseAdmin
       .from('bancas')
-      .select('id, name, address, lat, lng, cover_image, rating, featured, active, whatsapp')
+      .select('id, name, address, lat, lng, cover_image, profile_image, rating, featured, active, whatsapp')
       .eq('active', true)
       .order('featured', { ascending: false, nullsFirst: false })
       .order('rating', { ascending: false, nullsFirst: false })
@@ -43,6 +43,7 @@ export async function GET(req: Request) {
       lat: banca.lat,
       lng: banca.lng,
       cover: banca.cover_image || '',
+      profile_image: banca.profile_image || '',
       rating: banca.rating ?? 4.7,
       featured: banca.featured === true,
       active: true,

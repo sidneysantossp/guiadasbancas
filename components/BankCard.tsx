@@ -97,7 +97,7 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
           </a>
           {typeof distanceKm === 'number' && isFinite(distanceKm) && (
             <span className="ml-2 text-[12px] text-gray-700" aria-label={`Distância ${distanceKm.toFixed(1)} km`}>
-              • {distanceKm > 3 ? `${distanceKm.toFixed(1)} km` : `${Math.round(distanceKm * 1000)} m`}
+              • {distanceKm.toFixed(1).replace('.', ',')} km
             </span>
           )}
         </div>

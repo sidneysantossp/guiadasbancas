@@ -14,6 +14,7 @@ type ApiBanca = {
   lat?: number; 
   lng?: number; 
   cover: string; 
+  profile_image?: string;
   rating?: number; 
   featured?: boolean; 
   active: boolean; 
@@ -52,6 +53,7 @@ function BancaCard({
   uf,
   description,
   featured,
+  profileImage,
   priority = false,
 }: {
   id: string;
@@ -64,80 +66,117 @@ function BancaCard({
   uf: string;
   description?: string;
   featured?: boolean;
+  profileImage?: string;
   priority?: boolean;
 }) {
-  // Formatar distância: usar vírgula como separador decimal e "KM" maiúsculo
-  // Se distância > 100km, não mostrar (provavelmente erro de localização)
-  const distanceLabel = distance == null || distance > 100 ? null : `${distance.toFixed(1).replace('.', ',')} KM`;
+  // Formatar distância: usar vírgula como separador decimal e "km" minúsculo
+  const distanceLabel = distance == null ? null : `${distance.toFixed(1).replace('.', ',')} km`;
   const openNow = useMemo(() => {
     try {
       const h = new Date().getHours();
-      return h >= 6 && h < 20; // janela padrão 06:00-19:59
+      return h >= 6 && h < 20;
     } catch {
       return true;
     }
   }, []);
+  
   return (
-    <Link href={(buildBancaHref(name, id, uf) as Route)} className="block min-h-[22rem] rounded-2xl border border-gray-200 bg-white shadow-lg hover:shadow-xl transition-shadow overflow-hidden">
-      <div className="relative h-48 w-full bg-gray-100">
-        {cover ? (
-          <Image 
-            src={cover} 
-            alt={name} 
-            fill 
-            sizes="(max-width: 640px) 88vw, (max-width: 1024px) 45vw, 30vw"
-            className="object-cover" 
-            priority={priority}
-            loading={priority ? undefined : "lazy"}
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-orange-50">
-            <svg viewBox="0 0 24 24" className="h-12 w-12 text-orange-300" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M3 21h18M5 21V7l8-4 8 4v14M9 21v-6h6v6"/>
-            </svg>
-          </div>
-        )}
-        {/* Badge de distância */}
-        {distanceLabel && (
-          <div className="absolute right-2 top-2 z-10 inline-flex items-center rounded-full bg-white/90 text-gray-700 border border-gray-200 px-2 py-[2px] text-[11px] font-medium shadow-sm">
-            📍 {distanceLabel}
-          </div>
-        )}
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg transition-transform transition-shadow duration-200 hover:shadow-xl hover:-translate-y-0.5">
+      {/* Imagem com padding e borda arredondada interna */}
+      <div className="relative h-44 w-full p-2">
+        <div className="relative h-full w-full overflow-hidden rounded-xl">
+          {cover ? (
+            <Image 
+              src={cover} 
+              alt={name} 
+              fill 
+              sizes="(max-width: 640px) 88vw, (max-width: 1024px) 45vw, 30vw"
+              className="object-cover" 
+              priority={priority}
+              loading={priority ? undefined : "lazy"}
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-orange-50">
+              <svg viewBox="0 0 24 24" className="h-12 w-12 text-orange-300" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M3 21h18M5 21V7l8-4 8 4v14M9 21v-6h6v6"/>
+              </svg>
+            </div>
+          )}
+        </div>
+        {/* Badge Destaque no canto superior esquerdo */}
         {featured && (
-          <div className="absolute left-2 top-2 z-10 inline-flex items-center rounded-full bg-orange-50 text-[#ff5c00] border border-orange-200 px-2 py-[2px] text-[11px]">Destaque</div>
+          <span className="absolute left-3 top-3 inline-flex items-center rounded-full bg-[#ff5c00] px-2.5 py-1 text-[12px] font-semibold text-white shadow-sm">
+            Destaque
+          </span>
         )}
+        {/* Badge Aberto/Fechado no canto inferior esquerdo */}
+        <span
+          className={`absolute left-3 bottom-3 inline-flex items-center rounded-full px-2 py-[2px] text-[11px] font-semibold shadow ${openNow ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}
+        >
+          {openNow ? "Aberto agora" : "Fechado"}
+        </span>
       </div>
-      <div className="p-3 space-y-2">
-        {/* Estrelas + nota + status de abertura */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs">
-            <Stars value={rating} />
-            <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-emerald-700 font-semibold">{rating.toFixed(1)}</span>
+      
+      <div className="p-4">
+        {/* Estrelas + nota */}
+        <div className="flex items-center gap-1 text-amber-500">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <span key={i}>★</span>
+          ))}
+          <span>☆</span>
+          <span className="ml-2 inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[12px] font-semibold text-emerald-700">
+            {rating.toFixed(1)}
+          </span>
+        </div>
+
+        {/* Avatar + nome */}
+        <div className="mt-2 flex items-center gap-2 min-w-0">
+          <div className="relative h-9 w-9 overflow-hidden rounded-full bg-white ring-2 ring-gray-200 shrink-0">
+            {profileImage ? (
+              <Image src={profileImage} alt={name} fill className="object-cover" sizes="36px" />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-orange-100">
+                <svg viewBox="0 0 24 24" className="h-5 w-5 text-orange-400" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 21h18M5 21V7l8-4 8 4v14M9 21v-6h6v6"/>
+                </svg>
+              </div>
+            )}
           </div>
-          <span
-            className={`inline-flex items-center gap-1 rounded-md border px-2 py-[2px] text-[11px] font-semibold ${openNow ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}
-            aria-label={openNow ? 'Banca aberta agora' : 'Banca fechada agora'}
-          >
-            {openNow ? 'Aberta' : 'Fechada'}
-          </span>
+          <h3 className="text-base font-semibold leading-snug line-clamp-2">{name}</h3>
         </div>
-        {/* Nome */}
-        <div className="text-[13px] font-semibold leading-snug line-clamp-2">{name}</div>
-        {/* Descrição curta */}
-        {description && (
-          <div className="-mt-1 text-[12px] text-gray-700 line-clamp-2">{description}</div>
+
+        {/* Endereço */}
+        {address && (
+          <div className="mt-1 text-[12px] text-gray-700 line-clamp-2">{address}</div>
         )}
-        {/* Ver no Mapa */}
-        <div className="mt-1 flex items-center">
-          <span className="inline-flex items-center gap-1 text-[12px] text-emerald-600 font-medium">
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-            </svg>
+
+        {/* Ver no Mapa + distância */}
+        <div className="mt-2 flex items-center">
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${address}`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[12px] text-black hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Image src="https://cdn-icons-png.flaticon.com/128/2875/2875433.png" alt="Mapa" width={16} height={16} className="h-4 w-4 rounded-full object-contain" />
             Ver no Mapa
-          </span>
+          </a>
+          {distanceLabel && (
+            <span className="ml-2 text-[12px] text-gray-700">
+              • {distanceLabel}
+            </span>
+          )}
+        </div>
+
+        {/* Botão Ver Banca */}
+        <div className="mt-3">
+          <Link href={(buildBancaHref(name, id, uf) as Route)} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white hover:opacity-95">
+            Ver Banca
+          </Link>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -176,6 +215,7 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
         address: b.address || '', 
         distance, 
         cover: b.cover, 
+        profileImage: b.profile_image,
         rating: typeof b.rating === 'number' ? b.rating : 4.7, 
         featured: Boolean(b.featured), 
         categories: [] 
