@@ -32,22 +32,22 @@ export async function POST(req: NextRequest) {
     const isCotista = cotistas && cotistas.length > 0;
     console.log('[check-cpf] É cotista?', isCotista, '- Total:', cotistas?.length || 0);
 
-    // Buscar usuários com este CPF
-    const { data: users, error: usersError } = await supabaseAdmin
-      .from('users')
-      .select('id, name, cpf')
+    // Buscar perfis de usuário com este CPF (CPF está em user_profiles, não em users)
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from('user_profiles')
+      .select('id, full_name, cpf, banca_id')
       .eq('cpf', cpfOnly);
 
-    if (usersError) {
-      console.error('[check-cpf] Erro ao buscar usuários:', usersError);
+    if (profilesError) {
+      console.error('[check-cpf] Erro ao buscar perfis:', profilesError);
       return NextResponse.json({ error: "Erro ao verificar CPF" }, { status: 500 });
     }
 
-    console.log('[check-cpf] Usuários encontrados:', users?.length || 0);
+    console.log('[check-cpf] Perfis encontrados:', profiles?.length || 0);
 
-    // Se não encontrou usuários, CPF está livre
-    if (!users || users.length === 0) {
-      console.log('[check-cpf] CPF livre - sem usuários');
+    // Se não encontrou perfis, CPF está livre
+    if (!profiles || profiles.length === 0) {
+      console.log('[check-cpf] CPF livre - sem perfis');
       return NextResponse.json({ 
         exists: false,
         bancas: [],
@@ -55,18 +55,43 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Buscar bancas associadas a esses usuários
-    const userIds = users.map(u => u.id);
-    console.log('[check-cpf] Buscando bancas para user_ids:', userIds);
+    // Buscar bancas associadas a esses perfis (via banca_id no perfil ou user_id na banca)
+    const userIds = profiles.map(p => p.id);
+    const bancaIds = profiles.map(p => p.banca_id).filter(Boolean);
     
-    const { data: bancas, error: bancasError } = await supabaseAdmin
+    console.log('[check-cpf] Buscando bancas para user_ids:', userIds, 'e banca_ids:', bancaIds);
+    
+    // Buscar bancas por user_id OU por id (se tiver banca_id no perfil)
+    let bancas: any[] = [];
+    
+    if (bancaIds.length > 0) {
+      const { data: bancasByIds, error: bancasError1 } = await supabaseAdmin
+        .from('bancas')
+        .select('id, name, address, city, uf, user_id')
+        .in('id', bancaIds);
+      
+      if (!bancasError1 && bancasByIds) {
+        bancas = [...bancas, ...bancasByIds];
+      }
+    }
+    
+    const { data: bancasByUser, error: bancasError2 } = await supabaseAdmin
       .from('bancas')
       .select('id, name, address, city, uf, user_id')
       .in('user_id', userIds);
 
-    if (bancasError) {
-      console.error('[check-cpf] Erro ao buscar bancas:', bancasError);
+    if (bancasError2) {
+      console.error('[check-cpf] Erro ao buscar bancas:', bancasError2);
       return NextResponse.json({ error: "Erro ao buscar bancas" }, { status: 500 });
+    }
+    
+    if (bancasByUser) {
+      // Adicionar bancas que ainda não estão na lista
+      for (const b of bancasByUser) {
+        if (!bancas.find(existing => existing.id === b.id)) {
+          bancas.push(b);
+        }
+      }
     }
 
     console.log('[check-cpf] Bancas encontradas:', bancas?.length || 0);
