@@ -131,11 +131,11 @@ export default function GerenciarCatalogoPage() {
 
   return (
     <div className="space-y-6 relative">
-      {/* Overlay de bloqueio para não-cotistas */}
+      {/* Overlay de bloqueio para não-cotistas - apenas no conteúdo central */}
       {isCotista === false && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 z-40 flex items-center justify-center min-h-[500px]">
           {/* Backdrop com blur */}
-          <div className="absolute inset-0 bg-white/70 backdrop-blur-md" />
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg" />
           
           {/* Card de mensagem */}
           <div className="relative z-10 max-w-lg mx-4 bg-white rounded-2xl shadow-2xl p-8 text-center border border-gray-200">
