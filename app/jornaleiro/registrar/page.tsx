@@ -38,6 +38,11 @@ export default function JornaleiroRegisterPage() {
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Verificação de CPF duplicado
+  const [checkingCpf, setCheckingCpf] = useState(false);
+  const [cpfExists, setCpfExists] = useState(false);
+  const [existingBancas, setExistingBancas] = useState<Array<{id: string; name: string; address: string}>>([]);
+
   // Cota Ativa
   const [isCotaAtiva, setIsCotaAtiva] = useState(false);
   const [selectedCotaAtiva, setSelectedCotaAtiva] = useState<{
@@ -431,7 +436,36 @@ export default function JornaleiroRegisterPage() {
       const e2 = validateCpf(cpf); setErrorField('cpf', e2);
       const e3 = validatePhone(phone); setErrorField('phone', e3);
       if (e1 || e2 || e3) { return; }
-      setStep(2);
+      
+      // Verificar se CPF já está cadastrado
+      setCheckingCpf(true);
+      try {
+        const response = await fetch('/api/jornaleiro/check-cpf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cpf })
+        });
+        
+        const data = await response.json();
+        
+        if (data.exists && data.bancas && data.bancas.length > 0) {
+          setCpfExists(true);
+          setExistingBancas(data.bancas);
+          setError(data.message || 'CPF já cadastrado');
+          setCheckingCpf(false);
+          return;
+        }
+        
+        // CPF não cadastrado, pode avançar
+        setCpfExists(false);
+        setExistingBancas([]);
+        setCheckingCpf(false);
+        setStep(2);
+      } catch (err) {
+        console.error('Erro ao verificar CPF:', err);
+        setCheckingCpf(false);
+        setError('Erro ao verificar CPF. Tente novamente.');
+      }
       return;
     }
     // Step 2: Email e Senha
@@ -781,6 +815,64 @@ export default function JornaleiroRegisterPage() {
                 {fieldErrors.phone && <div className="mt-1 text-[11px] text-rose-600">{fieldErrors.phone}</div>}
               </div>
             </div>
+
+            {/* Exibir bancas existentes se CPF já cadastrado */}
+            {cpfExists && existingBancas.length > 0 && (
+              <div className="mt-6 space-y-4">
+                <div className="rounded-xl bg-amber-50 border-2 border-amber-300 p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-amber-600 text-3xl shrink-0">⚠️</span>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-amber-900">CPF já cadastrado!</h3>
+                      <p className="text-sm text-amber-800 mt-2">
+                        Este CPF já está vinculado às seguintes bancas:
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                  {existingBancas.map((banca) => (
+                    <div key={banca.id} className="rounded-lg border-2 border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
+                          <svg viewBox="0 0 24 24" className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 9l1-5h16l1 5M4 9h16v10H4z"/>
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-base font-semibold text-gray-900 truncate">{banca.name}</h4>
+                          <p className="text-sm text-gray-600 mt-1">{banca.address}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-xl bg-blue-50 border-2 border-blue-200 p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-blue-600 text-2xl shrink-0">ℹ️</span>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-bold text-blue-900">Como cadastrar outra banca?</h4>
+                      <p className="text-sm text-blue-800 mt-2">
+                        Para cadastrar uma nova banca com este CPF, você deve acessar o <strong>Painel Administrativo</strong> da sua conta existente e realizar o cadastro por lá.
+                      </p>
+                      <div className="mt-3">
+                        <Link 
+                          href="/jornaleiro" 
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                          </svg>
+                          Acessar Painel Administrativo
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1198,7 +1290,19 @@ export default function JornaleiroRegisterPage() {
               <button onClick={onBack} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50">Voltar</button>
             )}
             {step < 6 ? (
-              <button onClick={onNext} className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95">Avançar</button>
+              <button 
+                onClick={onNext} 
+                disabled={checkingCpf}
+                className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              >
+                {checkingCpf && (
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" opacity="0.25"/>
+                    <path d="M12 2a10 10 0 0 1 10 10" opacity="0.75"/>
+                  </svg>
+                )}
+                {checkingCpf ? 'Verificando...' : 'Avançar'}
+              </button>
             ) : (
               <>
                 <button onClick={() => { setSocialsSkipped(true); onFinish(); }} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50">Pular</button>
