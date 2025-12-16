@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
         // Buscar produto por codigo_mercos do distribuidor
         let { data: produto, error: produtoError } = await supabaseAdmin
           .from('products')
-          .select('id, name, images, codigo_mercos, mercos_id, active, updated_at')
+          .select('id, name, images, codigo_mercos, mercos_id, active, updated_at, distribuidor_id')
           .eq('distribuidor_id', distribuidorId)
           .eq('codigo_mercos', codigoMercos)
           .order('active', { ascending: false })
@@ -47,16 +47,59 @@ export async function POST(req: NextRequest) {
           .limit(1)
           .maybeSingle();
 
-        // Fallback: tentar por mercos_id quando houver número no nome do arquivo
+        // Fallback 1: tentar por mercos_id quando houver número no nome do arquivo
         if ((!produto || produtoError) && possibleMercosId) {
           const byId = await supabaseAdmin
             .from('products')
-            .select('id, name, images, codigo_mercos, mercos_id')
+            .select('id, name, images, codigo_mercos, mercos_id, distribuidor_id')
             .eq('distribuidor_id', distribuidorId)
             .eq('mercos_id', possibleMercosId)
             .maybeSingle();
           produto = byId.data as any;
           produtoError = byId.error as any;
+        }
+
+        // Fallback 2: buscar por codigo_mercos case-insensitive
+        if (!produto || produtoError) {
+          const byIlike = await supabaseAdmin
+            .from('products')
+            .select('id, name, images, codigo_mercos, mercos_id, distribuidor_id')
+            .eq('distribuidor_id', distribuidorId)
+            .ilike('codigo_mercos', codigoMercos)
+            .order('active', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (byIlike.data) {
+            produto = byIlike.data as any;
+            produtoError = null;
+          }
+        }
+
+        // Fallback 3: buscar sem filtro de distribuidor (para produtos que não têm distribuidor_id)
+        if (!produto || produtoError) {
+          const globalSearch = await supabaseAdmin
+            .from('products')
+            .select('id, name, images, codigo_mercos, mercos_id, distribuidor_id')
+            .eq('codigo_mercos', codigoMercos)
+            .order('active', { ascending: false })
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (globalSearch.data) {
+            // Encontrou produto sem distribuidor_id ou com outro distribuidor
+            // Atualizar o distribuidor_id para associar ao distribuidor atual
+            produto = globalSearch.data as any;
+            produtoError = null;
+            
+            // Se o produto não tem distribuidor_id, associar ao distribuidor atual
+            if (!produto.distribuidor_id) {
+              await supabaseAdmin
+                .from('products')
+                .update({ distribuidor_id: distribuidorId })
+                .eq('id', produto.id);
+            }
+          }
         }
 
         if (produtoError || !produto) {
@@ -67,13 +110,23 @@ export async function POST(req: NextRequest) {
             .eq('distribuidor_id', distribuidorId)
             .ilike('codigo_mercos', `%${codigoMercos.substring(0, 4)}%`)
             .limit(3);
+
+          // Também buscar globalmente
+          const { data: similaresGlobal } = await supabaseAdmin
+            .from('products')
+            .select('codigo_mercos, name')
+            .ilike('codigo_mercos', `%${codigoMercos.substring(0, 4)}%`)
+            .limit(3);
+          
+          const todosSimilares = [...(similares || []), ...(similaresGlobal || [])];
+          const uniqueSimilares = [...new Map(todosSimilares.map(p => [p.codigo_mercos, p])).values()];
           
           results.errors.push({
             file: fileName,
             codigo: codigoMercos,
             error: 'Produto não encontrado',
-            sugestao: similares && similares.length > 0 
-              ? `Produtos similares: ${similares.map(p => p.codigo_mercos).join(', ')}`
+            sugestao: uniqueSimilares.length > 0 
+              ? `Produtos similares: ${uniqueSimilares.slice(0, 5).map(p => p.codigo_mercos).join(', ')}`
               : 'Verifique se o código do arquivo corresponde ao código Mercos do produto'
           });
           continue;
