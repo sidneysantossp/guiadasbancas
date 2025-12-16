@@ -46,7 +46,6 @@ export default function SellerProductCreatePage() {
   const [featuredCount, setFeaturedCount] = useState(0);
   const [descriptionFull, setDescriptionFull] = useState("");
   const [specifications, setSpecifications] = useState("");
-  const [allowReviews, setAllowReviews] = useState(true);
   const [costPrice, setCostPrice] = useState("");
   const [salePrice, setSalePrice] = useState("");
   const [discountPercent, setDiscountPercent] = useState("");
@@ -137,7 +136,6 @@ export default function SellerProductCreatePage() {
         description_full: descriptionFull,
         specifications: costPriceValue > 0 ? `${specifications}\n\n<!-- cost_price:${costPriceValue} -->` : specifications,
         gallery_images: [],
-        allow_reviews: allowReviews,
       };
 
       const vr = validateProductCreate(body as any);
@@ -297,6 +295,20 @@ export default function SellerProductCreatePage() {
                 <input type="number" name="stock" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
               </div>
             </div>
+            {/* Preview do preço com desconto */}
+            {salePrice && Number(discountPercent) > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                <div className="text-sm text-green-800">
+                  <span className="font-medium">Preço final com desconto:</span>{" "}
+                  <span className="text-lg font-bold">
+                    R$ {((parseCurrency(salePrice) * (1 - Number(discountPercent) / 100))).toFixed(2).replace('.', ',')}
+                  </span>
+                  <span className="ml-2 text-gray-500 line-through">
+                    R$ {parseCurrency(salePrice).toFixed(2).replace('.', ',')}
+                  </span>
+                </div>
+              </div>
+            )}
             <div className="flex items-center">
               <label className="inline-flex items-center gap-2 text-sm">
                 <input name="track_stock" type="checkbox" className="rounded" /> Controlar estoque
@@ -363,11 +375,6 @@ export default function SellerProductCreatePage() {
             </div>
           </div>
           
-          {/* Gestão de avaliações */}
-          <ReviewsManager
-            allowReviews={allowReviews}
-            onAllowReviewsChange={setAllowReviews}
-          />
         </div>
       </form>
 
