@@ -16,6 +16,7 @@ type ProdutoListItem = {
   category_name?: string;
   price: number;
   cost_price?: number;
+  specifications?: string;
   stock_qty: number;
   active: boolean;
   updated_at?: string;
@@ -62,6 +63,14 @@ export default function JornaleiroProdutosPage() {
     }, {});
   }, [categories]);
 
+  const getCostPriceFromSpecifications = (specs?: string): number | undefined => {
+    if (!specs) return undefined;
+    const match = specs.match(/<!--\s*cost_price\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*-->/i);
+    if (!match?.[1]) return undefined;
+    const value = Number(match[1]);
+    return Number.isFinite(value) ? value : undefined;
+  };
+
   const fetchRows = async () => {
     try {
       setLoading(true);
@@ -80,7 +89,10 @@ export default function JornaleiroProdutosPage() {
           category_id: p.category_id,
           category_name: categoryMap[p.category_id] || p.category_id,
           price: Number(p.price ?? 0),
-          cost_price: p.cost_price ? Number(p.cost_price) : undefined,
+          specifications: typeof p.specifications === "string" ? p.specifications : undefined,
+          cost_price: p.cost_price
+            ? Number(p.cost_price)
+            : getCostPriceFromSpecifications(typeof p.specifications === "string" ? p.specifications : undefined),
           stock_qty: Number(p.stock_qty ?? 0),
           active: Boolean(p.active),
           updated_at: p.updated_at,
