@@ -270,7 +270,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "JSON inválido no corpo da requisição" }, { status: 400 });
   }
   
-  const novo = {
+  // Campos básicos que existem na tabela products
+  const novo: Record<string, any> = {
     banca_id: banca.id,
     category_id: body.category_id || null,
     name: body.name,
@@ -280,17 +281,7 @@ export async function POST(request: NextRequest) {
     price_original: body.price_original != null ? Number(body.price_original) : null,
     discount_percent: body.discount_percent != null ? Number(body.discount_percent) : null,
     stock_qty: body.stock_qty != null ? Number(body.stock_qty) : 0,
-    track_stock: !!body.track_stock,
-    featured: !!body.featured,
-    sob_encomenda: !!body.sob_encomenda,
-    pre_venda: !!body.pre_venda,
-    pronta_entrega: !!body.pronta_entrega,
-    description_full: typeof body.description_full === 'string' ? body.description_full : null,
-    specifications: typeof body.specifications === 'string' ? body.specifications : null,
-    gallery_images: Array.isArray(body.gallery_images) ? body.gallery_images : [],
     active: body.active ?? true,
-    rating_avg: 0,
-    reviews_count: 0,
   };
 
   console.log('[API/Jornaleiro/Products] Objeto a inserir:', JSON.stringify(novo, null, 2));
