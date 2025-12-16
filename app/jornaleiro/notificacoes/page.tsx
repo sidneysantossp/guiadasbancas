@@ -6,12 +6,16 @@ import { useToast } from "@/components/admin/ToastProvider";
 
 type Notification = {
   id: string;
-  type: 'novo_produto' | 'produto_atualizado' | 'estoque_baixo';
+  type: 'novo_produto' | 'produto_atualizado' | 'estoque_baixo' | 'pedido' | 'admin_message';
   title: string;
   message: string;
   product_id?: string;
   product_name?: string;
   distribuidor_nome?: string;
+  order_id?: string;
+  customer_name?: string;
+  status?: string;
+  total?: number;
   read: boolean;
   created_at: string;
 };
@@ -90,6 +94,8 @@ export default function NotificacoesPage() {
       case 'novo_produto': return '🆕';
       case 'produto_atualizado': return '🔄';
       case 'estoque_baixo': return '⚠️';
+      case 'pedido': return '🛒';
+      case 'admin_message': return '📢';
       default: return '📬';
     }
   };
@@ -218,6 +224,14 @@ export default function NotificacoesPage() {
                         className="text-xs font-medium text-blue-600 hover:text-blue-700"
                       >
                         Ver produto →
+                      </Link>
+                    )}
+                    {notification.order_id && (
+                      <Link
+                        href={`/jornaleiro/pedidos?id=${notification.order_id}`}
+                        className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                      >
+                        Ver pedido →
                       </Link>
                     )}
                   </div>
