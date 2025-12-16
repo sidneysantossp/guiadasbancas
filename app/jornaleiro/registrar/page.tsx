@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchViaCEP, ViaCEP } from "@/lib/viacep";
-import { maskCEP, maskCPF, maskPhoneBR } from "@/lib/masks";
+import { maskCEP, maskCPF, maskCPFOrCNPJ, maskPhoneBR } from "@/lib/masks";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { supabaseAdmin } from "@/lib/supabase";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
@@ -78,9 +78,15 @@ export default function JornaleiroRegisterPage() {
   };
   const validateCpf = (v: string) => {
     const only = (v || '').replace(/\D/g, '');
-    if (!only) return 'Informe seu CPF.';
-    if (only.length !== 11) return 'CPF incompleto. Utilize 11 dígitos.';
-    return isValidCPF(v) ? undefined : 'CPF inválido. Verifique os dígitos.';
+    if (!only) return 'Informe seu CPF ou CNPJ.';
+    if (only.length !== 11 && only.length !== 14) return 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.';
+    if (only.length === 11) {
+      return isValidCPF(v) ? undefined : 'CPF inválido. Verifique os dígitos.';
+    }
+    if (only.length === 14) {
+      return isValidCNPJ(v) ? undefined : 'CNPJ inválido. Verifique os dígitos.';
+    }
+    return undefined;
   };
   const validatePhone = (v: string) => {
     const only = (v || '').replace(/\D/g, '');
@@ -209,7 +215,7 @@ export default function JornaleiroRegisterPage() {
   const cepOnly = (cep || "").replace(/\D/g, "");
   const cepValid = cepOnly.length === 8 && lastCepFetched === cepOnly && !cepError;
 
-  // Validação CPF utilitária (mesma regra do validateStep1)
+  // Validação CPF utilitária
   const isValidCPF = (v: string) => {
     const only = (v || '').replace(/\D/g, '');
     if (only.length !== 11 || /^([0-9])\1+$/.test(only)) return false;
@@ -221,8 +227,44 @@ export default function JornaleiroRegisterPage() {
     const d2 = dv(only, 11); if (d2 !== parseInt(only[10])) return false;
     return true;
   };
+
+  // Validação CNPJ utilitária
+  const isValidCNPJ = (v: string) => {
+    const only = (v || '').replace(/\D/g, '');
+    if (only.length !== 14 || /^([0-9])\1+$/.test(only)) return false;
+    
+    let size = only.length - 2;
+    let numbers = only.substring(0, size);
+    const digits = only.substring(size);
+    let sum = 0;
+    let pos = size - 7;
+    
+    for (let i = size; i >= 1; i--) {
+      sum += parseInt(numbers.charAt(size - i)) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    
+    let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+    if (result !== parseInt(digits.charAt(0))) return false;
+    
+    size = size + 1;
+    numbers = only.substring(0, size);
+    sum = 0;
+    pos = size - 7;
+    
+    for (let i = size; i >= 1; i--) {
+      sum += parseInt(numbers.charAt(size - i)) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    
+    result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+    if (result !== parseInt(digits.charAt(1))) return false;
+    
+    return true;
+  };
+
   const cpfOnly = (cpf || '').replace(/\D/g, '');
-  const cpfValid = isValidCPF(cpf);
+  const cpfValid = cpfOnly.length === 11 ? isValidCPF(cpf) : cpfOnly.length === 14 ? isValidCNPJ(cpf) : false;
   const phoneOnly = (phone || '').replace(/\D/g, '');
   const phoneValid = phoneOnly.length === 11; // celular BR (DDD + 9 dígitos)
   const emailValid = !!email && /[^\s@]+@[^\s@]+\.[^\s@]+/.test(email);
@@ -720,7 +762,7 @@ export default function JornaleiroRegisterPage() {
           <div className="text-center">
             <h1 className="text-xl font-semibold">Cadastro do Jornaleiro</h1>
             {step === 1 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Informe seu nome completo, CPF e WhatsApp para começarmos seu cadastro.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Informe seu nome completo, CPF ou CNPJ e WhatsApp para começarmos seu cadastro.</p>
             ) : step === 2 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Agora precisamos do seu email e senha para criar sua conta de acesso.</p>
             ) : step === 3 ? (
@@ -758,20 +800,20 @@ export default function JornaleiroRegisterPage() {
             {/* Linha: CPF e WhatsApp lado a lado */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="text-[12px] text-gray-700">CPF</label>
+                <label className="text-[12px] text-gray-700">CPF ou CNPJ</label>
                 <div className="relative mt-1">
                   <input
                     ref={cpfInputRef}
                     className={`input w-full pr-10 ${fieldErrors.cpf ? 'border-rose-400' : ''}`}
                     value={cpf}
-                    onChange={(e)=>setCpf(maskCPF(e.target.value))}
+                    onChange={(e)=>setCpf(maskCPFOrCNPJ(e.target.value))}
                     onKeyDown={(e)=>{ if (e.key === 'Enter' && cpfValid) { e.preventDefault(); phoneInputRef.current?.focus(); } }}
-                    placeholder="000.000.000-00"
+                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
                     required
                     aria-invalid={!!fieldErrors.cpf}
                     onBlur={()=> setErrorField('cpf', validateCpf(cpf))}
                   />
-                  {cpfOnly.length === 11 && cpfValid && (
+                  {((cpfOnly.length === 11 || cpfOnly.length === 14) && cpfValid) && (
                     <span className="pointer-events-none absolute inset-y-0 right-2 grid place-items-center text-emerald-600">
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
                     </span>
@@ -779,8 +821,10 @@ export default function JornaleiroRegisterPage() {
                 </div>
                 {fieldErrors.cpf ? (
                   <div className="mt-1 text-[11px] text-rose-600">{fieldErrors.cpf}</div>
-                ) : (cpfOnly.length === 11 && !cpfValid && (
-                  <div className="mt-1 text-[11px] text-rose-600">CPF inválido. Verifique os dígitos informados.</div>
+                ) : ((cpfOnly.length === 11 || cpfOnly.length === 14) && !cpfValid && (
+                  <div className="mt-1 text-[11px] text-rose-600">
+                    {cpfOnly.length === 11 ? 'CPF inválido. Verifique os dígitos informados.' : 'CNPJ inválido. Verifique os dígitos informados.'}
+                  </div>
                 ))}
               </div>
               <div>
