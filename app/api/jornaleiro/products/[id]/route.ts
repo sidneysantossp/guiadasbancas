@@ -227,20 +227,34 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
       return NextResponse.json({ success: false, error: "Não autorizado a editar este produto" }, { status: 403 });
     }
 
+    // Filtrar apenas campos válidos da tabela products
+    const validFields = [
+      'name', 'description', 'price', 'price_original', 'discount_percent',
+      'stock_qty', 'track_stock', 'featured', 'images', 'active',
+      'sob_encomenda', 'pre_venda', 'pronta_entrega', 'category_id'
+    ];
+    
+    const updateData: Record<string, any> = {};
+    for (const key of validFields) {
+      if (body[key] !== undefined) {
+        updateData[key] = body[key];
+      }
+    }
+    updateData.updated_at = new Date().toISOString();
+
+    console.log('[PATCH] Atualizando produto:', { id, updateData });
+
     // Atualizar produto
     const { data: updatedProduct, error } = await supabaseAdmin
       .from('products')
-      .update({
-        ...body,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
 
     if (error) {
       console.error('Erro ao atualizar produto:', error);
-      return NextResponse.json({ success: false, error: 'Erro ao atualizar produto' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Erro ao atualizar produto: ' + error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, data: updatedProduct });
