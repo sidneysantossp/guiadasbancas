@@ -789,7 +789,7 @@ export default function JornaleiroRegisterPage() {
       <div className="max-w-3xl mx-auto rounded-2xl border border-[#ff5c00] bg-white p-6 shadow-lg">
         <div className="flex flex-col items-center gap-2">
           <div className="text-center">
-            <h1 className="text-xl font-semibold">{step === 2 ? 'Dados de Acesso da Banca' : step === 3 ? 'Informações da Banca' : 'Cadastro do Jornaleiro'}</h1>
+            <h1 className="text-xl font-semibold">{step === 2 ? 'Dados de Acesso da Banca' : step === 3 ? 'Informações da Banca' : step === 4 ? 'Imagens da Banca' : 'Cadastro do Jornaleiro'}</h1>
             {step === 1 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Informe seu nome completo, CPF ou CNPJ e WhatsApp para começarmos seu cadastro.</p>
             ) : step === 2 ? (
