@@ -26,23 +26,9 @@ export async function POST(req: NextRequest) {
       console.error('Erro ao buscar cotistas:', cotistasError);
     }
 
-    // Se encontrou na tabela de cotistas, retornar informação
-    if (cotistas && cotistas.length > 0) {
-      const cotistaInfo = cotistas.map(c => ({
-        id: c.id,
-        name: c.razao_social || 'Cotista',
-        address: `Código: ${c.codigo || 'N/A'}`
-      }));
-
-      return NextResponse.json({
-        exists: true,
-        bancas: cotistaInfo,
-        isCotista: true,
-        message: cpfOnly.length === 11 
-          ? 'CPF já cadastrado como Cota Ativa' 
-          : 'CNPJ já cadastrado como Cota Ativa'
-      });
-    }
+    // Se encontrou na tabela de cotistas, apenas registrar mas permitir cadastro
+    // Não bloquear o cadastro se for apenas cotista
+    const isCotista = cotistas && cotistas.length > 0;
 
     // Buscar usuários com este CPF
     const { data: users, error: usersError } = await supabaseAdmin
@@ -55,10 +41,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Erro ao verificar CPF" }, { status: 500 });
     }
 
+    // Se não encontrou usuários, CPF está livre (mesmo que seja cotista)
     if (!users || users.length === 0) {
       return NextResponse.json({ 
         exists: false,
-        bancas: []
+        bancas: [],
+        isCotista: isCotista
       });
     }
 
@@ -74,10 +62,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Erro ao buscar bancas" }, { status: 500 });
     }
 
+    // Se não tem bancas, CPF está livre (mesmo que seja cotista)
     if (!bancas || bancas.length === 0) {
       return NextResponse.json({ 
         exists: false,
-        bancas: []
+        bancas: [],
+        isCotista: isCotista
       });
     }
 

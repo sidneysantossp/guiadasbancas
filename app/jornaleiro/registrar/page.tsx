@@ -270,6 +270,44 @@ export default function JornaleiroRegisterPage() {
   const phoneValid = phoneOnly.length === 11; // celular BR (DDD + 9 dígitos)
   const emailValid = !!email && /[^\s@]+@[^\s@]+\.[^\s@]+/.test(email);
 
+  // Verificação automática de CPF quando completado
+  useEffect(() => {
+    const checkCpfAutomatically = async () => {
+      // Só verificar se CPF/CNPJ estiver completo e válido
+      if (!cpfValid || checkingCpf) return;
+      if (cpfOnly.length !== 11 && cpfOnly.length !== 14) return;
+
+      setCheckingCpf(true);
+      try {
+        const response = await fetch('/api/jornaleiro/check-cpf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cpf })
+        });
+        
+        const data = await response.json();
+        
+        if (data.exists && data.bancas && data.bancas.length > 0) {
+          setCpfExists(true);
+          setIsCotista(data.isCotista || false);
+          setExistingBancas(data.bancas);
+        } else {
+          setCpfExists(false);
+          setIsCotista(false);
+          setExistingBancas([]);
+        }
+      } catch (err) {
+        console.error('Erro ao verificar CPF:', err);
+      } finally {
+        setCheckingCpf(false);
+      }
+    };
+
+    // Debounce de 500ms para evitar múltiplas chamadas
+    const timer = setTimeout(checkCpfAutomatically, 500);
+    return () => clearTimeout(timer);
+  }, [cpf, cpfValid]);
+
   // Restaurar lastCepFetched para evitar refetch após refresh
   useEffect(() => {
     try {
@@ -480,37 +518,14 @@ export default function JornaleiroRegisterPage() {
       const e3 = validatePhone(phone); setErrorField('phone', e3);
       if (e1 || e2 || e3) { return; }
       
-      // Verificar se CPF já está cadastrado
-      setCheckingCpf(true);
-      try {
-        const response = await fetch('/api/jornaleiro/check-cpf', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cpf })
-        });
-        
-        const data = await response.json();
-        
-        if (data.exists && data.bancas && data.bancas.length > 0) {
-          setCpfExists(true);
-          setIsCotista(data.isCotista || false);
-          setExistingBancas(data.bancas);
-          setError(data.message || 'CPF já cadastrado');
-          setCheckingCpf(false);
-          return;
-        }
-        
-        // CPF não cadastrado, pode avançar
-        setCpfExists(false);
-        setIsCotista(false);
-        setExistingBancas([]);
-        setCheckingCpf(false);
-        setStep(2);
-      } catch (err) {
-        console.error('Erro ao verificar CPF:', err);
-        setCheckingCpf(false);
-        setError('Erro ao verificar CPF. Tente novamente.');
+      // Verificar se CPF já está cadastrado em bancas (bloqueia)
+      // Se for apenas cotista, permite avançar
+      if (cpfExists && !isCotista) {
+        setError('Este CPF/CNPJ já possui cadastro. Acesse o Painel Administrativo para adicionar outra banca.');
+        return;
       }
+      
+      setStep(2);
       return;
     }
     // Step 2: Email e Senha
@@ -863,20 +878,16 @@ export default function JornaleiroRegisterPage() {
               </div>
             </div>
 
-            {/* Exibir bancas existentes se CPF já cadastrado */}
-            {cpfExists && existingBancas.length > 0 && (
+            {/* Exibir bancas existentes apenas se CPF já cadastrado em bancas (não cotista) */}
+            {cpfExists && !isCotista && existingBancas.length > 0 && (
               <div className="mt-6 space-y-4">
                 <div className="rounded-xl bg-amber-50 border-2 border-amber-300 p-4">
                   <div className="flex items-start gap-3">
                     <span className="text-amber-600 text-3xl shrink-0">⚠️</span>
                     <div className="flex-1">
-                      <h3 className="text-lg font-bold text-amber-900">
-                        {isCotista ? 'CPF/CNPJ já cadastrado como Cota Ativa!' : 'CPF/CNPJ já cadastrado!'}
-                      </h3>
+                      <h3 className="text-lg font-bold text-amber-900">CPF/CNPJ já cadastrado!</h3>
                       <p className="text-sm text-amber-800 mt-2">
-                        {isCotista 
-                          ? 'Este CPF/CNPJ já está cadastrado como Cota Ativa:'
-                          : 'Este CPF/CNPJ já está vinculado às seguintes bancas:'}
+                        Este CPF/CNPJ já está vinculado às seguintes bancas:
                       </p>
                     </div>
                   </div>
@@ -887,15 +898,9 @@ export default function JornaleiroRegisterPage() {
                     <div key={banca.id} className="rounded-lg border-2 border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
                       <div className="flex items-start gap-3">
                         <div className="flex-shrink-0 w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
-                          {isCotista ? (
-                            <svg viewBox="0 0 24 24" className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                          ) : (
-                            <svg viewBox="0 0 24 24" className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M3 9l1-5h16l1 5M4 9h16v10H4z"/>
-                            </svg>
-                          )}
+                          <svg viewBox="0 0 24 24" className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 9l1-5h16l1 5M4 9h16v10H4z"/>
+                          </svg>
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-base font-semibold text-gray-900 truncate">{banca.name}</h4>
@@ -910,34 +915,21 @@ export default function JornaleiroRegisterPage() {
                   <div className="flex items-start gap-3">
                     <span className="text-blue-600 text-2xl shrink-0">ℹ️</span>
                     <div className="flex-1">
-                      {isCotista ? (
-                        <>
-                          <h4 className="text-sm font-bold text-blue-900">Você já possui Cota Ativa!</h4>
-                          <p className="text-sm text-blue-800 mt-2">
-                            Este CPF/CNPJ já está cadastrado como <strong>Cota Ativa</strong> no sistema. 
-                            Para continuar com o cadastro da sua banca, você pode prosseguir normalmente. 
-                            Seus produtos serão automaticamente vinculados ao catálogo da Cota Ativa.
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <h4 className="text-sm font-bold text-blue-900">Como cadastrar outra banca?</h4>
-                          <p className="text-sm text-blue-800 mt-2">
-                            Para cadastrar uma nova banca com este CPF/CNPJ, você deve acessar o <strong>Painel Administrativo</strong> da sua conta existente e realizar o cadastro por lá.
-                          </p>
-                          <div className="mt-3">
-                            <Link 
-                              href="/jornaleiro" 
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                            >
-                              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                              </svg>
-                              Acessar Painel Administrativo
-                            </Link>
-                          </div>
-                        </>
-                      )}
+                      <h4 className="text-sm font-bold text-blue-900">Como cadastrar outra banca?</h4>
+                      <p className="text-sm text-blue-800 mt-2">
+                        Para cadastrar uma nova banca com este CPF/CNPJ, você deve acessar o <strong>Painel Administrativo</strong> da sua conta existente e realizar o cadastro por lá.
+                      </p>
+                      <div className="mt-3">
+                        <Link 
+                          href="/jornaleiro" 
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                          </svg>
+                          Acessar Painel Administrativo
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </div>
