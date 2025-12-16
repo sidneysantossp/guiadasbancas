@@ -404,6 +404,16 @@ export default function SellerProductEditPage() {
   return (
     <div className="space-y-4">
       <div>
+        <button
+          type="button"
+          onClick={() => router.push("/jornaleiro/produtos")}
+          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-3"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Voltar para produtos
+        </button>
         <h1 className="text-xl font-semibold">Editar produto</h1>
         <p className="text-sm text-gray-600">Atualize as informações do produto.</p>
       </div>
@@ -473,126 +483,248 @@ export default function SellerProductEditPage() {
                 ))}
               </select>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-sm font-medium">{isCotista === false ? "Preço de custo" : "Preço do distribuidor"}</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
-                  <input
-                    type="text"
-                    value={formatCurrency(price)}
-                    readOnly
-                    disabled
-                    className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 cursor-not-allowed"
-                    placeholder="0,00"
-                  />
+            {isCotista === true ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium">Preço Sugerido</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
+                      <input
+                        type="text"
+                        value={formatCurrency(price)}
+                        readOnly
+                        disabled
+                        className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 cursor-not-allowed"
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Preço de Venda</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
+                      <input
+                        type="text"
+                        value={formatCurrency(priceOriginal)}
+                        onChange={(e) => {
+                          const newPrice = formatCurrency(e.target.value);
+                          setPriceOriginal(newPrice);
+                          setHasCustomPrice(true);
+                          updateDiscountFromPrices(parseCurrency(price), parseCurrency(newPrice));
+                        }}
+                        className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Este preço não pode ser alterado</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Preço de venda</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
-                  <input
-                    type="text"
-                    value={formatCurrency(priceOriginal)}
-                    onChange={(e) => {
-                      const newPrice = formatCurrency(e.target.value);
-                      setPriceOriginal(newPrice);
-                      setHasCustomPrice(true); // Marcar que jornaleiro personalizou
-                      // Recalcular desconto baseado no novo preço de venda
-                      updateDiscountFromPrices(parseCurrency(price), parseCurrency(newPrice));
-                    }}
-                    className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="0,00"
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium">Desconto (%)</label>
+                    <input
+                      type="number"
+                      step="1"
+                      min={0}
+                      max={100}
+                      value={discountPercent}
+                      onChange={(e) => {
+                        const newDiscount = Number(e.target.value);
+                        setDiscountPercent(newDiscount);
+                        setHasCustomPrice(true);
+                        updateSalePriceFromDiscount(newDiscount);
+                      }}
+                      name="discount_percent"
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">O preço de venda será ajustado automaticamente</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Cupom</label>
+                    <input
+                      name="coupon_code"
+                      defaultValue={product.coupon_code}
+                      placeholder="EX: BANCAX10"
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-gray-500">
-                    Este será o preço exibido na sua banca
-                    {hasCustomPrice && (
-                      <span className="ml-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                        ✓ Personalizado
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium">Preço de Custo</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
+                      <input
+                        type="text"
+                        value={formatCurrency(price)}
+                        readOnly
+                        disabled
+                        className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 cursor-not-allowed"
+                        placeholder="0,00"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Este preço não pode ser alterado</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Preço de Venda</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
+                      <input
+                        type="text"
+                        value={formatCurrency(priceOriginal)}
+                        onChange={(e) => {
+                          const newPrice = formatCurrency(e.target.value);
+                          setPriceOriginal(newPrice);
+                          setHasCustomPrice(true);
+                          updateDiscountFromPrices(parseCurrency(price), parseCurrency(newPrice));
+                        }}
+                        className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
+                        placeholder="0,00"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-gray-500">
+                        Este será o preço exibido na sua banca
+                        {hasCustomPrice && (
+                          <span className="ml-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                            ✓ Personalizado
+                          </span>
+                        )}
+                      </p>
+                      {hasCustomPrice && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPriceOriginal(price);
+                            setDiscountPercent(0);
+                            setHasCustomPrice(false);
+                          }}
+                          className="text-xs text-red-600 hover:text-red-800 underline"
+                        >
+                          Resetar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium">Desconto (%)</label>
+                    <input
+                      type="number"
+                      step="1"
+                      min={0}
+                      max={100}
+                      value={discountPercent}
+                      onChange={(e) => {
+                        const newDiscount = Number(e.target.value);
+                        setDiscountPercent(newDiscount);
+                        setHasCustomPrice(true);
+                        updateSalePriceFromDiscount(newDiscount);
+                      }}
+                      name="discount_percent"
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">O preço de venda será ajustado automaticamente</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">
+                      Estoque
+                      {product.origem && (
+                        <span className="ml-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                          🔒 Controlado pelo admin
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      defaultValue={product.stock_qty}
+                      type="number"
+                      name="stock"
+                      disabled={!!product.origem}
+                      className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${
+                        product.origem
+                          ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed'
+                          : 'border-gray-300'
+                      }`}
+                      title={product.origem ? 'Este produto é gerenciado pelo administrador' : ''}
+                    />
+                  </div>
+                </div>
+                {/* Preview do preço com desconto */}
+                {priceOriginal && discountPercent > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                    <div className="text-sm text-green-800">
+                      <span className="font-medium">Preço final com desconto:</span>{" "}
+                      <span className="text-lg font-bold">
+                        R$ {((parseCurrency(priceOriginal) * (1 - discountPercent / 100))).toFixed(2).replace('.', ',')}
+                      </span>
+                      <span className="ml-2 text-gray-500 line-through">
+                        R$ {parseCurrency(priceOriginal).toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center">
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      defaultChecked={product.track_stock}
+                      name="track_stock"
+                      type="checkbox"
+                      disabled={!!product.origem}
+                      className={`rounded ${product.origem ? 'cursor-not-allowed opacity-50' : ''}`}
+                    />
+                    Controlar estoque
+                    {product.origem && (
+                      <span className="text-xs text-gray-500">(bloqueado)</span>
+                    )}
+                  </label>
+                </div>
+              </>
+            )}
+            {isCotista === true && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-sm font-medium">
+                    Estoque
+                    {product.origem && (
+                      <span className="ml-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                        🔒 Controlado pelo admin
                       </span>
                     )}
-                  </p>
-                  {hasCustomPrice && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPriceOriginal(price);
-                        setDiscountPercent(0);
-                        setHasCustomPrice(false);
-                      }}
-                      className="text-xs text-red-600 hover:text-red-800 underline"
-                    >
-                      Resetar
-                    </button>
-                  )}
+                  </label>
+                  <input
+                    defaultValue={product.stock_qty}
+                    type="number"
+                    name="stock"
+                    disabled={!!product.origem}
+                    className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${
+                      product.origem
+                        ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed'
+                        : 'border-gray-300'
+                    }`}
+                    title={product.origem ? 'Este produto é gerenciado pelo administrador' : ''}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      defaultChecked={product.track_stock}
+                      name="track_stock"
+                      type="checkbox"
+                      disabled={!!product.origem}
+                      className={`rounded ${product.origem ? 'cursor-not-allowed opacity-50' : ''}`}
+                    />
+                    Controlar estoque
+                    {product.origem && (
+                      <span className="text-xs text-gray-500">(bloqueado)</span>
+                    )}
+                  </label>
                 </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-sm font-medium">Desconto (%)</label>
-                <input 
-                  type="number" 
-                  step="1" 
-                  min={0} 
-                  max={100} 
-                  value={discountPercent}
-                  onChange={(e) => {
-                    const newDiscount = Number(e.target.value);
-                    setDiscountPercent(newDiscount);
-                    setHasCustomPrice(true); // Marcar que jornaleiro personalizou
-                    // Recalcular preço de venda baseado no desconto
-                    updateSalePriceFromDiscount(newDiscount);
-                  }}
-                  name="discount_percent" 
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
-                />
-                <p className="text-xs text-gray-500 mt-1">O preço de venda será ajustado automaticamente</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-sm font-medium">
-                  Estoque
-                  {product.origem && (
-                    <span className="ml-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
-                      🔒 Controlado pelo admin
-                    </span>
-                  )}
-                </label>
-                <input 
-                  defaultValue={product.stock_qty} 
-                  type="number" 
-                  name="stock" 
-                  disabled={!!product.origem}
-                  className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${
-                    product.origem 
-                      ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' 
-                      : 'border-gray-300'
-                  }`}
-                  title={product.origem ? 'Este produto é gerenciado pelo administrador' : ''}
-                />
-              </div>
-              <div className="flex items-end">
-                <label className="inline-flex items-center gap-2 text-sm">
-                  <input 
-                    defaultChecked={product.track_stock} 
-                    name="track_stock" 
-                    type="checkbox" 
-                    disabled={!!product.origem}
-                    className={`rounded ${product.origem ? 'cursor-not-allowed opacity-50' : ''}`}
-                  /> 
-                  Controlar estoque
-                  {product.origem && (
-                    <span className="text-xs text-gray-500">(bloqueado)</span>
-                  )}
-                </label>
-              </div>
-            </div>
+            )}
             <div className="pt-2 border-t border-gray-200">
               <label className="inline-flex items-start gap-3 text-sm">
                 <input 
