@@ -581,11 +581,9 @@ export default function JornaleiroRegisterPage() {
 
   const { signUp, signIn, profile } = useAuth();
 
-  useEffect(() => {
-    if (profile?.role === 'jornaleiro') {
-      router.replace('/jornaleiro/dashboard' as any);
-    }
-  }, [profile?.role, router]);
+  // REMOVIDO: useEffect que redirecionava para dashboard quando profile.role === 'jornaleiro'
+  // Isso causava conflito porque o redirecionamento acontecia ANTES do onboarding criar a banca
+  // O fluxo correto é: registrar -> onboarding (cria banca) -> dashboard
 
   const onFinish = async () => {
     setError(null);
