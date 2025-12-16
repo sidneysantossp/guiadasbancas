@@ -170,11 +170,6 @@ export default function GerenciarCatalogoPage() {
               </svg>
               Falar com a equipe via WhatsApp
             </a>
-            
-            {/* Info adicional */}
-            <p className="mt-6 text-sm text-gray-500">
-              📞 (11) 99468-3425
-            </p>
           </div>
         </div>
       )}
