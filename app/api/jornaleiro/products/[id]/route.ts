@@ -262,10 +262,9 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
     }
 
     // Filtrar apenas campos válidos da tabela products
-    // NOTA: 'featured' não existe na tabela products
     const validFields = [
       'name', 'description', 'price', 'price_original', 'discount_percent',
-      'stock_qty', 'track_stock', 'images', 'active',
+      'stock_qty', 'track_stock', 'images', 'active', 'featured',
       'sob_encomenda', 'pre_venda', 'pronta_entrega', 'category_id'
     ];
     
