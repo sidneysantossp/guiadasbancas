@@ -231,7 +231,7 @@ function RelatedCarousel({ items }: { items: RelatedProduct[] }) {
 
   return (
     <section className="mt-10">
-      <h2 className="text-lg sm:text-xl font-semibold">Veja mais produtos desta banca</h2>
+      <h2 className="text-lg sm:text-xl font-semibold">Produtos Relacionados</h2>
       <div className="relative mt-3">
         <div className="overflow-hidden">
           <div
@@ -459,8 +459,25 @@ export default function ProductPageClient({ productId }: { productId: string }) 
         console.log("Produto carregado com sucesso:", mappedProduct.name);
         setProduct(mappedProduct);
         
-        // Buscar produtos relacionados da mesma banca
-        if (p.banca_id) {
+        // Buscar produtos relacionados da mesma categoria
+        if (p.category_id) {
+          try {
+            const relatedRes = await fetch(`/api/products/related/${p.category_id}?exclude=${productId}&limit=12`);
+            if (relatedRes.ok) {
+              const relatedJson = await relatedRes.json();
+              const relatedList = Array.isArray(relatedJson?.data) ? relatedJson.data : [];
+              
+              // Já vem filtrado da API
+              const filtered = relatedList.slice(0, 8);
+              
+              setRelatedProducts(filtered);
+              console.log(`[ProductPage] Produtos relacionados carregados: ${filtered.length}`);
+            }
+          } catch (e) {
+            console.error("Erro ao buscar produtos relacionados:", e);
+          }
+        } else if (p.banca_id) {
+          // Fallback: buscar produtos da mesma banca se não tiver categoria
           try {
             const relatedRes = await fetch(`/api/bancas/${p.banca_id}/products?limit=12`);
             if (relatedRes.ok) {
@@ -480,10 +497,10 @@ export default function ProductPageClient({ productId }: { productId: string }) 
                 }));
               
               setRelatedProducts(filtered);
-              console.log(`[ProductPage] Produtos relacionados carregados: ${filtered.length}`);
+              console.log(`[ProductPage] Produtos relacionados (fallback banca) carregados: ${filtered.length}`);
             }
           } catch (e) {
-            console.error("Erro ao buscar produtos relacionados:", e);
+            console.error("Erro ao buscar produtos relacionados (fallback banca):", e);
           }
         }
       } catch (e: any) {
