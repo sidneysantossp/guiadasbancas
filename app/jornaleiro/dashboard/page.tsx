@@ -42,6 +42,7 @@ export default function JornaleiroDashboardPage() {
       
       console.log('[Dashboard] 🏪 Banca carregada:', bancaData);
       console.log('[Dashboard] 👥 is_cotista:', bancaData?.is_cotista);
+      console.log('[Dashboard] 🆔 cotista_id:', bancaData?.cotista_id);
       console.log('[Dashboard] 📄 tpu_url:', bancaData?.tpu_url);
       setBanca(bancaData);
     } catch (error) {
@@ -107,11 +108,18 @@ export default function JornaleiroDashboardPage() {
       const productsData = parsedResponses[1] || {};
       const catalogoData = banca?.is_cotista ? (parsedResponses[2] || {}) : {};
       
+      console.log('[Dashboard] 🔍 is_cotista:', banca?.is_cotista);
+      console.log('[Dashboard] 📦 productsData:', productsData);
+      console.log('[Dashboard] 📦 catalogoData:', catalogoData);
+      
       const orders = ordersData.items || [];
       const products = productsData.items || productsData.products || [];
       
       // Produtos do catálogo do distribuidor (APENAS se cotista)
       const catalogoProdutos = banca?.is_cotista ? (catalogoData?.data || catalogoData?.products || []) : [];
+      
+      console.log('[Dashboard] 📊 products.length:', products.length);
+      console.log('[Dashboard] 📊 catalogoProdutos.length:', catalogoProdutos.length);
 
       // Calcular data de hoje no timezone local
       const hoje = new Date();
