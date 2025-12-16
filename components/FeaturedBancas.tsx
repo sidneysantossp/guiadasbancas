@@ -66,8 +66,8 @@ function BancaCard({
   featured?: boolean;
   priority?: boolean;
 }) {
-  // Removido uso de categorias mockadas; quando houver no futuro, virão direto da API.
-  const distanceLabel = distance == null ? null : (distance > 3 ? "+3Km" : `${Math.max(1, Math.round(distance))}Km`);
+  // Formatar distância: usar vírgula como separador decimal e "KM" maiúsculo
+  const distanceLabel = distance == null ? null : `${distance.toFixed(1).replace('.', ',')} KM`;
   const openNow = useMemo(() => {
     try {
       const h = new Date().getHours();
@@ -96,7 +96,12 @@ function BancaCard({
             </svg>
           </div>
         )}
-        {/* Removido badge de distância para não poluir a imagem */}
+        {/* Badge de distância */}
+        {distanceLabel && (
+          <div className="absolute right-2 top-2 z-10 inline-flex items-center rounded-full bg-white/90 text-gray-700 border border-gray-200 px-2 py-[2px] text-[11px] font-medium shadow-sm">
+            📍 {distanceLabel}
+          </div>
+        )}
         {featured && (
           <div className="absolute left-2 top-2 z-10 inline-flex items-center rounded-full bg-orange-50 text-[#ff5c00] border border-orange-200 px-2 py-[2px] text-[11px]">Destaque</div>
         )}
