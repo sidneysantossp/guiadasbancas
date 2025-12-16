@@ -560,13 +560,11 @@ export default function SellerProductEditPage() {
                       <input
                         type="text"
                         value={formatCurrency(price)}
-                        readOnly
-                        disabled
-                        className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 cursor-not-allowed"
+                        onChange={(e) => setPrice(formatCurrency(e.target.value))}
+                        className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
                         placeholder="0,00"
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Este preço não pode ser alterado</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium">Preço de Venda</label>
@@ -575,38 +573,10 @@ export default function SellerProductEditPage() {
                       <input
                         type="text"
                         value={formatCurrency(priceOriginal)}
-                        onChange={(e) => {
-                          const newPrice = formatCurrency(e.target.value);
-                          setPriceOriginal(newPrice);
-                          setHasCustomPrice(true);
-                          updateDiscountFromPrices(parseCurrency(price), parseCurrency(newPrice));
-                        }}
+                        onChange={(e) => setPriceOriginal(formatCurrency(e.target.value))}
                         className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
                         placeholder="0,00"
                       />
-                    </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <p className="text-xs text-gray-500">
-                        Este será o preço exibido na sua banca
-                        {hasCustomPrice && (
-                          <span className="ml-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                            ✓ Personalizado
-                          </span>
-                        )}
-                      </p>
-                      {hasCustomPrice && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPriceOriginal(price);
-                            setDiscountPercent(0);
-                            setHasCustomPrice(false);
-                          }}
-                          className="text-xs text-red-600 hover:text-red-800 underline"
-                        >
-                          Resetar
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -619,37 +589,17 @@ export default function SellerProductEditPage() {
                       min={0}
                       max={100}
                       value={discountPercent}
-                      onChange={(e) => {
-                        const newDiscount = Number(e.target.value);
-                        setDiscountPercent(newDiscount);
-                        setHasCustomPrice(true);
-                        updateSalePriceFromDiscount(newDiscount);
-                      }}
-                      name="discount_percent"
+                      onChange={(e) => setDiscountPercent(Number(e.target.value))}
                       className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                     />
-                    <p className="text-xs text-gray-500 mt-1">O preço de venda será ajustado automaticamente</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium">
-                      Estoque
-                      {product.origem && (
-                        <span className="ml-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
-                          🔒 Controlado pelo admin
-                        </span>
-                      )}
-                    </label>
+                    <label className="text-sm font-medium">Estoque</label>
                     <input
                       defaultValue={product.stock_qty}
                       type="number"
                       name="stock"
-                      disabled={!!product.origem}
-                      className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${
-                        product.origem
-                          ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed'
-                          : 'border-gray-300'
-                      }`}
-                      title={product.origem ? 'Este produto é gerenciado pelo administrador' : ''}
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                     />
                   </div>
                 </div>
@@ -673,13 +623,9 @@ export default function SellerProductEditPage() {
                       defaultChecked={product.track_stock}
                       name="track_stock"
                       type="checkbox"
-                      disabled={!!product.origem}
-                      className={`rounded ${product.origem ? 'cursor-not-allowed opacity-50' : ''}`}
+                      className="rounded"
                     />
                     Controlar estoque
-                    {product.origem && (
-                      <span className="text-xs text-gray-500">(bloqueado)</span>
-                    )}
                   </label>
                 </div>
               </>
