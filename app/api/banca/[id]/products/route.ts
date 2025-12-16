@@ -8,12 +8,6 @@ export const dynamic = 'force-dynamic';
 const CATEGORIA_DISTRIBUIDORES_NOME = 'Diversos';
 const DEFAULT_PRODUCT_IMAGE = 'https://placehold.co/400x600/e5e7eb/6b7280.png';
 
-// Distribuidores que devem aparecer para TODAS as bancas (cotistas ou não)
-const DISTRIBUIDORES_PUBLICOS = [
-  '3a989c56-bbd3-4769-b076-a83483e39542', // Bambino
-  '1511df09-1f4a-4e68-9f8c-05cd06be6269'  // Brancaleone
-];
-
 // Select OTIMIZADO - apenas campos necessários para exibição
 const PRODUCT_FIELDS_MINIMAL = `
   id,
@@ -59,9 +53,11 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         .eq('active', true);
 
       if (isCotista) {
+        // Cotistas veem produtos próprios + todos de distribuidores
         q = q.or(`banca_id.eq.${bancaId},distribuidor_id.not.is.null`);
       } else {
-        q = q.or(`banca_id.eq.${bancaId},distribuidor_id.in.(${DISTRIBUIDORES_PUBLICOS.join(',')})`);
+        // Não-cotistas veem APENAS produtos próprios da banca
+        q = q.eq('banca_id', bancaId);
       }
       return q;
     };
