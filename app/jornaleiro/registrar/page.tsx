@@ -898,13 +898,9 @@ export default function JornaleiroRegisterPage() {
                   <div className="flex items-start gap-3">
                     <span className="text-amber-600 text-3xl shrink-0">⚠️</span>
                     <div className="flex-1">
-                      <h3 className="text-lg font-bold text-amber-900">
-                        {isCotista ? 'CPF/CNPJ já cadastrado como Cota Ativa!' : 'CPF/CNPJ já cadastrado!'}
-                      </h3>
+                      <h3 className="text-lg font-bold text-amber-900">CPF/CNPJ já cadastrado!</h3>
                       <p className="text-sm text-amber-800 mt-2">
-                        {isCotista 
-                          ? 'Este CPF/CNPJ já está registrado como Cota Ativa no sistema:'
-                          : 'Este CPF/CNPJ já está vinculado às seguintes bancas:'}
+                        Existe Banca cadastrada com esse CPF/CNPJ na plataforma. Caso queira cadastrar outra banca, acesse seu Painel Administrativo.
                       </p>
                     </div>
                   </div>
@@ -934,27 +930,16 @@ export default function JornaleiroRegisterPage() {
                   ))}
                 </div>
 
-                <div className="rounded-xl bg-blue-50 border-2 border-blue-200 p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="text-blue-600 text-2xl shrink-0">ℹ️</span>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-blue-900">Como cadastrar outra banca?</h4>
-                      <p className="text-sm text-blue-800 mt-2">
-                        Para cadastrar uma nova banca com este CPF/CNPJ, você deve acessar o <strong>Painel Administrativo</strong> da sua conta existente e realizar o cadastro por lá.
-                      </p>
-                      <div className="mt-3">
-                        <Link 
-                          href="/jornaleiro" 
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                          </svg>
-                          Acessar Painel Administrativo
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
+                <div className="flex justify-center">
+                  <Link 
+                    href="/jornaleiro" 
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                    </svg>
+                    Acessar Painel Administrativo
+                  </Link>
                 </div>
               </div>
             )}
