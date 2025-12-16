@@ -279,15 +279,23 @@ export default function JornaleiroRegisterPage() {
 
       setCheckingCpf(true);
       try {
+        console.log('[Frontend] Enviando CPF para verificação:', cpf);
         const response = await fetch('/api/jornaleiro/check-cpf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ cpf })
         });
         
+        console.log('[Frontend] Status da resposta:', response.status);
+        
         const data = await response.json();
         
         console.log('[Frontend] Resposta da API check-cpf:', data);
+        
+        if (!response.ok) {
+          console.error('[Frontend] Erro na API:', data.error, data.details);
+          return;
+        }
         
         if (data.exists && data.bancas && data.bancas.length > 0) {
           console.log('[Frontend] CPF existe com bancas:', data.bancas.length);
@@ -301,7 +309,7 @@ export default function JornaleiroRegisterPage() {
           setExistingBancas([]);
         }
       } catch (err) {
-        console.error('Erro ao verificar CPF:', err);
+        console.error('[Frontend] Erro ao verificar CPF:', err);
       } finally {
         setCheckingCpf(false);
       }

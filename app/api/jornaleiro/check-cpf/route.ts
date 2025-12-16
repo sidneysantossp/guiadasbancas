@@ -120,9 +120,14 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Erro na API check-cpf:', error);
+    console.error('[check-cpf] ERRO CRÍTICO:', error);
+    console.error('[check-cpf] Stack:', error.stack);
+    console.error('[check-cpf] Message:', error.message);
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { 
+        error: 'Erro interno do servidor',
+        details: error.message 
+      },
       { status: 500 }
     );
   }
