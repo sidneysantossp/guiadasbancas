@@ -59,22 +59,31 @@ export default function JornaleiroDashboardPage() {
     try {
       setLoadingMetrics(true);
       
-      // Buscar pedidos, produtos próprios e catálogo do distribuidor em PARALELO
+      // Buscar pedidos em PARALELO
       const fetchPromises: Promise<Response>[] = [
         fetch('/api/orders?limit=50', { 
           cache: 'no-store',
           credentials: 'include'
         }),
-        fetch('/api/products?limit=50', { 
-          cache: 'no-store',
-          credentials: 'include'
-        }),
       ];
       
-      // Se for cotista, buscar também produtos do distribuidor
+      // Só buscar produtos se for cotista (não-cotistas começam com 0 produtos)
+      // Não-cotistas precisam cadastrar produtos manualmente
       if (banca?.is_cotista) {
         fetchPromises.push(
+          fetch('/api/products?limit=50', { 
+            cache: 'no-store',
+            credentials: 'include'
+          }),
           fetch('/api/jornaleiro/catalogo-distribuidor', { 
+            cache: 'no-store',
+            credentials: 'include'
+          })
+        );
+      } else {
+        // Para não-cotistas, buscar apenas produtos próprios cadastrados manualmente
+        fetchPromises.push(
+          fetch('/api/products?limit=50', { 
             cache: 'no-store',
             credentials: 'include'
           })
@@ -82,7 +91,7 @@ export default function JornaleiroDashboardPage() {
       }
       
       const responses = await Promise.all(fetchPromises);
-      const [ordersData, productsData, catalogoData] = await Promise.all(
+      const parsedResponses = await Promise.all(
         responses.map(async (r) => {
           const text = await r.text();
           try {
@@ -94,11 +103,15 @@ export default function JornaleiroDashboardPage() {
         })
       );
       
+      const ordersData = parsedResponses[0];
+      const productsData = parsedResponses[1] || {};
+      const catalogoData = banca?.is_cotista ? (parsedResponses[2] || {}) : {};
+      
       const orders = ordersData.items || [];
       const products = productsData.items || productsData.products || [];
       
-      // Produtos do catálogo do distribuidor (se cotista)
-      const catalogoProdutos = catalogoData?.data || catalogoData?.products || [];
+      // Produtos do catálogo do distribuidor (APENAS se cotista)
+      const catalogoProdutos = banca?.is_cotista ? (catalogoData?.data || catalogoData?.products || []) : [];
 
       // Calcular data de hoje no timezone local
       const hoje = new Date();
