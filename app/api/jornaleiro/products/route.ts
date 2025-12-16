@@ -285,7 +285,6 @@ export async function POST(request: NextRequest) {
     sob_encomenda: !!body.sob_encomenda,
     pre_venda: !!body.pre_venda,
     pronta_entrega: !!body.pronta_entrega,
-    coupon_code: typeof body.coupon_code === 'string' ? body.coupon_code : null,
     description_full: typeof body.description_full === 'string' ? body.description_full : null,
     specifications: typeof body.specifications === 'string' ? body.specifications : null,
     gallery_images: Array.isArray(body.gallery_images) ? body.gallery_images : [],
