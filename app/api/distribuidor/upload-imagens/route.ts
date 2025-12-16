@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
             produtoError = null;
             
             // Se o produto não tem distribuidor_id, associar ao distribuidor atual
-            if (!produto.distribuidor_id) {
+            if (produto && !produto.distribuidor_id) {
               await supabaseAdmin
                 .from('products')
                 .update({ distribuidor_id: distribuidorId })
