@@ -324,15 +324,23 @@ export default function SellerProductEditPage() {
 
       const vr = validateProductUpdate(body as any);
       if (!vr.ok) throw new Error(vr.error);
+      
+      console.log('[DEBUG] Enviando para API:', vr.data);
+      
       const res = await fetch(`/api/jornaleiro/products/${params.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify(vr.data),
       });
-      if (!res.ok) throw new Error("Falha ao salvar produto.");
       
-      const savedData = await res.json();
-      console.log('[DEBUG] Produto salvo com sucesso:', savedData);
+      const responseData = await res.json();
+      console.log('[DEBUG] Resposta da API:', responseData);
+      
+      if (!res.ok) {
+        throw new Error(responseData?.error || "Falha ao salvar produto.");
+      }
+      
+      console.log('[DEBUG] Produto salvo com sucesso:', responseData);
       
       toast.success("Produto atualizado com sucesso");
       
