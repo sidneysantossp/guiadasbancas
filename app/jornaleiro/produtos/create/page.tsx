@@ -9,7 +9,6 @@ import ImageSizeGuide from "@/components/admin/ImageSizeGuide";
 import VideoTutorial from "@/components/admin/VideoTutorial";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import SpecificationsEditor from "@/components/admin/SpecificationsEditor";
-import ReviewsManager from "@/components/admin/ReviewsManager";
 import { useToast } from "@/components/admin/ToastProvider";
 
 interface CategoryOption {
@@ -46,6 +45,9 @@ export default function SellerProductCreatePage() {
   const [featuredCount, setFeaturedCount] = useState(0);
   const [descriptionFull, setDescriptionFull] = useState("");
   const [specifications, setSpecifications] = useState("");
+  const [isCotista, setIsCotista] = useState<boolean | null>(null);
+  const [price, setPrice] = useState("");
+  const [priceOriginal, setPriceOriginal] = useState("");
   const [costPrice, setCostPrice] = useState("");
   const [salePrice, setSalePrice] = useState("");
   const [discountPercent, setDiscountPercent] = useState("");
@@ -75,6 +77,20 @@ export default function SellerProductCreatePage() {
     loadCategories();
   }, [toast]);
 
+  useEffect(() => {
+    const loadBanca = async () => {
+      try {
+        const res = await fetch("/api/jornaleiro/banca", { headers: authHeaders, cache: "no-store" });
+        const json = await res.json();
+        const banca = json?.data;
+        setIsCotista(Boolean(banca?.is_cotista === true && banca?.cotista_id));
+      } catch {
+        setIsCotista(false);
+      }
+    };
+    loadBanca();
+  }, [authHeaders]);
+
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
@@ -102,41 +118,67 @@ export default function SellerProductCreatePage() {
         }
       }
       
+      const isCotistaValue = isCotista === true;
 
-      // Calcular preços corretamente
-      const salePriceValue = salePrice ? parseCurrency(salePrice) : 0;
-      const discountValue = discountPercent ? Number(discountPercent) : 0;
-      const costPriceValue = costPrice ? parseCurrency(costPrice) : 0;
-      
-      // Se tiver desconto, price_original = preço de venda, price = preço com desconto
-      // Se não tiver desconto, price = preço de venda
-      let finalPrice = salePriceValue;
-      let originalPrice: number | undefined = undefined;
-      
-      if (discountValue > 0 && discountValue <= 100) {
-        originalPrice = salePriceValue;
-        finalPrice = salePriceValue * (1 - discountValue / 100);
+      let body: any;
+
+      if (isCotistaValue) {
+        body = {
+          name: (fd.get("name") as string)?.trim(),
+          description: (fd.get("description") as string) || "",
+          category_id: (fd.get("category") as string)?.trim(),
+          price: parseCurrency(price),
+          price_original: priceOriginal ? parseCurrency(priceOriginal) : undefined,
+          discount_percent: fd.get("discount_percent") ? Number(fd.get("discount_percent")) : undefined,
+          stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
+          track_stock: Boolean(fd.get("track_stock")),
+          featured: Boolean(fd.get("featured")),
+          images: uploadedUrls,
+          active: Boolean(fd.get("active")),
+          sob_encomenda: Boolean(fd.get("sob_encomenda")),
+          pre_venda: Boolean(fd.get("pre_venda")),
+          pronta_entrega: Boolean(fd.get("pronta_entrega")),
+          coupon_code: (fd.get("coupon_code") as string)?.trim() || undefined,
+          description_full: descriptionFull,
+          specifications: specifications,
+          gallery_images: [],
+        };
+      } else {
+        // Calcular preços corretamente (não-cotista)
+        const salePriceValue = salePrice ? parseCurrency(salePrice) : 0;
+        const discountValue = discountPercent ? Number(discountPercent) : 0;
+        const costPriceValue = costPrice ? parseCurrency(costPrice) : 0;
+
+        // Se tiver desconto, price_original = preço de venda, price = preço com desconto
+        // Se não tiver desconto, price = preço de venda
+        let finalPrice = salePriceValue;
+        let originalPrice: number | undefined = undefined;
+
+        if (discountValue > 0 && discountValue <= 100) {
+          originalPrice = salePriceValue;
+          finalPrice = salePriceValue * (1 - discountValue / 100);
+        }
+
+        body = {
+          name: (fd.get("name") as string)?.trim(),
+          description: (fd.get("description") as string) || "",
+          category_id: (fd.get("category") as string)?.trim(),
+          price: finalPrice,
+          price_original: originalPrice,
+          discount_percent: discountValue || undefined,
+          stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
+          track_stock: Boolean(fd.get("track_stock")),
+          featured: Boolean(fd.get("featured")),
+          images: uploadedUrls,
+          active: Boolean(fd.get("active")),
+          sob_encomenda: Boolean(fd.get("sob_encomenda")),
+          pre_venda: Boolean(fd.get("pre_venda")),
+          pronta_entrega: Boolean(fd.get("pronta_entrega")),
+          description_full: descriptionFull,
+          specifications: costPriceValue > 0 ? `${specifications}\n\n<!-- cost_price:${costPriceValue} -->` : specifications,
+          gallery_images: [],
+        };
       }
-
-      const body = {
-        name: (fd.get("name") as string)?.trim(),
-        description: (fd.get("description") as string) || "",
-        category_id: (fd.get("category") as string)?.trim(),
-        price: finalPrice,
-        price_original: originalPrice,
-        discount_percent: discountValue || undefined,
-        stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
-        track_stock: Boolean(fd.get("track_stock")),
-        featured: Boolean(fd.get("featured")),
-        images: uploadedUrls,
-        active: Boolean(fd.get("active")),
-        sob_encomenda: Boolean(fd.get("sob_encomenda")),
-        pre_venda: Boolean(fd.get("pre_venda")),
-        pronta_entrega: Boolean(fd.get("pronta_entrega")),
-        description_full: descriptionFull,
-        specifications: costPriceValue > 0 ? `${specifications}\n\n<!-- cost_price:${costPriceValue} -->` : specifications,
-        gallery_images: [],
-      };
 
       const vr = validateProductCreate(body as any);
       if (!vr.ok) throw new Error(vr.error);
@@ -248,72 +290,140 @@ export default function SellerProductCreatePage() {
                 ))}
               </select>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-sm font-medium">Preço de Custo</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
-                  <input
-                    type="text"
-                    value={formatCurrency(costPrice)}
-                    onChange={(e) => setCostPrice(formatCurrency(e.target.value))}
-                    className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="0,00"
-                  />
+            {isCotista === true ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium">Preço Sugerido</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
+                      <input
+                        type="text"
+                        value={formatCurrency(price)}
+                        onChange={(e) => setPrice(formatCurrency(e.target.value))}
+                        required
+                        className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Preço de Venda</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
+                      <input
+                        type="text"
+                        value={formatCurrency(priceOriginal)}
+                        onChange={(e) => setPriceOriginal(formatCurrency(e.target.value))}
+                        className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Preço de Venda</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
-                  <input
-                    type="text"
-                    value={formatCurrency(salePrice)}
-                    onChange={(e) => setSalePrice(formatCurrency(e.target.value))}
-                    required
-                    className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="0,00"
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium">Desconto (%)</label>
+                    <input
+                      type="number"
+                      step="1"
+                      min={0}
+                      max={100}
+                      name="discount_percent"
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Cupom</label>
+                    <input
+                      name="coupon_code"
+                      placeholder="EX: BANCAX10"
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-sm font-medium">Desconto (%)</label>
-                <input 
-                  type="number" 
-                  step="1" 
-                  min={0} 
-                  max={100} 
-                  value={discountPercent}
-                  onChange={(e) => setDiscountPercent(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Estoque</label>
-                <input type="number" name="stock" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-              </div>
-            </div>
-            {/* Preview do preço com desconto */}
-            {salePrice && Number(discountPercent) > 0 && (
-              <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                <div className="text-sm text-green-800">
-                  <span className="font-medium">Preço final com desconto:</span>{" "}
-                  <span className="text-lg font-bold">
-                    R$ {((parseCurrency(salePrice) * (1 - Number(discountPercent) / 100))).toFixed(2).replace('.', ',')}
-                  </span>
-                  <span className="ml-2 text-gray-500 line-through">
-                    R$ {parseCurrency(salePrice).toFixed(2).replace('.', ',')}
-                  </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium">Estoque</label>
+                    <input type="number" name="stock" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                  </div>
+                  <div className="flex items-end">
+                    <label className="inline-flex items-center gap-2 text-sm">
+                      <input name="track_stock" type="checkbox" className="rounded" /> Controlar estoque
+                    </label>
+                  </div>
                 </div>
-              </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium">Preço de Custo</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
+                      <input
+                        type="text"
+                        value={formatCurrency(costPrice)}
+                        onChange={(e) => setCostPrice(formatCurrency(e.target.value))}
+                        className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Preço de Venda</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
+                      <input
+                        type="text"
+                        value={formatCurrency(salePrice)}
+                        onChange={(e) => setSalePrice(formatCurrency(e.target.value))}
+                        required
+                        className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium">Desconto (%)</label>
+                    <input
+                      type="number"
+                      step="1"
+                      min={0}
+                      max={100}
+                      value={discountPercent}
+                      onChange={(e) => setDiscountPercent(e.target.value)}
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Estoque</label>
+                    <input type="number" name="stock" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                  </div>
+                </div>
+                {/* Preview do preço com desconto */}
+                {salePrice && Number(discountPercent) > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                    <div className="text-sm text-green-800">
+                      <span className="font-medium">Preço final com desconto:</span>{" "}
+                      <span className="text-lg font-bold">
+                        R$ {((parseCurrency(salePrice) * (1 - Number(discountPercent) / 100))).toFixed(2).replace('.', ',')}
+                      </span>
+                      <span className="ml-2 text-gray-500 line-through">
+                        R$ {parseCurrency(salePrice).toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center">
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input name="track_stock" type="checkbox" className="rounded" /> Controlar estoque
+                  </label>
+                </div>
+              </>
             )}
-            <div className="flex items-center">
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input name="track_stock" type="checkbox" className="rounded" /> Controlar estoque
-              </label>
-            </div>
             
             <div className="pt-2 border-t border-gray-200 space-y-3">
               <label className="inline-flex items-center gap-2 text-sm">

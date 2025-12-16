@@ -73,10 +73,25 @@ export default function SellerProductEditPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCotista, setIsCotista] = useState<boolean | null>(null);
   const [price, setPrice] = useState("");
   const [priceOriginal, setPriceOriginal] = useState("");
   const [discountPercent, setDiscountPercent] = useState(0);
   const [hasCustomPrice, setHasCustomPrice] = useState(false); // Flag para saber se jornaleiro personalizou
+
+  useEffect(() => {
+    const loadBanca = async () => {
+      try {
+        const res = await fetch("/api/jornaleiro/banca", { headers: authHeaders, cache: "no-store" });
+        const json = await res.json();
+        const banca = json?.data;
+        setIsCotista(Boolean(banca?.is_cotista === true && banca?.cotista_id));
+      } catch {
+        setIsCotista(false);
+      }
+    };
+    loadBanca();
+  }, [authHeaders]);
 
   // Estados para contexto da IA
   const [productName, setProductName] = useState("");
@@ -460,7 +475,7 @@ export default function SellerProductEditPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-sm font-medium">Preço do distribuidor</label>
+                <label className="text-sm font-medium">{isCotista === false ? "Preço de custo" : "Preço do distribuidor"}</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
                   <input
