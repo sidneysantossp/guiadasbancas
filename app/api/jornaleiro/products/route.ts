@@ -289,7 +289,6 @@ export async function POST(request: NextRequest) {
     description_full: typeof body.description_full === 'string' ? body.description_full : null,
     specifications: typeof body.specifications === 'string' ? body.specifications : null,
     gallery_images: Array.isArray(body.gallery_images) ? body.gallery_images : [],
-    allow_reviews: !!body.allow_reviews,
     active: body.active ?? true,
     rating_avg: 0,
     reviews_count: 0,
