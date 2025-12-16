@@ -264,6 +264,7 @@ export async function POST(request: NextRequest) {
   let body: any;
   try {
     body = await request.json();
+    console.log('[API/Jornaleiro/Products] Body recebido:', JSON.stringify(body, null, 2));
   } catch (e) {
     console.error('[API/Jornaleiro/Products] Payload inválido:', e);
     return NextResponse.json({ success: false, error: "JSON inválido no corpo da requisição" }, { status: 400 });
@@ -294,6 +295,8 @@ export async function POST(request: NextRequest) {
     reviews_count: 0,
   };
 
+  console.log('[API/Jornaleiro/Products] Objeto a inserir:', JSON.stringify(novo, null, 2));
+  
   const { data: created, error } = await supabaseAdmin
     .from('products')
     .insert(novo)
@@ -301,7 +304,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    console.error('Erro ao criar produto:', error);
+    console.error('[API/Jornaleiro/Products] Erro ao criar produto:', error);
+    console.error('[API/Jornaleiro/Products] Detalhes:', JSON.stringify(error, null, 2));
     return NextResponse.json({ success: false, error: error.message || 'Erro ao criar produto', details: error }, { status: 500 });
   }
 
