@@ -69,8 +69,8 @@ function BancaCard({
   profileImage?: string;
   priority?: boolean;
 }) {
-  // Formatar distância: usar vírgula como separador decimal e "km" minúsculo
-  const distanceLabel = distance == null ? null : `${distance.toFixed(1).replace('.', ',')} km`;
+  // Formatar distância: arredondar para 1 casa decimal, vírgula como separador, "KM" maiúsculo
+  const distanceLabel = distance == null ? null : `${distance.toFixed(1).replace('.', ',')} KM`;
   const openNow = useMemo(() => {
     try {
       const h = new Date().getHours();

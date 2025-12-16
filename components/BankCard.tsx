@@ -96,8 +96,8 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
             Ver no Mapa
           </a>
           {typeof distanceKm === 'number' && isFinite(distanceKm) && (
-            <span className="ml-2 text-[12px] text-gray-700" aria-label={`Distância ${distanceKm.toFixed(1)} km`}>
-              • {distanceKm.toFixed(1).replace('.', ',')} km
+            <span className="ml-2 text-[12px] text-gray-700" aria-label={`Distância ${distanceKm.toFixed(1)} KM`}>
+              • {distanceKm.toFixed(1).replace('.', ',')} KM
             </span>
           )}
         </div>
