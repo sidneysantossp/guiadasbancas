@@ -160,33 +160,8 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
   
   const uf = (loc?.state || "SP").toLowerCase();
 
-  // Usar bancas das props diretamente (sem estado interno quando recebe props)
-  // Se não receber props, buscar da API
-  const [fetchedBancas, setFetchedBancas] = useState<ApiBanca[] | null>(null);
-  
-  useEffect(() => {
-    // Só buscar da API se não receber bancas via props (ou se for null)
-    if (propBancas !== undefined && propBancas !== null) {
-      return;
-    }
-    
-    (async () => {
-      try {
-        const res = await fetch('/api/bancas/featured?limit=20', { 
-          next: { revalidate: 60 } as any
-        });
-        if (!res.ok) throw new Error('fail');
-        const j = await res.json();
-        const list = Array.isArray(j?.data) ? (j.data as ApiBanca[]) : [];
-        setFetchedBancas(list);
-      } catch {
-        setFetchedBancas([]);
-      }
-    })();
-  }, [propBancas]);
-  
-  // Usar props se disponível e não null, senão usar dados buscados
-  const apiBancas = (propBancas !== undefined && propBancas !== null) ? propBancas : fetchedBancas;
+  // Usar bancas das props diretamente - componente espera receber dados do BancasSections
+  const apiBancas = propBancas;
 
   // Ordenar por rating (melhor avaliação primeiro) - prioriza featured mas mostra todas
   const rawItems = useMemo(() => {
