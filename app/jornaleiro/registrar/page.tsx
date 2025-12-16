@@ -14,7 +14,7 @@ import logger from "@/lib/logger";
 export default function JornaleiroRegisterPage() {
   const router = useRouter();
 
-  // Steps
+  // Steps (Cota Ativa movido para step 2, mas oculto por enquanto)
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7>(1);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -425,16 +425,8 @@ export default function JornaleiroRegisterPage() {
 
   const onNext = async () => {
     setError(null);
+    // Step 1: Jornaleiro (antigo step 2)
     if (step === 1) {
-      logger.log('[Wizard] 📋 Avançando do Step 1 - Estado atual:', {
-        isCotaAtiva,
-        selectedCotaAtiva
-      });
-      if (isCotaAtiva && !selectedCotaAtiva) { setError('Selecione sua Cota Ativa ou escolha "Não possuo Cota Ativa".'); return; }
-      setStep(2);
-      return;
-    }
-    if (step === 2) {
       const e1 = validateName(name); setErrorField('name', e1);
       const e2 = validateCpf(cpf); setErrorField('cpf', e2);
       const e3 = validatePhone(phone); setErrorField('phone', e3);
@@ -442,23 +434,32 @@ export default function JornaleiroRegisterPage() {
       const e5 = validatePasswordField(password); setErrorField('password', e5);
       const e6 = validateConfirmField(confirmPassword, password); setErrorField('confirmPassword', e6);
       if (e1 || e2 || e3 || e4 || e5 || e6) { return; }
+      setStep(2);
+      return;
+    }
+    // Step 2: Banca (antigo step 3)
+    if (step === 2) {
+      const err = validateStep2();
+      if (err) { setError(err); return; }
       setStep(3);
       return;
     }
+    // Step 3: Imagens (antigo step 4)
     if (step === 3) {
-      const err = validateStep2();
-      if (err) { setError(err); return; }
+      // Validação das imagens é opcional
       setStep(4);
       return;
     }
+    // Step 4: Funcionamento (antigo step 5)
     if (step === 4) {
-      // Validação das imagens é opcional
+      const err = validateStep3();
+      if (err) { setError(err); return; }
       setStep(5);
       return;
     }
+    // Step 5: Social Mídia (antigo step 6)
     if (step === 5) {
-      const err = validateStep3();
-      if (err) { setError(err); return; }
+      // Validação opcional
       setStep(6);
       return;
     }
@@ -633,25 +634,22 @@ export default function JornaleiroRegisterPage() {
         </div>
         <div className="mt-3 flex items-center justify-between">
           {[
-            { n: 1, label: 'Cota Ativa', icon: (
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            )},
-            { n: 2, label: 'Jornaleiro', icon: (
+            { n: 1, label: 'Jornaleiro', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>
             )},
-            { n: 3, label: 'Banca', icon: (
+            { n: 2, label: 'Banca', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l1-5h16l1 5M4 9h16v10H4z"/></svg>
             )},
-            { n: 4, label: 'Imagens', icon: (
+            { n: 3, label: 'Imagens', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z"/></svg>
             )},
-            { n: 5, label: 'Funcionamento', icon: (
+            { n: 4, label: 'Funcionamento', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
             )},
-            { n: 6, label: 'Social Midia', icon: (
+            { n: 5, label: 'Social Midia', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8a3 3 0 11-2.83 4H8.83A3 3 0 116 8h12z"/></svg>
             )},
-            { n: 7, label: 'Conclusão', icon: (
+            { n: 6, label: 'Conclusão', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
             )},
           ].map(({ n, label, icon }) => {
@@ -682,16 +680,14 @@ export default function JornaleiroRegisterPage() {
           <div className="text-center">
             <h1 className="text-xl font-semibold">Cadastro do Jornaleiro</h1>
             {step === 1 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Identifique-se como Cota Ativa para ter acesso automático ao catálogo completo de produtos dos distribuidores.</p>
-            ) : step === 2 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Estas são suas informações pessoais para futuros contatos. Os dados da sua banca serão solicitados na próxima etapa.</p>
-            ) : step === 3 ? (
+            ) : step === 2 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Agora vamos solicitar os dados públicos da sua banca. Essas informações serão exibidas para os clientes na plataforma.</p>
-            ) : step === 4 ? (
+            ) : step === 3 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Adicione as imagens da sua banca para criar uma identidade visual atrativa. O banner aparece no topo e a foto de perfil identifica sua banca.</p>
-            ) : step === 5 ? (
+            ) : step === 4 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Defina os horários de funcionamento da sua banca. Essas informações aparecerão para os clientes.</p>
-            ) : step === 6 ? (
+            ) : step === 5 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Adicione suas redes sociais para potencializar sua presença digital. É opcional e pode ser feito depois no painel.</p>
             ) : null}
           </div>
@@ -701,103 +697,9 @@ export default function JornaleiroRegisterPage() {
           <div className="mt-3 rounded-md border border-rose-300 bg-rose-50 text-rose-700 text-sm px-3 py-2">{error}</div>
         )}
 
+        {/* Step de Cota Ativa oculto temporariamente - será reativado futuramente */}
+
         {step === 1 && (
-          <div className="mt-4 grid grid-cols-1 gap-3">
-            <div className="rounded-lg bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 p-4 mb-4">
-              <div className="flex items-start gap-3">
-                <span className="text-orange-600 text-3xl shrink-0">🎯</span>
-                <div>
-                  <h3 className="text-lg font-bold text-orange-900">Você possui Cota Ativa?</h3>
-                  <p className="text-sm text-orange-800 mt-1">
-                    Tenha acesso automático ao catálogo completo de produtos das principais Marcas através da COTA ATIVA do Guia Das Bancas. São Milhares de Produtos disponíveis automaticamente no perfil da sua Banca para você começar a vender hoje mesmo.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <label className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all hover:shadow-md ${isCotaAtiva ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
-                <input
-                  type="radio"
-                  name="cota_ativa"
-                  checked={isCotaAtiva}
-                  onChange={() => {
-                    console.log('[Wizard] ✅ Usuário selecionou: POSSUO COTA ATIVA');
-                    setIsCotaAtiva(true);
-                  }}
-                  className="h-5 w-5 text-orange-600 focus:ring-orange-500"
-                />
-                <div>
-                  <span className="text-base font-semibold text-gray-900">Possuo Cota Ativa</span>
-                  <p className="text-sm text-gray-600 mt-1">Sua Banca com milhares de produtos disponíveis para começar a vender ainda hoje!</p>
-                </div>
-              </label>
-
-              <label className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all hover:shadow-md ${!isCotaAtiva ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
-                <input
-                  type="radio"
-                  name="cota_ativa"
-                  checked={!isCotaAtiva}
-                  onChange={() => {
-                    console.log('[Wizard] ❌ Usuário selecionou: NÃO POSSUO COTA ATIVA');
-                    setIsCotaAtiva(false);
-                    setSelectedCotaAtiva(null);
-                  }}
-                  className="h-5 w-5 text-orange-600 focus:ring-orange-500"
-                />
-                <div>
-                  <span className="text-base font-semibold text-gray-900">Não possuo Cota Ativa</span>
-                  <p className="text-sm text-gray-600 mt-1">Você cadastra os produtos da sua Banca absolutamente do zero.</p>
-                </div>
-              </label>
-            </div>
-
-            {isCotaAtiva && (
-              <div className="mt-4 space-y-4">
-                <div className="rounded-xl bg-blue-50 border-2 border-blue-200 p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="text-blue-600 text-2xl shrink-0">ℹ️</span>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-blue-900">Como encontrar seu cadastro</h4>
-                      <p className="text-sm text-blue-800 mt-2">
-                        <strong>Busque seu cadastro de Cota Ativa</strong> pelo CNPJ/CPF ou código de cadastro.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <CotistaSearch
-                  onSelect={(cotaAtiva) => setSelectedCotaAtiva(cotaAtiva)}
-                  selectedCnpjCpf={selectedCotaAtiva?.cnpj_cpf}
-                  mode="public"
-                />
-
-                {selectedCotaAtiva && (
-                  <div className="rounded-xl border-2 border-green-200 bg-green-50 p-5 shadow-md">
-                    <div className="flex items-start gap-3">
-                      <span className="text-green-600 text-3xl shrink-0">✓</span>
-                      <div className="flex-1">
-                        <h4 className="text-base font-bold text-green-900">Cota Ativa Identificada!</h4>
-                        <div className="mt-3 space-y-2 text-sm text-green-800">
-                          <p><strong>Código:</strong> <span className="font-mono">{selectedCotaAtiva.codigo}</span></p>
-                          <p><strong>Razão Social:</strong> {selectedCotaAtiva.razao_social}</p>
-                          <p><strong>CNPJ/CPF:</strong> <span className="font-mono">{selectedCotaAtiva.cnpj_cpf}</span></p>
-                        </div>
-                        <div className="mt-4 rounded-lg bg-white border border-green-300 p-3">
-                          <p className="text-sm text-green-700 font-medium">
-                            🎉 Perfeito! Você terá acesso automático ao catálogo completo de produtos dos distribuidores.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {step === 2 && (
           <div className="mt-4 grid grid-cols-1 gap-3">
             <div>
               <label className="text-[12px] text-gray-700">Nome completo</label>
