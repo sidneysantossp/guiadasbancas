@@ -287,11 +287,15 @@ export default function JornaleiroRegisterPage() {
         
         const data = await response.json();
         
+        console.log('[Frontend] Resposta da API check-cpf:', data);
+        
         if (data.exists && data.bancas && data.bancas.length > 0) {
+          console.log('[Frontend] CPF existe com bancas:', data.bancas.length);
           setCpfExists(true);
           setIsCotista(data.isCotista || false);
           setExistingBancas(data.bancas);
         } else {
+          console.log('[Frontend] CPF livre ou apenas cotista');
           setCpfExists(false);
           setIsCotista(false);
           setExistingBancas([]);

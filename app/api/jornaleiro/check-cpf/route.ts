@@ -12,6 +12,8 @@ export async function POST(req: NextRequest) {
     // Remover formatação do CPF
     const cpfOnly = cpf.replace(/\D/g, '');
     
+    console.log('[check-cpf] Verificando CPF/CNPJ:', cpfOnly);
+    
     if (cpfOnly.length !== 11 && cpfOnly.length !== 14) {
       return NextResponse.json({ error: "CPF/CNPJ inválido" }, { status: 400 });
     }
@@ -23,12 +25,12 @@ export async function POST(req: NextRequest) {
       .eq('cnpj_cpf', cpfOnly);
 
     if (cotistasError) {
-      console.error('Erro ao buscar cotistas:', cotistasError);
+      console.error('[check-cpf] Erro ao buscar cotistas:', cotistasError);
     }
 
     // Se encontrou na tabela de cotistas, apenas registrar mas permitir cadastro
-    // Não bloquear o cadastro se for apenas cotista
     const isCotista = cotistas && cotistas.length > 0;
+    console.log('[check-cpf] É cotista?', isCotista, '- Total:', cotistas?.length || 0);
 
     // Buscar usuários com este CPF
     const { data: users, error: usersError } = await supabaseAdmin
@@ -37,12 +39,15 @@ export async function POST(req: NextRequest) {
       .eq('cpf', cpfOnly);
 
     if (usersError) {
-      console.error('Erro ao buscar usuários:', usersError);
+      console.error('[check-cpf] Erro ao buscar usuários:', usersError);
       return NextResponse.json({ error: "Erro ao verificar CPF" }, { status: 500 });
     }
 
-    // Se não encontrou usuários, CPF está livre (mesmo que seja cotista)
+    console.log('[check-cpf] Usuários encontrados:', users?.length || 0);
+
+    // Se não encontrou usuários, CPF está livre
     if (!users || users.length === 0) {
+      console.log('[check-cpf] CPF livre - sem usuários');
       return NextResponse.json({ 
         exists: false,
         bancas: [],
@@ -52,18 +57,23 @@ export async function POST(req: NextRequest) {
 
     // Buscar bancas associadas a esses usuários
     const userIds = users.map(u => u.id);
+    console.log('[check-cpf] Buscando bancas para user_ids:', userIds);
+    
     const { data: bancas, error: bancasError } = await supabaseAdmin
       .from('bancas')
       .select('id, name, address, city, uf, user_id')
       .in('user_id', userIds);
 
     if (bancasError) {
-      console.error('Erro ao buscar bancas:', bancasError);
+      console.error('[check-cpf] Erro ao buscar bancas:', bancasError);
       return NextResponse.json({ error: "Erro ao buscar bancas" }, { status: 500 });
     }
 
-    // Se não tem bancas, CPF está livre (mesmo que seja cotista)
+    console.log('[check-cpf] Bancas encontradas:', bancas?.length || 0);
+
+    // Se não tem bancas, CPF está livre
     if (!bancas || bancas.length === 0) {
+      console.log('[check-cpf] CPF livre - usuário sem bancas');
       return NextResponse.json({ 
         exists: false,
         bancas: [],
