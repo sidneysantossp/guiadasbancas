@@ -154,14 +154,26 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
 export async function PATCH(request: NextRequest, context: { params: { id: string } }) {
   try {
+    console.log('[PATCH] Iniciando atualização de produto...');
+    
     const session = await auth();
+    console.log('[PATCH] Session:', session?.user?.id ? 'OK' : 'NULL');
     
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
     }
 
     const { id } = context.params;
-    const body = await request.json();
+    console.log('[PATCH] Product ID:', id);
+    
+    let body;
+    try {
+      body = await request.json();
+      console.log('[PATCH] Body recebido:', Object.keys(body));
+    } catch (parseError) {
+      console.error('[PATCH] Erro ao parsear body:', parseError);
+      return NextResponse.json({ success: false, error: "Erro ao processar requisição" }, { status: 400 });
+    }
 
     // Buscar banca do usuário
     const { data: banca } = await supabaseAdmin
@@ -281,9 +293,14 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
 
     return NextResponse.json({ success: true, data: updatedProduct });
 
-  } catch (error) {
-    console.error('Erro ao atualizar produto:', error);
-    return NextResponse.json({ success: false, error: 'Erro interno do servidor' }, { status: 500 });
+  } catch (error: any) {
+    console.error('[PATCH] Erro ao atualizar produto:', error);
+    console.error('[PATCH] Stack:', error?.stack);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Erro interno: ' + (error?.message || 'desconhecido'),
+      stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+    }, { status: 500 });
   }
 }
 
