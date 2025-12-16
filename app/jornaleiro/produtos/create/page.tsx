@@ -233,7 +233,7 @@ export default function SellerProductCreatePage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-sm font-medium">Preço Sugerido</label>
+                <label className="text-sm font-medium">Preço de Custo</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
                   <input
@@ -266,20 +266,14 @@ export default function SellerProductCreatePage() {
                 <input type="number" step="1" min={0} max={100} name="discount_percent" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-sm font-medium">Cupom</label>
-                <input name="coupon_code" placeholder="EX: BANCAX10" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
                 <label className="text-sm font-medium">Estoque</label>
                 <input type="number" name="stock" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
               </div>
-              <div className="flex items-end">
-                <label className="inline-flex items-center gap-2 text-sm">
-                  <input name="track_stock" type="checkbox" className="rounded" /> Controlar estoque
-                </label>
-              </div>
+            </div>
+            <div className="flex items-center">
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input name="track_stock" type="checkbox" className="rounded" /> Controlar estoque
+              </label>
             </div>
             
             <div className="pt-2 border-t border-gray-200 space-y-3">
