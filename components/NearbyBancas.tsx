@@ -107,13 +107,6 @@ function BancaCard({
             Ver no Mapa
           </span>
         </div>
-        <div className="text-xs text-gray-700">
-          <div className="mt-3">
-            <span className="inline-flex w-full items-center justify-center rounded-full bg-[#ff5c00] px-4 py-2 text-[12px] font-semibold text-white shadow-sm hover:bg-[#ff7a33]">
-              Ver Banca
-            </span>
-          </div>
-        </div>
       </div>
     </Link>
   );
