@@ -16,6 +16,7 @@ type ProdutoListItem = {
   category_name?: string;
   price: number;
   cost_price?: number;
+  price_original?: number;
   stock_qty: number;
   active: boolean;
   updated_at?: string;
@@ -81,6 +82,7 @@ export default function JornaleiroProdutosPage() {
           category_name: categoryMap[p.category_id] || p.category_id,
           price: Number(p.price ?? 0),
           cost_price: p.cost_price ? Number(p.cost_price) : undefined,
+          price_original: p.price_original ? Number(p.price_original) : undefined,
           stock_qty: Number(p.stock_qty ?? 0),
           active: Boolean(p.active),
           updated_at: p.updated_at,
@@ -155,19 +157,26 @@ export default function JornaleiroProdutosPage() {
       ),
     },
     {
-      key: "price",
-      header: "Preço",
-      render: (r) => (
-        <div className="flex flex-col items-end">
-          <span className="font-semibold text-gray-900">
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(r.price)}
+      key: "cost_price",
+      header: "Preço de Custo",
+      render: (r) => {
+        // Prioridade: cost_price > price_original (se diferente de price)
+        const costValue = r.cost_price ?? (r.price_original && r.price_original !== r.price ? r.price_original : r.price);
+        return (
+          <span className="text-gray-600">
+            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(costValue)}
           </span>
-          {r.cost_price != null && r.cost_price > 0 && Math.abs(r.cost_price - r.price) > 0.01 && (
-            <span className="text-[11px] text-gray-500 mt-0.5">
-              Custo: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(r.cost_price)}
-            </span>
-          )}
-        </div>
+        );
+      },
+      align: "right",
+    },
+    {
+      key: "price",
+      header: "Preço de Venda",
+      render: (r) => (
+        <span className="font-semibold text-gray-900">
+          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(r.price)}
+        </span>
       ),
       align: "right",
     },
