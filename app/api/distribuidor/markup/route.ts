@@ -64,6 +64,13 @@ export async function GET(request: NextRequest) {
       .eq('active', true)
       .order('name');
 
+    // Contar total de produtos do distribuidor
+    const { count: totalProdutos } = await supabaseAdmin
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('distribuidor_id', distribuidorId)
+      .eq('active', true);
+
     return NextResponse.json({
       success: true,
       data: {
@@ -91,6 +98,7 @@ export async function GET(request: NextRequest) {
           markup_fixo: m.markup_fixo || 0,
         })),
         categorias_disponiveis: categoriasDisponiveis || [],
+        total_produtos: totalProdutos || 0,
       },
     }, {
       headers: {

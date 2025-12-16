@@ -13,6 +13,8 @@ import {
   IconCategory,
   IconPackage,
   IconInfoCircle,
+  IconWand,
+  IconRefresh,
 } from "@tabler/icons-react";
 
 type MarkupCategoria = {
@@ -66,6 +68,10 @@ export default function MarkupConfigPage() {
   const [newProdPercentual, setNewProdPercentual] = useState(0);
   const [newProdFixo, setNewProdFixo] = useState(0);
 
+  // Aplicação em massa
+  const [applyingBulk, setApplyingBulk] = useState(false);
+  const [totalProdutos, setTotalProdutos] = useState(0);
+
   useEffect(() => {
     const raw = localStorage.getItem("gb:distribuidor");
     if (raw) {
@@ -94,6 +100,7 @@ export default function MarkupConfigPage() {
         setMarkupCategorias(json.data.categorias || []);
         setMarkupProdutos(json.data.produtos || []);
         setCategoriasDisponiveis(json.data.categorias_disponiveis || []);
+        setTotalProdutos(json.data.total_produtos || 0);
       }
     } catch (error) {
       console.error('Erro ao buscar configurações:', error);
@@ -284,6 +291,67 @@ export default function MarkupConfigPage() {
       fetchMarkupConfig();
     } catch (error) {
       showMessage('error', 'Erro ao remover markup');
+    }
+  };
+
+  // Aplicar markup global em todos os produtos (criar registros individuais)
+  const applyBulkMarkup = async () => {
+    if (!confirm(`Isso irá aplicar o markup atual (${tipoCalculo === 'margem' ? `${globalMargem}% margem` : `${globalPercentual}% + R$${globalFixo.toFixed(2)}`}) a TODOS os ${totalProdutos} produtos. Deseja continuar?`)) {
+      return;
+    }
+
+    try {
+      setApplyingBulk(true);
+      const res = await fetch('/api/distribuidor/markup/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          distribuidor_id: distribuidor.id,
+          tipo_calculo: tipoCalculo,
+          markup_percentual: globalPercentual,
+          markup_fixo: globalFixo,
+          margem_percentual: globalMargem,
+          margem_divisor: globalDivisor,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        showMessage('success', `Markup aplicado com sucesso a ${json.updated} produtos!`);
+        fetchMarkupConfig();
+      } else {
+        showMessage('error', json.error || 'Erro ao aplicar markup em massa');
+      }
+    } catch (error) {
+      showMessage('error', 'Erro ao aplicar markup em massa');
+    } finally {
+      setApplyingBulk(false);
+    }
+  };
+
+  // Limpar todos os markups individuais de produtos
+  const clearAllProductMarkups = async () => {
+    if (!confirm('Isso irá remover TODOS os markups individuais de produtos. O markup global será usado. Deseja continuar?')) {
+      return;
+    }
+
+    try {
+      setApplyingBulk(true);
+      const res = await fetch(`/api/distribuidor/markup/bulk?distribuidor_id=${distribuidor.id}`, {
+        method: 'DELETE',
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        showMessage('success', `${json.deleted} markups de produtos removidos!`);
+        fetchMarkupConfig();
+      } else {
+        showMessage('error', json.error || 'Erro ao limpar markups');
+      }
+    } catch (error) {
+      showMessage('error', 'Erro ao limpar markups');
+    } finally {
+      setApplyingBulk(false);
     }
   };
 
@@ -525,7 +593,29 @@ export default function MarkupConfigPage() {
           </div>
         )}
 
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-between">
+          <div className="flex gap-2">
+            <button
+              onClick={applyBulkMarkup}
+              disabled={saving || applyingBulk || totalProdutos === 0}
+              className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2 font-medium text-sm"
+              title="Aplicar este markup a todos os produtos de uma vez"
+            >
+              <IconWand size={18} />
+              {applyingBulk ? 'Aplicando...' : `Aplicar em ${totalProdutos} produtos`}
+            </button>
+            {markupProdutos.length > 0 && (
+              <button
+                onClick={clearAllProductMarkups}
+                disabled={saving || applyingBulk}
+                className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 flex items-center gap-2 font-medium text-sm"
+                title="Remover todos os markups individuais e usar apenas o global"
+              >
+                <IconRefresh size={18} />
+                Resetar individuais
+              </button>
+            )}
+          </div>
           <button
             onClick={saveGlobalMarkup}
             disabled={saving}
@@ -534,6 +624,12 @@ export default function MarkupConfigPage() {
             <IconDeviceFloppy size={18} />
             Salvar Configuração
           </button>
+        </div>
+
+        {/* Alerta informativo */}
+        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+          <strong>💡 Dica:</strong> O markup global é aplicado automaticamente a todos os produtos que não têm markup específico por categoria ou produto. 
+          Use "Aplicar em X produtos" apenas se quiser criar registros individuais para cada produto.
         </div>
       </div>
 
