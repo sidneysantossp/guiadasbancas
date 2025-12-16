@@ -425,42 +425,48 @@ export default function JornaleiroRegisterPage() {
 
   const onNext = async () => {
     setError(null);
-    // Step 1: Jornaleiro (antigo step 2)
+    // Step 1: Jornaleiro - apenas nome, CPF e WhatsApp
     if (step === 1) {
       const e1 = validateName(name); setErrorField('name', e1);
       const e2 = validateCpf(cpf); setErrorField('cpf', e2);
       const e3 = validatePhone(phone); setErrorField('phone', e3);
-      const e4 = validateEmailField(email); setErrorField('email', e4);
-      const e5 = validatePasswordField(password); setErrorField('password', e5);
-      const e6 = validateConfirmField(confirmPassword, password); setErrorField('confirmPassword', e6);
-      if (e1 || e2 || e3 || e4 || e5 || e6) { return; }
+      if (e1 || e2 || e3) { return; }
       setStep(2);
       return;
     }
-    // Step 2: Banca (antigo step 3)
+    // Step 2: Email e Senha
     if (step === 2) {
-      const err = validateStep2();
-      if (err) { setError(err); return; }
+      const e4 = validateEmailField(email); setErrorField('email', e4);
+      const e5 = validatePasswordField(password); setErrorField('password', e5);
+      const e6 = validateConfirmField(confirmPassword, password); setErrorField('confirmPassword', e6);
+      if (e4 || e5 || e6) { return; }
       setStep(3);
       return;
     }
-    // Step 3: Imagens (antigo step 4)
+    // Step 3: Banca
     if (step === 3) {
-      // Validação das imagens é opcional
+      const err = validateStep2();
+      if (err) { setError(err); return; }
       setStep(4);
       return;
     }
-    // Step 4: Funcionamento (antigo step 5)
+    // Step 4: Imagens
     if (step === 4) {
-      const err = validateStep3();
-      if (err) { setError(err); return; }
+      // Validação das imagens é opcional
       setStep(5);
       return;
     }
-    // Step 5: Social Mídia (antigo step 6)
+    // Step 5: Funcionamento
     if (step === 5) {
-      // Validação opcional
+      const err = validateStep3();
+      if (err) { setError(err); return; }
       setStep(6);
+      return;
+    }
+    // Step 6: Social Mídia
+    if (step === 6) {
+      // Validação opcional
+      setStep(7);
       return;
     }
   };
@@ -680,14 +686,16 @@ export default function JornaleiroRegisterPage() {
           <div className="text-center">
             <h1 className="text-xl font-semibold">Cadastro do Jornaleiro</h1>
             {step === 1 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Estas são suas informações pessoais para futuros contatos. Os dados da sua banca serão solicitados na próxima etapa.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Informe seu nome completo, CPF e WhatsApp para começarmos seu cadastro.</p>
             ) : step === 2 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Agora vamos solicitar os dados públicos da sua banca. Essas informações serão exibidas para os clientes na plataforma.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Agora precisamos do seu email e senha para criar sua conta de acesso.</p>
             ) : step === 3 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Adicione as imagens da sua banca para criar uma identidade visual atrativa. O banner aparece no topo e a foto de perfil identifica sua banca.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Vamos solicitar os dados públicos da sua banca. Essas informações serão exibidas para os clientes na plataforma.</p>
             ) : step === 4 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Defina os horários de funcionamento da sua banca. Essas informações aparecerão para os clientes.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Adicione as imagens da sua banca para criar uma identidade visual atrativa. O banner aparece no topo e a foto de perfil identifica sua banca.</p>
             ) : step === 5 ? (
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Defina os horários de funcionamento da sua banca. Essas informações aparecerão para os clientes.</p>
+            ) : step === 6 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Adicione suas redes sociais para potencializar sua presença digital. É opcional e pode ser feito depois no painel.</p>
             ) : null}
           </div>
@@ -773,6 +781,11 @@ export default function JornaleiroRegisterPage() {
                 {fieldErrors.phone && <div className="mt-1 text-[11px] text-rose-600">{fieldErrors.phone}</div>}
               </div>
             </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="mt-4 grid grid-cols-1 gap-3">
             <div>
               <label className="text-[12px] text-gray-700">Email</label>
               <div className="relative">
@@ -869,7 +882,6 @@ export default function JornaleiroRegisterPage() {
                 })()}
               </div>
             )}
-
           </div>
         )}
 
