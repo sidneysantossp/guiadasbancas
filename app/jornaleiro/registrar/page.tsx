@@ -1137,19 +1137,6 @@ export default function JornaleiroRegisterPage() {
               <input className="input mt-1 w-full" placeholder="(00) 00000-0000" value={servicePhone} onChange={(e)=>setServicePhone(maskPhoneBR(e.target.value))} />
             </div>
 
-            {/* TPU: Apenas para não-cotistas ou cotistas sem cadastro encontrado */}
-            {(!isCotaAtiva || !selectedCotaAtiva) && (
-              <div className="md:col-span-2">
-                <FileUploadDragDrop
-                  label="Termo de Permissão de Uso (TPU) - PDF"
-                  value={bankTpuUrl}
-                  onChange={setBankTpuUrl}
-                  accept="application/pdf"
-                  role="jornaleiro"
-                  className="h-24 w-full"
-                />
-              </div>
-            )}
 
             {/* Geolocalização oculta nesta etapa (mantida apenas em memória) */}
             
