@@ -530,10 +530,11 @@ export default function JornaleiroRegisterPage() {
       const e3 = validatePhone(phone); setErrorField('phone', e3);
       if (e1 || e2 || e3) { return; }
       
-      // Verificar se CPF já está cadastrado em bancas (bloqueia)
-      // Se for apenas cotista, permite avançar
-      if (cpfExists && !isCotista) {
-        setError('Este CPF/CNPJ já possui cadastro. Acesse o Painel Administrativo para adicionar outra banca.');
+      // Verificar se CPF já está cadastrado (cotista ou banca) - bloqueia
+      if (cpfExists) {
+        setError(isCotista 
+          ? 'Este CPF/CNPJ já está cadastrado como Cota Ativa no sistema.'
+          : 'Este CPF/CNPJ já possui cadastro. Acesse o Painel Administrativo para adicionar outra banca.');
         return;
       }
       
@@ -890,16 +891,20 @@ export default function JornaleiroRegisterPage() {
               </div>
             </div>
 
-            {/* Exibir bancas existentes apenas se CPF já cadastrado em bancas (não cotista) */}
-            {cpfExists && !isCotista && existingBancas.length > 0 && (
+            {/* Exibir informações se CPF já cadastrado (cotista ou banca) */}
+            {cpfExists && existingBancas.length > 0 && (
               <div className="mt-6 space-y-4">
                 <div className="rounded-xl bg-amber-50 border-2 border-amber-300 p-4">
                   <div className="flex items-start gap-3">
                     <span className="text-amber-600 text-3xl shrink-0">⚠️</span>
                     <div className="flex-1">
-                      <h3 className="text-lg font-bold text-amber-900">CPF/CNPJ já cadastrado!</h3>
+                      <h3 className="text-lg font-bold text-amber-900">
+                        {isCotista ? 'CPF/CNPJ já cadastrado como Cota Ativa!' : 'CPF/CNPJ já cadastrado!'}
+                      </h3>
                       <p className="text-sm text-amber-800 mt-2">
-                        Este CPF/CNPJ já está vinculado às seguintes bancas:
+                        {isCotista 
+                          ? 'Este CPF/CNPJ já está registrado como Cota Ativa no sistema:'
+                          : 'Este CPF/CNPJ já está vinculado às seguintes bancas:'}
                       </p>
                     </div>
                   </div>
@@ -909,10 +914,16 @@ export default function JornaleiroRegisterPage() {
                   {existingBancas.map((banca) => (
                     <div key={banca.id} className="rounded-lg border-2 border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
                       <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
-                          <svg viewBox="0 0 24 24" className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M3 9l1-5h16l1 5M4 9h16v10H4z"/>
-                          </svg>
+                        <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${isCotista ? 'bg-blue-100' : 'bg-orange-100'}`}>
+                          {isCotista ? (
+                            <svg viewBox="0 0 24 24" className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                          ) : (
+                            <svg viewBox="0 0 24 24" className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M3 9l1-5h16l1 5M4 9h16v10H4z"/>
+                            </svg>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-base font-semibold text-gray-900 truncate">{banca.name}</h4>

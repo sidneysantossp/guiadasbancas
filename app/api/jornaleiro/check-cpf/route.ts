@@ -26,11 +26,30 @@ export async function POST(req: NextRequest) {
 
     if (cotistasError) {
       console.error('[check-cpf] Erro ao buscar cotistas:', cotistasError);
+      return NextResponse.json({ error: "Erro ao verificar cotistas" }, { status: 500 });
     }
 
-    // Se encontrou na tabela de cotistas, apenas registrar mas permitir cadastro
-    const isCotista = cotistas && cotistas.length > 0;
-    console.log('[check-cpf] É cotista?', isCotista, '- Total:', cotistas?.length || 0);
+    console.log('[check-cpf] Cotistas encontrados:', cotistas?.length || 0);
+
+    // Se encontrou na tabela de cotistas, BLOQUEAR cadastro
+    if (cotistas && cotistas.length > 0) {
+      const cotistaInfo = cotistas.map(c => ({
+        id: c.id,
+        name: `${c.codigo} - ${c.razao_social}` || 'Cotista',
+        address: `CNPJ/CPF: ${c.cnpj_cpf ? c.cnpj_cpf.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : 'N/A'}`
+      }));
+
+      console.log('[check-cpf] CPF/CNPJ já cadastrado como cotista:', cotistaInfo);
+
+      return NextResponse.json({
+        exists: true,
+        bancas: cotistaInfo,
+        isCotista: true,
+        message: cpfOnly.length === 11 
+          ? 'CPF já cadastrado como Cota Ativa' 
+          : 'CNPJ já cadastrado como Cota Ativa'
+      });
+    }
 
     // Buscar perfis de usuário com este CPF (CPF está em user_profiles, não em users)
     const { data: profiles, error: profilesError } = await supabaseAdmin
@@ -50,8 +69,7 @@ export async function POST(req: NextRequest) {
       console.log('[check-cpf] CPF livre - sem perfis');
       return NextResponse.json({ 
         exists: false,
-        bancas: [],
-        isCotista: isCotista
+        bancas: []
       });
     }
 
@@ -101,8 +119,7 @@ export async function POST(req: NextRequest) {
       console.log('[check-cpf] CPF livre - usuário sem bancas');
       return NextResponse.json({ 
         exists: false,
-        bancas: [],
-        isCotista: isCotista
+        bancas: []
       });
     }
 
