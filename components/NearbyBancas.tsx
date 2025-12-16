@@ -46,7 +46,8 @@ function BancaCard({
   priority?: boolean;
 }) {
   // Formatar distância: usar vírgula como separador decimal e "KM" maiúsculo
-  const distanceLabel = distance == null ? null : `${distance.toFixed(1).replace('.', ',')} KM`;
+  // Se distância > 100km, não mostrar (provavelmente erro de localização)
+  const distanceLabel = distance == null || distance > 100 ? null : `${distance.toFixed(1).replace('.', ',')} KM`;
   const openNow = useMemo(() => {
     try {
       const h = new Date().getHours();
