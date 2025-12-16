@@ -16,6 +16,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "CPF/CNPJ inválido" }, { status: 400 });
     }
 
+    // Verificar na tabela de cotistas (cota ativa)
+    const { data: cotistas, error: cotistasError } = await supabaseAdmin
+      .from('cotistas')
+      .select('id, razao_social, cnpj_cpf, codigo')
+      .eq('cnpj_cpf', cpfOnly);
+
+    if (cotistasError) {
+      console.error('Erro ao buscar cotistas:', cotistasError);
+    }
+
+    // Se encontrou na tabela de cotistas, retornar informação
+    if (cotistas && cotistas.length > 0) {
+      const cotistaInfo = cotistas.map(c => ({
+        id: c.id,
+        name: c.razao_social || 'Cotista',
+        address: `Código: ${c.codigo || 'N/A'}`
+      }));
+
+      return NextResponse.json({
+        exists: true,
+        bancas: cotistaInfo,
+        isCotista: true,
+        message: cpfOnly.length === 11 
+          ? 'CPF já cadastrado como Cota Ativa' 
+          : 'CNPJ já cadastrado como Cota Ativa'
+      });
+    }
+
     // Buscar usuários com este CPF
     const { data: users, error: usersError } = await supabaseAdmin
       .from('users')
