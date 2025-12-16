@@ -132,7 +132,11 @@ export default function SellerProductCreatePage() {
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify(vr.data),
       });
-      if (!res.ok) throw new Error("Falha ao criar produto.");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('[Create] Erro da API:', errorData);
+        throw new Error(errorData.error || "Falha ao criar produto.");
+      }
       toast.success("Produto criado com sucesso");
       router.push("/jornaleiro/produtos");
     } catch (e: any) {
