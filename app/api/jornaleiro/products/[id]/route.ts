@@ -194,18 +194,22 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
       });
       
       // Para produtos do distribuidor, salvar customizações na tabela específica
-      const customizationData = {
+      // Apenas campos válidos da tabela banca_produtos_distribuidor
+      const customizationData: Record<string, any> = {
         banca_id: banca.id,
         product_id: id,
-        enabled: body.active !== false,
-        custom_price: body.price || null,
-        custom_description: body.description || null,
-        custom_pronta_entrega: body.pronta_entrega || null,
-        custom_sob_encomenda: body.sob_encomenda || null,
-        custom_pre_venda: body.pre_venda || null,
-        custom_featured: body.featured || false,
-        modificado_em: new Date().toISOString()
+        enabled: body.active !== false
       };
+      
+      // Adicionar campos opcionais apenas se definidos
+      if (body.price !== undefined) customizationData.custom_price = body.price;
+      if (body.description !== undefined) customizationData.custom_description = body.description;
+      if (body.pronta_entrega !== undefined) customizationData.custom_pronta_entrega = body.pronta_entrega;
+      if (body.sob_encomenda !== undefined) customizationData.custom_sob_encomenda = body.sob_encomenda;
+      if (body.pre_venda !== undefined) customizationData.custom_pre_venda = body.pre_venda;
+      if (body.featured !== undefined) customizationData.custom_featured = body.featured;
+
+      console.log('[PATCH] Salvando customização do distribuidor:', customizationData);
 
       // Usar upsert para inserir ou atualizar customização
       const { error: customError } = await supabaseAdmin
@@ -216,7 +220,7 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
 
       if (customError) {
         console.error('Erro ao salvar customização:', customError);
-        return NextResponse.json({ success: false, error: 'Erro ao salvar customização' }, { status: 500 });
+        return NextResponse.json({ success: false, error: 'Erro ao salvar customização: ' + customError.message }, { status: 500 });
       }
 
       return NextResponse.json({ success: true, message: 'Customização salva com sucesso' });
