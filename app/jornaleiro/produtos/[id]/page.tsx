@@ -278,33 +278,37 @@ export default function SellerProductEditPage() {
       }
       
 
-      // Lógica de preços:
-      // - price (state) = preço do distribuidor (base, não editável)
-      // - priceOriginal (state) = preço de venda customizado (editável)
+      // Lógica de preços para não-cotistas:
+      // - price (state) = preço de custo
+      // - priceOriginal (state) = preço de venda
       // 
       // Ao salvar no banco:
-      // - price (banco) = preço de venda final (o que o cliente paga)
-      // - price_original (banco) = preço original antes do desconto (se houver)
+      // - price (banco) = preço de venda final
+      // - price_original (banco) = preço de custo (se diferente do preço de venda)
       
-      const priceDistribuidor = parseCurrency(price); // Preço base do distribuidor
-      const priceVenda = parseCurrency(priceOriginal); // Preço de venda (editado pelo jornaleiro)
+      const priceCusto = parseCurrency(price);
+      const priceVenda = parseCurrency(priceOriginal);
+      
+      // Garantir que temos valores válidos
+      const finalPrice = priceVenda > 0 ? priceVenda : priceCusto;
+      const finalPriceOriginal = priceCusto !== finalPrice ? priceCusto : null;
       
       console.log('[DEBUG] Valores antes de salvar:', {
         price_state: price,
         priceOriginal_state: priceOriginal,
-        priceDistribuidor,
+        priceCusto,
         priceVenda,
-        discountPercent,
-        hasCustomPrice
+        finalPrice,
+        finalPriceOriginal,
+        discountPercent
       });
 
       const body = {
         name: (fd.get("name") as string)?.trim(),
         description: (fd.get("description") as string) || "",
-        price: priceVenda, // Preço de venda (o que o cliente paga)
-        price_original: hasCustomPrice && discountPercent > 0 ? priceDistribuidor : null, // Preço original (se houver desconto)
-        discount_percent: discountPercent,
-        has_custom_price: hasCustomPrice, // Flag para indicar se foi personalizado
+        price: finalPrice,
+        price_original: finalPriceOriginal,
+        discount_percent: discountPercent || 0,
         stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
         track_stock: Boolean(fd.get("track_stock")),
         featured: Boolean(fd.get("featured")),
@@ -316,7 +320,6 @@ export default function SellerProductEditPage() {
         coupon_code: (fd.get("coupon_code") as string)?.trim() || undefined,
         description_full: descriptionFull,
         specifications: specifications,
-        gallery_images: [],
       };
 
       const vr = validateProductUpdate(body as any);
