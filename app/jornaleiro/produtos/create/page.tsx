@@ -47,8 +47,9 @@ export default function SellerProductCreatePage() {
   const [descriptionFull, setDescriptionFull] = useState("");
   const [specifications, setSpecifications] = useState("");
   const [allowReviews, setAllowReviews] = useState(true);
-  const [price, setPrice] = useState("");
-  const [priceOriginal, setPriceOriginal] = useState("");
+  const [costPrice, setCostPrice] = useState("");
+  const [salePrice, setSalePrice] = useState("");
+  const [discountPercent, setDiscountPercent] = useState("");
   
   // Estados para contexto da IA
   const [productName, setProductName] = useState("");
@@ -103,13 +104,28 @@ export default function SellerProductCreatePage() {
       }
       
 
+      // Calcular preços corretamente
+      const salePriceValue = salePrice ? parseCurrency(salePrice) : 0;
+      const discountValue = discountPercent ? Number(discountPercent) : 0;
+      const costPriceValue = costPrice ? parseCurrency(costPrice) : 0;
+      
+      // Se tiver desconto, price_original = preço de venda, price = preço com desconto
+      // Se não tiver desconto, price = preço de venda
+      let finalPrice = salePriceValue;
+      let originalPrice: number | undefined = undefined;
+      
+      if (discountValue > 0 && discountValue <= 100) {
+        originalPrice = salePriceValue;
+        finalPrice = salePriceValue * (1 - discountValue / 100);
+      }
+
       const body = {
         name: (fd.get("name") as string)?.trim(),
         description: (fd.get("description") as string) || "",
         category_id: (fd.get("category") as string)?.trim(),
-        price: parseCurrency(price),
-        price_original: priceOriginal ? parseCurrency(priceOriginal) : undefined,
-        discount_percent: fd.get("discount_percent") ? Number(fd.get("discount_percent")) : undefined,
+        price: finalPrice,
+        price_original: originalPrice,
+        discount_percent: discountValue || undefined,
         stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
         track_stock: Boolean(fd.get("track_stock")),
         featured: Boolean(fd.get("featured")),
@@ -118,9 +134,8 @@ export default function SellerProductCreatePage() {
         sob_encomenda: Boolean(fd.get("sob_encomenda")),
         pre_venda: Boolean(fd.get("pre_venda")),
         pronta_entrega: Boolean(fd.get("pronta_entrega")),
-        coupon_code: (fd.get("coupon_code") as string)?.trim() || undefined,
         description_full: descriptionFull,
-        specifications: specifications,
+        specifications: costPriceValue > 0 ? `${specifications}\n\n<!-- cost_price:${costPriceValue} -->` : specifications,
         gallery_images: [],
         allow_reviews: allowReviews,
       };
@@ -242,9 +257,8 @@ export default function SellerProductCreatePage() {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
                   <input
                     type="text"
-                    value={formatCurrency(price)}
-                    onChange={(e) => setPrice(formatCurrency(e.target.value))}
-                    required
+                    value={formatCurrency(costPrice)}
+                    onChange={(e) => setCostPrice(formatCurrency(e.target.value))}
                     className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
                     placeholder="0,00"
                   />
@@ -256,8 +270,9 @@ export default function SellerProductCreatePage() {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
                   <input
                     type="text"
-                    value={formatCurrency(priceOriginal)}
-                    onChange={(e) => setPriceOriginal(formatCurrency(e.target.value))}
+                    value={formatCurrency(salePrice)}
+                    onChange={(e) => setSalePrice(formatCurrency(e.target.value))}
+                    required
                     className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
                     placeholder="0,00"
                   />
@@ -267,7 +282,15 @@ export default function SellerProductCreatePage() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-sm font-medium">Desconto (%)</label>
-                <input type="number" step="1" min={0} max={100} name="discount_percent" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                <input 
+                  type="number" 
+                  step="1" 
+                  min={0} 
+                  max={100} 
+                  value={discountPercent}
+                  onChange={(e) => setDiscountPercent(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+                />
               </div>
               <div>
                 <label className="text-sm font-medium">Estoque</label>
