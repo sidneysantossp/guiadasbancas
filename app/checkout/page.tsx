@@ -517,6 +517,15 @@ export default function CheckoutPage() {
       }
     } catch {}
 
+    // Validar telefone obrigatório
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (!phoneDigits || phoneDigits.length < 10) {
+      show("Informe seu telefone com DDD para continuar");
+      setEditingPhone(true);
+      setSubmitting(false);
+      return;
+    }
+
     // Exigir login/registro antes de finalizar
     try {
       const logged = typeof window !== "undefined" && !!localStorage.getItem("gb:user");
@@ -624,12 +633,16 @@ export default function CheckoutPage() {
                         <span className="text-gray-600">Telefone:</span>
                         {!editingPhone ? (
                           <>
-                            <span className="font-medium">{phone || "-"}</span>
-                            <button type="button" className="text-[12px] underline" onClick={()=>{ setPhoneDraft(phone); setEditingPhone(true); }}>Editar</button>
+                            {phone ? (
+                              <span className="font-medium">{phone}</span>
+                            ) : (
+                              <span className="text-red-500 font-medium">Não informado</span>
+                            )}
+                            <button type="button" className={`text-[12px] underline ${!phone ? 'text-red-500 font-semibold' : ''}`} onClick={()=>{ setPhoneDraft(phone); setEditingPhone(true); }}>{phone ? 'Editar' : 'Adicionar *'}</button>
                           </>
                         ) : (
                           <div className="flex items-center gap-2">
-                            <input className="input h-8" value={phoneDraft} onChange={(e)=> setPhoneDraft(formatPhone(e.target.value))} placeholder="(XX) XXXXX-XXXX" />
+                            <input className="input h-8" value={phoneDraft} onChange={(e)=> setPhoneDraft(formatPhone(e.target.value))} placeholder="(XX) XXXXX-XXXX" autoFocus />
                             <button type="button" className="rounded-md bg-[#ff5c00] px-2 py-1 text-white text-[12px]" onClick={()=>{ setPhone(phoneDraft); setEditingPhone(false); show('Telefone atualizado'); }}>Salvar</button>
                             <button type="button" className="rounded-md border px-2 py-1 text-[12px]" onClick={()=>{ setEditingPhone(false); setPhoneDraft(""); }}>Cancelar</button>
                           </div>
