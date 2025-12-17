@@ -210,14 +210,22 @@ export async function GET(req: NextRequest) {
       
       // 1. Verificar markup específico do produto
       const markupProd = markupProdMap.get(produtoId);
-      if (markupProd && (markupProd.percentual > 0 || markupProd.fixo > 0)) {
-        return precoBase * (1 + markupProd.percentual / 100) + markupProd.fixo;
+      if (markupProd) {
+        const mpPerc = Number(markupProd.percentual || 0);
+        const mpFixo = Number(markupProd.fixo || 0);
+        if (mpPerc > 0 || mpFixo > 0) {
+          return precoBase * (1 + mpPerc / 100) + mpFixo;
+        }
       }
 
       // 2. Verificar markup da categoria
       const markupCat = markupCatMap.get(`${distribuidorId}:${categoryId}`);
-      if (markupCat && (markupCat.percentual > 0 || markupCat.fixo > 0)) {
-        return precoBase * (1 + markupCat.percentual / 100) + markupCat.fixo;
+      if (markupCat) {
+        const mcPerc = Number(markupCat.percentual || 0);
+        const mcFixo = Number(markupCat.fixo || 0);
+        if (mcPerc > 0 || mcFixo > 0) {
+          return precoBase * (1 + mcPerc / 100) + mcFixo;
+        }
       }
 
       // 3. Usar configuração global do distribuidor
@@ -227,15 +235,16 @@ export async function GET(req: NextRequest) {
         
         // Se usar margem (divisor)
         if (tipoCalculo === 'margem') {
-          const divisor = dist.margem_divisor || 1;
+          const divisor = Number(dist.margem_divisor || 1);
           if (divisor > 0 && divisor < 1) {
             return precoBase / divisor;
           }
         }
         
         // Se usar markup simples
-        const globalPerc = dist.markup_global_percentual || 0;
-        const globalFixo = dist.markup_global_fixo || 0;
+        const globalPerc = Number(dist.markup_global_percentual || 0);
+        const globalFixo = Number(dist.markup_global_fixo || 0);
+        
         if (globalPerc > 0 || globalFixo > 0) {
           return precoBase * (1 + globalPerc / 100) + globalFixo;
         }

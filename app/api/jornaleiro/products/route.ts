@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: NextRequest) {
   const session = await auth();
   
@@ -164,28 +167,44 @@ export async function GET(request: NextRequest) {
       calcularPrecoMarkup = (precoBase: number, produtoId: string, distribuidorId: string, categoryId: string) => {
         // 1. Produto
         const mp = markupProdMap.get(produtoId);
-        if (mp && (mp.markup_percentual > 0 || mp.markup_fixo > 0)) {
-          const resultado = precoBase * (1 + mp.markup_percentual / 100) + mp.markup_fixo;
-          console.log(`[MARKUP] Produto ${produtoId}: base=${precoBase} => ${resultado} (markup produto: ${mp.markup_percentual}%)`);
-          return resultado;
+        if (mp) {
+          const mpPerc = Number(mp.markup_percentual || 0);
+          const mpFixo = Number(mp.markup_fixo || 0);
+          
+          if (mpPerc > 0 || mpFixo > 0) {
+            const resultado = precoBase * (1 + mpPerc / 100) + mpFixo;
+            console.log(`[MARKUP] Produto ${produtoId}: base=${precoBase} => ${resultado} (markup produto: ${mpPerc}%)`);
+            return resultado;
+          }
         }
+
         // 2. Categoria
         const mc = markupCatMap.get(`${distribuidorId}:${categoryId}`);
-        if (mc && (mc.markup_percentual > 0 || mc.markup_fixo > 0)) {
-          const resultado = precoBase * (1 + mc.markup_percentual / 100) + mc.markup_fixo;
-          console.log(`[MARKUP] Produto ${produtoId}: base=${precoBase} => ${resultado} (markup categoria: ${mc.markup_percentual}%)`);
-          return resultado;
+        if (mc) {
+          const mcPerc = Number(mc.markup_percentual || 0);
+          const mcFixo = Number(mc.markup_fixo || 0);
+          
+          if (mcPerc > 0 || mcFixo > 0) {
+            const resultado = precoBase * (1 + mcPerc / 100) + mcFixo;
+            console.log(`[MARKUP] Produto ${produtoId}: base=${precoBase} => ${resultado} (markup categoria: ${mcPerc}%)`);
+            return resultado;
+          }
         }
+
         // 3. Global
         const dist = distMap.get(distribuidorId);
         if (dist) {
-          if (dist.tipo_calculo === 'margem' && dist.margem_divisor > 0 && dist.margem_divisor < 1) {
-            const resultado = precoBase / dist.margem_divisor;
-            console.log(`[MARKUP] Produto ${produtoId}: base=${precoBase} => ${resultado} (margem divisor: ${dist.margem_divisor})`);
+          const margemDivisor = Number(dist.margem_divisor || 1);
+          
+          if (dist.tipo_calculo === 'margem' && margemDivisor > 0 && margemDivisor < 1) {
+            const resultado = precoBase / margemDivisor;
+            console.log(`[MARKUP] Produto ${produtoId}: base=${precoBase} => ${resultado} (margem divisor: ${margemDivisor})`);
             return resultado;
           }
-          const perc = dist.markup_global_percentual || 0;
-          const fixo = dist.markup_global_fixo || 0;
+          
+          const perc = Number(dist.markup_global_percentual || 0);
+          const fixo = Number(dist.markup_global_fixo || 0);
+          
           if (perc > 0 || fixo > 0) {
             const resultado = precoBase * (1 + perc / 100) + fixo;
             console.log(`[MARKUP] Produto ${produtoId}: base=${precoBase} => ${resultado} (markup global: ${perc}% + ${fixo})`);

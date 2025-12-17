@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
     const session = await auth();
@@ -29,6 +32,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     // Se o produto tem distribuidor_id, buscar customizações da banca e aplicar Markup
     if (product.distribuidor_id) {
+      console.log(`[PRODUCT_GET] Produto ${id} é de distribuidor (${product.distribuidor_id})`);
+      
       // 1. Calcular preço com Markup
       let precoComMarkup = product.price;
 
@@ -57,19 +62,49 @@ export async function GET(request: NextRequest, context: { params: { id: string 
           .single()
       ]);
 
+      console.log('[PRODUCT_GET] Regras de Markup encontradas:', {
+        dist: dist ? 'Sim' : 'Não',
+        markupCat: markupCat ? `Sim (${markupCat.markup_percentual}%)` : 'Não',
+        markupProd: markupProd ? `Sim (${markupProd.markup_percentual}%)` : 'Não',
+        precoBase: product.price
+      });
+
       // Aplicar regras de prioridade: Produto > Categoria > Global
-      if (markupProd && (markupProd.markup_percentual > 0 || markupProd.markup_fixo > 0)) {
-        precoComMarkup = product.price * (1 + markupProd.markup_percentual / 100) + markupProd.markup_fixo;
-      } else if (markupCat && (markupCat.markup_percentual > 0 || markupCat.markup_fixo > 0)) {
-        precoComMarkup = product.price * (1 + markupCat.markup_percentual / 100) + markupCat.markup_fixo;
-      } else if (dist) {
-        if (dist.tipo_calculo === 'margem' && dist.margem_divisor > 0 && dist.margem_divisor < 1) {
-          precoComMarkup = product.price / dist.margem_divisor;
+      if (markupProd) {
+        const mpPerc = Number(markupProd.markup_percentual || 0);
+        const mpFixo = Number(markupProd.markup_fixo || 0);
+        if (mpPerc > 0 || mpFixo > 0) {
+          precoComMarkup = product.price * (1 + mpPerc / 100) + mpFixo;
+          console.log(`[PRODUCT_GET] Aplicado Markup Produto: ${precoComMarkup}`);
+        }
+      } 
+      
+      // Se não aplicou markup de produto, tenta categoria
+      if (precoComMarkup === product.price && markupCat) {
+        const mcPerc = Number(markupCat.markup_percentual || 0);
+        const mcFixo = Number(markupCat.markup_fixo || 0);
+        if (mcPerc > 0 || mcFixo > 0) {
+          precoComMarkup = product.price * (1 + mcPerc / 100) + mcFixo;
+          console.log(`[PRODUCT_GET] Aplicado Markup Categoria: ${precoComMarkup}`);
+        }
+      }
+      
+      // Se não aplicou produto nem categoria, tenta global
+      if (precoComMarkup === product.price && dist) {
+        const margemDivisor = Number(dist.margem_divisor || 1);
+        
+        if (dist.tipo_calculo === 'margem' && margemDivisor > 0 && margemDivisor < 1) {
+          precoComMarkup = product.price / margemDivisor;
+          console.log(`[PRODUCT_GET] Aplicado Margem Global: ${precoComMarkup}`);
         } else {
-          const perc = dist.markup_global_percentual || 0;
-          const fixo = dist.markup_global_fixo || 0;
+          const perc = Number(dist.markup_global_percentual || 0);
+          const fixo = Number(dist.markup_global_fixo || 0);
+          
           if (perc > 0 || fixo > 0) {
             precoComMarkup = product.price * (1 + perc / 100) + fixo;
+            console.log(`[PRODUCT_GET] Aplicado Markup Global (${perc}% + ${fixo}): ${precoComMarkup}`);
+          } else {
+            console.log('[PRODUCT_GET] Distribuidor sem markup global configurado');
           }
         }
       }
@@ -91,6 +126,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
           .single();
 
         if (customization) {
+          console.log('[PRODUCT_GET] Customização encontrada:', customization);
           const finalPrice = customization.custom_price || precoComMarkup;
           const originalPrice = precoComMarkup;
           
@@ -106,6 +142,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
             // O preço "original" (base de cálculo para visualização) será o precoComMarkup
             price: finalPrice, 
             price_original: originalPrice,
+            cost_price: product.price, // Adicionar explicitamente o custo base
             discount_percent: computedDiscount,
             
             // Outros campos customizados
@@ -128,6 +165,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
           ...product,
           price: precoComMarkup,
           price_original: null, // ou precoComMarkup, mas o front trata null como "sem customização"
+          cost_price: product.price, // Adicionar explicitamente o custo base
           discount_percent: 0
         }
       });
