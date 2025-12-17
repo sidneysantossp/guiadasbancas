@@ -518,7 +518,8 @@ function MinhaContaPageContent() {
                                 const cpfDigits = (profileCPF || '').replace(/\D+/g,'');
                                 if (cpfDigits && !isValidCPF(cpfDigits)) { setProfileErr('CPF inválido'); return; }
                                 try {
-                                  const newUser = { name: profileName || (profileEmail.split('@')[0] || ''), email: profileEmail };
+                                  // IMPORTANTE: Usar nome real, não parte do email
+                                  const newUser = { name: profileName.trim() || 'Cliente', email: profileEmail };
                                   localStorage.setItem('gb:user', JSON.stringify(newUser));
                                   setUser(newUser);
                                 } catch {}

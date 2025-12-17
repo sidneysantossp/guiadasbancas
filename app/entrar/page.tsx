@@ -46,7 +46,8 @@ function EntrarPageContent() {
     }
     
     // Mock auth: aceita qualquer email/senha
-    const payload = { name: name || email.split("@")[0], email };
+    // IMPORTANTE: Usar nome real, não parte do email
+    const payload = { name: name.trim() || 'Cliente', email };
     try {
       localStorage.setItem("gb:user", JSON.stringify(payload));
       try { window.dispatchEvent(new Event('gb:user:changed')); } catch {}
