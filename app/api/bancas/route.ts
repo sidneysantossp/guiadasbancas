@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 type StoreBanca = { 
   id: string; 
   name: string; 

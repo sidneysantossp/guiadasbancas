@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 // Force dynamic to prevent static generation errors
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 /**
  * API otimizada para FeaturedBancas - retorna apenas as bancas em destaque
@@ -53,6 +54,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ 
       data: list,
       meta: { total: list.length, limit }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+      }
     });
   } catch (e: any) {
     console.error('[API/bancas/featured] Exception:', e);
