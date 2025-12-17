@@ -133,10 +133,18 @@ export async function GET(request: NextRequest) {
 
     if (distribuidorIds.length > 0) {
       // Buscar distribuidores
-      const { data: dists } = await supabaseAdmin
+      const { data: dists, error: distError } = await supabaseAdmin
         .from('distribuidores')
-        .select('id, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor, tipo_calculo')
+        .select('id, nome, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor, tipo_calculo')
         .in('id', distribuidorIds);
+      
+      console.log('[JORNALEIRO/PRODUCTS] Distribuidores encontrados:', dists?.length || 0);
+      if (distError) {
+        console.error('[JORNALEIRO/PRODUCTS] Erro ao buscar distribuidores:', distError);
+      }
+      dists?.forEach((d: any) => {
+        console.log(`[JORNALEIRO/PRODUCTS] Distribuidor ${d.nome} (${d.id}): markup_global=${d.markup_global_percentual}%, fixo=${d.markup_global_fixo}, tipo=${d.tipo_calculo}`);
+      });
       distMap = new Map((dists || []).map((d: any) => [d.id, d]));
 
       // Buscar markups por categoria
@@ -157,24 +165,35 @@ export async function GET(request: NextRequest) {
         // 1. Produto
         const mp = markupProdMap.get(produtoId);
         if (mp && (mp.markup_percentual > 0 || mp.markup_fixo > 0)) {
-          return precoBase * (1 + mp.markup_percentual / 100) + mp.markup_fixo;
+          const resultado = precoBase * (1 + mp.markup_percentual / 100) + mp.markup_fixo;
+          console.log(`[MARKUP] Produto ${produtoId}: base=${precoBase} => ${resultado} (markup produto: ${mp.markup_percentual}%)`);
+          return resultado;
         }
         // 2. Categoria
         const mc = markupCatMap.get(`${distribuidorId}:${categoryId}`);
         if (mc && (mc.markup_percentual > 0 || mc.markup_fixo > 0)) {
-          return precoBase * (1 + mc.markup_percentual / 100) + mc.markup_fixo;
+          const resultado = precoBase * (1 + mc.markup_percentual / 100) + mc.markup_fixo;
+          console.log(`[MARKUP] Produto ${produtoId}: base=${precoBase} => ${resultado} (markup categoria: ${mc.markup_percentual}%)`);
+          return resultado;
         }
         // 3. Global
         const dist = distMap.get(distribuidorId);
         if (dist) {
           if (dist.tipo_calculo === 'margem' && dist.margem_divisor > 0 && dist.margem_divisor < 1) {
-            return precoBase / dist.margem_divisor;
+            const resultado = precoBase / dist.margem_divisor;
+            console.log(`[MARKUP] Produto ${produtoId}: base=${precoBase} => ${resultado} (margem divisor: ${dist.margem_divisor})`);
+            return resultado;
           }
           const perc = dist.markup_global_percentual || 0;
           const fixo = dist.markup_global_fixo || 0;
           if (perc > 0 || fixo > 0) {
-            return precoBase * (1 + perc / 100) + fixo;
+            const resultado = precoBase * (1 + perc / 100) + fixo;
+            console.log(`[MARKUP] Produto ${produtoId}: base=${precoBase} => ${resultado} (markup global: ${perc}% + ${fixo})`);
+            return resultado;
           }
+          console.log(`[MARKUP] Produto ${produtoId}: distribuidor encontrado mas sem markup definido (perc=${perc}, fixo=${fixo})`);
+        } else {
+          console.log(`[MARKUP] Produto ${produtoId}: distribuidor ${distribuidorId} NÃO encontrado no distMap`);
         }
         return precoBase;
       };
