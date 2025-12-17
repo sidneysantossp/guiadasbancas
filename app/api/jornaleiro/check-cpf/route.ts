@@ -26,32 +26,28 @@ export async function POST(req: NextRequest) {
 
     if (cotistasError) {
       console.error('[check-cpf] Erro ao buscar cotistas:', cotistasError);
-      return NextResponse.json({ error: "Erro ao verificar cotistas" }, { status: 500 });
     }
 
-    console.log('[check-cpf] Cotistas encontrados:', cotistas?.length || 0);
+    // Flag para indicar se é cotista (usado apenas se tiver banca ativa ou futura implementação)
+    const isCotistaFound = cotistas && cotistas.length > 0;
+    console.log('[check-cpf] É cotista:', isCotistaFound);
 
-    // Se encontrou na tabela de cotistas, BLOQUEAR cadastro
-    if (cotistas && cotistas.length > 0) {
-      const cotistaInfo = cotistas.map(c => ({
-        id: c.id,
-        name: `${c.codigo} - ${c.razao_social}` || 'Cotista',
-        address: `CNPJ/CPF: ${c.cnpj_cpf ? c.cnpj_cpf.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : 'N/A'}`
-      }));
+    // Lista final de bancas ativas encontradas
+    let bancasAtivas: any[] = [];
 
-      console.log('[check-cpf] CPF/CNPJ já cadastrado como cotista:', cotistaInfo);
+    // 1. Buscar bancas ATIVAS vinculadas diretamente a este CPF de cotista
+    const { data: bancasCotista } = await supabaseAdmin
+      .from('bancas')
+      .select('id, name, address, city, uf, user_id, active')
+      .eq('cotista_cnpj_cpf', cpfOnly)
+      .eq('active', true); // APENAS ATIVAS
 
-      return NextResponse.json({
-        exists: true,
-        bancas: cotistaInfo,
-        isCotista: true,
-        message: cpfOnly.length === 11 
-          ? 'CPF já cadastrado como Cota Ativa' 
-          : 'CNPJ já cadastrado como Cota Ativa'
-      });
+    if (bancasCotista && bancasCotista.length > 0) {
+      console.log('[check-cpf] Bancas ativas encontradas por vínculo de cotista:', bancasCotista.length);
+      bancasAtivas = [...bancasAtivas, ...bancasCotista];
     }
 
-    // Buscar perfis de usuário com este CPF (CPF está em user_profiles, não em users)
+    // 2. Buscar perfis de usuário com este CPF
     const { data: profiles, error: profilesError } = await supabaseAdmin
       .from('user_profiles')
       .select('id, full_name, cpf, banca_id')
@@ -59,72 +55,55 @@ export async function POST(req: NextRequest) {
 
     if (profilesError) {
       console.error('[check-cpf] Erro ao buscar perfis:', profilesError);
-      return NextResponse.json({ error: "Erro ao verificar CPF" }, { status: 500 });
     }
 
-    console.log('[check-cpf] Perfis encontrados:', profiles?.length || 0);
-
-    // Se não encontrou perfis, CPF está livre
-    if (!profiles || profiles.length === 0) {
-      console.log('[check-cpf] CPF livre - sem perfis');
-      return NextResponse.json({ 
-        exists: false,
-        bancas: []
-      });
-    }
-
-    // Buscar bancas associadas a esses perfis (via banca_id no perfil ou user_id na banca)
-    const userIds = profiles.map(p => p.id);
-    const bancaIds = profiles.map(p => p.banca_id).filter(Boolean);
-    
-    console.log('[check-cpf] Buscando bancas para user_ids:', userIds, 'e banca_ids:', bancaIds);
-    
-    // Buscar bancas por user_id OU por id (se tiver banca_id no perfil)
-    let bancas: any[] = [];
-    
-    if (bancaIds.length > 0) {
-      const { data: bancasByIds, error: bancasError1 } = await supabaseAdmin
-        .from('bancas')
-        .select('id, name, address, city, uf, user_id')
-        .in('id', bancaIds);
+    // Se encontrou perfis, verificar se eles têm bancas ATIVAS
+    if (profiles && profiles.length > 0) {
+      console.log('[check-cpf] Perfis encontrados:', profiles.length);
       
-      if (!bancasError1 && bancasByIds) {
-        bancas = [...bancas, ...bancasByIds];
-      }
-    }
-    
-    const { data: bancasByUser, error: bancasError2 } = await supabaseAdmin
-      .from('bancas')
-      .select('id, name, address, city, uf, user_id')
-      .in('user_id', userIds);
-
-    if (bancasError2) {
-      console.error('[check-cpf] Erro ao buscar bancas:', bancasError2);
-      return NextResponse.json({ error: "Erro ao buscar bancas" }, { status: 500 });
-    }
-    
-    if (bancasByUser) {
-      // Adicionar bancas que ainda não estão na lista
-      for (const b of bancasByUser) {
-        if (!bancas.find(existing => existing.id === b.id)) {
-          bancas.push(b);
+      const userIds = profiles.map(p => p.id);
+      const bancaIds = profiles.map(p => p.banca_id).filter(Boolean);
+      
+      // Buscar bancas por user_id OU por id, filtrando por ACTIVE=true
+      if (bancaIds.length > 0) {
+        const { data: bancasByIds } = await supabaseAdmin
+          .from('bancas')
+          .select('id, name, address, city, uf, user_id, active')
+          .in('id', bancaIds)
+          .eq('active', true); // APENAS ATIVAS
+        
+        if (bancasByIds) {
+          bancasAtivas = [...bancasAtivas, ...bancasByIds];
         }
       }
+      
+      const { data: bancasByUser } = await supabaseAdmin
+        .from('bancas')
+        .select('id, name, address, city, uf, user_id, active')
+        .in('user_id', userIds)
+        .eq('active', true); // APENAS ATIVAS
+
+      if (bancasByUser) {
+        bancasAtivas = [...bancasAtivas, ...bancasByUser];
+      }
     }
 
-    console.log('[check-cpf] Bancas encontradas:', bancas?.length || 0);
+    // Remover duplicatas (bancas encontradas por múltiplos critérios)
+    const uniqueBancas = Array.from(new Map(bancasAtivas.map(item => [item.id, item])).values());
+    console.log('[check-cpf] Total de bancas ativas únicas:', uniqueBancas.length);
 
-    // Se não tem bancas, CPF está livre
-    if (!bancas || bancas.length === 0) {
-      console.log('[check-cpf] CPF livre - usuário sem bancas');
+    // Se não tem bancas ATIVAS, CPF está livre (mesmo que seja cotista ou tenha perfil antigo)
+    if (uniqueBancas.length === 0) {
+      console.log('[check-cpf] CPF livre - sem bancas ativas');
       return NextResponse.json({ 
         exists: false,
-        bancas: []
+        bancas: [],
+        isCotista: isCotistaFound // Informar pro front caso queiram usar, mas exists=false libera o fluxo
       });
     }
 
-    // Formatar endereço das bancas
-    const bancasFormatted = bancas.map(banca => {
+    // Se tem bancas ATIVAS, bloqueia e retorna lista
+    const bancasFormatted = uniqueBancas.map(banca => {
       let endereco = '';
       
       if (typeof banca.address === 'string') {
@@ -141,7 +120,6 @@ export async function POST(req: NextRequest) {
         endereco = parts.join(', ');
       }
 
-      // Fallback para cidade e UF se não tiver endereço completo
       if (!endereco && (banca.city || banca.uf)) {
         endereco = [banca.city, banca.uf].filter(Boolean).join(' - ');
       }
@@ -156,9 +134,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       exists: true,
       bancas: bancasFormatted,
+      isCotista: isCotistaFound,
       message: cpfOnly.length === 11 
-        ? 'CPF já cadastrado nas bancas abaixo' 
-        : 'CNPJ já cadastrado nas bancas abaixo'
+        ? 'CPF já possui cadastro com banca ativa' 
+        : 'CNPJ já possui cadastro com banca ativa'
     });
 
   } catch (error: any) {
