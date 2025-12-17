@@ -96,24 +96,39 @@ export async function GET(request: NextRequest) {
 
       // 1. Produto
       const mp = markupProdMap.get(p.id);
-      if (mp && (mp.markup_percentual > 0 || mp.markup_fixo > 0)) {
-        return precoBase * (1 + mp.markup_percentual / 100) + mp.markup_fixo;
+      if (mp) {
+        const mpPerc = Number(mp.markup_percentual || 0);
+        const mpFixo = Number(mp.markup_fixo || 0);
+        if (mpPerc > 0 || mpFixo > 0) {
+          return precoBase * (1 + mpPerc / 100) + mpFixo;
+        }
       }
 
       // 2. Categoria
       const mc = markupCatMap.get(`${p.distribuidor_id}:${p.category_id}`);
-      if (mc && (mc.markup_percentual > 0 || mc.markup_fixo > 0)) {
-        return precoBase * (1 + mc.markup_percentual / 100) + mc.markup_fixo;
+      if (mc) {
+        const mcPerc = Number(mc.markup_percentual || 0);
+        const mcFixo = Number(mc.markup_fixo || 0);
+        if (mcPerc > 0 || mcFixo > 0) {
+          return precoBase * (1 + mcPerc / 100) + mcFixo;
+        }
       }
 
       // 3. Global
       const dist = distribuidoresMap.get(p.distribuidor_id);
       if (dist) {
-        if (dist.tipo_calculo === 'margem' && dist.margem_divisor > 0 && dist.margem_divisor < 1) {
-          return precoBase / dist.margem_divisor;
+        const tipoCalculo = dist.tipo_calculo || 'markup';
+        
+        if (tipoCalculo === 'margem') {
+          const margemDivisor = Number(dist.margem_divisor || 1);
+          if (margemDivisor > 0 && margemDivisor < 1) {
+            return precoBase / margemDivisor;
+          }
         }
-        const perc = dist.markup_global_percentual || 0;
-        const fixo = dist.markup_global_fixo || 0;
+        
+        const perc = Number(dist.markup_global_percentual || 0);
+        const fixo = Number(dist.markup_global_fixo || 0);
+        
         if (perc > 0 || fixo > 0) {
           return precoBase * (1 + perc / 100) + fixo;
         }
