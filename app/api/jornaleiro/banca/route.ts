@@ -84,51 +84,87 @@ async function loadBancaForUser(userId: string): Promise<any> {
   try {
     console.log('[loadBancaForUser] Buscando banca ativa para user_id:', userId);
 
-    // Buscar profile (inclui banca_id ativa)
-    const { data: profile, error: profileErr } = await supabaseAdmin
-      .from('user_profiles')
-      .select('banca_id, full_name, phone, cpf, avatar_url, updated_at')
-      .eq('id', userId)
+    // Buscar profile (inclui banca_id ativa). Backward-compatible: alguns ambientes podem não ter
+    // a coluna `jornaleiro_access_level` ainda.
+    let profile: any = null;
+    let profileErr: any = null;
+    const primaryProfile = await supabaseAdmin
+      .from("user_profiles")
+      .select("banca_id, jornaleiro_access_level, full_name, phone, cpf, avatar_url, updated_at")
+      .eq("id", userId)
       .maybeSingle();
+
+    profile = primaryProfile.data;
+    profileErr = primaryProfile.error;
+
+    if (
+      profileErr &&
+      (profileErr.code === "42703" || /jornaleiro_access_level/i.test(profileErr.message || ""))
+    ) {
+      const fallbackProfile = await supabaseAdmin
+        .from("user_profiles")
+        .select("banca_id, full_name, phone, cpf, avatar_url, updated_at")
+        .eq("id", userId)
+        .maybeSingle();
+
+      profile = fallbackProfile.data;
+      profileErr = fallbackProfile.error;
+    }
 
     if (profileErr) {
       console.warn('[loadBancaForUser] ⚠️ Não foi possível carregar profile:', profileErr.message);
     }
 
     const activeBancaId = (profile as any)?.banca_id as string | null | undefined;
+    const journaleiroAccessLevel = (profile as any)?.jornaleiro_access_level as string | null | undefined;
+
+    const canAccessBanca = async (bancaId: string): Promise<any | null> => {
+      const { data: banca } = await supabaseAdmin.from('bancas').select('*').eq('id', bancaId).maybeSingle();
+      if (!banca) return null;
+
+      // Dono da banca
+      if ((banca as any).user_id === userId) return banca;
+
+      // Colaborador vinculado
+      const { data: membership } = await supabaseAdmin
+        .from('banca_members')
+        .select('access_level')
+        .eq('banca_id', bancaId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (membership) return banca;
+      return null;
+    };
 
     // 1) Tentar carregar pela banca ativa do profile
     let data: any = null;
     let error: any = null;
 
     if (activeBancaId) {
-      const res = await supabaseAdmin
-        .from('bancas')
-        .select('*')
-        .eq('id', activeBancaId)
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      data = res.data;
-      error = res.error;
-
-      if (error) {
-        console.warn('[loadBancaForUser] ⚠️ Erro ao buscar banca ativa por ID:', error.message);
-      }
+      data = await canAccessBanca(activeBancaId);
     }
 
     // 2) Fallback: pegar a banca mais recente do usuário
     if (!data) {
-      const res = await supabaseAdmin
-        .from('bancas')
-        .select('*')
+      const res = await supabaseAdmin.from('bancas').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      data = res.data;
+      error = res.error;
+    }
+
+    // 3) Fallback: pegar a banca mais recente onde é colaborador
+    if (!data) {
+      const { data: memberFallback } = await supabaseAdmin
+        .from('banca_members')
+        .select('banca_id')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      data = res.data;
-      error = res.error;
+      if (memberFallback?.banca_id) {
+        data = await canAccessBanca(memberFallback.banca_id as string);
+      }
     }
 
     if (error || !data) {
@@ -147,13 +183,21 @@ async function loadBancaForUser(userId: string): Promise<any> {
       MATCH: data.user_id === userId ? '✅ CORRETO' : '❌ ERRO: user_id não bate!'
     });
 
-    // 🚨 VALIDAÇÃO CRÍTICA: Garantir que a banca pertence ao usuário
+    // Segurança: banca deve ser do usuário OU estar vinculada via banca_members
     if (data.user_id !== userId) {
-      console.error("[loadBancaForUser] 🚨🚨🚨 ERRO CRÍTICO: Banca pertence a outro usuário!");
-      console.error("[loadBancaForUser] user_id esperado:", userId);
-      console.error("[loadBancaForUser] user_id retornado:", data.user_id);
-      console.error("[loadBancaForUser] BLOQUEANDO por segurança!");
-      return null;
+      const { data: membership } = await supabaseAdmin
+        .from('banca_members')
+        .select('access_level')
+        .eq('banca_id', data.id)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!membership) {
+        console.error("[loadBancaForUser] 🚨🚨🚨 ERRO CRÍTICO: Usuário sem acesso à banca!");
+        console.error("[loadBancaForUser] user_id:", userId);
+        console.error("[loadBancaForUser] banca_id:", data.id);
+        return null;
+      }
     }
 
     // Se o profile não tinha banca_id ou estava desatualizado, atualizar para a banca carregada
@@ -244,6 +288,7 @@ async function loadBancaForUser(userId: string): Promise<any> {
         cpf: (profile as any)?.cpf || '',
         avatar_url: (profile as any)?.avatar_url || '',
         updated_at: (profile as any)?.updated_at || null,
+        jornaleiro_access_level: journaleiroAccessLevel || null,
       },
     };
     
@@ -403,16 +448,27 @@ export async function GET(request: NextRequest) {
   
   // Validação adicional: verificar user_id
   if (banca.user_id && banca.user_id !== session.user.id) {
-    console.error('🚨🚨🚨 ALERTA DE SEGURANÇA: USER_ID NÃO BATE! 🚨🚨🚨');
-    console.error('[SECURITY] user_id esperado:', session.user.id);
-    console.error('[SECURITY] user_id da banca:', banca.user_id);
-    console.error('🚨🚨🚨 BLOQUEANDO ACESSO! 🚨🚨🚨');
-    
-    return NextResponse.json({ 
-      success: false, 
-      error: "Erro de validação de segurança. Faça logout e login novamente.",
-      details: "USER_ID_MISMATCH"
-    }, { status: 403 });
+    // Permitir acesso se houver vínculo via banca_members (colaborador)
+    const { data: membership } = await supabaseAdmin
+      .from("banca_members")
+      .select("access_level")
+      .eq("banca_id", banca.id)
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    if (!membership) {
+      console.error('🚨🚨🚨 ALERTA DE SEGURANÇA: USER_ID NÃO BATE E SEM VÍNCULO! 🚨🚨🚨');
+      console.error('[SECURITY] user_id esperado:', session.user.id);
+      console.error('[SECURITY] user_id da banca:', banca.user_id);
+      console.error('[SECURITY] banca_id:', banca.id);
+      console.error('🚨🚨🚨 BLOQUEANDO ACESSO! 🚨🚨🚨');
+      
+      return NextResponse.json({ 
+        success: false, 
+        error: "Erro de validação de segurança. Faça logout e login novamente.",
+        details: "USER_ID_MISMATCH"
+      }, { status: 403 });
+    }
   }
   
   console.log('========== [API /jornaleiro/banca GET] FIM ==========\n');
@@ -453,6 +509,20 @@ export async function PUT(request: NextRequest) {
     const activeBanca = await loadBancaForUser(session.user.id);
     if (!activeBanca?.id) {
       return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+    }
+
+    const isOwner = activeBanca.user_id === session.user.id;
+    if (!isOwner) {
+      const { data: membership } = await supabaseAdmin
+        .from("banca_members")
+        .select("access_level")
+        .eq("banca_id", activeBanca.id)
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (!membership) {
+        return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
+      }
     }
     
     console.log('[PUT] Dados recebidos:', data);
@@ -577,13 +647,12 @@ export async function PUT(request: NextRequest) {
     console.log('Dados que serão atualizados no Supabase:', JSON.stringify(updateData, null, 2));
 
     // Atualizar APENAS a banca ativa
-    const { data: updatedData, error } = await supabaseAdmin
-      .from('bancas')
-      .update(updateData)
-      .eq('id', activeBanca.id)
-      .eq('user_id', session.user.id)
-      .select()
-      .single();
+    let updateQuery: any = supabaseAdmin.from('bancas').update(updateData).eq('id', activeBanca.id);
+    if (isOwner) {
+      updateQuery = updateQuery.eq('user_id', session.user.id);
+    }
+
+    const { data: updatedData, error } = await updateQuery.select().single();
 
     if (error) {
       console.error('Update banca error (jornaleiro):', error);

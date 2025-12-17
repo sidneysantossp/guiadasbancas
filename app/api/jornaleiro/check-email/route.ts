@@ -13,25 +13,7 @@ export async function POST(req: NextRequest) {
 
     const emailLower = email.trim().toLowerCase();
     
-    // 1. Verificar em user_profiles
-    const { data: profiles, error: profileError } = await supabaseAdmin
-      .from('user_profiles')
-      .select('id, email, full_name')
-      .eq('email', emailLower)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error('[check-email] Erro user_profiles:', profileError);
-    }
-
-    if (profiles) {
-      return NextResponse.json({ 
-        exists: true, 
-        message: "Este e-mail já possui uma conta cadastrada. Faça login ou recupere sua senha." 
-      });
-    }
-
-    // 2. Verificar na tabela de bancas
+    // 1. Verificar na tabela de bancas (Fonte primária de emails públicos/cadastrados)
     const { data: bancas, error: bancaError } = await supabaseAdmin
       .from('bancas')
       .select('id, name')
@@ -40,14 +22,19 @@ export async function POST(req: NextRequest) {
 
     if (bancaError) {
        console.error('[check-email] Erro bancas:', bancaError);
+       // Não retornamos erro aqui para não bloquear o fluxo em caso de falha de banco momentânea,
+       // mas logamos. Se falhar, o signUp final vai pegar.
     }
 
     if (bancas) {
       return NextResponse.json({ 
         exists: true, 
-        message: "Este e-mail já está associado a uma banca cadastrada." 
+        message: "Este e-mail já está associado a uma banca cadastrada. Faça login para continuar." 
       });
     }
+    
+    // NOTA: Não verificamos user_profiles pois a coluna email não existe lá.
+    // A verificação final de existência de conta (auth.users) acontece no signUp.
 
     return NextResponse.json({ exists: false });
 

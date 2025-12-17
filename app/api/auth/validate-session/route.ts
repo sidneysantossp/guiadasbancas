@@ -22,11 +22,36 @@ export async function GET(_req: NextRequest) {
       });
     }
 
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('user_profiles')
-      .select('id, role, full_name, phone, avatar_url, banca_id, active, email_verified, blocked, blocked_reason, blocked_at, created_at, updated_at')
-      .eq('id', userId)
+    // Backward-compatible: alguns ambientes podem não ter a coluna `jornaleiro_access_level` ainda.
+    const baseSelect =
+      "id, role, full_name, phone, avatar_url, banca_id, active, email_verified, blocked, blocked_reason, blocked_at, created_at, updated_at";
+    const extendedSelect = `${baseSelect}, jornaleiro_access_level`;
+
+    let profile: any = null;
+    let profileError: any = null;
+
+    const primary = await supabaseAdmin
+      .from("user_profiles")
+      .select(extendedSelect)
+      .eq("id", userId)
       .maybeSingle();
+
+    profile = primary.data;
+    profileError = primary.error;
+
+    if (
+      profileError &&
+      (profileError.code === "42703" || /jornaleiro_access_level/i.test(profileError.message || ""))
+    ) {
+      const fallback = await supabaseAdmin
+        .from("user_profiles")
+        .select(baseSelect)
+        .eq("id", userId)
+        .maybeSingle();
+
+      profile = fallback.data;
+      profileError = fallback.error;
+    }
 
     if (profileError || !profile || profile.active === false) {
       return NextResponse.json({ authenticated: false, reason: 'profile_not_found_or_inactive' }, {

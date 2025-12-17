@@ -139,6 +139,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     const onBancaUpdated = (e: any) => {
       try {
         const detail = e?.detail || {};
+        const isCollaborator = (profile as any)?.jornaleiro_access_level === "collaborator";
         
         // 🚨 SEGURANÇA CRÍTICA: Validar que os dados pertencem ao usuário atual
         if (!user?.id) {
@@ -146,7 +147,9 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           return;
         }
         
-        if (detail.user_id && detail.user_id !== user.id) {
+        // Dono da banca pode ter user_id diferente do usuário logado (caso colaborador).
+        // Para admin, manter validação estrita.
+        if (!isCollaborator && detail.user_id && detail.user_id !== user.id) {
           console.error('[Event] 🚨 ALERTA DE SEGURANÇA: Tentativa de atualizar com dados de outro usuário!');
           console.error('[Event] user_id esperado:', user.id);
           console.error('[Event] user_id recebido:', detail.user_id);
@@ -186,7 +189,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         window.removeEventListener('gb:banca:updated', onBancaUpdated as any);
       }
     };
-  }, [user?.id, banca?.id]);
+  }, [user?.id, banca?.id, (profile as any)?.jornaleiro_access_level]);
 
   // Limpar cache de bancas antigas quando user.id muda
   useEffect(() => {
@@ -268,16 +271,22 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         if (cachedBanca) {
           try {
             const bancaData = JSON.parse(cachedBanca);
+            const isCollaborator = (profile as any)?.jornaleiro_access_level === "collaborator";
+            const expectedBancaId = (profile as any)?.banca_id as string | null | undefined;
             console.log('[Cache] 📦 Cache encontrado:', {
               cache_key: cacheKey,
               banca_name: bancaData.name,
               banca_user_id: bancaData.user_id,
               user_autenticado: user.id,
-              MATCH: bancaData.user_id === user.id
+              MATCH: isCollaborator ? bancaData.id === expectedBancaId : bancaData.user_id === user.id
             });
             
             // Validar se o cache é mesmo deste usuário
-            if (bancaData.user_id === user.id) {
+            const cacheValido = isCollaborator
+              ? !!expectedBancaId && bancaData.id === expectedBancaId
+              : bancaData.user_id === user.id;
+
+            if (cacheValido) {
               console.log('[Cache] ✅ Cache válido, usando banca do cache');
               setBanca(bancaData);
               setBancaValidated(true);
@@ -285,8 +294,8 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
             } else {
               // Cache inválido, remover
               console.error('[Cache] ❌ Cache INVÁLIDO detectado!');
-              console.error('[Cache] Esperado user_id:', user.id);
-              console.error('[Cache] Cache tinha user_id:', bancaData.user_id);
+              console.error('[Cache] Esperado:', isCollaborator ? { banca_id: expectedBancaId } : { user_id: user.id });
+              console.error('[Cache] Cache tinha:', { user_id: bancaData.user_id, banca_id: bancaData.id });
               console.error('[Cache] Limpando cache inválido...');
               sessionStorage.removeItem(cacheKey);
             }
@@ -341,8 +350,12 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           banca_email: parsed.data.email
         });
         
-        // SEGURANÇA CRÍTICA: Verificar se os dados batem
-        if (parsed.data.user_id !== user.id) {
+        // SEGURANÇA: Para colaboradores, o user_id da banca pode ser diferente (dono).
+        // Confiar na API (que valida vínculo via banca_members) e evitar logout indevido.
+        const resolvedAccessLevel =
+          (parsed?.data?.profile as any)?.jornaleiro_access_level ?? (profile as any)?.jornaleiro_access_level;
+        const isCollaborator = resolvedAccessLevel === "collaborator";
+        if (!isCollaborator && parsed.data.user_id !== user.id) {
           console.error('🚨🚨🚨 ALERTA DE SEGURANÇA: user_id NÃO BATE! 🚨🚨🚨');
           console.error('[SECURITY] user_id esperado:', user.id);
           console.error('[SECURITY] user_id da banca:', parsed.data.user_id);
@@ -367,7 +380,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     };
 
     validateUserAccess();
-  }, [user?.id, profile?.role, authLoading, isAuthRoute]);
+  }, [user?.id, profile?.role, (profile as any)?.jornaleiro_access_level, (profile as any)?.banca_id, authLoading, isAuthRoute]);
 
   // Listener para atualizar a banca quando houver alteração (ex: mudança de imagem)
   useEffect(() => {
@@ -653,7 +666,12 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
                 const isGroup = "children" in item;
 
                 if (isGroup) {
-                  const childActive = item.children.some((c) => pathname === c.href || pathname?.startsWith(`${c.href}/`));
+                  const isCollaborator = (profile as any)?.jornaleiro_access_level === "collaborator";
+                  const children = isCollaborator
+                    ? item.children.filter((c) => c.href !== ("/jornaleiro/bancas/nova" as Route))
+                    : item.children;
+
+                  const childActive = children.some((c) => pathname === c.href || pathname?.startsWith(`${c.href}/`));
                   const open = sidebarSections[item.label] ?? childActive;
                   const groupClasses = item.disabled
                     ? "flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-300 bg-white/5 cursor-not-allowed"
@@ -687,7 +705,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
                       {open && !item.disabled && (
                         <div className="pl-9 space-y-1">
-                          {item.children.map((c) => {
+                          {children.map((c) => {
                             const isActive = pathname === c.href || pathname?.startsWith(`${c.href}/`);
                             return (
                               <Link

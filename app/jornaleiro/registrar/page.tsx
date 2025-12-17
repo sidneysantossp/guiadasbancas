@@ -552,7 +552,10 @@ export default function JornaleiroRegisterPage() {
 
       // Verificar se e-mail já existe
       try {
-        setIsBusy(true); // Usando estado correto de carregamento
+        setIsBusy(true); 
+        // Limpar erro anterior antes de verificar
+        setError(null);
+        
         const res = await fetch('/api/jornaleiro/check-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -561,14 +564,18 @@ export default function JornaleiroRegisterPage() {
         const data = await res.json();
         
         if (data.exists) {
-          setError(data.message || 'Este e-mail já está cadastrado.');
+          const msg = data.message || 'Este e-mail já está cadastrado. Faça login para continuar.';
+          setError(msg);
+          setErrorField('email', msg);
           setIsBusy(false);
-          return;
+          return; // Bloqueia o avanço
         }
       } catch (err) {
         console.error('Erro ao verificar email:', err);
-        // Em caso de erro na API, optamos por deixar prosseguir e o erro aparecerá no submit final se for crítico,
-        // ou bloquear. Por segurança, melhor não bloquear se a API falhar.
+        // Em caso de erro de rede, alertar o usuário mas (opcionalmente) permitir tentar novamente
+        setError('Erro ao verificar disponibilidade do e-mail. Tente novamente.');
+        setIsBusy(false);
+        return;
       } finally {
         setIsBusy(false);
       }

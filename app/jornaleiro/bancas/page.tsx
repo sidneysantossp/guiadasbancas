@@ -13,14 +13,14 @@ type BancaListItem = {
   email?: string | null;
   address?: string | null;
   cep?: string | null;
-  city?: string | null;
-  uf?: string | null;
   profile_image?: string | null;
   cover_image?: string | null;
   active?: boolean | null;
   approved?: boolean | null;
   created_at?: string | null;
   updated_at?: string | null;
+  my_access_level?: "admin" | "collaborator" | string | null;
+  my_relation?: "owner" | "member" | string | null;
 };
 
 export default function JornaleiroBancasPage() {
@@ -28,9 +28,12 @@ export default function JornaleiroBancasPage() {
   const { user } = useAuth();
   const [items, setItems] = useState<BancaListItem[]>([]);
   const [activeBancaId, setActiveBancaId] = useState<string | null>(null);
+  const [accountAccessLevel, setAccountAccessLevel] = useState<"admin" | "collaborator">("admin");
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const canManageBancas = accountAccessLevel !== "collaborator";
 
   const tabs = useMemo(
     () => [
@@ -52,6 +55,7 @@ export default function JornaleiroBancasPage() {
       }
       setItems(json.items || []);
       setActiveBancaId(json.active_banca_id || null);
+      setAccountAccessLevel((json.account_access_level as any) === "collaborator" ? "collaborator" : "admin");
     } catch (e: any) {
       setError(e?.message || "Erro ao carregar bancas");
     } finally {
@@ -101,16 +105,18 @@ export default function JornaleiroBancasPage() {
           <h1 className="text-xl font-semibold">Minhas Bancas</h1>
           <p className="text-sm text-gray-600">Gerencie e cadastre novas bancas vinculadas ao seu CPF/CNPJ.</p>
         </div>
-        <Link
-          href={("/jornaleiro/bancas/nova" as Route)}
-          className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
-        >
-          + Nova banca
-        </Link>
+        {canManageBancas && (
+          <Link
+            href={("/jornaleiro/bancas/nova" as Route)}
+            className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+          >
+            + Nova banca
+          </Link>
+        )}
       </div>
 
       <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
-        {tabs.map((t) => (
+        {(canManageBancas ? tabs : tabs.filter((t) => t.href !== ("/jornaleiro/bancas/nova" as Route))).map((t) => (
           <Link
             key={t.href}
             href={t.href}
@@ -136,12 +142,17 @@ export default function JornaleiroBancasPage() {
           {items.map((b) => {
             const isSelected = activeBancaId === b.id;
             const address = b.address || "";
+            const accessLabel =
+              (b.my_relation === "owner" || b.my_access_level === "admin") ? "Administrador" : "Colaborador";
             return (
               <div key={b.id} className={`rounded-xl border bg-white p-4 ${isSelected ? "border-[#ff5c00]" : "border-gray-200"}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <div className="text-base font-semibold truncate">{b.name || "Banca"}</div>
+                      <span className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[11px] text-gray-700">
+                        {accessLabel}
+                      </span>
                       {isSelected && (
                         <span className="rounded-full bg-[#ff5c00]/10 text-[#ff5c00] text-[11px] font-semibold px-2 py-0.5">
                           Banca ativa no painel

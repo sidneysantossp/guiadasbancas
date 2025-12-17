@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
 import { formatCep, isValidCep, resolveCepToLocation } from "@/lib/location";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 type Day = { key: string; label: string; open: boolean; start: string; end: string };
 
@@ -21,6 +22,7 @@ const DEFAULT_HOURS: Day[] = [
 
 export default function JornaleiroNovaBancaPage() {
   const router = useRouter();
+  const { profile } = useAuth();
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [cep, setCep] = useState("");
@@ -38,6 +40,13 @@ export default function JornaleiroNovaBancaPage() {
   const [saving, setSaving] = useState(false);
   const [loadingCep, setLoadingCep] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [accessLevel, setAccessLevel] = useState<"admin" | "collaborator">("collaborator");
+  const [accessEmail, setAccessEmail] = useState("");
+  const [accessPassword, setAccessPassword] = useState("");
+  const [accessPasswordConfirm, setAccessPasswordConfirm] = useState("");
+
+  const isCollaborator = (profile as any)?.jornaleiro_access_level === "collaborator";
 
   const tabs = useMemo(
     () => [
@@ -78,6 +87,11 @@ export default function JornaleiroNovaBancaPage() {
     e.preventDefault();
     setError(null);
 
+    if (isCollaborator) {
+      setError("Apenas administradores podem cadastrar novas bancas.");
+      return;
+    }
+
     if (!name.trim()) {
       setError("Informe o nome da banca.");
       return;
@@ -115,6 +129,27 @@ export default function JornaleiroNovaBancaPage() {
 
     const address = addressParts.join(", ");
 
+    const normalizedAccessEmail = accessEmail.trim().toLowerCase();
+    const wantsAccessUser = !!(normalizedAccessEmail || accessPassword || accessPasswordConfirm);
+    if (wantsAccessUser) {
+      if (!normalizedAccessEmail) {
+        setError("Informe o email do usuário de acesso.");
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedAccessEmail)) {
+        setError("Informe um email válido para o usuário de acesso.");
+        return;
+      }
+      if (!accessPassword || accessPassword.length < 6) {
+        setError("A senha do usuário de acesso deve ter no mínimo 6 caracteres.");
+        return;
+      }
+      if (accessPassword !== accessPasswordConfirm) {
+        setError("A confirmação de senha do usuário de acesso não confere.");
+        return;
+      }
+    }
+
     try {
       setSaving(true);
       const res = await fetch("/api/jornaleiro/bancas", {
@@ -134,6 +169,13 @@ export default function JornaleiroNovaBancaPage() {
             hours,
             payment_methods: ["pix", "dinheiro"],
           },
+          access: wantsAccessUser
+            ? {
+                email: normalizedAccessEmail,
+                password: accessPassword,
+                access_level: accessLevel,
+              }
+            : null,
         }),
       });
 
@@ -337,6 +379,58 @@ export default function JornaleiroNovaBancaPage() {
               accept="image/*"
               role="jornaleiro"
             />
+          </div>
+
+          <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+            <div>
+              <div className="text-sm font-semibold">Acesso ao painel (opcional)</div>
+              <div className="text-xs text-gray-500">
+                Se quiser dar acesso para outra pessoa gerenciar esta banca, informe um email e senha. O usuário verá esta banca no painel.
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Nível de acesso</label>
+              <select
+                value={accessLevel}
+                onChange={(e) => setAccessLevel(e.target.value as any)}
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="admin">Administrador</option>
+                <option value="collaborator">Colaborador</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Email do usuário</label>
+              <input
+                value={accessEmail}
+                onChange={(e) => setAccessEmail(e.target.value)}
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                placeholder="colaborador@exemplo.com"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Senha</label>
+              <input
+                type="password"
+                value={accessPassword}
+                onChange={(e) => setAccessPassword(e.target.value)}
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                placeholder="Mínimo 6 caracteres"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Confirmar senha</label>
+              <input
+                type="password"
+                value={accessPasswordConfirm}
+                onChange={(e) => setAccessPasswordConfirm(e.target.value)}
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
           </div>
 
           <button

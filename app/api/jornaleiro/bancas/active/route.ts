@@ -12,6 +12,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
   }
 
+  const userId = session.user.id;
+
   let body: any;
   try {
     body = await request.json();
@@ -24,7 +26,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: false, error: "banca_id é obrigatório" }, { status: 400 });
   }
 
-  // Verificar se a banca pertence ao usuário autenticado
+  // Verificar se o usuário tem acesso à banca (dono ou membro)
   const { data: banca, error: bancaError } = await supabaseAdmin
     .from("bancas")
     .select("id, user_id")
@@ -35,14 +37,24 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
   }
 
-  if ((banca as any).user_id !== session.user.id) {
-    return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
+  const isOwner = (banca as any).user_id === userId;
+  if (!isOwner) {
+    const { data: membership } = await supabaseAdmin
+      .from("banca_members")
+      .select("access_level")
+      .eq("banca_id", bancaId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!membership) {
+      return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
+    }
   }
 
   const { error: profileError } = await supabaseAdmin
     .from("user_profiles")
     .update({ banca_id: bancaId })
-    .eq("id", session.user.id);
+    .eq("id", userId);
 
   if (profileError) {
     console.error("[API/JORNALEIRO/BANCAS/ACTIVE] Erro ao atualizar profile:", profileError);
@@ -51,4 +63,3 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({ success: true, banca_id: bancaId });
 }
-

@@ -13,6 +13,7 @@ export interface UserProfile {
   phone: string | null;
   avatar_url: string | null;
   banca_id: string | null;
+  jornaleiro_access_level?: "admin" | "collaborator" | null;
   active: boolean;
   email_verified: boolean;
   blocked?: boolean;
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         phone: null,
         avatar_url: (u.avatar_url as string) ?? null,
         banca_id: (u.banca_id as string) ?? null,
+        jornaleiro_access_level: null,
         active: true,
         email_verified: true,
         created_at: new Date().toISOString(),

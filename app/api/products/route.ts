@@ -4,6 +4,7 @@ import { v4 as uuid } from "uuid";
 import type { Produto } from "@/types/admin";
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
+import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 
 const CATEGORIA_DISTRIBUIDORES_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
 const DEFAULT_PRODUCT_IMAGE = 'https://cdn1.staticpanvel.com.br/produtos/15/produto-sem-imagem.jpg';
@@ -34,11 +35,11 @@ export async function GET(req: NextRequest) {
 
     // SEGURANÇA: Para jornaleiros, forçar filtro pela própria banca
     if (userRole === 'jornaleiro') {
-      const { data: bancaData } = await supabaseAdmin
-        .from('bancas')
-        .select('id')
-        .eq('user_id', userId)
-        .single();
+      if (!userId) {
+        return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+      }
+
+      const bancaData = await getActiveBancaRowForUser(userId, 'id');
       
       if (!bancaData) {
         return NextResponse.json({ error: "Banca não encontrada" }, { status: 404 });
