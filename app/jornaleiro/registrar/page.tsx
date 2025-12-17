@@ -670,18 +670,22 @@ export default function JornaleiroRegisterPage() {
           finishingRef.current = false;
           return;
         }
-        // Se já existe, só podemos seguir se conseguirmos autenticar com a senha informada.
-        setToast('Conta já existe. Autenticando...');
+        // Se já existe, tentar autenticar com a senha informada.
+        // Se a senha bater, seguimos o fluxo normalmente (usuário comum virando jornaleiro)
+        setToast('Conta já existe. Verificando credenciais...');
         const login = await signIn(email, password);
         if (login?.error) {
-          setError("Este e-mail já possui uma conta cadastrada. Faça login ou recupere sua senha.");
+          // Senha não bateu - usuário comum com senha diferente
+          // Redirecionar para login normal ao invés de bloquear
+          setError("Você já possui uma conta com este e-mail. Use a mesma senha da sua conta existente ou faça login primeiro na área 'Minha Conta' e depois retorne aqui.");
           setStep(2);
           setIsBusy(false);
           setToast(null);
           finishingRef.current = false;
           return;
         }
-        logger.warn('[Wizard] ⚠️ signUp retornou "já cadastrado", mas login OK. Seguindo fluxo.');
+        // Login OK! Usuário comum autenticado, pode virar jornaleiro
+        logger.info('[Wizard] ✅ Usuário existente autenticado. Convertendo para jornaleiro.');
       }
 
       setToast('Conta criada! Autenticando...');

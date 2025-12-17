@@ -31,55 +31,9 @@ export async function POST(req: NextRequest) {
       });
     }
     
-    // 2. Verificar no auth.users (usuários comuns ou qualquer conta existente)
-    try {
-      // Buscar usuários paginando até encontrar ou esgotar
-      let page = 1;
-      const perPage = 1000;
-      let found = false;
-      
-      while (!found) {
-        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({
-          page,
-          perPage,
-        });
-        
-        if (authError) {
-          console.error('[check-email] Erro listUsers:', authError);
-          break;
-        }
-        
-        if (!authData?.users || authData.users.length === 0) {
-          break;
-        }
-        
-        // Procurar o email na lista
-        const existingUser = authData.users.find(
-          (u: any) => u.email?.toLowerCase() === emailLower
-        );
-        
-        if (existingUser) {
-          found = true;
-          return NextResponse.json({ 
-            exists: true, 
-            message: "Este e-mail já está cadastrado. Use outro e-mail ou faça login." 
-          });
-        }
-        
-        // Se retornou menos que o perPage, não há mais páginas
-        if (authData.users.length < perPage) {
-          break;
-        }
-        
-        page++;
-        
-        // Limite de segurança para evitar loop infinito
-        if (page > 100) break;
-      }
-    } catch (authCheckError) {
-      console.error('[check-email] Erro ao verificar auth.users:', authCheckError);
-      // Continua o fluxo mesmo se falhar esta verificação
-    }
+    // NOTA: Não verificamos auth.users aqui porque usuários comuns podem 
+    // se tornar jornaleiros. A validação verifica apenas se já existe uma BANCA
+    // com este email. O signUp vai vincular a conta existente ou criar nova.
 
     return NextResponse.json({ exists: false });
 
