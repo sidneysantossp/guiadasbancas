@@ -82,21 +82,61 @@ function smartParseAddress(fullAddress: string, cep: string) {
 
 async function loadBancaForUser(userId: string): Promise<any> {
   try {
-    console.log('[loadBancaForUser] Buscando banca para user_id:', userId);
-    
-    // Buscar banca pelo user_id
-    const { data, error } = await supabaseAdmin
-      .from('bancas')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-    
+    console.log('[loadBancaForUser] Buscando banca ativa para user_id:', userId);
+
+    // Buscar profile (inclui banca_id ativa)
+    const { data: profile, error: profileErr } = await supabaseAdmin
+      .from('user_profiles')
+      .select('banca_id, full_name, phone, cpf, avatar_url, updated_at')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profileErr) {
+      console.warn('[loadBancaForUser] ⚠️ Não foi possível carregar profile:', profileErr.message);
+    }
+
+    const activeBancaId = (profile as any)?.banca_id as string | null | undefined;
+
+    // 1) Tentar carregar pela banca ativa do profile
+    let data: any = null;
+    let error: any = null;
+
+    if (activeBancaId) {
+      const res = await supabaseAdmin
+        .from('bancas')
+        .select('*')
+        .eq('id', activeBancaId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      data = res.data;
+      error = res.error;
+
+      if (error) {
+        console.warn('[loadBancaForUser] ⚠️ Erro ao buscar banca ativa por ID:', error.message);
+      }
+    }
+
+    // 2) Fallback: pegar a banca mais recente do usuário
+    if (!data) {
+      const res = await supabaseAdmin
+        .from('bancas')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      data = res.data;
+      error = res.error;
+    }
+
     if (error || !data) {
       console.error("[loadBancaForUser] ❌ Banca NÃO encontrada para user_id:", userId);
       console.error("[loadBancaForUser] Erro Supabase:", error?.message, error?.code);
       return null;
     }
-    
+
     console.log("[loadBancaForUser] ✅ Banca encontrada:", {
       banca_id: data.id,
       banca_name: data.name,
@@ -106,24 +146,26 @@ async function loadBancaForUser(userId: string): Promise<any> {
       cotista_razao_social: data.cotista_razao_social,
       MATCH: data.user_id === userId ? '✅ CORRETO' : '❌ ERRO: user_id não bate!'
     });
-    
-    // 🚨 VALIDAÇÃO CRÍTICA: Garantir que o Supabase retornou a banca certa
+
+    // 🚨 VALIDAÇÃO CRÍTICA: Garantir que a banca pertence ao usuário
     if (data.user_id !== userId) {
-      console.error("[loadBancaForUser] 🚨🚨🚨 ERRO CRÍTICO: Supabase retornou banca de outro usuário!");
+      console.error("[loadBancaForUser] 🚨🚨🚨 ERRO CRÍTICO: Banca pertence a outro usuário!");
       console.error("[loadBancaForUser] user_id esperado:", userId);
       console.error("[loadBancaForUser] user_id retornado:", data.user_id);
       console.error("[loadBancaForUser] BLOQUEANDO por segurança!");
       return null;
     }
-    
-    // Buscar perfil do usuário para trazer phone/cpf
-    const { data: profile, error: profileErr } = await supabaseAdmin
-      .from('user_profiles')
-      .select('full_name, phone, cpf, avatar_url, updated_at')
-      .eq('id', userId)
-      .single();
-    if (profileErr) {
-      console.warn('[loadBancaForUser] ⚠️ Não foi possível carregar profile:', profileErr.message);
+
+    // Se o profile não tinha banca_id ou estava desatualizado, atualizar para a banca carregada
+    if ((profile as any)?.banca_id !== data.id) {
+      const { error: setErr } = await supabaseAdmin
+        .from('user_profiles')
+        .update({ banca_id: data.id })
+        .eq('id', userId);
+
+      if (setErr) {
+        console.warn('[loadBancaForUser] ⚠️ Falha ao atualizar banca_id no profile:', setErr.message);
+      }
     }
 
     // 🔥 CRITICAL: Usar address_obj do banco se existir (JSON salvo)
@@ -183,6 +225,12 @@ async function loadBancaForUser(userId: string): Promise<any> {
       delivery_enabled: data.delivery_enabled || false,
       free_shipping_threshold: data.free_shipping_threshold || 120,
       origin_cep: data.origin_cep || '',
+      delivery_fee: data.delivery_fee ?? 0,
+      min_order_value: data.min_order_value ?? 0,
+      delivery_radius: data.delivery_radius ?? 5,
+      preparation_time: data.preparation_time ?? 30,
+      payment_methods: data.payment_methods || [],
+      whatsapp: data.whatsapp || '',
       // Dados do cotista
       is_cotista: data.is_cotista || false,
       cotista_id: data.cotista_id || null,
@@ -254,7 +302,8 @@ export async function POST(request: NextRequest) {
       lat: banca.lat ?? banca.location?.lat ?? null,
       lng: banca.lng ?? banca.location?.lng ?? null,
       tpu_url: banca.tpu_url || null,
-      opening_hours: banca.opening_hours || null,
+      hours: banca.hours || null,
+      opening_hours: banca.opening_hours || banca.hours || null,
       delivery_fee: banca.delivery_fee ?? 0,
       min_order_value: banca.min_order_value ?? 0,
       delivery_radius: banca.delivery_radius ?? 5,
@@ -343,22 +392,13 @@ export async function GET(request: NextRequest) {
     user_autenticado: session.user.email
   });
   
-  // 🚨 SEGURANÇA CRÍTICA: BLOQUEAR se os dados não batem
+  // 🔐 Segurança: o bloqueio real deve ser por `user_id` (email pode variar entre bancas do mesmo usuário)
   if (banca.email && session.user.email && banca.email !== session.user.email) {
-    console.error('🚨🚨🚨 ALERTA DE SEGURANÇA: EMAIL NÃO BATE! 🚨🚨🚨');
-    console.error('[SECURITY] Email do usuário autenticado:', session.user.email);
-    console.error('[SECURITY] Email da banca retornada:', banca.email);
-    console.error('[SECURITY] user_id da sessão:', session.user.id);
-    console.error('[SECURITY] user_id da banca:', banca.user_id);
-    console.error('[SECURITY] banca_id:', banca.id);
-    console.error('🚨🚨🚨 BLOQUEANDO ACESSO - VAZAMENTO DE DADOS DETECTADO! 🚨🚨🚨');
-    
-    // BLOQUEAR COMPLETAMENTE - NÃO RETORNAR DADOS DE OUTRA BANCA
-    return NextResponse.json({ 
-      success: false, 
-      error: "Erro de validação de segurança. Faça logout e login novamente.",
-      details: "EMAIL_MISMATCH"
-    }, { status: 403 });
+    console.warn('[SECURITY] ⚠️ Email da banca difere do email da conta (permitido):', {
+      user_email: session.user.email,
+      banca_email: banca.email,
+      banca_id: banca.id,
+    });
   }
   
   // Validação adicional: verificar user_id
@@ -408,6 +448,12 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const data = body?.data ?? body;
+
+    // Descobrir banca ativa do usuário (suporta múltiplas bancas por conta)
+    const activeBanca = await loadBancaForUser(session.user.id);
+    if (!activeBanca?.id) {
+      return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+    }
     
     console.log('[PUT] Dados recebidos:', data);
     console.log('[PUT] 🏠 addressObj recebido:', data.addressObj);
@@ -476,6 +522,7 @@ export async function PUT(request: NextRequest) {
     // Arrays e objetos
     if (data.categories) updateData.categories = data.categories;
     if (data.payments) updateData.payment_methods = data.payments;
+    if (data.payment_methods !== undefined) updateData.payment_methods = data.payment_methods;
     if (data.hours) updateData.hours = data.hours;
     
     // Contato e redes sociais
@@ -485,8 +532,12 @@ export async function PUT(request: NextRequest) {
     
     // Delivery
     if (data.delivery_enabled !== undefined) updateData.delivery_enabled = data.delivery_enabled;
-    if (data.free_shipping_threshold) updateData.free_shipping_threshold = data.free_shipping_threshold;
-    if (data.origin_cep) updateData.origin_cep = data.origin_cep;
+    if (data.free_shipping_threshold !== undefined) updateData.free_shipping_threshold = data.free_shipping_threshold;
+    if (data.origin_cep !== undefined) updateData.origin_cep = data.origin_cep || null;
+    if (data.delivery_fee !== undefined) updateData.delivery_fee = data.delivery_fee;
+    if (data.min_order_value !== undefined) updateData.min_order_value = data.min_order_value;
+    if (data.delivery_radius !== undefined) updateData.delivery_radius = data.delivery_radius;
+    if (data.preparation_time !== undefined) updateData.preparation_time = data.preparation_time;
     
     // Cotista info
     if (data.is_cotista !== undefined) updateData.is_cotista = data.is_cotista;
@@ -525,10 +576,11 @@ export async function PUT(request: NextRequest) {
 
     console.log('Dados que serão atualizados no Supabase:', JSON.stringify(updateData, null, 2));
 
-    // Atualizar banca pelo user_id
+    // Atualizar APENAS a banca ativa
     const { data: updatedData, error } = await supabaseAdmin
       .from('bancas')
       .update(updateData)
+      .eq('id', activeBanca.id)
       .eq('user_id', session.user.id)
       .select()
       .single();

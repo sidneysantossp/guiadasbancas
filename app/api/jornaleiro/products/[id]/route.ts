@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
+import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -110,11 +111,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       }
 
       // Buscar banca do usuário para pegar customizações
-      const { data: banca } = await supabaseAdmin
-        .from('bancas')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .single();
+      const banca = await getActiveBancaRowForUser(session.user.id, 'id, user_id');
 
       if (banca) {
         // Buscar customizações específicas da banca
@@ -172,11 +169,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     }
 
     // Se é produto de banca específica, verificar se pertence ao usuário
-    const { data: banca } = await supabaseAdmin
-      .from('bancas')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .single();
+    const banca = await getActiveBancaRowForUser(session.user.id, 'id, user_id');
 
     if (!banca || product.banca_id !== banca.id) {
       return NextResponse.json({ success: false, error: "Produto não encontrado" }, { status: 404 });
@@ -214,11 +207,7 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
     }
 
     // Buscar banca do usuário
-    const { data: banca } = await supabaseAdmin
-      .from('bancas')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .single();
+    const banca = await getActiveBancaRowForUser(session.user.id, 'id, user_id');
 
     if (!banca) {
       return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
@@ -354,11 +343,7 @@ export async function DELETE(request: NextRequest, context: { params: { id: stri
     const { id } = context.params;
 
     // Buscar banca do usuário
-    const { data: banca } = await supabaseAdmin
-      .from('bancas')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .single();
+    const banca = await getActiveBancaRowForUser(session.user.id, 'id, user_id');
 
     if (!banca) {
       return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });

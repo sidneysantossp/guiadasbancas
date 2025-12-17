@@ -10,7 +10,6 @@ import NotificationCenter from "@/components/admin/NotificationCenter";
 import { useAuth } from "@/lib/auth/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Hedvig_Letters_Serif } from "next/font/google";
-import { supabase } from "@/lib/supabase";
 import { QueryProvider } from "@/app/providers/QueryProvider";
 import { buildBancaHref } from "@/lib/slug";
 import {
@@ -54,9 +53,20 @@ const journaleiroIconComponents = {
 
 type JournaleiroIconKey = keyof typeof journaleiroIconComponents;
 
-const JOURNALEIRO_MENU: { label: string; href: Route; icon: JournaleiroIconKey; disabled?: boolean }[] = [
+type JournaleiroMenuItem =
+  | { label: string; href: Route; icon: JournaleiroIconKey; disabled?: boolean }
+  | { label: string; icon: JournaleiroIconKey; disabled?: boolean; children: { label: string; href: Route }[] };
+
+const JOURNALEIRO_MENU: JournaleiroMenuItem[] = [
   { label: "Dashboard", href: "/jornaleiro/dashboard" as Route, icon: "dashboard" },
-  { label: "Minha Banca", href: "/jornaleiro/banca-v2" as Route, icon: "banca" },
+  {
+    label: "Minhas Bancas",
+    icon: "banca",
+    children: [
+      { label: "Ver todas", href: "/jornaleiro/bancas" as Route },
+      { label: "Cadastrar", href: "/jornaleiro/bancas/nova" as Route },
+    ],
+  },
   { label: "Notificações", href: "/jornaleiro/notificacoes" as Route, icon: "notifications" },
   { label: "Pedidos", href: "/jornaleiro/pedidos" as Route, icon: "orders" },
   { label: "Produtos", href: "/jornaleiro/produtos" as Route, icon: "products" },
@@ -83,6 +93,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarSections, setSidebarSections] = useState<Record<string, boolean>>({});
   const [session, setSession] = useState<SellerSession | null>(null);
   const [branding, setBranding] = useState<{ logoUrl?: string; logoAlt?: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -369,16 +380,20 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         sessionStorage.removeItem(`gb:banca:${user.id}`);
         // Recarregar banca
         const reloadBanca = async () => {
-          const { data: bancaData } = await supabase
-            .from('bancas')
-            .select('id, name, user_id, email, profile_image')
-            .eq('user_id', user.id)
-            .single();
-          
-          if (bancaData) {
-            console.log('[Layout] ✅ Banca recarregada:', bancaData);
-            setBanca(bancaData);
-            sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(bancaData));
+          try {
+            const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}`, {
+              cache: "no-store",
+              credentials: "include",
+            });
+            const text = await res.text();
+            const json = JSON.parse(text);
+            if (res.ok && json?.success && json?.data) {
+              console.log('[Layout] ✅ Banca recarregada:', json.data);
+              setBanca(json.data);
+              sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(json.data));
+            }
+          } catch (e) {
+            console.error('[Layout] ❌ Falha ao recarregar banca:', e);
           }
         };
         reloadBanca();
@@ -633,20 +648,72 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
             <nav className="p-4 space-y-4 text-gray-100">
               {JOURNALEIRO_MENU.map((item) => {
                 const IconComponent = journaleiroIconComponents[item.icon];
-                // Enquanto "Minha Banca" aponta para o mesmo href do Dashboard,
-                // apenas o item Dashboard deve aparecer como ativo.
-                const isDashboard = item.label === "Dashboard";
-                const isMinhaBanca = item.label === "Minha Banca";
-                const isActive = pathname === item.href && !isMinhaBanca;
+                const icon = <IconComponent size={20} stroke={1.7} />;
+
+                const isGroup = "children" in item;
+
+                if (isGroup) {
+                  const childActive = item.children.some((c) => pathname === c.href || pathname?.startsWith(`${c.href}/`));
+                  const open = sidebarSections[item.label] ?? childActive;
+                  const groupClasses = item.disabled
+                    ? "flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-300 bg-white/5 cursor-not-allowed"
+                    : `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        childActive ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm" : "text-gray-100 hover:bg-white/10 hover:text-white"
+                      }`;
+
+                  return (
+                    <div key={item.label} className="space-y-1">
+                      <button
+                        type="button"
+                        disabled={item.disabled}
+                        onClick={() => setSidebarSections((prev) => ({ ...prev, [item.label]: !(prev[item.label] ?? childActive) }))}
+                        className={`${groupClasses} w-full`}
+                      >
+                        {icon}
+                        {item.label}
+                        <span className="ml-auto inline-flex items-center">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className={`h-4 w-4 transition-transform ${open ? "rotate-180" : "rotate-0"}`}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            aria-hidden
+                          >
+                            <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      </button>
+
+                      {open && !item.disabled && (
+                        <div className="pl-9 space-y-1">
+                          {item.children.map((c) => {
+                            const isActive = pathname === c.href || pathname?.startsWith(`${c.href}/`);
+                            return (
+                              <Link
+                                key={c.href}
+                                href={c.href}
+                                onClick={() => setSidebarOpen(false)}
+                                className={`block rounded-md px-3 py-2 text-sm transition-colors ${
+                                  isActive ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/10 hover:text-white"
+                                }`}
+                              >
+                                {c.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
                 const classes = item.disabled
                   ? "flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-300 bg-white/5 cursor-not-allowed"
                   : `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive
-                        ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm"
-                        : "text-gray-100 hover:bg-white/10 hover:text-white"
+                      isActive ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm" : "text-gray-100 hover:bg-white/10 hover:text-white"
                     }`;
-
-                const icon = <IconComponent size={20} stroke={1.7} />;
 
                 if (item.disabled) {
                   return (
@@ -659,12 +726,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
                 }
 
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={classes}
-                  >
+                  <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)} className={classes}>
                     {icon}
                     {item.label}
                   </Link>

@@ -1,9 +1,8 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn as nextSignIn, signOut as nextSignOut, useSession } from "next-auth/react";
-import { supabase } from "@/lib/supabase";
 
 export type UserRole = "admin" | "jornaleiro" | "cliente";
 
@@ -45,6 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const validatingRef = useRef(false);
+  const lastValidationAtRef = useRef(0);
 
   // Carregar perfil do usuário a partir da sessão NextAuth
   useEffect(() => {
@@ -52,7 +53,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (status === "authenticated" && session?.user) {
       const u = session.user as any;
       const rawRole = (u.role as string) || "cliente";
-      // Normalizar roles legadas (ex: 'seller') para manter compatibilidade
       const normalizedRole: UserRole = (rawRole === "jornaleiro" || rawRole === "seller")
         ? "jornaleiro"
         : (rawRole === "admin" ? "admin" : "cliente");
@@ -70,6 +70,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
+
+      const validateSession = async () => {
+        if (validatingRef.current) return;
+        const now = Date.now();
+        if (now - lastValidationAtRef.current < 10000) return;
+        validatingRef.current = true;
+        lastValidationAtRef.current = now;
+
+        try {
+          const res = await fetch("/api/auth/validate-session", {
+            method: "GET",
+            cache: "no-store",
+            headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" },
+          });
+
+          const data = await res.json().catch(() => null);
+
+          if (!res.ok || !data || data.authenticated !== true) {
+            console.log('[AuthContext] Sessão inválida ou perfil não encontrado - fazendo logout');
+            setUser(null);
+            setProfile(null);
+            await nextSignOut({ callbackUrl: "/" });
+            return;
+          }
+
+          setUser({
+            id: data.user?.id ?? u.id,
+            email: data.user?.email ?? u.email,
+            name: data.user?.name ?? u.name,
+          });
+
+          if (data.profile) {
+            setProfile({
+              ...data.profile,
+              id: data.profile.id ?? u.id,
+              role: (data.profile.role as UserRole) ?? normalizedRole,
+              created_at: data.profile.created_at ?? new Date().toISOString(),
+              updated_at: data.profile.updated_at ?? new Date().toISOString(),
+              email_verified: data.profile.email_verified ?? true,
+              active: data.profile.active ?? true,
+            });
+          }
+        } catch (err) {
+          console.error('[AuthContext] Erro ao validar sessão:', err);
+        } finally {
+          validatingRef.current = false;
+        }
+      };
+
+      validateSession();
+
+      const onVisibility = () => {
+        if (document.visibilityState === 'visible') validateSession();
+      };
+      const onFocus = () => validateSession();
+
+      window.addEventListener('focus', onFocus);
+      document.addEventListener('visibilitychange', onVisibility);
+
+      return () => {
+        window.removeEventListener('focus', onFocus);
+        document.removeEventListener('visibilitychange', onVisibility);
+      };
     } else if (status === "unauthenticated") {
       setUser(null);
       setProfile(null);

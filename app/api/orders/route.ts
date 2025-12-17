@@ -3,6 +3,7 @@ import { sendOrderWhatsAppNotification, sendStatusWhatsAppUpdate, type OrderWhat
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
+import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 
 type OrderItem = {
   id: string;
@@ -49,6 +50,9 @@ export async function GET(req: NextRequest) {
     if (!userRole || !['admin', 'jornaleiro', 'cliente'].includes(userRole)) {
       return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
+    if (!userId) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
 
     const { searchParams } = new URL(req.url);
     const orderId = searchParams.get("id") || "";
@@ -79,11 +83,7 @@ export async function GET(req: NextRequest) {
       }
 
       if (userRole === 'jornaleiro') {
-        const { data: bancaData } = await supabaseAdmin
-          .from('bancas')
-          .select('id')
-          .eq('user_id', userId)
-          .single();
+        const bancaData = await getActiveBancaRowForUser(userId, 'id, user_id');
         
         if (!bancaData || singleOrder.banca_id !== bancaData.id) {
           return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
@@ -96,11 +96,7 @@ export async function GET(req: NextRequest) {
     // SEGURANÇA: Para jornaleiros, buscar banca_id do usuário
     let userBancaId: string | undefined;
     if (userRole === 'jornaleiro') {
-      const { data: bancaData } = await supabaseAdmin
-        .from('bancas')
-        .select('id')
-        .eq('user_id', userId)
-        .single();
+      const bancaData = await getActiveBancaRowForUser(userId, 'id, user_id');
       
       if (!bancaData) {
         return NextResponse.json({ error: "Banca não encontrada" }, { status: 404 });

@@ -6,7 +6,6 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { supabase } from "@/lib/supabase";
 
 export default function JornaleiroDashboardPage() {
   const { user, profile } = useAuth();
@@ -28,23 +27,18 @@ export default function JornaleiroDashboardPage() {
 
   const loadBancaData = async () => {
     try {
-      // Buscar banca do jornaleiro
-      const { data: bancaData, error } = await supabase
-        .from('bancas')
-        .select('*')
-        .eq('user_id', user!.id)
-        .single();
-      
-      if (error) {
-        console.error('[Dashboard] Erro ao buscar banca:', error);
-        return;
+      const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}`, {
+        cache: "no-store",
+        credentials: "include",
+      });
+      const text = await res.text();
+      const json = JSON.parse(text);
+      if (!res.ok || !json?.success || !json?.data) {
+        throw new Error(json?.error || `HTTP ${res.status}`);
       }
-      
-      console.log('[Dashboard] 🏪 Banca carregada:', bancaData);
-      console.log('[Dashboard] 👥 is_cotista:', bancaData?.is_cotista);
-      console.log('[Dashboard] 🆔 cotista_id:', bancaData?.cotista_id);
-      console.log('[Dashboard] 📄 tpu_url:', bancaData?.tpu_url);
-      setBanca(bancaData);
+
+      console.log('[Dashboard] 🏪 Banca carregada:', json.data);
+      setBanca(json.data);
     } catch (error) {
       console.error('[Dashboard] Erro ao carregar banca:', error);
     }

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import WhatsAppTemplates from "@/components/admin/WhatsAppTemplates";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ToastProvider";
 
 type ConfigTab = "whatsapp" | "notifications" | "general" | "delivery" | "payment";
@@ -162,21 +161,21 @@ export default function ConfiguracoesPage() {
   const loadBancaConfig = async () => {
     try {
       console.log('Carregando configurações para user:', user?.id);
-      
-      const { data, error } = await supabase
-        .from('bancas')
-        .select('*')
-        .eq('user_id', user!.id)
-        .single();
-      
-      console.log('Dados carregados:', { data, error });
-      
-      if (error) {
-        console.error('Erro ao carregar:', error);
+
+      const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}`, {
+        cache: "no-store",
+        credentials: "include",
+      });
+      const text = await res.text();
+      const json = JSON.parse(text);
+
+      if (!res.ok || !json?.success || !json?.data) {
+        console.error('Erro ao carregar:', json?.error || text);
         toast.error('Erro ao carregar configurações da banca');
         return;
       }
-      
+
+      const data = json.data;
       if (data) {
         setBanca(data);
         setDeliveryConfig({
@@ -184,10 +183,10 @@ export default function ConfiguracoesPage() {
           min_order_value: data.min_order_value || 0,
           delivery_radius: data.delivery_radius || 5,
         });
-        setPaymentMethods(data.payment_methods || []);
+        setPaymentMethods(data.payment_methods || data.payments || []);
         setGeneralConfig({
           name: data.name || '',
-          whatsapp: data.whatsapp || '',
+          whatsapp: data.contact?.whatsapp || data.whatsapp || '',
           description: data.description || '',
           delivery_enabled: data.delivery_enabled || false,
           free_shipping_threshold: data.free_shipping_threshold || 120,
@@ -200,15 +199,29 @@ export default function ConfiguracoesPage() {
     }
   };
 
+  const updateBanca = async (updates: any) => {
+    const res = await fetch("/api/jornaleiro/banca", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(updates),
+    });
+    const text = await res.text();
+    const json = JSON.parse(text);
+    if (!res.ok || !json?.success) {
+      throw new Error(json?.error || `HTTP ${res.status}`);
+    }
+    return json.data;
+  };
+
   const saveDeliveryConfig = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase
-        .from('bancas')
-        .update(deliveryConfig)
-        .eq('user_id', user!.id);
-
-      if (error) throw error;
+      await updateBanca({
+        delivery_fee: deliveryConfig.delivery_fee,
+        min_order_value: deliveryConfig.min_order_value,
+        delivery_radius: deliveryConfig.delivery_radius,
+      });
       toast.success('Configurações de entrega salvas!');
     } catch (error) {
       toast.error('Erro ao salvar configurações');
@@ -220,12 +233,7 @@ export default function ConfiguracoesPage() {
   const savePaymentMethods = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase
-        .from('bancas')
-        .update({ payment_methods: paymentMethods })
-        .eq('user_id', user!.id);
-
-      if (error) throw error;
+      await updateBanca({ payment_methods: paymentMethods });
       toast.success('Formas de pagamento salvas!');
     } catch (error) {
       toast.error('Erro ao salvar formas de pagamento');
@@ -257,34 +265,15 @@ export default function ConfiguracoesPage() {
         deliveryConfig
       });
 
-      const { data, error } = await supabase
-        .from('bancas')
-        .update({
-          name: generalConfig.name,
-          whatsapp: generalConfig.whatsapp,
-          description: generalConfig.description,
-          delivery_fee: deliveryConfig.delivery_fee,
-          delivery_radius: deliveryConfig.delivery_radius,
-          delivery_enabled: generalConfig.delivery_enabled || false,
-          free_shipping_threshold: generalConfig.free_shipping_threshold || 120,
-          origin_cep: generalConfig.origin_cep || null,
-        })
-        .eq('user_id', user.id)
-        .select();
-
-      console.log('Resultado do save:', { data, error });
-
-      if (error) {
-        console.error('Erro detalhado:', error);
-        throw error;
-      }
-
-      if (!data || data.length === 0) {
-        toast.error('Nenhuma banca encontrada para este usuário');
-        return;
-      }
-
       toast.success('Configurações gerais salvas com sucesso!');
+      await updateBanca({
+        name: generalConfig.name,
+        contact: { whatsapp: generalConfig.whatsapp },
+        description: generalConfig.description,
+        delivery_enabled: generalConfig.delivery_enabled || false,
+        free_shipping_threshold: generalConfig.free_shipping_threshold ?? 120,
+        origin_cep: generalConfig.origin_cep || '',
+      });
       await loadBancaConfig(); // Recarrega os dados
     } catch (error: any) {
       console.error('Erro ao salvar:', error);

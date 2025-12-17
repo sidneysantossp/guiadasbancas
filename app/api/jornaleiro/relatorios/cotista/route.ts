@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auth } from '@/lib/auth';
+import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 
 export const dynamic = 'force-dynamic';
 
@@ -22,11 +23,7 @@ export async function GET(req: NextRequest) {
     const userId = session.user.id;
 
     // Buscar banca do jornaleiro
-    const { data: banca } = await supabase
-      .from('bancas')
-      .select('id, is_cotista, cotista_id')
-      .eq('user_id', userId)
-      .single();
+    const banca = await getActiveBancaRowForUser(userId, 'id, user_id, is_cotista, cotista_id');
 
     if (!banca) {
       return NextResponse.json(

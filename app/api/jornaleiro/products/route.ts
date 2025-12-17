@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
+import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -13,11 +14,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Buscar banca_id e informações de cotista do usuário
-  const { data: banca } = await supabaseAdmin
-    .from('bancas')
-    .select('id, is_cotista, cotista_id')
-    .eq('user_id', session.user.id)
-    .single();
+  const banca = await getActiveBancaRowForUser(session.user.id, 'id, user_id, is_cotista, cotista_id');
 
   if (!banca) {
     console.log('[API/JORNALEIRO/PRODUCTS] Usuário sem banca - retornando lista vazia');
@@ -289,11 +286,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Buscar banca_id do usuário
-  const { data: banca } = await supabaseAdmin
-    .from('bancas')
-    .select('id')
-    .eq('user_id', session.user.id)
-    .single();
+  const banca = await getActiveBancaRowForUser(session.user.id, 'id, user_id');
 
   if (!banca) {
     return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auth } from '@/lib/auth';
+import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -29,11 +30,7 @@ export async function GET(req: NextRequest) {
     console.log('[CATALOGO] Buscando banca para userId:', userId);
 
     // Buscar banca do jornaleiro com informações de cotista
-    const { data: banca } = await supabase
-      .from('bancas')
-      .select('id, is_cotista, cotista_id')
-      .eq('user_id', userId)
-      .single();
+    const banca = await getActiveBancaRowForUser(userId, 'id, user_id, is_cotista, cotista_id');
 
     if (!banca) {
       console.log('[CATALOGO] Banca não encontrada para userId:', userId, '- Retornando lista vazia');

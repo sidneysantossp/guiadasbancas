@@ -37,6 +37,7 @@ export default function JornaleiroRegisterPage() {
   const cpfInputRef = useRef<HTMLInputElement | null>(null);
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const finishingRef = useRef(false);
 
   // Verificação de CPF duplicado
   const [checkingCpf, setCheckingCpf] = useState(false);
@@ -533,7 +534,9 @@ export default function JornaleiroRegisterPage() {
       
       // Verificar se CPF já está cadastrado (cotista ou banca) - bloqueia
       if (cpfExists) {
-        setError('Este CPF/CNPJ já está cadastrado. Para prosseguir altere o documento ou acesse o Painel Administrativo.');
+        setError(
+          'Este CPF/CNPJ já está cadastrado. Faça login e, no painel, vá em "Minhas Bancas" > "Cadastrar" para adicionar outra banca.'
+        );
         return;
       }
       
@@ -611,20 +614,23 @@ export default function JornaleiroRegisterPage() {
   // O fluxo correto é: registrar -> onboarding (cria banca) -> dashboard
 
   const onFinish = async () => {
+    if (finishingRef.current) return; // evita duplo clique / dupla submissão (lock síncrono)
+    finishingRef.current = true;
     setError(null);
     logger.log('[Wizard] 🚀 Iniciando conclusão do cadastro...');
     logger.log('[Wizard] 🏢 isCotaAtiva atual:', isCotaAtiva);
     logger.log('[Wizard] 👥 selectedCotaAtiva atual:', selectedCotaAtiva);
     const err1 = validateStep1();
-    if (err1) { setError(err1); setStep(1); return; }
+    if (err1) { setError(err1); setStep(1); finishingRef.current = false; return; }
     const err2 = validateStep2();
-    if (err2) { setError(err2); setStep(2); return; }
+    if (err2) { setError(err2); setStep(2); finishingRef.current = false; return; }
     const err3 = validateStep3();
-    if (err3) { setError(err3); setStep(3); return; }
+    if (err3) { setError(err3); setStep(3); finishingRef.current = false; return; }
     const err4 = validateStep4();
-    if (err4) { setError(err4); setStep(4); return; }
+    if (err4) { setError(err4); setStep(4); finishingRef.current = false; return; }
     
     try {
+      setIsBusy(true);
       setToast('Criando sua conta...');
       
       // 1. Criar usuário no Supabase Auth
@@ -634,9 +640,36 @@ export default function JornaleiroRegisterPage() {
       });
 
       if (authError) {
-        setError(authError.message || 'Erro ao criar conta');
-        setStep(1);
-        return;
+        // Se o usuário clicou duas vezes, a conta já pode ter sido criada na primeira tentativa.
+        // Nesse caso, apenas seguir o fluxo normalmente (signIn + onboarding).
+        const msg = (authError as any)?.message || '';
+        const code = (authError as any)?.code || '';
+        const looksLikeAlreadyExists =
+          code === 'user_already_exists' ||
+          /already\s*registered/i.test(msg) ||
+          /já\s*está\s*cadastrado/i.test(msg) ||
+          /User\s+already\s+registered/i.test(msg);
+
+        if (!looksLikeAlreadyExists) {
+          setError(msg || 'Erro ao criar conta');
+          setStep(2);
+          setIsBusy(false);
+          setToast(null);
+          finishingRef.current = false;
+          return;
+        }
+        // Se já existe, só podemos seguir se conseguirmos autenticar com a senha informada.
+        setToast('Conta já existe. Autenticando...');
+        const login = await signIn(email, password);
+        if (login?.error) {
+          setError("Este e-mail já possui uma conta cadastrada. Faça login ou recupere sua senha.");
+          setStep(2);
+          setIsBusy(false);
+          setToast(null);
+          finishingRef.current = false;
+          return;
+        }
+        logger.warn('[Wizard] ⚠️ signUp retornou "já cadastrado", mas login OK. Seguindo fluxo.');
       }
 
       setToast('Conta criada! Autenticando...');
@@ -674,6 +707,9 @@ export default function JornaleiroRegisterPage() {
       if (allBanks.length === 0) {
         setError('Adicione pelo menos uma banca.');
         setStep(2);
+        setIsBusy(false);
+        setToast(null);
+        finishingRef.current = false;
         return;
       }
 
@@ -737,6 +773,9 @@ export default function JornaleiroRegisterPage() {
     } catch (err) {
       logger.error('Erro no cadastro:', err);
       setError("Não foi possível concluir o cadastro. Tente novamente.");
+      setIsBusy(false);
+      setToast(null);
+      finishingRef.current = false;
     }
   };
 
@@ -906,19 +945,19 @@ export default function JornaleiroRegisterPage() {
             </div>
 
             {/* Exibir informações se CPF já cadastrado (cotista ou banca) */}
-            {cpfExists && existingBancas.length > 0 && (
-              <div className="mt-6 space-y-4">
-                <div className="rounded-xl bg-amber-50 border-2 border-amber-300 p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="text-amber-600 text-3xl shrink-0">⚠️</span>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-amber-900">CPF/CNPJ já cadastrado!</h3>
-                      <p className="text-sm text-amber-800 mt-2">
-                        Existe Banca cadastrada com esse CPF/CNPJ na plataforma. Caso queira cadastrar outra banca, acesse seu Painel Administrativo.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+	            {cpfExists && existingBancas.length > 0 && (
+	              <div className="mt-6 space-y-4">
+	                <div className="rounded-xl bg-amber-50 border-2 border-amber-300 p-4">
+	                  <div className="flex items-start gap-3">
+	                    <span className="text-amber-600 text-3xl shrink-0">⚠️</span>
+	                    <div className="flex-1">
+	                      <h3 className="text-lg font-bold text-amber-900">CPF/CNPJ já cadastrado!</h3>
+	                      <p className="text-sm text-amber-800 mt-2">
+	                        Existe banca cadastrada com esse CPF/CNPJ na plataforma. Para cadastrar outra banca, faça login e use "Minhas Bancas" &gt; "Cadastrar".
+	                      </p>
+	                    </div>
+	                  </div>
+	                </div>
 
                 <div className="grid grid-cols-1 gap-3">
                   {existingBancas.map((banca) => (
@@ -944,19 +983,19 @@ export default function JornaleiroRegisterPage() {
                   ))}
                 </div>
 
-                <div className="flex justify-center">
-                  <Link 
-                    href="/jornaleiro" 
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
+	                <div className="flex justify-center">
+	                  <Link 
+	                    href="/jornaleiro" 
+	                    className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+	                  >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
                     </svg>
-                    Acessar Painel Administrativo
-                  </Link>
-                </div>
-              </div>
-            )}
+	                    Fazer login
+	                  </Link>
+	                </div>
+	              </div>
+	            )}
           </div>
         )}
 
@@ -1320,7 +1359,19 @@ export default function JornaleiroRegisterPage() {
                 {checkingCpf ? 'Verificando...' : isBusy ? 'Validando...' : 'Avançar'}
               </button>
             ) : step === 5 ? (
-              <button onClick={onFinish} className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95">Concluir cadastro</button>
+              <button
+                onClick={onFinish}
+                disabled={isBusy}
+                className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              >
+                {isBusy && (
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" opacity="0.25"/>
+                    <path d="M12 2a10 10 0 0 1 10 10" opacity="0.75"/>
+                  </svg>
+                )}
+                {isBusy ? 'Concluindo...' : 'Concluir cadastro'}
+              </button>
             ) : null}
           </div>
         </div>

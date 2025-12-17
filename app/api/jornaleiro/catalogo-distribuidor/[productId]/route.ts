@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auth } from '@/lib/auth';
+import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 
 // PUT /api/jornaleiro/catalogo-distribuidor/:productId
 // Atualiza customizações de um produto (mesma lógica do PATCH)
@@ -32,11 +33,7 @@ export async function PATCH(
     const userId = session.user.id;
 
     // Buscar banca do jornaleiro (pela tabela bancas, não user_profiles)
-    const { data: banca } = await supabase
-      .from('bancas')
-      .select('id')
-      .eq('user_id', userId)
-      .single();
+    const banca = await getActiveBancaRowForUser(userId, 'id, user_id');
 
     if (!banca) {
       return NextResponse.json(
