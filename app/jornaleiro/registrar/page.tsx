@@ -40,6 +40,7 @@ export default function JornaleiroRegisterPage() {
 
   // Verificação de CPF duplicado
   const [checkingCpf, setCheckingCpf] = useState(false);
+  const [isBusy, setIsBusy] = useState(false); // Estado genérico de carregamento para botões
   const [cpfExists, setCpfExists] = useState(false);
   const [isCotista, setIsCotista] = useState(false);
   const [existingBancas, setExistingBancas] = useState<Array<{id: string; name: string; address: string}>>([]);
@@ -545,6 +546,30 @@ export default function JornaleiroRegisterPage() {
       const e5 = validatePasswordField(password); setErrorField('password', e5);
       const e6 = validateConfirmField(confirmPassword, password); setErrorField('confirmPassword', e6);
       if (e4 || e5 || e6) { return; }
+
+      // Verificar se e-mail já existe
+      try {
+        setIsBusy(true); // Usando estado correto de carregamento
+        const res = await fetch('/api/jornaleiro/check-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        
+        if (data.exists) {
+          setError(data.message || 'Este e-mail já está cadastrado.');
+          setIsBusy(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Erro ao verificar email:', err);
+        // Em caso de erro na API, optamos por deixar prosseguir e o erro aparecerá no submit final se for crítico,
+        // ou bloquear. Por segurança, melhor não bloquear se a API falhar.
+      } finally {
+        setIsBusy(false);
+      }
+
       setStep(3);
       return;
     }
@@ -686,6 +711,9 @@ export default function JornaleiroRegisterPage() {
       logger.log('[Wizard] 🏢 is_cotista:', bancaData.is_cotista);
       logger.log('[Wizard] 🏢 cotista_id:', bancaData.cotista_id);
       localStorage.setItem("gb:bancaData", JSON.stringify(bancaData));
+      
+      // Limpar wizard para evitar popup de confirmação de saída
+      localStorage.removeItem('gb:sellerWizard');
       
       setToast('✅ Cadastro concluído! Redirecionando...');
       
@@ -1280,16 +1308,16 @@ export default function JornaleiroRegisterPage() {
             {step < 5 ? (
               <button 
                 onClick={onNext} 
-                disabled={checkingCpf}
+                disabled={checkingCpf || isBusy}
                 className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
               >
-                {checkingCpf && (
+                {(checkingCpf || isBusy) && (
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="12" r="10" opacity="0.25"/>
                     <path d="M12 2a10 10 0 0 1 10 10" opacity="0.75"/>
                   </svg>
                 )}
-                {checkingCpf ? 'Verificando...' : 'Avançar'}
+                {checkingCpf ? 'Verificando...' : isBusy ? 'Validando...' : 'Avançar'}
               </button>
             ) : step === 5 ? (
               <button onClick={onFinish} className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95">Concluir cadastro</button>
