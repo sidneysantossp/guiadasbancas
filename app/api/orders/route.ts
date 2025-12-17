@@ -111,9 +111,14 @@ export async function GET(req: NextRequest) {
       .from('orders')
       .select(userRole === 'admin' ? selectForAdmin : selectForJornaleiro, { count: countPref });
 
-    // Filtrar por status
+    // Filtrar por status (suporta múltiplos status separados por vírgula)
     if (status) {
-      query = query.eq('status', status);
+      const statusList = status.split(',').map(s => s.trim()).filter(Boolean);
+      if (statusList.length === 1) {
+        query = query.eq('status', statusList[0]);
+      } else if (statusList.length > 1) {
+        query = query.in('status', statusList);
+      }
     }
 
     // Filtrar por banca (jornaleiro só vê pedidos da própria banca)

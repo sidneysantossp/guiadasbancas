@@ -40,8 +40,18 @@ type Order = {
   estimated_delivery?: string;
 };
 
+const STATUS_OPTIONS = [
+  { value: 'novo', label: 'Pedido Recebido' },
+  { value: 'confirmado', label: 'Confirmado' },
+  { value: 'em_preparo', label: 'Em preparo' },
+  { value: 'saiu_para_entrega', label: 'Saiu para entrega' },
+  { value: 'entregue', label: 'Entregue' },
+  { value: 'cancelado', label: 'Cancelado' },
+];
+
 export default function JornaleiroPedidosPage() {
-  const [status, setStatus] = useState("");
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [q, setQ] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [rows, setRows] = useState<Order[]>([]);
@@ -84,7 +94,7 @@ export default function JornaleiroPedidosPage() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      if (status) params.set("status", status);
+      if (selectedStatuses.length > 0) params.set("status", selectedStatuses.join(','));
       if (q) params.set("q", q);
       if (paymentMethod) params.set("payment_method", paymentMethod);
       params.set("page", page.toString());
@@ -117,7 +127,7 @@ export default function JornaleiroPedidosPage() {
   useEffect(() => {
     fetchRows(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, q, paymentMethod]);
+  }, [selectedStatuses, q, paymentMethod]);
 
   // Polling para detectar novos pedidos
   useEffect(() => {
@@ -340,7 +350,7 @@ export default function JornaleiroPedidosPage() {
       <FiltersBar
         onReset={() => {
           setQ("");
-          setStatus("");
+          setSelectedStatuses([]);
           setPaymentMethod("");
         }}
       >
@@ -350,19 +360,66 @@ export default function JornaleiroPedidosPage() {
           placeholder="Buscar por #id, cliente ou telefone"
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        >
-          <option value="">Todos status</option>
-          <option value="novo">Pedido Recebido</option>
-          <option value="confirmado">Confirmado</option>
-          <option value="em_preparo">Em preparo</option>
-          <option value="saiu_para_entrega">Saiu para entrega</option>
-          <option value="entregue">Entregue</option>
-          <option value="cancelado">Cancelado</option>
-        </select>
+<div className="relative">
+          <button
+            type="button"
+            onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-left bg-white flex items-center justify-between"
+          >
+            <span className={selectedStatuses.length === 0 ? 'text-gray-500' : ''}>
+              {selectedStatuses.length === 0 
+                ? 'Todos status' 
+                : selectedStatuses.length === 1
+                  ? STATUS_OPTIONS.find(o => o.value === selectedStatuses[0])?.label
+                  : `${selectedStatuses.length} selecionados`}
+            </span>
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {statusDropdownOpen && (
+            <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+              <div className="p-2 border-b border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setSelectedStatuses([])}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Limpar seleção
+                </button>
+              </div>
+              {STATUS_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedStatuses.includes(option.value)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedStatuses([...selectedStatuses, option.value]);
+                      } else {
+                        setSelectedStatuses(selectedStatuses.filter(s => s !== option.value));
+                      }
+                    }}
+                    className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  <span className="text-sm">{option.label}</span>
+                </label>
+              ))}
+              <div className="p-2 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setStatusDropdownOpen(false)}
+                  className="w-full px-3 py-1.5 bg-orange-600 text-white text-sm rounded hover:bg-orange-700"
+                >
+                  Aplicar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
         <select
           value={paymentMethod}
           onChange={(e) => setPaymentMethod(e.target.value)}
