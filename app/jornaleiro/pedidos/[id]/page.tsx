@@ -334,7 +334,9 @@ export default function OrderDetailsPage() {
   const openWhatsApp = () => {
     if (!order) return;
     const message = `Olá ${order.customer_name}! Seu pedido #${order.id} foi atualizado para: ${order.status}`;
-    const url = `https://wa.me/${order.customer_phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+    // Garantir que o número tenha o código do país 55
+    const phone = order.customer_phone.replace(/\D/g, '').replace(/^55/, '');
+    const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
   };
 
