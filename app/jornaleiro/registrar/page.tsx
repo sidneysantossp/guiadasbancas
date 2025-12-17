@@ -34,6 +34,11 @@ export default function JornaleiroRegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  
+  // Estado específico para validação de email no blur
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
+  
   const cpfInputRef = useRef<HTMLInputElement | null>(null);
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
@@ -1016,13 +1021,53 @@ export default function JornaleiroRegisterPage() {
                   type="email"
                   className={`input mt-1 w-full pr-16 ${fieldErrors.email ? 'border-rose-400' : ''}`}
                   value={email}
-                  onChange={(e)=>{ setEmail(e.target.value); if (fieldErrors.email) setErrorField('email'); }}
-                  onBlur={()=> setErrorField('email', validateEmailField(email))}
+                  onChange={(e)=>{ 
+                    setEmail(e.target.value); 
+                    if (fieldErrors.email) setErrorField('email');
+                    if (emailExists) setEmailExists(false); 
+                  }}
+                  onBlur={async () => {
+                    const error = validateEmailField(email);
+                    setErrorField('email', error);
+                    
+                    // Se o email for válido sintaticamente e não estiver vazio, verificar na API
+                    if (!error && email) {
+                      setCheckingEmail(true);
+                      try {
+                        const res = await fetch('/api/jornaleiro/check-email', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email })
+                        });
+                        const data = await res.json();
+                        if (data.exists) {
+                          setEmailExists(true);
+                          setErrorField('email', data.message || 'Este e-mail já está cadastrado.');
+                        } else {
+                          setEmailExists(false);
+                        }
+                      } catch (err) {
+                        console.error('Erro ao verificar email:', err);
+                      } finally {
+                        setCheckingEmail(false);
+                      }
+                    }
+                  }}
                   required
                   aria-invalid={!!fieldErrors.email}
                 />
-                {emailValid && (
-                  <span className="pointer-events-none absolute inset-y-0 right-2 grid place-items-center text-emerald-600">
+                {/* Ícone de Loading */}
+                {checkingEmail && (
+                  <span className="pointer-events-none absolute inset-y-0 right-10 grid place-items-center text-blue-500">
+                     <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                       <circle cx="12" cy="12" r="10" opacity="0.25"/>
+                       <path d="M12 2a10 10 0 0 1 10 10" opacity="0.75"/>
+                     </svg>
+                  </span>
+                )}
+                {/* Ícone de Sucesso (apenas se validado na API e ok) */}
+                {emailValid && !checkingEmail && !emailExists && !fieldErrors.email && (
+                  <span className="pointer-events-none absolute inset-y-0 right-10 grid place-items-center text-emerald-600">
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
                   </span>
                 )}
@@ -1354,16 +1399,16 @@ export default function JornaleiroRegisterPage() {
             {step < 5 ? (
               <button 
                 onClick={onNext} 
-                disabled={checkingCpf || isBusy}
+                disabled={checkingCpf || isBusy || checkingEmail || emailExists}
                 className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
               >
-                {(checkingCpf || isBusy) && (
+                {(checkingCpf || isBusy || checkingEmail) && (
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="12" r="10" opacity="0.25"/>
                     <path d="M12 2a10 10 0 0 1 10 10" opacity="0.75"/>
                   </svg>
                 )}
-                {checkingCpf ? 'Verificando...' : isBusy ? 'Validando...' : 'Avançar'}
+                {checkingCpf ? 'Verificando...' : checkingEmail ? 'Validando email...' : isBusy ? 'Aguarde...' : 'Avançar'}
               </button>
             ) : step === 5 ? (
               <button
