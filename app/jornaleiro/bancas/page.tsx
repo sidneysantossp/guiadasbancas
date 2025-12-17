@@ -135,7 +135,7 @@ export default function JornaleiroBancasPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {items.map((b) => {
             const isSelected = activeBancaId === b.id;
-            const address = b.address || [b.city, b.uf].filter(Boolean).join(" - ") || "";
+            const address = b.address || "";
             return (
               <div key={b.id} className={`rounded-xl border bg-white p-4 ${isSelected ? "border-[#ff5c00]" : "border-gray-200"}`}>
                 <div className="flex items-start justify-between gap-3">
@@ -195,4 +195,3 @@ export default function JornaleiroBancasPage() {
     </div>
   );
 }
-

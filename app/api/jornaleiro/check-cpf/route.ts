@@ -38,7 +38,8 @@ export async function POST(req: NextRequest) {
     // 1. Buscar bancas ATIVAS vinculadas diretamente a este CPF de cotista
     const { data: bancasCotista } = await supabaseAdmin
       .from('bancas')
-      .select('id, name, address, city, uf, user_id, active')
+      // OBS: a tabela `bancas` não possui `city`/`uf` em alguns ambientes.
+      .select('id, name, address, user_id, active')
       .eq('cotista_cnpj_cpf', cpfOnly)
       .eq('active', true); // APENAS ATIVAS
 
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
       if (bancaIds.length > 0) {
         const { data: bancasByIds } = await supabaseAdmin
           .from('bancas')
-          .select('id, name, address, city, uf, user_id, active')
+          .select('id, name, address, user_id, active')
           .in('id', bancaIds)
           .eq('active', true); // APENAS ATIVAS
         
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
       
       const { data: bancasByUser } = await supabaseAdmin
         .from('bancas')
-        .select('id, name, address, city, uf, user_id, active')
+        .select('id, name, address, user_id, active')
         .in('user_id', userIds)
         .eq('active', true); // APENAS ATIVAS
 
@@ -114,14 +115,10 @@ export async function POST(req: NextRequest) {
           addr.street,
           addr.number,
           addr.neighborhood,
-          addr.city || banca.city,
-          addr.uf || banca.uf
+          addr.city,
+          addr.uf
         ].filter(Boolean);
         endereco = parts.join(', ');
-      }
-
-      if (!endereco && (banca.city || banca.uf)) {
-        endereco = [banca.city, banca.uf].filter(Boolean).join(' - ');
       }
 
       return {

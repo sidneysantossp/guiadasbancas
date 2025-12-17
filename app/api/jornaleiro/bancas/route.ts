@@ -29,7 +29,8 @@ export async function GET() {
   const { data, error } = await supabaseAdmin
     .from("bancas")
     .select(
-      "id, user_id, name, email, address, cep, city, uf, profile_image, cover_image, active, approved, created_at, updated_at"
+      // OBS: a tabela `bancas` não possui `city`/`uf` em alguns ambientes; manter select apenas com colunas existentes.
+      "id, user_id, name, email, address, cep, profile_image, cover_image, active, approved, created_at, updated_at"
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
