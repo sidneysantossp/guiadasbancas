@@ -15,7 +15,7 @@ type Distribuidor = {
 const DISTRIBUIDORES: Distribuidor[] = [
   {
     id: "panini",
-    nome: "Panini Brasil Ltda",
+    nome: "Brancaleone Publicações",
     url: "https://brancaleonepublicacoes.meuspedidos.com.br/",
     descricao: "Revistas, gibis, cards colecionáveis e produtos licenciados",
     cor: "bg-blue-600"
