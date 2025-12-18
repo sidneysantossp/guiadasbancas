@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 type OrderItem = {
   id: string;
@@ -80,7 +80,7 @@ export default function OrderReceipt({ order, bancaInfo }: OrderReceiptProps) {
 
   const shareViaWhatsApp = async () => {
     // Por enquanto, apenas enviar mensagem de texto
-    sendWhatsAppMessage();
+    sendWhatsAppImage();
   };
 
   const printReceipt = () => {
@@ -146,26 +146,38 @@ export default function OrderReceipt({ order, bancaInfo }: OrderReceiptProps) {
     }
   };
 
-  const sendWhatsAppMessage = () => {
-    const message = `🧾 *COMPROVANTE DE PEDIDO*\n\n` +
-      `📋 Pedido: #${order.id}\n` +
-      `👤 Cliente: ${order.customer_name}\n` +
-      `💰 Total: R$ ${order.total.toFixed(2)}\n` +
-      `📅 Data: ${formatDate(order.created_at)}\n` +
-      `💳 Pagamento: ${getPaymentMethodLabel(order.payment_method)}\n\n` +
-      `📦 *ITENS DO PEDIDO:*\n` +
-      `${order.items.map(item => 
-        `• ${item.quantity}x ${item.product_name} - R$ ${item.total_price.toFixed(2)}`
-      ).join('\n')}\n\n` +
-      `📍 *${defaultBancaInfo.name}*\n` +
-      `${defaultBancaInfo.address}\n` +
-      `📞 ${defaultBancaInfo.phone}\n\n` +
-      `✅ *Pedido confirmado!*\n` +
-      `Obrigado pela preferência! 🙏`;
+  const [sendingImage, setSendingImage] = useState(false);
 
-    const phone = order.customer_phone.replace(/\D/g, '');
-    const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+  const sendWhatsAppImage = async () => {
+    if (!order.customer_phone) {
+      alert('Este pedido não tem telefone cadastrado.');
+      return;
+    }
+    
+    setSendingImage(true);
+    try {
+      const response = await fetch('/api/whatsapp/send-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          customerPhone: order.customer_phone
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        alert('✅ Comprovante enviado com sucesso via WhatsApp!');
+      } else {
+        alert('❌ Erro ao enviar comprovante: ' + (result.error || 'Erro desconhecido'));
+      }
+    } catch (error) {
+      console.error('Erro ao enviar comprovante:', error);
+      alert('❌ Erro ao enviar comprovante');
+    } finally {
+      setSendingImage(false);
+    }
   };
 
   return (
@@ -300,7 +312,7 @@ export default function OrderReceipt({ order, bancaInfo }: OrderReceiptProps) {
         </button>
         
         <button
-          onClick={sendWhatsAppMessage}
+          onClick={sendWhatsAppImage}
           className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
         >
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
