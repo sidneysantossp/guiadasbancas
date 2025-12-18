@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     console.log(`[WhatsApp Status Update] 📋 Pedido: ${orderId}`);
     console.log(`[WhatsApp Status Update] 🔄 Status: ${newStatus}`);
     console.log(`[WhatsApp Status Update] 📦 Itens:`, itemsWithStatus?.length || 0);
+    console.log(`[WhatsApp Status Update] 📞 Banca WhatsApp:`, bancaWhatsapp || '(não informado)');
 
     // Enviar notificação via WhatsApp
     console.log('[WhatsApp Status Update] 📤 Chamando sendStatusWhatsAppUpdate...');

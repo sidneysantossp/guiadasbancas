@@ -129,6 +129,7 @@ export default function OrderDetailsPage() {
       setOrder(json.data);
       setNotes(json.data.notes || "");
       setEstimatedDelivery(json.data.estimated_delivery || "");
+      console.log('[OrderDetails] banca_whatsapp:', json.data.banca_whatsapp || '(não informado)');
       
       // Inicializar status dos itens
       const initialStatuses: Record<string, ItemStatus> = {};
