@@ -175,6 +175,7 @@ ${order.items.map(item => `• ${item.quantity}x ${item.product_name} - R$ ${ite
 💵 *TOTAL:* R$ ${order.total.toFixed(2)}
 
 💳 *Pagamento:* ${getPaymentMethodLabel(order.payment_method)}
+🚚 *Entrega:* Retirada na Banca
 
 ━━━━━━━━━━━━━━━━━━━━━━
 🏪 *${defaultBancaInfo.name}*
