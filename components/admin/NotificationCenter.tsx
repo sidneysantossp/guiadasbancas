@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useToast } from "@/components/admin/ToastProvider";
+import { IconBell } from "@tabler/icons-react";
 
 type Notification = {
   id: string;
@@ -17,15 +18,78 @@ type Notification = {
 export default function NotificationCenter() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [newOrdersCount, setNewOrdersCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
+  const prevNewOrdersRef = useRef<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Tocar som de notificação
+  const playNotificationSound = () => {
+    try {
+      const AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      
+      const ctx = new AudioContext();
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+      
+      const now = ctx.currentTime;
+      gainNode.gain.setValueAtTime(0.0001, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.3, now + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+      
+      oscillator.start(now);
+      oscillator.stop(now + 0.5);
+    } catch (error) {
+      console.warn('Não foi possível reproduzir som:', error);
+    }
+  };
+
+  // Buscar contagem de pedidos novos
+  const fetchNewOrdersCount = async () => {
+    try {
+      const res = await fetch('/api/orders?status=novo&limit=1', {
+        cache: 'no-store'
+      });
+      const json = await res.json();
+      const count = json.total || 0;
+      
+      // Se aumentou, tocar som e mostrar toast
+      if (prevNewOrdersRef.current !== null && count > prevNewOrdersRef.current) {
+        playNotificationSound();
+        toast.success(`🛒 Novo pedido recebido!`);
+        
+        // Notificação do browser
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          new window.Notification('Novo Pedido!', {
+            body: 'Você recebeu um novo pedido.',
+            icon: '/favicon.ico'
+          });
+        }
+      }
+      
+      prevNewOrdersRef.current = count;
+      setNewOrdersCount(count);
+    } catch (error) {
+      console.error('Erro ao buscar pedidos novos:', error);
+    }
+  };
 
   useEffect(() => {
     loadNotifications();
-    // Verificação periódica desabilitada para produção
-    // const interval = setInterval(checkNewNotifications, 30000);
-    // return () => clearInterval(interval);
+    fetchNewOrdersCount();
+    
+    // Polling a cada 15 segundos para verificar novos pedidos
+    const interval = setInterval(fetchNewOrdersCount, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadNotifications = async () => {
@@ -154,17 +218,16 @@ export default function NotificationCenter() {
 
   return (
     <div className="relative">
-      {/* Botão de Notificações */}
+      {/* Botão de Notificações - Ícone de Sininho */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        className="relative p-2 text-gray-600 hover:text-[#ff5c00] hover:bg-orange-50 rounded-lg transition-colors"
+        title={newOrdersCount > 0 ? `${newOrdersCount} pedido(s) novo(s)` : 'Notificações'}
       >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM19 12h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v3a2 2 0 002 2h2m10-6V4a2 2 0 00-2-2H9a2 2 0 00-2 2v1M7 14h10l-5 5-5-5z" />
-        </svg>
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-            {unreadCount > 9 ? "9+" : unreadCount}
+        <IconBell size={24} stroke={1.5} className={newOrdersCount > 0 ? 'animate-[wiggle_1s_ease-in-out_infinite]' : ''} />
+        {newOrdersCount > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center animate-pulse">
+            {newOrdersCount > 99 ? "99+" : newOrdersCount}
           </span>
         )}
       </button>
