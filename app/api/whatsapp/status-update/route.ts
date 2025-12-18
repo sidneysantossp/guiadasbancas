@@ -7,7 +7,7 @@ import { sendStatusWhatsAppUpdate } from "@/lib/whatsapp";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { orderId, customerPhone, newStatus, estimatedDelivery } = body;
+    const { orderId, customerPhone, newStatus, estimatedDelivery, itemsWithStatus } = body;
 
     console.log('[WhatsApp Status Update] ===== INÍCIO =====');
     console.log('[WhatsApp Status Update] Body recebido:', JSON.stringify(body, null, 2));
@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     console.log(`[WhatsApp Status Update] 📞 Telefone: ${customerPhone}`);
     console.log(`[WhatsApp Status Update] 📋 Pedido: ${orderId}`);
     console.log(`[WhatsApp Status Update] 🔄 Status: ${newStatus}`);
+    console.log(`[WhatsApp Status Update] 📦 Itens:`, itemsWithStatus?.length || 0);
 
     // Enviar notificação via WhatsApp
     console.log('[WhatsApp Status Update] 📤 Chamando sendStatusWhatsAppUpdate...');
@@ -32,7 +33,8 @@ export async function POST(req: NextRequest) {
       orderId,
       customerPhone,
       newStatus,
-      estimatedDelivery
+      estimatedDelivery,
+      itemsWithStatus
     );
 
     console.log(`[WhatsApp Status Update] Resultado do envio: ${sent ? '✅ SUCESSO' : '❌ FALHOU'}`);

@@ -51,6 +51,15 @@ const buildWhatsAppMessage = (order: Order) => {
   return `https://wa.me/55${phone}?text=${message}`;
 };
 
+type ItemStatus = 'entregue' | 'a_entregar' | 'em_falta' | 'sob_encomenda';
+
+const ITEM_STATUS_OPTIONS = [
+  { value: 'a_entregar', label: 'A Entregar' },
+  { value: 'entregue', label: 'Entregue' },
+  { value: 'em_falta', label: 'Em Falta' },
+  { value: 'sob_encomenda', label: 'Sob Encomenda' },
+];
+
 type OrderItem = {
   id: string;
   product_id: string;
@@ -59,6 +68,7 @@ type OrderItem = {
   quantity: number;
   unit_price: number;
   total_price: number;
+  item_status?: ItemStatus;
 };
 
 type Order = {
@@ -97,6 +107,7 @@ export default function OrderDetailsPage() {
   const [estimatedDelivery, setEstimatedDelivery] = useState("");
   const [historyKey, setHistoryKey] = useState(0);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [itemStatuses, setItemStatuses] = useState<Record<string, ItemStatus>>({});
   const toast = useToast();
 
   const fetchOrder = async () => {
@@ -117,6 +128,13 @@ export default function OrderDetailsPage() {
       setOrder(json.data);
       setNotes(json.data.notes || "");
       setEstimatedDelivery(json.data.estimated_delivery || "");
+      
+      // Inicializar status dos itens
+      const initialStatuses: Record<string, ItemStatus> = {};
+      json.data.items?.forEach((item: OrderItem) => {
+        initialStatuses[item.id] = item.item_status || 'a_entregar';
+      });
+      setItemStatuses(initialStatuses);
     } catch (e: any) {
       console.error('Erro na API:', e);
       toast.error(e?.message || "Erro ao carregar pedido");
@@ -138,6 +156,12 @@ export default function OrderDetailsPage() {
     
     try {
       setUpdating(true);
+      // Preparar itens com status atualizado
+      const itemsWithStatus = order.items.map(item => ({
+        ...item,
+        item_status: itemStatuses[item.id] || 'a_entregar'
+      }));
+      
       const res = await fetch("/api/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -145,7 +169,8 @@ export default function OrderDetailsPage() {
           id: order.id, 
           status: newStatus,
           notes,
-          estimated_delivery: estimatedDelivery || undefined
+          estimated_delivery: estimatedDelivery || undefined,
+          items: itemsWithStatus
         }),
       });
       
@@ -179,7 +204,12 @@ export default function OrderDetailsPage() {
                 orderId: order.id,
                 customerPhone: order.customer_phone,
                 newStatus,
-                estimatedDelivery: estimatedDelivery || order.estimated_delivery
+                estimatedDelivery: estimatedDelivery || order.estimated_delivery,
+                itemsWithStatus: itemsWithStatus.map(item => ({
+                  name: item.product_name,
+                  quantity: item.quantity,
+                  status: item.item_status
+                }))
               })
             }).then(r => r.json()).then(result => {
               if (result.success) toast.success(`📱 Cliente notificado`);
@@ -500,8 +530,22 @@ export default function OrderDetailsPage() {
                       Quantidade: {item.quantity} × R$ {item.unit_price.toFixed(2)}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold">R$ {item.total_price.toFixed(2)}</div>
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={itemStatuses[item.id] || 'a_entregar'}
+                      onChange={(e) => setItemStatuses(prev => ({
+                        ...prev,
+                        [item.id]: e.target.value as ItemStatus
+                      }))}
+                      className="text-xs px-2 py-1 border rounded bg-white"
+                    >
+                      {ITEM_STATUS_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <div className="text-right">
+                      <div className="font-semibold">R$ {item.total_price.toFixed(2)}</div>
+                    </div>
                   </div>
                 </div>
               ))}

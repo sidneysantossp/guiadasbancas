@@ -238,10 +238,10 @@ class WhatsAppService {
   }
 
   // Enviar mensagem de status do pedido
-  async sendStatusUpdate(orderId: string, customerPhone: string, newStatus: string, estimatedDelivery?: string): Promise<boolean> {
+  async sendStatusUpdate(orderId: string, customerPhone: string, newStatus: string, estimatedDelivery?: string, itemsWithStatus?: { name: string; quantity: number; status: string }[]): Promise<boolean> {
     try {
       console.log('[WhatsAppService] ===== sendStatusUpdate INÍCIO =====');
-      console.log('[WhatsAppService] Parâmetros:', { orderId, customerPhone, newStatus, estimatedDelivery });
+      console.log('[WhatsAppService] Parâmetros:', { orderId, customerPhone, newStatus, estimatedDelivery, itemsCount: itemsWithStatus?.length });
       
       const cleanPhone = customerPhone.replace(/\D/g, '');
       const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
@@ -288,9 +288,25 @@ class WhatsAppService {
       message += `📋 *Pedido:* #${orderId.substring(0, 8)}\n\n`;
       message += `${statusInfo.message}`;
 
+      // Adicionar resumo dos itens com status
+      if (itemsWithStatus && itemsWithStatus.length > 0) {
+        const statusLabels: Record<string, string> = {
+          'entregue': '✅ Entregue',
+          'a_entregar': '📦 A Entregar',
+          'em_falta': '❌ Em Falta',
+          'sob_encomenda': '🕐 Sob Encomenda'
+        };
+        
+        message += `\n\n📦 *Resumo dos Produtos:*\n`;
+        itemsWithStatus.forEach(item => {
+          const statusLabel = statusLabels[item.status] || item.status;
+          message += `• ${item.name} (${item.quantity}x) - ${statusLabel}\n`;
+        });
+      }
+
       if (estimatedDelivery && newStatus !== 'entregue') {
         const deliveryDate = new Date(estimatedDelivery);
-        message += `\n\n⏰ *Previsão de entrega:*\n${deliveryDate.toLocaleString('pt-BR', {
+        message += `\n⏰ *Previsão de entrega:*\n${deliveryDate.toLocaleString('pt-BR', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
@@ -345,9 +361,15 @@ export async function sendOrderWhatsAppNotification(orderData: OrderWhatsAppData
   }
 }
 
-export async function sendStatusWhatsAppUpdate(orderId: string, customerPhone: string, newStatus: string, estimatedDelivery?: string) {
+type ItemWithStatus = {
+  name: string;
+  quantity: number;
+  status: string;
+};
+
+export async function sendStatusWhatsAppUpdate(orderId: string, customerPhone: string, newStatus: string, estimatedDelivery?: string, itemsWithStatus?: ItemWithStatus[]) {
   try {
-    return await whatsappService.sendStatusUpdate(orderId, customerPhone, newStatus, estimatedDelivery);
+    return await whatsappService.sendStatusUpdate(orderId, customerPhone, newStatus, estimatedDelivery, itemsWithStatus);
   } catch (error) {
     console.error('Erro na atualização WhatsApp:', error);
     return false;

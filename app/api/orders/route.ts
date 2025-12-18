@@ -516,7 +516,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, status, notes, estimated_delivery } = body || {};
+    const { id, status, notes, estimated_delivery, items } = body || {};
     
     // Buscar pedido atual no Supabase
     const { data: currentOrder, error: fetchError } = await supabaseAdmin
@@ -536,6 +536,7 @@ export async function PATCH(req: NextRequest) {
     if (status) updateData.status = status;
     if (notes !== undefined) updateData.notes = notes;
     if (estimated_delivery) updateData.estimated_delivery = estimated_delivery;
+    if (items && Array.isArray(items)) updateData.items = items;
 
     const { data: updatedOrder, error: updateError } = await supabaseAdmin
       .from('orders')
