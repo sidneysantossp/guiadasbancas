@@ -193,7 +193,7 @@ export default function OrderReceipt({ order, bancaInfo }: OrderReceiptProps) {
         {/* Número do Pedido */}
         <div className="text-right mb-4">
           <div className="text-xs">COMPROVANTE DE PEDIDO</div>
-          <div className="text-lg font-bold">Nº {order.id}</div>
+          <div className="text-lg font-bold">Nº {(order as any).order_number || `BAN-${order.id.substring(0, 8).toUpperCase()}`}</div>
         </div>
 
         {/* Cabeçalho da Tabela */}
