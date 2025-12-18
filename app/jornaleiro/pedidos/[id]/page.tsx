@@ -628,7 +628,7 @@ export default function OrderDetailsPage() {
             <h2 className="font-semibold mb-3">Ações</h2>
             {order.status === 'novo' && (
               <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-gray-700">
-                <strong>⚠️ Importante:</strong> Só mude o status para "Confirmado" após receber o comprovante de pagamento do cliente!
+                <strong>⚠️ Importante:</strong> Jornaleiro, ao mudar o status do pedido abaixo, o cliente será notificado.
               </div>
             )}
             <div className="space-y-3">
