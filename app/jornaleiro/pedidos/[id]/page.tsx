@@ -452,8 +452,8 @@ export default function OrderDetailsPage() {
               title={order.status === 'entregue' ? "Imprimir comprovante" : "Disponível apenas para pedidos concluídos"}
               onClick={() => {
                 if (order.status === 'entregue') {
-                  const pdfUrl = `/api/orders/${order.id}/receipt-pdf`;
-                  window.open(pdfUrl, '_blank');
+                  const receiptUrl = `/jornaleiro/pedidos/${order.id}/comprovante`;
+                  window.open(receiptUrl, '_blank');
                 }
               }}
               disabled={order.status !== 'entregue'}
