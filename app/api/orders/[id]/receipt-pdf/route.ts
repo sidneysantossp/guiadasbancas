@@ -10,6 +10,9 @@ export async function GET(
   try {
     const { id } = await params;
     
+    console.log('[API/RECEIPT-PDF] ===== INÍCIO =====');
+    console.log('[API/RECEIPT-PDF] ID recebido:', id);
+    
     // Buscar pedido
     const { data: order, error } = await supabaseAdmin
       .from('orders')
