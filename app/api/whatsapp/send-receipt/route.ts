@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
+import { supabaseAdmin } from "@/lib/supabase";
 
 /**
  * API para enviar comprovante do pedido como IMAGEM via WhatsApp
@@ -28,11 +29,54 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Integração WhatsApp inativa' });
     }
 
-    // Gerar imagem do comprovante
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || 'http://localhost:3000';
-    const receiptImageUrl = `${baseUrl}/api/orders/${orderId}/receipt-image?format=base64`;
+    // Buscar dados do pedido
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('orders')
+      .select(`
+        *,
+        bancas:banca_id (
+          id,
+          name,
+          address,
+          whatsapp,
+          cnpj
+        )
+      `)
+      .eq('id', orderId)
+      .single();
     
-    console.log('[WhatsApp Send Receipt] Buscando imagem:', receiptImageUrl);
+    if (orderError || !order) {
+      console.error('[WhatsApp Send Receipt] Erro ao buscar pedido:', orderError);
+      return NextResponse.json({ success: false, error: 'Pedido não encontrado' });
+    }
+
+    // Preparar dados para a API de imagem
+    const orderDataForImage = {
+      id: order.id,
+      order_number: order.order_number,
+      customer_name: order.customer_name,
+      created_at: order.created_at,
+      subtotal: order.subtotal,
+      shipping_fee: order.shipping_fee,
+      total: order.total,
+      payment_method: order.payment_method,
+      items: (order.items || []).slice(0, 5).map((item: any) => ({
+        product_name: item.product_name,
+        quantity: item.quantity,
+        total_price: item.total_price
+      })),
+      banca_name: order.bancas?.name || order.banca_name,
+      banca_address: order.bancas?.address || '',
+      banca_phone: order.bancas?.whatsapp || '',
+      banca_cnpj: order.bancas?.cnpj || ''
+    };
+
+    // Gerar imagem do comprovante
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${process.env.VERCEL_URL}` || 'http://localhost:3000';
+    const encodedData = encodeURIComponent(JSON.stringify(orderDataForImage));
+    const receiptImageUrl = `${baseUrl}/api/orders/${orderId}/receipt-image?format=base64&data=${encodedData}`;
+    
+    console.log('[WhatsApp Send Receipt] Gerando imagem...');
     
     const imageResponse = await fetch(receiptImageUrl);
     

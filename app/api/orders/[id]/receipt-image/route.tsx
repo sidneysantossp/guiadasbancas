@@ -1,39 +1,25 @@
 import { ImageResponse } from '@vercel/og';
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const runtime = 'edge';
+
+export async function GET(req: NextRequest) {
   try {
-    const { id } = await params;
+    // Pegar dados da query string (passados pela API send-receipt)
+    const searchParams = req.nextUrl.searchParams;
+    const orderData = searchParams.get('data');
     
-    // Buscar pedido
-    const { data: order, error } = await supabaseAdmin
-      .from('orders')
-      .select(`
-        *,
-        bancas:banca_id (
-          id,
-          name,
-          address,
-          whatsapp,
-          cnpj
-        )
-      `)
-      .eq('id', id)
-      .single();
-    
-    if (error || !order) {
-      return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
+    if (!orderData) {
+      return NextResponse.json({ error: "Dados do pedido não fornecidos" }, { status: 400 });
     }
 
+    const order = JSON.parse(decodeURIComponent(orderData));
+
     const bancaInfo = {
-      name: order.bancas?.name || order.banca_name || "BANCA",
-      address: order.bancas?.address || "",
-      phone: order.bancas?.whatsapp || "",
-      cnpj: order.bancas?.cnpj || ""
+      name: order.banca_name || "BANCA",
+      address: order.banca_address || "",
+      phone: order.banca_phone || "",
+      cnpj: order.banca_cnpj || ""
     };
 
     const formatDate = (dateString: string) => {
@@ -61,12 +47,10 @@ export async function GET(
     const subtotal = Number(order.subtotal) || 0;
     const shippingFee = Number(order.shipping_fee) || 0;
     const total = Number(order.total) || 0;
-    const orderNumber = (order.order_number && order.order_number.trim()) 
-      ? order.order_number 
-      : `BAN-${String(order.id).substring(0, 8).toUpperCase()}`;
+    const orderNumber = order.order_number || `BAN-${String(order.id).substring(0, 8).toUpperCase()}`;
 
     // Verificar se é para retornar base64
-    const format = req.nextUrl.searchParams.get('format');
+    const format = searchParams.get('format');
 
     const imageResponse = new ImageResponse(
       (
