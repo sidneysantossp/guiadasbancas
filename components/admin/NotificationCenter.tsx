@@ -18,8 +18,34 @@ export default function NotificationCenter() {
   const [newOrdersCount, setNewOrdersCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [viewedOrders, setViewedOrders] = useState<Set<string>>(new Set());
   const toast = useToast();
   const prevNewOrdersRef = useRef<number | null>(null);
+
+  // Carregar pedidos visualizados do localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('gb:viewedOrders');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setViewedOrders(new Set(parsed));
+      } catch (e) {
+        console.error('Erro ao carregar pedidos visualizados:', e);
+      }
+    }
+  }, []);
+
+  // Marcar pedido como visualizado
+  const markAsViewed = (orderId: string) => {
+    const newViewedOrders = new Set(viewedOrders);
+    newViewedOrders.add(orderId);
+    setViewedOrders(newViewedOrders);
+    localStorage.setItem('gb:viewedOrders', JSON.stringify([...newViewedOrders]));
+    
+    // Remover da lista e atualizar contador
+    setNewOrders(prev => prev.filter(o => o.id !== orderId));
+    setNewOrdersCount(prev => Math.max(0, prev - 1));
+  };
 
   // Tocar som de notificação
   const playNotificationSound = () => {
@@ -57,8 +83,13 @@ export default function NotificationCenter() {
         cache: 'no-store'
       });
       const json = await res.json();
-      const orders = json.items || [];
-      const count = json.total || 0;
+      const allOrders = json.items || [];
+      
+      // Filtrar pedidos já visualizados
+      const storedViewed = localStorage.getItem('gb:viewedOrders');
+      const viewedSet = storedViewed ? new Set(JSON.parse(storedViewed)) : new Set();
+      const orders = allOrders.filter((o: NewOrder) => !viewedSet.has(o.id));
+      const count = orders.length;
       
       // Se aumentou, tocar som e mostrar toast
       if (prevNewOrdersRef.current !== null && count > prevNewOrdersRef.current) {
@@ -188,7 +219,10 @@ export default function NotificationCenter() {
                     </div>
                     <Link
                       href={`/jornaleiro/pedidos/${order.id}`}
-                      onClick={() => setIsOpen(false)}
+                      onClick={() => {
+                        markAsViewed(order.id);
+                        setIsOpen(false);
+                      }}
                       className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-orange-300 transition-colors"
                       title="Ver detalhes do pedido"
                     >
