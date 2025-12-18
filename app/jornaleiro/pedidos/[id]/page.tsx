@@ -24,6 +24,7 @@ type OrderItem = {
 
 type Order = {
   id: string;
+  order_number?: string;
   customer_name: string;
   customer_phone: string;
   customer_email?: string;
@@ -236,7 +237,7 @@ export default function OrderDetailsPage() {
     if (!order) return;
     
     const confirmed = window.confirm(
-      `Tem certeza que deseja excluir o pedido #${order.id}?\n\nEsta ação não pode ser desfeita.`
+      `Tem certeza que deseja excluir o pedido #${order.order_number || order.id.substring(0, 8)}?\n\nEsta ação não pode ser desfeita.`
     );
     
     if (!confirmed) return;
@@ -337,7 +338,7 @@ export default function OrderDetailsPage() {
       alert('Este pedido não tem telefone cadastrado. Peça ao cliente para informar o telefone.');
       return;
     }
-    const message = `Olá ${order.customer_name}! Seu pedido #${order.id} foi atualizado para: ${order.status}`;
+    const message = `Olá ${order.customer_name}! Seu pedido #${order.order_number || order.id.substring(0, 8)} foi atualizado para: ${order.status}`;
     // Garantir que o número tenha o código do país 55
     const phone = (order.customer_phone || '').replace(/\D/g, '').replace(/^55/, '');
     const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
@@ -385,8 +386,8 @@ export default function OrderDetailsPage() {
               >
                 ← Voltar
               </Link>
-              {/* Desktop: mostra título com ID */}
-              <h1 className="hidden sm:block text-xl font-semibold">Pedido #{order.id}</h1>
+              {/* Desktop: mostra título com número do pedido */}
+              <h1 className="hidden sm:block text-xl font-semibold">Pedido #{order.order_number || order.id.substring(0, 8)}</h1>
               {/* Mobile: mostra título sem ID */}
               <h1 className="sm:hidden text-xl font-semibold">Pedido</h1>
             </div>
@@ -398,8 +399,8 @@ export default function OrderDetailsPage() {
           <p className="text-sm text-gray-600">
             Criado em {formatDate(order.created_at)}
           </p>
-          {/* Mobile: ID abaixo da data, pequeno */}
-          <p className="sm:hidden text-sm text-gray-500 break-all">#{order.id}</p>
+          {/* Mobile: número do pedido abaixo da data */}
+          <p className="sm:hidden text-sm text-gray-500">#{order.order_number || order.id.substring(0, 8)}</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Desktop: badge ao lado direito (ações) */}
@@ -622,7 +623,7 @@ export default function OrderDetailsPage() {
                 </div>
                 
                 <a
-                  href={order.customer_phone ? `https://wa.me/55${(order.customer_phone || '').replace(/\D/g, '').replace(/^55/, '')}?text=${encodeURIComponent(`Olá ${order.customer_name}! Aqui é da ${order.banca_name}. Recebemos seu pedido #${order.id.substring(0, 8)} no valor de R$ ${order.total.toFixed(2)}. Vou enviar o PIX para pagamento...`)}` : '#'}
+                  href={order.customer_phone ? `https://wa.me/55${(order.customer_phone || '').replace(/\D/g, '').replace(/^55/, '')}?text=${encodeURIComponent(`Olá ${order.customer_name}! Aqui é da ${order.banca_name}. Recebemos seu pedido #${order.order_number || order.id.substring(0, 8)} no valor de R$ ${order.total.toFixed(2)}. Vou enviar o PIX para pagamento...`)}` : '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => { if (!order.customer_phone) { e.preventDefault(); alert('Este pedido não tem telefone cadastrado. Peça ao cliente para informar o telefone.'); } }}
