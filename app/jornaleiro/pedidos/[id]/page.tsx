@@ -605,8 +605,8 @@ export default function OrderDetailsPage() {
           {order.status === 'novo' && (
             <div className="bg-blue-50 border-2 border-blue-400 rounded-lg p-4">
               <h2 className="font-semibold mb-3 flex items-center gap-2">
-                <span className="text-2xl">💳</span>
-                Aguardando Pagamento
+                <span className="text-2xl">💬</span>
+                Fale com o seu Cliente
               </h2>
               <a
                 href={order.customer_phone ? `https://wa.me/55${(order.customer_phone || '').replace(/\D/g, '').replace(/^55/, '')}?text=${encodeURIComponent(`Olá ${order.customer_name}! Aqui é da ${order.banca_name}. Recebemos seu pedido #${order.order_number || order.id.substring(0, 8)} no valor de R$ ${order.total.toFixed(2)}. Vou enviar o PIX para pagamento...`)}` : '#'}
@@ -620,6 +620,9 @@ export default function OrderDetailsPage() {
                 </svg>
                 Abrir WhatsApp do Cliente
               </a>
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-gray-700">
+                <strong>⚠️ Importante:</strong> Só mude o status para "Confirmado" após receber o comprovante de pagamento do cliente!
+              </div>
             </div>
           )}
 
