@@ -279,10 +279,10 @@ class WhatsAppService {
   }
 
   // Enviar mensagem de status do pedido
-  async sendStatusUpdate(orderId: string, customerPhone: string, newStatus: string, estimatedDelivery?: string, itemsWithStatus?: { name: string; quantity: number; status: string }[], bancaWhatsapp?: string): Promise<boolean> {
+  async sendStatusUpdate(orderId: string, customerPhone: string, newStatus: string, estimatedDelivery?: string, itemsWithStatus?: { name: string; quantity: number; status: string }[], bancaWhatsapp?: string, orderNumber?: string): Promise<boolean> {
     try {
       console.log('[WhatsAppService] ===== sendStatusUpdate INÍCIO =====');
-      console.log('[WhatsAppService] Parâmetros:', { orderId, customerPhone, newStatus, estimatedDelivery, itemsCount: itemsWithStatus?.length });
+      console.log('[WhatsAppService] Parâmetros:', { orderId, orderNumber, customerPhone, newStatus, estimatedDelivery, itemsCount: itemsWithStatus?.length });
       
       const cleanPhone = customerPhone.replace(/\D/g, '');
       const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
@@ -325,8 +325,9 @@ class WhatsAppService {
         message: `Status do pedido: ${newStatus}`
       };
 
+      const displayOrderNumber = orderNumber || `BAN-${orderId.substring(0, 8).toUpperCase()}`;
       let message = `${statusInfo.emoji} *${statusInfo.title}*\n\n`;
-      message += `📋 *Pedido:* #${orderId.substring(0, 8)}\n\n`;
+      message += `📋 *Pedido:* #${displayOrderNumber}\n\n`;
       message += `${statusInfo.message}`;
 
       // Adicionar resumo dos itens com status
@@ -416,9 +417,9 @@ type ItemWithStatus = {
   status: string;
 };
 
-export async function sendStatusWhatsAppUpdate(orderId: string, customerPhone: string, newStatus: string, estimatedDelivery?: string, itemsWithStatus?: ItemWithStatus[], bancaWhatsapp?: string) {
+export async function sendStatusWhatsAppUpdate(orderId: string, customerPhone: string, newStatus: string, estimatedDelivery?: string, itemsWithStatus?: ItemWithStatus[], bancaWhatsapp?: string, orderNumber?: string) {
   try {
-    return await whatsappService.sendStatusUpdate(orderId, customerPhone, newStatus, estimatedDelivery, itemsWithStatus, bancaWhatsapp);
+    return await whatsappService.sendStatusUpdate(orderId, customerPhone, newStatus, estimatedDelivery, itemsWithStatus, bancaWhatsapp, orderNumber);
   } catch (error) {
     console.error('Erro na atualização WhatsApp:', error);
     return false;

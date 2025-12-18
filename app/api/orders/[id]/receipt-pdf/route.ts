@@ -27,8 +27,15 @@ export async function GET(
       .single();
     
     if (error || !order) {
+      console.error('[API/RECEIPT-PDF] Erro ao buscar pedido:', error);
       return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
     }
+    
+    console.log('[API/RECEIPT-PDF] Pedido encontrado:', { 
+      id: order.id, 
+      order_number: order.order_number,
+      customer_name: order.customer_name 
+    });
 
     // Gerar PDF
     const pdfBuffer = await generateReceiptPDF(order);

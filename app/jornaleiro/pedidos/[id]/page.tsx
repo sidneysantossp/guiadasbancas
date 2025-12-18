@@ -204,6 +204,7 @@ export default function OrderDetailsPage() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 orderId: order.id,
+                orderNumber: order.order_number,
                 customerPhone: order.customer_phone,
                 newStatus,
                 estimatedDelivery: estimatedDelivery || order.estimated_delivery,
