@@ -110,8 +110,19 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
       case "note_added":
         return entry.new_value;
       case "delivery_updated":
-        const oldDate = entry.old_value ? new Date(entry.old_value).toLocaleString('pt-BR') : "";
-        const newDate = new Date(entry.new_value).toLocaleString('pt-BR');
+        // Os valores já vêm formatados (ex: "24/12/2025, 18:00:00") ou em ISO
+        // Se já está formatado (contém "/"), usar direto; senão, tentar converter
+        const formatDateValue = (value: string | undefined) => {
+          if (!value) return "";
+          // Se já está no formato brasileiro (contém "/"), usar direto
+          if (value.includes("/")) return value;
+          // Senão, tentar converter de ISO
+          const date = new Date(value);
+          if (isNaN(date.getTime())) return value; // Se inválido, retornar como está
+          return date.toLocaleString('pt-BR');
+        };
+        const oldDate = formatDateValue(entry.old_value);
+        const newDate = formatDateValue(entry.new_value);
         return `${oldDate ? `De ${oldDate} ` : ""}Para ${newDate}`;
       case "created":
         return entry.details || "Pedido criado no sistema";
