@@ -238,13 +238,14 @@ export default function OrderDetailsPage() {
       
       toast.success("Pedido atualizado com sucesso");
       
-      // Pequeno delay para garantir que o histórico foi salvo
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Recarregar pedido primeiro
+      await fetchOrder();
+      
+      // Delay maior para garantir que o histórico foi salvo no banco
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Forçar reload do histórico
       setHistoryKey(prev => prev + 1);
-      
-      fetchOrder();
     } catch (e: any) {
       toast.error(e?.message || "Erro ao atualizar pedido");
     } finally {
