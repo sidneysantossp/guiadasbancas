@@ -325,7 +325,9 @@ class WhatsAppService {
         message: `Status do pedido: ${newStatus}`
       };
 
-      const displayOrderNumber = orderNumber || `BAN-${orderId.substring(0, 8).toUpperCase()}`;
+      const displayOrderNumber = (orderNumber && orderNumber.trim()) 
+        ? orderNumber 
+        : `BAN-${String(orderId).substring(0, 8).toUpperCase()}`;
       let message = `${statusInfo.emoji} *${statusInfo.title}*\n\n`;
       message += `📋 *Pedido:* #${displayOrderNumber}\n\n`;
       message += `${statusInfo.message}`;

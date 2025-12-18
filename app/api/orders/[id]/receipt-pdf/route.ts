@@ -139,8 +139,11 @@ async function generateReceiptPDF(order: any): Promise<Buffer> {
       
       doc.moveDown(0.5);
       
-      // Número do Pedido
-      const orderNumber = order.order_number || `BAN-${order.id.substring(0, 8).toUpperCase()}`;
+      // Número do Pedido - usar order_number se existir, senão gerar BAN-XXXXXXXX
+      const orderNumber = (order.order_number && order.order_number.trim()) 
+        ? order.order_number 
+        : `BAN-${String(order.id).substring(0, 8).toUpperCase()}`;
+      console.log('[PDF] order_number do banco:', order.order_number, '| Usando:', orderNumber);
       doc.fontSize(8).text('COMPROVANTE DE PEDIDO', { align: 'right' });
       doc.fontSize(11).text(`Nº ${orderNumber}`, { align: 'right' });
       
