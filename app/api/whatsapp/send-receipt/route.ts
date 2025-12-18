@@ -58,64 +58,67 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: `Pedido não encontrado: ${orderError?.message || 'ID inválido'}` });
     }
 
-    // Preparar dados para a API de imagem
-    const orderDataForImage = {
-      id: order.id,
-      order_number: order.order_number,
-      customer_name: order.customer_name,
-      created_at: order.created_at,
-      subtotal: order.subtotal,
-      shipping_fee: order.shipping_fee,
-      total: order.total,
-      payment_method: order.payment_method,
-      items: (order.items || []).slice(0, 5).map((item: any) => ({
-        product_name: item.product_name,
-        quantity: item.quantity,
-        total_price: item.total_price
-      })),
-      banca_name: order.bancas?.name || order.banca_name,
-      banca_address: order.bancas?.address || '',
-      banca_phone: order.bancas?.whatsapp || '',
-      banca_cnpj: order.bancas?.cnpj || ''
+    // Formatar dados do comprovante
+    const orderNumber = (order.order_number && order.order_number.trim()) 
+      ? order.order_number 
+      : `BAN-${String(order.id).substring(0, 8).toUpperCase()}`;
+    
+    const formatDate = (dateString: string) => {
+      return new Date(dateString).toLocaleString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
     };
 
-    // Gerar imagem do comprovante
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${process.env.VERCEL_URL}` || 'http://localhost:3000';
-    const encodedData = encodeURIComponent(JSON.stringify(orderDataForImage));
-    const receiptImageUrl = `${baseUrl}/api/orders/${orderId}/receipt-image?format=base64&data=${encodedData}`;
-    
-    console.log('[WhatsApp Send Receipt] Gerando imagem...');
-    
-    const imageResponse = await fetch(receiptImageUrl);
-    
-    if (!imageResponse.ok) {
-      const errorText = await imageResponse.text();
-      console.error('[WhatsApp Send Receipt] Erro ao gerar imagem:', errorText);
-      return NextResponse.json({ success: false, error: 'Erro ao gerar imagem do comprovante' });
-    }
-    
-    const imageData = await imageResponse.json();
-    
-    if (!imageData.imageBase64) {
-      console.error('[WhatsApp Send Receipt] imageBase64 não encontrado na resposta');
-      return NextResponse.json({ success: false, error: 'Imagem não gerada' });
-    }
+    const getPaymentLabel = (method: string) => {
+      const labels: Record<string, string> = {
+        'pix': 'PIX', 'cartao': 'CARTÃO', 'dinheiro': 'DINHEIRO',
+        'credito': 'CRÉDITO', 'debito': 'DÉBITO'
+      };
+      return labels[method] || method?.toUpperCase() || 'N/A';
+    };
+
+    const items = order.items || [];
+    const bancaName = order.bancas?.name || order.banca_name || 'Banca';
+
+    // Montar mensagem formatada
+    const message = `🧾 *COMPROVANTE DE PEDIDO*
+━━━━━━━━━━━━━━━━━━━━━━
+
+📋 *Pedido:* ${orderNumber}
+📅 *Data:* ${formatDate(order.created_at)}
+👤 *Cliente:* ${order.customer_name}
+
+━━━━━━━━━━━━━━━━━━━━━━
+📦 *ITENS DO PEDIDO:*
+${items.map((item: any) => `• ${item.quantity}x ${item.product_name} - R$ ${Number(item.total_price).toFixed(2)}`).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━
+💰 *Subtotal:* R$ ${Number(order.subtotal).toFixed(2)}
+🚚 *Frete:* R$ ${Number(order.shipping_fee || 0).toFixed(2)}
+💵 *TOTAL:* R$ ${Number(order.total).toFixed(2)}
+
+💳 *Pagamento:* ${getPaymentLabel(order.payment_method)}
+
+━━━━━━━━━━━━━━━━━━━━━━
+🏪 *${bancaName}*
+
+✅ *Pedido confirmado!*
+Obrigado pela preferência! 🙏`;
 
     // Formatar telefone
     const cleanPhone = String(customerPhone).replace(/\D/g, '');
     const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
 
-    console.log('[WhatsApp Send Receipt] Enviando imagem para:', formattedPhone);
+    console.log('[WhatsApp Send Receipt] Enviando mensagem para:', formattedPhone);
 
-    // Enviar imagem via Evolution API
+    // Enviar mensagem de texto via Evolution API
     const payload = {
       number: formattedPhone,
-      mediatype: 'image',
-      media: imageData.imageBase64,
-      caption: '🧾 Comprovante do seu pedido'
+      text: message
     };
 
-    const response = await fetch(`${config.baseUrl}/message/sendMedia/${config.instanceName}`, {
+    const response = await fetch(`${config.baseUrl}/message/sendText/${config.instanceName}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
