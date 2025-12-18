@@ -151,6 +151,47 @@ class WhatsAppService {
     }
   }
 
+  // Enviar imagem
+  async sendImage(number: string, imageBase64: string, caption?: string): Promise<boolean> {
+    try {
+      console.log('[WhatsAppService.sendImage] Enviando imagem para:', number);
+      
+      const payload = {
+        number: number,
+        mediatype: 'image',
+        media: imageBase64,
+        caption: caption || ''
+      };
+      
+      console.log('[WhatsAppService.sendImage] URL:', `${this.config.baseUrl}/message/sendMedia/${this.config.instanceName}`);
+
+      const response = await fetch(`${this.config.baseUrl}/message/sendMedia/${this.config.instanceName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': this.config.apiKey
+        },
+        body: JSON.stringify(payload)
+      });
+
+      console.log('[WhatsAppService.sendImage] Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[WhatsAppService.sendImage] HTTP error:', response.status, errorText);
+        return false;
+      }
+
+      const result = await response.json();
+      console.log('[WhatsAppService.sendImage] Response data:', result);
+      
+      return result.key?.id ? true : false;
+    } catch (error) {
+      console.error('[WhatsAppService.sendImage] Erro ao enviar imagem:', error);
+      return false;
+    }
+  }
+
   // Formatar mensagem do pedido
   formatOrderMessage(orderData: OrderWhatsAppData, bancaName?: string): string {
     const { orderId, customerName, customerPhone, items, total, shippingMethod, paymentMethod, address, notes } = orderData;
