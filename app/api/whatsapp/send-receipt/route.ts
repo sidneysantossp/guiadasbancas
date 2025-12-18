@@ -40,8 +40,7 @@ export async function POST(req: NextRequest) {
           id,
           name,
           address,
-          whatsapp,
-          cnpj
+          whatsapp
         )
       `)
       .eq('id', orderId)
