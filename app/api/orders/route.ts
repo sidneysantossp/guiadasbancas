@@ -550,65 +550,8 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ ok: false, error: updateError?.message || "Erro ao atualizar pedido" }, { status: 500 });
     }
     
-    // Enviar notificação WhatsApp para o cliente se o status mudou
-    if (status && status !== oldStatus && updatedOrder.customer_phone) {
-      try {
-        const config = getWhatsAppConfig();
-
-        if (!config.isActive) {
-          console.warn(`[WHATSAPP] ⚠️ Integração inativa para atualização de status. Pedido #${updatedOrder.order_number || updatedOrder.id}`);
-        } else if (!config.baseUrl || !config.apiKey || !config.instanceName) {
-          console.warn(`[WHATSAPP] ⚠️ Configuração incompleta (baseUrl/apiKey/instanceName) para atualização de status. Pedido #${updatedOrder.order_number || updatedOrder.id}`);
-        } else {
-          const statusMessages: Record<string, string> = {
-            confirmado: '✅ Seu pedido foi confirmado e já estamos preparando tudo!',
-            em_preparo: '📦 Seu pedido está em preparo neste momento!',
-            saiu_para_entrega: '🚚 Seu pedido saiu para entrega! Fique atento ao telefone.',
-            entregue: '🎉 Pedido entregue com sucesso! Obrigado pela preferência.'
-          };
-
-          let message = `📋 *Atualização do Pedido* ${updatedOrder.order_number ? `#${updatedOrder.order_number}` : ''}\n\n`;
-          message += statusMessages[status] || `Status atualizado para: ${status}`;
-
-          if (estimated_delivery) {
-            const deliveryDate = new Date(estimated_delivery);
-            if (!Number.isNaN(deliveryDate.getTime())) {
-              message += `\n\n⏰ *Previsão de entrega:* ${deliveryDate.toLocaleString('pt-BR')}`;
-            }
-          }
-
-          message += `\n\n💬 Qualquer dúvida, estamos à disposição!`;
-
-          const cleanPhone = String(updatedOrder.customer_phone).replace(/\D/g, '');
-          const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
-
-          const response = await fetch(`${config.baseUrl}/message/sendText/${config.instanceName}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': config.apiKey
-            },
-            body: JSON.stringify({
-              number: formattedPhone,
-              text: message
-            })
-          });
-
-          if (!response.ok) {
-            const error = await response.text();
-            console.warn(`[WHATSAPP] ❌ Falha ao enviar atualização (status ${response.status}) - Pedido #${updatedOrder.order_number || updatedOrder.id} -> ${error}`);
-          } else {
-            const payloadResp = await response.json().catch(() => null);
-            console.log(`[WHATSAPP] ✅ Atualização enviada para cliente (${formattedPhone}) - Pedido #${updatedOrder.order_number || updatedOrder.id}`, {
-              messageId: payloadResp?.key?.id,
-              novoStatus: status
-            });
-          }
-        }
-      } catch (error) {
-        console.error('[WHATSAPP] ❌ Erro ao enviar atualização de status:', error);
-      }
-    }
+    // NOTA: WhatsApp é enviado pelo frontend via /api/whatsapp/status-update
+    // (inclui resumo dos produtos com status individual)
     
     return NextResponse.json({ ok: true, data: updatedOrder });
   } catch (e: any) {
