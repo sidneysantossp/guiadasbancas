@@ -22,7 +22,7 @@ const DISTRIBUIDORES: Distribuidor[] = [
   },
   {
     id: "branca-leone",
-    nome: "Branca Leone Publicações",
+    nome: "Bambino distribuidora",
     url: "https://jornaleiro.meuspedidos.com.br/",
     descricao: "Jornais, revistas e publicações especializadas",
     cor: "bg-green-600"
