@@ -31,6 +31,7 @@ export default function JornaleiroProdutosPage() {
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<string>("");
   const [status, setStatus] = useState<string>("");
+  const [priceFilter, setPriceFilter] = useState<string>("");
   const [rows, setRows] = useState<ProdutoListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
@@ -70,6 +71,7 @@ export default function JornaleiroProdutosPage() {
       if (q) params.set("q", q);
       if (category) params.set("category", category);
       if (status) params.set("active", String(status === "ativo"));
+      if (priceFilter) params.set("priceFilter", priceFilter);
       const res = await fetch(`/api/jornaleiro/products?${params.toString()}`, { headers: authHeaders, cache: "no-store" });
       const json = await res.json();
       const items = Array.isArray(json?.items) ? json.items : (Array.isArray(json?.data) ? json.data : []);
@@ -100,7 +102,7 @@ export default function JornaleiroProdutosPage() {
   useEffect(() => {
     fetchRows();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, category, status, categoryMap]);
+  }, [q, category, status, priceFilter, categoryMap]);
 
   const filtered = useMemo(() => rows, [rows]);
 
@@ -234,13 +236,23 @@ export default function JornaleiroProdutosPage() {
             <option value="ativo">Ativo</option>
             <option value="inativo">Inativo</option>
           </select>
+          <select
+            value={priceFilter}
+            onChange={(e) => setPriceFilter(e.target.value)}
+            className="w-full sm:w-auto min-w-[180px] rounded-md border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">Todos preços</option>
+            <option value="personalizado">Preços Personalizados</option>
+            <option value="distribuidor">Preço do Distribuidor</option>
+          </select>
           
-          {(q || category || status) && (
+          {(q || category || status || priceFilter) && (
             <button
               onClick={() => {
                 setQ("");
                 setCategory("");
                 setStatus("");
+                setPriceFilter("");
               }}
               className="px-3 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
             >

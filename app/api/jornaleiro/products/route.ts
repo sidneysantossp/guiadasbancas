@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
   const category = searchParams.get("category") || "";
   const active = searchParams.get("active");
   const featured = searchParams.get("featured");
+  const priceFilter = searchParams.get("priceFilter") || "";
 
   // Buscar produtos da banca do usuário
   let query = supabaseAdmin
@@ -257,7 +258,33 @@ export async function GET(request: NextRequest) {
   // (Os filtros q e category já foram aplicados na query do admin, e na query da banca (linha 54-57?))
   // Verificando query da banca... sim, linhas 54-59 aplicam filtros.
   
-  const allItems = [...(produtosBanca || []), ...produtosAdminCustomizados];
+  let allItems = [...(produtosBanca || []), ...produtosAdminCustomizados];
+
+  // Aplicar filtro de preço
+  if (priceFilter === 'personalizado') {
+    // Preços Personalizados: produtos onde o preço foi alterado pelo jornaleiro
+    // - Produtos próprios da banca (não são de distribuidor)
+    // - Produtos de distribuidor com preço customizado (price != cost_price)
+    allItems = allItems.filter((p: any) => {
+      const isDistribuidor = p.is_distribuidor === true;
+      if (!isDistribuidor) return true; // Produtos próprios são considerados personalizados
+      // Produtos de distribuidor: verificar se preço foi alterado
+      const price = Number(p.price || 0);
+      const costPrice = Number(p.cost_price || 0);
+      return Math.abs(price - costPrice) > 0.01; // Diferença maior que 1 centavo
+    });
+  } else if (priceFilter === 'distribuidor') {
+    // Preço do Distribuidor: produtos com preço original (não alterado)
+    // - Apenas produtos de distribuidor onde price == cost_price
+    allItems = allItems.filter((p: any) => {
+      const isDistribuidor = p.is_distribuidor === true;
+      if (!isDistribuidor) return false; // Produtos próprios não são do distribuidor
+      // Produtos de distribuidor: verificar se preço NÃO foi alterado
+      const price = Number(p.price || 0);
+      const costPrice = Number(p.cost_price || 0);
+      return Math.abs(price - costPrice) <= 0.01; // Diferença menor que 1 centavo
+    });
+  }
 
   return NextResponse.json({ 
     success: true, 
