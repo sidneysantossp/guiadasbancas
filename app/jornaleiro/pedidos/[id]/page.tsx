@@ -12,6 +12,25 @@ import { logStatusChange, logNote, logDeliveryUpdate } from "@/lib/orderHistory"
 
 const STATUS_FLOW = ["novo","confirmado","em_preparo","saiu_para_entrega","entregue"] as const;
 
+// Função para gerar mensagem do WhatsApp com formatação correta
+const buildWhatsAppMessage = (order: Order) => {
+  const phone = (order.customer_phone || '').replace(/\D/g, '').replace(/^55/, '');
+  if (!phone) return '#';
+  
+  const lines = [
+    `Olá, ${order.customer_name}!`,
+    `Aqui é a ${order.banca_name}.`,
+    ``,
+    `Sobre o seu pedido #${order.order_number || order.id}:`,
+    `Ele já está pronto para retirada!`,
+    ``,
+    `Que horário você consegue passar aqui?`
+  ];
+  
+  const message = lines.join('%0A');
+  return `https://wa.me/55${phone}?text=${message}`;
+};
+
 type OrderItem = {
   id: string;
   product_id: string;
@@ -609,7 +628,7 @@ export default function OrderDetailsPage() {
                 Fale com o seu Cliente
               </h2>
               <a
-                href={order.customer_phone ? `https://wa.me/55${(order.customer_phone || '').replace(/\D/g, '').replace(/^55/, '')}?text=${encodeURIComponent(`Olá, ${order.customer_name}!\nAqui é a ${order.banca_name}.\n\nSobre o seu pedido #${order.order_number || order.id}:\nEle já está pronto para retirada!\n\nQue horário você consegue passar aqui?`)}` : '#'}
+                href={buildWhatsAppMessage(order)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => { if (!order.customer_phone) { e.preventDefault(); alert('Este pedido não tem telefone cadastrado. Peça ao cliente para informar o telefone.'); } }}
