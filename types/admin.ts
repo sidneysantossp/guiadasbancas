@@ -73,7 +73,7 @@ export interface Pedido {
   shipping_fee?: number;
   total: number;
   payment_method: 'pix' | 'dinheiro' | 'cartao' | 'online';
-  status: 'novo' | 'confirmado' | 'em_preparo' | 'saiu_para_entrega' | 'entregue' | 'cancelado';
+  status: 'novo' | 'confirmado' | 'em_preparo' | 'saiu_para_entrega' | 'parcialmente_retirado' | 'entregue' | 'cancelado';
   created_at?: string;
   updated_at?: string;
 }

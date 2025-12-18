@@ -3,7 +3,7 @@ import type { Pedido } from "../../types/admin";
 export type ValidationResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
 export function validateOrderUpdate(input: Partial<Pedido>): ValidationResult<Partial<Pedido>> {
-  if (input.status != null && !['novo','confirmado','em_preparo','saiu_para_entrega','entregue','cancelado'].includes(input.status)) {
+  if (input.status != null && !['novo','confirmado','em_preparo','saiu_para_entrega','parcialmente_retirado','entregue','cancelado'].includes(input.status)) {
     return { ok: false, error: 'Status de pedido inválido' };
   }
   if (input.total != null) {

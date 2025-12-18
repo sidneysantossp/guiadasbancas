@@ -141,6 +141,8 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
         return "bg-orange-100 text-orange-800";
       case "saiu_para_entrega":
         return "bg-purple-100 text-purple-800";
+      case "parcialmente_retirado":
+        return "bg-cyan-100 text-cyan-800";
       case "entregue":
         return "bg-green-100 text-green-800";
       case "cancelado":

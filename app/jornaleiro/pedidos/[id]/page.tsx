@@ -10,7 +10,7 @@ import OrderReceipt from "@/components/admin/OrderReceipt";
 import { useToast } from "@/components/admin/ToastProvider";
 import { logStatusChange, logNote, logDeliveryUpdate } from "@/lib/orderHistory";
 
-const STATUS_FLOW = ["novo","confirmado","em_preparo","saiu_para_entrega","entregue"] as const;
+const STATUS_FLOW = ["novo","confirmado","em_preparo","saiu_para_entrega","parcialmente_retirado","entregue"] as const;
 
 // Função para formatar data ISO para formato local (corrige fuso horário)
 const formatDeliveryDate = (isoDate: string): string => {

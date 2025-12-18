@@ -8,7 +8,7 @@ import DataTable, { type Column } from "@/components/admin/DataTable";
 import StatusBadge from "@/components/admin/StatusBadge";
 import { useToast } from "@/components/admin/ToastProvider";
 
-const STATUS_FLOW = ["novo","confirmado","em_preparo","saiu_para_entrega","entregue"] as const;
+const STATUS_FLOW = ["novo","confirmado","em_preparo","saiu_para_entrega","parcialmente_retirado","entregue"] as const;
 
 type OrderItem = {
   id: string;
@@ -45,6 +45,7 @@ const STATUS_OPTIONS = [
   { value: 'confirmado', label: 'Confirmado' },
   { value: 'em_preparo', label: 'Em preparo' },
   { value: 'saiu_para_entrega', label: 'Saiu para entrega' },
+  { value: 'parcialmente_retirado', label: 'Parcialmente retirado' },
   { value: 'entregue', label: 'Entregue' },
   { value: 'cancelado', label: 'Cancelado' },
 ];

@@ -42,7 +42,7 @@ export default function AdminOrdersPage() {
     try {
       const order = rows.find(r => r.id === id);
       if (!order) return;
-      const flow = ["novo","confirmado","em_preparo","saiu_para_entrega","entregue"] as const;
+      const flow = ["novo","confirmado","em_preparo","saiu_para_entrega","parcialmente_retirado","entregue"] as const;
       const idx = flow.indexOf(order.status as any);
       const next = idx >= 0 && idx < flow.length - 1 ? flow[idx+1] : order.status;
       const res = await fetch('/api/orders', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status: next }) });
@@ -63,6 +63,7 @@ export default function AdminOrdersPage() {
       case 'confirmado': return 'blue';
       case 'em_preparo': return 'orange';
       case 'saiu_para_entrega': return 'blue';
+      case 'parcialmente_retirado': return 'blue';
       case 'entregue': return 'emerald';
       case 'cancelado': return 'red';
       default: return 'gray';

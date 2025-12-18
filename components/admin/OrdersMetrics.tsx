@@ -21,6 +21,7 @@ type OrdersByStatus = {
   confirmado: number;
   em_preparo: number;
   saiu_para_entrega: number;
+  parcialmente_retirado: number;
   entregue: number;
   cancelado: number;
 };
@@ -99,6 +100,7 @@ export default function OrdersMetrics() {
       confirmado: statusCounts.confirmado || 0,
       em_preparo: statusCounts.em_preparo || 0,
       saiu_para_entrega: statusCounts.saiu_para_entrega || 0,
+      parcialmente_retirado: statusCounts.parcialmente_retirado || 0,
       entregue: statusCounts.entregue || 0,
       cancelado: statusCounts.cancelado || 0
     });
