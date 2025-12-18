@@ -146,38 +146,46 @@ export default function OrderReceipt({ order, bancaInfo }: OrderReceiptProps) {
     }
   };
 
-  const [sendingImage, setSendingImage] = useState(false);
-
-  const sendWhatsAppImage = async () => {
+  const sendWhatsAppImage = () => {
     if (!order.customer_phone) {
       alert('Este pedido não tem telefone cadastrado.');
       return;
     }
     
-    setSendingImage(true);
-    try {
-      const response = await fetch('/api/whatsapp/send-receipt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: order.id,
-          customerPhone: order.customer_phone
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        alert('✅ Comprovante enviado com sucesso via WhatsApp!');
-      } else {
-        alert('❌ Erro ao enviar comprovante: ' + (result.error || 'Erro desconhecido'));
-      }
-    } catch (error) {
-      console.error('Erro ao enviar comprovante:', error);
-      alert('❌ Erro ao enviar comprovante');
-    } finally {
-      setSendingImage(false);
-    }
+    // Formatar número do pedido
+    const orderNumber = (order.order_number && order.order_number.trim()) 
+      ? order.order_number 
+      : `BAN-${String(order.id).substring(0, 8).toUpperCase()}`;
+    
+    // Montar mensagem formatada
+    const message = `🧾 *COMPROVANTE DE PEDIDO*
+━━━━━━━━━━━━━━━━━━━━━━
+
+📋 *Pedido:* ${orderNumber}
+📅 *Data:* ${formatDate(order.created_at)}
+👤 *Cliente:* ${order.customer_name}
+
+━━━━━━━━━━━━━━━━━━━━━━
+📦 *ITENS DO PEDIDO:*
+${order.items.map(item => `• ${item.quantity}x ${item.product_name} - R$ ${item.total_price.toFixed(2)}`).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━
+💰 *Subtotal:* R$ ${order.subtotal.toFixed(2)}
+🚚 *Frete:* R$ ${(order.shipping_fee || 0).toFixed(2)}
+💵 *TOTAL:* R$ ${order.total.toFixed(2)}
+
+💳 *Pagamento:* ${getPaymentMethodLabel(order.payment_method)}
+
+━━━━━━━━━━━━━━━━━━━━━━
+🏪 *${defaultBancaInfo.name}*
+
+✅ *Pedido confirmado!*
+Obrigado pela preferência! 🙏`;
+
+    // Abrir WhatsApp Web com mensagem pré-preenchida
+    const phone = order.customer_phone.replace(/\D/g, '');
+    const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
   };
 
   return (
