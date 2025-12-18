@@ -240,11 +240,15 @@ export default function OrderDetailsPage() {
         );
       }
       
-      if (oldDelivery !== estimatedDelivery && estimatedDelivery) {
+      // Comparar datas formatadas para detectar mudança real
+      const oldFormatted = formatDeliveryDate(oldDelivery);
+      const newFormatted = formatDeliveryDate(estimatedDelivery);
+      
+      if (oldFormatted !== newFormatted && estimatedDelivery) {
         await logDeliveryUpdate(
           order.id,
-          formatDeliveryDate(oldDelivery),
-          formatDeliveryDate(estimatedDelivery),
+          oldFormatted,
+          newFormatted,
           order.banca_name,
           'vendor',
           'Previsão de entrega atualizada'
