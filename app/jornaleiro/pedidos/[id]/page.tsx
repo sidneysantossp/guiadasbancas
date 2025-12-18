@@ -14,8 +14,13 @@ const STATUS_FLOW = ["novo","confirmado","em_preparo","saiu_para_entrega","entre
 
 // Função para formatar data ISO para formato local (corrige fuso horário)
 const formatDeliveryDate = (isoDate: string): string => {
-  if (!isoDate) return "";
+  if (!isoDate || isoDate.trim() === "") return "";
+  
   const date = new Date(isoDate);
+  
+  // Verificar se a data é válida
+  if (isNaN(date.getTime())) return "";
+  
   // Formato: DD/MM/YYYY, HH:mm:ss
   return date.toLocaleString('pt-BR', {
     day: '2-digit',
@@ -244,10 +249,11 @@ export default function OrderDetailsPage() {
       const oldFormatted = formatDeliveryDate(oldDelivery);
       const newFormatted = formatDeliveryDate(estimatedDelivery);
       
-      if (oldFormatted !== newFormatted && estimatedDelivery) {
+      // Só registrar se a nova data é válida e diferente da anterior
+      if (newFormatted && oldFormatted !== newFormatted) {
         await logDeliveryUpdate(
           order.id,
-          oldFormatted,
+          oldFormatted || "Não definida",
           newFormatted,
           order.banca_name,
           'vendor',
