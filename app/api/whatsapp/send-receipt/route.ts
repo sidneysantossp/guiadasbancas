@@ -30,6 +30,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Buscar dados do pedido
+    console.log('[WhatsApp Send Receipt] Buscando pedido com ID:', orderId);
+    
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .select(`
@@ -45,9 +47,16 @@ export async function POST(req: NextRequest) {
       .eq('id', orderId)
       .single();
     
+    console.log('[WhatsApp Send Receipt] Resultado da busca:', { 
+      found: !!order, 
+      error: orderError?.message,
+      orderId: order?.id,
+      customerName: order?.customer_name
+    });
+    
     if (orderError || !order) {
       console.error('[WhatsApp Send Receipt] Erro ao buscar pedido:', orderError);
-      return NextResponse.json({ success: false, error: 'Pedido não encontrado' });
+      return NextResponse.json({ success: false, error: `Pedido não encontrado: ${orderError?.message || 'ID inválido'}` });
     }
 
     // Preparar dados para a API de imagem
