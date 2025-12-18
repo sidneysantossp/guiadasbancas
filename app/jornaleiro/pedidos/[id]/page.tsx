@@ -623,6 +623,28 @@ export default function OrderDetailsPage() {
             </div>
           )}
 
+          {/* Observações */}
+          <div className="bg-white border rounded-lg p-4">
+            <h2 className="font-semibold mb-3">Observações</h2>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Adicione observações sobre o pedido..."
+              className="w-full px-3 py-2 border rounded text-sm resize-none"
+              rows={3}
+            />
+            <button
+              onClick={() => updateStatus(order.status)}
+              disabled={updating}
+              className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 disabled:opacity-50"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+              Salvar Observações
+            </button>
+          </div>
+
           {/* Ações */}
           <div className="bg-white border rounded-lg p-4">
             <h2 className="font-semibold mb-3">Ações</h2>
@@ -671,35 +693,13 @@ export default function OrderDetailsPage() {
             </div>
           </div>
 
-          {/* Observações */}
-          <div className="bg-white border rounded-lg p-4">
-            <h2 className="font-semibold mb-3">Observações</h2>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Adicione observações sobre o pedido..."
-              className="w-full px-3 py-2 border rounded text-sm resize-none"
-              rows={3}
-            />
-            <button
-              onClick={() => updateStatus(order.status)}
-              disabled={updating}
-              className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 disabled:opacity-50"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-              </svg>
-              Salvar Observações
-            </button>
-          </div>
-
           {/* Previsão de Entrega */}
           <div className="bg-white border rounded-lg p-4">
             <h2 className="font-semibold mb-3">Previsão de Entrega</h2>
             <input
               type="datetime-local"
-              value={estimatedDelivery ? new Date(estimatedDelivery).toISOString().slice(0, 16) : ""}
-              onChange={(e) => setEstimatedDelivery(e.target.value ? new Date(e.target.value).toISOString() : "")}
+              value={estimatedDelivery ? estimatedDelivery.slice(0, 16) : ""}
+              onChange={(e) => setEstimatedDelivery(e.target.value)}
               className="w-full px-3 py-2 border rounded text-sm"
             />
             <button
