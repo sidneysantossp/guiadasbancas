@@ -238,7 +238,7 @@ class WhatsAppService {
   }
 
   // Enviar mensagem de status do pedido
-  async sendStatusUpdate(orderId: string, customerPhone: string, newStatus: string, estimatedDelivery?: string, itemsWithStatus?: { name: string; quantity: number; status: string }[]): Promise<boolean> {
+  async sendStatusUpdate(orderId: string, customerPhone: string, newStatus: string, estimatedDelivery?: string, itemsWithStatus?: { name: string; quantity: number; status: string }[], bancaWhatsapp?: string): Promise<boolean> {
     try {
       console.log('[WhatsAppService] ===== sendStatusUpdate INÍCIO =====');
       console.log('[WhatsAppService] Parâmetros:', { orderId, customerPhone, newStatus, estimatedDelivery, itemsCount: itemsWithStatus?.length });
@@ -315,7 +315,13 @@ class WhatsAppService {
         })}`;
       }
 
-      message += `\n\n💬 *Dúvidas?*\nEntre em contato com a banca!\n\n`;
+      message += `\n\n💬 *Dúvidas?*\nEntre em contato com a banca!`;
+      if (bancaWhatsapp) {
+        const cleanBancaPhone = bancaWhatsapp.replace(/\D/g, '');
+        const formattedBancaPhone = cleanBancaPhone.startsWith('55') ? cleanBancaPhone : `55${cleanBancaPhone}`;
+        message += `\n👉 https://wa.me/${formattedBancaPhone}`;
+      }
+      message += `\n\n`;
       message += `_Atualizado em: ${new Date().toLocaleString('pt-BR', { 
         hour: '2-digit', 
         minute: '2-digit',
@@ -367,9 +373,9 @@ type ItemWithStatus = {
   status: string;
 };
 
-export async function sendStatusWhatsAppUpdate(orderId: string, customerPhone: string, newStatus: string, estimatedDelivery?: string, itemsWithStatus?: ItemWithStatus[]) {
+export async function sendStatusWhatsAppUpdate(orderId: string, customerPhone: string, newStatus: string, estimatedDelivery?: string, itemsWithStatus?: ItemWithStatus[], bancaWhatsapp?: string) {
   try {
-    return await whatsappService.sendStatusUpdate(orderId, customerPhone, newStatus, estimatedDelivery, itemsWithStatus);
+    return await whatsappService.sendStatusUpdate(orderId, customerPhone, newStatus, estimatedDelivery, itemsWithStatus, bancaWhatsapp);
   } catch (error) {
     console.error('Erro na atualização WhatsApp:', error);
     return false;

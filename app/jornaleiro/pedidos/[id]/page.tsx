@@ -80,6 +80,7 @@ type Order = {
   customer_address?: string;
   banca_id: string;
   banca_name: string;
+  banca_whatsapp?: string;
   items: OrderItem[];
   subtotal: number;
   shipping_fee: number;
@@ -209,7 +210,8 @@ export default function OrderDetailsPage() {
                   name: item.product_name,
                   quantity: item.quantity,
                   status: item.item_status
-                }))
+                })),
+                bancaWhatsapp: order.banca_whatsapp
               })
             }).then(r => r.json()).then(result => {
               if (result.success) toast.success(`📱 Cliente notificado`);
