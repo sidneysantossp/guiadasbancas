@@ -609,7 +609,7 @@ export default function OrderDetailsPage() {
                 Fale com o seu Cliente
               </h2>
               <a
-                href={order.customer_phone ? `https://wa.me/55${(order.customer_phone || '').replace(/\D/g, '').replace(/^55/, '')}?text=${encodeURIComponent(`Olá, ${order.customer_name}! 👋😊\nAqui é a ${order.banca_name}.\n\nSobre o seu pedido #${order.order_number || order.id}:\n✅ Ele já está pronto para retirada! 🎉\n\nQue horário você consegue passar aqui? ⏰`)}` : '#'}
+                href={order.customer_phone ? `https://wa.me/55${(order.customer_phone || '').replace(/\D/g, '').replace(/^55/, '')}?text=${encodeURIComponent(`Olá, ${order.customer_name}!\nAqui é a ${order.banca_name}.\n\nSobre o seu pedido #${order.order_number || order.id}:\nEle já está pronto para retirada!\n\nQue horário você consegue passar aqui?`)}` : '#'}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => { if (!order.customer_phone) { e.preventDefault(); alert('Este pedido não tem telefone cadastrado. Peça ao cliente para informar o telefone.'); } }}
