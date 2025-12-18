@@ -154,123 +154,70 @@ export default function OrderDetailsPage() {
         return;
       }
       
-      // Registrar mudanças no histórico
-      if (oldStatus !== newStatus) {
-        await logStatusChange(
-          order.id,
-          oldStatus,
-          newStatus,
-          order.banca_name,
-          'vendor',
-          getStatusChangeMessage(oldStatus, newStatus)
-        );
-        
-        // Enviar notificação WhatsApp para o CLIENTE
-        if (order.customer_phone) {
-          console.log('[Pedido] ===== ENVIANDO WHATSAPP PARA CLIENTE =====');
-          console.log('[Pedido] Telefone do cliente:', order.customer_phone);
-          console.log('[Pedido] Status novo:', newStatus);
-          console.log('[Pedido] ID do pedido:', order.id);
-          
-          try {
-            const payload = {
-              orderId: order.id,
-              customerPhone: order.customer_phone,
-              newStatus,
-              estimatedDelivery: estimatedDelivery || order.estimated_delivery
-            };
-            
-            console.log('[Pedido] Payload sendo enviado:', JSON.stringify(payload, null, 2));
-            
-            const clienteResponse = await fetch('/api/whatsapp/status-update', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-            
-            console.log('[Pedido] Status da resposta:', clienteResponse.status);
-            
-            const clienteResult = await clienteResponse.json();
-            console.log('[Pedido] Resposta da API:', clienteResult);
-            
-            if (clienteResult.success) {
-              console.log(`[Pedido] ✅ Cliente notificado: ${order.customer_phone}`);
-              toast.success(`📱 Cliente notificado via WhatsApp`);
-            } else {
-              console.warn(`[Pedido] ⚠️ Falha ao notificar cliente:`, clienteResult.message);
-              toast.error(`❌ WhatsApp: ${clienteResult.message}`);
-            }
-          } catch (error) {
-            console.error('[Pedido] ===== ERRO AO NOTIFICAR CLIENTE =====');
-            console.error('[Pedido] Erro:', error);
-            toast.error(`❌ Erro ao enviar WhatsApp`);
-          }
-        } else {
-          console.warn('[Pedido] ⚠️ Cliente não tem telefone cadastrado');
-          toast.error('⚠️ Cliente sem telefone cadastrado');
-        }
-        
-        // Enviar notificação WhatsApp para o JORNALEIRO (confirmação)
-        try {
-          const jornaleiroResponse = await fetch('/api/whatsapp/jornaleiro-notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              orderId: order.id,
-              bancaId: order.banca_id,
-              action: 'status_change',
-              oldStatus,
-              newStatus,
-              customerName: order.customer_name
-            })
-          });
-          
-          const jornaleiroResult = await jornaleiroResponse.json();
-          
-          if (jornaleiroResult.success) {
-            console.log(`[WhatsApp] ✅ Jornaleiro notificado`);
-            toast.success(`📱 Você recebeu confirmação via WhatsApp`);
-          }
-        } catch (error) {
-          console.error('[WhatsApp] Erro ao notificar jornaleiro:', error);
-        }
-      }
-      
-      if (oldNotes !== notes && notes) {
-        await logNote(
-          order.id,
-          notes,
-          order.banca_name,
-          'vendor'
-        );
-      }
+      toast.success("Pedido atualizado com sucesso");
       
       // Comparar datas formatadas para detectar mudança real
       const oldFormatted = formatDeliveryDate(oldDelivery);
       const newFormatted = formatDeliveryDate(estimatedDelivery);
       
-      // Só registrar se a nova data é válida e diferente da anterior
-      if (newFormatted && oldFormatted !== newFormatted) {
-        await logDeliveryUpdate(
-          order.id,
-          oldFormatted || "Não definida",
-          newFormatted,
-          order.banca_name,
-          'vendor',
-          'Previsão de entrega atualizada'
+      // Executar operações em paralelo (não bloquear a UI)
+      const backgroundTasks: Promise<any>[] = [];
+      
+      // Registrar mudanças no histórico
+      if (oldStatus !== newStatus) {
+        backgroundTasks.push(
+          logStatusChange(order.id, oldStatus, newStatus, order.banca_name, 'vendor', getStatusChangeMessage(oldStatus, newStatus))
+        );
+        
+        // Enviar WhatsApp para cliente (em background)
+        if (order.customer_phone) {
+          backgroundTasks.push(
+            fetch('/api/whatsapp/status-update', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                orderId: order.id,
+                customerPhone: order.customer_phone,
+                newStatus,
+                estimatedDelivery: estimatedDelivery || order.estimated_delivery
+              })
+            }).then(r => r.json()).then(result => {
+              if (result.success) toast.success(`📱 Cliente notificado`);
+            }).catch(() => {})
+          );
+        }
+        
+        // Enviar WhatsApp para jornaleiro (em background)
+        backgroundTasks.push(
+          fetch('/api/whatsapp/jornaleiro-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderId: order.id, bancaId: order.banca_id, action: 'status_change',
+              oldStatus, newStatus, customerName: order.customer_name
+            })
+          }).catch(() => {})
         );
       }
       
-      toast.success("Pedido atualizado com sucesso");
+      if (oldNotes !== notes && notes) {
+        backgroundTasks.push(logNote(order.id, notes, order.banca_name, 'vendor'));
+      }
       
-      // Recarregar pedido primeiro
-      await fetchOrder();
+      if (newFormatted && oldFormatted !== newFormatted) {
+        backgroundTasks.push(
+          logDeliveryUpdate(order.id, oldFormatted || "Não definida", newFormatted, order.banca_name, 'vendor', 'Previsão de entrega atualizada')
+        );
+      }
       
-      // Delay maior para garantir que o histórico foi salvo no banco
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Executar todas as tarefas em paralelo
+      Promise.all(backgroundTasks).then(() => {
+        // Atualizar histórico após tarefas completarem
+        setTimeout(() => setHistoryKey(prev => prev + 1), 500);
+      });
       
-      // Forçar reload do histórico
-      setHistoryKey(prev => prev + 1);
+      // Recarregar pedido imediatamente (não esperar tarefas de background)
+      fetchOrder();
     } catch (e: any) {
       toast.error(e?.message || "Erro ao atualizar pedido");
     } finally {
