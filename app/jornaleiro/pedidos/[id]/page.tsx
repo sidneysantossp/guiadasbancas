@@ -446,8 +446,8 @@ export default function OrderDetailsPage() {
               className="p-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors"
               title="Gerar comprovante"
               onClick={() => {
-                const receiptUrl = `/jornaleiro/pedidos/${order.id}/comprovante`;
-                window.open(receiptUrl, '_blank');
+                const pdfUrl = `/api/orders/${order.id}/receipt-pdf`;
+                window.open(pdfUrl, '_blank');
               }}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
