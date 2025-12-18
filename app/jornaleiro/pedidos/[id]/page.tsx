@@ -12,6 +12,21 @@ import { logStatusChange, logNote, logDeliveryUpdate } from "@/lib/orderHistory"
 
 const STATUS_FLOW = ["novo","confirmado","em_preparo","saiu_para_entrega","entregue"] as const;
 
+// Função para formatar data ISO para formato local (corrige fuso horário)
+const formatDeliveryDate = (isoDate: string): string => {
+  if (!isoDate) return "";
+  const date = new Date(isoDate);
+  // Formato: DD/MM/YYYY, HH:mm:ss
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+};
+
 // Função para gerar mensagem do WhatsApp com formatação correta
 const buildWhatsAppMessage = (order: Order) => {
   const phone = (order.customer_phone || '').replace(/\D/g, '').replace(/^55/, '');
@@ -228,8 +243,8 @@ export default function OrderDetailsPage() {
       if (oldDelivery !== estimatedDelivery && estimatedDelivery) {
         await logDeliveryUpdate(
           order.id,
-          oldDelivery,
-          estimatedDelivery,
+          formatDeliveryDate(oldDelivery),
+          formatDeliveryDate(estimatedDelivery),
           order.banca_name,
           'vendor',
           'Previsão de entrega atualizada'
