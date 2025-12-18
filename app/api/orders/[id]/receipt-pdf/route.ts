@@ -133,8 +133,9 @@ async function generateReceiptPDF(order: any): Promise<Buffer> {
       doc.moveDown(0.5);
       
       // Número do Pedido
+      const orderNumber = order.order_number || `BAN-${order.id.substring(0, 8).toUpperCase()}`;
       doc.fontSize(8).text('COMPROVANTE DE PEDIDO', { align: 'right' });
-      doc.fontSize(11).text(`Nº ${order.id.substring(0, 8)}`, { align: 'right' });
+      doc.fontSize(11).text(`Nº ${orderNumber}`, { align: 'right' });
       
       // Linha separadora
       doc.moveDown(0.3);
