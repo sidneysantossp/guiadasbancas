@@ -315,11 +315,13 @@ class WhatsAppService {
         })}`;
       }
 
-      message += `\n\n💬 *Dúvidas?*\nEntre em contato com a banca!`;
+      message += `\n\n💬 *Dúvidas?*`;
       if (bancaWhatsapp) {
         const cleanBancaPhone = bancaWhatsapp.replace(/\D/g, '');
         const formattedBancaPhone = cleanBancaPhone.startsWith('55') ? cleanBancaPhone : `55${cleanBancaPhone}`;
-        message += `\n👉 https://wa.me/${formattedBancaPhone}`;
+        message += `\n👉 Falar com Jornaleiro: https://wa.me/${formattedBancaPhone}`;
+      } else {
+        message += `\nEntre em contato com a banca!`;
       }
       message += `\n\n`;
       message += `_Atualizado em: ${new Date().toLocaleString('pt-BR', { 
