@@ -212,7 +212,7 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
           </button>
         </div>
       ) : (
-        <div className="flow-root">
+        <div className="flow-root max-h-[600px] overflow-y-auto pr-2">
           <ul className="-mb-8">
             {history.map((entry, index) => (
             <li key={entry.id}>
