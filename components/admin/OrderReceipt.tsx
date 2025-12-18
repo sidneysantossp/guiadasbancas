@@ -14,6 +14,7 @@ type OrderItem = {
 
 type Order = {
   id: string;
+  order_number?: string;
   customer_name: string;
   customer_phone: string;
   customer_email?: string;
