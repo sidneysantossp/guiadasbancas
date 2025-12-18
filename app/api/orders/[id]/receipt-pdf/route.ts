@@ -5,10 +5,10 @@ import PDFDocument from "pdfkit";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     // Buscar pedido
     const { data: order, error } = await supabaseAdmin
