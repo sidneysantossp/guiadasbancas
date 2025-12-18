@@ -620,15 +620,17 @@ export default function OrderDetailsPage() {
                 </svg>
                 Abrir WhatsApp do Cliente
               </a>
-              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-gray-700">
-                <strong>⚠️ Importante:</strong> Só mude o status para "Confirmado" após receber o comprovante de pagamento do cliente!
-              </div>
             </div>
           )}
 
           {/* Ações */}
           <div className="bg-white border rounded-lg p-4">
             <h2 className="font-semibold mb-3">Ações</h2>
+            {order.status === 'novo' && (
+              <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-gray-700">
+                <strong>⚠️ Importante:</strong> Só mude o status para "Confirmado" após receber o comprovante de pagamento do cliente!
+              </div>
+            )}
             <div className="space-y-3">
               <button
                 onClick={advanceStatus}
