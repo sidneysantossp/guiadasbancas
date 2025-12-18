@@ -679,6 +679,7 @@ export default function OrderDetailsPage() {
                 <option value="confirmado">Confirmado</option>
                 <option value="em_preparo">Em preparo</option>
                 <option value="saiu_para_entrega">Saiu para entrega</option>
+                <option value="parcialmente_retirado">Parcialmente retirado</option>
                 <option value="entregue">Entregue</option>
                 <option value="cancelado">Cancelado</option>
               </select>
