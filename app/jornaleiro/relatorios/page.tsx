@@ -20,9 +20,9 @@ export default function RelatoriosPage() {
     
     const load = async () => {
       try {
-        // Buscar estatísticas reais
+        // Buscar estatísticas reais (com stats=true para obter contagem total real)
         const [prodRes, campRes, bancaRes] = await Promise.all([
-          fetch('/api/jornaleiro/products'),
+          fetch('/api/jornaleiro/products?stats=true'),
           fetch('/api/jornaleiro/campaigns'),
           fetch('/api/jornaleiro/banca'),
         ]);
@@ -31,18 +31,21 @@ export default function RelatoriosPage() {
         const campData = await campRes.json();
         const bancaData = await bancaRes.json();
 
-        const produtos = prodData.items || [];
         const campanhas = campData.data || [];
+        
+        // Usar totalReal que inclui todos os produtos de distribuidores para cotistas
+        const totalProdutos = prodData.totalReal || prodData.total || 0;
+        const produtosAtivos = totalProdutos; // Se é cotista, todos os de distribuidor estão ativos
 
         setStats({
-          totalProdutos: produtos.length,
+          totalProdutos: totalProdutos,
           totalCampanhas: campanhas.length,
-          produtosAtivos: produtos.filter((p: any) => p.active).length,
+          produtosAtivos: produtosAtivos,
           campanhasAtivas: campanhas.filter((c: any) => c.status === 'active').length,
         });
 
         // Verificar se é cotista
-        setIsCotista(bancaData?.data?.is_cotista === true && bancaData?.data?.cotista_id);
+        setIsCotista(prodData.is_cotista === true);
       } catch (e) {
         console.error('Erro ao carregar estatísticas:', e);
       } finally {

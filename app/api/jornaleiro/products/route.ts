@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
   const active = searchParams.get("active");
   const featured = searchParams.get("featured");
   const priceFilter = searchParams.get("priceFilter") || "";
+  const statsOnly = searchParams.get("stats") === "true";
 
   // Buscar produtos da banca do usuário
   let query = supabaseAdmin
@@ -68,9 +69,22 @@ export async function GET(request: NextRequest) {
 
   // Buscar produtos de distribuidores SOMENTE se for cotista
   let produtosAdmin: any[] = [];
+  let totalProdutosDistribuidor = 0;
   
   if (isCotista) {
     console.log('[JORNALEIRO/PRODUCTS] Buscando produtos de distribuidores com filtros no banco...');
+    
+    // Se for apenas estatísticas, buscar contagem total primeiro
+    if (statsOnly) {
+      const { count: distCount } = await supabaseAdmin
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .not('distribuidor_id', 'is', null)
+        .eq('active', true);
+      
+      totalProdutosDistribuidor = distCount || 0;
+      console.log(`[JORNALEIRO/PRODUCTS] Cotista - Total de produtos de distribuidores: ${totalProdutosDistribuidor}`);
+    }
     
     let queryAdmin = supabaseAdmin
       .from('products')
@@ -286,14 +300,21 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  // Se for cotista e statsOnly, calcular total real
+  const totalReal = isCotista && statsOnly 
+    ? (produtosBanca?.length || 0) + totalProdutosDistribuidor
+    : allItems.length;
+
   return NextResponse.json({ 
     success: true, 
     items: allItems, 
     total: allItems.length,
+    totalReal: totalReal, // Total real incluindo todos os produtos de distribuidores
     is_cotista: isCotista,
     stats: {
       proprios: produtosBanca?.length || 0,
-      distribuidores: produtosAdminCustomizados.length
+      distribuidores: statsOnly ? totalProdutosDistribuidor : produtosAdminCustomizados.length,
+      distribuidoresTotal: totalProdutosDistribuidor // Total real de produtos de distribuidores
     },
     timestamp: new Date().toISOString()
   }, {
