@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,6 +13,11 @@ export async function GET(req: NextRequest) {
     }
 
     const userId = session.user.id;
+
+    // Criar cliente admin diretamente com service role
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
 
     // Buscar bancas do usuário atual
     const { data: userBancas, error: bancasError } = await supabaseAdmin
@@ -110,6 +118,11 @@ export async function POST(req: NextRequest) {
     const userId = session.user.id;
     const body = await req.json();
     const { full_name, email, whatsapp, password, access_level, banca_ids, permissions } = body;
+
+    // Criar cliente admin diretamente com service role
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
 
     if (!email || !password) {
       return NextResponse.json({ success: false, error: "Email e senha são obrigatórios" }, { status: 400 });
