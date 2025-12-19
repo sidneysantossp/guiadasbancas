@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -183,6 +183,39 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
 
     loadPermissions();
   }, [user?.id, isAuthRoute]);
+
+  // Menu filtrado baseado em permissões
+  const filteredMenu = useMemo(() => {
+    console.log("[FilteredMenu] Calculando menu filtrado...");
+    console.log("[FilteredMenu] permissionsLoaded:", permissionsLoaded);
+    console.log("[FilteredMenu] isOwner:", isOwner);
+    console.log("[FilteredMenu] userPermissions:", userPermissions);
+    
+    if (!permissionsLoaded) {
+      console.log("[FilteredMenu] Permissões não carregadas, mostrando tudo");
+      return JOURNALEIRO_MENU;
+    }
+    
+    if (isOwner === true) {
+      console.log("[FilteredMenu] É dono/admin, mostrando tudo");
+      return JOURNALEIRO_MENU;
+    }
+    
+    const filtered = JOURNALEIRO_MENU.filter((item) => {
+      const permKey = PERMISSION_MAP[item.label];
+      if (!permKey) {
+        console.log(`[FilteredMenu] ${item.label}: SEM MAPEAMENTO - mostrando`);
+        return true;
+      }
+      
+      const hasPermission = userPermissions.includes(permKey);
+      console.log(`[FilteredMenu] ${item.label} (${permKey}): ${hasPermission ? '✅' : '❌'}`);
+      return hasPermission;
+    });
+    
+    console.log("[FilteredMenu] Menu filtrado:", filtered.map(i => i.label));
+    return filtered;
+  }, [permissionsLoaded, isOwner, userPermissions]);
 
   // IMPORTANTE: TODOS os hooks devem vir ANTES de qualquer return condicional!
   // Isso evita o erro React #310 "Rendered fewer hooks than during the previous render"
@@ -712,21 +745,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
             className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-60 bg-[#334257] border-r border-gray-200 transition-transform duration-300 ease-in-out`}
           >
             <nav className="p-4 space-y-4 text-gray-100">
-              {JOURNALEIRO_MENU.filter((item) => {
-                // Se permissões ainda não carregaram, mostra tudo temporariamente
-                if (!permissionsLoaded) return true;
-                
-                // Se é dono ou admin, mostra tudo
-                if (isOwner === true) return true;
-                
-                // Verifica se tem permissão para este item
-                const permKey = PERMISSION_MAP[item.label];
-                if (!permKey) return true; // Se não tem mapeamento, mostra
-                
-                const hasPermission = userPermissions.includes(permKey);
-                console.log(`[Menu] ${item.label} (${permKey}): ${hasPermission ? '✅' : '❌'}`);
-                return hasPermission;
-              }).map((item) => {
+              {filteredMenu.map((item) => {
                 const IconComponent = journaleiroIconComponents[item.icon];
                 const icon = <IconComponent size={20} stroke={1.7} />;
 
