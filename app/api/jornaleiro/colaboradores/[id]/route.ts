@@ -114,23 +114,29 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Buscar bancas do usuário atual
-    const { data: userBancas } = await supabaseAdmin
+    // Buscar bancas que o usuário atual é DONO
+    const { data: ownedBancas } = await supabaseAdmin
       .from("bancas")
       .select("id")
       .eq("user_id", userId);
 
-    const userBancaIds = userBancas?.map((b) => b.id) || [];
+    const ownedBancaIds = ownedBancas?.map((b) => b.id) || [];
+    
+    console.log("[Colaborador PUT] userId (logado):", userId);
+    console.log("[Colaborador PUT] Bancas que o usuário é dono:", ownedBancaIds);
+    console.log("[Colaborador PUT] banca_ids recebidos do form:", banca_ids);
 
-    // Verificar se o colaborador tem acesso a alguma banca do usuário
+    // Verificar se o colaborador tem membership em alguma banca do dono
     const { data: existingMemberships } = await supabaseAdmin
       .from("banca_members")
-      .select("banca_id")
+      .select("banca_id, permissions")
       .eq("user_id", colaboradorId)
-      .in("banca_id", userBancaIds);
+      .in("banca_id", ownedBancaIds);
+
+    console.log("[Colaborador PUT] Memberships existentes do colaborador:", existingMemberships);
 
     if (!existingMemberships || existingMemberships.length === 0) {
-      return NextResponse.json({ success: false, error: "Colaborador não encontrado" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "Colaborador não encontrado nas suas bancas" }, { status: 404 });
     }
 
     // Atualizar perfil
@@ -141,35 +147,59 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         .eq("id", colaboradorId);
     }
 
-    // Atualizar memberships
+    // Determinar quais bancas atualizar
+    // Se banca_ids foi enviado, usar apenas as que o dono possui
+    // Senão, usar as memberships existentes
     const targetBancaIds = banca_ids && banca_ids.length > 0 
-      ? banca_ids.filter((id: string) => userBancaIds.includes(id))
+      ? banca_ids.filter((id: string) => ownedBancaIds.includes(id))
       : existingMemberships.map((m: any) => m.banca_id);
 
-    console.log("[Colaborador PUT] Atualizando memberships:", targetBancaIds);
+    console.log("[Colaborador PUT] Bancas alvo para atualização:", targetBancaIds);
     console.log("[Colaborador PUT] Permissões a salvar:", permissions);
 
-    // Remover memberships antigas das bancas do usuário
-    await supabaseAdmin
-      .from("banca_members")
-      .delete()
-      .eq("user_id", colaboradorId)
-      .in("banca_id", userBancaIds);
-
-    // Criar novas memberships com as permissões atualizadas
+    // Atualizar APENAS as memberships das bancas do dono (não deletar outras)
     for (const bancaId of targetBancaIds) {
-      const { error: upsertError } = await supabaseAdmin
+      console.log("[Colaborador PUT] Atualizando banca:", bancaId, "com permissões:", permissions);
+      
+      const { error: updateError } = await supabaseAdmin
         .from("banca_members")
-        .upsert({
+        .update({
+          access_level: access_level || "collaborator",
+          permissions: permissions || [],
+        })
+        .eq("user_id", colaboradorId)
+        .eq("banca_id", bancaId);
+      
+      if (updateError) {
+        console.error("[Colaborador PUT] Erro ao atualizar membership:", updateError);
+      }
+    }
+    
+    // Se há bancas novas que o colaborador não tinha acesso, criar
+    const existingBancaIds = existingMemberships.map((m: any) => m.banca_id);
+    const newBancaIds = targetBancaIds.filter((id: string) => !existingBancaIds.includes(id));
+    
+    for (const bancaId of newBancaIds) {
+      console.log("[Colaborador PUT] Criando nova membership para banca:", bancaId);
+      await supabaseAdmin
+        .from("banca_members")
+        .insert({
           user_id: colaboradorId,
           banca_id: bancaId,
           access_level: access_level || "collaborator",
           permissions: permissions || [],
         });
-      
-      if (upsertError) {
-        console.error("[Colaborador PUT] Erro ao salvar membership:", upsertError);
-      }
+    }
+    
+    // Remover acesso de bancas que foram desmarcadas
+    const removedBancaIds = existingBancaIds.filter((id: string) => !targetBancaIds.includes(id));
+    if (removedBancaIds.length > 0) {
+      console.log("[Colaborador PUT] Removendo acesso das bancas:", removedBancaIds);
+      await supabaseAdmin
+        .from("banca_members")
+        .delete()
+        .eq("user_id", colaboradorId)
+        .in("banca_id", removedBancaIds);
     }
 
     // Verificar se salvou corretamente
