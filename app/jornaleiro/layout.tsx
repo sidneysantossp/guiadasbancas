@@ -160,22 +160,26 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     setMounted(true);
   }, []);
 
-  // Buscar permissões do usuário
+  // Buscar permissões do usuário - IMPORTANTE: só busca quando banca está disponível
   useEffect(() => {
     const loadPermissions = async () => {
       if (!user?.id || isAuthRoute) return;
       
+      // IMPORTANTE: Só busca permissões quando a banca já foi carregada
+      // Isso garante que o banca_id correto seja enviado para a API
+      if (!banca?.id) {
+        console.log("[Permissions] Aguardando banca ser carregada...");
+        return;
+      }
+      
       try {
-        // Passar banca_id atual no header para pegar as permissões corretas
-        const headers: Record<string, string> = {};
-        if (banca?.id) {
-          headers["x-banca-id"] = banca.id;
-          console.log("[Permissions] Buscando permissões para banca:", banca.id);
-        }
+        console.log("[Permissions] Buscando permissões para banca:", banca.id);
         
         const res = await fetch("/api/jornaleiro/my-permissions", { 
           credentials: "include",
-          headers,
+          headers: {
+            "x-banca-id": banca.id,
+          },
         });
         const json = await res.json();
         
@@ -184,7 +188,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           setIsOwner(ownerOrAdmin);
           setUserPermissions(json.permissions || []);
           setPermissionsLoaded(true);
-          console.log("[Permissions] Carregadas:", json.permissions, "isOwner:", json.isOwner, "accessLevel:", json.accessLevel, "ownerOrAdmin:", ownerOrAdmin);
+          console.log("[Permissions] Carregadas:", json.permissions, "isOwner:", json.isOwner, "accessLevel:", json.accessLevel, "ownerOrAdmin:", ownerOrAdmin, "bancaId:", banca.id);
         }
       } catch (e) {
         console.error("[Permissions] Erro ao carregar:", e);
