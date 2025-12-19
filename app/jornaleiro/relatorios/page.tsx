@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthContext";
 
 export default function RelatoriosPage() {
@@ -114,6 +115,25 @@ export default function RelatoriosPage() {
           <p className="mt-2 text-xs text-gray-500">Em andamento</p>
         </div>
       </div>
+
+      {/* Card Analytics */}
+      <Link href="/jornaleiro/relatorios/analytics">
+        <div className="rounded-xl border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-orange-100 p-6 hover:shadow-lg transition-all cursor-pointer">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <i className="fa-solid fa-chart-line text-2xl text-orange-600"></i>
+                <h3 className="text-lg font-bold text-orange-900">Analytics de Acessos</h3>
+              </div>
+              <p className="text-sm text-orange-700">
+                Visualize gráficos de visitas, cliques em produtos, adições ao carrinho, 
+                cliques no WhatsApp e pedidos finalizados.
+              </p>
+            </div>
+            <div className="text-orange-600 text-3xl">→</div>
+          </div>
+        </div>
+      </Link>
     </div>
   );
 }

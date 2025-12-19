@@ -14,6 +14,7 @@ import { shippingConfig } from "@/components/shippingConfig";
 import FreeShippingProgress from "@/components/FreeShippingProgress";
 import { ui } from "@/lib/ui";
 import homeCategories from "@/data/categories.json";
+import { trackEvent } from "@/lib/useAnalytics";
 
 export type BancaDetail = {
   id: string;
@@ -299,6 +300,14 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
                 href={`https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá! Gostaria de comprar: ${p.name}\n\nPreço: R$ ${p.price.toFixed(2)}\n\nVer produto: https://guiadasbancas.com.br/produto/${slugify(p.name)}-${p.id}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => {
+                  trackEvent({
+                    event_type: "whatsapp_click",
+                    banca_id: bancaId,
+                    product_id: p.id,
+                    metadata: { product_name: p.name }
+                  });
+                }}
                 className={`w-full inline-flex items-center justify-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold ${outOfStock ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50 pointer-events-none' : 'border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15'}`}
               >
                 <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
@@ -471,6 +480,13 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         if (active) {
           setBanca(mapped);
           setDeliveryEnabled(Boolean(it.delivery_enabled));
+          
+          // Track page view
+          trackEvent({
+            event_type: "page_view",
+            banca_id: bancaId,
+            metadata: { banca_name: mapped.name }
+          });
         }
       } catch {
         if (active) setBanca(null);

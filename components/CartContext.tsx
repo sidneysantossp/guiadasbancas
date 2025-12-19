@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, useState, ReactNode, useCallback, useEffect } from "react";
 import AlertModal from "./AlertModal";
+import { trackEvent } from "@/lib/useAnalytics";
 
 export type CartItem = {
   id: string;
@@ -121,6 +122,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setAlertData(alertInfo);
       setShowAlert(true);
       return false;
+    }
+
+    // Track analytics event - adicionar ao carrinho
+    if (qty > 0) {
+      trackEvent({
+        event_type: "add_to_cart",
+        banca_id: item.banca_id,
+        product_id: item.id,
+        metadata: { quantity: qty, product_name: item.name }
+      });
     }
 
     return true;
