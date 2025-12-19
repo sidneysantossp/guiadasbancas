@@ -65,6 +65,15 @@ BEGIN
   END IF;
 END $$;
 
+-- Adicionar coluna whatsapp em user_profiles se não existir
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'user_profiles' AND column_name = 'whatsapp') THEN
+    ALTER TABLE user_profiles ADD COLUMN whatsapp TEXT;
+  END IF;
+END $$;
+
 -- Comentários
 COMMENT ON TABLE banca_members IS 'Gerencia colaboradores e suas permissões por banca';
 COMMENT ON COLUMN banca_members.access_level IS 'Nível de acesso: admin ou collaborator';

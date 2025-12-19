@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
 
     const userId = session.user.id;
     const body = await req.json();
-    const { full_name, email, password, access_level, banca_ids, permissions } = body;
+    const { full_name, email, whatsapp, password, access_level, banca_ids, permissions } = body;
 
     if (!email || !password) {
       return NextResponse.json({ success: false, error: "Email e senha são obrigatórios" }, { status: 400 });
@@ -155,6 +155,8 @@ export async function POST(req: NextRequest) {
       .upsert({
         id: newUserId,
         full_name: full_name || null,
+        email: email.toLowerCase(),
+        whatsapp: whatsapp || null,
         role: "jornaleiro",
         jornaleiro_access_level: access_level || "collaborator",
         active: true,

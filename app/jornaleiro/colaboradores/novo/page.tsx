@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
 
 type Banca = {
   id: string;
@@ -32,11 +33,55 @@ export default function NovoColaboradorPage() {
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [accessLevel, setAccessLevel] = useState<"admin" | "collaborator">("collaborator");
   const [selectedBancas, setSelectedBancas] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<string[]>(MODULES.map((m) => m.key));
+
+  // Estado para verificação de email
+  const [emailChecking, setEmailChecking] = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
+  const [emailChecked, setEmailChecked] = useState(false);
+
+  // Debounce para verificação de email
+  const checkEmail = useCallback(async (emailToCheck: string) => {
+    const trimmed = emailToCheck.trim().toLowerCase();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailExists(false);
+      setEmailChecked(false);
+      return;
+    }
+
+    setEmailChecking(true);
+    try {
+      const res = await fetch(`/api/jornaleiro/colaboradores/check-email?email=${encodeURIComponent(trimmed)}`, {
+        credentials: "include",
+      });
+      const json = await res.json();
+      setEmailExists(json?.exists || false);
+      setEmailChecked(true);
+    } catch (e) {
+      console.error("Erro ao verificar email:", e);
+      setEmailChecked(false);
+    } finally {
+      setEmailChecking(false);
+    }
+  }, []);
+
+  // Verificar email quando mudar (com debounce)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (email.trim()) {
+        checkEmail(email);
+      } else {
+        setEmailExists(false);
+        setEmailChecked(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [email, checkEmail]);
 
   const tabs = useMemo(
     () => [
@@ -87,6 +132,10 @@ export default function NovoColaboradorPage() {
       setError("Informe um email válido.");
       return;
     }
+    if (emailExists) {
+      setError("Este email já está cadastrado na plataforma.");
+      return;
+    }
     if (!password || password.length < 6) {
       setError("A senha deve ter no mínimo 6 caracteres.");
       return;
@@ -109,6 +158,7 @@ export default function NovoColaboradorPage() {
         body: JSON.stringify({
           full_name: fullName.trim(),
           email: email.trim().toLowerCase(),
+          whatsapp: whatsapp.trim() || null,
           password,
           access_level: accessLevel,
           banca_ids: selectedBancas,
@@ -156,8 +206,44 @@ export default function NovoColaboradorPage() {
             </div>
             <div>
               <label className="text-sm font-medium">Email <span className="text-red-500">*</span></label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="colaborador@exemplo.com" required />
-              <p className="mt-1 text-xs text-gray-500">Este será o email de login do colaborador.</p>
+              <div className="relative">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={`mt-1 w-full rounded-md border px-3 py-2 text-sm pr-10 ${
+                    emailExists ? "border-red-300 bg-red-50" : emailChecked && !emailExists ? "border-green-300" : "border-gray-300"
+                  }`}
+                  placeholder="colaborador@exemplo.com"
+                  required
+                />
+                {emailChecking && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                  </div>
+                )}
+                {!emailChecking && emailChecked && emailExists && (
+                  <IconAlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5 h-5 w-5 text-red-500" />
+                )}
+                {!emailChecking && emailChecked && !emailExists && (
+                  <IconCheck className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5 h-5 w-5 text-green-500" />
+                )}
+              </div>
+              {emailExists ? (
+                <p className="mt-1 text-xs text-red-600 font-medium">Este email já está cadastrado na plataforma.</p>
+              ) : (
+                <p className="mt-1 text-xs text-gray-500">Este será o email de login do colaborador.</p>
+              )}
+            </div>
+            <div>
+              <label className="text-sm font-medium">WhatsApp</label>
+              <input
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                placeholder="(11) 99999-9999"
+              />
+              <p className="mt-1 text-xs text-gray-500">Número para contato e notificações (opcional).</p>
             </div>
             <div>
               <label className="text-sm font-medium">Senha <span className="text-red-500">*</span></label>
