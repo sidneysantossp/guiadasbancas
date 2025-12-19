@@ -28,6 +28,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, colaboradores: [] });
     }
 
+    console.log("[Colaboradores GET] Buscando memberships para bancas:", bancaIds);
+    console.log("[Colaboradores GET] Excluindo user_id:", userId);
+
     // Tentar buscar da tabela banca_members (pode não existir ainda)
     const { data: memberships, error: membershipsError } = await supabaseAdmin
       .from("banca_members")
@@ -35,14 +38,18 @@ export async function GET(req: NextRequest) {
       .in("banca_id", bancaIds)
       .neq("user_id", userId);
 
+    console.log("[Colaboradores GET] Memberships encontrados:", memberships?.length || 0);
+    console.log("[Colaboradores GET] Memberships data:", JSON.stringify(memberships));
+
     // Se a tabela não existe, retornar lista vazia
     if (membershipsError) {
-      console.log("[Colaboradores GET] Tabela banca_members não existe ou erro:", membershipsError.message);
+      console.error("[Colaboradores GET] Erro ao buscar memberships:", membershipsError);
       // Retornar lista vazia - a tabela será criada quando cadastrar o primeiro colaborador
       return NextResponse.json({ 
         success: true, 
         colaboradores: [],
-        message: "Nenhum colaborador cadastrado ainda"
+        message: "Nenhum colaborador cadastrado ainda",
+        debug: { error: membershipsError.message, code: membershipsError.code }
       });
     }
 
@@ -179,20 +186,35 @@ export async function POST(req: NextRequest) {
     }
 
     // Criar memberships para cada banca
+    const membershipErrors: string[] = [];
     for (const bancaId of banca_ids) {
-      const { error: memberError } = await supabaseAdmin
+      console.log(`[Colaboradores POST] Criando membership: user_id=${newUserId}, banca_id=${bancaId}`);
+      
+      const { data: memberData, error: memberError } = await supabaseAdmin
         .from("banca_members")
         .upsert({
           user_id: newUserId,
           banca_id: bancaId,
           access_level: access_level || "collaborator",
           permissions: permissions || [],
-        });
+        })
+        .select();
 
       if (memberError) {
         console.error("[Colaboradores POST] Erro ao criar membership:", memberError);
+        membershipErrors.push(`${bancaId}: ${memberError.message}`);
+      } else {
+        console.log("[Colaboradores POST] Membership criado com sucesso:", memberData);
       }
     }
+
+    // Verificar se o membership foi criado
+    const { data: verifyMembership } = await supabaseAdmin
+      .from("banca_members")
+      .select("*")
+      .eq("user_id", newUserId);
+    
+    console.log("[Colaboradores POST] Verificação de memberships criados:", verifyMembership);
 
     return NextResponse.json({
       success: true,
@@ -202,6 +224,10 @@ export async function POST(req: NextRequest) {
         full_name,
         access_level,
       },
+      debug: {
+        membershipErrors: membershipErrors.length > 0 ? membershipErrors : null,
+        membershipsCreated: verifyMembership?.length || 0,
+      }
     });
   } catch (e: any) {
     console.error("[Colaboradores POST] Erro:", e);
