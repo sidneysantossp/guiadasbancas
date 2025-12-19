@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     // Buscar bancas do usuário atual
     const { data: userBancas, error: bancasError } = await supabaseAdmin
       .from("bancas")
-      .select("id")
+      .select("id, name")
       .eq("user_id", userId);
 
     if (bancasError) {
@@ -28,22 +28,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, colaboradores: [] });
     }
 
-    // Buscar colaboradores que têm acesso às bancas do usuário
+    // Tentar buscar da tabela banca_members (pode não existir ainda)
     const { data: memberships, error: membershipsError } = await supabaseAdmin
       .from("banca_members")
-      .select(`
-        user_id,
-        banca_id,
-        access_level,
-        permissions,
-        bancas:banca_id (id, name)
-      `)
+      .select("user_id, banca_id, access_level, permissions")
       .in("banca_id", bancaIds)
       .neq("user_id", userId);
 
+    // Se a tabela não existe, retornar lista vazia
     if (membershipsError) {
-      console.error("[Colaboradores GET] Erro ao buscar memberships:", membershipsError);
-      return NextResponse.json({ success: false, error: "Erro ao buscar colaboradores" }, { status: 500 });
+      console.log("[Colaboradores GET] Tabela banca_members não existe ou erro:", membershipsError.message);
+      // Retornar lista vazia - a tabela será criada quando cadastrar o primeiro colaborador
+      return NextResponse.json({ 
+        success: true, 
+        colaboradores: [],
+        message: "Nenhum colaborador cadastrado ainda"
+      });
     }
 
     // Agrupar por user_id
@@ -54,39 +54,34 @@ export async function GET(req: NextRequest) {
     }
 
     // Buscar dados dos usuários
-    const { data: users, error: usersError } = await supabaseAdmin
+    const { data: users } = await supabaseAdmin
       .from("user_profiles")
-      .select("id, full_name, active")
-      .in("id", userIds);
-
-    if (usersError) {
-      console.error("[Colaboradores GET] Erro ao buscar users:", usersError);
-    }
-
-    // Buscar emails dos usuários via auth.users
-    const { data: authUsers, error: authError } = await supabaseAdmin
-      .from("auth_users_view")
-      .select("id, email, created_at")
+      .select("id, full_name, active, email")
       .in("id", userIds);
 
     // Montar lista de colaboradores
     const colaboradores = userIds.map((uid) => {
       const userProfile = users?.find((u) => u.id === uid);
-      const authUser = authUsers?.find((a) => a.id === uid);
       const userMemberships = memberships?.filter((m) => m.user_id === uid) || [];
       const firstMembership = userMemberships[0];
 
+      // Mapear banca_ids para nomes
+      const userBancasList = userMemberships.map((m) => {
+        const banca = userBancas?.find((b) => b.id === m.banca_id);
+        return {
+          id: m.banca_id,
+          name: banca?.name || "Sem nome",
+        };
+      });
+
       return {
         id: uid,
-        email: authUser?.email || "Email não disponível",
+        email: userProfile?.email || "Email não disponível",
         full_name: userProfile?.full_name || null,
         access_level: firstMembership?.access_level || "collaborator",
         active: userProfile?.active ?? true,
-        created_at: authUser?.created_at || null,
-        bancas: userMemberships.map((m) => ({
-          id: (m.bancas as any)?.id,
-          name: (m.bancas as any)?.name || "Sem nome",
-        })),
+        created_at: null,
+        bancas: userBancasList,
         permissions: firstMembership?.permissions || [],
       };
     });
