@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -11,6 +14,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     const colaboradorId = params.id;
     const userId = session.user.id;
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
 
     // Buscar bancas do usuário atual
     const { data: userBancas } = await supabaseAdmin
@@ -85,6 +92,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const body = await req.json();
     const { full_name, access_level, banca_ids, permissions } = body;
 
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
     // Buscar bancas do usuário atual
     const { data: userBancas } = await supabaseAdmin
       .from("bancas")
@@ -153,6 +164,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
     const colaboradorId = params.id;
     const userId = session.user.id;
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
 
     // Buscar bancas do usuário atual
     const { data: userBancas } = await supabaseAdmin
