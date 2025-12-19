@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+// Usar service role key para ter acesso admin
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,44 +21,65 @@ export async function GET(req: NextRequest) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Verificar se email já existe no Supabase Auth usando busca paginada
-    let emailExists = false;
-    let page = 1;
-    const perPage = 1000;
+    // Criar cliente admin diretamente
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
-    while (true) {
-      const { data: usersPage, error } = await supabaseAdmin.auth.admin.listUsers({
-        page,
-        perPage,
+    // Método 1: Tentar buscar usuários e filtrar
+    let emailExists = false;
+    
+    try {
+      // Buscar todos os usuários (primeira página de 1000)
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
       });
 
-      if (error) {
+      if (!error && data?.users) {
+        emailExists = data.users.some(
+          (u) => u.email?.toLowerCase() === normalizedEmail
+        );
+        console.log(`[Check Email] Encontrados ${data.users.length} usuários, email ${normalizedEmail} existe: ${emailExists}`);
+      } else {
         console.error("[Check Email] Erro ao listar usuários:", error);
-        break;
       }
-
-      if (!usersPage?.users || usersPage.users.length === 0) {
-        break;
-      }
-
-      const found = usersPage.users.some(
-        (u) => u.email?.toLowerCase() === normalizedEmail
-      );
-
-      if (found) {
-        emailExists = true;
-        break;
-      }
-
-      // Se retornou menos que o perPage, não há mais páginas
-      if (usersPage.users.length < perPage) {
-        break;
-      }
-
-      page++;
+    } catch (listError) {
+      console.error("[Check Email] Exceção ao listar usuários:", listError);
     }
 
-    console.log(`[Check Email] Email ${normalizedEmail} existe: ${emailExists}`);
+    // Método 2: Se não encontrou, verificar na tabela user_profiles como fallback
+    if (!emailExists) {
+      const { data: profileData, error: profileError } = await supabaseAdmin
+        .from("user_profiles")
+        .select("id, email")
+        .ilike("email", normalizedEmail)
+        .limit(1);
+
+      if (!profileError && profileData && profileData.length > 0) {
+        emailExists = true;
+        console.log(`[Check Email] Email encontrado em user_profiles: ${normalizedEmail}`);
+      }
+    }
+
+    // Método 3: Verificar também na tabela bancas (email de login)
+    if (!emailExists) {
+      const { data: bancaData, error: bancaError } = await supabaseAdmin
+        .from("bancas")
+        .select("id, email")
+        .ilike("email", normalizedEmail)
+        .limit(1);
+
+      if (!bancaError && bancaData && bancaData.length > 0) {
+        emailExists = true;
+        console.log(`[Check Email] Email encontrado em bancas: ${normalizedEmail}`);
+      }
+    }
+
+    console.log(`[Check Email] Resultado final - Email ${normalizedEmail} existe: ${emailExists}`);
 
     return NextResponse.json({ 
       success: true, 

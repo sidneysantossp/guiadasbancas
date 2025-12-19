@@ -144,7 +144,18 @@ export async function POST(req: NextRequest) {
 
     if (createError || !newUser?.user) {
       console.error("[Colaboradores POST] Erro ao criar usuário:", createError);
-      return NextResponse.json({ success: false, error: createError?.message || "Erro ao criar usuário" }, { status: 500 });
+      
+      // Traduzir mensagens de erro do Supabase
+      let errorMessage = createError?.message || "Erro ao criar usuário";
+      if (errorMessage.includes("already been registered") || errorMessage.includes("already exists")) {
+        errorMessage = "Este email já está cadastrado na plataforma.";
+      } else if (errorMessage.includes("invalid email")) {
+        errorMessage = "Email inválido.";
+      } else if (errorMessage.includes("password")) {
+        errorMessage = "Senha inválida. Deve ter no mínimo 6 caracteres.";
+      }
+      
+      return NextResponse.json({ success: false, error: errorMessage }, { status: 400 });
     }
 
     const newUserId = newUser.user.id;
