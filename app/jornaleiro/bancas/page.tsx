@@ -161,10 +161,12 @@ export default function JornaleiroBancasPage() {
                     </div>
                     <div className="mt-1 text-sm text-gray-600 line-clamp-2">{address}</div>
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-600">
-                      <span className="rounded-full border border-gray-200 px-2 py-0.5">
-                        {b.approved ? "Aprovada" : "Em aprovação"}
-                      </span>
-                      <span className="rounded-full border border-gray-200 px-2 py-0.5">
+                      {!b.approved && (
+                        <span className="rounded-full border border-yellow-300 bg-yellow-50 text-yellow-700 px-2 py-0.5">
+                          Em aprovação
+                        </span>
+                      )}
+                      <span className={`rounded-full border px-2 py-0.5 ${b.active ? "border-green-300 bg-green-50 text-green-700" : "border-gray-200"}`}>
                         {b.active ? "Ativa" : "Inativa"}
                       </span>
                     </div>
