@@ -67,9 +67,9 @@ const GeneralSettingsForm = memo(({
 }) => (
   <div className="space-y-6">
     <div>
-      <h3 className="text-lg font-semibold">Configurações Gerais</h3>
+      <h3 className="text-lg font-semibold">Configurações do WhatsApp</h3>
       <p className="text-sm text-gray-600">
-        Configurações básicas da sua conta e banca.
+        Este será o número pelo qual os clientes entrarão em contato com sua Banca.
       </p>
     </div>
 
