@@ -19,13 +19,17 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Buscar bancas do usuário atual
+    // Buscar bancas do usuário atual (dono logado)
     const { data: userBancas } = await supabaseAdmin
       .from("bancas")
-      .select("id")
+      .select("id, name")
       .eq("user_id", userId);
 
     const bancaIds = userBancas?.map((b) => b.id) || [];
+    
+    console.log("[Colaborador GET] userId (dono logado):", userId);
+    console.log("[Colaborador GET] Bancas do dono:", userBancas);
+    console.log("[Colaborador GET] bancaIds:", bancaIds);
 
     // Verificar se o colaborador tem acesso a alguma banca do usuário
     const { data: memberships, error: membershipsError } = await supabaseAdmin
@@ -39,6 +43,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       `)
       .eq("user_id", colaboradorId)
       .in("banca_id", bancaIds);
+
+    console.log("[Colaborador GET] Memberships encontradas:", JSON.stringify(memberships));
+    console.log("[Colaborador GET] Erro:", membershipsError);
 
     if (membershipsError || !memberships || memberships.length === 0) {
       return NextResponse.json({ success: false, error: "Colaborador não encontrado" }, { status: 404 });
