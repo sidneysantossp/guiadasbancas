@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth/AuthContext";
 import {
   LineChart,
   Line,
@@ -51,20 +50,36 @@ interface TopProduct {
 }
 
 export default function AnalyticsPage() {
-  const { banca } = useAuth();
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("30d");
   const [stats, setStats] = useState<Stats | null>(null);
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [bancaId, setBancaId] = useState<string | null>(null);
+
+  // Buscar banca do usuário
+  useEffect(() => {
+    const loadBanca = async () => {
+      try {
+        const res = await fetch("/api/jornaleiro/banca");
+        const data = await res.json();
+        if (data?.data?.id) {
+          setBancaId(data.data.id);
+        }
+      } catch (e) {
+        console.error("Erro ao carregar banca:", e);
+      }
+    };
+    loadBanca();
+  }, []);
 
   useEffect(() => {
-    if (!banca?.id) return;
+    if (!bancaId) return;
 
     const loadAnalytics = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/analytics/track?banca_id=${banca.id}&period=${period}`);
+        const res = await fetch(`/api/analytics/track?banca_id=${bancaId}&period=${period}`);
         const data = await res.json();
 
         if (data.success) {
@@ -80,7 +95,7 @@ export default function AnalyticsPage() {
     };
 
     loadAnalytics();
-  }, [banca?.id, period]);
+  }, [bancaId, period]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
