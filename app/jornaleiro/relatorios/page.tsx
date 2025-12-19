@@ -117,6 +117,7 @@ export default function RelatoriosPage() {
       </div>
 
       {/* Card Analytics */}
+      <div className="mt-4"></div>
       <Link href="/jornaleiro/relatorios/analytics">
         <div className="rounded-xl border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-orange-100 p-6 hover:shadow-lg transition-all cursor-pointer">
           <div className="flex items-center justify-between">

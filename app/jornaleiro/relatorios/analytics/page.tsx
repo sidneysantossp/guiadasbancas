@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   LineChart,
   Line,
@@ -115,6 +116,15 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Botão Voltar */}
+      <Link 
+        href="/jornaleiro/relatorios"
+        className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-orange-600 transition-colors"
+      >
+        <i className="fa-solid fa-arrow-left"></i>
+        Voltar para Relatórios
+      </Link>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
