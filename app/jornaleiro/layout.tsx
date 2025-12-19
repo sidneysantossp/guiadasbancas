@@ -58,6 +58,23 @@ type JournaleiroMenuItem =
   | { label: string; href: Route; icon: JournaleiroIconKey; disabled?: boolean }
   | { label: string; icon: JournaleiroIconKey; disabled?: boolean; children: { label: string; href: Route }[] };
 
+// Mapeamento de permissões para itens do menu
+const PERMISSION_MAP: Record<string, string> = {
+  "Dashboard": "dashboard",
+  "Minhas Bancas": "bancas",
+  "Colaboradores": "colaboradores",
+  "Notificações": "notificacoes",
+  "Pedidos": "pedidos",
+  "Produtos": "produtos",
+  "Catálogo Distribuidor": "catalogo",
+  "Campanhas": "campanhas",
+  "Distribuidores": "distribuidores",
+  "Cupons": "cupons",
+  "Relatórios": "relatorios",
+  "Academy": "academy",
+  "Configurações": "configuracoes",
+};
+
 const JOURNALEIRO_MENU: JournaleiroMenuItem[] = [
   { label: "Dashboard", href: "/jornaleiro/dashboard" as Route, icon: "dashboard" },
   {
@@ -110,6 +127,8 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   const [bancaValidated, setBancaValidated] = useState(false);
   const [mounted, setMounted] = useState(false);
   const useBancaCache = true;
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
+  const [isOwner, setIsOwner] = useState(true); // true por padrão para evitar flash
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
@@ -139,6 +158,28 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Buscar permissões do usuário
+  useEffect(() => {
+    const loadPermissions = async () => {
+      if (!user?.id || isAuthRoute) return;
+      
+      try {
+        const res = await fetch("/api/jornaleiro/my-permissions", { credentials: "include" });
+        const json = await res.json();
+        
+        if (json?.success) {
+          setIsOwner(json.isOwner || json.accessLevel === "admin");
+          setUserPermissions(json.permissions || []);
+          console.log("[Permissions] Carregadas:", json.permissions, "isOwner:", json.isOwner);
+        }
+      } catch (e) {
+        console.error("[Permissions] Erro ao carregar:", e);
+      }
+    };
+
+    loadPermissions();
+  }, [user?.id, isAuthRoute]);
 
   // IMPORTANTE: TODOS os hooks devem vir ANTES de qualquer return condicional!
   // Isso evita o erro React #310 "Rendered fewer hooks than during the previous render"
@@ -668,7 +709,16 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
             className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-60 bg-[#334257] border-r border-gray-200 transition-transform duration-300 ease-in-out`}
           >
             <nav className="p-4 space-y-4 text-gray-100">
-              {JOURNALEIRO_MENU.map((item) => {
+              {JOURNALEIRO_MENU.filter((item) => {
+                // Se é dono ou admin, mostra tudo
+                if (isOwner) return true;
+                
+                // Verifica se tem permissão para este item
+                const permKey = PERMISSION_MAP[item.label];
+                if (!permKey) return true; // Se não tem mapeamento, mostra
+                
+                return userPermissions.includes(permKey);
+              }).map((item) => {
                 const IconComponent = journaleiroIconComponents[item.icon];
                 const icon = <IconComponent size={20} stroke={1.7} />;
 
