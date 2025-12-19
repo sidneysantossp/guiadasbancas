@@ -124,31 +124,46 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 
     // Atualizar memberships
-    if (banca_ids && banca_ids.length > 0) {
-      // Verificar se as novas bancas pertencem ao usuário
-      const validBancaIds = banca_ids.filter((id: string) => userBancaIds.includes(id));
+    const targetBancaIds = banca_ids && banca_ids.length > 0 
+      ? banca_ids.filter((id: string) => userBancaIds.includes(id))
+      : existingMemberships.map((m: any) => m.banca_id);
 
-      // Remover memberships antigas das bancas do usuário
-      await supabaseAdmin
+    console.log("[Colaborador PUT] Atualizando memberships:", targetBancaIds);
+    console.log("[Colaborador PUT] Permissões a salvar:", permissions);
+
+    // Remover memberships antigas das bancas do usuário
+    await supabaseAdmin
+      .from("banca_members")
+      .delete()
+      .eq("user_id", colaboradorId)
+      .in("banca_id", userBancaIds);
+
+    // Criar novas memberships com as permissões atualizadas
+    for (const bancaId of targetBancaIds) {
+      const { error: upsertError } = await supabaseAdmin
         .from("banca_members")
-        .delete()
-        .eq("user_id", colaboradorId)
-        .in("banca_id", userBancaIds);
-
-      // Criar novas memberships
-      for (const bancaId of validBancaIds) {
-        await supabaseAdmin
-          .from("banca_members")
-          .upsert({
-            user_id: colaboradorId,
-            banca_id: bancaId,
-            access_level: access_level || "collaborator",
-            permissions: permissions || [],
-          });
+        .upsert({
+          user_id: colaboradorId,
+          banca_id: bancaId,
+          access_level: access_level || "collaborator",
+          permissions: permissions || [],
+        });
+      
+      if (upsertError) {
+        console.error("[Colaborador PUT] Erro ao salvar membership:", upsertError);
       }
     }
 
-    return NextResponse.json({ success: true });
+    // Verificar se salvou corretamente
+    const { data: verifyData } = await supabaseAdmin
+      .from("banca_members")
+      .select("permissions")
+      .eq("user_id", colaboradorId)
+      .in("banca_id", targetBancaIds);
+    
+    console.log("[Colaborador PUT] Permissões salvas:", verifyData);
+
+    return NextResponse.json({ success: true, debug: { savedPermissions: verifyData } });
   } catch (e: any) {
     console.error("[Colaborador PUT] Erro:", e);
     return NextResponse.json({ success: false, error: e?.message || "Erro interno" }, { status: 500 });
