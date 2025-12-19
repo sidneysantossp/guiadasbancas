@@ -13,6 +13,9 @@ type Banca = {
 
 const MODULES = [
   { key: "dashboard", label: "Dashboard", description: "Visualizar estatísticas gerais" },
+  { key: "bancas", label: "Minhas Bancas", description: "Gerenciar bancas" },
+  { key: "colaboradores", label: "Colaboradores", description: "Gerenciar colaboradores" },
+  { key: "notificacoes", label: "Notificações", description: "Ver notificações" },
   { key: "pedidos", label: "Pedidos", description: "Gerenciar pedidos da banca" },
   { key: "produtos", label: "Produtos", description: "Gerenciar catálogo de produtos" },
   { key: "catalogo", label: "Catálogo Distribuidor", description: "Acessar catálogo de distribuidores" },
@@ -20,8 +23,8 @@ const MODULES = [
   { key: "distribuidores", label: "Distribuidores", description: "Gerenciar distribuidores" },
   { key: "cupons", label: "Cupons", description: "Criar e gerenciar cupons" },
   { key: "relatorios", label: "Relatórios", description: "Visualizar relatórios e analytics" },
+  { key: "academy", label: "Academy", description: "Acessar conteúdos educacionais" },
   { key: "configuracoes", label: "Configurações", description: "Alterar configurações da banca" },
-  { key: "notificacoes", label: "Notificações", description: "Ver notificações" },
 ];
 
 export default function NovoColaboradorPage() {
