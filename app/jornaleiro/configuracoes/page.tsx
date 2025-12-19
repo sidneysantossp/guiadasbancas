@@ -288,7 +288,7 @@ export default function ConfiguracoesPage() {
     { id: "delivery" as ConfigTab, label: "Entrega", icon: "fa-regular fa-paper-plane" },
     { id: "payment" as ConfigTab, label: "Pagamento", icon: "fa-regular fa-credit-card" },
     { id: "notifications" as ConfigTab, label: "Notificações", icon: "fa-regular fa-bell" },
-    { id: "whatsapp" as ConfigTab, label: "WhatsApp", icon: "fa-brands fa-whatsapp" },
+    // { id: "whatsapp" as ConfigTab, label: "WhatsApp", icon: "fa-brands fa-whatsapp" }, // Oculto temporariamente
   ];
 
   const NotificationsSettings = () => (
