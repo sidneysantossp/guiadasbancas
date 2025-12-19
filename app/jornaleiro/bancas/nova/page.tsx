@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
 import { formatCep, isValidCep, resolveCepToLocation } from "@/lib/location";
@@ -40,11 +40,38 @@ export default function JornaleiroNovaBancaPage() {
   const [saving, setSaving] = useState(false);
   const [loadingCep, setLoadingCep] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const numberInputRef = useRef<HTMLInputElement>(null);
 
-  const [accessLevel, setAccessLevel] = useState<"admin" | "collaborator">("collaborator");
-  const [accessEmail, setAccessEmail] = useState("");
-  const [accessPassword, setAccessPassword] = useState("");
-  const [accessPasswordConfirm, setAccessPasswordConfirm] = useState("");
+  // Lista de estados brasileiros
+  const ESTADOS_BR = [
+    { sigla: "AC", nome: "Acre" },
+    { sigla: "AL", nome: "Alagoas" },
+    { sigla: "AP", nome: "Amapá" },
+    { sigla: "AM", nome: "Amazonas" },
+    { sigla: "BA", nome: "Bahia" },
+    { sigla: "CE", nome: "Ceará" },
+    { sigla: "DF", nome: "Distrito Federal" },
+    { sigla: "ES", nome: "Espírito Santo" },
+    { sigla: "GO", nome: "Goiás" },
+    { sigla: "MA", nome: "Maranhão" },
+    { sigla: "MT", nome: "Mato Grosso" },
+    { sigla: "MS", nome: "Mato Grosso do Sul" },
+    { sigla: "MG", nome: "Minas Gerais" },
+    { sigla: "PA", nome: "Pará" },
+    { sigla: "PB", nome: "Paraíba" },
+    { sigla: "PR", nome: "Paraná" },
+    { sigla: "PE", nome: "Pernambuco" },
+    { sigla: "PI", nome: "Piauí" },
+    { sigla: "RJ", nome: "Rio de Janeiro" },
+    { sigla: "RN", nome: "Rio Grande do Norte" },
+    { sigla: "RS", nome: "Rio Grande do Sul" },
+    { sigla: "RO", nome: "Rondônia" },
+    { sigla: "RR", nome: "Roraima" },
+    { sigla: "SC", nome: "Santa Catarina" },
+    { sigla: "SP", nome: "São Paulo" },
+    { sigla: "SE", nome: "Sergipe" },
+    { sigla: "TO", nome: "Tocantins" },
+  ];
 
   const isCollaborator = (profile as any)?.jornaleiro_access_level === "collaborator";
 
@@ -60,12 +87,11 @@ export default function JornaleiroNovaBancaPage() {
   const setStart = (key: string, v: string) => setHours((prev) => prev.map((d) => (d.key === key ? { ...d, start: v } : d)));
   const setEnd = (key: string, v: string) => setHours((prev) => prev.map((d) => (d.key === key ? { ...d, end: v } : d)));
 
-  const resolveCep = async () => {
+  const resolveCep = async (cepValue?: string) => {
     try {
       setError(null);
-      const c = formatCep(cep);
+      const c = formatCep(cepValue || cep);
       if (!isValidCep(c)) {
-        setError("Informe um CEP válido.");
         return;
       }
       setLoadingCep(true);
@@ -76,12 +102,24 @@ export default function JornaleiroNovaBancaPage() {
       if (loc.neighborhood) setNeighborhood(loc.neighborhood);
       setLat(loc.lat);
       setLng(loc.lng);
+      // Focar no campo número após buscar CEP
+      setTimeout(() => {
+        numberInputRef.current?.focus();
+      }, 100);
     } catch (e: any) {
       setError(e?.message || "Não foi possível obter dados do CEP.");
     } finally {
       setLoadingCep(false);
     }
   };
+
+  // Busca automática de CEP quando tiver 8 dígitos
+  useEffect(() => {
+    const cleanCep = cep.replace(/\D/g, "");
+    if (cleanCep.length === 8) {
+      resolveCep(cleanCep);
+    }
+  }, [cep]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +132,11 @@ export default function JornaleiroNovaBancaPage() {
 
     if (!name.trim()) {
       setError("Informe o nome da banca.");
+      return;
+    }
+
+    if (!whatsapp.trim()) {
+      setError("Informe o WhatsApp da banca. Este será o número pelo qual os clientes entrarão em contato.");
       return;
     }
 
@@ -129,27 +172,6 @@ export default function JornaleiroNovaBancaPage() {
 
     const address = addressParts.join(", ");
 
-    const normalizedAccessEmail = accessEmail.trim().toLowerCase();
-    const wantsAccessUser = !!(normalizedAccessEmail || accessPassword || accessPasswordConfirm);
-    if (wantsAccessUser) {
-      if (!normalizedAccessEmail) {
-        setError("Informe o email do usuário de acesso.");
-        return;
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedAccessEmail)) {
-        setError("Informe um email válido para o usuário de acesso.");
-        return;
-      }
-      if (!accessPassword || accessPassword.length < 6) {
-        setError("A senha do usuário de acesso deve ter no mínimo 6 caracteres.");
-        return;
-      }
-      if (accessPassword !== accessPasswordConfirm) {
-        setError("A confirmação de senha do usuário de acesso não confere.");
-        return;
-      }
-    }
-
     try {
       setSaving(true);
       const res = await fetch("/api/jornaleiro/bancas", {
@@ -159,7 +181,7 @@ export default function JornaleiroNovaBancaPage() {
         body: JSON.stringify({
           banca: {
             name: name.trim(),
-            whatsapp: whatsapp || null,
+            whatsapp: whatsapp.trim(),
             cep: cepFormatted,
             address,
             lat: lat ?? -23.5505,
@@ -169,13 +191,6 @@ export default function JornaleiroNovaBancaPage() {
             hours,
             payment_methods: ["pix", "dinheiro"],
           },
-          access: wantsAccessUser
-            ? {
-                email: normalizedAccessEmail,
-                password: accessPassword,
-                access_level: accessLevel,
-              }
-            : null,
         }),
       });
 
@@ -233,13 +248,15 @@ export default function JornaleiroNovaBancaPage() {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="text-sm font-medium">WhatsApp da banca (opcional)</label>
+              <label className="text-sm font-medium">WhatsApp da banca <span className="text-red-500">*</span></label>
               <input
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 placeholder="(11) 99999-9999"
+                required
               />
+              <p className="mt-1 text-xs text-gray-500">Este será o número pelo qual os clientes entrarão em contato com sua banca.</p>
             </div>
           </div>
 
@@ -251,7 +268,7 @@ export default function JornaleiroNovaBancaPage() {
               </div>
               <button
                 type="button"
-                onClick={resolveCep}
+                onClick={() => resolveCep()}
                 disabled={loadingCep}
                 className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
               >
@@ -273,6 +290,7 @@ export default function JornaleiroNovaBancaPage() {
               <div className="md:col-span-2">
                 <label className="text-sm font-medium">Número</label>
                 <input
+                  ref={numberInputRef}
                   value={number}
                   onChange={(e) => setNumber(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -315,13 +333,19 @@ export default function JornaleiroNovaBancaPage() {
               </div>
               <div className="md:col-span-1">
                 <label className="text-sm font-medium">UF</label>
-                <input
+                <select
                   value={uf}
-                  onChange={(e) => setUf(e.target.value.toUpperCase())}
+                  onChange={(e) => setUf(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                  maxLength={2}
                   required
-                />
+                >
+                  <option value="">Selecione</option>
+                  {ESTADOS_BR.map((estado) => (
+                    <option key={estado.sigla} value={estado.sigla}>
+                      {estado.sigla}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
@@ -379,58 +403,6 @@ export default function JornaleiroNovaBancaPage() {
               accept="image/*"
               role="jornaleiro"
             />
-          </div>
-
-          <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-            <div>
-              <div className="text-sm font-semibold">Acesso ao painel (opcional)</div>
-              <div className="text-xs text-gray-500">
-                Se quiser dar acesso para outra pessoa gerenciar esta banca, informe um email e senha. O usuário verá esta banca no painel.
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Nível de acesso</label>
-              <select
-                value={accessLevel}
-                onChange={(e) => setAccessLevel(e.target.value as any)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="admin">Administrador</option>
-                <option value="collaborator">Colaborador</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Email do usuário</label>
-              <input
-                value={accessEmail}
-                onChange={(e) => setAccessEmail(e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                placeholder="colaborador@exemplo.com"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Senha</label>
-              <input
-                type="password"
-                value={accessPassword}
-                onChange={(e) => setAccessPassword(e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                placeholder="Mínimo 6 caracteres"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Confirmar senha</label>
-              <input
-                type="password"
-                value={accessPasswordConfirm}
-                onChange={(e) => setAccessPasswordConfirm(e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
           </div>
 
           <button

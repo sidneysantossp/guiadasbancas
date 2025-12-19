@@ -44,6 +44,7 @@ const journaleiroIconComponents = {
   catalog: IconFolderOpen,
   campaigns: IconMessageDots,
   distributors: IconUsers,
+  users: IconUsers,
   coupons: IconTicket,
   reports: IconChartBar,
   notifications: IconBell,
@@ -65,6 +66,14 @@ const JOURNALEIRO_MENU: JournaleiroMenuItem[] = [
     children: [
       { label: "Ver todas", href: "/jornaleiro/bancas" as Route },
       { label: "Cadastrar", href: "/jornaleiro/bancas/nova" as Route },
+    ],
+  },
+  {
+    label: "Colaboradores",
+    icon: "users",
+    children: [
+      { label: "Ver todos", href: "/jornaleiro/colaboradores" as Route },
+      { label: "Cadastrar", href: "/jornaleiro/colaboradores/novo" as Route },
     ],
   },
   { label: "Notificações", href: "/jornaleiro/notificacoes" as Route, icon: "notifications" },
