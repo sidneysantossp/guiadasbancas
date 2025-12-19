@@ -35,13 +35,18 @@ export async function GET(req: NextRequest) {
     }
 
     // Se não é dono, buscar permissões como colaborador
-    const { data: memberships } = await supabaseAdmin
+    const { data: memberships, error: membershipsError } = await supabaseAdmin
       .from("banca_members")
-      .select("access_level, permissions")
+      .select("access_level, permissions, banca_id")
       .eq("user_id", userId);
+
+    console.log("[MyPermissions] userId:", userId);
+    console.log("[MyPermissions] memberships:", JSON.stringify(memberships));
+    console.log("[MyPermissions] membershipsError:", membershipsError);
 
     if (!memberships || memberships.length === 0) {
       // Sem memberships - não deveria acontecer, mas retorna permissões vazias
+      console.log("[MyPermissions] Nenhum membership encontrado");
       return NextResponse.json({
         success: true,
         isOwner: false,
@@ -53,6 +58,9 @@ export async function GET(req: NextRequest) {
     const firstMembership = memberships[0];
     const accessLevel = firstMembership.access_level;
 
+    console.log("[MyPermissions] accessLevel:", accessLevel);
+    console.log("[MyPermissions] permissions do banco:", firstMembership.permissions);
+
     // Se é admin da banca, tem todas as permissões
     if (accessLevel === "admin") {
       return NextResponse.json({
@@ -63,8 +71,22 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Colaborador - usa permissões específicas
-    const permissions = firstMembership.permissions || [];
+    // Colaborador - usa permissões específicas do banco
+    // Se permissions for array de strings, usar diretamente
+    // Se for JSONB com estrutura diferente, extrair corretamente
+    let permissions: string[] = [];
+    
+    if (Array.isArray(firstMembership.permissions)) {
+      permissions = firstMembership.permissions;
+    } else if (typeof firstMembership.permissions === 'string') {
+      try {
+        permissions = JSON.parse(firstMembership.permissions);
+      } catch {
+        permissions = [];
+      }
+    }
+
+    console.log("[MyPermissions] Permissões finais:", permissions);
 
     return NextResponse.json({
       success: true,

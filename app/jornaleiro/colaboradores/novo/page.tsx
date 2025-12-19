@@ -30,6 +30,7 @@ export default function NovoColaboradorPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -188,7 +189,10 @@ export default function NovoColaboradorPage() {
         throw new Error(json?.error || "Erro ao cadastrar colaborador");
       }
 
-      router.push("/jornaleiro/colaboradores");
+      setSuccessMessage("✅ Colaborador cadastrado com sucesso!");
+      setTimeout(() => {
+        router.push("/jornaleiro/colaboradores");
+      }, 2000);
     } catch (e: any) {
       setError(e?.message || "Erro ao cadastrar colaborador");
     } finally {
@@ -210,6 +214,12 @@ export default function NovoColaboradorPage() {
           </Link>
         ))}
       </div>
+
+      {successMessage && (
+        <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 font-medium">
+          {successMessage}
+        </div>
+      )}
 
       {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 

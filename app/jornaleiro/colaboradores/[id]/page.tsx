@@ -40,6 +40,7 @@ export default function EditarColaboradorPage() {
   const [accessLevel, setAccessLevel] = useState<"admin" | "collaborator">("collaborator");
   const [selectedBancas, setSelectedBancas] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -125,7 +126,10 @@ export default function EditarColaboradorPage() {
         throw new Error(json?.error || "Erro ao atualizar colaborador");
       }
 
-      router.push("/jornaleiro/colaboradores");
+      setSuccessMessage("✅ Dados do colaborador atualizados com sucesso!");
+      setTimeout(() => {
+        router.push("/jornaleiro/colaboradores");
+      }, 2000);
     } catch (e: any) {
       setError(e?.message || "Erro ao atualizar colaborador");
     } finally {
@@ -173,6 +177,12 @@ export default function EditarColaboradorPage() {
           <p className="text-sm text-gray-600">{email}</p>
         </div>
       </div>
+
+      {successMessage && (
+        <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 font-medium">
+          {successMessage}
+        </div>
+      )}
 
       {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
