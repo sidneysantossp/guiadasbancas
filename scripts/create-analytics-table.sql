@@ -1,8 +1,8 @@
 -- Tabela para rastrear eventos de analytics
 CREATE TABLE IF NOT EXISTS analytics_events (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  banca_id UUID REFERENCES bancas(id) ON DELETE CASCADE,
-  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+  banca_id UUID,
+  product_id UUID,
   event_type VARCHAR(50) NOT NULL,
   session_id VARCHAR(100),
   user_identifier VARCHAR(255), -- pode ser user_id ou hash anônimo
@@ -30,15 +30,11 @@ ALTER TABLE analytics_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow insert analytics" ON analytics_events
   FOR INSERT WITH CHECK (true);
 
--- Política para leitura (jornaleiro vê apenas da sua banca, admin vê tudo)
+-- Política para leitura (jornaleiro vê apenas da sua banca)
 CREATE POLICY "Allow read own analytics" ON analytics_events
   FOR SELECT USING (
     banca_id IN (
       SELECT id FROM bancas WHERE user_id = auth.uid()
-    )
-    OR
-    EXISTS (
-      SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'
     )
   );
 
