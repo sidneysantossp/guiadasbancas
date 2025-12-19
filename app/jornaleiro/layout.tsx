@@ -446,12 +446,24 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           banca_email: parsed.data.email
         });
         
-        // SEGURANÇA: Para colaboradores, o user_id da banca pode ser diferente (dono).
+        // SEGURANÇA: Para colaboradores e admins de banca (não donos), o user_id da banca pode ser diferente.
         // Confiar na API (que valida vínculo via banca_members) e evitar logout indevido.
         const resolvedAccessLevel =
           (parsed?.data?.profile as any)?.jornaleiro_access_level ?? (profile as any)?.jornaleiro_access_level;
-        const isCollaborator = resolvedAccessLevel === "collaborator";
-        if (!isCollaborator && parsed.data.user_id !== user.id) {
+        // collaborator ou admin que não é dono da banca - ambos acessam via banca_members
+        const isNotOwner = resolvedAccessLevel === "collaborator" || resolvedAccessLevel === "admin";
+        const isActualOwner = parsed.data.user_id === user.id;
+        
+        console.log('[Security] Verificação de acesso:', {
+          resolvedAccessLevel,
+          isNotOwner,
+          isActualOwner,
+          banca_user_id: parsed.data.user_id,
+          logged_user_id: user.id
+        });
+        
+        // Só faz logout se NÃO é collaborator/admin E user_id não bate
+        if (!isNotOwner && !isActualOwner) {
           console.error('🚨🚨🚨 ALERTA DE SEGURANÇA: user_id NÃO BATE! 🚨🚨🚨');
           console.error('[SECURITY] user_id esperado:', user.id);
           console.error('[SECURITY] user_id da banca:', parsed.data.user_id);
