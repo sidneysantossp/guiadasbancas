@@ -128,7 +128,8 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
   const [mounted, setMounted] = useState(false);
   const useBancaCache = true;
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
-  const [isOwner, setIsOwner] = useState(true); // true por padrão para evitar flash
+  const [isOwner, setIsOwner] = useState<boolean | null>(null); // null = carregando
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
@@ -169,9 +170,11 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
         const json = await res.json();
         
         if (json?.success) {
-          setIsOwner(json.isOwner || json.accessLevel === "admin");
+          const ownerOrAdmin = json.isOwner === true || json.accessLevel === "admin";
+          setIsOwner(ownerOrAdmin);
           setUserPermissions(json.permissions || []);
-          console.log("[Permissions] Carregadas:", json.permissions, "isOwner:", json.isOwner);
+          setPermissionsLoaded(true);
+          console.log("[Permissions] Carregadas:", json.permissions, "isOwner:", json.isOwner, "accessLevel:", json.accessLevel, "ownerOrAdmin:", ownerOrAdmin);
         }
       } catch (e) {
         console.error("[Permissions] Erro ao carregar:", e);
@@ -710,14 +713,19 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
           >
             <nav className="p-4 space-y-4 text-gray-100">
               {JOURNALEIRO_MENU.filter((item) => {
+                // Se permissões ainda não carregaram, mostra tudo temporariamente
+                if (!permissionsLoaded) return true;
+                
                 // Se é dono ou admin, mostra tudo
-                if (isOwner) return true;
+                if (isOwner === true) return true;
                 
                 // Verifica se tem permissão para este item
                 const permKey = PERMISSION_MAP[item.label];
                 if (!permKey) return true; // Se não tem mapeamento, mostra
                 
-                return userPermissions.includes(permKey);
+                const hasPermission = userPermissions.includes(permKey);
+                console.log(`[Menu] ${item.label} (${permKey}): ${hasPermission ? '✅' : '❌'}`);
+                return hasPermission;
               }).map((item) => {
                 const IconComponent = journaleiroIconComponents[item.icon];
                 const icon = <IconComponent size={20} stroke={1.7} />;
