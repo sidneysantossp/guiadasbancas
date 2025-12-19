@@ -733,7 +733,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
                   )}
                   <div className="hidden sm:block">
                     <div className="text-sm font-medium">{banca?.name || sellerName}</div>
-                    <div className="text-xs text-gray-500">{banca?.email || sellerEmail}</div>
+                    <div className="text-xs text-gray-500">{sellerEmail}</div>
                   </div>
                 </Link>
               ) : (
