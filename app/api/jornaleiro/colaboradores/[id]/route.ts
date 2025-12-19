@@ -58,6 +58,23 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       .single();
 
     const firstMembership = memberships[0];
+    
+    console.log("[Colaborador GET] Raw permissions from DB:", firstMembership?.permissions);
+    console.log("[Colaborador GET] Type:", typeof firstMembership?.permissions);
+
+    // Parse permissions se for string
+    let parsedPermissions: string[] = [];
+    if (Array.isArray(firstMembership?.permissions)) {
+      parsedPermissions = firstMembership.permissions;
+    } else if (typeof firstMembership?.permissions === 'string') {
+      try {
+        parsedPermissions = JSON.parse(firstMembership.permissions);
+      } catch {
+        parsedPermissions = [];
+      }
+    }
+    
+    console.log("[Colaborador GET] Parsed permissions:", parsedPermissions);
 
     const colaborador = {
       id: colaboradorId,
@@ -70,7 +87,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         id: (m.bancas as any)?.id,
         name: (m.bancas as any)?.name || "Sem nome",
       })),
-      permissions: firstMembership?.permissions || [],
+      permissions: parsedPermissions,
     };
 
     return NextResponse.json({ success: true, colaborador });
