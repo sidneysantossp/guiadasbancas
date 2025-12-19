@@ -34,18 +34,22 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Buscar banca_id do cookie ou header (se o usuário selecionou uma banca específica)
+    const currentBancaId = req.headers.get("x-banca-id") || req.cookies.get("current_banca_id")?.value;
+    
+    console.log("[MyPermissions] userId:", userId);
+    console.log("[MyPermissions] currentBancaId:", currentBancaId);
+
     // Se não é dono, buscar permissões como colaborador
     const { data: memberships, error: membershipsError } = await supabaseAdmin
       .from("banca_members")
       .select("access_level, permissions, banca_id")
       .eq("user_id", userId);
 
-    console.log("[MyPermissions] userId:", userId);
     console.log("[MyPermissions] memberships:", JSON.stringify(memberships));
     console.log("[MyPermissions] membershipsError:", membershipsError);
 
     if (!memberships || memberships.length === 0) {
-      // Sem memberships - não deveria acontecer, mas retorna permissões vazias
       console.log("[MyPermissions] Nenhum membership encontrado");
       return NextResponse.json({
         success: true,
@@ -55,8 +59,24 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const firstMembership = memberships[0];
+    // Encontrar membership da banca atual (se especificada) ou usar a primeira
+    let targetMembership = memberships[0];
+    
+    if (currentBancaId) {
+      const found = memberships.find(m => m.banca_id === currentBancaId);
+      if (found) {
+        targetMembership = found;
+        console.log("[MyPermissions] Usando membership da banca atual:", currentBancaId);
+      }
+    }
+    
+    // Se usuário tem várias memberships, combinar permissões de todas OU usar apenas da banca atual
+    // Por enquanto, usar apenas da banca atual/primeira
+    const firstMembership = targetMembership;
     const accessLevel = firstMembership.access_level;
+    const bancaId = firstMembership.banca_id;
+    
+    console.log("[MyPermissions] Banca selecionada:", bancaId);
 
     console.log("[MyPermissions] accessLevel:", accessLevel);
     console.log("[MyPermissions] permissions do banco:", firstMembership.permissions);

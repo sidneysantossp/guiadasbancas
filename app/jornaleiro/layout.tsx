@@ -166,7 +166,17 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
       if (!user?.id || isAuthRoute) return;
       
       try {
-        const res = await fetch("/api/jornaleiro/my-permissions", { credentials: "include" });
+        // Passar banca_id atual no header para pegar as permissões corretas
+        const headers: Record<string, string> = {};
+        if (banca?.id) {
+          headers["x-banca-id"] = banca.id;
+          console.log("[Permissions] Buscando permissões para banca:", banca.id);
+        }
+        
+        const res = await fetch("/api/jornaleiro/my-permissions", { 
+          credentials: "include",
+          headers,
+        });
         const json = await res.json();
         
         if (json?.success) {
@@ -182,7 +192,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     };
 
     loadPermissions();
-  }, [user?.id, isAuthRoute]);
+  }, [user?.id, isAuthRoute, banca?.id]);
 
   // Menu filtrado baseado em permissões
   const filteredMenu = useMemo(() => {
