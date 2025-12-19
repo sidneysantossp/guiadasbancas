@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthContext";
 
 export default function RelatoriosPage() {
@@ -13,7 +12,6 @@ export default function RelatoriosPage() {
     campanhasAtivas: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [isCotista, setIsCotista] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -43,9 +41,6 @@ export default function RelatoriosPage() {
           produtosAtivos: produtosAtivos,
           campanhasAtivas: campanhas.filter((c: any) => c.status === 'active').length,
         });
-
-        // Verificar se é cotista
-        setIsCotista(prodData.is_cotista === true);
       } catch (e) {
         console.error('Erro ao carregar estatísticas:', e);
       } finally {
@@ -119,36 +114,6 @@ export default function RelatoriosPage() {
           <p className="mt-2 text-xs text-gray-500">Em andamento</p>
         </div>
       </div>
-
-      <div className="rounded-xl border border-gray-200 bg-white p-6">
-        <h2 className="text-lg font-semibold mb-4">Resumo da Banca</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Você tem {stats.totalProdutos} produtos cadastrados, sendo {stats.produtosAtivos} disponíveis para venda.
-        </p>
-        <p className="text-sm text-gray-600">
-          Suas campanhas promocionais estão {stats.campanhasAtivas > 0 ? 'ativas e divulgando seus produtos' : 'aguardando configuração'}.
-        </p>
-      </div>
-
-      {/* Relatório de Cotista */}
-      {isCotista && (
-        <Link href="/jornaleiro/relatorios/cotista">
-          <div className="rounded-xl border-2 border-green-200 bg-gradient-to-r from-green-50 to-green-100 p-6 hover:shadow-lg transition-all cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-2xl">✓</span>
-                  <h3 className="text-lg font-bold text-green-900">Relatório de Cotista</h3>
-                </div>
-                <p className="text-sm text-green-700">
-                  Estatísticas avançadas sobre produtos de distribuidores, customizações e análise financeira do seu catálogo.
-                </p>
-              </div>
-              <div className="text-green-600 text-3xl">→</div>
-            </div>
-          </div>
-        </Link>
-      )}
     </div>
   );
 }
