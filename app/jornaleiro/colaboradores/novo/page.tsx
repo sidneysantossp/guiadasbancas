@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
+import { IconAlertCircle, IconCheck, IconEye, IconEyeOff } from "@tabler/icons-react";
 
 type Banca = {
   id: string;
@@ -44,6 +44,23 @@ export default function NovoColaboradorPage() {
   const [emailChecking, setEmailChecking] = useState(false);
   const [emailExists, setEmailExists] = useState(false);
   const [emailChecked, setEmailChecked] = useState(false);
+
+  // Estado para mostrar/esconder senha
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+
+  // Máscara de telefone
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, "");
+    if (numbers.length <= 2) return numbers;
+    if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    if (numbers.length <= 11) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+  };
+
+  const handleWhatsappChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setWhatsapp(formatPhone(e.target.value));
+  };
 
   // Debounce para verificação de email
   const checkEmail = useCallback(async (emailToCheck: string) => {
@@ -239,19 +256,51 @@ export default function NovoColaboradorPage() {
               <label className="text-sm font-medium">WhatsApp</label>
               <input
                 value={whatsapp}
-                onChange={(e) => setWhatsapp(e.target.value)}
+                onChange={handleWhatsappChange}
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 placeholder="(11) 99999-9999"
+                maxLength={16}
               />
               <p className="mt-1 text-xs text-gray-500">Número para contato e notificações (opcional).</p>
             </div>
             <div>
               <label className="text-sm font-medium">Senha <span className="text-red-500">*</span></label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Mínimo 6 caracteres" required />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm pr-10"
+                  placeholder="Mínimo 6 caracteres"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <IconEyeOff className="h-5 w-5" /> : <IconEye className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium">Confirmar senha <span className="text-red-500">*</span></label>
-              <input type="password" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" required />
+              <div className="relative">
+                <input
+                  type={showPasswordConfirm ? "text" : "password"}
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5 text-gray-400 hover:text-gray-600"
+                >
+                  {showPasswordConfirm ? <IconEyeOff className="h-5 w-5" /> : <IconEye className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium">Nível de acesso</label>

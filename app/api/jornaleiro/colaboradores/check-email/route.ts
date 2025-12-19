@@ -17,11 +17,44 @@ export async function GET(req: NextRequest) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Verificar se email já existe no Supabase Auth
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const emailExists = existingUsers?.users?.some(
-      (u) => u.email?.toLowerCase() === normalizedEmail
-    );
+    // Verificar se email já existe no Supabase Auth usando busca paginada
+    let emailExists = false;
+    let page = 1;
+    const perPage = 1000;
+
+    while (true) {
+      const { data: usersPage, error } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+
+      if (error) {
+        console.error("[Check Email] Erro ao listar usuários:", error);
+        break;
+      }
+
+      if (!usersPage?.users || usersPage.users.length === 0) {
+        break;
+      }
+
+      const found = usersPage.users.some(
+        (u) => u.email?.toLowerCase() === normalizedEmail
+      );
+
+      if (found) {
+        emailExists = true;
+        break;
+      }
+
+      // Se retornou menos que o perPage, não há mais páginas
+      if (usersPage.users.length < perPage) {
+        break;
+      }
+
+      page++;
+    }
+
+    console.log(`[Check Email] Email ${normalizedEmail} existe: ${emailExists}`);
 
     return NextResponse.json({ 
       success: true, 
