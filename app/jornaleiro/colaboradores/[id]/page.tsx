@@ -73,7 +73,12 @@ export default function EditarColaboradorPage() {
         setEmail(colab.email || "");
         setAccessLevel(colab.access_level || "collaborator");
         setSelectedBancas(colab.bancas?.map((b: any) => b.id) || []);
-        setPermissions(colab.permissions || []);
+        
+        // Pegar permissões da PRIMEIRA banca selecionada (cada banca agora tem suas próprias permissões)
+        const firstBanca = colab.bancas?.[0];
+        const bancaPermissions = firstBanca?.permissions || colab.permissions || [];
+        console.log("[EditColaborador] Permissões da banca:", firstBanca?.name, bancaPermissions);
+        setPermissions(bancaPermissions);
       } catch (e: any) {
         console.error("Erro ao carregar dados:", e);
         setError(e?.message || "Erro ao carregar dados");
