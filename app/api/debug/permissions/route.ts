@@ -14,49 +14,53 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const productId = url.searchParams.get("product_id") || "9297f1ad-dd9f-4f06-8f69-0206940cc51a";
 
-  // 1. Buscar produto
-  const { data: product, error: productError } = await supabaseAdmin
+  // 1. Buscar produto COM join de banca (como a API faz)
+  const { data: productWithJoin, error: productError } = await supabaseAdmin
     .from("products")
-    .select("id, name, banca_id, distribuidor_id")
+    .select(`
+      id, name, banca_id, distribuidor_id,
+      bancas(id, name, user_id, slug)
+    `)
     .eq("id", productId)
     .single();
 
-  // 2. Se tem banca_id, buscar dados da banca
-  let banca = null;
-  if (product?.banca_id) {
-    const { data } = await supabaseAdmin
+  // 2. Se tem banca_id, buscar dados da banca separadamente
+  let bancaSeparada = null;
+  if (productWithJoin?.banca_id) {
+    const { data, error } = await supabaseAdmin
       .from("bancas")
       .select("id, name, user_id, slug")
-      .eq("id", product.banca_id)
+      .eq("id", productWithJoin.banca_id)
       .single();
-    banca = data;
+    bancaSeparada = { data, error: error?.message };
   }
 
-  // 3. Se tem distribuidor_id, buscar dados do distribuidor
-  let distribuidor = null;
-  if (product?.distribuidor_id) {
-    const { data } = await supabaseAdmin
-      .from("distribuidores")
-      .select("id, nome")
-      .eq("id", product.distribuidor_id)
-      .single();
-    distribuidor = data;
-  }
-
-  // 4. Buscar a banca PONTOCOM para comparar
+  // 3. Buscar a banca PONTOCOM
   const { data: pontocom } = await supabaseAdmin
     .from("bancas")
     .select("id, name, user_id, slug")
     .ilike("name", "%pontocom%")
     .limit(5);
 
+  // 4. Verificar se banca_id e160f10f existe
+  const { data: bancaE160, error: bancaE160Error } = await supabaseAdmin
+    .from("bancas")
+    .select("id, name")
+    .eq("id", "e160f10f-23bd-478b-b3fd-9d6991526e70")
+    .single();
+
   return NextResponse.json({
     product_id: productId,
-    product: product,
+    product_com_join: productWithJoin,
     product_error: productError?.message,
-    banca_do_produto: banca,
-    distribuidor_do_produto: distribuidor,
+    banca_do_join: productWithJoin?.bancas,
+    banca_separada: bancaSeparada,
+    banca_e160f10f_existe: bancaE160 ? true : false,
+    banca_e160f10f: bancaE160,
+    banca_e160f10f_error: bancaE160Error?.message,
     bancas_pontocom: pontocom,
-    problema: product?.banca_id ? "Produto tem banca_id definido" : "Produto NÃO tem banca_id - pode estar pegando banca errada",
+    diagnostico: !productWithJoin?.bancas && productWithJoin?.banca_id 
+      ? `PROBLEMA: banca_id ${productWithJoin.banca_id} não existe no banco!` 
+      : "OK",
   });
 }
