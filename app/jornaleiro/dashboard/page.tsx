@@ -232,9 +232,9 @@ export default function JornaleiroDashboardPage() {
               <p className="text-sm text-amber-800 mb-4">
                 <strong>Seu cadastro da banca só será liberado após o envio do Termo de Permissão de Uso (TPU).</strong>
                 <br />
-                Este documento é obrigatório para não-cotistas e garante que você tem autorização para vender na localização informada.
+                Documento obrigatório para ativação.
               </p>
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div>
                 <Link
                   href="/jornaleiro/banca-v2"
                   className="inline-flex items-center justify-center px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors"
@@ -242,19 +242,8 @@ export default function JornaleiroDashboardPage() {
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
                   </svg>
-                  Enviar TPU na Minha Banca
+                  Enviar TPU da minha banca
                 </Link>
-                <a
-                  href="https://example.com/modelo-tpu.pdf"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center px-4 py-2 bg-white text-amber-700 text-sm font-medium rounded-lg border border-amber-300 hover:bg-amber-50 transition-colors"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Baixar Modelo TPU
-                </a>
               </div>
             </div>
           </div>
