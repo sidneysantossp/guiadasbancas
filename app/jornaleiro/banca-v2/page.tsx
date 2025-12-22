@@ -1039,7 +1039,7 @@ export default function BancaV2Page() {
             <div className="space-y-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Buscar Cotista
+                  Buscar Cota Ativa
                 </label>
                 <CotistaSearch
                   onSelect={(cotista) => {
