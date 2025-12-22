@@ -198,24 +198,33 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     loadPermissions();
   }, [user?.id, isAuthRoute, banca?.id]);
 
-  // Menu filtrado baseado em permissões
+  // Menu filtrado baseado em permissões e status de cotista
   const filteredMenu = useMemo(() => {
     console.log("[FilteredMenu] Calculando menu filtrado...");
     console.log("[FilteredMenu] permissionsLoaded:", permissionsLoaded);
     console.log("[FilteredMenu] isOwner:", isOwner);
     console.log("[FilteredMenu] userPermissions:", userPermissions);
+    console.log("[FilteredMenu] banca.is_cotista:", banca?.is_cotista);
+    
+    let menu = JOURNALEIRO_MENU;
+    
+    // Filtrar "Distribuidores" se não for cotista (Banca PRIME)
+    if (!banca?.is_cotista) {
+      console.log("[FilteredMenu] Não é Banca PRIME, removendo 'Distribuidores'");
+      menu = menu.filter(item => item.label !== "Distribuidores");
+    }
     
     if (!permissionsLoaded) {
-      console.log("[FilteredMenu] Permissões não carregadas, mostrando tudo");
-      return JOURNALEIRO_MENU;
+      console.log("[FilteredMenu] Permissões não carregadas, mostrando menu base");
+      return menu;
     }
     
     if (isOwner === true) {
-      console.log("[FilteredMenu] É dono/admin, mostrando tudo");
-      return JOURNALEIRO_MENU;
+      console.log("[FilteredMenu] É dono/admin, mostrando menu completo");
+      return menu;
     }
     
-    const filtered = JOURNALEIRO_MENU.filter((item) => {
+    const filtered = menu.filter((item) => {
       const permKey = PERMISSION_MAP[item.label];
       if (!permKey) {
         console.log(`[FilteredMenu] ${item.label}: SEM MAPEAMENTO - mostrando`);
@@ -229,7 +238,7 @@ export default function JornaleiroLayoutContent({ children }: { children: React.
     
     console.log("[FilteredMenu] Menu filtrado:", filtered.map(i => i.label));
     return filtered;
-  }, [permissionsLoaded, isOwner, userPermissions]);
+  }, [permissionsLoaded, isOwner, userPermissions, banca?.is_cotista]);
 
   // IMPORTANTE: TODOS os hooks devem vir ANTES de qualquer return condicional!
   // Isso evita o erro React #310 "Rendered fewer hooks than during the previous render"
