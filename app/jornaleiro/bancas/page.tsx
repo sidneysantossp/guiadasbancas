@@ -21,6 +21,8 @@ type BancaListItem = {
   updated_at?: string | null;
   my_access_level?: "admin" | "collaborator" | string | null;
   my_relation?: "owner" | "member" | string | null;
+  is_cotista?: boolean | null;
+  cotista_codigo?: string | null;
 };
 
 export default function JornaleiroBancasPage() {
@@ -142,17 +144,12 @@ export default function JornaleiroBancasPage() {
           {items.map((b) => {
             const isSelected = activeBancaId === b.id;
             const address = b.address || "";
-            const accessLabel =
-              (b.my_relation === "owner" || b.my_access_level === "admin") ? "Administrador" : "Colaborador";
             return (
               <div key={b.id} className={`rounded-xl border bg-white p-4 ${isSelected ? "border-[#ff5c00]" : "border-gray-200"}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <div className="text-base font-semibold truncate">{b.name || "Banca"}</div>
-                      <span className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[11px] text-gray-700">
-                        {accessLabel}
-                      </span>
                       {isSelected && (
                         <span className="rounded-full bg-[#ff5c00]/10 text-[#ff5c00] text-[11px] font-semibold px-2 py-0.5">
                           Banca ativa no painel
@@ -161,14 +158,21 @@ export default function JornaleiroBancasPage() {
                     </div>
                     <div className="mt-1 text-sm text-gray-600 line-clamp-2">{address}</div>
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-600">
-                      {!b.approved && (
+                      {!b.approved && !b.active && (
                         <span className="rounded-full border border-yellow-300 bg-yellow-50 text-yellow-700 px-2 py-0.5">
                           Em aprovação
                         </span>
                       )}
-                      <span className={`rounded-full border px-2 py-0.5 ${b.active ? "border-green-300 bg-green-50 text-green-700" : "border-gray-200"}`}>
-                        {b.active ? "Ativa" : "Inativa"}
-                      </span>
+                      {b.active && (
+                        <span className="rounded-full border border-green-300 bg-green-50 text-green-700 px-2 py-0.5">
+                          Banca Ativa
+                        </span>
+                      )}
+                      {b.is_cotista && b.cotista_codigo && (
+                        <span className="rounded-full border border-blue-300 bg-blue-50 text-blue-700 px-2 py-0.5">
+                          Cota: {b.cotista_codigo}
+                        </span>
+                      )}
                     </div>
                   </div>
                   {!isSelected && (
