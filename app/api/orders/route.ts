@@ -245,10 +245,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Banca não encontrada" }, { status: 404 });
     }
 
-    // Gerar número do pedido no formato: BAN-AAAANN (ex: BAN-202601)
+    // Gerar número do pedido no formato: BAN-AAAA-TIMESTAMP (ex: BAN-2025-1735000000)
     // BAN = primeiras 3 letras do nome da banca (maiúsculas, sem acentos)
     // AAAA = ano atual
-    // NN = número sequencial do pedido (01, 02, 03...)
+    // TIMESTAMP = timestamp em milissegundos (garante unicidade)
     const bancaPrefix = (banca.name || 'BAN')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '') // Remove acentos
@@ -258,30 +258,8 @@ export async function POST(req: NextRequest) {
       .padEnd(3, 'X'); // Garante 3 caracteres
     
     const currentYear = new Date().getFullYear();
-    const yearPrefix = `${bancaPrefix}-${currentYear}`;
-    
-    // Buscar último pedido desta banca neste ano para obter próximo sequencial
-    const { data: lastOrder } = await supabaseAdmin
-      .from('orders')
-      .select('order_number')
-      .eq('banca_id', inferredBancaId)
-      .ilike('order_number', `${yearPrefix}%`)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-    
-    let nextSequential = 1;
-    if (lastOrder?.order_number) {
-      // Extrair número sequencial do último pedido (ex: BAN-202605 -> 05 -> 5)
-      const lastSeq = parseInt(lastOrder.order_number.replace(yearPrefix, ''), 10);
-      if (!isNaN(lastSeq)) {
-        nextSequential = lastSeq + 1;
-      }
-    }
-    
-    // Formatar número com 2 dígitos (ou mais se necessário)
-    const sequentialStr = nextSequential.toString().padStart(2, '0');
-    const orderNumber = `${yearPrefix}${sequentialStr}`;
+    const timestamp = Date.now();
+    const orderNumber = `${bancaPrefix}-${currentYear}-${timestamp}`;
 
     // Criar pedido no Supabase (id será UUID gerado automaticamente)
     const { data: newOrder, error: orderError } = await supabaseAdmin
