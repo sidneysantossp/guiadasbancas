@@ -181,7 +181,7 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
             onInputChange?.(e.target.value);
           }}
           onFocus={() => mode === 'admin' && results.length > 0 && setShowResults(true)}
-          placeholder={mode === 'admin' ? "Digite o nome, CNPJ/CPF ou código do cotista..." : "Digite seu CNPJ/CPF ou código..."}
+          placeholder={mode === 'admin' ? "Digite o nome, CNPJ/CPF ou código da cota..." : "Digite seu CNPJ/CPF ou código..."}
           className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 pr-10 text-sm focus:border-orange-500 focus:ring-orange-500"
           readOnly={mode === 'public' && !!selected}
           aria-readonly={mode === 'public' && !!selected}
