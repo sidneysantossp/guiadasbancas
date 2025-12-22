@@ -124,13 +124,15 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   };
 }
 
-export default function ProdutoPage({ params }: { params: { id: string } }) {
+export default function ProdutoPage({ params, searchParams }: { params: { id: string }, searchParams: { banca?: string } }) {
   const { id } = parseSlugId(params.id);
+  const bancaId = searchParams?.banca || undefined;
   console.log("URL param:", params.id);
   console.log("Parsed ID:", id);
+  console.log("Banca ID from query:", bancaId);
   return (
     <div className="">
-      <ProductPageClient productId={id} />
+      <ProductPageClient productId={id} bancaIdOverride={bancaId} />
     </div>
   );
 }

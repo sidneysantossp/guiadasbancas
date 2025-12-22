@@ -203,7 +203,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
         </button>
       </div>
       <div className="p-2.5 flex flex-col flex-1">
-        <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="text-[13px] font-semibold hover:underline line-clamp-2">{p.name}</Link>
+        <Link href={(`/produto/${slugify(p.name)}-${p.id}?banca=${bancaId}`) as Route} className="text-[13px] font-semibold hover:underline line-clamp-2">{p.name}</Link>
         
         {/* Código do produto */}
         {(p as any).codigo_mercos && (

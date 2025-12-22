@@ -382,7 +382,7 @@ function DiscountBadge({ text }: { text?: string }) {
   );
 }
 
-export default function ProductPageClient({ productId }: { productId: string }) {
+export default function ProductPageClient({ productId, bancaIdOverride }: { productId: string; bancaIdOverride?: string }) {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -399,7 +399,12 @@ export default function ProductPageClient({ productId }: { productId: string }) 
         setLoading(true);
         setError(null);
         
-        const res = await fetch(`/api/products/${productId}`, { cache: "no-store" });
+        // Se temos bancaIdOverride, passar para a API
+        const apiUrl = bancaIdOverride 
+          ? `/api/products/${productId}?banca=${bancaIdOverride}`
+          : `/api/products/${productId}`;
+        
+        const res = await fetch(apiUrl, { cache: "no-store" });
         if (!res.ok) throw new Error("Produto não encontrado");
         
         const json = await res.json();
@@ -409,11 +414,14 @@ export default function ProductPageClient({ productId }: { productId: string }) 
           throw new Error("Dados do produto inválidos");
         }
         
-        // Buscar dados da banca se houver banca_id
+        // Usar bancaIdOverride se fornecido (para produtos de distribuidor)
+        const effectiveBancaId = bancaIdOverride || p.banca_id;
+        
+        // Buscar dados da banca - usar effectiveBancaId (override ou do produto)
         let bancaData = null;
-        if (p.banca_id) {
+        if (effectiveBancaId) {
           try {
-            const bancaRes = await fetch(`/api/bancas/${p.banca_id}`, { cache: "no-store" });
+            const bancaRes = await fetch(`/api/bancas/${effectiveBancaId}`, { cache: "no-store" });
             if (bancaRes.ok) {
               const bancaJson = await bancaRes.json();
               bancaData = bancaJson?.data || bancaJson;
@@ -445,7 +453,7 @@ export default function ProductPageClient({ productId }: { productId: string }) 
           ready: Boolean(p.pronta_entrega || p.ready),
           discountLabel: hasDiscount ? `-${p.discount_percent}%` : undefined,
           vendor: {
-            id: p.banca_id || "banca-unknown",
+            id: effectiveBancaId || "banca-unknown",
             name: bancaData?.name || "Banca Local",
             avatar: bancaData?.avatar || bancaData?.images?.avatar || "https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=200&auto=format&fit=crop",
             distanceKm: null,
@@ -516,7 +524,7 @@ export default function ProductPageClient({ productId }: { productId: string }) 
     if (productId) {
       loadProduct();
     }
-  }, [productId]);
+  }, [productId, bancaIdOverride]);
 
   if (loading) {
     return (
