@@ -187,7 +187,7 @@ export default function JornaleiroBancasPage() {
                   )}
                 </div>
 
-                <div className="mt-4 flex items-center gap-2">
+                <div className="mt-4">
                   <button
                     type="button"
                     onClick={() => setActive(b.id, true)}
@@ -195,13 +195,6 @@ export default function JornaleiroBancasPage() {
                     className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-3 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
                   >
                     {busyId === b.id ? "Aguarde..." : "Editar"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigator.clipboard.writeText(b.id)}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50"
-                  >
-                    Copiar ID
                   </button>
                 </div>
               </div>
