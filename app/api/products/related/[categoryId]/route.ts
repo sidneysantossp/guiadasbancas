@@ -12,6 +12,7 @@ export async function GET(
     const excludeId = searchParams.get("exclude") || "";
 
     // Buscar produtos da mesma categoria
+    // IMPORTANTE: Excluir produtos de distribuidor da listagem pública
     let query = supabaseAdmin
       .from('products')
       .select(`
@@ -21,10 +22,12 @@ export async function GET(
         images,
         codigo_mercos,
         category_id,
-        active
+        active,
+        distribuidor_id
       `)
       .eq('category_id', categoryId)
       .eq('active', true)
+      .is('distribuidor_id', null) // Excluir produtos de distribuidor
       .limit(limit);
 
     // Excluir produto atual se especificado

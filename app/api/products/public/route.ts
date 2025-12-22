@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
     const order = searchParams.get("order") || "asc"; // Mudado de desc para asc
 
     // Query otimizada - apenas produtos ativos
+    // IMPORTANTE: Produtos de distribuidor (distribuidor_id != null) NÃO devem aparecer na listagem pública
+    // Eles só aparecem no perfil de bancas COTISTAS
     let query = supabaseAdmin
       .from('products')
       .select(`
@@ -39,7 +41,8 @@ export async function GET(req: NextRequest) {
         sob_encomenda,
         pre_venda
       `)
-      .eq('active', true);
+      .eq('active', true)
+      .is('distribuidor_id', null); // Excluir produtos de distribuidor da listagem pública
 
     // Filtro de categoria
     if (category) {
