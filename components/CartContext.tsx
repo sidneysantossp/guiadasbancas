@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState, ReactNode, useCallback, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import AlertModal from "./AlertModal";
 import { trackEvent } from "@/lib/useAnalytics";
 
@@ -27,10 +28,11 @@ type CartContextType = {
 const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const { data: session } = useSession();
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
-  const [alertData, setAlertData] = useState({ currentBanca: "", newBanca: "" });
+  const [alertData, setAlertData] = useState({ currentBanca: "", newBanca: "", isOwnBanca: false });
 
   // Load from localStorage once
   useEffect(() => {
@@ -73,8 +75,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addToCart = useCallback((item: Omit<CartItem, "qty">, qty: number = 1): boolean => {
     // console.log('Adicionando ao carrinho:', item, 'quantidade:', qty);
     
+    // VALIDAÇÃO: Bloquear jornaleiro de comprar da própria banca
+    const userRole = (session?.user as any)?.role as string | undefined;
+    const userBancaId = (session?.user as any)?.banca_id as string | undefined;
+    
+    if (userRole === 'jornaleiro' && userBancaId && item.banca_id === userBancaId) {
+      setAlertData({
+        currentBanca: "",
+        newBanca: item.banca_name || "sua banca",
+        isOwnBanca: true
+      });
+      setShowAlert(true);
+      return false;
+    }
+    
     let shouldBlock = false;
-    let alertInfo = { currentBanca: "", newBanca: "" };
+    let alertInfo = { currentBanca: "", newBanca: "", isOwnBanca: false };
     
     setItems((prev) => {
       // Se carrinho vazio, aceita qualquer produto
@@ -105,7 +121,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         shouldBlock = true;
         alertInfo = {
           currentBanca: prev[0].banca_name || 'outra banca',
-          newBanca: item.banca_name || 'esta banca'
+          newBanca: item.banca_name || 'esta banca',
+          isOwnBanca: false
         };
         
         return prev; // Não adiciona
@@ -135,7 +152,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
 
     return true;
-  }, []);
+  }, [session]);
 
   const removeFromCart = useCallback((id: string) => {
     setItems((prev) => prev.filter((it) => it.id !== id));
@@ -167,17 +184,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
         <AlertModal
           isOpen={showAlert}
           onClose={() => setShowAlert(false)}
-          title="Produto de outra banca"
+          title={alertData.isOwnBanca ? "Compra não permitida" : "Produto de outra banca"}
           type="warning"
-          message={`Seu carrinho já contém produtos da "${alertData.currentBanca}".\n\nPara adicionar produtos da "${alertData.newBanca}", você precisa:\n\n1. Finalizar o pedido atual, ou\n2. Esvaziar o carrinho`}
+          message={
+            alertData.isOwnBanca
+              ? `Você não pode comprar produtos da sua própria banca ("${alertData.newBanca}").\n\nComo jornaleiro, você já tem acesso direto aos seus produtos no painel administrativo.`
+              : `Seu carrinho já contém produtos da "${alertData.currentBanca}".\n\nPara adicionar produtos da "${alertData.newBanca}", você precisa:\n\n1. Finalizar o pedido atual, ou\n2. Esvaziar o carrinho`
+          }
           primaryButton={{
-            label: "Manter carrinho atual",
+            label: alertData.isOwnBanca ? "Entendi" : "Manter carrinho atual",
             onClick: () => setShowAlert(false)
           }}
-          secondaryButton={{
-            label: "Limpar carrinho",
-            onClick: handleClearAndClose
-          }}
+          secondaryButton={
+            alertData.isOwnBanca
+              ? undefined
+              : {
+                  label: "Limpar carrinho",
+                  onClick: handleClearAndClose
+                }
+          }
         />
       )}
     </CartContext.Provider>
