@@ -143,6 +143,20 @@ export async function GET(req: NextRequest) {
     const productIds = (items || []).map((p: any) => p.id);
     const categoryIds = Array.from(new Set((items || []).map((p: any) => p.category_id).filter(Boolean)));
 
+    // Buscar nomes das categorias
+    const categoriesRes = categoryIds.length
+      ? await supabase
+          .from('categories')
+          .select('id, name')
+          .in('id', categoryIds)
+      : { data: [], error: null };
+
+    if (categoriesRes?.error) {
+      console.error('[SEARCH] Erro ao buscar categorias:', categoriesRes.error);
+    }
+
+    const categoryMap = new Map<string, any>((categoriesRes?.data || []).map((c: any) => [c.id, c]));
+
     const [
       markupProdutosRes,
       markupCategoriasRes,
@@ -218,6 +232,9 @@ export async function GET(req: NextRequest) {
         finalPrice = custom.custom_price;
       }
 
+      const categoryData = p.category_id ? categoryMap.get(p.category_id) : null;
+      const categoryName = categoryData?.name || '';
+
       return {
         id: p.id,
         name: p.name,
@@ -228,7 +245,7 @@ export async function GET(req: NextRequest) {
         distribuidor_id: p.distribuidor_id,
         distribuidor_nome: distributorName,
         category_id: p.category_id,
-        category: '',
+        category: categoryName,
         description: p.description || '',
         rating_avg: null,
         reviews_count: 0,
