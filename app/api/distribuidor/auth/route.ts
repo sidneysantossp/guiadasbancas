@@ -81,14 +81,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Retornar dados do distribuidor (sem a senha)
+    // Retornar dados do distribuidor (sem a senha e tokens sensíveis)
     const { senha, password: pwd, application_token, company_token, ...distribuidorSeguro } = distribuidor;
 
-    console.log('[Auth] Login bem-sucedido para distribuidor:', distribuidorSeguro.nome);
+    // Garantir que o email está presente no objeto retornado
+    const distribuidorComEmail = {
+      ...distribuidorSeguro,
+      email: distribuidor.email || emailLower, // Usar o email do banco ou o email usado no login
+    };
+
+    console.log('[Auth] Login bem-sucedido para distribuidor:', distribuidorComEmail.nome, '- Email:', distribuidorComEmail.email);
 
     return NextResponse.json({
       success: true,
-      distribuidor: distribuidorSeguro,
+      distribuidor: distribuidorComEmail,
     });
   } catch (error: any) {
     console.error('Erro na autenticação do distribuidor:', error);
