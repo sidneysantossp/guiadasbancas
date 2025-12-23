@@ -129,7 +129,8 @@ function BuscarPageContent() {
     if (!qTerm) return [];
     const term = normalizeText(qTerm);
     return products.filter(p => {
-      const matchCat = !catFilter || (p.category_id || '').toLowerCase().includes(catFilter.toLowerCase());
+      // Usar p.category (nome) ao invés de p.category_id, igual ao filtro das bancas
+      const matchCat = !catFilter || normalizeText(p.category || '').includes(normalizeText(catFilter));
       const matchSearch = !term || normalizeText(p.name).includes(term) || normalizeText(p.description || '').includes(term);
       return matchCat && matchSearch;
     });
