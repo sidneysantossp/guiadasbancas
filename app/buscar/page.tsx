@@ -128,10 +128,28 @@ function BuscarPageContent() {
   const filteredProducts = useMemo(() => {
     if (!qTerm) return [];
     const term = normalizeText(qTerm);
+    
+    console.log('[BUSCAR] Filtrando produtos:', {
+      total: products.length,
+      catFilter,
+      produtos_sample: products.slice(0, 2).map(p => ({ name: p.name, category: p.category, category_id: p.category_id }))
+    });
+    
     return products.filter(p => {
       // Usar p.category (nome) ao invés de p.category_id, igual ao filtro das bancas
       const matchCat = !catFilter || normalizeText(p.category || '').includes(normalizeText(catFilter));
       const matchSearch = !term || normalizeText(p.name).includes(term) || normalizeText(p.description || '').includes(term);
+      
+      if (!matchCat) {
+        console.log('[BUSCAR] Produto filtrado por categoria:', {
+          name: p.name,
+          category: p.category,
+          catFilter,
+          normalized_category: normalizeText(p.category || ''),
+          normalized_filter: normalizeText(catFilter)
+        });
+      }
+      
       return matchCat && matchSearch;
     });
   }, [products, catFilter, qTerm]);
