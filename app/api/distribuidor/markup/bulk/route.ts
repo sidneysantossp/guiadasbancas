@@ -42,17 +42,35 @@ export async function POST(request: NextRequest) {
       throw updateError;
     }
 
-    // 2. Buscar todos os produtos do distribuidor
-    const { data: produtos, error: prodError } = await supabaseAdmin
-      .from('products')
-      .select('id, price')
-      .eq('distribuidor_id', distribuidor_id)
-      .eq('active', true);
+    // 2. Buscar todos os produtos do distribuidor (sem limite, incluindo inativos)
+    // Supabase tem limite padrão de 1000, então precisamos buscar em lotes
+    let allProdutos: any[] = [];
+    let from = 0;
+    const FETCH_SIZE = 1000;
+    let hasMore = true;
 
-    if (prodError) {
-      console.error('[Markup Bulk] Erro ao buscar produtos:', prodError);
-      throw prodError;
+    while (hasMore) {
+      const { data: produtos, error: prodError } = await supabaseAdmin
+        .from('products')
+        .select('id, price')
+        .eq('distribuidor_id', distribuidor_id)
+        .range(from, from + FETCH_SIZE - 1);
+
+      if (prodError) {
+        console.error('[Markup Bulk] Erro ao buscar produtos:', prodError);
+        throw prodError;
+      }
+
+      if (produtos && produtos.length > 0) {
+        allProdutos = allProdutos.concat(produtos);
+        from += FETCH_SIZE;
+        hasMore = produtos.length === FETCH_SIZE;
+      } else {
+        hasMore = false;
+      }
     }
+
+    const produtos = allProdutos;
 
     if (!produtos || produtos.length === 0) {
       return NextResponse.json({

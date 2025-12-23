@@ -64,12 +64,11 @@ export async function GET(request: NextRequest) {
       .eq('active', true)
       .order('name');
 
-    // Contar total de produtos do distribuidor
+    // Contar total de produtos do distribuidor (ativos e inativos)
     const { count: totalProdutos } = await supabaseAdmin
       .from('products')
       .select('id', { count: 'exact', head: true })
-      .eq('distribuidor_id', distribuidorId)
-      .eq('active', true);
+      .eq('distribuidor_id', distribuidorId);
 
     return NextResponse.json({
       success: true,
