@@ -33,7 +33,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     const supabase = supabaseAdmin;
     const { searchParams } = new URL(request.url);
-    const requestedLimit = parseInt(searchParams.get('limit') || '50');
+    const requestedLimit = parseInt(searchParams.get('limit') || '10000'); // Limite alto para buscar todos os produtos
     const fastMode = searchParams.get('fast') === 'true'; // Modo rápido sem markup/customizações
 
     // 1. Buscar dados da banca (para saber se é cotista)
