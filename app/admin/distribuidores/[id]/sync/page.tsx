@@ -11,6 +11,7 @@ export default function SyncDistribuidorPage() {
   const [distribuidor, setDistribuidor] = useState<Distribuidor | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncingContinuous, setSyncingContinuous] = useState(false);
+  const [syncingAuto, setSyncingAuto] = useState(false);
   const [debugging, setDebugging] = useState(false);
   const [cleaning, setCleaning] = useState(false);
   const [debugResult, setDebugResult] = useState<any>(null);
@@ -89,6 +90,61 @@ export default function SyncDistribuidorPage() {
       alert('Erro na sincronização: ' + (error as any)?.message || 'Erro desconhecido');
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleAutoSync = async () => {
+    if (!distribuidor) return;
+
+    setSyncingAuto(true);
+    setContinuousProgress(null);
+    setResult(null);
+
+    try {
+      console.log('[UI] Iniciando sincronização automática contínua...');
+      
+      const response = await fetch(
+        `/api/admin/distribuidores/${params.id}/sync-auto`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText.slice(0, 200)}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setResult({
+          success: true,
+          produtos_novos: data.data.produtos_novos,
+          produtos_atualizados: data.data.produtos_ignorados,
+          produtos_total: data.data.total_geral,
+          erros: data.data.erros || [],
+          ultima_sincronizacao: new Date().toISOString(),
+        });
+        
+        setContinuousProgress({
+          success: true,
+          completed: data.data.completed,
+          message: data.data.message,
+        });
+        
+        await loadDistribuidor();
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error: any) {
+      console.error('[UI] Erro na sincronização automática:', error);
+      alert('Erro na sincronização automática: ' + error.message);
+    } finally {
+      setSyncingAuto(false);
     }
   };
 
@@ -470,7 +526,7 @@ ${data.data.total_no_banco < 7700 ? '⚠️ Clique novamente para continuar até
           <div className="grid grid-cols-3 gap-3">
             <button
               onClick={handleVerifySchema}
-              disabled={syncing || syncingContinuous || debugging || cleaning}
+              disabled={syncing || syncingContinuous || syncingAuto || debugging || cleaning}
               className="bg-purple-500 text-white px-4 py-3 rounded-lg hover:bg-purple-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-semibold"
             >
               {debugging ? (
@@ -485,7 +541,7 @@ ${data.data.total_no_banco < 7700 ? '⚠️ Clique novamente para continuar até
             
             <button
               onClick={handleDebugSync}
-              disabled={syncing || syncingContinuous || debugging || cleaning}
+              disabled={syncing || syncingContinuous || syncingAuto || debugging || cleaning}
               className="bg-yellow-500 text-white px-4 py-3 rounded-lg hover:bg-yellow-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-semibold"
             >
               {debugging ? (
@@ -500,7 +556,7 @@ ${data.data.total_no_banco < 7700 ? '⚠️ Clique novamente para continuar até
 
             <button
               onClick={handleCleanupProducts}
-              disabled={syncing || syncingContinuous || debugging || cleaning}
+              disabled={syncing || syncingContinuous || syncingAuto || debugging || cleaning}
               className="bg-red-500 text-white px-4 py-3 rounded-lg hover:bg-red-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-semibold"
             >
               {cleaning ? (
@@ -515,23 +571,38 @@ ${data.data.total_no_banco < 7700 ? '⚠️ Clique novamente para continuar até
           </div>
 
           <button
+            onClick={handleAutoSync}
+            disabled={syncing || syncingContinuous || syncingAuto || debugging}
+            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-4 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed text-lg font-bold shadow-lg"
+          >
+            {syncingAuto ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                🔄 Sincronizando TODOS os produtos automaticamente...
+              </span>
+            ) : (
+              '🚀 Sincronização Automática Completa (4000+ produtos)'
+            )}
+          </button>
+
+          <button
             onClick={handleContinuousSync}
-            disabled={syncing || syncingContinuous || debugging}
+            disabled={syncing || syncingContinuous || syncingAuto || debugging}
             className="w-full bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-lg font-semibold shadow-lg"
           >
             {syncingContinuous ? (
               <span className="flex items-center justify-center gap-2">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                Sincronizando Todos (Completo)...
+                Sincronizando Ultra-Rápido...
               </span>
             ) : (
-              '✨ Sincronizar Todos (Completo)'
+              '✨ Sincronização Ultra-Rápida (1 execução)'
             )}
           </button>
 
           <button
             onClick={() => handleSync(false)}
-            disabled={syncing || syncingContinuous}
+            disabled={syncing || syncingContinuous || syncingAuto}
             className="w-full bg-[#ff5c00] text-white px-6 py-4 rounded-lg hover:bg-[#e05400] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-lg font-semibold"
           >
             {syncing ? (
@@ -544,9 +615,15 @@ ${data.data.total_no_banco < 7700 ? '⚠️ Clique novamente para continuar até
             )}
           </button>
           
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-4">
+            <p className="text-sm text-gray-700">
+              <strong className="text-green-700">🚀 Sincronização Automática Completa:</strong> Executa múltiplas sincronizações automaticamente até processar TODOS os 4000+ produtos. Ideal para primeira sincronização ou quando há muitos produtos novos. Pode levar 3-5 minutos.
+            </p>
+          </div>
+          
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <p className="text-sm text-gray-700">
-              <strong className="text-green-700">✨ Sincronizar Todos (Completo):</strong> Executa múltiplas sincronizações automaticamente até processar TODOS os produtos. Ideal para grandes volumes (7000+ produtos). Pode levar vários minutos.
+              <strong className="text-green-700">✨ Sincronização Ultra-Rápida:</strong> Executa UMA sincronização rápida. Clique múltiplas vezes se necessário para completar todos os produtos.
             </p>
           </div>
           
