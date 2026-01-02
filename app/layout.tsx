@@ -1,44 +1,29 @@
-"use client";
-
 import "./globals.css";
 import { ReactNode } from "react";
-import { usePathname } from "next/navigation";
-import Navbar from "@/components/Navbar";
-import AppFooter from "@/components/AppFooter";
-import FloatingCart from "@/components/FloatingCart";
-import CookieConsent from "@/components/CookieConsent";
-import { CartProvider } from "@/components/CartContext";
-import { ToastProvider } from "@/components/ToastProvider";
 import { Providers } from "@/components/Providers";
 import { AuthProvider } from "@/lib/auth/AuthContext";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ToastProvider } from "@/components/ToastProvider";
+import { CartProvider } from "@/components/CartContext";
+import LayoutClient from "@/components/LayoutClient";
+
+export const metadata = {
+  title: 'Guia das Bancas',
+  description: 'Encontre produtos e bancas perto de você',
+};
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-  const isAdminRoute = pathname?.startsWith('/admin');
-  const isJornaleiroRoute = pathname?.startsWith('/jornaleiro');
-  const isDistribuidorRoute = pathname?.startsWith('/distribuidor');
-  const isLoginPage = pathname === '/entrar';
-  const shouldHideNavbar = isAdminRoute || isJornaleiroRoute || isDistribuidorRoute || isLoginPage;
-
   return (
     <html lang="pt-BR">
       <body>
-        <ErrorBoundary>
-          <Providers>
-            <AuthProvider>
-              <ToastProvider>
-                <CartProvider>
-                  {!shouldHideNavbar && <Navbar />}
-                  <main className={!shouldHideNavbar ? "pt-[140px] md:pt-[80px]" : ""}>{children}</main>
-                  {!shouldHideNavbar && <AppFooter />}
-                  {!shouldHideNavbar && <FloatingCart />}
-                  {!shouldHideNavbar && <CookieConsent />}
-                </CartProvider>
-              </ToastProvider>
-            </AuthProvider>
-          </Providers>
-        </ErrorBoundary>
+        <Providers>
+          <AuthProvider>
+            <ToastProvider>
+              <CartProvider>
+                <LayoutClient>{children}</LayoutClient>
+              </CartProvider>
+            </ToastProvider>
+          </AuthProvider>
+        </Providers>
       </body>
     </html>
   );
