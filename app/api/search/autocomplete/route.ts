@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('q') || searchParams.get('search');
     const limit = parseInt(searchParams.get('limit') || '6');
     const bancaId = searchParams.get('banca_id');
-    
+
     // Coordenadas do usuário para cálculo de distância
     const userLat = searchParams.get('lat') ? parseFloat(searchParams.get('lat')!) : null;
     const userLng = searchParams.get('lng') ? parseFloat(searchParams.get('lng')!) : null;
@@ -77,7 +77,10 @@ export async function GET(req: NextRequest) {
     const searchVariants = buildSearchVariants(searchTerm);
     const supabase = supabaseAdmin;
 
-    console.log(`[Search API] Buscando por: "${searchTerm}"`);
+    // OTIMIZAÇÃO: Reduzido logging para produção
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Search API] Buscando por: "${searchTerm}"`);
+    }
 
     type SearchResultItem = {
       type: 'product' | 'banca';
@@ -96,194 +99,81 @@ export async function GET(req: NextRequest) {
 
     const results: SearchResultItem[] = [];
 
-    // Verificar se o termo de busca corresponde a nomes de bancas
-    // Se sim, buscar apenas bancas para evitar misturar resultados
-    const bancaSearchTerms = (searchVariants.length ? searchVariants : terms);
-    const bancaOr = bancaSearchTerms
-      .map((t) => `name.ilike.%${t}%`)
+    // OTIMIZAÇÃO: Busca otimizada com uma única query para produtos
+    const fetchLimit = Math.min(Math.max(limit * 2, limit), 20);
+
+    const productOr = (searchVariants.length ? searchVariants : terms)
+      .flatMap((t) => ([`name.ilike.%${t}%`, `codigo_mercos.ilike.%${t}%`]))
       .join(',');
 
-    const { data: bancasCheck, error: bancasCheckError } = await supabase
-      .from('bancas')
-      .select('name')
-      .or(bancaOr)
-      .limit(1);
+    // Query única com JOIN para produtos
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select(`
+        id,
+        name,
+        price,
+        images,
+        banca_id,
+        category_id,
+        categories(name),
+        bancas(name, lat, lng)
+      `)
+      .eq('active', true)
+      .or(productOr)
+      .limit(fetchLimit);
 
-    const isBancaSearch = !bancasCheckError && bancasCheck && bancasCheck.length > 0;
-
-    console.log(`[Search API] Termo "${searchTerm}" ${isBancaSearch ? 'corresponde a banca' : 'não corresponde a banca'}`);
-
-    // 1. Buscar produtos (apenas se não for busca específica de banca)
-    let products = null;
-    if (!isBancaSearch) {
-      // Importante: para ordenar por proximidade, precisamos buscar mais itens antes do sort
-      // (senão o limit do banco pode excluir a banca mais próxima)
-      const fetchLimit = Math.min(Math.max(limit * 5, limit), 50);
-
-      // Usando Left Join (sem !) para não excluir produtos sem categoria/banca
-      let productsQuery = supabase
-        .from('products')
-        .select(`
-          id,
-          name,
-          price,
-          distribuidor_id,
-          images,
-          banca_id,
-          category_id,
-          categories(name),
-          bancas(name, lat, lng)
-        `)
-        .eq('active', true)
-        .limit(fetchLimit);
-
-      // Busca mais precisa: apenas pelo nome/código para evitar falsos positivos (ex: "agua" encontrando "aguardado" na descrição)
-      const productOr = (searchVariants.length ? searchVariants : terms)
-        .flatMap((t) => ([`name.ilike.%${t}%`, `codigo_mercos.ilike.%${t}%`]))
-        .join(',');
-
-      if (productOr) {
-        productsQuery = productsQuery.or(productOr);
+    if (productsError) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Search API] Erro na busca de produtos:', productsError);
       }
-
-      if (bancaId) {
-        productsQuery = productsQuery.eq('banca_id', bancaId);
-      }
-
-      const { data: productsData, error: productsError } = await productsQuery;
-      products = productsData;
-    } else {
-      products = null;
+      return NextResponse.json({ success: false, error: 'Erro na busca' }, { status: 500 });
     }
 
-    if (products) {
-      // Aplicar markup do distribuidor e preço customizado da banca (se houver)
-      const distribuidorIds = Array.from(new Set(products.map((p: any) => p.distribuidor_id).filter(Boolean)));
-      const productIds = products.map((p: any) => p.id);
-      const bancaIds = Array.from(new Set(products.map((p: any) => p.banca_id).filter(Boolean)));
-      const categoryIds = Array.from(new Set(products.map((p: any) => p.category_id).filter(Boolean)));
-
-      const [
-        distribuidoresRes,
-        markupProdutosRes,
-        markupCategoriasRes,
-        customizacoesRes
-      ] = await Promise.all([
-        distribuidorIds.length
-          ? supabase.from('distribuidores').select('id, nome, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor').in('id', distribuidorIds)
-          : { data: [] },
-        distribuidorIds.length
-          ? supabase.from('distribuidor_markup_produtos').select('product_id, distribuidor_id, markup_percentual, markup_fixo').in('distribuidor_id', distribuidorIds)
-          : { data: [] },
-        distribuidorIds.length
-          ? supabase.from('distribuidor_markup_categorias').select('distribuidor_id, category_id, markup_percentual, markup_fixo').in('distribuidor_id', distribuidorIds).in('category_id', categoryIds.length ? categoryIds : ['__none__'])
-          : { data: [] },
-        productIds.length && bancaIds.length
-          ? supabase.from('banca_produtos_distribuidor').select('product_id, banca_id, enabled, custom_price').in('product_id', productIds).in('banca_id', bancaIds)
-          : { data: [] }
-      ]);
-
-      const distribuidorMap = new Map((distribuidoresRes.data || []).map((d: any) => [d.id, d]));
-      const markupProdMap = new Map((markupProdutosRes.data || []).map((m: any) => [m.product_id, { percentual: m.markup_percentual || 0, fixo: m.markup_fixo || 0 }]));
-      const markupCatMap = new Map((markupCategoriasRes.data || []).map((m: any) => [`${m.distribuidor_id}:${m.category_id}`, { percentual: m.markup_percentual || 0, fixo: m.markup_fixo || 0 }]));
-      const customMap = new Map((customizacoesRes.data || []).map((c: any) => [`${c.banca_id}:${c.product_id}`, c]));
-
-      const calcularPrecoComMarkup = (precoBase: number, produtoId: string, distribuidorId: string, categoryId: string) => {
-        const distribuidor = distribuidorMap.get(distribuidorId);
-        if (!distribuidor) return precoBase;
-
-        const markupProd = markupProdMap.get(produtoId);
-        if (markupProd && (markupProd.percentual > 0 || markupProd.fixo > 0)) {
-          return precoBase * (1 + markupProd.percentual / 100) + markupProd.fixo;
-        }
-
-        const markupCat = markupCatMap.get(`${distribuidorId}:${categoryId}`);
-        if (markupCat && (markupCat.percentual > 0 || markupCat.fixo > 0)) {
-          return precoBase * (1 + markupCat.percentual / 100) + markupCat.fixo;
-        }
-
-        const tipoCalculo = distribuidor.tipo_calculo || 'markup';
-        if (tipoCalculo === 'margem') {
-          const divisor = distribuidor.margem_divisor || 1;
-          if (divisor > 0 && divisor < 1) {
-            return precoBase / divisor;
-          }
-        } else {
-          const percentual = distribuidor.markup_global_percentual || 0;
-          const fixo = distribuidor.markup_global_fixo || 0;
-          if (percentual > 0 || fixo > 0) {
-            return precoBase * (1 + percentual / 100) + fixo;
-          }
-        }
-
-        return precoBase;
-      };
-
-      products.forEach((p: any) => {
-        const custom = customMap.get(`${p.banca_id}:${p.id}`);
-        if (custom && custom.enabled === false) {
-          return; // Produto desabilitado para essa banca
-        }
-
-        const bancaLat = p.bancas?.lat ? parseFloat(p.bancas.lat) : null;
-        const bancaLng = p.bancas?.lng ? parseFloat(p.bancas.lng) : null;
+    // Processar produtos
+    if (productsData) {
+      for (const p of productsData) {
         let distance: number | undefined;
-        
-        if (userLat && userLng && bancaLat && bancaLng) {
-          distance = calculateDistance(userLat, userLng, bancaLat, bancaLng);
+        if (userLat && userLng && p.bancas?.lat && p.bancas?.lng) {
+          distance = calculateDistance(userLat, userLng, parseFloat(p.bancas.lat), parseFloat(p.bancas.lng));
         }
 
-        // Preço final com markup/custom
-        let precoFinal = p.price;
-        if (p.distribuidor_id) {
-          precoFinal = calcularPrecoComMarkup(p.price, p.id, p.distribuidor_id, p.category_id);
-        }
-        if (custom && typeof custom.custom_price === 'number') {
-          precoFinal = custom.custom_price;
-        }
-        
         results.push({
           type: 'product',
           id: p.id,
           name: p.name,
           image: p.images && p.images.length > 0 ? p.images[0] : null,
-          price: precoFinal,
+          price: p.price,
           category: p.categories?.name || 'Produto',
-          banca_name: p.bancas?.name || 'Banca não identificada',
+          banca_name: p.bancas?.name || 'Banca',
           banca_id: p.banca_id,
           distance,
-          banca_lat: bancaLat ?? undefined,
-          banca_lng: bancaLng ?? undefined
+          banca_lat: p.bancas?.lat ? parseFloat(p.bancas.lat) : undefined,
+          banca_lng: p.bancas?.lng ? parseFloat(p.bancas.lng) : undefined
         });
-      });
+      }
     }
 
-    // 2. Buscar bancas (apenas se não estiver filtrando por uma banca específica)
-    if (!bancaId) {
-      const bancaConditions = bancaSearchTerms
-        .flatMap((t) => [`name.ilike.%${t}%`, `address.ilike.%${t}%`])
+    // Buscar bancas apenas se necessário
+    if (results.length < limit) {
+      const remainingLimit = limit - results.length;
+      const bancaOr = (searchVariants.length ? searchVariants : terms)
+        .map((t) => `name.ilike.%${t}%`)
         .join(',');
-      let bancasQuery = supabase
-        .from('bancas')
-        .select('id, name, cover_image, address, rating, lat, lng')
-        .limit(limit);
-      if (bancaConditions) {
-        bancasQuery = bancasQuery.or(bancaConditions);
-      }
-      const { data: bancas, error: bancasError } = await bancasQuery;
 
-      if (bancasError) {
-        console.error('Erro na busca de bancas:', bancasError);
-      } else if (bancas) {
-        bancas.forEach((b: any) => {
-          const bancaLat = b.lat ? parseFloat(b.lat) : null;
-          const bancaLng = b.lng ? parseFloat(b.lng) : null;
+      const { data: bancasData, error: bancasError } = await supabase
+        .from('bancas')
+        .select('id, name, cover_image, address, lat, lng')
+        .or(bancaOr)
+        .limit(remainingLimit);
+
+      if (!bancasError && bancasData) {
+        for (const b of bancasData) {
           let distance: number | undefined;
-          
-          if (userLat && userLng && bancaLat && bancaLng) {
-            distance = calculateDistance(userLat, userLng, bancaLat, bancaLng);
+          if (userLat && userLng && b.lat && b.lng) {
+            distance = calculateDistance(userLat, userLng, parseFloat(b.lat), parseFloat(b.lng));
           }
-          
+
           results.push({
             type: 'banca',
             id: b.id,
@@ -295,54 +185,43 @@ export async function GET(req: NextRequest) {
             banca_id: b.id,
             address: b.address,
             distance,
-            banca_lat: bancaLat ?? undefined,
-            banca_lng: bancaLng ?? undefined
+            banca_lat: b.lat ? parseFloat(b.lat) : undefined,
+            banca_lng: b.lng ? parseFloat(b.lng) : undefined
           });
-        });
+        }
       }
     }
 
-    // Ordenação:
-    // - Busca de produto: primeiro produtos em ordem alfabética; para nomes iguais, ordenar por distância
-    // - Busca de banca: apenas bancas em ordem alfabética; para nomes iguais, ordenar por distância
+    // Ordenação e deduplicação
     results.sort((a, b) => {
-      // Prioridade por tipo depende do contexto da busca
-      if (!isBancaSearch && a.type !== b.type) {
-        // Em busca de produto, mostrar produtos antes de bancas
-        if (a.type === 'product') return -1;
-        if (b.type === 'product') return 1;
+      // Produtos primeiro, depois bancas
+      if (a.type !== b.type) {
+        return a.type === 'product' ? -1 : 1;
       }
 
-      // Ordenar alfabeticamente por nome (case-insensitive)
+      // Ordenar alfabeticamente por nome
       const nameCmp = a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
       if (nameCmp !== 0) return nameCmp;
 
-      // Desempate: ordenar por proximidade (se ambos têm distância)
+      // Desempate por distância (se disponível)
       const ad = typeof a.distance === 'number' ? a.distance : Number.POSITIVE_INFINITY;
       const bd = typeof b.distance === 'number' ? b.distance : Number.POSITIVE_INFINITY;
       if (ad !== bd) return ad - bd;
 
-      // Último fallback: tipo e id para estabilidade
-      const typeCmp = a.type.localeCompare(b.type);
-      if (typeCmp !== 0) return typeCmp;
       return a.id.localeCompare(b.id);
     });
 
-    // Deduplicar mantendo a prioridade da ordenação:
-    // - não permitir mesmo produto repetido na mesma banca
-    // - bancas deduplicadas por id
+    // Deduplicar resultados
     const seen = new Set<string>();
-    const finalResults: SearchResultItem[] = [];
-    for (const item of results) {
+    const finalResults = results.filter(item => {
       const key = item.type === 'product'
         ? `product:${item.banca_id}:${normalizeKeyName(item.name)}`
         : `banca:${item.id}`;
 
-      if (seen.has(key)) continue;
+      if (seen.has(key)) return false;
       seen.add(key);
-      finalResults.push(item);
-      if (finalResults.length >= limit) break;
-    }
+      return true;
+    }).slice(0, limit);
 
     return NextResponse.json({
       success: true,
@@ -350,7 +229,9 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Erro geral na busca:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Erro geral na busca:', error);
+    }
+    return NextResponse.json({ success: false, error: 'Erro interno na busca' }, { status: 500 });
   }
 }

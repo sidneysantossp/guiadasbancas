@@ -181,7 +181,12 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       { items, total: items.length },
-      { headers: { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=120' } }
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=300, stale-while-revalidate=600', // 5 minutos cache
+          'CDN-Cache-Control': 'max-age=180', // CDN cache menor
+        }
+      }
     );
   } catch (error) {
     console.error('Erro na API de produtos:', error);

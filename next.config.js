@@ -20,14 +20,13 @@ const nextConfig = {
     domains: ['arquivos.mercos.com'],
     formats: ['image/avif', 'image/webp'], // Formatos modernos (AVIF primeiro = 30% menor)
     minimumCacheTTL: 31536000, // Cache de 1 ano (imagens raramente mudam)
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048], // Breakpoints otimizados
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 2048], // Breakpoints otimizados
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384], // Tamanhos de thumbnails
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-    // IMPORTANTE: unoptimized=true evita erro 402 Payment Required na Vercel
-    // O plano gratuito tem limite de otimização de imagens
-    unoptimized: true,
+    // HABILITADO: otimização de imagens para melhor performance
+    unoptimized: false,
     remotePatterns: [
       {
         protocol: 'https',
@@ -118,6 +117,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: '*.glbimg.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'randomuser.me',
       },
     ],
   },

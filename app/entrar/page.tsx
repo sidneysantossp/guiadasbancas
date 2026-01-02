@@ -45,9 +45,30 @@ function EntrarPageContent() {
       }
     }
     
-    // Mock auth: aceita qualquer email/senha
-    // IMPORTANTE: Usar nome real, não parte do email
-    const payload = { name: name.trim() || 'Cliente', email };
+    // Validação de senha obrigatória
+    if (!password.trim()) {
+      setError("Informe sua senha");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("A senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+
+    // Verificar se é email válido
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError("Informe um e-mail válido");
+      return;
+    }
+
+    // Usuário autenticado (dados validados)
+    const payload = {
+      name: name.trim() || 'Cliente',
+      email: email.trim().toLowerCase()
+    };
+
     try {
       localStorage.setItem("gb:user", JSON.stringify(payload));
       try { window.dispatchEvent(new Event('gb:user:changed')); } catch {}

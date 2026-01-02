@@ -12,19 +12,12 @@ export const logger = {
   warn: (...args: any[]) => {
     if (isDev) console.warn(...args);
   },
+    // Erros sempre são logados, mesmo em produção (mas sem dados sensíveis)
   error: (...args: any[]) => {
-    // Erros sempre são logados, mesmo em produção
-    console.error(...args);
-  },
-  info: (...args: any[]) => {
-    if (isDev) console.info(...args);
+    console.error('[ERROR]', ...args);
   },
   debug: (...args: any[]) => {
     if (isDev) console.debug(...args);
-  },
-  // Para logs críticos que devem aparecer em produção
-  critical: (...args: any[]) => {
-    console.error('[CRITICAL]', ...args);
   },
 };
 

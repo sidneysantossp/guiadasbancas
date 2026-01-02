@@ -75,15 +75,40 @@ export async function GET(req: NextRequest) {
     }
 
     if (search) {
-      const variants = buildSearchVariants(search);
-      const searchTerms = variants.length ? variants : [normalizeSearchTerm(search)];
-      // Busca só em nome/código para evitar falsos positivos (ex.: "agua" casando com "aguardado" na descrição)
-      const orParts = searchTerms.flatMap((t) => ([
-        `name.ilike.%${t}%`,
-        `codigo_mercos.ilike.%${t}%`,
-      ]));
-      if (orParts.length > 0) {
-        query = query.or(orParts.join(','));
+      // BUSCA FLEXÍVEL: Divide o termo em palavras e busca cada uma separadamente
+      // Exemplo: "CABO CELULAR" → busca produtos que contenham "CABO" OU "CELULAR"
+      // Exemplo: "AMSTER" → busca produtos que contenham "AMSTER" (encontra "AMSTERDAM")
+      const normalized = normalizeSearchTerm(search);
+      const words = normalized
+        .split(/\s+/) // Divide por espaços
+        .filter(word => word.length >= 2) // Ignora palavras muito pequenas (ex: "de", "da", "do")
+        .slice(0, 5); // Limita a 5 palavras para evitar queries muito complexas
+      
+      console.log('[SEARCH] Termo original:', search);
+      console.log('[SEARCH] Palavras extraídas:', words);
+      
+      if (words.length > 0) {
+        // Para cada palavra, gera variantes com acentos e busca em name OU codigo_mercos
+        const allConditions: string[] = [];
+        
+        for (const word of words) {
+          const variants = buildSearchVariants(word);
+          const terms = variants.length ? variants : [word];
+          
+          // Para cada variante da palavra, busca em name OU codigo_mercos
+          for (const term of terms) {
+            allConditions.push(`name.ilike.%${term}%`);
+            allConditions.push(`codigo_mercos.ilike.%${term}%`);
+          }
+        }
+        
+        // Aplica filtro: qualquer condição pode ser satisfeita (OR lógico)
+        // Isso permite buscar "CABO" e encontrar "CABO DE CELULAR"
+        // Ou buscar "AMSTER" e encontrar "AMSTERDAM"
+        if (allConditions.length > 0) {
+          query = query.or(allConditions.join(','));
+          console.log('[SEARCH] Total de condições aplicadas:', allConditions.length);
+        }
       }
     }
 
