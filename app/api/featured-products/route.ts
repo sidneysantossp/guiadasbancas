@@ -50,7 +50,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Erro ao buscar produtos', data: [] }, { status: 500 });
     }
 
-    const byId: Record<string, any> = Object.fromEntries((prods || []).map(p => [p.id, p]));
+    const bancaIds = Array.from(new Set((prods || []).map((p: any) => p.banca_id).filter(Boolean)));
+    const bancaMap = new Map<string, any>();
+    if (bancaIds.length > 0) {
+      const { data: bancas } = await supabaseAdmin
+        .from('bancas')
+        .select('id, name, is_cotista, cotista_id, active')
+        .in('id', bancaIds);
+      (bancas || []).forEach((b: any) => bancaMap.set(b.id, b));
+    }
+
+    const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
+
+    const byId: Record<string, any> = Object.fromEntries(
+      (prods || [])
+        .filter((p: any) => isActiveCotistaBanca(bancaMap.get(p.banca_id)))
+        .map(p => [p.id, p])
+    );
 
     // 3) Preserve curated order
     const items = (feats || [])
@@ -69,6 +85,7 @@ export async function GET(req: NextRequest) {
         rating_avg: p.rating_avg ?? null,
         reviews_count: p.reviews_count ?? null,
         banca_id: p.banca_id ?? null,
+        banca_name: bancaMap.get(p.banca_id)?.name || null,
         description: p.description ?? null,
         active: p.active !== false,
       }));

@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
         banca_id,
         category_id,
         categories(name),
-        bancas(name, lat, lng)
+        bancas(name, lat, lng, is_cotista, cotista_id, active)
       `)
       .eq('active', true)
       .or(productOr)
@@ -130,9 +130,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Erro na busca' }, { status: 500 });
     }
 
+    const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
+
     // Processar produtos
     if (productsData) {
       for (const p of productsData) {
+        if (!isActiveCotistaBanca(p.bancas)) {
+          continue;
+        }
         let distance: number | undefined;
         if (userLat && userLng && p.bancas?.lat && p.bancas?.lng) {
           distance = calculateDistance(userLat, userLng, parseFloat(p.bancas.lat), parseFloat(p.bancas.lng));

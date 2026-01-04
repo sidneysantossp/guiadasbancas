@@ -14,13 +14,22 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       .select(`
         *,
         categories(id, name),
-        bancas(id, name, address, whatsapp, is_cotista)
+        bancas(id, name, address, whatsapp, is_cotista, cotista_id, active)
       `)
       .eq('id', productId)
       .single();
 
     if (error || !data) {
       return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 });
+    }
+
+    const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
+
+    // Produtos próprios só são públicos se a banca for cotista ativa
+    if (!data.distribuidor_id) {
+      if (!isActiveCotistaBanca(data.bancas)) {
+        return NextResponse.json({ error: "Produto não disponível" }, { status: 404 });
+      }
     }
 
     // IMPORTANTE: Produtos de distribuidor só podem ser acessados se:
@@ -51,7 +60,7 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
         return NextResponse.json({ error: "Produto não disponível" }, { status: 404 });
       }
       
-      if (!bancaParaValidar.is_cotista) {
+      if (!isActiveCotistaBanca(bancaParaValidar)) {
         // Banca não é cotista - não deveria ter acesso a produtos de distribuidor
         console.warn(`[API/PRODUCTS/ID] Produto ${productId} é de distribuidor mas banca ${bancaParaValidar.id} não é cotista`);
         return NextResponse.json({ error: "Produto não disponível" }, { status: 404 });

@@ -38,11 +38,16 @@ async function getProductData(productId: string): Promise<Produto | null> {
     const { supabaseAdmin } = await import("@/lib/supabase");
     const { data } = await supabaseAdmin
       .from('products')
-      .select('*')
+      .select('*, bancas(id, is_cotista, cotista_id, active)')
       .eq('id', productId)
       .single();
     
     if (data) {
+      const banca = (data as any)?.bancas;
+      const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
+      if (!isActiveCotistaBanca(banca)) {
+        return null;
+      }
       return data as Produto;
     }
 

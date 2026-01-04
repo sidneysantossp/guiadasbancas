@@ -70,8 +70,21 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const bancaIds = Array.from(new Set((products || []).map((p: any) => p.banca_id).filter(Boolean)));
+    const bancaMap = new Map<string, any>();
+    if (bancaIds.length > 0) {
+      const { data: bancas } = await supabaseAdmin
+        .from('bancas')
+        .select('id, name, is_cotista, cotista_id, active')
+        .in('id', bancaIds);
+      (bancas || []).forEach((b: any) => bancaMap.set(b.id, b));
+    }
+
+    const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
+    const filteredProducts = (products || []).filter((p: any) => isActiveCotistaBanca(bancaMap.get(p.banca_id)));
+
     // Formatar produtos para o formato esperado
-    const items = (products || []).map((p: any) => ({
+    const items = filteredProducts.map((p: any) => ({
       id: p.id,
       name: p.name,
       price: p.price || 0,
@@ -89,7 +102,8 @@ export async function GET(req: NextRequest) {
       codigo_mercos: p.codigo_mercos || null,
       pronta_entrega: p.pronta_entrega || false,
       sob_encomenda: p.sob_encomenda || false,
-      pre_venda: p.pre_venda || false
+      pre_venda: p.pre_venda || false,
+      banca_name: bancaMap.get(p.banca_id)?.name || null
     }));
 
     return NextResponse.json({

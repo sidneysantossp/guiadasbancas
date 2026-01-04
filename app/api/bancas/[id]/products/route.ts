@@ -18,9 +18,25 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       return NextResponse.json({ success: true, items: [] });
     }
 
+    const { data: banca, error: bancaError } = await supabaseAdmin
+      .from('bancas')
+      .select('id, is_cotista, cotista_id, active')
+      .eq('id', bancaId)
+      .single();
+
+    if (bancaError) {
+      console.error('Erro ao buscar banca:', bancaError);
+      return NextResponse.json({ success: false, error: bancaError.message }, { status: 500 });
+    }
+
+    const isActiveCotista = (banca?.is_cotista === true || !!banca?.cotista_id);
+    if (!isActiveCotista) {
+      return NextResponse.json({ success: true, items: [] });
+    }
+
     const { data: products, error } = await supabaseAdmin
       .from('products')
-      .select('*')
+      .select('id, name, price, images, codigo_mercos')
       .eq('banca_id', bancaId)
       .eq('active', true)
       .limit(limit);

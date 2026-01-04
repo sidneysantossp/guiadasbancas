@@ -182,9 +182,6 @@ function ProductCard({ p }: { p: BrancaleoneProduct }) {
   );
 }
 
-// ID fixo da Brancaleone (mesmo usado nas páginas de banca)
-const BRANCALEONE_ID = '1511df09-1f4a-4e68-9f8c-05cd06be6269';
-
 export default function BrancaleoneProducts() {
   const [products, setProducts] = useState<BrancaleoneProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -198,9 +195,7 @@ export default function BrancaleoneProducts() {
       try {
         setLoading(true);
         
-        // OTIMIZAÇÃO: Buscar produtos da Brancaleone - API agora retorna banca_name via JOIN
-        // Não precisa mais chamar /api/bancas separadamente
-        const prodRes = await fetch(`/api/products/public?distribuidor=${BRANCALEONE_ID}&limit=20&sort=created_at&order=desc`);
+        const prodRes = await fetch(`/api/products/public?limit=50&sort=created_at&order=desc`);
         
         if (!prodRes.ok) {
           console.error('Erro ao buscar produtos Brancaleone:', prodRes.status);
@@ -211,7 +206,7 @@ export default function BrancaleoneProducts() {
         const prodData = await prodRes.json();
         const items = Array.isArray(prodData?.items) ? prodData.items : (Array.isArray(prodData?.data) ? prodData.data : []);
         
-        console.log('Produtos Brancaleone encontrados:', items.length);
+        console.log('Produtos encontrados:', items.length);
         
         const marvelPatterns = [
           /marvel/i,
@@ -251,10 +246,10 @@ export default function BrancaleoneProducts() {
             banca_name: p.banca_name || undefined,
           }));
 
-        console.log('Produtos Brancaleone mapeados:', mapped.length);
+        console.log('Produtos mapeados:', mapped.length);
         if (active) setProducts(mapped.slice(0, 12)); // Limitar a 12 produtos
       } catch (error) {
-        console.error('Erro ao carregar produtos Brancaleone:', error);
+        console.error('Erro ao carregar produtos:', error);
         if (active) setProducts([]);
       } finally {
         if (active) setLoading(false);
@@ -307,12 +302,11 @@ export default function BrancaleoneProducts() {
   }
 
   if (products.length === 0 && !loading) {
-    // Exibir mensagem temporária para debug
     return (
       <section className="w-full py-8 bg-gray-50">
         <div className="container-max">
           <div className="text-center text-gray-500 text-sm">
-            Nenhum produto Brancaleone disponível no momento.
+            Nenhum produto disponível no momento.
           </div>
         </div>
       </section>

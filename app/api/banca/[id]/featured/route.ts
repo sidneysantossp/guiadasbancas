@@ -18,11 +18,20 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     // Verificar se a banca é cotista
     const { data: banca } = await supabase
       .from('bancas')
-      .select('is_cotista, cotista_id')
+      .select('is_cotista, cotista_id, active')
       .eq('id', bancaId)
       .single();
 
-    const isCotista = banca?.is_cotista === true && !!banca?.cotista_id;
+    const isCotista = (banca?.is_cotista === true || !!banca?.cotista_id);
+
+    if (!isCotista) {
+      return NextResponse.json({
+        success: true,
+        banca_id: bancaId,
+        total: 0,
+        products: []
+      });
+    }
 
     // 1. Buscar produtos próprios da banca marcados como destaque
     const { data: produtosProprios } = await supabase
@@ -137,7 +146,6 @@ export async function GET(request: NextRequest, context: { params: { id: string 
               discount_percent: discountPercent,
               stock_qty: effectiveStock,
               is_distribuidor: true,
-              distribuidor_nome: distribuidor?.nome || '',
               codigo_mercos: produto.codigo_mercos || '',
             };
           })

@@ -13,6 +13,33 @@ export async function GET(
     const supabase = supabaseAdmin;
     const bancaId = params.id;
 
+    const { data: banca, error: bancaError } = await supabase
+      .from('bancas')
+      .select('id, is_cotista, cotista_id, active')
+      .eq('id', bancaId)
+      .single();
+
+    if (bancaError) {
+      console.error('[API] Erro ao buscar banca:', bancaError);
+      return NextResponse.json(
+        { success: false, error: bancaError.message },
+        { status: 500 }
+      );
+    }
+
+    const isActiveCotista = (banca?.is_cotista === true || !!banca?.cotista_id);
+    if (!isActiveCotista) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+        total: 0,
+        stats: {
+          proprios: 0,
+          distribuidores: 0,
+        },
+      });
+    }
+
     // 1. Buscar produtos próprios da banca
     const { data: produtosProprios, error: propriosError } = await supabase
       .from('products')

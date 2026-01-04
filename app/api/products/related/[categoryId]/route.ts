@@ -23,7 +23,8 @@ export async function GET(
         codigo_mercos,
         category_id,
         active,
-        distribuidor_id
+        distribuidor_id,
+        banca_id
       `)
       .eq('category_id', categoryId)
       .eq('active', true)
@@ -42,9 +43,22 @@ export async function GET(
       return NextResponse.json({ error: "Erro ao buscar produtos" }, { status: 500 });
     }
 
-    // Filtrar produtos com imagem
+    const bancaIds = Array.from(new Set((data || []).map((p: any) => p.banca_id).filter(Boolean)));
+    const bancaMap = new Map<string, any>();
+    if (bancaIds.length > 0) {
+      const { data: bancas } = await supabaseAdmin
+        .from('bancas')
+        .select('id, is_cotista, cotista_id, active')
+        .in('id', bancaIds);
+      (bancas || []).forEach((b: any) => bancaMap.set(b.id, b));
+    }
+
+    const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
+
+    // Filtrar produtos com imagem e banca cotista ativa
     const filteredProducts = (data || [])
       .filter(product => product.images && product.images.length > 0)
+      .filter(product => isActiveCotistaBanca(bancaMap.get(product.banca_id)))
       .map(product => ({
         id: product.id,
         name: product.name || 'Produto',

@@ -154,10 +154,6 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
   const outOfStock = p.status === 'unavailable' || 
     (p.status !== 'available' && Boolean(p.ready) && (p.stockQty != null) && (p.stockQty <= 0));
   
-  // Verificar se é produto de distribuidor
-  const isDistribuidor = (p as any).is_distribuidor === true;
-  const distribuidorNome = (p as any).distribuidor_nome;
-  
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">
       <div className="relative w-full group h-48 sm:h-56">
@@ -516,7 +512,6 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         pre_venda: Boolean(item.pre_venda),
         pronta_entrega: Boolean(item.pronta_entrega),
         status: item.status || 'available',
-        is_distribuidor: Boolean(item.is_distribuidor),
         codigo_mercos: item.codigo_mercos || '',
       } as any;
     }).filter(Boolean);
@@ -606,8 +601,6 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             pre_venda: Boolean(item.pre_venda),
             pronta_entrega: Boolean(item.pronta_entrega),
             status: item.status || 'available',
-            is_distribuidor: Boolean(item.is_distribuidor),
-            distribuidor_nome: item.distribuidor_nome || '',
             codigo_mercos: item.codigo_mercos || '',
           } as any;
         }).filter(Boolean);

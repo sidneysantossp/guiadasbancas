@@ -403,14 +403,32 @@ function SmallCard({ p }: { p: Product }) {
 export default function MostSearchedProducts() {
   const [apiItems, setApiItems] = useState<Product[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  
+  // Carregar localização do usuário do localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("gb:userLocation");
+      if (raw) {
+        const loc = JSON.parse(raw);
+        if (loc?.lat && loc?.lng) {
+          setUserLocation({ lat: loc.lat, lng: loc.lng });
+        }
+      }
+    } catch {}
+  }, []);
   
   useEffect(() => {
     let active = true;
     (async () => {
       try {
         setLoading(true);
-        // Apenas carregar os produtos (a API agora já retorna dados da banca via JOIN)
-        const pData = await cachedFetch('/api/products/most-searched', undefined, 300); // 5 min cache
+        // Construir URL com localização do usuário para ordenar por proximidade
+        let apiUrl = '/api/products/most-searched';
+        if (userLocation?.lat && userLocation?.lng) {
+          apiUrl += `?lat=${userLocation.lat}&lng=${userLocation.lng}`;
+        }
+        const pData = await cachedFetch(apiUrl, undefined, 300); // 5 min cache
         
         let list: any[] = [];
         
@@ -467,7 +485,7 @@ export default function MostSearchedProducts() {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [userLocation]);
 
   const items = useMemo(() => {
     if (!apiItems) return [];

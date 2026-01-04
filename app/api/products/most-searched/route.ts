@@ -139,11 +139,38 @@ export async function GET(req: NextRequest) {
       )
     );
 
+    // Buscar bancas cotistas com localização para associar produtos de distribuidores
+    const cotistaBancasRes = await supabase
+      .from('bancas')
+      .select('id, name, cover_image, whatsapp, lat, lng, is_cotista, cotista_id, active')
+      .eq('active', true)
+      .or('is_cotista.eq.true,cotista_id.not.is.null')
+      .not('lat', 'is', null)
+      .not('lng', 'is', null)
+      .limit(50);
+
+    const cotistaBancas = (cotistaBancasRes?.data || []).filter((b: any) => 
+      b.lat != null && b.lng != null
+    );
+
+    // Calcular distância das bancas cotistas ao usuário
+    let nearestCotistaBanca: any = null;
+    if (userLat && userLng && cotistaBancas.length > 0) {
+      let minDist = Infinity;
+      for (const b of cotistaBancas) {
+        const dist = calculateDistance(userLat, userLng, parseFloat(b.lat), parseFloat(b.lng));
+        if (dist < minDist) {
+          minDist = dist;
+          nearestCotistaBanca = { ...b, distance: dist };
+        }
+      }
+    }
+
     const [bancasRes, distribRes] = await Promise.all([
       bancaIds.length
         ? supabase
             .from('bancas')
-            .select('id, name, cover_image, whatsapp, lat, lng')
+            .select('id, name, cover_image, whatsapp, lat, lng, is_cotista, cotista_id, active')
             .in('id', bancaIds)
         : Promise.resolve({ data: [], error: null } as any),
       distribuidorIds.length
@@ -228,19 +255,30 @@ export async function GET(req: NextRequest) {
     };
 
     // Map reduzido para o front com informações da banca/distribuidor resolvidas via Map
-    const data = (items || []).map((p: any) => {
-      const bancaData = p?.banca_id ? bancaMap.get(p.banca_id) : null;
-      const distribData = p?.distribuidor_id ? distribMap.get(p.distribuidor_id) : null;
+    // Incluir produtos de TODAS as bancas ativas (não apenas cotistas)
+    const isActiveBanca = (b: any) => b?.active !== false;
 
-      const distributorName = distribData?.nome || '';
-      const bancaName = bancaData?.name || distributorName || 'Banca';
+    const data = (items || []).map((p: any) => {
+      let bancaData = p?.banca_id ? bancaMap.get(p.banca_id) : null;
+      
+      // Para produtos de distribuidor sem banca_id, usar a banca cotista mais próxima
+      if (!bancaData && p.distribuidor_id && nearestCotistaBanca) {
+        bancaData = nearestCotistaBanca;
+      }
+      
+      // Permitir produtos sem banca (produtos de distribuidor) ou de bancas ativas
+      if (bancaData && !isActiveBanca(bancaData)) {
+        return null;
+      }
+      
+      const bancaName = bancaData?.name || 'Banca Local';
       const bancaAvatar = bancaData?.cover_image || null;
       const bancaPhone = bancaData?.whatsapp || null;
 
       const bancaLat = bancaData?.lat != null ? parseFloat(bancaData.lat) : null;
       const bancaLng = bancaData?.lng != null ? parseFloat(bancaData.lng) : null;
-      let distance: number | null = null;
-      if (userLat && userLng && bancaLat != null && bancaLng != null) {
+      let distance: number | null = bancaData?.distance || null;
+      if (!distance && userLat && userLng && bancaLat != null && bancaLng != null) {
         distance = calculateDistance(userLat, userLng, bancaLat, bancaLng);
       }
 
@@ -268,7 +306,6 @@ export async function GET(req: NextRequest) {
         images: p.images || [],
         banca_id: p.banca_id,
         distribuidor_id: p.distribuidor_id,
-        distribuidor_nome: distributorName,
         category_id: p.category_id,
         category: categoryName,
         description: p.description || '',
@@ -282,7 +319,7 @@ export async function GET(req: NextRequest) {
         discount_percent: p.discount_percent,
         distance,
         banca: {
-          id: p.banca_id || p.distribuidor_id,
+          id: p.banca_id,
           name: bancaName,
           avatar: bancaAvatar,
           phone: bancaPhone,
@@ -293,17 +330,19 @@ export async function GET(req: NextRequest) {
     }).filter(Boolean);
 
     // Ordenar:
-    // - sempre por nome (alfabético)
-    // - para nomes iguais, ordenar por distância (quando houver)
+    // - PRIORIDADE 1: por distância (bancas mais próximas primeiro)
+    // - PRIORIDADE 2: por nome (alfabético) para desempate
     const sorted = data.slice().sort((a: any, b: any) => {
+      // Primeiro: ordenar por distância (mais próximo primeiro)
+      const ad = typeof a.distance === 'number' ? a.distance : Number.POSITIVE_INFINITY;
+      const bd = typeof b.distance === 'number' ? b.distance : Number.POSITIVE_INFINITY;
+      if (ad !== bd) return ad - bd;
+
+      // Segundo: ordenar por nome para desempate
       const nameA = String(a?.name || '');
       const nameB = String(b?.name || '');
       const nameCmp = nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
       if (nameCmp !== 0) return nameCmp;
-
-      const ad = typeof a.distance === 'number' ? a.distance : Number.POSITIVE_INFINITY;
-      const bd = typeof b.distance === 'number' ? b.distance : Number.POSITIVE_INFINITY;
-      if (ad !== bd) return ad - bd;
 
       return String(a?.id || '').localeCompare(String(b?.id || ''));
     });

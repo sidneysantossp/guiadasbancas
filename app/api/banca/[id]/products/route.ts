@@ -39,11 +39,23 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     // 1. Buscar dados da banca (para saber se é cotista)
     const { data: banca } = await supabase
       .from('bancas')
-      .select('id, is_cotista, cotista_id')
+      .select('id, is_cotista, cotista_id, active')
       .eq('id', bancaId)
       .single();
 
-    const isCotista = banca?.is_cotista === true && !!banca?.cotista_id;
+    const isCotista = (banca?.is_cotista === true || !!banca?.cotista_id);
+
+    if (!isCotista) {
+      return NextResponse.json({
+        success: true,
+        banca_id: bancaId,
+        is_cotista: false,
+        total: 0,
+        limit: requestedLimit,
+        products: [],
+        ...(fastMode ? { fast_mode: true } : {})
+      });
+    }
 
     // 2. Construir filtro base com campos otimizados
     const buildBaseQuery = () => {

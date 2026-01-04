@@ -84,7 +84,7 @@ export async function getSearchProducts(query: string, limit = 20): Promise<any[
     
     const [bancasRes, categoriesRes] = await Promise.all([
       bancaIds.length
-        ? supabaseAdmin.from('bancas').select('id, name, cover_image, whatsapp, lat, lng, is_cotista, cotista_id').in('id', bancaIds)
+        ? supabaseAdmin.from('bancas').select('id, name, cover_image, whatsapp, lat, lng, active').in('id', bancaIds)
         : { data: [] },
       categoryIds.length
         ? supabaseAdmin.from('categories').select('id, name').in('id', categoryIds)
@@ -94,12 +94,14 @@ export async function getSearchProducts(query: string, limit = 20): Promise<any[
     const bancaMap = new Map((bancasRes.data || []).map((b: any) => [b.id, b]));
     const categoryMap = new Map((categoriesRes.data || []).map((c: any) => [c.id, c]));
     
-    const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
+    // Incluir produtos de TODAS as bancas ativas (não apenas cotistas)
+    const isActiveBanca = (b: any) => b?.active !== false;
     
     const results = items
       .map(p => {
         const bancaData = p.banca_id ? bancaMap.get(p.banca_id) : null;
-        if (!isActiveCotistaBanca(bancaData)) return null;
+        // Permitir produtos sem banca ou de bancas ativas
+        if (bancaData && !isActiveBanca(bancaData)) return null;
         
         const categoryData = p.category_id ? categoryMap.get(p.category_id) : null;
         
@@ -162,16 +164,18 @@ export async function getPromoProducts(limit = 20): Promise<any[]> {
     const bancaIds = Array.from(new Set(items.map(p => p.banca_id).filter(Boolean)));
     
     const bancasRes = bancaIds.length
-      ? await supabaseAdmin.from('bancas').select('id, name, cover_image, whatsapp, is_cotista, cotista_id').in('id', bancaIds)
+      ? await supabaseAdmin.from('bancas').select('id, name, cover_image, whatsapp, active').in('id', bancaIds)
       : { data: [] };
     
     const bancaMap = new Map((bancasRes.data || []).map((b: any) => [b.id, b]));
-    const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
+    // Incluir produtos de TODAS as bancas ativas (não apenas cotistas)
+    const isActiveBanca = (b: any) => b?.active !== false;
     
     const results = items
       .map(p => {
         const bancaData = p.banca_id ? bancaMap.get(p.banca_id) : null;
-        if (!isActiveCotistaBanca(bancaData)) return null;
+        // Permitir produtos sem banca ou de bancas ativas
+        if (bancaData && !isActiveBanca(bancaData)) return null;
         
         return {
           id: p.id,
