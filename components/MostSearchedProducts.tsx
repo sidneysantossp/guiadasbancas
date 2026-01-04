@@ -120,7 +120,7 @@ function FeaturedCard({ p }: { p: Product }) {
     window.location.href = url;
   };
   return (
-    <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="group relative col-span-12 md:col-span-5 row-span-2 overflow-hidden rounded-2xl border border-[#ff5c00] bg-white shadow-lg hover:shadow-xl transition-shadow md:min-h-[620px] flex flex-col">
+    <Link href={(`/produto/${slugify(p.name)}-${p.id}${p.bancaId ? `?banca=${p.bancaId}` : ''}`) as Route} className="group relative col-span-12 md:col-span-5 row-span-2 overflow-hidden rounded-2xl border border-[#ff5c00] bg-white shadow-lg hover:shadow-xl transition-shadow md:min-h-[620px] flex flex-col">
       <div className="relative w-full group h-72 md:h-[280px]">
         {/* Wrapper com padding para a imagem, mantendo cantos arredondados internos */}
         <div className="absolute inset-0 p-2">
@@ -128,7 +128,7 @@ function FeaturedCard({ p }: { p: Product }) {
             <ImagePlaceholder src={p.image} alt={p.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-contain bg-gray-50" />
             {/* Link absoluto cobrindo a imagem para ir à página do produto */}
             <Link
-              href={("/produto/" + slugify(p.name) + "-" + p.id) as Route}
+              href={(`/produto/${slugify(p.name)}-${p.id}${p.bancaId ? `?banca=${p.bancaId}` : ''}`) as Route}
               aria-label={`Ver detalhes de ${p.name}`}
               className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5c00]"
             />
@@ -172,12 +172,15 @@ function FeaturedCard({ p }: { p: Product }) {
       </div>
       <div className="p-4 flex-1 flex items-start justify-between gap-4">
         <div className="flex-1 flex flex-col">
-          {/* Avatar e nome da banca acima do produto */}
-          <div className="mb-1 flex items-center gap-2">
-            <div className="h-6 w-6 rounded-full overflow-hidden border border-white shadow ring-1 ring-[#ff5c00]/20">
-              <ImagePlaceholder src={p.vendorAvatar} alt={p.vendorName} width={24} height={24} className="h-full w-full object-cover" />
-            </div>
-            <span className="text-xs text-gray-700 font-medium">{p.vendorName}</span>
+          {/* Badge "Entregue por" com nome da banca */}
+          <div className="mb-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 border border-orange-200 text-orange-700 px-2 py-1 text-[10px] font-medium">
+              <svg viewBox="0 0 24 24" className="h-3 w-3 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/>
+                <path d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1"/>
+              </svg>
+              <span className="truncate">Entregue por: <strong>{p.bancaName || 'Banca Local'}</strong></span>
+            </span>
           </div>
           {/* Badges de categorias/estado do Admin */}
           <div className="mb-1.5 flex flex-wrap gap-1">
@@ -252,7 +255,7 @@ function SmallCard({ p }: { p: Product }) {
             <ImagePlaceholder src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 25vw" className="object-contain bg-gray-50" />
             {/* Link absoluto cobrindo a imagem para ir à página do produto */}
             <Link
-              href={("/produto/" + slugify(p.name) + "-" + p.id) as Route}
+              href={(`/produto/${slugify(p.name)}-${p.id}${p.bancaId ? `?banca=${p.bancaId}` : ''}`) as Route}
               aria-label={`Ver detalhes de ${p.name}`}
               className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5c00]"
             />
@@ -327,9 +330,13 @@ function SmallCard({ p }: { p: Product }) {
             </span>
           )}
         </div>
-        <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="mt-2 text-[13px] font-semibold hover:underline">{p.name}</Link>
+        <Link href={(`/produto/${slugify(p.name)}-${p.id}${p.bancaId ? `?banca=${p.bancaId}` : ''}`) as Route} className="mt-2 text-[13px] font-semibold hover:underline">{p.name}</Link>
         <div className="mt-1 flex items-center gap-2">
           <Stars value={p.ratingAvg} count={p.reviewsCount} size="sm" />
+        </div>
+        {/* Badge "Entregue por" abaixo das avaliações */}
+        <div className="mt-1 text-gray-600 text-[10px] font-medium">
+          🚚 Entregue por: {p.bancaName || 'Banca Local'}
         </div>
         
         {/* Seção inferior com preços e botões sempre alinhados */}
@@ -423,6 +430,8 @@ export default function MostSearchedProducts() {
           
           // Dados da banca já vêm populados da API otimizada
           const bancaData = p.banca || {};
+          // NUNCA mostrar nome da distribuidora - apenas o nome da banca
+          const resolvedBancaName = bancaData.name || 'Banca Local';
           
           return {
             id: p.id,
@@ -431,7 +440,7 @@ export default function MostSearchedProducts() {
             priceOriginal,
             discountPercent,
             image: (p.images && p.images[0]) || '',
-            vendorName: bancaData.name || 'Banca Local',
+            vendorName: resolvedBancaName,
             vendorAvatar: bancaData.avatar || '',
             description: p.description || undefined,
             stockQty: p.stock_qty ?? null,
@@ -442,11 +451,13 @@ export default function MostSearchedProducts() {
             sobEncomenda: p.sob_encomenda ?? false,
             preVenda: p.pre_venda ?? false,
             bancaId: p.banca_id || bancaData.id,
-            bancaName: bancaData.name,
+            bancaName: resolvedBancaName,
             phone: bancaData.phone || undefined,
           };
         });
         
+        console.log('[DEBUG] Produtos mapeados:', mapped.map(m => ({ name: m.name, bancaName: m.bancaName, bancaId: m.bancaId })));
+        console.log('[DEBUG] Primeiro produto completo:', mapped[0]);
         if (active) setApiItems(mapped);
       } catch (e) {
         console.log('Erro ao carregar produtos:', e);

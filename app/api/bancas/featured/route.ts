@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// Force dynamic to prevent static generation errors
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
 /**
  * API otimizada para FeaturedBancas - retorna apenas as bancas em destaque
@@ -56,10 +54,7 @@ export async function GET(req: Request) {
       meta: { total: list.length, limit }
     }, {
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'Surrogate-Control': 'no-store'
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
       }
     });
   } catch (e: any) {

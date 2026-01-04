@@ -18,6 +18,7 @@ import FreeShippingProgress from "@/components/FreeShippingProgress";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useCategories } from "@/lib/useCategories";
 import { useSession, signOut as nextAuthSignOut } from "next-auth/react";
+import type { BrandingConfig } from "@/types/branding";
 import {
   IconBell,
   IconChevronDown,
@@ -187,7 +188,12 @@ function MiniCartSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-export default function Navbar() {
+type NavbarProps = {
+  initialBranding?: BrandingConfig | null;
+};
+
+export default function Navbar({ initialBranding }: NavbarProps) {
+  const hasInitialBranding = initialBranding !== undefined;
   const router = useRouter();
   const pathname = usePathname();
   const [q, setQ] = useState("");
@@ -268,7 +274,7 @@ export default function Navbar() {
   const [notifEnabled, setNotifEnabled] = useState<boolean>(false);
   const [notifCount, setNotifCount] = useState<number>(0);
   const [notifPulse, setNotifPulse] = useState<boolean>(false);
-  const [branding, setBranding] = useState<{logoUrl: string; logoAlt: string; siteName: string; socialInstagram?: string; socialFacebook?: string; socialYoutube?: string; socialLinkedin?: string} | null>(null);
+  const [branding, setBranding] = useState<BrandingConfig | null>(initialBranding ?? null);
   const { items: categoryItems } = useCategories(); // Pré-carrega categorias na inicialização
   const [activeMegaMenu, setActiveMegaMenu] = useState<'categories' | null>(null);
   const { isJornaleiro, isAdmin } = useAuth();
@@ -592,8 +598,9 @@ useEffect(() => {
   }
 }, [pathname, inDashboard]);
 
-  // Carregar configurações de branding
+  // Carregar configurações de branding quando nao fornecidas pelo servidor
   useEffect(() => {
+    if (hasInitialBranding) return;
     const loadBranding = async () => {
       try {
         const response = await fetch('/api/admin/branding');
@@ -606,7 +613,7 @@ useEffect(() => {
       }
     };
     loadBranding();
-  }, []);
+  }, [hasInitialBranding]);
 
   // UF atual baseada na localização armazenada
   const ufQuery = (loc?.state || 'sp').toLowerCase();
@@ -693,6 +700,7 @@ useEffect(() => {
               <div className="relative">
                 <IconSearch size={20} stroke={1.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                 <SearchAutocomplete
+                  key={`nav-search-${pathname || "root"}`}
                   query={q}
                   onQueryChange={setQ}
                   onSelect={handleSearchSelect}
@@ -975,6 +983,7 @@ useEffect(() => {
         <div className="container-max px-4 py-3">
           <div className="relative">
             <SearchAutocomplete
+              key={`nav-search-mobile-${pathname || "root"}`}
               query={q}
               onQueryChange={setQ}
               onSelect={(result) => {

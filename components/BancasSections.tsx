@@ -17,18 +17,25 @@ type ApiBanca = {
   order: number;
 };
 
-export default function BancasSections() {
-  const [apiBancas, setApiBancas] = useState<ApiBanca[] | null>(null);
+type BancasSectionsProps = {
+  initialBancas?: ApiBanca[];
+};
+
+export default function BancasSections({ initialBancas }: BancasSectionsProps) {
+  const hasInitial = Array.isArray(initialBancas) && initialBancas.length > 0;
+  const [apiBancas, setApiBancas] = useState<ApiBanca[] | null>(
+    hasInitial ? initialBancas : null
+  );
   
   useEffect(() => {
+    if (hasInitial) {
+      return;
+    }
     (async () => {
       try {
         const res = await fetch('/api/bancas/featured?limit=30', { 
-          cache: 'no-store',
-          headers: {
-            'Pragma': 'no-cache',
-            'Cache-Control': 'no-cache'
-          }
+          cache: 'force-cache',
+          next: { revalidate: 60 } as any,
         });
         if (!res.ok) throw new Error('fail');
         const j = await res.json();
@@ -38,7 +45,7 @@ export default function BancasSections() {
         setApiBancas([]);
       }
     })();
-  }, []);
+  }, [hasInitial]);
 
   // Aguardar dados carregarem antes de renderizar
   if (apiBancas === null) {

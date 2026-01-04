@@ -171,56 +171,100 @@ const normalizeSliderConfig = (raw: unknown): Partial<SliderConfig> => {
   return normalized;
 };
 
-export default function FullBanner({ bancaId }: { bancaId?: string }) {
-  const [slides, setSlides] = useState<HeroSlide[]>([]);
-  const [config, setConfig] = useState<SliderConfig>(DEFAULT_CONFIG);
+const normalizeCtaLink = (value: unknown): string => {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return "";
+  }
+  return ensureInternalLink(trimmed);
+};
+
+const normalizeSlides = (raw: unknown): HeroSlide[] => {
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .filter((s: any) => s?.active)
+    .sort((a: any, b: any) => (a?.order ?? 999) - (b?.order ?? 999))
+    .map((s: any) => {
+      const imageUrl = typeof s?.imageUrl === "string" ? s.imageUrl.trim() : "";
+      if (!imageUrl) return null;
+      return {
+        ...s,
+        imageUrl,
+        cta1Link: normalizeCtaLink(s?.cta1Link),
+        cta2Link: normalizeCtaLink(s?.cta2Link),
+      } as HeroSlide;
+    })
+    .filter(Boolean) as HeroSlide[];
+};
+
+const mergeConfig = (raw: unknown): SliderConfig => ({
+  ...DEFAULT_CONFIG,
+  ...normalizeSliderConfig(raw),
+});
+
+type FullBannerProps = {
+  bancaId?: string;
+  initialSlides?: HeroSlide[];
+  initialConfig?: SliderConfig | null;
+};
+
+export default function FullBanner({ bancaId, initialSlides, initialConfig }: FullBannerProps) {
+  const hasInitialSlides = Array.isArray(initialSlides) && initialSlides.length > 0;
+  const hasInitialConfig = initialConfig != null;
+  const [slides, setSlides] = useState<HeroSlide[]>(() => {
+    const seeded = normalizeSlides(initialSlides);
+    return seeded.length > 0 ? seeded : DEFAULT_SLIDES;
+  });
+  const [config, setConfig] = useState<SliderConfig>(() => mergeConfig(initialConfig));
   const [index, setIndex] = useState(0);
   const [coupon, setCoupon] = useState<{ title: string; code: string; discountText: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [heroLoaded, setHeroLoaded] = useState(false);
 
   useEffect(() => {
-    // Carregar slides da API (com cache habilitado)
-    const loadSlides = async () => {
-      try {
-        const response = await fetch('/api/admin/hero-slides', { 
-          next: { revalidate: 60 } as any // Cache de 60 segundos
-        });
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success) {
-            const adminSlides = Array.isArray(result.data) ? result.data : [];
-            const onlyActive = adminSlides.filter((s: any) => s?.active);
-            const ordered = onlyActive
-              .sort((a: any, b: any) => (a?.order ?? 999) - (b?.order ?? 999))
-              .filter((s: any) => typeof s.imageUrl === 'string' && s.imageUrl.trim());
-            setSlides(ordered.length > 0 ? ordered : []);
-            if (result.config) {
-              setConfig(result.config);
+    if (!hasInitialSlides || !hasInitialConfig) {
+      // Carregar slides/config da API quando nao recebidos do servidor
+      const loadSlides = async () => {
+        try {
+          const response = await fetch('/api/admin/hero-slides');
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+              const ordered = normalizeSlides(result.data);
+              // Usar DEFAULT_SLIDES como fallback se não houver slides válidos
+              setSlides(ordered.length > 0 ? ordered : DEFAULT_SLIDES);
+              if (result.config) {
+                // Aplicar normalização para evitar valores inválidos
+                setConfig(mergeConfig(result.config));
+              } else {
+                // fallback: buscar config explicitamente
+                try {
+                  const cfgRes = await fetch('/api/admin/hero-slides?type=config');
+                  if (cfgRes.ok) {
+                    const cfgJ = await cfgRes.json();
+                    if (cfgJ?.success && cfgJ?.data) setConfig(mergeConfig(cfgJ.data));
+                  }
+                } catch {}
+              }
             } else {
-              // fallback: buscar config explicitamente
-              try {
-                const cfgRes = await fetch('/api/admin/hero-slides?type=config', {
-                  next: { revalidate: 60 } as any
-                });
-                if (cfgRes.ok) {
-                  const cfgJ = await cfgRes.json();
-                  if (cfgJ?.success && cfgJ?.data) setConfig(cfgJ.data);
-                }
-              } catch {}
+              // Fallback para DEFAULT_SLIDES
+              setSlides(DEFAULT_SLIDES);
             }
           } else {
-            setSlides([]);
+            // Fallback para DEFAULT_SLIDES em caso de erro HTTP
+            setSlides(DEFAULT_SLIDES);
           }
-        } else {
-          setSlides([]);
+        } catch {
+          // Fallback para DEFAULT_SLIDES em caso de erro de rede
+          setSlides(DEFAULT_SLIDES);
         }
-      } catch {
-        setSlides([]);
-      }
-    };
+      };
 
-    loadSlides();
+      loadSlides();
+    }
     
     // Carregar cupom em destaque apenas se tiver bancaId específico
     const loadCoupon = async () => {
@@ -241,20 +285,25 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
       } catch {}
     };
     loadCoupon();
-  }, [bancaId]);
+  }, [bancaId, hasInitialSlides, hasInitialConfig]);
 
+  // Calcular displaySlides para o autoplay
+  const effectiveSlides = slides.length > 0 ? slides : DEFAULT_SLIDES;
+  
   useEffect(() => {
-    if (slides.length === 0) return;
+    if (effectiveSlides.length === 0) return;
+    // Garantir que autoPlayTime é válido (mínimo 1000ms)
+    const safeAutoPlayTime = Math.max(config.autoPlayTime || DEFAULT_CONFIG.autoPlayTime, 1000);
     
     const id = setInterval(() => {
-      setIndex((i) => (i + 1) % slides.length);
-    }, config.autoPlayTime);
+      setIndex((i) => (i + 1) % effectiveSlides.length);
+    }, safeAutoPlayTime);
     
     return () => clearInterval(id);
-  }, [slides.length, config.autoPlayTime]);
+  }, [effectiveSlides.length, config.autoPlayTime]);
 
   const go = (dir: -1 | 1) => {
-    setIndex((prev) => (prev + dir + slides.length) % slides.length);
+    setIndex((prev) => (prev + dir + effectiveSlides.length) % effectiveSlides.length);
   };
 
   // Touch swipe handlers (mobile) — hooks must be declared before any conditional return
@@ -278,11 +327,20 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
     }
   };
 
-  if (slides.length === 0) {
-    return null; // Não renderizar se não houver slides
+  const safeIndex = effectiveSlides.length > 0 ? index % effectiveSlides.length : 0;
+  const slide = effectiveSlides[safeIndex];
+  const currentImageUrl = slide?.imageUrl;
+
+  useEffect(() => {
+    if (currentImageUrl) {
+      setHeroLoaded(false);
+    }
+  }, [currentImageUrl]);
+
+  if (effectiveSlides.length === 0 || !slide) {
+    return null;
   }
 
-  const slide = slides[index];
   // Garantir que não usamos altura mobile muito baixa vinda do CMS (ex.: 360px)
   const mobileHeight = Math.max(config.heightMobile ?? 0, 380);
   const onTouchEnd = (e: React.TouchEvent) => {
@@ -311,7 +369,7 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
 
   return (
     <section 
-      className={`relative w-full z-0 mb-3 pt-1 pb-1 sm:mb-6 sm:pt-0 sm:pb-4 px-0 sm:px-0 mt-[50px] sm:mt-0 transition-opacity duration-500 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}
+      className="relative w-full z-0 mb-3 pt-1 pb-1 sm:mb-6 sm:pt-0 sm:pb-4 px-0 sm:px-0 mt-[50px] sm:mt-0"
     >
       <div 
         className="relative w-full overflow-hidden fb-h"
@@ -341,7 +399,8 @@ export default function FullBanner({ bancaId }: { bancaId?: string }) {
             fill
             priority
             onLoadingComplete={() => setHeroLoaded(true)}
-            className="object-cover"
+            onError={() => setHeroLoaded(true)} // Garantir visibilidade mesmo se imagem falhar
+            className={`object-cover transition-opacity duration-500 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}
             sizes="100vw"
           />
           {/* Gradient overlay */}

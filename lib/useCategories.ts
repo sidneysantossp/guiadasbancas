@@ -14,13 +14,24 @@ export type UICategory = {
 let globalCache: UICategory[] | null = null;
 let cachePromise: Promise<UICategory[]> | null = null;
 
-export function useCategories(): { items: UICategory[]; loading: boolean } {
-  const [apiItems, setApiItems] = useState<UICategory[] | null>(globalCache);
-  const [loading, setLoading] = useState(!globalCache);
+export function useCategories(initialItems?: UICategory[]): { items: UICategory[]; loading: boolean } {
+  const seededItems = Array.isArray(initialItems) && initialItems.length > 0 ? initialItems : null;
+  const initialCache = globalCache ?? seededItems;
+  const [apiItems, setApiItems] = useState<UICategory[] | null>(initialCache);
+  const [loading, setLoading] = useState(!initialCache);
   const [isMobile, setIsMobile] = useState<boolean>(false);
 
   useEffect(() => {
     let mounted = true;
+
+    if (seededItems) {
+      if (!globalCache) {
+        globalCache = seededItems;
+      }
+      setApiItems(seededItems);
+      setLoading(false);
+      return;
+    }
     
     // Se já temos cache, usar imediatamente
     if (globalCache) {
@@ -75,7 +86,7 @@ export function useCategories(): { items: UICategory[]; loading: boolean } {
     });
     
     return () => { mounted = false; };
-  }, []);
+  }, [seededItems]);
 
   // Detectar mobile para aplicar filtros específicos da UI
   useEffect(() => {

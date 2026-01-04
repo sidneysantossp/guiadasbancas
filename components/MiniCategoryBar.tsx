@@ -3,14 +3,14 @@
 import Link from "next/link";
 import SafeImage from "./SafeImage";
 import { useRef, useState, useEffect } from "react";
-import { useCategories } from "@/lib/useCategories";
+import { useCategories, type UICategory } from "@/lib/useCategories";
 
 // Pequena barra de categorias que fica sticky no topo ao rolar a página
 
-type Props = { targetId?: string };
-export default function MiniCategoryBar({ targetId = "buy-by-category" }: Props) {
+type Props = { targetId?: string; initialItems?: UICategory[] };
+export default function MiniCategoryBar({ targetId = "buy-by-category", initialItems }: Props) {
   const [visible, setVisible] = useState(false);
-  const { items } = useCategories();
+  const { items } = useCategories(initialItems);
   const filtered = items.filter((c) => {
     const n = (c.name || '').trim().toLowerCase();
     return n !== 'diversos' && n !== 'sem categoria';

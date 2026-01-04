@@ -143,7 +143,7 @@ export async function GET(req: NextRequest) {
       bancaIds.length
         ? supabase
             .from('bancas')
-            .select('id, name, cover_image, avatar, whatsapp, lat, lng')
+            .select('id, name, cover_image, whatsapp, lat, lng')
             .in('id', bancaIds)
         : Promise.resolve({ data: [], error: null } as any),
       distribuidorIds.length
@@ -234,7 +234,7 @@ export async function GET(req: NextRequest) {
 
       const distributorName = distribData?.nome || '';
       const bancaName = bancaData?.name || distributorName || 'Banca';
-      const bancaAvatar = bancaData?.avatar || bancaData?.cover_image || null;
+      const bancaAvatar = bancaData?.cover_image || null;
       const bancaPhone = bancaData?.whatsapp || null;
 
       const bancaLat = bancaData?.lat != null ? parseFloat(bancaData.lat) : null;
@@ -308,7 +308,18 @@ export async function GET(req: NextRequest) {
       return String(a?.id || '').localeCompare(String(b?.id || ''));
     });
 
-    const finalData = sorted.slice(0, limit || 20);
+    // Remover produtos duplicados (mesmo product_id de bancas diferentes)
+    // Mantém apenas a primeira ocorrência (mais próxima ou primeira alfabeticamente)
+    const seenProductIds = new Set<string>();
+    const deduplicated = sorted.filter((p: any) => {
+      if (seenProductIds.has(p.id)) {
+        return false;
+      }
+      seenProductIds.add(p.id);
+      return true;
+    });
+
+    const finalData = deduplicated.slice(0, limit || 20);
     
     return NextResponse.json({ ok: true, success: true, data: finalData });
   } catch (e: any) {

@@ -319,7 +319,13 @@ function BancaCard({ b, km, loc, description }: { b: Banca; km: number | null; l
   );
 }
 
-export default function CategoryResultsClient({ slug, title }: { slug: string; title: string }) {
+type CategoryResultsClientProps = {
+  slug: string;
+  title: string;
+  initialCategories?: Array<{ id: string; name: string; link: string }>;
+};
+
+export default function CategoryResultsClient({ slug, title, initialCategories }: CategoryResultsClientProps) {
   const [loc, setLoc] = useState<UserLocation | null>(null);
   const [tab, setTab] = useState<"produtos" | "bancas">("produtos");
   // Filtros (aba Bancas)
@@ -349,18 +355,24 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
         console.log(`[CategoryResults] Buscando dados para categoria: ${slug}`);
         
         // 1. Buscar categoria pelo slug
-        const categoriesRes = await fetch('/api/categories');
         let categoryId = '';
-        
-        if (categoriesRes.ok) {
-          const categoriesData = await categoriesRes.json();
-          const allCategories = Array.isArray(categoriesData?.data) ? categoriesData.data : [];
-          const category = allCategories.find((cat: any) => 
-            cat.link?.includes(`/${slug}`) || 
+        let allCategories = Array.isArray(initialCategories) ? initialCategories : [];
+
+        if (allCategories.length === 0) {
+          const categoriesRes = await fetch('/api/categories');
+          if (categoriesRes.ok) {
+            const categoriesData = await categoriesRes.json();
+            allCategories = Array.isArray(categoriesData?.data) ? categoriesData.data : [];
+          }
+        }
+
+        if (allCategories.length > 0) {
+          const category = allCategories.find((cat: any) =>
+            cat.link?.includes(`/${slug}`) ||
             cat.id === slug ||
             cat.name.toLowerCase() === slug.toLowerCase()
           );
-          
+
           if (category) {
             categoryId = category.id;
             console.log(`[CategoryResults] Categoria encontrada: ${category.name} (ID: ${categoryId})`);
@@ -466,7 +478,7 @@ export default function CategoryResultsClient({ slug, title }: { slug: string; t
     };
     
     fetchData();
-  }, [slug]);
+  }, [slug, initialCategories]);
 
   const sortedProducts = useMemo(() => {
     const dataSource = products.length > 0 ? products : MOCK_PRODUCTS;

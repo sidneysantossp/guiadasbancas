@@ -512,9 +512,9 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
           }
         }
       } catch (e: any) {
-        console.error("Erro ao carregar produto:", e);
-        console.log("ProductId tentado:", productId);
-        setError(e?.message || "Erro ao carregar produto");
+        const errorMessage = e?.message || (typeof e === 'string' ? e : 'Erro desconhecido');
+        console.error("Erro ao carregar produto:", errorMessage, "ProductId:", productId);
+        setError(errorMessage || "Erro ao carregar produto");
         // Não usar fallback mock - mostrar erro real
       } finally {
         setLoading(false);

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import SafeImage from "./SafeImage";
-import { useCategories } from "@/lib/useCategories";
+import { useCategories, type UICategory } from "@/lib/useCategories";
 
 function useItemsPerView(length: number) {
   const [w, setW] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1024);
@@ -19,8 +19,12 @@ function useItemsPerView(length: number) {
   return { perView: Math.min(8, Math.max(1, length)), isMobile: false };
 }
 
-export default function CategoryCarousel() {
-  const { items } = useCategories();
+type CategoryCarouselProps = {
+  initialItems?: UICategory[];
+};
+
+export default function CategoryCarousel({ initialItems }: CategoryCarouselProps) {
+  const { items } = useCategories(initialItems);
   const filtered = items.filter((c) => {
     const n = (c.name || '').trim().toLowerCase();
     const link = (c.link || '').toLowerCase();

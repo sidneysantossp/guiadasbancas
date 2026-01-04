@@ -19,7 +19,7 @@ const nextConfig = {
     // Domínios explicitamente permitidos (compatibilidade com next/image)
     domains: ['arquivos.mercos.com'],
     formats: ['image/avif', 'image/webp'], // Formatos modernos (AVIF primeiro = 30% menor)
-    minimumCacheTTL: 31536000, // Cache de 1 ano (imagens raramente mudam)
+    minimumCacheTTL: 3600, // Cache de 1 hora (reduz stale quando a imagem muda)
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 2048], // Breakpoints otimizados
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384], // Tamanhos de thumbnails
     dangerouslyAllowSVG: true,
@@ -162,7 +162,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            value: 'public, max-age=3600, stale-while-revalidate=86400',
           },
         ],
       },

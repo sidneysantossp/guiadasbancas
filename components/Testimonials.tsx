@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useState, useEffect, useMemo } from "react";
 
 type Testimonial = {
@@ -19,7 +18,7 @@ const TESTIMONIALS: Testimonial[] = [
     id: "1",
     name: "Maria Clara",
     location: "Zona Sul, São Paulo",
-    avatar: "https://randomuser.me/api/portraits/women/44.jpg",
+    avatar: "/placeholder/user-avatar.svg",
     text: "Não sabia que as bancas de jornal estavam no digital! Achei incrível poder ver os produtos antes de ir até lá. Encomendei uma revista rara e o jornaleiro já separou pra mim.",
     rating: 5,
     timeAgo: "3 dias atrás",
@@ -28,7 +27,7 @@ const TESTIMONIALS: Testimonial[] = [
     id: "2",
     name: "Roberto Santos",
     location: "Zona Leste, São Paulo",
-    avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+    avatar: "/placeholder/user-avatar.svg",
     text: "Finalmente consegui encontrar as HQs que procurava há anos! A facilidade de poder encomendar direto com o jornaleiro e buscar perto de casa é sensacional.",
     rating: 5,
     timeAgo: "1 semana atrás",
@@ -37,7 +36,7 @@ const TESTIMONIALS: Testimonial[] = [
     id: "3",
     name: "Ana Paula Costa",
     location: "Centro, São Paulo",
-    avatar: "https://randomuser.me/api/portraits/women/68.jpg",
+    avatar: "/placeholder/user-avatar.svg",
     text: "Comprei pelo WhatsApp direto com a banca do meu bairro. O jornaleiro super atencioso, separou tudo certinho. Experiência de compra muito melhor que qualquer grande loja!",
     rating: 5,
     timeAgo: "5 dias atrás",
@@ -46,7 +45,7 @@ const TESTIMONIALS: Testimonial[] = [
     id: "4",
     name: "Carlos Eduardo",
     location: "Zona Norte, São Paulo",
-    avatar: "https://randomuser.me/api/portraits/men/75.jpg",
+    avatar: "/placeholder/user-avatar.svg",
     text: "Que descoberta! Moro longe de bancas e achava que tinha que comprar tudo online de fora. Agora encomendo da banca mais próxima e retiro no caminho do trabalho.",
     rating: 4,
     timeAgo: "2 semanas atrás",
@@ -55,7 +54,7 @@ const TESTIMONIALS: Testimonial[] = [
     id: "5",
     name: "Fernanda Lima",
     location: "Zona Oeste, São Paulo",
-    avatar: "https://randomuser.me/api/portraits/women/90.jpg",
+    avatar: "/placeholder/user-avatar.svg",
     text: "Meu filho é fã de figurinhas e sempre tinha que rodar várias bancas. Agora vejo o estoque de cada uma pelo app e já sei onde tem o que ele quer. Praticidade total!",
     rating: 5,
     timeAgo: "4 dias atrás",
@@ -64,7 +63,7 @@ const TESTIMONIALS: Testimonial[] = [
     id: "6",
     name: "João Pedro",
     location: "Pinheiros, São Paulo",
-    avatar: "https://randomuser.me/api/portraits/men/22.jpg",
+    avatar: "/placeholder/user-avatar.svg",
     text: "Colecionador de revistas antigas aqui! A plataforma me conectou com bancas que têm edições raras. Já fiz várias encomendas e todas chegaram perfeitas.",
     rating: 5,
     timeAgo: "1 semana atrás",
@@ -94,13 +93,7 @@ function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
       {/* Header com avatar e info */}
       <div className="flex items-center gap-3 mb-4">
         <div className="relative h-12 w-12 rounded-full overflow-hidden ring-2 ring-emerald-100">
-          <Image
-            src={testimonial.avatar}
-            alt={testimonial.name}
-            fill
-            sizes="48px"
-            className="object-cover"
-          />
+          <img src={testimonial.avatar} alt={testimonial.name} className="object-cover w-full h-full" />
         </div>
         <div>
           <h4 className="font-semibold text-gray-900">{testimonial.name}</h4>

@@ -15,17 +15,25 @@ type PublicCategory = {
 
 // Mobile-only rotating carousel (3 per view), square tiles, label below.
 // Rendered above the hero and below search.
-export default function MobileCategoryScroller() {
-  const [cats, setCats] = useState<PublicCategory[] | null>(null);
+type MobileCategoryScrollerProps = {
+  initialCategories?: PublicCategory[];
+};
+
+export default function MobileCategoryScroller({ initialCategories }: MobileCategoryScrollerProps) {
+  const seeded = Array.isArray(initialCategories) && initialCategories.length > 0;
+  const [cats, setCats] = useState<PublicCategory[] | null>(seeded ? initialCategories : null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [pause, setPause] = useState(false);
   const perView = 4; // show 4 items per view on mobile
 
   useEffect(() => {
+    if (seeded) {
+      return;
+    }
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch('/api/categories', { cache: 'no-store' });
+        const res = await fetch('/api/categories', { cache: 'force-cache', next: { revalidate: 300 } as any });
         if (!res.ok) throw new Error('failed');
         const j = await res.json();
         if (mounted) setCats(Array.isArray(j?.data) && j.data.length ? j.data : []);
@@ -34,7 +42,7 @@ export default function MobileCategoryScroller() {
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [seeded]);
 
   // Normalize to a unified shape
   const baseItems = useMemo(() => {

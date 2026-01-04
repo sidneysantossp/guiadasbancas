@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { categories as fallbackCategories } from "@/components/categoriesData";
 
+export const revalidate = 300;
+
 export type PublicCategory = {
   id: string;
   name: string;
@@ -11,6 +13,10 @@ export type PublicCategory = {
 };
 
 export async function GET(_request: NextRequest) {
+  const cacheHeaders = {
+    'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
+  };
+
   try {
     console.log('[API Categories] Iniciando busca...');
     
@@ -39,7 +45,10 @@ export async function GET(_request: NextRequest) {
         order: index
       }));
       
-      return NextResponse.json({ success: true, data: fallbackData, source: 'fallback-error' });
+      return NextResponse.json(
+        { success: true, data: fallbackData, source: 'fallback-error' },
+        { headers: cacheHeaders }
+      );
     }
 
     // Se não houver erro, retornar os dados (mesmo que vazio)
@@ -55,7 +64,10 @@ export async function GET(_request: NextRequest) {
         order: index
       }));
       
-      return NextResponse.json({ success: true, data: fallbackData, source: 'fallback-empty' });
+      return NextResponse.json(
+        { success: true, data: fallbackData, source: 'fallback-empty' },
+        { headers: cacheHeaders }
+      );
     }
 
     // Filtrar apenas categorias visíveis (visible = true ou null para retrocompatibilidade)
@@ -79,11 +91,17 @@ export async function GET(_request: NextRequest) {
         order: index
       }));
       
-      return NextResponse.json({ success: true, data: fallbackData, source: 'fallback-invisible' });
+      return NextResponse.json(
+        { success: true, data: fallbackData, source: 'fallback-invisible' },
+        { headers: cacheHeaders }
+      );
     }
     
     console.log(`[API Categories] Retornando ${visibleData.length} categorias do banco`);
-    return NextResponse.json({ success: true, data: visibleData, source: 'database' });
+    return NextResponse.json(
+      { success: true, data: visibleData, source: 'database' },
+      { headers: cacheHeaders }
+    );
   } catch (e) {
     console.error('[API Categories] Exception:', e);
     
@@ -96,6 +114,9 @@ export async function GET(_request: NextRequest) {
       order: index
     }));
     
-    return NextResponse.json({ success: true, data: fallbackData, source: 'fallback-exception' });
+    return NextResponse.json(
+      { success: true, data: fallbackData, source: 'fallback-exception' },
+      { headers: cacheHeaders }
+    );
   }
 }

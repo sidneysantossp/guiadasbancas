@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Route } from "next";
 
-type FooterLink = {
+export type FooterLink = {
   id: string;
   text: string;
   url: string;
@@ -12,13 +12,13 @@ type FooterLink = {
   order: number;
 };
 
-type SimpleCategory = {
+export type SimpleCategory = {
   id: string;
   name: string;
   link: string;
 };
 
-type FooterData = {
+export type FooterData = {
   title: string;
   description: string;
   socialLinks: {
@@ -73,29 +73,46 @@ function SocialIcon({ type, href }: { type: "instagram" | "facebook" | "twitter"
   );
 }
 
-export default function AppFooter() {
-  const [footerData, setFooterData] = useState<FooterData | null>(null);
-  const [loading, setLoading] = useState(true);
+type AppFooterProps = {
+  initialFooterData?: FooterData;
+  initialCategories?: SimpleCategory[];
+  initialBrandingLogo?: { url: string; alt: string } | null;
+};
+
+export default function AppFooter({
+  initialFooterData,
+  initialCategories,
+  initialBrandingLogo,
+}: AppFooterProps) {
+  const needsFooter = initialFooterData === undefined;
+  const needsCategories = initialCategories === undefined;
+  const needsBranding = initialBrandingLogo === undefined;
+  const hasInitial = !needsFooter && !needsCategories && !needsBranding;
+  const [footerData, setFooterData] = useState<FooterData | null>(initialFooterData ?? null);
+  const [loading, setLoading] = useState(needsFooter || needsCategories || needsBranding);
   const [openSection, setOpenSection] = useState<string | null>(null);
-  const [categories, setCategories] = useState<SimpleCategory[]>([]);
-  const [brandingLogo, setBrandingLogo] = useState<{ url: string; alt: string } | null>(null);
+  const [categories, setCategories] = useState<SimpleCategory[]>(initialCategories ?? []);
+  const [brandingLogo, setBrandingLogo] = useState<{ url: string; alt: string } | null>(
+    initialBrandingLogo ?? null
+  );
 
   useEffect(() => {
+    if (hasInitial) return;
     let active = true;
     (async () => {
       try {
         const [footerRes, categoriesRes, brandingRes] = await Promise.all([
-          fetch('/api/footer'),
-          fetch('/api/categories'),
-          fetch('/api/admin/branding')
+          needsFooter ? fetch('/api/footer') : null,
+          needsCategories ? fetch('/api/categories') : null,
+          needsBranding ? fetch('/api/admin/branding') : null
         ]);
 
-        if (active && footerRes.ok) {
+        if (active && needsFooter && footerRes && footerRes.ok) {
           const footerJson = await footerRes.json();
           setFooterData(footerJson);
         }
 
-        if (categoriesRes.ok) {
+        if (active && needsCategories && categoriesRes && categoriesRes.ok) {
           const catJson = await categoriesRes.json();
           const list: SimpleCategory[] = Array.isArray(catJson?.data)
             ? catJson.data.map((c: any, index: number) => ({
@@ -104,10 +121,10 @@ export default function AppFooter() {
                 link: c.link || `/categorias/${c.id || ''}`
               }))
             : [];
-          if (active) setCategories(list);
+          setCategories(list);
         }
 
-        if (brandingRes.ok) {
+        if (active && needsBranding && brandingRes && brandingRes.ok) {
           const brandingJson = await brandingRes.json();
           if (brandingJson?.success && brandingJson?.data?.logoUrl) {
             setBrandingLogo({
@@ -123,7 +140,7 @@ export default function AppFooter() {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [hasInitial, needsFooter, needsCategories, needsBranding]);
 
   // Dados padrão enquanto carrega
   const defaultData: FooterData = {

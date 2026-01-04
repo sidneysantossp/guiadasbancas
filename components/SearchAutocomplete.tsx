@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { IconBuildingStore } from "@tabler/icons-react";
 
 type SearchResult = {
@@ -42,10 +42,13 @@ export default function SearchAutocomplete({
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [allowOpen, setAllowOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{lat: number; lng: number} | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const selectedQueryRef = useRef<string | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   // Fallback: usar localização salva (CEP/modal) quando geolocalização não estiver disponível
   useEffect(() => {
@@ -83,6 +86,17 @@ export default function SearchAutocomplete({
 
   // Buscar produtos/bancas da API
   useEffect(() => {
+    let active = true;
+    if (selectedQueryRef.current && selectedQueryRef.current !== query) {
+      selectedQueryRef.current = null;
+    }
+
+    if (selectedQueryRef.current && selectedQueryRef.current === query) {
+      setIsOpen(false);
+      setLoading(false);
+      return;
+    }
+
     if (query.length < 2) {
       setResults([]);
       setIsOpen(false);
@@ -108,9 +122,11 @@ export default function SearchAutocomplete({
         const response = await fetch(url);
         const data = await response.json();
         
+        if (!active) return;
+
         if (data.success && Array.isArray(data.results)) {
           setResults(data.results);
-          setIsOpen(data.results.length > 0);
+          setIsOpen(allowOpen && data.results.length > 0);
         } else {
           setResults([]);
           setIsOpen(false);
@@ -120,14 +136,24 @@ export default function SearchAutocomplete({
         setSelectedIndex(-1);
       } catch (error) {
         console.error('Erro ao buscar:', error);
+        if (!active) return;
         setResults([]);
         setIsOpen(false);
         setLoading(false);
       }
     }, 300);
 
-    return () => clearTimeout(timeoutId);
-  }, [query, bancaId, userLocation]);
+    return () => {
+      active = false;
+      clearTimeout(timeoutId);
+    };
+  }, [query, bancaId, userLocation, allowOpen]);
+
+  useEffect(() => {
+    setIsOpen(false);
+    setSelectedIndex(-1);
+    setAllowOpen(false);
+  }, [pathname]);
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -173,9 +199,12 @@ export default function SearchAutocomplete({
   };
 
   const handleSelect = (result: SearchResult) => {
+    selectedQueryRef.current = result.name;
     onSelect(result);
+    setResults([]);
     setIsOpen(false);
     setSelectedIndex(-1);
+    setAllowOpen(false);
     
     if (result.type === 'banca') {
       // Redirecionar para a página da banca
@@ -205,9 +234,15 @@ export default function SearchAutocomplete({
         ref={inputRef}
         type="text"
         value={query}
-        onChange={(e) => onQueryChange(e.target.value)}
+        onChange={(e) => {
+          onQueryChange(e.target.value);
+          setAllowOpen(true);
+        }}
         onKeyDown={handleKeyDown}
-        onFocus={() => query.length >= 2 && results.length > 0 && setIsOpen(true)}
+        onFocus={() => {
+          setAllowOpen(true);
+          if (query.length >= 2 && results.length > 0) setIsOpen(true);
+        }}
         placeholder={placeholder}
         className={`w-full ${className}`}
         autoComplete="off"
@@ -230,6 +265,7 @@ export default function SearchAutocomplete({
                 <button
                   key={`${result.type}-${result.id}`}
                   onClick={() => handleSelect(result)}
+                  type="button"
                   className={`w-full p-3 flex items-center gap-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 text-left transition-colors ${
                     selectedIndex === index ? 'bg-orange-50 border-orange-200' : ''
                   }`}
@@ -292,7 +328,11 @@ export default function SearchAutocomplete({
               <Link
                 href={`/buscar?q=${encodeURIComponent(query)}`}
                 className="block p-3 text-center text-[#ff5c00] hover:bg-orange-50 border-t border-gray-200 font-medium"
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  setIsOpen(false);
+                  setSelectedIndex(-1);
+                  setAllowOpen(false);
+                }}
               >
                 Ver todos os resultados para "{query}"
               </Link>
