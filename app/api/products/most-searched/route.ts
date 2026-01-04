@@ -153,18 +153,20 @@ export async function GET(req: NextRequest) {
       b.lat != null && b.lng != null
     );
 
-    // Calcular distância das bancas cotistas ao usuário
-    let nearestCotistaBanca: any = null;
+    // Calcular distância de TODAS as bancas cotistas ao usuário e ordenar por proximidade
+    let sortedCotistaBancas: any[] = [];
     if (userLat && userLng && cotistaBancas.length > 0) {
-      let minDist = Infinity;
-      for (const b of cotistaBancas) {
-        const dist = calculateDistance(userLat, userLng, parseFloat(b.lat), parseFloat(b.lng));
-        if (dist < minDist) {
-          minDist = dist;
-          nearestCotistaBanca = { ...b, distance: dist };
-        }
-      }
+      sortedCotistaBancas = cotistaBancas.map((b: any) => ({
+        ...b,
+        distance: calculateDistance(userLat, userLng, parseFloat(b.lat), parseFloat(b.lng))
+      })).sort((a: any, b: any) => a.distance - b.distance);
+    } else if (cotistaBancas.length > 0) {
+      // Sem localização do usuário, usar ordem aleatória
+      sortedCotistaBancas = cotistaBancas.map((b: any) => ({ ...b, distance: null }));
     }
+    
+    // Índice para distribuir produtos entre bancas de forma rotativa
+    let bancaRotationIndex = 0;
 
     const [bancasRes, distribRes] = await Promise.all([
       bancaIds.length
@@ -261,9 +263,11 @@ export async function GET(req: NextRequest) {
     const data = (items || []).map((p: any) => {
       let bancaData = p?.banca_id ? bancaMap.get(p.banca_id) : null;
       
-      // Para produtos de distribuidor sem banca_id, usar a banca cotista mais próxima
-      if (!bancaData && p.distribuidor_id && nearestCotistaBanca) {
-        bancaData = nearestCotistaBanca;
+      // Para produtos de distribuidor sem banca_id, distribuir entre bancas cotistas de forma rotativa
+      if (!bancaData && p.distribuidor_id && sortedCotistaBancas.length > 0) {
+        // Usar rotação para variar as bancas exibidas
+        bancaData = sortedCotistaBancas[bancaRotationIndex % sortedCotistaBancas.length];
+        bancaRotationIndex++;
       }
       
       // Permitir produtos sem banca (produtos de distribuidor) ou de bancas ativas
@@ -329,28 +333,39 @@ export async function GET(req: NextRequest) {
       };
     }).filter(Boolean);
 
-    // Ordenar:
-    // - PRIORIDADE 1: por distância (bancas mais próximas primeiro)
-    // - PRIORIDADE 2: por nome (alfabético) para desempate
-    const sorted = data.slice().sort((a: any, b: any) => {
-      // Primeiro: ordenar por distância (mais próximo primeiro)
-      const ad = typeof a.distance === 'number' ? a.distance : Number.POSITIVE_INFINITY;
-      const bd = typeof b.distance === 'number' ? b.distance : Number.POSITIVE_INFINITY;
-      if (ad !== bd) return ad - bd;
+    // Agrupar produtos por banca para intercalar
+    const productsByBanca = new Map<string, any[]>();
+    for (const p of data) {
+      const bancaId = p.banca?.id || 'sem-banca';
+      if (!productsByBanca.has(bancaId)) {
+        productsByBanca.set(bancaId, []);
+      }
+      productsByBanca.get(bancaId)!.push(p);
+    }
 
-      // Segundo: ordenar por nome para desempate
-      const nameA = String(a?.name || '');
-      const nameB = String(b?.name || '');
-      const nameCmp = nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
-      if (nameCmp !== 0) return nameCmp;
+    // Ordenar bancas por distância média dos produtos
+    const bancaGroups = Array.from(productsByBanca.entries()).map(([bancaId, products]) => {
+      const avgDistance = products.reduce((sum, p) => {
+        const d = typeof p.distance === 'number' ? p.distance : 1000;
+        return sum + d;
+      }, 0) / products.length;
+      return { bancaId, products, avgDistance };
+    }).sort((a, b) => a.avgDistance - b.avgDistance);
 
-      return String(a?.id || '').localeCompare(String(b?.id || ''));
-    });
+    // Intercalar produtos de diferentes bancas (round-robin)
+    const interleaved: any[] = [];
+    const maxProducts = Math.max(...bancaGroups.map(g => g.products.length));
+    for (let i = 0; i < maxProducts; i++) {
+      for (const group of bancaGroups) {
+        if (i < group.products.length) {
+          interleaved.push(group.products[i]);
+        }
+      }
+    }
 
-    // Remover produtos duplicados (mesmo product_id de bancas diferentes)
-    // Mantém apenas a primeira ocorrência (mais próxima ou primeira alfabeticamente)
+    // Remover produtos duplicados (mesmo product_id)
     const seenProductIds = new Set<string>();
-    const deduplicated = sorted.filter((p: any) => {
+    const deduplicated = interleaved.filter((p: any) => {
       if (seenProductIds.has(p.id)) {
         return false;
       }
