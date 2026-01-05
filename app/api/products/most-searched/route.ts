@@ -336,6 +336,7 @@ export async function GET(req: NextRequest) {
     // Agrupar produtos por banca para intercalar
     const productsByBanca = new Map<string, any[]>();
     for (const p of data) {
+      if (!p) continue;
       const bancaId = p.banca?.id || 'sem-banca';
       if (!productsByBanca.has(bancaId)) {
         productsByBanca.set(bancaId, []);
