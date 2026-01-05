@@ -4,10 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/CartContext";
 import { usePhoneFormatter, useCEPFormatter, useEmailValidator, usePasswordValidator } from "@/lib/hooks";
-import AddressSection from "./AddressSection";
-import ShippingSection from "./ShippingSection";
-import PaymentSection from "./PaymentSection";
-import OrderSummary from "./OrderSummary";
 
 export default function CheckoutForm() {
   const router = useRouter();
@@ -160,37 +156,151 @@ export default function CheckoutForm() {
         )}
       </div>
 
-      {/* Seções modulares */}
-      <AddressSection
-        street={street}
-        setStreet={setStreet}
-        houseNumber={houseNumber}
-        setHouseNumber={setHouseNumber}
-        neighborhood={neighborhood}
-        setNeighborhood={setNeighborhood}
-        city={city}
-        setCity={setCity}
-        uf={uf}
-        setUf={setUf}
-        complement={complement}
-        setComplement={setComplement}
-        destCEP={destCEP}
-        setDestCEP={setDestCEP}
-        shipping={shipping}
-      />
+      {/* Endereço de entrega */}
+      {shipping !== "retirada" && (
+        <div>
+          <h2 className="text-base font-semibold">Endereço de entrega</h2>
+          <div className="mt-3 space-y-3">
+            <input
+              type="text"
+              placeholder="CEP"
+              value={destCEP}
+              onChange={(e) => setDestCEP(formatCEP(e.target.value))}
+              className="w-full input"
+            />
+            <input
+              type="text"
+              placeholder="Rua"
+              value={street}
+              onChange={(e) => setStreet(e.target.value)}
+              className="w-full input"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="text"
+                placeholder="Número"
+                value={houseNumber}
+                onChange={(e) => setHouseNumber(e.target.value)}
+                className="input"
+              />
+              <input
+                type="text"
+                placeholder="Complemento"
+                value={complement}
+                onChange={(e) => setComplement(e.target.value)}
+                className="input"
+              />
+            </div>
+            <input
+              type="text"
+              placeholder="Bairro"
+              value={neighborhood}
+              onChange={(e) => setNeighborhood(e.target.value)}
+              className="w-full input"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="text"
+                placeholder="Cidade"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className="input"
+              />
+              <input
+                type="text"
+                placeholder="UF"
+                value={uf}
+                onChange={(e) => setUf(e.target.value.toUpperCase())}
+                className="input"
+                maxLength={2}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
-      <ShippingSection
-        shipping={shipping}
-        setShipping={setShipping}
-        destCEP={destCEP}
-      />
+      {/* Método de entrega */}
+      <div>
+        <h2 className="text-base font-semibold">Método de entrega</h2>
+        <div className="mt-3 space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="shipping"
+              value="retirada"
+              checked={shipping === "retirada"}
+              onChange={(e) => setShipping(e.target.value as any)}
+            />
+            <span>Retirada na banca</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="shipping"
+              value="SEDEX"
+              checked={shipping === "SEDEX"}
+              onChange={(e) => setShipping(e.target.value as any)}
+            />
+            <span>SEDEX</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="shipping"
+              value="MOTOBOY"
+              checked={shipping === "MOTOBOY"}
+              onChange={(e) => setShipping(e.target.value as any)}
+            />
+            <span>Motoboy</span>
+          </label>
+        </div>
+      </div>
 
-      <PaymentSection
-        payment={payment}
-        setPayment={setPayment}
-        paymentChange={paymentChange}
-        setPaymentChange={setPaymentChange}
-      />
+      {/* Forma de pagamento */}
+      <div>
+        <h2 className="text-base font-semibold">Forma de pagamento</h2>
+        <div className="mt-3 space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="payment"
+              value="pix"
+              checked={payment === "pix"}
+              onChange={(e) => setPayment(e.target.value)}
+            />
+            <span>PIX</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="payment"
+              value="card"
+              checked={payment === "card"}
+              onChange={(e) => setPayment(e.target.value)}
+            />
+            <span>Cartão</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="payment"
+              value="cash"
+              checked={payment === "cash"}
+              onChange={(e) => setPayment(e.target.value)}
+            />
+            <span>Dinheiro</span>
+          </label>
+          {payment === "cash" && (
+            <input
+              type="text"
+              placeholder="Troco para quanto?"
+              value={paymentChange}
+              onChange={(e) => setPaymentChange(e.target.value)}
+              className="w-full input mt-2"
+            />
+          )}
+        </div>
+      </div>
 
       {/* Revisar pedido */}
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
