@@ -115,7 +115,7 @@ interface SellerSession {
   [key: string]: any;
 }
 
-export default function JornaleiroLayoutContent({ children }: { children: React.ReactNode }) {
+export default function JornaleiroLayoutClient({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
