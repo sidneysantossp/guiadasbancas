@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { getAllPosts, BlogPost } from "@/app/blog/posts";
+import { getAllPosts, BlogPost } from "@/app/(site)/blog/posts";
 import MarkdownEditor from "@/components/admin/MarkdownEditor";
 
 export default function EditBlogPostPage() {

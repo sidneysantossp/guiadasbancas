@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { getAllPosts, BlogPost } from "@/app/blog/posts";
+import { getAllPosts, BlogPost } from "@/app/(site)/blog/posts";
 
 interface BlogStats {
   totalPosts: number;

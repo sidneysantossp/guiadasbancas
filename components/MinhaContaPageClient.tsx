@@ -137,8 +137,7 @@ function MinhaContaPageContent() {
         ];
         setCoupons(seed as any);
         localStorage.setItem('gb:coupons', JSON.stringify(seed));
-        }
-      } catch {}
+      }
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session, searchParams]);
@@ -520,18 +519,10 @@ function MinhaContaPageContent() {
                                 setProfileErr(null); setProfileMsg(null);
                                 const cpfDigits = (profileCPF || '').replace(/\D+/g,'');
                                 if (cpfDigits && !isValidCPF(cpfDigits)) { setProfileErr('CPF inválido'); return; }
-                                try {
-                                  // IMPORTANTE: Usar nome real, não parte do email
-                                  const newUser = { name: profileName.trim() || 'Cliente', email: profileEmail };
-                                  localStorage.setItem('gb:user', JSON.stringify(newUser));
-                                  setUser(newUser);
-                                } catch {}
+                                // TODO: Implementar API para atualizar perfil no banco de dados
+                                // Por enquanto, salvar localmente para dados extras (phone, cpf, avatar)
                                 try {
                                   localStorage.setItem('gb:userProfile', JSON.stringify({ phone: profilePhone, cpf: cpfDigits, avatar: profileAvatar }));
-                                } catch {}
-                                // Disparar evento para atualizar Navbar e outros componentes
-                                try {
-                                  window.dispatchEvent(new CustomEvent('gb:user:changed'));
                                 } catch {}
                                 setProfileMsg('Perfil salvo com sucesso');
                                 setEditMode(false);

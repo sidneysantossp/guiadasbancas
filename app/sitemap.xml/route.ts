@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllPosts } from '../blog/posts';
+import { getAllPosts } from '../(site)/blog/posts';
 
 export async function GET() {
   const baseUrl = 'https://www.guiadasbancas.com.br';

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { BlogPost, AUTHOR } from "@/app/blog/posts";
+import { BlogPost, AUTHOR } from "@/app/(site)/blog/posts";
 import MarkdownEditor from "@/components/admin/MarkdownEditor";
 
 const generateSlug = (title: string): string => {
