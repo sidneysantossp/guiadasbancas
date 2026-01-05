@@ -79,17 +79,21 @@ export class ProductService {
       throw new Error(`Erro na busca de produtos: ${error.message}`);
     }
 
-    return (data || []).map(product => ({
-      id: product.id,
-      name: product.name,
-      price: product.price || 0,
-      images: product.images || [],
-      category_id: product.category_id,
-      category_name: product.categories?.name,
-      banca_id: product.banca_id,
-      banca_name: product.bancas?.name,
-      active: product.active ?? true,
-    }));
+    return (data || []).map(product => {
+      const category = Array.isArray(product.categories) ? product.categories[0] : product.categories;
+      const banca = Array.isArray(product.bancas) ? product.bancas[0] : product.bancas;
+      return {
+        id: product.id,
+        name: product.name,
+        price: product.price || 0,
+        images: product.images || [],
+        category_id: product.category_id,
+        category_name: category?.name,
+        banca_id: product.banca_id,
+        banca_name: banca?.name,
+        active: product.active ?? true,
+      };
+    });
   }
 
   /**
