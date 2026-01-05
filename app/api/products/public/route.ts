@@ -19,8 +19,10 @@ export async function GET(req: NextRequest) {
     const order = searchParams.get("order") || "asc"; // Mudado de desc para asc
 
     // Query otimizada - apenas produtos ativos
-    // IMPORTANTE: Produtos de distribuidor (distribuidor_id != null) NÃO devem aparecer na listagem pública
-    // Eles só aparecem no perfil de bancas COTISTAS
+    // Se buscar por categoria específica, incluir produtos de distribuidores também
+    // Isso permite que seções como Bomboniere e Bebidas funcionem na home
+    const includeDistribuidor = !!category; // Incluir distribuidores apenas quando filtrar por categoria
+    
     let query = supabaseAdmin
       .from('products')
       .select(`
@@ -41,8 +43,12 @@ export async function GET(req: NextRequest) {
         sob_encomenda,
         pre_venda
       `)
-      .eq('active', true)
-      .is('distribuidor_id', null); // Excluir produtos de distribuidor da listagem pública
+      .eq('active', true);
+    
+    // Se não for busca por categoria, excluir produtos de distribuidor
+    if (!includeDistribuidor) {
+      query = query.is('distribuidor_id', null);
+    }
 
     // Filtro de categoria
     if (category) {
@@ -80,8 +86,17 @@ export async function GET(req: NextRequest) {
       (bancas || []).forEach((b: any) => bancaMap.set(b.id, b));
     }
 
+    // Se buscando por categoria, incluir produtos de distribuidores (eles serão associados a cotistas no frontend)
+    // Caso contrário, filtrar apenas produtos de bancas cotistas
     const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
-    const filteredProducts = (products || []).filter((p: any) => isActiveCotistaBanca(bancaMap.get(p.banca_id)));
+    const filteredProducts = (products || []).filter((p: any) => {
+      // Produtos de distribuidor são permitidos quando buscando por categoria
+      if (p.distribuidor_id && includeDistribuidor) {
+        return true;
+      }
+      // Produtos normais precisam ser de banca cotista
+      return isActiveCotistaBanca(bancaMap.get(p.banca_id));
+    });
 
     // Formatar produtos para o formato esperado
     const items = filteredProducts.map((p: any) => ({
