@@ -133,8 +133,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   pages: {
-    signIn: "/jornaleiro",
-    error: "/jornaleiro", // Redireciona erros para a página de login
+    signIn: "/entrar", // Página de login unificada
+    error: "/entrar", // Redireciona erros para a página de login
   },
   session: {
     strategy: "jwt",

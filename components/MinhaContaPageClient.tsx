@@ -5,11 +5,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import type { Route } from "next";
+import { useSession, signOut as nextAuthSignOut } from "next-auth/react";
 
 function MinhaContaPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const { data: session, status } = useSession();
+  
+  // Usuário vem da sessão NextAuth
+  const user = session?.user ? { 
+    name: session.user.name || '', 
+    email: session.user.email || '' 
+  } : null;
   const [lastOrder, setLastOrder] = useState<any | null>(null);
   const [activeMenu, setActiveMenu] = useState<
     | "perfil"
@@ -55,7 +62,27 @@ function MinhaContaPageContent() {
     } catch {}
   };
 
+  // Redirecionar se não está autenticado
   useEffect(() => {
+    if (status === 'loading') return; // Aguardar carregamento
+    
+    if (status === 'unauthenticated') {
+      const fromCheckout = searchParams?.get('checkout') === 'true';
+      const redirectParam = searchParams?.get('redirect');
+      let entrarUrl = '/entrar';
+      if (redirectParam) {
+        entrarUrl += `?redirect=${encodeURIComponent(redirectParam)}`;
+      } else if (fromCheckout) {
+        entrarUrl += '?checkout=true';
+      }
+      router.replace(entrarUrl);
+    }
+  }, [status, router, searchParams]);
+
+  // Carregar dados do usuário quando autenticado
+  useEffect(() => {
+    if (status !== 'authenticated' || !session?.user) return;
+    
     // Verificar se vem do checkout
     const fromCheckout = searchParams?.get('checkout') === 'true';
     
@@ -67,97 +94,76 @@ function MinhaContaPageContent() {
       }
     } catch {}
 
+    // Configurar dados do perfil a partir da sessão
+    setProfileName(session.user.name || '');
+    setProfileEmail(session.user.email || '');
+    
+    // Avatar da sessão
+    const avatarUrl = (session.user as any)?.avatar_url;
+    if (avatarUrl) setProfileAvatar(avatarUrl);
+    
+    // Data de criação (se disponível)
+    // TODO: Buscar do banco de dados via API
+    
+    // Menu ativo
     try {
-      const raw = localStorage.getItem("gb:user");
-      if (raw) {
-        setUser(JSON.parse(raw));
-      } else {
-        // Não está logado - redirecionar para /entrar
-        const redirectParam = searchParams?.get('redirect');
-        let entrarUrl = '/entrar';
-        if (redirectParam) {
-          entrarUrl += `?redirect=${encodeURIComponent(redirectParam)}`;
-        } else if (fromCheckout) {
-          entrarUrl += '?checkout=true';
-        }
-        router.replace(entrarUrl);
-        return;
-      }
-      const rawOrder = localStorage.getItem("gb:lastOrder");
-      if (rawOrder) setLastOrder(JSON.parse(rawOrder));
-      const created = localStorage.getItem("gb:userCreatedAt");
-      if (created) setUserCreatedAt(created);
-      const rawOrders = localStorage.getItem("gb:orders");
-      if (rawOrders) setOrders(Array.isArray(JSON.parse(rawOrders)) ? JSON.parse(rawOrders) : []);
       const wantMenu = localStorage.getItem("gb:dashboardActiveMenu");
       if (wantMenu) {
         setActiveMenu(wantMenu as any);
         localStorage.removeItem("gb:dashboardActiveMenu");
       } else if (fromCheckout) {
-        // Se vem do checkout (após compra), ir para pedidos
         setActiveMenu("pedidos");
       }
-      // Caso contrário, mantém o padrão "perfil"
-      // Carregar perfil
-      const profileRaw = localStorage.getItem('gb:userProfile');
-      let phoneFromCheckout = '';
-      try {
-        const chk = localStorage.getItem('gb:checkout:profile');
-        if (chk) phoneFromCheckout = (JSON.parse(chk) as any)?.phone || '';
-      } catch {}
-      if (profileRaw) {
-        const p = JSON.parse(profileRaw) as any;
-        setProfilePhone(p.phone || phoneFromCheckout || "");
-        setProfileCPF(p.cpf || "");
-        if (p.avatar) setProfileAvatar(p.avatar as string);
-      } else {
-        setProfilePhone(phoneFromCheckout || "");
-      }
-      if (raw) {
-        const u = JSON.parse(raw) as any;
-        setProfileName(u?.name || "");
-        setProfileEmail(u?.email || "");
-      }
-      // Endereços e wishlist
-      try {
-        const addrs = JSON.parse(localStorage.getItem('gb:addresses') || '[]');
-        if (Array.isArray(addrs)) setAddresses(addrs);
-      } catch {}
-      try {
-        const wl = JSON.parse(localStorage.getItem('gb:wishlist') || '[]');
-        if (Array.isArray(wl)) {
-          setWishlistItems(wl);
-          setWishlistCount(wl.length);
-        } else {
-          setWishlistItems([]);
-          setWishlistCount(0);
-        }
-      } catch {}
+    } catch {}
 
-      // Cupons
-      try {
-        const rawCoupons = localStorage.getItem('gb:coupons');
-        if (rawCoupons) {
-          const list = JSON.parse(rawCoupons);
-          if (Array.isArray(list)) setCoupons(list);
-        } else {
-          const seed = [
-            { id: 'c10', code: 'OFF10', label: '10% OFF', type: 'percent', value: 10, min: 50, start: '2023-02-07', end: '2025-12-01' },
-            { id: 'c20', code: 'OFF20', label: '20% OFF', type: 'percent', value: 20, min: 300, start: '2023-02-07', end: '2025-12-01' },
-            { id: 'cfd', code: 'FRETEGRATIS', label: 'Frete Grátis', type: 'free_shipping', value: 0, min: 150, start: '2023-02-07', end: '2025-12-01' },
-          ];
-          setCoupons(seed as any);
-          localStorage.setItem('gb:coupons', JSON.stringify(seed));
+    // TODO: Carregar pedidos, endereços e favoritos do banco de dados via API
+    // Por enquanto, inicializar vazio
+    setOrders([]);
+    setAddresses([]);
+    setWishlistItems([]);
+    setWishlistCount(0);
+    
+    // Cupons (temporariamente mantidos localmente)
+    try {
+      const rawCoupons = localStorage.getItem('gb:coupons');
+      if (rawCoupons) {
+        const list = JSON.parse(rawCoupons);
+        if (Array.isArray(list)) setCoupons(list);
+      } else {
+        const seed = [
+          { id: 'c10', code: 'OFF10', label: '10% OFF', type: 'percent', value: 10, min: 50, start: '2023-02-07', end: '2025-12-01' },
+          { id: 'c20', code: 'OFF20', label: '20% OFF', type: 'percent', value: 20, min: 300, start: '2023-02-07', end: '2025-12-01' },
+          { id: 'cfd', code: 'FRETEGRATIS', label: 'Frete Grátis', type: 'free_shipping', value: 0, min: 150, start: '2023-02-07', end: '2025-12-01' },
+        ];
+        setCoupons(seed as any);
+        localStorage.setItem('gb:coupons', JSON.stringify(seed));
         }
       } catch {}
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [status, session, searchParams]);
 
-  function logout() {
-    try { localStorage.removeItem("gb:user"); } catch {}
-    try { window.dispatchEvent(new Event('gb:user:changed')); } catch {}
-    setUser(null);
+  async function logout() {
+    try { sessionStorage.clear(); } catch {}
+    // Limpar dados residuais do localStorage
+    try {
+      localStorage.removeItem("gb:user");
+      localStorage.removeItem("gb:userProfile");
+      localStorage.removeItem("gb:userCreatedAt");
+    } catch {}
+    await nextAuthSignOut({ callbackUrl: "/" });
+  }
+
+  // Loading state
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Carregando...</p>
+        </div>
+      </div>
+    );
   }
 
   if (user) {

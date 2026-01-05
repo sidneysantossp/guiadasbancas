@@ -220,48 +220,39 @@ export default function Navbar({ initialBranding }: NavbarProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   
-  // IMPORTANTE: Usar useSession do NextAuth como fonte primária de autenticação
+  // IMPORTANTE: Usar APENAS useSession do NextAuth como fonte de autenticação
+  // Migração: localStorage não é mais usado para autenticação
   const { data: session, status: sessionStatus } = useSession();
-  const [localUser, setLocalUser] = useState<{ name: string; email: string } | null>(null);
   
-  // Carregar usuário do localStorage (usuário comum)
-  // NÃO limpar automaticamente - deixar coexistir com sessão NextAuth se necessário
+  // Limpar dados antigos de localStorage na inicialização (migração)
   useEffect(() => {
     if (!mounted) return;
-    
-    // Carregar usuário comum do localStorage
     try {
-      const localUserData = localStorage.getItem("gb:user");
-      if (localUserData) {
-        setLocalUser(JSON.parse(localUserData));
+      // Limpar dados de autenticação antiga baseada em localStorage
+      if (localStorage.getItem("gb:user")) {
+        console.log('[Auth] Limpando dados de autenticação antiga do localStorage');
+        localStorage.removeItem("gb:user");
+        localStorage.removeItem("gb:userProfile");
+        localStorage.removeItem("gb:userCreatedAt");
       }
     } catch (e) {
-      console.error('[Auth] Erro ao carregar usuário do localStorage:', e);
+      console.error('[Auth] Erro ao limpar localStorage:', e);
     }
   }, [mounted]);
   
-  // Determinar qual sessão está ativa
-  // Para páginas públicas: prioridade localStorage > NextAuth
-  // Isso permite que usuários comuns usem o site mesmo se houver sessão NextAuth residual
+  // Usuário vem exclusivamente do NextAuth
   const user = useMemo(() => {
     if (!mounted) return null; // Antes de montar, sempre null (consistente servidor/cliente)
     
-    // Se tem usuário no localStorage, usar esse (usuário comum)
-    if (localUser) {
-      return localUser;
-    }
-    
-    // Se não tem localStorage, verificar NextAuth (jornaleiro/admin)
     if (session?.user) {
       return { name: session.user.name || '', email: session.user.email || '' };
     }
     
     return null;
-  }, [session, localUser, mounted]);
+  }, [session, mounted]);
   
-  // Determinar se é sessão de jornaleiro/admin (NextAuth) ou usuário comum (localStorage)
-  const isNextAuthSession = Boolean(session?.user && !localUser);
-  const isLocalUserSession = Boolean(localUser);
+  // Todas as sessões agora são NextAuth
+  const isNextAuthSession = Boolean(session?.user);
   
   const [profileAvatar, setProfileAvatar] = useState<string>("");
   const [profilePhone, setProfilePhone] = useState<string>("");
@@ -386,69 +377,29 @@ export default function Navbar({ initialBranding }: NavbarProps) {
     };
   }, []);
 
-  // Carrega usuário do localStorage e mantém em sincronia
+  // Carregar avatar do perfil do usuário (se disponível na sessão)
   useEffect(() => {
-    const readUserFromStorage = () => {
-      try {
-        const raw = localStorage.getItem("gb:user");
-        setLocalUser(raw ? JSON.parse(raw) : null);
-      } catch { setLocalUser(null); }
-      try {
-        const pr = localStorage.getItem('gb:userProfile');
-        if (pr) {
-          const p = JSON.parse(pr);
-          setProfileAvatar(p?.avatar || "");
-          setProfilePhone(p?.phone || "");
-        } else {
-          setProfileAvatar("");
-          setProfilePhone("");
-        }
-      } catch { setProfileAvatar(""); setProfilePhone(""); }
-    };
-
-    // Inicial
-    readUserFromStorage();
-
-    // Eventos de atualização
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "gb:user" || e.key === 'gb:userProfile') readUserFromStorage();
-    };
-    const onCustom = () => readUserFromStorage();
-
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("gb:user:changed" as any, onCustom as any);
-
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("gb:user:changed" as any, onCustom as any);
-    };
-  }, []);
-
-  // Refresca usuário quando a rota muda (ex.: após login redireciona)
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("gb:user");
-      setLocalUser(raw ? JSON.parse(raw) : null);
-      const pr = localStorage.getItem('gb:userProfile');
-      if (pr) {
-        const p = JSON.parse(pr);
-        setProfileAvatar(p?.avatar || "");
-        setProfilePhone(p?.phone || "");
+    if (session?.user) {
+      const avatarUrl = (session.user as any)?.avatar_url;
+      if (avatarUrl) {
+        setProfileAvatar(avatarUrl);
       }
-    } catch {}
-  }, [pathname]);
+    } else {
+      setProfileAvatar("");
+      setProfilePhone("");
+    }
+  }, [session]);
 
   const logout = async () => {
-    try { localStorage.removeItem("gb:user"); } catch {}
-    try { localStorage.removeItem("gb:userProfile"); } catch {}
     try { sessionStorage.clear(); } catch {}
-    setLocalUser(null);
-    // Se tem sessão NextAuth, fazer signOut
-    if (session) {
-      await nextAuthSignOut({ callbackUrl: "/" });
-    } else if (pathname.startsWith("/minha-conta")) {
-      router.push("/");
-    }
+    // Limpar quaisquer dados residuais do localStorage
+    try {
+      localStorage.removeItem("gb:user");
+      localStorage.removeItem("gb:userProfile");
+      localStorage.removeItem("gb:userCreatedAt");
+    } catch {}
+    // Fazer signOut do NextAuth
+    await nextAuthSignOut({ callbackUrl: "/" });
   };
 
   // Fecha dropdown do carrinho ao clicar/tocar fora
