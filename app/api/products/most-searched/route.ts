@@ -321,6 +321,7 @@ export async function GET(req: NextRequest) {
         pre_venda: false,
         pronta_entrega: true,
         discount_percent: p.discount_percent,
+        codigo_mercos: p.codigo_mercos || null,
         distance,
         banca: {
           id: bancaData?.id || p.banca_id || null,
