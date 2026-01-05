@@ -31,6 +31,7 @@ export type Product = {
   bancaId?: string;
   bancaName?: string;
   phone?: string;
+  codigoMercos?: string;
 };
 
 type ApiProduct = {
@@ -203,6 +204,9 @@ function FeaturedCard({ p }: { p: Product }) {
             )}
           </div>
           <div className="text-base md:text-xl font-semibold leading-snug break-words">{p.name}</div>
+          {p.codigoMercos && (
+            <div className="text-[11px] text-gray-500 font-mono mt-0.5">Cód: {p.codigoMercos}</div>
+          )}
           <div className="mt-1">
             <Stars value={p.ratingAvg} count={p.reviewsCount} size="md" />
           </div>
@@ -331,6 +335,9 @@ function SmallCard({ p }: { p: Product }) {
           )}
         </div>
         <Link href={(`/produto/${slugify(p.name)}-${p.id}${p.bancaId ? `?banca=${p.bancaId}` : ''}`) as Route} className="mt-2 text-[13px] font-semibold hover:underline">{p.name}</Link>
+        {p.codigoMercos && (
+          <div className="text-[10px] text-gray-500 font-mono mt-0.5">Cód: {p.codigoMercos}</div>
+        )}
         <div className="mt-1 flex items-center gap-2">
           <Stars value={p.ratingAvg} count={p.reviewsCount} size="sm" />
         </div>
@@ -471,6 +478,7 @@ export default function MostSearchedProducts() {
             bancaId: p.banca_id || bancaData.id,
             bancaName: resolvedBancaName,
             phone: bancaData.phone || undefined,
+            codigoMercos: p.codigo_mercos || undefined,
           };
         });
         

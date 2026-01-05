@@ -16,6 +16,7 @@ export type TrendProduct = {
   discountPercent?: number | null;
   ratingAvg?: number | null;
   reviewsCount?: number | null;
+  codigoMercos?: string;
 };
 
 type ApiProduct = {
@@ -27,6 +28,7 @@ type ApiProduct = {
   discount_percent?: number | null;
   rating_avg?: number | null;
   reviews_count?: number | null;
+  codigo_mercos?: string;
 };
 
 function FireIcon() {
@@ -109,6 +111,9 @@ function TrendCard({ p }: { p: TrendProduct }) {
         <Link href={href} className="mt-1 text-[13px] font-semibold hover:underline line-clamp-2 min-h-[2.5rem]">
           {p.name}
         </Link>
+        {p.codigoMercos && (
+          <div className="text-[10px] text-gray-500 font-mono mt-0.5">Cód: {p.codigoMercos}</div>
+        )}
         <div className="mt-1 flex items-center gap-2 text-[#f59e0b]">
           {(() => {
             const v = Math.max(0, Math.min(5, Number(p.ratingAvg ?? 0)));
@@ -242,6 +247,7 @@ export default function TrendingProducts() {
               discountPercent: p.discount_percent != null ? Number(p.discount_percent) : null,
               ratingAvg: p.rating_avg ?? null,
               reviewsCount: p.reviews_count ?? null,
+              codigoMercos: p.codigo_mercos || undefined,
             } as TrendProduct;
           });
 
