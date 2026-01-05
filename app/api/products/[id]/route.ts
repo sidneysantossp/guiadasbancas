@@ -44,7 +44,7 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       if (bancaIdFromQuery) {
         const { data: bancaQuery } = await supabaseAdmin
           .from('bancas')
-          .select('id, name, is_cotista')
+          .select('id, name, is_cotista, cotista_id')
           .eq('id', bancaIdFromQuery)
           .single();
         
