@@ -57,7 +57,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     
     try {
       localStorage.setItem("gb:cart", JSON.stringify(items));
-      // console.log('Carrinho salvo no localStorage:', items);
+      // Atualizar timestamp do carrinho para controle de expiração
+      if (items.length > 0) {
+        localStorage.setItem("gb:cartUpdatedAt", new Date().toISOString());
+      }
     } catch (error) {
       // console.error('Erro ao salvar carrinho no localStorage:', error);
     }
