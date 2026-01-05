@@ -43,21 +43,31 @@ function JornaleiroAdminLinks({ onClose }: { onClose: () => void }) {
   // Se não tem perfil ou é cliente, não mostra nada
   if (!profile || profile.role === 'cliente') return null;
 
-  // Apenas admin tem link no dropdown (jornaleiro acessa via /jornaleiro)
-  if (profile.role !== 'admin') return null;
-
   return (
     <>
       <div className="h-px bg-gray-100 my-1" />
-      <button 
-        className="w-full text-left px-3 py-2 text-blue-600 hover:bg-blue-50 font-medium" 
-        onClick={() => { 
-          router.push('/admin/dashboard'); 
-          onClose(); 
-        }}
-      >
-        ⚙️ Painel Admin
-      </button>
+      {profile.role === 'jornaleiro' && (
+        <button 
+          className="w-full text-left px-3 py-2 text-[#ff5c00] hover:bg-orange-50 font-medium" 
+          onClick={() => { 
+            router.push('/jornaleiro/dashboard'); 
+            onClose(); 
+          }}
+        >
+          🏪 Painel do Jornaleiro
+        </button>
+      )}
+      {profile.role === 'admin' && (
+        <button 
+          className="w-full text-left px-3 py-2 text-blue-600 hover:bg-blue-50 font-medium" 
+          onClick={() => { 
+            router.push('/admin/dashboard'); 
+            onClose(); 
+          }}
+        >
+          ⚙️ Painel Admin
+        </button>
+      )}
     </>
   );
 }
@@ -671,6 +681,46 @@ useEffect(() => {
                   </button>
                 )}
 
+                <div
+                  ref={cartRef}
+                  className="relative inline-flex items-center"
+                  onMouseEnter={() => {
+                    if (hoverCloseTimer.current) { clearTimeout(hoverCloseTimer.current as any); hoverCloseTimer.current = null; }
+                    setCartOpen(true);
+                  }}
+                  onMouseLeave={() => {
+                    if (hoverCloseTimer.current) { clearTimeout(hoverCloseTimer.current as any); }
+                    hoverCloseTimer.current = window.setTimeout(() => { setCartOpen(false); }, 280);
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                        setCartSheetOpen(true);
+                      } else {
+                        setCartOpen((v) => !v);
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 text-gray-700 hover:text-[#ff5c00] transition-colors"
+                  >
+                    <span className="relative inline-flex">
+                      <IconShoppingBag size={20} stroke={1.5} className="text-gray-600" />
+                      {cartCount > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-[#ff5c00] text-[10px] font-semibold leading-[16px] text-center text-white">
+                          {cartCount}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-left leading-tight">
+                      <span className="block text-[10px] text-gray-500">Sua</span>
+                      <span className="block text-xs font-medium text-gray-900">Sacola</span>
+                    </span>
+                    <IconChevronDown size={14} stroke={2} className="text-gray-400" />
+                  </button>
+                  {cartOpen && <MiniCartDropdown onClose={() => setCartOpen(false)} />}
+                </div>
+
                 {mounted && user ? (
                   <div
                     id="account-menu"
@@ -723,46 +773,6 @@ useEffect(() => {
                     <IconChevronDown size={14} stroke={2} className="text-gray-400" />
                   </button>
                 ) : null}
-
-                <div
-                  ref={cartRef}
-                  className="relative inline-flex items-center"
-                  onMouseEnter={() => {
-                    if (hoverCloseTimer.current) { clearTimeout(hoverCloseTimer.current as any); hoverCloseTimer.current = null; }
-                    setCartOpen(true);
-                  }}
-                  onMouseLeave={() => {
-                    if (hoverCloseTimer.current) { clearTimeout(hoverCloseTimer.current as any); }
-                    hoverCloseTimer.current = window.setTimeout(() => { setCartOpen(false); }, 280);
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                        setCartSheetOpen(true);
-                      } else {
-                        setCartOpen((v) => !v);
-                      }
-                    }}
-                    className="inline-flex items-center gap-2 text-gray-700 hover:text-[#ff5c00] transition-colors"
-                  >
-                    <span className="relative inline-flex">
-                      <IconShoppingBag size={20} stroke={1.5} className="text-gray-600" />
-                      {cartCount > 0 && (
-                        <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-[#ff5c00] text-[10px] font-semibold leading-[16px] text-center text-white">
-                          {cartCount}
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-left leading-tight">
-                      <span className="block text-[10px] text-gray-500">Sua</span>
-                      <span className="block text-xs font-medium text-gray-900">Sacola</span>
-                    </span>
-                    <IconChevronDown size={14} stroke={2} className="text-gray-400" />
-                  </button>
-                  {cartOpen && <MiniCartDropdown onClose={() => setCartOpen(false)} />}
-                </div>
 
                 {false && (
                   <button
