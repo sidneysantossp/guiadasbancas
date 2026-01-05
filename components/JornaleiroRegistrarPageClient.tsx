@@ -685,7 +685,7 @@ export default function JornaleiroRegistrarPageClient() {
           return;
         }
         // Login OK! Usuário comum autenticado, pode virar jornaleiro
-        logger.info('[Wizard] ✅ Usuário existente autenticado. Convertendo para jornaleiro.');
+        logger.log('[Wizard] ✅ Usuário existente autenticado. Convertendo para jornaleiro.');
       }
 
       setToast('Conta criada! Autenticando...');
