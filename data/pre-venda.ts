@@ -13,6 +13,7 @@ export type PreVendaProduct = {
   readyToShip?: boolean;
   sellerLat?: number;
   sellerLng?: number;
+  distanceKm?: number;
 };
 
 export const preVendaSeed: PreVendaProduct[] = [
