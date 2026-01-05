@@ -43,31 +43,21 @@ function JornaleiroAdminLinks({ onClose }: { onClose: () => void }) {
   // Se não tem perfil ou é cliente, não mostra nada
   if (!profile || profile.role === 'cliente') return null;
 
+  // Apenas admin tem link no dropdown (jornaleiro acessa via /jornaleiro)
+  if (profile.role !== 'admin') return null;
+
   return (
     <>
       <div className="h-px bg-gray-100 my-1" />
-      {profile.role === 'jornaleiro' && (
-        <button 
-          className="w-full text-left px-3 py-2 text-[#ff5c00] hover:bg-orange-50 font-medium" 
-          onClick={() => { 
-            router.push('/jornaleiro/dashboard'); 
-            onClose(); 
-          }}
-        >
-          📊 Painel do Jornaleiro
-        </button>
-      )}
-      {profile.role === 'admin' && (
-        <button 
-          className="w-full text-left px-3 py-2 text-blue-600 hover:bg-blue-50 font-medium" 
-          onClick={() => { 
-            router.push('/admin/dashboard'); 
-            onClose(); 
-          }}
-        >
-          ⚙️ Painel Admin
-        </button>
-      )}
+      <button 
+        className="w-full text-left px-3 py-2 text-blue-600 hover:bg-blue-50 font-medium" 
+        onClick={() => { 
+          router.push('/admin/dashboard'); 
+          onClose(); 
+        }}
+      >
+        ⚙️ Painel Admin
+      </button>
     </>
   );
 }
@@ -794,16 +784,8 @@ useEffect(() => {
                   </button>
                 )}
 
-                {isJornaleiro || isAdmin ? (
-                  <Link
-                    href={"/jornaleiro/dashboard" as Route}
-                    className="inline-flex items-center gap-2 rounded-md border border-[#ff5c00] text-[#ff5c00] bg-white px-3 py-2 text-sm font-semibold hover:bg-orange-50 transition-colors"
-                    aria-label="Painel do Jornaleiro"
-                  >
-                    <IconBuildingStore size={18} stroke={2} />
-                    <span>Painel do Jornaleiro</span>
-                  </Link>
-                ) : (
+{/* Botão "Sou Jornaleiro" apenas para usuários não logados ou clientes */}
+                {!user && (
                   <Link
                     href="/jornaleiro"
                     className="inline-flex items-center rounded-md bg-[#ff5c00] text-white px-3 py-2 text-sm font-semibold shadow hover:opacity-95 transition-colors"
