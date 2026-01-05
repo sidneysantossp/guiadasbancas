@@ -308,7 +308,7 @@ export async function GET(req: NextRequest) {
         price: finalPrice,
         price_original: p.price_original,
         images: p.images || [],
-        banca_id: p.banca_id,
+        banca_id: bancaData?.id || p.banca_id || null,
         distribuidor_id: p.distribuidor_id,
         category_id: p.category_id,
         category: categoryName,
@@ -323,7 +323,7 @@ export async function GET(req: NextRequest) {
         discount_percent: p.discount_percent,
         distance,
         banca: {
-          id: p.banca_id,
+          id: bancaData?.id || p.banca_id || null,
           name: bancaName,
           avatar: bancaAvatar,
           phone: bancaPhone,
