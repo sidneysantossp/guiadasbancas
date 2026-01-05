@@ -322,7 +322,7 @@ function BancaCard({ b, km, loc, description }: { b: Banca; km: number | null; l
 type CategoryResultsClientProps = {
   slug: string;
   title: string;
-  initialCategories?: Array<{ id: string; name: string; link: string }>;
+  initialCategories?: Array<{ id: string; name: string; link?: string }>;
 };
 
 export default function CategoryResultsClient({ slug, title, initialCategories }: CategoryResultsClientProps) {
