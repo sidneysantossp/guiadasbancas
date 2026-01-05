@@ -230,7 +230,7 @@ export default function TopReviewed() {
   };
 
   return (
-    <section className="w-full">
+    <section className="w-full pt-8 md:pt-10">
       <div className="container-max">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">

@@ -546,7 +546,7 @@ export default function MostSearchedProducts() {
   }
 
   return (
-    <section className="w-full">
+    <section className="w-full pt-8 md:pt-10">
       <div className="container-max">
         <div className="mb-4 flex items-center justify-between">
           <div>

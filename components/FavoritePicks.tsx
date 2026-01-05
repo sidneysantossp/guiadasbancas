@@ -451,7 +451,7 @@ export default function FavoritePicks() {
   if (!loading && data.length === 0) return null;
 
   return (
-    <section className="w-full">
+    <section className="w-full pt-8 md:pt-10">
       <div className="container-max">
         <div className="mb-3 flex items-center justify-between">
           <div>
