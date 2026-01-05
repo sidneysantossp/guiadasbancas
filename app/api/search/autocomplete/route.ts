@@ -135,12 +135,13 @@ export async function GET(req: NextRequest) {
     // Processar produtos
     if (productsData) {
       for (const p of productsData) {
-        if (!isActiveCotistaBanca(p.bancas)) {
+        const banca = Array.isArray(p.bancas) ? p.bancas[0] : p.bancas;
+        if (!isActiveCotistaBanca(banca)) {
           continue;
         }
         let distance: number | undefined;
-        if (userLat && userLng && p.bancas?.lat && p.bancas?.lng) {
-          distance = calculateDistance(userLat, userLng, parseFloat(p.bancas.lat), parseFloat(p.bancas.lng));
+        if (userLat && userLng && banca?.lat && banca?.lng) {
+          distance = calculateDistance(userLat, userLng, parseFloat(banca.lat), parseFloat(banca.lng));
         }
 
         results.push({
@@ -150,11 +151,11 @@ export async function GET(req: NextRequest) {
           image: p.images && p.images.length > 0 ? p.images[0] : null,
           price: p.price,
           category: p.categories?.name || 'Produto',
-          banca_name: p.bancas?.name || 'Banca',
+          banca_name: banca?.name || 'Banca',
           banca_id: p.banca_id,
           distance,
-          banca_lat: p.bancas?.lat ? parseFloat(p.bancas.lat) : undefined,
-          banca_lng: p.bancas?.lng ? parseFloat(p.bancas.lng) : undefined
+          banca_lat: banca?.lat ? parseFloat(banca.lat) : undefined,
+          banca_lng: banca?.lng ? parseFloat(banca.lng) : undefined
         });
       }
     }
