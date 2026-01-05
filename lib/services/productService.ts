@@ -229,6 +229,8 @@ export class ProductService {
           produto.category_id
         );
 
+      const category = Array.isArray(produto.categories) ? produto.categories[0] : produto.categories;
+
       results.push({
         id: produto.id,
         name: produto.name,
@@ -236,7 +238,7 @@ export class ProductService {
         cost_price: produto.price,
         images: produto.images || [],
         category_id: produto.category_id,
-        category_name: produto.categories?.name,
+        category_name: category?.name,
         banca_id: bancaId,
         banca_name: 'Distribuidor',
         active: produto.active,
