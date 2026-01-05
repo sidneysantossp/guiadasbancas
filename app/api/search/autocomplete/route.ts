@@ -144,13 +144,14 @@ export async function GET(req: NextRequest) {
           distance = calculateDistance(userLat, userLng, parseFloat(banca.lat), parseFloat(banca.lng));
         }
 
+        const category = Array.isArray(p.categories) ? p.categories[0] : p.categories;
         results.push({
           type: 'product',
           id: p.id,
           name: p.name,
           image: p.images && p.images.length > 0 ? p.images[0] : null,
           price: p.price,
-          category: p.categories?.name || 'Produto',
+          category: category?.name || 'Produto',
           banca_name: banca?.name || 'Banca',
           banca_id: p.banca_id,
           distance,
