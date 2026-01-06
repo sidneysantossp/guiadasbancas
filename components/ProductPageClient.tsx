@@ -254,53 +254,20 @@ function RelatedCarousel({ items }: { items: RelatedProduct[] }) {
                 className="flex shrink-0 flex-col items-stretch px-1"
                 style={{ flex: `0 0 ${100 / perView}%` }}
               >
-                <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-3 h-full">
+                <Link
+                  href={("/produto/" + slugify(it.name) + "-" + it.id) as Route}
+                  className="block rounded-2xl border border-gray-200 bg-white shadow-sm p-3 h-full hover:shadow-md hover:border-gray-300 transition-all"
+                >
                   {/* Imagem */}
-                  <div className="relative h-36 w-full rounded-[14px] overflow-hidden group">
+                  <div className="relative h-36 w-full rounded-[14px] overflow-hidden">
                     <Image src={it.image} alt={it.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover" />
-                    {/* Link absoluto cobrindo a imagem */}
-                    <Link
-                      href={("/produto/" + slugify(it.name) + "-" + it.id) as Route}
-                      aria-label={`Ver detalhes de ${it.name}`}
-                      className="absolute inset-0 rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5c00]"
-                    />
-                    {/* Overlay hover sutil */}
-                    <div className="pointer-events-none absolute inset-0 rounded-[14px] bg-black/0 group-hover:bg-black/5 transition" />
-                    {/* Overlay actions */}
-                    <div className="absolute right-2 top-2 flex items-center gap-2">
-                      {/* Visualizar */}
-                      <Link
-                        href={("/produto/" + slugify(it.name) + "-" + it.id) as Route}
-                        className="backdrop-blur bg-white/60 hover:bg-white/80 h-8 w-8 rounded-md grid place-items-center shadow transition"
-                        aria-label="Visualizar"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 115-5 5 5 0 01-5 5zm0-8a3 3 0 103 3 3 3 0 00-3-3z"/></svg>
-                      </Link>
-                      {/* Favoritar */}
-                      <button
-                        onClick={() => setFav((m) => ({ ...m, [it.id]: !m[it.id] }))}
-                        aria-pressed={!!fav[it.id]}
-                        aria-label="Favoritar"
-                        className={`backdrop-blur h-8 w-8 rounded-md grid place-items-center shadow transition ${fav[it.id] ? "bg-rose-500/90 text-white" : "bg-white/60 hover:bg-white/80 text-gray-700"}`}
-                      >
-                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M12 21s-6.7-4.4-9.2-7.7A5.6 5.6 0 0112 6.3a5.6 5.6 0 019.2 7C18.7 16.6 12 21 12 21z"/></svg>
-                      </button>
-                      {/* Adicionar ao carrinho */}
-                      <button
-                        onClick={() => { addToCart({ id: it.id, name: it.name, price: it.price, image: it.image }, 1); show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>); }}
-                        aria-label="Adicionar ao carrinho"
-                        className="backdrop-blur bg-white/60 hover:bg-white/80 h-8 w-8 rounded-md grid place-items-center shadow transition"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M7 4h-2l-1 2h2l3.6 7.6-1.35 2.45A1 1 0 0010.1 18h8.4v-2h-7.3l.9-1.6h5.8a1 1 0 00.9-.6L22 7H6.2zM7 20a2 2 0 102-2 2 2 0 00-2 2zm8 0a2 2 0 102-2 2 2 0 00-2 2z"/></svg>
-                      </button>
-                    </div>
                   </div>
                   {/* Título + Badge */}
                   <div className="mt-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-1 md:gap-2">
                     <div className="flex-1">
-                      <Link href={("/produto/" + slugify(it.name) + "-" + it.id) as Route} className="text-[13px] font-semibold line-clamp-2 hover:underline">
+                      <span className="text-[13px] font-semibold line-clamp-2">
                         {it.name}
-                      </Link>
+                      </span>
                       {it.codigo_mercos && (
                         <p className="text-[10px] text-gray-600 mt-0.5">Cód: {it.codigo_mercos}</p>
                       )}
@@ -315,33 +282,7 @@ function RelatedCarousel({ items }: { items: RelatedProduct[] }) {
                     <span className="text-[#ff5c00] font-extrabold">R$ {it.price.toFixed(2)}</span>
                     <span className="text-gray-400 line-through text-xs">R$ {(it.price * 1.3).toFixed(2)}</span>
                   </div>
-                  {/* Ações */}
-                  <div className="mt-3 space-y-2">
-                    <button
-                      className="w-full rounded-lg bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] text-white text-xs font-semibold px-4 py-2.5 shadow hover:opacity-95"
-                      onClick={() => { addToCart({ id: it.id, name: it.name, price: it.price, image: it.image }, 1); show("Adicionado ao carrinho"); }}
-                    >
-                      Adicionar ao carrinho
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (typeof window === "undefined") return;
-                        const baseUrl = window.location.origin || "https://guiadasbancas.com";
-                        const productPath = "/produto/" + slugify(it.name) + "-" + it.id;
-                        const productUrl = baseUrl + productPath;
-                        const text = `Olá! Tenho interesse no produto: ${it.name} (R$ ${it.price.toFixed(2)}).\n\nVer produto: ${productUrl}`;
-                        const msg = encodeURIComponent(text);
-                        const url = `https://wa.me?text=${msg}`;
-                        window.location.href = url;
-                      }}
-                      className="w-full rounded-md border border-[#ff5c00] text-[#ff5c00] text-[10px] font-semibold px-3 py-1.5 leading-tight hover:bg-[#fff3ec] inline-flex items-center justify-center gap-1.5"
-                    >
-                      <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
-                      Comprar pelo WhatsApp
-                    </button>
-                  </div>
-                </div>
+                </Link>
               </div>
             ))}
           </div>
