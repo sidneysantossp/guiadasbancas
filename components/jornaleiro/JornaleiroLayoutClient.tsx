@@ -215,8 +215,10 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     }
     
     if (!permissionsLoaded) {
-      console.log("[FilteredMenu] Permissões não carregadas, mostrando menu base");
-      return menu;
+      // Enquanto permissões não carregam, mostrar apenas Dashboard
+      // Isso evita que colaboradores vejam menu completo temporariamente
+      console.log("[FilteredMenu] Permissões não carregadas, mostrando apenas Dashboard");
+      return menu.filter(item => item.label === "Dashboard");
     }
     
     if (isOwner === true) {
