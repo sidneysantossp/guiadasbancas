@@ -94,11 +94,17 @@ export async function GET(req: NextRequest) {
     // Encontrar membership da banca atual (se especificada) ou usar a primeira
     let targetMembership = memberships[0];
     
+    console.log("[MyPermissions] currentBancaId recebido:", currentBancaId);
+    console.log("[MyPermissions] Memberships disponíveis:", memberships.map(m => ({ banca_id: m.banca_id, permissions: m.permissions })));
+    
     if (currentBancaId) {
       const found = memberships.find(m => m.banca_id === currentBancaId);
       if (found) {
         targetMembership = found;
-        console.log("[MyPermissions] Usando membership da banca atual:", currentBancaId);
+        console.log("[MyPermissions] ✅ Encontrada membership da banca atual:", currentBancaId);
+        console.log("[MyPermissions] Permissões dessa membership:", found.permissions);
+      } else {
+        console.log("[MyPermissions] ⚠️ Não encontrada membership para banca:", currentBancaId);
       }
     }
     
