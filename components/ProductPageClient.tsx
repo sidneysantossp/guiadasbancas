@@ -599,7 +599,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
         />
         
         {/* Top: Galeria + Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] gap-2 md:gap-8 max-w-4xl">
         {/* Galeria */}
         <div>
           <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden border border-gray-200 bg-white">
