@@ -53,16 +53,31 @@ export async function POST(request: NextRequest) {
 
     // Preparar parâmetros da requisição usando base_url configurada
     const baseUrl = distribuidor.base_url || 'https://app.mercos.com/api/v1';
-    const limit = 500; // buscar em páginas grandes para aproximar real time
+    const BATCH_SIZE = 200; // Limite máximo da API Mercos
+    const MAX_PAGES = 100; // Safety cap para evitar loops infinitos
     const allProdutos: any[] = [];
 
-    const lastSyncParam = (!full && distribuidor.ultima_sincronizacao)
-      ? `&alterado_apos=${new Date(distribuidor.ultima_sincronizacao).toISOString()}`
-      : '';
+    // Usar paginação por timestamp (alterado_apos) - método correto da Mercos
+    let alteradoApos = (!full && distribuidor.ultima_sincronizacao)
+      ? distribuidor.ultima_sincronizacao
+      : '2020-01-01T00:00:00';
+    
+    let hasMore = true;
+    let pageCount = 0;
 
-    for (let page = 1; page <= 50; page++) { // safety cap
-      let url = `${baseUrl}/produtos?limit=${limit}&page=${page}&order_by=ultima_alteracao&order_direction=desc${lastSyncParam}`;
-      console.log(`[Sync] Fetching page ${page}: ${url}`);
+    console.log(`[Sync] Iniciando busca de produtos (full=${full}, alterado_apos=${alteradoApos})`);
+
+    while (hasMore && pageCount < MAX_PAGES) {
+      pageCount++;
+      
+      const queryParams = new URLSearchParams();
+      queryParams.append('alterado_apos', alteradoApos);
+      queryParams.append('limit', BATCH_SIZE.toString());
+      queryParams.append('order_by', 'ultima_alteracao');
+      queryParams.append('order_direction', 'asc');
+      
+      const url = `${baseUrl}/produtos?${queryParams.toString()}`;
+      console.log(`[Sync] Fetching page ${pageCount}: ${url}`);
 
       const mercosRes = await fetch(url, {
         headers: {
@@ -72,6 +87,16 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // Tratamento de throttling (429)
+      if (mercosRes.status === 429) {
+        const throttleData = await mercosRes.json().catch(() => ({ tempo_ate_permitir_novamente: 5 }));
+        const waitTime = (throttleData.tempo_ate_permitir_novamente || 5) * 1000;
+        console.log(`[Sync] Throttling detectado, aguardando ${waitTime/1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        pageCount--; // Repetir esta página
+        continue;
+      }
+
       if (!mercosRes.ok) {
         return NextResponse.json({
           success: false,
@@ -79,15 +104,22 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // Verificar header de paginação da Mercos
+      const limitouRegistros = mercosRes.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
+
       const contentType = mercosRes.headers.get('content-type') || '';
       let produtosPage: any;
       try {
         if (contentType.includes('application/json')) {
           const raw = await mercosRes.text();
           try {
-            produtosPage = JSON.parse(raw);
+            const parsed = JSON.parse(raw);
+            // A Mercos pode retornar { data: [...] } ou diretamente [...]
+            produtosPage = (parsed && typeof parsed === 'object' && 'data' in parsed && Array.isArray(parsed.data))
+              ? parsed.data
+              : parsed;
           } catch (jsonErr: any) {
-            throw new Error(`Falha ao parsear JSON (page ${page}): ${jsonErr?.message || jsonErr}. Trecho: ${raw.slice(0, 200)}`);
+            throw new Error(`Falha ao parsear JSON (page ${pageCount}): ${jsonErr?.message || jsonErr}. Trecho: ${raw.slice(0, 200)}`);
           }
         } else {
           const text = await mercosRes.text();
@@ -96,21 +128,49 @@ export async function POST(request: NextRequest) {
       } catch (parseErr: any) {
         return NextResponse.json({
           success: false,
-          error: `Resposta inválida da API Mercos (page ${page}): ${parseErr?.message || parseErr}`,
+          error: `Resposta inválida da API Mercos (page ${pageCount}): ${parseErr?.message || parseErr}`,
         }, { status: 502 });
       }
 
       if (!Array.isArray(produtosPage)) {
         return NextResponse.json({
           success: false,
-          error: `Resposta inválida da API Mercos (page ${page})`,
+          error: `Resposta inválida da API Mercos (page ${pageCount})`,
         });
       }
 
-      allProdutos.push(...produtosPage);
-      if (produtosPage.length < limit) {
-        break; // última página
+      console.log(`[Sync] Página ${pageCount}: ${produtosPage.length} produtos recebidos (limitou=${limitouRegistros})`);
+
+      if (produtosPage.length === 0) {
+        hasMore = false;
+        break;
       }
+
+      allProdutos.push(...produtosPage);
+      
+      // Avançar cursor para próxima página usando ultima_alteracao do último produto
+      if (limitouRegistros && produtosPage.length > 0) {
+        // Ordenar para garantir que pegamos o último
+        produtosPage.sort((a: any, b: any) => {
+          const ta = (a.ultima_alteracao || '').toString();
+          const tb = (b.ultima_alteracao || '').toString();
+          return ta.localeCompare(tb);
+        });
+        const ultimoProduto = produtosPage[produtosPage.length - 1];
+        if (ultimoProduto?.ultima_alteracao) {
+          alteradoApos = ultimoProduto.ultima_alteracao;
+          console.log(`[Sync] Próxima página com alterado_apos=${alteradoApos}`);
+        } else {
+          hasMore = false;
+        }
+      } else {
+        // Não limitou registros = última página
+        hasMore = false;
+      }
+    }
+    
+    if (pageCount >= MAX_PAGES) {
+      console.log(`[Sync] ⚠️ Atingiu limite de ${MAX_PAGES} páginas`);
     }
 
     console.log(`[Sync] ${allProdutos.length} produtos recebidos da Mercos (full=${full})`);
@@ -119,50 +179,91 @@ export async function POST(request: NextRequest) {
     let produtosNovos = 0;
     let erros = 0;
 
-    // Processar cada produto
-    for (const produto of allProdutos) {
-      try {
-        // Verificar se produto já existe
-        const { data: existente } = await supabaseAdmin
-          .from('products')
-          .select('id')
-          .eq('mercos_id', produto.id)
-          .eq('distribuidor_id', distribuidorId)
-          .single();
-
-        const productData = {
-          name: produto.nome,
-          description: produto.descricao || '',
-          price: parseFloat(produto.preco_tabela) || 0,
-          stock: produto.saldo_estoque || 0,
-          active: produto.ativo && !produto.excluido,
-          mercos_id: produto.id,
-          codigo_mercos: produto.codigo || null,
-          distribuidor_id: distribuidorId,
-          updated_at: new Date().toISOString(),
-        };
-
-        if (existente) {
-          // Atualizar produto existente
-          await supabaseAdmin
-            .from('products')
-            .update(productData)
-            .eq('id', existente.id);
-          produtosAtualizados++;
-        } else {
-          // Inserir novo produto
-          await supabaseAdmin
-            .from('products')
-            .insert({
-              ...productData,
-              created_at: new Date().toISOString(),
-            });
-          produtosNovos++;
-        }
-      } catch (err) {
-        console.error(`[Sync] Erro ao processar produto ${produto.id}:`, err);
-        erros++;
+    // Processar em lotes para melhor performance
+    const PROCESS_BATCH_SIZE = 100;
+    
+    for (let i = 0; i < allProdutos.length; i += PROCESS_BATCH_SIZE) {
+      const batch = allProdutos.slice(i, i + PROCESS_BATCH_SIZE);
+      const mercosIds = batch.map((p: any) => p.id);
+      
+      // Buscar todos os existentes deste lote em uma única query
+      const { data: existentesRows } = await supabaseAdmin
+        .from('products')
+        .select('id, mercos_id')
+        .eq('distribuidor_id', distribuidorId)
+        .in('mercos_id', mercosIds);
+      
+      const existentesMap = new Map<number, string>();
+      for (const row of existentesRows || []) {
+        existentesMap.set(row.mercos_id as number, row.id as string);
       }
+      
+      const novosPayload: any[] = [];
+      const updatesPayload: { id: string; data: any }[] = [];
+      
+      for (const produto of batch) {
+        try {
+          const productData = {
+            name: produto.nome,
+            description: produto.descricao || produto.observacoes || '',
+            price: parseFloat(produto.preco_tabela) || 0,
+            stock_qty: produto.saldo_estoque || 0,
+            active: produto.ativo && !produto.excluido,
+            mercos_id: produto.id,
+            codigo_mercos: produto.codigo || null,
+            distribuidor_id: distribuidorId,
+            sincronizado_em: new Date().toISOString(),
+          };
+
+          const existingId = existentesMap.get(produto.id);
+          if (existingId) {
+            updatesPayload.push({ id: existingId, data: productData });
+          } else {
+            novosPayload.push({
+              ...productData,
+              origem: 'mercos',
+              track_stock: true,
+              sob_encomenda: false,
+              pre_venda: false,
+              pronta_entrega: true,
+            });
+          }
+        } catch (err) {
+          console.error(`[Sync] Erro ao preparar produto ${produto.id}:`, err);
+          erros++;
+        }
+      }
+      
+      // Inserir novos em batch
+      if (novosPayload.length > 0) {
+        const { error: insertError } = await supabaseAdmin
+          .from('products')
+          .insert(novosPayload);
+        if (insertError) {
+          console.error('[Sync] Erro ao inserir batch:', insertError);
+          erros += novosPayload.length;
+        } else {
+          produtosNovos += novosPayload.length;
+        }
+      }
+      
+      // Atualizar existentes (Supabase não suporta batch update, então fazemos em paralelo)
+      const updatePromises = updatesPayload.map(async (u) => {
+        const { error } = await supabaseAdmin
+          .from('products')
+          .update(u.data)
+          .eq('id', u.id);
+        if (error) {
+          console.error(`[Sync] Erro ao atualizar produto:`, error);
+          erros++;
+        } else {
+          produtosAtualizados++;
+        }
+      });
+      
+      await Promise.all(updatePromises);
+      
+      console.log(`[Sync] Processados ${i + batch.length}/${allProdutos.length} produtos`);
     }
 
     // Se sincronização full, desativar produtos que não vieram na resposta

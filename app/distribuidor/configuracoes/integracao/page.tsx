@@ -309,7 +309,7 @@ export default function IntegracaoMercosPage() {
               <ul className="text-sm text-blue-800 space-y-1.5">
                 <li className="flex items-start gap-2">
                   <IconCheck size={16} className="mt-0.5 flex-shrink-0" />
-                  <span>Seus produtos são sincronizados automaticamente a cada 15 minutos</span>
+                  <span>Seus produtos são sincronizados automaticamente a cada 6 horas</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <IconCheck size={16} className="mt-0.5 flex-shrink-0" />
@@ -366,7 +366,7 @@ export default function IntegracaoMercosPage() {
             <div>
               <p className="font-medium text-gray-900">Sync Automático</p>
               <p className="text-sm text-gray-600">
-                {health?.success ? 'Ativo (a cada 15 min)' : health?.isDisabled ? 'Desativado' : health?.needsSetup ? 'Aguardando ativação' : 'Verificando...'}
+                {health?.success ? 'Ativo (a cada 6h)' : health?.isDisabled ? 'Desativado' : health?.needsSetup ? 'Aguardando ativação' : 'Verificando...'}
               </p>
             </div>
           </div>
