@@ -194,10 +194,16 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
         
         if (json?.success) {
           const ownerOrAdmin = json.isOwner === true || json.accessLevel === "admin";
+          console.log("[Permissions] ========== RESULTADO ==========");
+          console.log("[Permissions] json.isOwner:", json.isOwner);
+          console.log("[Permissions] json.accessLevel:", json.accessLevel);
+          console.log("[Permissions] json.permissions:", json.permissions);
+          console.log("[Permissions] ownerOrAdmin calculado:", ownerOrAdmin);
+          
           setIsOwner(ownerOrAdmin);
           setUserPermissions(json.permissions || []);
           setPermissionsLoaded(true);
-          console.log("[Permissions] Carregadas:", json.permissions, "isOwner:", json.isOwner, "accessLevel:", json.accessLevel, "ownerOrAdmin:", ownerOrAdmin, "bancaId:", banca.id);
+          console.log("[Permissions] Estados atualizados: isOwner=", ownerOrAdmin, "permissions=", json.permissions?.length || 0, "itens");
         }
       } catch (e) {
         console.error("[Permissions] Erro ao carregar:", e);
