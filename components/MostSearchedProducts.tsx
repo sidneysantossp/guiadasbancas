@@ -497,7 +497,7 @@ export default function MostSearchedProducts() {
 
   const items = useMemo(() => {
     if (!apiItems) return [];
-    return apiItems.slice(0, 8); // Limita a 8 produtos
+    return apiItems.slice(0, 10); // Limita a 10 produtos (2 linhas de 5)
   }, [apiItems]);
 
   const [viewport, setViewport] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1024);
