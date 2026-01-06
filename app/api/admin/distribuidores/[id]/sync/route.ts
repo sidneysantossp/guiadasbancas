@@ -179,9 +179,9 @@ export async function POST(
           if (processados % 50 === 0) {
             console.log(`[SYNC] Progresso: ${processados} processados (de ${recebidos} recebidos)`);
           }
-          // Mapear categoria: usar mapa do distribuidor ou fallback
-          const mercosCatId = produtoMercos.categoria_id;
-          const mappedCategoryId = mercosCatId ? categoryMap.get(mercosCatId) : null;
+          // IMPORTANTE: category_id deve ser NULL para evitar FK error
+          // A tabela products tem FK para 'categories', não 'distribuidor_categories'
+          // Categorias serão mapeadas posteriormente se necessário
           
           const produtoData = {
             name: produtoMercos.nome,
@@ -193,7 +193,7 @@ export async function POST(
             distribuidor_id: params.id,
             mercos_id: produtoMercos.id,
             codigo_mercos: produtoMercos.codigo || null,
-            category_id: mappedCategoryId || null, // NULL se não tiver categoria mapeada (evita FK error)
+            category_id: null, // SEMPRE NULL para evitar FK error
             origem: 'mercos' as const,
             sincronizado_em: new Date().toISOString(),
             track_stock: true,
