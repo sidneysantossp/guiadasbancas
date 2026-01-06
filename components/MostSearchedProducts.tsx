@@ -560,8 +560,8 @@ export default function MostSearchedProducts() {
           isMobile ? (
             <div className="rounded-2xl bg-gray-100 h-[420px] animate-pulse" />
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 auto-rows-fr">
-              {Array.from({ length: 4 }).map((_, i) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 auto-rows-fr">
+              {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="rounded-2xl bg-gray-100 animate-pulse h-80"></div>
               ))}
             </div>
@@ -612,7 +612,7 @@ export default function MostSearchedProducts() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 auto-rows-fr">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 auto-rows-fr">
             {items.map((p) => (
               <SmallCard key={p.id} p={p} />
             ))}
