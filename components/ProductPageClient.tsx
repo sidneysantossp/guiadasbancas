@@ -541,19 +541,53 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
         {/* Top: Galeria + Info */}
         <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] gap-2 md:gap-8 max-w-4xl">
         {/* Galeria */}
-        <div>
-          <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden border border-gray-200 bg-white">
-            <Image src={product.images[active]} alt={product.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-contain p-4" />
-            {product.ready && (
-              <div className="absolute right-3 top-3"><ReadyBadge /></div>
+        <div className="flex gap-3">
+          {/* Thumbnails verticais à esquerda */}
+          {product.images.length > 1 && (
+            <div className="hidden sm:flex flex-col gap-2 w-16 flex-shrink-0">
+              {product.images.map((src, i) => (
+                <button 
+                  key={i} 
+                  onClick={() => setActive(i)} 
+                  className={`relative w-16 h-16 rounded-lg overflow-hidden border bg-white transition-all ${
+                    active === i 
+                      ? "border-[#ff5c00] border-2 shadow-md" 
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <Image src={src} alt={`thumb-${i}`} fill sizes="64px" className="object-contain p-1" />
+                </button>
+              ))}
+            </div>
+          )}
+          
+          {/* Imagem principal */}
+          <div className="flex-1">
+            <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden border border-gray-200 bg-white">
+              <Image src={product.images[active]} alt={product.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-contain p-4" />
+              {product.ready && (
+                <div className="absolute right-3 top-3"><ReadyBadge /></div>
+              )}
+            </div>
+            
+            {/* Thumbnails horizontais apenas no mobile */}
+            {product.images.length > 1 && (
+              <div className="mt-2 flex sm:hidden gap-2 overflow-x-auto pb-2">
+                {product.images.map((src, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => setActive(i)} 
+                    className={`relative w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden border bg-white ${
+                      active === i 
+                        ? "border-[#ff5c00] border-2" 
+                        : "border-gray-200"
+                    }`}
+                  >
+                    <Image src={src} alt={`thumb-${i}`} fill sizes="56px" className="object-contain p-1" />
+                  </button>
+                ))}
+              </div>
             )}
-          </div>
-          <div className="mt-1 md:mt-3 grid grid-cols-5 gap-3">
-            {product.images.map((src, i) => (
-              <button key={i} onClick={() => setActive(i)} className={`relative h-16 rounded-xl overflow-hidden border bg-white ${active===i?"border-[var(--color-primary)]":"border-gray-200"}`}>
-                <Image src={src} alt={`thumb-${i}`} fill sizes="64px" className="object-contain p-1" />
-              </button>
-            ))}
           </div>
         </div>
 
