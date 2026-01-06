@@ -240,12 +240,18 @@ export default function JornaleiroOnboardingPage() {
       const profileUpdates: any = {};
       const phoneToSave = saved.phone || wizard?.phone || wizard?.servicePhone;
       const cpfToSave = saved.cpf || wizard?.cpf;
+      const fullNameToSave = saved.full_name || wizard?.name;
       
       if (phoneToSave) {
         profileUpdates.phone = phoneToSave;
       }
       if (cpfToSave) {
         profileUpdates.cpf = cpfToSave;
+        logger.log('[Onboarding] 📄 CPF a salvar:', cpfToSave);
+      }
+      if (fullNameToSave) {
+        profileUpdates.full_name = fullNameToSave;
+        logger.log('[Onboarding] 👤 Nome completo a salvar:', fullNameToSave);
       }
 
       logger.log('[Onboarding] 🔗 Chamando API para criar banca...');

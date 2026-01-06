@@ -756,6 +756,9 @@ export default function JornaleiroRegistrarPageClient() {
         cotista_codigo: selectedCotaAtiva?.codigo || null,
         cotista_razao_social: selectedCotaAtiva?.razao_social || null,
         cotista_cnpj_cpf: selectedCotaAtiva?.cnpj_cpf || null,
+        // Dados do jornaleiro para salvar no perfil
+        cpf: cpf, // CPF/CNPJ do jornaleiro
+        full_name: name, // Nome completo do jornaleiro
       };
 
       // Salvar backup local (apenas dados da banca)

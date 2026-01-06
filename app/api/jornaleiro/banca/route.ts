@@ -380,6 +380,9 @@ export async function POST(request: NextRequest) {
     const profileUpdates: any = { banca_id: data.id };
     if (profile.phone) profileUpdates.phone = profile.phone;
     if (profile.cpf) profileUpdates.cpf = profile.cpf;
+    if (profile.full_name) profileUpdates.full_name = profile.full_name;
+
+    console.log('[POST] 📝 Atualizando user_profiles com:', profileUpdates);
 
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
@@ -391,7 +394,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: profileError.message }, { status: 500 });
     }
 
-    console.log('[POST] ✅ Banca criada e perfil atualizado');
+    console.log('[POST] ✅ Banca criada e perfil atualizado com CPF e nome');
     return NextResponse.json({ success: true, data });
   } catch (e: any) {
     console.error('[POST] ❌ Erro inesperado na criação da banca:', e);
