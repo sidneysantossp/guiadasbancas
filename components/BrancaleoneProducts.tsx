@@ -302,15 +302,7 @@ export default function BrancaleoneProducts() {
   }
 
   if (products.length === 0 && !loading) {
-    return (
-      <section className="w-full py-8 bg-gray-50">
-        <div className="container-max">
-          <div className="text-center text-gray-500 text-sm">
-            Nenhum produto disponível no momento.
-          </div>
-        </div>
-      </section>
-    );
+    return null; // Não renderizar nada se não houver produtos
   }
 
   return (
