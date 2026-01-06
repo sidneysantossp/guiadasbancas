@@ -814,12 +814,12 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       'Panini Magazines', 'Panini Partwork', 'Planet Manga'
     ],
     // Bambino - Categorias pai com subcategorias
-    'Bebidas': ['Energéticos'],
+    'Bebidas': ['Energéticos', 'Bebidas'],
     'Bomboniere': ['Balas e Drops', 'Balas a Granel', 'Biscoitos', 'Chicletes', 'Chocolates', 'Doces', 'Pirulitos', 'Salgadinhos', 'Snacks'],
-    'Brinquedos': ['Blocos de Montar', 'Carrinhos', 'Massinha', 'Pelúcias'],
+    'Brinquedos': ['Blocos de Montar', 'Carrinhos', 'Massinha', 'Pelúcias', 'Brinquedos', 'Livros Infantis'],
     'Cartas': ['Baralhos', 'Baralhos e Cards', 'Cards Colecionáveis', 'Cards Pokémon', 'Jogos Copag', 'Jogos de Cartas'],
-    'Eletrônicos': ['Caixas de Som', 'Fones de Ouvido', 'Informática', 'Pilhas'],
-    'Miniaturas': ['Fichários Pokémon'],
+    'Diversos': ['Acessórios', 'Acessórios Celular', 'Adesivos Times', 'Chaveiros', 'Diversos', 'Guarda-Chuvas', 'Mochilas', 'Outros', 'Papelaria', 'Utilidades', 'Figurinhas'],
+    'Eletrônicos': ['Caixas de Som', 'Fones de Ouvido', 'Informática', 'Pilhas', 'Eletrônicos'],
     'Pokémon': ['Cards Pokémon', 'Fichários Pokémon'],
     'Tabacaria': [
       'Boladores', 'Carvão Narguile', 'Charutos e Cigarrilhas', 'Cigarros', 'Essências',
@@ -831,6 +831,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   // Separar categorias em grupos e avulsas
   const { groupedCategories, standaloneCategories } = useMemo(() => {
     const allSubcats = new Set<string>();
+    const groupNames = new Set(Object.keys(CATEGORY_GROUPS));
     Object.values(CATEGORY_GROUPS).forEach(subs => subs.forEach(s => allSubcats.add(s)));
     
     const grouped: Record<string, string[]> = {};
@@ -844,9 +845,9 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       }
     }
     
-    // Categorias que não pertencem a nenhum grupo
+    // Categorias que não pertencem a nenhum grupo (excluir nomes de grupos também)
     for (const cat of allCategories) {
-      if (!allSubcats.has(cat)) {
+      if (!allSubcats.has(cat) && !groupNames.has(cat)) {
         standalone.push(cat);
       }
     }
