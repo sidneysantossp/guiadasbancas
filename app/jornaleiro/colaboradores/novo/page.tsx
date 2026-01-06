@@ -193,9 +193,14 @@ export default function NovoColaboradorPage() {
       }
 
       setSuccessMessage("✅ Colaborador cadastrado com sucesso!");
+      
+      // Disparar evento customizado para atualizar a lista em tempo real
+      window.dispatchEvent(new CustomEvent('colaboradores:updated', { detail: { action: 'created' } }));
+      
+      // Atualizar localStorage para sincronizar entre abas
+      localStorage.setItem('gb:colaboradores:updated', Date.now().toString());
+      
       setTimeout(() => {
-        // Usar refresh + push para forçar recarregamento da lista
-        router.refresh();
         router.push("/jornaleiro/colaboradores");
       }, 1500);
     } catch (e: any) {

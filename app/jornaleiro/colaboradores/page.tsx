@@ -47,7 +47,7 @@ export default function ColaboradoresPage() {
     }
   };
 
-  // Carregar colaboradores ao montar e quando a página receber foco
+  // Carregar colaboradores ao montar e quando houver mudanças
   useEffect(() => {
     load();
     
@@ -57,8 +57,46 @@ export default function ColaboradoresPage() {
       load();
     };
     
+    // Listener para evento customizado de atualização de colaboradores
+    const handleColaboradoresUpdate = (event: Event) => {
+      console.log("[Colaboradores] Evento de atualização recebido, recarregando...");
+      load();
+    };
+    
+    // Listener para storage event (sincronização entre abas)
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'gb:colaboradores:updated') {
+        console.log("[Colaboradores] Storage event recebido, recarregando...");
+        load();
+      }
+    };
+    
+    // Listener para visibilitychange (usuário voltou para a aba)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Verificar se houve atualização enquanto a aba estava inativa
+        const lastUpdate = localStorage.getItem('gb:colaboradores:updated');
+        const lastChecked = sessionStorage.getItem('gb:colaboradores:lastChecked');
+        
+        if (lastUpdate && lastUpdate !== lastChecked) {
+          console.log("[Colaboradores] Detectada atualização pendente, recarregando...");
+          sessionStorage.setItem('gb:colaboradores:lastChecked', lastUpdate);
+          load();
+        }
+      }
+    };
+    
     window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
+    window.addEventListener("colaboradores:updated", handleColaboradoresUpdate);
+    window.addEventListener("storage", handleStorageChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("colaboradores:updated", handleColaboradoresUpdate);
+      window.removeEventListener("storage", handleStorageChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   const handleDelete = async (id: string) => {
@@ -75,6 +113,9 @@ export default function ColaboradoresPage() {
         throw new Error(json?.error || "Erro ao remover colaborador");
       }
       setColaboradores((prev) => prev.filter((c) => c.id !== id));
+      
+      // Disparar evento para sincronizar entre abas
+      localStorage.setItem('gb:colaboradores:updated', Date.now().toString());
     } catch (e: any) {
       alert(e?.message || "Erro ao remover colaborador");
     } finally {

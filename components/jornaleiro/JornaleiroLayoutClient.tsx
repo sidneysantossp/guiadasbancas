@@ -126,7 +126,9 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   const [banca, setBanca] = useState<any>(null);
   const [bancaValidated, setBancaValidated] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const useBancaCache = true;
+  // 🚨 DESABILITADO: Cache causa problemas com permissões não atualizando em tempo real
+  // Agora sempre buscamos dados frescos do Supabase
+  const useBancaCache = false;
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [isOwner, setIsOwner] = useState<boolean | null>(null); // null = carregando
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);

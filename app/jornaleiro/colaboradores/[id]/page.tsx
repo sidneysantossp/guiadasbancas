@@ -142,8 +142,14 @@ export default function EditarColaboradorPage() {
       }
 
       setSuccessMessage("✅ Dados do colaborador atualizados com sucesso!");
+      
+      // Disparar evento customizado para atualizar a lista em tempo real
+      window.dispatchEvent(new CustomEvent('colaboradores:updated', { detail: { action: 'updated', id: colaboradorId } }));
+      
+      // Atualizar localStorage para sincronizar entre abas
+      localStorage.setItem('gb:colaboradores:updated', Date.now().toString());
+      
       setTimeout(() => {
-        router.refresh();
         router.push("/jornaleiro/colaboradores");
       }, 1500);
     } catch (e: any) {
