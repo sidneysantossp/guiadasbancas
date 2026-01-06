@@ -1434,25 +1434,10 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                 >
                   Todos os Produtos
                 </button>
-                
-                {/* Categorias que não são Panini */}
-                {otherCategories.map((name) => (
-                  <button
-                    key={name}
-                    onClick={() => setActiveCategory(name)}
-                    className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
-                      activeCategory === name
-                        ? 'bg-[#ff5c00] text-white font-medium'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {name}
-                  </button>
-                ))}
 
-                {/* Sanfona Panini */}
+                {/* Sanfona Panini - PRIMEIRO */}
                 {paniniCategories.length > 0 && (
-                  <div className="border-t border-gray-100 pt-2 mt-2">
+                  <div className="border-b border-gray-100 pb-2 mb-2">
                     <button
                       onClick={() => setPaniniOpen(!paniniOpen)}
                       className="w-full flex items-center justify-between px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
@@ -1488,6 +1473,21 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                     </div>
                   </div>
                 )}
+
+                {/* Categorias que não são Panini */}
+                {otherCategories.map((name) => (
+                  <button
+                    key={name}
+                    onClick={() => setActiveCategory(name)}
+                    className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                      activeCategory === name
+                        ? 'bg-[#ff5c00] text-white font-medium'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {name}
+                  </button>
+                ))}
               </nav>
             </div>
           </div>
