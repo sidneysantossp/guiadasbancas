@@ -57,8 +57,8 @@ const getDefaultFooterData = (): FooterData => ({
       { id: '8', text: 'Suporte', url: '/suporte', section: 'para_voce', order: 4 }
     ],
     para_jornaleiro: [
-      { id: '9', text: 'Cadastre sua banca', url: '/jornaleiro/cadastro', section: 'para_jornaleiro', order: 1 },
-      { id: '10', text: 'Fazer login', url: '/jornaleiro/login', section: 'para_jornaleiro', order: 2 },
+      { id: '9', text: 'Cadastre sua banca', url: '/jornaleiro/registrar', section: 'para_jornaleiro', order: 1 },
+      { id: '10', text: 'Fazer login', url: '/jornaleiro', section: 'para_jornaleiro', order: 2 },
       { id: '11', text: 'Central de ajuda', url: '/jornaleiro/ajuda', section: 'para_jornaleiro', order: 3 },
       { id: '12', text: 'Termos para Parceiros', url: '/termos-parceiros', section: 'para_jornaleiro', order: 4 }
     ],

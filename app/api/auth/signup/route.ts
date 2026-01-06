@@ -77,22 +77,68 @@ export async function POST(request: NextRequest) {
       console.log('✅ [SIGNUP] Usuário criado:', userId);
     }
 
-    // 2. Criar ou atualizar perfil
-    console.log('👤 [SIGNUP] Criando/atualizando perfil...');
-    const { error: profileError } = await supabaseAdmin
-      .from('user_profiles')
-      .upsert({
-        id: userId,
-        role: role,
-        full_name: full_name,
-        email_verified: true,
-        active: true,
-      }, { onConflict: 'id' });
+    // 2. Aguardar um pouco para o trigger do banco criar o perfil
+    // O trigger on_auth_user_created cria automaticamente o user_profiles
+    await new Promise(resolve => setTimeout(resolve, 300));
 
-    if (profileError) {
-      console.error('❌ [SIGNUP] Erro ao criar/atualizar perfil:', profileError);
+    // 3. Atualizar perfil (o trigger já deve ter criado, então usamos update)
+    console.log('👤 [SIGNUP] Atualizando perfil...');
+    
+    // Primeiro, verificar se o perfil já existe
+    const { data: existingProfile } = await supabaseAdmin
+      .from('user_profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (existingProfile) {
+      // Perfil existe (criado pelo trigger), apenas atualizar
+      const { error: updateError } = await supabaseAdmin
+        .from('user_profiles')
+        .update({
+          role: role,
+          full_name: full_name,
+          email_verified: true,
+          active: true,
+        })
+        .eq('id', userId);
+
+      if (updateError) {
+        console.error('❌ [SIGNUP] Erro ao atualizar perfil:', updateError);
+      } else {
+        console.log('✅ [SIGNUP] Perfil atualizado');
+      }
     } else {
-      console.log('✅ [SIGNUP] Perfil criado/atualizado');
+      // Perfil não existe (trigger falhou ou não existe), criar
+      const { error: insertError } = await supabaseAdmin
+        .from('user_profiles')
+        .insert({
+          id: userId,
+          role: role,
+          full_name: full_name,
+          email_verified: true,
+          active: true,
+        });
+
+      if (insertError) {
+        // Se falhar por duplicata, tentar update
+        if (insertError.code === '23505') {
+          console.log('⚠️ [SIGNUP] Perfil já existe (race condition), atualizando...');
+          await supabaseAdmin
+            .from('user_profiles')
+            .update({
+              role: role,
+              full_name: full_name,
+              email_verified: true,
+              active: true,
+            })
+            .eq('id', userId);
+        } else {
+          console.error('❌ [SIGNUP] Erro ao criar perfil:', insertError);
+        }
+      } else {
+        console.log('✅ [SIGNUP] Perfil criado');
+      }
     }
 
     console.log('🎉 [SIGNUP] Cadastro completo!');
