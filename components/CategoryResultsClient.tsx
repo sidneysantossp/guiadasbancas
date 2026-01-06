@@ -636,14 +636,9 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
   return (
     <section className="container-max pt-3 pb-32">
       
-      {/* Carrossel de Categorias */}
+      {/* Carrossel de Categorias - sem initialItems para buscar da API com imagens */}
       <div className="mb-4">
-        <CategoryCarousel initialItems={initialCategories?.map(cat => ({
-          key: cat.id || cat.name,
-          name: cat.name,
-          image: cat.image || '',
-          link: cat.link || `/categorias/${cat.name.toLowerCase().replace(/\s+/g, '-')}`,
-        })) || []} />
+        <CategoryCarousel />
       </div>
       
       {loading && (

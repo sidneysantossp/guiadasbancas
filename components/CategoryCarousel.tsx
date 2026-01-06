@@ -137,7 +137,7 @@ export default function CategoryCarousel({ initialItems }: CategoryCarouselProps
                     }}
                   >
                     <div 
-                      className="relative overflow-hidden shadow-sm group-hover:-translate-y-0.5 transition-transform h-24 w-24 sm:h-28 sm:w-28 md:h-28 md:w-28 rounded-[24px] sm:rounded-[28px]"
+                      className="relative overflow-hidden shadow-sm group-hover:-translate-y-0.5 transition-transform h-14 w-14 sm:h-16 sm:w-16 md:h-16 md:w-16 rounded-[14px] sm:rounded-[16px]"
                     >
                       <SafeImage src={c.image} alt={c.name} fill className="object-cover" />
                     </div>

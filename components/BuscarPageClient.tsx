@@ -432,14 +432,9 @@ export default function BuscarPageClient({
         )}
       </div>
 
-      {/* Carrossel de Categorias */}
+      {/* Carrossel de Categorias - sem initialItems para buscar da API com imagens */}
       <div className="mb-6">
-        <CategoryCarousel initialItems={initialCategories?.map(cat => ({
-          key: cat.key,
-          name: cat.name,
-          image: cat.image,
-          link: cat.link,
-        })) || []} />
+        <CategoryCarousel />
       </div>
 
       {/* Botão de filtros mobile */}
