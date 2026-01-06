@@ -8,6 +8,7 @@ import { useCategories, type UICategory } from "@/lib/useCategories";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import { IconFilter, IconX, IconChevronDown, IconChevronUp } from "@tabler/icons-react";
+import CategoryCarousel from "@/components/CategoryCarousel";
 
 type Banca = {
   id: string;
@@ -429,6 +430,16 @@ export default function BuscarPageClient({
         ) : (
           <p className="text-gray-600 mt-1">Use a busca para encontrar produtos e bancas.</p>
         )}
+      </div>
+
+      {/* Carrossel de Categorias */}
+      <div className="mb-6">
+        <CategoryCarousel initialItems={initialCategories?.map(cat => ({
+          key: cat.key,
+          name: cat.name,
+          image: cat.image,
+          link: cat.link,
+        })) || []} />
       </div>
 
       {/* Botão de filtros mobile */}
