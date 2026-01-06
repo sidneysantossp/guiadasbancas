@@ -793,6 +793,28 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   const [searchTerm, setSearchTerm] = useState<string>(''); // Busca local de produtos
   const catScrollerRef = useRef<HTMLDivElement | null>(null);
   const [hasCatOverflow, setHasCatOverflow] = useState(false);
+  const [paniniOpen, setPaniniOpen] = useState(true); // Sanfona Panini aberta por padrão
+
+  // Subcategorias da Panini (para agrupar na sanfona)
+  const PANINI_SUBCATEGORIES = [
+    'Colecionáveis', 'Conan', 'DC Comics', 'Disney Comics', 'Marvel Comics',
+    'Maurício de Sousa Produções', 'Panini Books', 'Panini Comics',
+    'Panini Magazines', 'Panini Partwork', 'Planet Manga'
+  ];
+
+  // Separar categorias Panini das outras
+  const { paniniCategories, otherCategories } = useMemo(() => {
+    const panini: string[] = [];
+    const other: string[] = [];
+    for (const cat of allCategories) {
+      if (PANINI_SUBCATEGORIES.includes(cat)) {
+        panini.push(cat);
+      } else {
+        other.push(cat);
+      }
+    }
+    return { paniniCategories: panini.sort((a, b) => a.localeCompare(b, 'pt-BR')), otherCategories: other };
+  }, [allCategories]);
 
   // Auto-rolagem do slider de categorias (todas as larguras; apenas os chips após 'Todos')
   useEffect(() => {
@@ -1412,7 +1434,9 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                 >
                   Todos os Produtos
                 </button>
-                {allCategories.map((name) => (
+                
+                {/* Categorias que não são Panini */}
+                {otherCategories.map((name) => (
                   <button
                     key={name}
                     onClick={() => setActiveCategory(name)}
@@ -1425,6 +1449,45 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                     {name}
                   </button>
                 ))}
+
+                {/* Sanfona Panini */}
+                {paniniCategories.length > 0 && (
+                  <div className="border-t border-gray-100 pt-2 mt-2">
+                    <button
+                      onClick={() => setPaniniOpen(!paniniOpen)}
+                      className="w-full flex items-center justify-between px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
+                    >
+                      <span>Panini</span>
+                      <svg
+                        className={`w-4 h-4 transition-transform duration-200 ${paniniOpen ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {/* Subcategorias Panini */}
+                    <div className={`overflow-hidden transition-all duration-200 ${paniniOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                      <div className="pl-3 space-y-1 mt-1">
+                        {paniniCategories.map((name) => (
+                          <button
+                            key={name}
+                            onClick={() => setActiveCategory(name)}
+                            className={`w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${
+                              activeCategory === name
+                                ? 'bg-[#ff5c00] text-white font-medium'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            {name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </nav>
             </div>
           </div>
