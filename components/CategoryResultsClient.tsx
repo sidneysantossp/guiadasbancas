@@ -429,29 +429,44 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
               
               setProducts(mappedProducts);
               
-              // Mapear bancas que possuem produtos dessa categoria
+              // Verificar se há produtos de distribuidor (sem banca_id)
+              const hasDistribuidorProducts = productsArray.some((p: any) => p.distribuidor_id && !p.banca_id);
               const uniqueBancaIds = new Set<string>(productsArray.map((p: any) => p.banca_id).filter(Boolean));
-              console.log(`[CategoryResults] Bancas únicas com produtos (categoryName): ${uniqueBancaIds.size}`);
               
-              const mappedBancas: Banca[] = Array.from(uniqueBancaIds)
-                .map((bancaId: string) => bancasMap.get(bancaId))
-                .filter(Boolean)
-                .filter((banca: any) => banca.active !== false)
-                .map((banca: any) => {
-                  const productsCount = productsArray.filter((p: any) => p.banca_id === banca.id).length;
-                  return {
-                    id: banca.id,
-                    name: banca.name || 'Banca',
-                    cover: banca.cover_image || banca.cover || '',
-                    avatar: banca.avatar || banca.cover_image || '',
-                    lat: banca.lat || -23.5505,
-                    lng: banca.lng || -46.6333,
-                    itemsCount: productsCount,
-                    rating: 4.5,
-                    reviews: 0,
-                    open: true,
-                  };
-                });
+              let allBancasToShow: any[] = [];
+              
+              if (hasDistribuidorProducts) {
+                // Se há produtos de distribuidor, mostrar TODAS as bancas cotistas
+                console.log(`[CategoryResults] Produtos de distribuidor detectados - buscando todas bancas cotistas`);
+                allBancasToShow = Array.from(bancasMap.values())
+                  .filter((banca: any) => banca.active !== false)
+                  .filter((banca: any) => banca.is_cotista === true || !!banca.cotista_id);
+                console.log(`[CategoryResults] Bancas cotistas encontradas: ${allBancasToShow.length}`);
+              } else {
+                // Apenas bancas que têm produtos próprios dessa categoria
+                allBancasToShow = Array.from(uniqueBancaIds)
+                  .map((bancaId: string) => bancasMap.get(bancaId))
+                  .filter(Boolean)
+                  .filter((banca: any) => banca.active !== false);
+              }
+              
+              const mappedBancas: Banca[] = allBancasToShow.map((banca: any) => {
+                const productsCount = productsArray.filter((p: any) => p.banca_id === banca.id).length;
+                // Para bancas cotistas sem produtos próprios, contar produtos de distribuidor
+                const totalCount = productsCount > 0 ? productsCount : productsArray.filter((p: any) => p.distribuidor_id).length;
+                return {
+                  id: banca.id,
+                  name: banca.name || 'Banca',
+                  cover: banca.cover_image || banca.cover || '',
+                  avatar: banca.avatar || banca.cover_image || '',
+                  lat: banca.lat || -23.5505,
+                  lng: banca.lng || -46.6333,
+                  itemsCount: totalCount,
+                  rating: 4.5,
+                  reviews: 0,
+                  open: true,
+                };
+              });
               
               setBancas(mappedBancas);
               console.log(`[CategoryResults] Bancas mapeadas (categoryName): ${mappedBancas.length}`);
