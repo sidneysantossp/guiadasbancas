@@ -37,35 +37,35 @@ export async function GET(req: NextRequest) {
     console.log("[MyPermissions] Bancas do usuário (como dono):", ownedBancas?.length || 0);
     console.log("[MyPermissions] Erro ao buscar bancas:", ownedError);
 
-    // Se é dono de banca, tem todas as permissões
-    if (ownedBancas && ownedBancas.length > 0) {
-      // IMPORTANTE: Se temos um banca_id específico, verificar se o usuário é dono DESSA banca
-      // Se não for dono da banca específica, ele pode ser colaborador nela
-      if (currentBancaId) {
-        const isOwnerOfCurrentBanca = ownedBancas.some(b => b.id === currentBancaId);
-        if (!isOwnerOfCurrentBanca) {
-          console.log("[MyPermissions] ⚠️ Usuário é dono de outras bancas, mas NÃO da banca atual:", currentBancaId);
-          console.log("[MyPermissions] Verificando se é colaborador da banca atual...");
-          // Continuar para verificar memberships
-        } else {
-          console.log("[MyPermissions] ✅ USUÁRIO É DONO DA BANCA ATUAL - Acesso total");
-          return NextResponse.json({
-            success: true,
-            isOwner: true,
-            accessLevel: "admin",
-            permissions: ["dashboard", "pedidos", "produtos", "catalogo", "campanhas", "distribuidores", "cupons", "relatorios", "configuracoes", "notificacoes", "colaboradores", "bancas", "academy"],
-          });
-        }
-      } else {
-        // Sem banca específica, dar acesso total como dono
-        console.log("[MyPermissions] ✅ USUÁRIO É DONO DE BANCA - Acesso total");
-        return NextResponse.json({
-          success: true,
-          isOwner: true,
-          accessLevel: "admin",
-          permissions: ["dashboard", "pedidos", "produtos", "catalogo", "campanhas", "distribuidores", "cupons", "relatorios", "configuracoes", "notificacoes", "colaboradores", "bancas", "academy"],
-        });
-      }
+    // Verificar se é dono da banca ATUAL (não de qualquer banca)
+    let isOwnerOfCurrentBanca = false;
+    
+    if (currentBancaId && ownedBancas && ownedBancas.length > 0) {
+      isOwnerOfCurrentBanca = ownedBancas.some(b => b.id === currentBancaId);
+      console.log("[MyPermissions] Usuário é dono de", ownedBancas.length, "banca(s)");
+      console.log("[MyPermissions] É dono da banca atual (", currentBancaId, ")?", isOwnerOfCurrentBanca);
+    }
+    
+    // Se é dono da banca ATUAL, dar acesso total
+    if (isOwnerOfCurrentBanca) {
+      console.log("[MyPermissions] ✅ USUÁRIO É DONO DA BANCA ATUAL - Acesso total");
+      return NextResponse.json({
+        success: true,
+        isOwner: true,
+        accessLevel: "admin",
+        permissions: ["dashboard", "pedidos", "produtos", "catalogo", "campanhas", "distribuidores", "cupons", "relatorios", "configuracoes", "notificacoes", "colaboradores", "bancas", "academy"],
+      });
+    }
+    
+    // Se não tem banca específica E é dono de alguma banca, dar acesso total
+    if (!currentBancaId && ownedBancas && ownedBancas.length > 0) {
+      console.log("[MyPermissions] ✅ USUÁRIO É DONO DE BANCA (sem banca específica) - Acesso total");
+      return NextResponse.json({
+        success: true,
+        isOwner: true,
+        accessLevel: "admin",
+        permissions: ["dashboard", "pedidos", "produtos", "catalogo", "campanhas", "distribuidores", "cupons", "relatorios", "configuracoes", "notificacoes", "colaboradores", "bancas", "academy"],
+      });
     }
     
     console.log("[MyPermissions] ⚠️ Usuário NÃO é dono da banca atual, verificando memberships...");
