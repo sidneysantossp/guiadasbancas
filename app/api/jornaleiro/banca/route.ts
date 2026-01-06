@@ -6,6 +6,42 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import type { AdminBanca } from "@/app/api/admin/bancas/route";
 
+// Dias da semana para horários
+const DAYS = [
+  { key: 'seg', label: 'Segunda' },
+  { key: 'ter', label: 'Terça' },
+  { key: 'qua', label: 'Quarta' },
+  { key: 'qui', label: 'Quinta' },
+  { key: 'sex', label: 'Sexta' },
+  { key: 'sab', label: 'Sábado' },
+  { key: 'dom', label: 'Domingo' },
+];
+
+// Função para parsear horários de diferentes formatos
+// Suporta: hours (array) ou opening_hours (objeto { seg: "08:00-18:00", ... })
+function parseHours(data: any): Array<{ key: string; label: string; open: boolean; start: string; end: string }> {
+  // Se hours já é um array válido, usar diretamente
+  if (Array.isArray(data.hours) && data.hours.length > 0) {
+    return data.hours;
+  }
+  
+  // Se opening_hours existe (formato objeto), converter para array
+  if (data.opening_hours && typeof data.opening_hours === 'object') {
+    console.log('[parseHours] Convertendo opening_hours para array:', data.opening_hours);
+    return DAYS.map(day => {
+      const value = data.opening_hours[day.key];
+      if (value && typeof value === 'string' && value.includes('-')) {
+        const [start, end] = value.split('-');
+        return { key: day.key, label: day.label, open: true, start: start || '08:00', end: end || '18:00' };
+      }
+      return { key: day.key, label: day.label, open: false, start: '08:00', end: '18:00' };
+    });
+  }
+  
+  // Retornar array vazio se não houver dados
+  return [];
+}
+
 // Parser robusto de endereço brasileiro
 // Aceita formatos como:
 // - "Rua Exemplo, 1234 - Bairro, Cidade - SP"
@@ -114,6 +150,14 @@ async function loadBancaForUser(userId: string): Promise<any> {
     if (profileErr) {
       console.warn('[loadBancaForUser] ⚠️ Não foi possível carregar profile:', profileErr.message);
     }
+
+    // 🔍 DEBUG: Verificar dados do perfil
+    console.log('[loadBancaForUser] 👤 Profile carregado:', {
+      full_name: profile?.full_name,
+      phone: profile?.phone,
+      cpf: profile?.cpf ? '***' + profile.cpf.slice(-4) : 'NÃO DEFINIDO',
+      banca_id: profile?.banca_id,
+    });
 
     const activeBancaId = (profile as any)?.banca_id as string | null | undefined;
     const journaleiroAccessLevel = (profile as any)?.jornaleiro_access_level as string | null | undefined;
@@ -261,7 +305,7 @@ async function loadBancaForUser(userId: string): Promise<any> {
         gmb: ''
       },
       payments: data.payment_methods || [],
-      hours: Array.isArray((data as any).hours) ? (data as any).hours : [],
+      hours: parseHours(data),
       featured: false,
       ctaUrl: '',
       active: data.active !== false,
