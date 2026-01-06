@@ -22,44 +22,43 @@ export async function GET(req: NextRequest) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Buscar banca_id do cookie ou header (se o usuário selecionou uma banca específica)
+    const currentBancaId = req.headers.get("x-banca-id") || req.cookies.get("current_banca_id")?.value;
+    
+    console.log("[MyPermissions] userId:", userId);
+    console.log("[MyPermissions] currentBancaId:", currentBancaId);
+
     // Verificar se o usuário é dono de alguma banca
     const { data: ownedBancas, error: ownedError } = await supabaseAdmin
       .from("bancas")
       .select("id, name, user_id")
       .eq("user_id", userId);
 
-    console.log("[MyPermissions] Bancas do usuário (como dono):", ownedBancas);
+    console.log("[MyPermissions] Bancas do usuário (como dono):", ownedBancas?.length || 0);
     console.log("[MyPermissions] Erro ao buscar bancas:", ownedError);
 
     // Se é dono de banca, tem todas as permissões
     if (ownedBancas && ownedBancas.length > 0) {
-      console.log("[MyPermissions] ✅ USUÁRIO É DONO DE BANCA - Acesso total");
-      return NextResponse.json({
-        success: true,
-        isOwner: true,
-        accessLevel: "admin",
-        permissions: ["dashboard", "pedidos", "produtos", "catalogo", "campanhas", "distribuidores", "cupons", "relatorios", "configuracoes", "notificacoes", "colaboradores", "bancas", "academy"],
-      });
-    }
-    
-    console.log("[MyPermissions] ⚠️ Usuário NÃO é dono de nenhuma banca, verificando memberships...");
-
-    // Buscar banca_id do cookie ou header (se o usuário selecionou uma banca específica)
-    const currentBancaId = req.headers.get("x-banca-id") || req.cookies.get("current_banca_id")?.value;
-    
-    console.log("[MyPermissions] userId:", userId);
-    console.log("[MyPermissions] currentBancaId:", currentBancaId);
-    
-    // IMPORTANTE: Se temos um banca_id específico, verificar se o usuário é dono DESSA banca
-    if (currentBancaId) {
-      const { data: specificBanca } = await supabaseAdmin
-        .from("bancas")
-        .select("id, user_id")
-        .eq("id", currentBancaId)
-        .single();
-      
-      if (specificBanca && specificBanca.user_id === userId) {
-        console.log("[MyPermissions] ✅ Usuário é DONO da banca específica:", currentBancaId);
+      // IMPORTANTE: Se temos um banca_id específico, verificar se o usuário é dono DESSA banca
+      // Se não for dono da banca específica, ele pode ser colaborador nela
+      if (currentBancaId) {
+        const isOwnerOfCurrentBanca = ownedBancas.some(b => b.id === currentBancaId);
+        if (!isOwnerOfCurrentBanca) {
+          console.log("[MyPermissions] ⚠️ Usuário é dono de outras bancas, mas NÃO da banca atual:", currentBancaId);
+          console.log("[MyPermissions] Verificando se é colaborador da banca atual...");
+          // Continuar para verificar memberships
+        } else {
+          console.log("[MyPermissions] ✅ USUÁRIO É DONO DA BANCA ATUAL - Acesso total");
+          return NextResponse.json({
+            success: true,
+            isOwner: true,
+            accessLevel: "admin",
+            permissions: ["dashboard", "pedidos", "produtos", "catalogo", "campanhas", "distribuidores", "cupons", "relatorios", "configuracoes", "notificacoes", "colaboradores", "bancas", "academy"],
+          });
+        }
+      } else {
+        // Sem banca específica, dar acesso total como dono
+        console.log("[MyPermissions] ✅ USUÁRIO É DONO DE BANCA - Acesso total");
         return NextResponse.json({
           success: true,
           isOwner: true,
@@ -68,6 +67,8 @@ export async function GET(req: NextRequest) {
         });
       }
     }
+    
+    console.log("[MyPermissions] ⚠️ Usuário NÃO é dono da banca atual, verificando memberships...");
 
     // Se não é dono, buscar permissões como colaborador
     console.log("[MyPermissions] Buscando memberships para userId:", userId);
