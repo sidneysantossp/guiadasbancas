@@ -49,6 +49,15 @@ export default function ColaboradoresPage() {
 
   // Carregar colaboradores ao montar e quando houver mudanças
   useEffect(() => {
+    // Verificar se houve atualização enquanto a página não estava montada
+    const lastUpdate = localStorage.getItem('gb:colaboradores:updated');
+    const lastChecked = sessionStorage.getItem('gb:colaboradores:lastChecked');
+    
+    if (lastUpdate && lastUpdate !== lastChecked) {
+      console.log("[Colaboradores] Detectada atualização pendente no mount, marcando como verificado");
+      sessionStorage.setItem('gb:colaboradores:lastChecked', lastUpdate);
+    }
+    
     load();
     
     // Recarregar quando a janela receber foco (usuário voltou da página de cadastro)
