@@ -276,8 +276,8 @@ export default function NearbyBancas({ bancas }: NearbyBancasProps) {
             </div>
           </div>
         ) : (
-          <div className="relative z-10 py-6">
-            <div className="overflow-hidden px-6">
+          <div className="relative z-10 py-4">
+            <div className="overflow-hidden px-6 py-4">
               <div
                 className="flex gap-6"
                 style={{
