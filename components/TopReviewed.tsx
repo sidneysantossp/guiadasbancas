@@ -20,6 +20,7 @@ type TopItem = {
   available?: boolean;
   discountLabel?: string;
   code?: string; // Código do produto (codigo_mercos)
+  banca_id?: string;
 };
 
 function RatingPill({ rating = 5.0, reviews = 1 }: { rating?: number; reviews?: number }) {
@@ -179,6 +180,7 @@ export default function TopReviewed() {
             available: p.active !== false,
             discountLabel: (typeof p.discount_percent === 'number' && p.discount_percent > 0) ? `-${Math.round(p.discount_percent)}%` : undefined,
             code: p.codigo_mercos,
+            banca_id: p.banca_id,
           };
         });
 
@@ -323,8 +325,8 @@ function EnhancedCard({ p }: { p: TopItem }) {
         <button
           onClick={() => {
             if (!outOfStock) {
-              addToCart({ id: p.id, name: p.title, price: p.price, image: p.image }, 1);
-              show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>);
+              const added = addToCart({ id: p.id, name: p.title, price: p.price, image: p.image, banca_id: p.banca_id, banca_name: p.vendor }, 1);
+              if (added) show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>);
             }
           }}
           aria-label="Adicionar ao carrinho"

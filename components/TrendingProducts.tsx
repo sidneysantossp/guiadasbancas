@@ -17,6 +17,8 @@ export type TrendProduct = {
   ratingAvg?: number | null;
   reviewsCount?: number | null;
   codigoMercos?: string;
+  banca_id?: string;
+  banca_name?: string;
 };
 
 type ApiProduct = {
@@ -29,6 +31,7 @@ type ApiProduct = {
   rating_avg?: number | null;
   reviews_count?: number | null;
   codigo_mercos?: string;
+  banca_id?: string;
 };
 
 function FireIcon() {
@@ -62,8 +65,8 @@ function TrendCard({ p }: { p: TrendProduct }) {
 
   const handleAddToCart = (event: React.MouseEvent) => {
     event.preventDefault();
-    addToCart({ id: p.id, name: p.name, price: p.price, image: p.image }, 1);
-    show(<span>Adicionado ao carrinho.</span>);
+    const added = addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: p.banca_id, banca_name: p.banca_name }, 1);
+    if (added) show(<span>Adicionado ao carrinho.</span>);
   };
   const href = ("/produto/" + slugify(p.name) + "-" + p.id) as Route;
 
@@ -248,6 +251,8 @@ export default function TrendingProducts() {
               ratingAvg: p.rating_avg ?? null,
               reviewsCount: p.reviews_count ?? null,
               codigoMercos: p.codigo_mercos || undefined,
+              banca_id: p.banca_id || undefined,
+              banca_name: (p as any).banca_name || undefined,
             } as TrendProduct;
           });
 

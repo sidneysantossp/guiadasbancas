@@ -22,6 +22,7 @@ type FavItem = {
   reviewsCount?: number | null;
   available?: boolean;
   codigo_mercos?: string;
+  banca_id?: string;
 };
 
 type ApiProduct = {
@@ -166,13 +167,17 @@ function FavCard({ item }: { item: FavItem }) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    addToCart({ 
+    const added = addToCart({ 
       id, 
       name, 
       price, 
-      image 
+      image,
+      banca_id: item.banca_id,
+      banca_name: vendorName
     }, 1);
-    show(<span>Adicionado ao carrinho!</span>);
+    if (added) {
+      show(<span>Adicionado ao carrinho!</span>);
+    }
   };
 
   const handleFavorite = async (e: React.MouseEvent) => {
@@ -359,6 +364,7 @@ export default function FavoritePicks() {
             reviewsCount: p.reviews_count ?? null,
             available: p.active !== false,
             codigo_mercos: (p as any).codigo_mercos || undefined,
+            banca_id: p.banca_id || undefined,
           } as FavItem;
         });
         console.log(`[FavoritePicks] Produtos mapeados: ${mapped.length}`);
