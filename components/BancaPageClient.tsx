@@ -793,28 +793,67 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   const [searchTerm, setSearchTerm] = useState<string>(''); // Busca local de produtos
   const catScrollerRef = useRef<HTMLDivElement | null>(null);
   const [hasCatOverflow, setHasCatOverflow] = useState(false);
-  const [paniniOpen, setPaniniOpen] = useState(true); // Sanfona Panini aberta por padrão
+  // Estado das sanfonas (qual está aberta)
+  const [openAccordions, setOpenAccordions] = useState<Set<string>>(new Set(['Panini', 'Tabacaria']));
 
-  // Subcategorias da Panini (para agrupar na sanfona)
-  const PANINI_SUBCATEGORIES = [
-    'Colecionáveis', 'Conan', 'DC Comics', 'Disney Comics', 'Marvel Comics',
-    'Maurício de Sousa Produções', 'Panini Books', 'Panini Comics',
-    'Panini Magazines', 'Panini Partwork', 'Planet Manga'
-  ];
+  const toggleAccordion = (name: string) => {
+    setOpenAccordions(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
 
-  // Separar categorias Panini das outras
-  const { paniniCategories, otherCategories } = useMemo(() => {
-    const panini: string[] = [];
-    const other: string[] = [];
-    for (const cat of allCategories) {
-      if (PANINI_SUBCATEGORIES.includes(cat)) {
-        panini.push(cat);
-      } else {
-        other.push(cat);
+  // Configuração de categorias pai e suas subcategorias
+  const CATEGORY_GROUPS: Record<string, string[]> = {
+    // Brancaleone - Panini
+    'Panini': [
+      'Colecionáveis', 'Conan', 'DC Comics', 'Disney Comics', 'Marvel Comics',
+      'Maurício de Sousa Produções', 'Panini Books', 'Panini Comics',
+      'Panini Magazines', 'Panini Partwork', 'Planet Manga'
+    ],
+    // Bambino - Categorias pai com subcategorias
+    'Bebidas': ['Energéticos'],
+    'Bomboniere': ['Balas e Drops', 'Balas a Granel', 'Biscoitos', 'Chicletes', 'Chocolates', 'Doces', 'Pirulitos', 'Salgadinhos', 'Snacks'],
+    'Brinquedos': ['Blocos de Montar', 'Carrinhos', 'Massinha', 'Pelúcias'],
+    'Cartas': ['Baralhos', 'Baralhos e Cards', 'Cards Colecionáveis', 'Cards Pokémon', 'Jogos Copag', 'Jogos de Cartas'],
+    'Eletrônicos': ['Caixas de Som', 'Fones de Ouvido', 'Informática', 'Pilhas'],
+    'Miniaturas': ['Fichários Pokémon'],
+    'Pokémon': ['Cards Pokémon', 'Fichários Pokémon'],
+    'Tabacaria': [
+      'Boladores', 'Carvão Narguile', 'Charutos e Cigarrilhas', 'Cigarros', 'Essências',
+      'Filtros', 'Incensos', 'Isqueiros', 'Palheiros', 'Piteiras', 'Porta Cigarros',
+      'Seda OCB', 'Tabaco e Seda', 'Tabacos Importados', 'Trituradores'
+    ],
+  };
+
+  // Separar categorias em grupos e avulsas
+  const { groupedCategories, standaloneCategories } = useMemo(() => {
+    const allSubcats = new Set<string>();
+    Object.values(CATEGORY_GROUPS).forEach(subs => subs.forEach(s => allSubcats.add(s)));
+    
+    const grouped: Record<string, string[]> = {};
+    const standalone: string[] = [];
+    
+    // Para cada grupo, verificar quais subcategorias existem nos produtos
+    for (const [groupName, subcats] of Object.entries(CATEGORY_GROUPS)) {
+      const existingSubs = subcats.filter(s => allCategories.includes(s));
+      if (existingSubs.length > 0) {
+        grouped[groupName] = existingSubs.sort((a, b) => a.localeCompare(b, 'pt-BR'));
       }
     }
-    return { paniniCategories: panini.sort((a, b) => a.localeCompare(b, 'pt-BR')), otherCategories: other };
+    
+    // Categorias que não pertencem a nenhum grupo
+    for (const cat of allCategories) {
+      if (!allSubcats.has(cat)) {
+        standalone.push(cat);
+      }
+    }
+    
+    return { groupedCategories: grouped, standaloneCategories: standalone.sort((a, b) => a.localeCompare(b, 'pt-BR')) };
   }, [allCategories]);
+
 
   // Auto-rolagem do slider de categorias (todas as larguras; apenas os chips após 'Todos')
   useEffect(() => {
@@ -1435,16 +1474,16 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                   Todos os Produtos
                 </button>
 
-                {/* Sanfona Panini - PRIMEIRO */}
-                {paniniCategories.length > 0 && (
-                  <div className="border-b border-gray-100 pb-2 mb-2">
+                {/* Sanfonas de categorias agrupadas */}
+                {Object.entries(groupedCategories).map(([groupName, subcats]) => (
+                  <div key={groupName} className="border-b border-gray-100 pb-2 mb-2">
                     <button
-                      onClick={() => setPaniniOpen(!paniniOpen)}
+                      onClick={() => toggleAccordion(groupName)}
                       className="w-full flex items-center justify-between px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
                     >
-                      <span>Panini</span>
+                      <span>{groupName}</span>
                       <svg
-                        className={`w-4 h-4 transition-transform duration-200 ${paniniOpen ? 'rotate-180' : ''}`}
+                        className={`w-4 h-4 transition-transform duration-200 ${openAccordions.has(groupName) ? 'rotate-180' : ''}`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -1453,10 +1492,10 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                       </svg>
                     </button>
                     
-                    {/* Subcategorias Panini */}
-                    <div className={`overflow-hidden transition-all duration-200 ${paniniOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                    {/* Subcategorias */}
+                    <div className={`overflow-hidden transition-all duration-200 ${openAccordions.has(groupName) ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
                       <div className="pl-3 space-y-1 mt-1">
-                        {paniniCategories.map((name) => (
+                        {subcats.map((name) => (
                           <button
                             key={name}
                             onClick={() => setActiveCategory(name)}
@@ -1472,10 +1511,10 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                       </div>
                     </div>
                   </div>
-                )}
+                ))}
 
-                {/* Categorias que não são Panini */}
-                {otherCategories.map((name) => (
+                {/* Categorias avulsas (não agrupadas) */}
+                {standaloneCategories.map((name) => (
                   <button
                     key={name}
                     onClick={() => setActiveCategory(name)}
