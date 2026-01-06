@@ -55,6 +55,41 @@ export async function GET(req: NextRequest) {
     .eq("id", userId)
     .single();
 
+  // Simular o que a API my-permissions retornaria
+  let simulatedResponse: any = null;
+  
+  if (ownedBancas && ownedBancas.length > 0) {
+    simulatedResponse = {
+      isOwner: true,
+      accessLevel: "admin",
+      permissions: "TODAS (é dono de banca)",
+    };
+  } else if (memberships && memberships.length > 0) {
+    const targetMembership = bancaId 
+      ? memberships.find((m: any) => m.banca_id === bancaId) || memberships[0]
+      : memberships[0];
+    
+    if (targetMembership.access_level === "admin") {
+      simulatedResponse = {
+        isOwner: false,
+        accessLevel: "admin",
+        permissions: "TODAS (é admin da banca)",
+      };
+    } else {
+      simulatedResponse = {
+        isOwner: false,
+        accessLevel: "collaborator",
+        permissions: targetMembership.permissions || [],
+      };
+    }
+  } else {
+    simulatedResponse = {
+      isOwner: false,
+      accessLevel: "none",
+      permissions: [],
+    };
+  }
+
   return NextResponse.json({
     session_user_id: session?.user?.id,
     query_user_id: userId,
@@ -66,6 +101,7 @@ export async function GET(req: NextRequest) {
     memberships,
     memberships_error: membershipsError?.message,
     specific_banca_check: specificBancaOwner,
+    simulated_my_permissions_response: simulatedResponse,
     diagnostico: {
       is_owner: ownedBancas && ownedBancas.length > 0,
       is_collaborator: memberships && memberships.length > 0 && (!ownedBancas || ownedBancas.length === 0),
