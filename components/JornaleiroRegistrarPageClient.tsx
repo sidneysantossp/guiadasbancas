@@ -335,47 +335,9 @@ export default function JornaleiroRegistrarPageClient() {
     } catch {}
   }, []);
 
-  // Restaurar progresso do wizard
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('gb:sellerWizard');
-      if (!raw) return;
-      const w = JSON.parse(raw);
-      if (w.step) setStep(w.step);
-      if (w.name) setName(w.name);
-      if (w.cpf) setCpf(w.cpf);
-      if (w.phone) setPhone(w.phone);
-      if (w.email) setEmail(w.email);
-      if (w.password) setPassword(w.password);
-      if (w.cep) setCep(w.cep);
-      if (w.street) setStreet(w.street);
-      if (w.number) setNumber(w.number);
-      if (w.complement) setComplement(w.complement);
-      if (w.neighborhood) setNeighborhood(w.neighborhood);
-      if (w.city) setCity(w.city);
-      if (w.uf) setUf(w.uf);
-      if (w.bankName) setBankName(w.bankName);
-      if (w.bankCoverUrl) { setBankCoverUrl(w.bankCoverUrl); setBankCoverPreview(w.bankCoverUrl); }
-      if (w.bankProfileUrl) { setBankProfileUrl(w.bankProfileUrl); setBankProfilePreview(w.bankProfileUrl); }
-      if (w.servicePhone) setServicePhone(w.servicePhone);
-      if (w.bankTpuUrl) setBankTpuUrl(w.bankTpuUrl);
-      if (w.gmbHas) setGmbHas(w.gmbHas);
-      if (w.gmbUrl) setGmbUrl(w.gmbUrl);
-      if (w.facebookHas) setFacebookHas(w.facebookHas);
-      if (w.facebookUrl) setFacebookUrl(w.facebookUrl);
-      if (w.instagramHas) setInstagramHas(w.instagramHas);
-      if (w.instagramUrl) setInstagramUrl(w.instagramUrl);
-      if (Array.isArray(w.hours)) setHours(w.hours);
-      if (w.isCotaAtiva !== undefined) setIsCotaAtiva(w.isCotaAtiva);
-      if (w.selectedCotaAtiva) setSelectedCotaAtiva(w.selectedCotaAtiva);
-    } catch {}
-  }, []);
-
-  // Salvar progresso do wizard
-  useEffect(() => {
-    const payload = { step, name, cpf, phone, email, password, cep, street, number, complement, neighborhood, city, uf, bankName, bankCoverUrl: bankCoverPreview || bankCoverUrl, bankProfileUrl: bankProfilePreview || bankProfileUrl, bankTpuUrl, servicePhone, gmbHas, gmbUrl, facebookHas, facebookUrl, instagramHas, instagramUrl, hours, banks, isCotaAtiva, selectedCotaAtiva };
-    try { localStorage.setItem('gb:sellerWizard', JSON.stringify(payload)); } catch {}
-  }, [step, name, cpf, phone, email, password, cep, street, number, complement, neighborhood, city, uf, bankName, bankCoverUrl, bankProfileUrl, bankCoverPreview, bankProfilePreview, servicePhone, gmbHas, gmbUrl, facebookHas, facebookUrl, instagramHas, instagramUrl, hours, banks, isCotaAtiva, selectedCotaAtiva]);
+  // REMOVIDO: Restaurar/Salvar progresso do wizard no localStorage
+  // Causava popup "Sair do site?" do Chrome ao detectar dados não salvos
+  // Agora os dados são salvos diretamente no Supabase durante o signup
 
   // Auto-hide toast
   useEffect(() => {
