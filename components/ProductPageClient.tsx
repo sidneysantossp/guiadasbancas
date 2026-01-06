@@ -206,7 +206,7 @@ function useItemsPerView() {
   }, []);
   if (w < 640) return 2;      // mobile: 2
   if (w < 1024) return 3;     // tablet: 3
-  return 4;                   // desktop: 4
+  return 5;                   // desktop: 5
 }
 
 function RelatedCarousel({ items }: { items: RelatedProduct[] }) {
@@ -223,11 +223,11 @@ function RelatedCarousel({ items }: { items: RelatedProduct[] }) {
 
   useEffect(() => {
     const id = setInterval(() => {
-      setIndex((i) => i + perView);
+      setIndex((i) => i + 1); // Passa 1 produto por vez
       setAnimating(true);
     }, 4500);
     return () => clearInterval(id);
-  }, [perView]);
+  }, []);
 
   return (
     <section className="mt-10">
@@ -290,14 +290,14 @@ function RelatedCarousel({ items }: { items: RelatedProduct[] }) {
         {/* Setas de navegação */}
         <button
           aria-label="Anterior"
-          onClick={() => { setAnimating(true); setIndex((i) => Math.max(0, i - perView)); }}
+          onClick={() => { setAnimating(true); setIndex((i) => Math.max(0, i - 1)); }}
           className="hidden sm:grid place-items-center absolute left-1 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-white/95 shadow hover:bg-white"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
         </button>
         <button
           aria-label="Próximo"
-          onClick={() => { setAnimating(true); setIndex((i) => i + perView); }}
+          onClick={() => { setAnimating(true); setIndex((i) => i + 1); }}
           className="hidden sm:grid place-items-center absolute right-1 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-white/95 shadow hover:bg-white"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
