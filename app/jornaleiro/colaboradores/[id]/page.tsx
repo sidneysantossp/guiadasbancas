@@ -117,27 +117,35 @@ export default function EditarColaboradorPage() {
 
     try {
       setSaving(true);
+      
+      const payload = {
+        full_name: fullName.trim(),
+        access_level: accessLevel,
+        banca_ids: selectedBancas,
+        permissions: accessLevel === "admin" ? MODULES.map((m) => m.key) : permissions,
+      };
+      
+      console.log("[EditColaborador] Enviando payload:", payload);
+      
       const res = await fetch(`/api/jornaleiro/colaboradores/${colaboradorId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          full_name: fullName.trim(),
-          access_level: accessLevel,
-          banca_ids: selectedBancas,
-          permissions: accessLevel === "admin" ? MODULES.map((m) => m.key) : permissions,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
+      console.log("[EditColaborador] Resposta da API:", json);
+      
       if (!res.ok || !json?.success) {
         throw new Error(json?.error || "Erro ao atualizar colaborador");
       }
 
       setSuccessMessage("✅ Dados do colaborador atualizados com sucesso!");
       setTimeout(() => {
+        router.refresh();
         router.push("/jornaleiro/colaboradores");
-      }, 2000);
+      }, 1500);
     } catch (e: any) {
       setError(e?.message || "Erro ao atualizar colaborador");
     } finally {
