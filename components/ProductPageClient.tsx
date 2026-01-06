@@ -278,9 +278,8 @@ function RelatedCarousel({ items }: { items: RelatedProduct[] }) {
                     </span>
                   </div>
                   {/* Preço */}
-                  <div className="mt-2 flex items-baseline gap-2">
+                  <div className="mt-2">
                     <span className="text-[#ff5c00] font-extrabold">R$ {it.price.toFixed(2)}</span>
-                    <span className="text-gray-400 line-through text-xs">R$ {(it.price * 1.3).toFixed(2)}</span>
                   </div>
                 </Link>
               </div>
