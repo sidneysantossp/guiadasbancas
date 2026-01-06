@@ -24,39 +24,35 @@ export default function JornaleiroOnboardingPage() {
       // Se o usuário já é jornaleiro, verificar se já tem banca na tabela bancas
       // (não confiar apenas no profile.banca_id que pode estar desatualizado)
       if (user && profile?.role === "jornaleiro") {
-        try {
-          const { data: existingBanca } = await supabase
-            .from('bancas')
-            .select('id')
-            .eq('user_id', user.id)
-            .single();
+        // Usar maybeSingle() para não lançar erro se não encontrar
+        const { data: existingBanca, error: bancaError } = await supabase
+          .from('bancas')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-          if (existingBanca) {
-            logger.log('[Onboarding] ✅ Banca já existe, redirecionando para dashboard');
-            setStatus("success");
-            setMessage("Você já possui uma banca cadastrada. Redirecionando...");
-            setTimeout(() => {
-              if (!cancelled) {
-                router.push("/jornaleiro/dashboard" as Route);
-              }
-            }, 1000);
-            return;
-          }
+        if (bancaError) {
+          logger.error('[Onboarding] Erro ao verificar banca:', bancaError);
+        }
 
-          // Se não tem banca, segue para criação
-          logger.log('[Onboarding] 📝 Banca não encontrada, iniciando criação');
-          if (!cancelled) {
-            createBanca();
-          }
-          return;
-        } catch (error) {
-          logger.error('[Onboarding] Erro ao verificar banca:', error);
-          // Em caso de erro, tenta criar mesmo assim
-          if (!cancelled) {
-            createBanca();
-          }
+        if (existingBanca) {
+          logger.log('[Onboarding] ✅ Banca já existe, redirecionando para dashboard');
+          setStatus("success");
+          setMessage("Você já possui uma banca cadastrada. Redirecionando...");
+          setTimeout(() => {
+            if (!cancelled) {
+              router.push("/jornaleiro/dashboard" as Route);
+            }
+          }, 1000);
           return;
         }
+
+        // Se não tem banca, segue para criação
+        logger.log('[Onboarding] 📝 Banca não encontrada, iniciando criação');
+        if (!cancelled) {
+          createBanca();
+        }
+        return;
       }
 
       // Se não é jornaleiro ainda, aguarda ou timeout
