@@ -40,7 +40,7 @@ export default function MiniBanners() {
   // Se não tiver banners da API, retorna lista vazia (não renderiza nada)
   const items = useMemo(() => {
     if (!remote || !remote.length) return [];
-    return remote.length < 6 ? [...remote, ...remote].slice(0, 6) : remote;
+    return remote; // Usar apenas os banners cadastrados, sem duplicar
   }, [remote]);
   const track = useMemo(() => [...items, ...items], [items]);
 
