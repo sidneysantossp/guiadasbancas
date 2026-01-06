@@ -9,6 +9,7 @@ import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import { shippingConfig } from "@/components/shippingConfig";
+import CategoryCarousel from "@/components/CategoryCarousel";
 
 // Tipos para produtos e bancas (dados vêm do Supabase)
 export type Product = {
@@ -245,7 +246,7 @@ function BancaCard({ b, km, loc, description }: { b: Banca; km: number | null; l
 type CategoryResultsClientProps = {
   slug: string;
   title: string;
-  initialCategories?: Array<{ id: string; name: string; link?: string }>;
+  initialCategories?: Array<{ id: string; name: string; link?: string; image?: string }>;
 };
 
 export default function CategoryResultsClient({ slug, title, initialCategories }: CategoryResultsClientProps) {
@@ -634,6 +635,16 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
 
   return (
     <section className="container-max pt-3 pb-32">
+      
+      {/* Carrossel de Categorias */}
+      <div className="mb-4">
+        <CategoryCarousel initialItems={initialCategories?.map(cat => ({
+          key: cat.id || cat.name,
+          name: cat.name,
+          image: cat.image || '',
+          link: cat.link || `/categorias/${cat.name.toLowerCase().replace(/\s+/g, '-')}`,
+        })) || []} />
+      </div>
       
       {loading && (
         <div className="flex items-center justify-center py-12">
