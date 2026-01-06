@@ -179,11 +179,14 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
         
         const res = await fetch("/api/jornaleiro/my-permissions", { 
           credentials: "include",
+          cache: "no-store",
           headers: {
             "x-banca-id": banca.id,
           },
         });
         const json = await res.json();
+        
+        console.log("[Permissions] Resposta da API:", JSON.stringify(json));
         
         if (json?.success) {
           const ownerOrAdmin = json.isOwner === true || json.accessLevel === "admin";
@@ -198,6 +201,36 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     };
 
     loadPermissions();
+    
+    // Recarregar permissões quando a janela receber foco (colaborador pode ter tido permissões alteradas)
+    const handleFocus = () => {
+      console.log("[Permissions] Janela recebeu foco, recarregando permissões...");
+      loadPermissions();
+    };
+    
+    // Listener para evento de atualização de permissões (disparado pelo dono ao editar colaborador)
+    const handlePermissionsUpdate = () => {
+      console.log("[Permissions] Evento de atualização recebido, recarregando...");
+      loadPermissions();
+    };
+    
+    // Listener para storage event (sincronização entre abas)
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'gb:permissions:updated') {
+        console.log("[Permissions] Storage event recebido, recarregando...");
+        loadPermissions();
+      }
+    };
+    
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("permissions:updated", handlePermissionsUpdate);
+    window.addEventListener("storage", handleStorageChange);
+    
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("permissions:updated", handlePermissionsUpdate);
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, [user?.id, isAuthRoute, banca?.id]);
 
   // Menu filtrado baseado em permissões e status de cotista

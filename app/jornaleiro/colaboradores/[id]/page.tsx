@@ -149,6 +149,9 @@ export default function EditarColaboradorPage() {
       // Atualizar localStorage para sincronizar entre abas
       localStorage.setItem('gb:colaboradores:updated', Date.now().toString());
       
+      // Disparar evento para atualizar permissões do colaborador (se ele estiver logado em outra aba)
+      localStorage.setItem('gb:permissions:updated', Date.now().toString());
+      
       setTimeout(() => {
         router.push("/jornaleiro/colaboradores");
       }, 1500);
