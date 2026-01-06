@@ -99,11 +99,14 @@ export async function GET(req: Request) {
       lat: banca.lat,
       lng: banca.lng,
       cover: banca.cover_image || '',
+      cover_image: banca.cover_image || '',
       avatar: banca.avatar || banca.cover_image || '',
       description: banca.address,
       categories: banca.categories || [],
       active: banca.active !== false,
-      order: banca.order || 0
+      order: banca.order || 0,
+      is_cotista: banca.is_cotista || false,
+      cotista_id: banca.cotista_id || null
     }));
 
     return NextResponse.json({ data: list });
