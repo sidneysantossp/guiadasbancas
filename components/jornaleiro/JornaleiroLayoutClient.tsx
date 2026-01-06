@@ -175,7 +175,11 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
       }
       
       try {
-        console.log("[Permissions] Buscando permissões para banca:", banca.id);
+        console.log("[Permissions] ========== CARREGANDO PERMISSÕES ==========");
+        console.log("[Permissions] banca.id:", banca.id);
+        console.log("[Permissions] banca.name:", banca.name);
+        console.log("[Permissions] banca.user_id:", banca.user_id);
+        console.log("[Permissions] user.id (logado):", user?.id);
         
         const res = await fetch("/api/jornaleiro/my-permissions", { 
           credentials: "include",
