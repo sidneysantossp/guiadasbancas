@@ -104,6 +104,11 @@ const nextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'cdn.mercos.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
         hostname: 'placehold.co',
       },
       {
