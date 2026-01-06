@@ -384,20 +384,9 @@ export default function JornaleiroRegistrarPageClient() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  // Confirmar saída se houver rascunho
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      try {
-        const raw = localStorage.getItem('gb:sellerWizard');
-        if (raw) {
-          e.preventDefault();
-          e.returnValue = '';
-        }
-      } catch {}
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, []);
+  // REMOVIDO: Popup de confirmação ao sair da página
+  // Causava problemas durante o cadastro - jornaleiro leigo não entende o popup
+  // e ao clicar em "Cancelar" ficava preso na tela
 
   const fetchAndFillCep = async (onlyCep: string) => {
     if (!onlyCep || onlyCep.length !== 8) return;
