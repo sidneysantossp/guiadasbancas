@@ -19,35 +19,76 @@ export async function GET(req: NextRequest) {
     const sort = searchParams.get("sort") || "name"; // Mudado de created_at para name (alfabético)
     const order = searchParams.get("order") || "asc"; // Mudado de desc para asc
 
+    // Mapeamento de categorias pai para subcategorias (usado na home)
+    const CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
+      'tabacaria': ['Boladores', 'Carvão Narguile', 'Charutos e Cigarrilhas', 'Cigarros', 'Essências', 'Filtros', 'Incensos', 'Isqueiros', 'Palheiros', 'Piteiras', 'Porta Cigarros', 'Seda OCB', 'Tabaco e Seda', 'Tabacos Importados', 'Trituradores'],
+      'bebidas': ['Energéticos', 'Bebidas'],
+      'bomboniere': ['Balas e Drops', 'Balas a Granel', 'Biscoitos', 'Chicletes', 'Chocolates', 'Doces', 'Pirulitos', 'Salgadinhos', 'Snacks'],
+      'brinquedos': ['Blocos de Montar', 'Carrinhos', 'Massinha', 'Pelúcias', 'Brinquedos', 'Livros Infantis'],
+      'cartas': ['Baralhos', 'Baralhos e Cards', 'Cards Colecionáveis', 'Cards Pokémon', 'Jogos Copag', 'Jogos de Cartas'],
+      'eletronicos': ['Caixas de Som', 'Fones de Ouvido', 'Informática', 'Pilhas', 'Eletrônicos'],
+      'diversos': ['Acessórios', 'Acessórios Celular', 'Adesivos Times', 'Chaveiros', 'Diversos', 'Guarda-Chuvas', 'Mochilas', 'Outros', 'Papelaria', 'Utilidades', 'Figurinhas'],
+      'pokemon': ['Cards Pokémon', 'Fichários Pokémon'],
+      'panini': ['Colecionáveis', 'Conan', 'DC Comics', 'Disney Comics', 'Marvel Comics', 'Maurício de Sousa Produções', 'Panini Books', 'Panini Comics', 'Panini Magazines', 'Panini Partwork', 'Planet Manga'],
+    };
+
     // Se tiver categoryName, buscar o ID da categoria primeiro
     let categoryId = category;
+    let categoryIds: string[] = []; // Para buscar múltiplas subcategorias
+    
     if (categoryName && !categoryId) {
-      // Buscar nas duas tabelas de categorias (bancas e distribuidores)
-      const searchName = categoryName.replace(/-/g, ' '); // "capinhas-celular" -> "capinhas celular"
+      const searchName = categoryName.replace(/-/g, ' ').toLowerCase(); // "capinhas-celular" -> "capinhas celular"
+      const subcategories = CATEGORY_SUBCATEGORIES[searchName];
       
-      // Buscar em categories (bancas)
-      const { data: catData } = await supabaseAdmin
-        .from('categories')
-        .select('id, name')
-        .ilike('name', `%${searchName}%`)
-        .limit(1);
-      
-      if (catData && catData.length > 0) {
-        categoryId = catData[0].id;
-        console.log(`[API Public] Categoria encontrada (bancas): ${catData[0].name} -> ${categoryId}`);
-      } else {
+      if (subcategories && subcategories.length > 0) {
+        // É uma categoria pai - buscar IDs de todas as subcategorias
+        console.log(`[API Public] Categoria pai "${searchName}" - buscando subcategorias: ${subcategories.join(', ')}`);
+        
         // Buscar em distribuidor_categories
         const { data: distCatData } = await supabaseAdmin
           .from('distribuidor_categories')
           .select('id, nome')
-          .ilike('nome', `%${searchName}%`)
-          .limit(1);
+          .in('nome', subcategories);
         
         if (distCatData && distCatData.length > 0) {
-          categoryId = distCatData[0].id;
-          console.log(`[API Public] Categoria encontrada (distribuidores): ${distCatData[0].nome} -> ${categoryId}`);
+          categoryIds = distCatData.map(c => c.id);
+          console.log(`[API Public] Subcategorias encontradas: ${distCatData.length} (${distCatData.map(c => c.nome).join(', ')})`);
+        }
+        
+        // Também buscar em categories (bancas)
+        const { data: catData } = await supabaseAdmin
+          .from('categories')
+          .select('id, name')
+          .in('name', subcategories);
+        
+        if (catData && catData.length > 0) {
+          categoryIds = [...categoryIds, ...catData.map(c => c.id)];
+          console.log(`[API Public] + Categorias de bancas: ${catData.length}`);
+        }
+      } else {
+        // Busca normal por nome
+        const { data: catData } = await supabaseAdmin
+          .from('categories')
+          .select('id, name')
+          .ilike('name', `%${searchName}%`)
+          .limit(1);
+        
+        if (catData && catData.length > 0) {
+          categoryId = catData[0].id;
+          console.log(`[API Public] Categoria encontrada (bancas): ${catData[0].name} -> ${categoryId}`);
         } else {
-          console.log(`[API Public] Categoria não encontrada para: ${searchName}`);
+          const { data: distCatData } = await supabaseAdmin
+            .from('distribuidor_categories')
+            .select('id, nome')
+            .ilike('nome', `%${searchName}%`)
+            .limit(1);
+          
+          if (distCatData && distCatData.length > 0) {
+            categoryId = distCatData[0].id;
+            console.log(`[API Public] Categoria encontrada (distribuidores): ${distCatData[0].nome} -> ${categoryId}`);
+          } else {
+            console.log(`[API Public] Categoria não encontrada para: ${searchName}`);
+          }
         }
       }
     }
@@ -84,8 +125,10 @@ export async function GET(req: NextRequest) {
       query = query.is('distribuidor_id', null);
     }
 
-    // Filtro de categoria
-    if (categoryId) {
+    // Filtro de categoria (pode ser uma única ou múltiplas subcategorias)
+    if (categoryIds.length > 0) {
+      query = query.in('category_id', categoryIds);
+    } else if (categoryId) {
       query = query.eq('category_id', categoryId);
     }
 
