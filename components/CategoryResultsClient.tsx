@@ -428,6 +428,33 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
                 });
               
               setProducts(mappedProducts);
+              
+              // Mapear bancas que possuem produtos dessa categoria
+              const uniqueBancaIds = new Set<string>(productsArray.map((p: any) => p.banca_id).filter(Boolean));
+              console.log(`[CategoryResults] Bancas únicas com produtos (categoryName): ${uniqueBancaIds.size}`);
+              
+              const mappedBancas: Banca[] = Array.from(uniqueBancaIds)
+                .map((bancaId: string) => bancasMap.get(bancaId))
+                .filter(Boolean)
+                .filter((banca: any) => banca.active !== false)
+                .map((banca: any) => {
+                  const productsCount = productsArray.filter((p: any) => p.banca_id === banca.id).length;
+                  return {
+                    id: banca.id,
+                    name: banca.name || 'Banca',
+                    cover: banca.cover_image || banca.cover || '',
+                    avatar: banca.avatar || banca.cover_image || '',
+                    lat: banca.lat || -23.5505,
+                    lng: banca.lng || -46.6333,
+                    itemsCount: productsCount,
+                    rating: 4.5,
+                    reviews: 0,
+                    open: true,
+                  };
+                });
+              
+              setBancas(mappedBancas);
+              console.log(`[CategoryResults] Bancas mapeadas (categoryName): ${mappedBancas.length}`);
             } else {
               console.log('[CategoryResults] Nenhum produto encontrado para esta categoria');
               setProducts([]);
