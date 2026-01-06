@@ -91,19 +91,17 @@ function slugify(text: string) {
 }
 
 function ProductCard({ p, km }: { p: Product; km: number | null }) {
-  const [fav, setFav] = useState(false);
-  const { addToCart } = useCart();
-  const { show } = useToast();
+  // Extrair código do produto (ID sem UUID da banca se for composto)
+  const productCode = p.id.includes('-') ? p.id.split('-')[0] : p.id;
+  const productHref = ("/produto/" + slugify(p.name) + "-" + p.id) as Route;
+  
   return (
-    <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition">
+    <Link 
+      href={productHref}
+      className="block rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition cursor-pointer"
+    >
       <div className="relative h-40 sm:h-44 lg:h-36 w-full group">
         <Image src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 16vw" className="object-cover" />
-        {/* Link absoluto cobrindo a imagem */}
-        <Link
-          href={("/produto/" + slugify(p.name) + "-" + p.id) as Route}
-          aria-label={`Ver detalhes de ${p.name}`}
-          className="absolute inset-0 rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5c00]"
-        />
         {/* Efeito hover sutil sobre a imagem */}
         <div className="pointer-events-none absolute inset-0 rounded-[14px] bg-black/0 group-hover:bg-black/5 transition" />
         {p.ready && (
@@ -113,7 +111,9 @@ function ProductCard({ p, km }: { p: Product; km: number | null }) {
         )}
       </div>
       <div className="p-3">
-        <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="text-[13px] font-semibold line-clamp-1 hover:underline">{p.name}</Link>
+        <div className="text-[13px] font-semibold line-clamp-1">{p.name}</div>
+        {/* Código do produto */}
+        <div className="text-[10px] text-gray-400 mt-0.5">Cód: {productCode.substring(0, 8)}</div>
         <div className="mt-1 flex items-center justify-between">
           <Stars value={p.rating ?? 5} />
           <span className="text-[11px] text-gray-500">{p.reviews ?? 0} avaliações</span>
@@ -122,67 +122,14 @@ function ProductCard({ p, km }: { p: Product; km: number | null }) {
           <span className="text-[#ff5c00] font-extrabold">R$ {p.price.toFixed(2)}</span>
           <DistancePill km={km} />
         </div>
-        <div className="mt-2 flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="h-6 w-6 rounded-full overflow-hidden">
-              <Image src={p.vendorAvatar || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop"} alt={p.vendor} width={24} height={24} className="h-full w-full object-cover" />
-            </div>
-            <span className="text-[12px] text-gray-700 font-medium truncate">{p.vendor}</span>
+        <div className="mt-2 flex items-center gap-2 min-w-0">
+          <div className="h-6 w-6 rounded-full overflow-hidden flex-shrink-0">
+            <Image src={p.vendorAvatar || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop"} alt={p.vendor} width={24} height={24} className="h-full w-full object-cover" />
           </div>
-          <span className="text-[11px] text-gray-500">&nbsp;</span>
-        </div>
-
-        <div className="mt-2 flex flex-col gap-1.5">
-          <button
-            type="button"
-            className="w-full rounded-md bg-[#ff5c00] text-white text-[11px] font-semibold py-1.5 hover:opacity-95"
-            onClick={() => {
-              addToCart(
-                {
-                  id: p.id,
-                  name: p.name,
-                  price: p.price,
-                  image: p.image,
-                  banca_id: p.bancaId,
-                  banca_name: p.vendor,
-                },
-                1
-              );
-              show(
-                <span>
-                  Adicionado ao carrinho. {" "}
-                  <Link href="/carrinho" className="underline font-semibold">
-                    Ver carrinho
-                  </Link>
-                </span>
-              );
-            }}
-          >
-            Adicionar ao carrinho
-          </button>
-
-          {p.phone && (
-            <a
-              href={`https://wa.me/${String(p.phone).replace(/\D/g, "")}?text=${encodeURIComponent(
-                `Olá! Tenho interesse no produto: ${p.name} (R$ ${p.price.toFixed(2)}).\n\nVer produto: https://guiadasbancas.com/produto/${slugify(p.name)}-${p.id}`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full inline-flex items-center justify-center gap-1.5 rounded-md border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] text-[11px] font-semibold py-1.5 hover:bg-[#25D366]/15"
-            >
-              <Image
-                src="https://cdn-icons-png.flaticon.com/128/733/733585.png"
-                alt="WhatsApp"
-                width={14}
-                height={14}
-                className="h-3.5 w-3.5 object-contain"
-              />
-              Comprar pelo WhatsApp
-            </a>
-          )}
+          <span className="text-[12px] text-gray-700 font-medium truncate">{p.vendor}</span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
