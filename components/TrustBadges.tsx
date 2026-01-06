@@ -17,7 +17,7 @@ export default function TrustBadges({ className = "", variant = 'large' }: Props
     const text = `font-medium text-gray-700 text-xs sm:text-sm md:text-sm`;
     const iconImgCls = `h-3 w-3 sm:h-4 sm:w-4 md:h-4 md:w-4 object-contain flex-shrink-0`;
     const item = `flex items-center gap-1.5 md:gap-1.5`;
-    const IconPagamento = (<Image src="https://cdn-icons-png.flaticon.com/128/9409/9409781.png" alt="Pagamento Facilitado" width={48} height={48} className={iconImgCls} />);
+    const IconPagamento = (<Image src="https://cdn-icons-png.flaticon.com/128/9409/9409781.png" alt="Pague no Pix" width={48} height={48} className={iconImgCls} />);
     const IconCompraSegura = (<Image src="https://cdn-icons-png.flaticon.com/128/1332/1332646.png" alt="Compra Segura" width={48} height={48} className={iconImgCls} />);
     const IconBancaVerificada = (<Image src="https://cdn-icons-png.flaticon.com/128/1271/1271343.png" alt="Responde Rápido" width={48} height={48} className={iconImgCls} />);
     const IconProntaEntrega = (<Image src="https://cdn-icons-png.flaticon.com/128/2331/2331107.png" alt="Pronta Entrega" width={48} height={48} className={iconImgCls} />);
@@ -25,7 +25,7 @@ export default function TrustBadges({ className = "", variant = 'large' }: Props
     const entries = useMemo(() => ([
       { icon: IconCompraSegura, label: 'Compra Segura' },
       { icon: IconBancaVerificada, label: 'Responde Rápido' },
-      { icon: IconPagamento, label: 'Pagamento Facilitado' },
+      { icon: IconPagamento, label: 'Pague no Pix' },
       { icon: IconProntaEntrega, label: 'Pronta Entrega' },
     ]), []);
 
@@ -56,9 +56,9 @@ export default function TrustBadges({ className = "", variant = 'large' }: Props
             {IconBancaVerificada}
             <span className={`${text} whitespace-nowrap`}>Responde Rápido</span>
           </div>
-          <div className={`${item} group relative`} title="Pagamento Facilitado" aria-label="Pagamento Facilitado">
+          <div className={`${item} group relative`} title="Pague no Pix" aria-label="Pague no Pix">
             {IconPagamento}
-            <span className={`${text} whitespace-nowrap`}>Pagamento Facilitado</span>
+            <span className={`${text} whitespace-nowrap`}>Pague no Pix</span>
           </div>
         </div>
       </>
@@ -71,7 +71,7 @@ export default function TrustBadges({ className = "", variant = 'large' }: Props
   const profileEntries = useMemo(() => ([
     { src: 'https://cdn-icons-png.flaticon.com/128/1332/1332646.png', label: 'Compra Segura' },
     { src: 'https://cdn-icons-png.flaticon.com/128/1271/1271343.png', label: 'Bancas Verificadas' },
-    { src: 'https://cdn-icons-png.flaticon.com/128/9409/9409781.png', label: 'Pagamento Facilitado' },
+    { src: 'https://cdn-icons-png.flaticon.com/128/9409/9409781.png', label: 'Pague no Pix' },
     { src: 'https://cdn-icons-png.flaticon.com/128/2331/2331107.png', label: 'Pronta Entrega' },
   ]), []);
   const slides = useMemo(() => {
@@ -102,10 +102,10 @@ export default function TrustBadges({ className = "", variant = 'large' }: Props
           <Image src="https://cdn-icons-png.flaticon.com/128/1271/1271343.png" alt="Bancas Verificadas" width={24} height={24} className={iconCls} />
           <span className={textCls}>Bancas Verificadas</span>
         </div>
-        {/* Pagamento Facilitado */}
-        <div className={cardBase} title="Pagamento Facilitado" aria-label="Pagamento Facilitado">
-          <Image src="https://cdn-icons-png.flaticon.com/128/9409/9409781.png" alt="Pagamento Facilitado" width={24} height={24} className={iconCls} />
-          <span className={textCls}>Pagamento Facilitado</span>
+        {/* Pague no Pix */}
+        <div className={cardBase} title="Pague no Pix" aria-label="Pague no Pix">
+          <Image src="https://cdn-icons-png.flaticon.com/128/9409/9409781.png" alt="Pague no Pix" width={24} height={24} className={iconCls} />
+          <span className={textCls}>Pague no Pix</span>
         </div>
         {/* Pronta Entrega */}
         <div className={cardBase} title="Pronta Entrega" aria-label="Pronta Entrega">
