@@ -181,6 +181,7 @@ export async function POST(req: NextRequest) {
     const newUserId = newUser.user.id;
 
     // Criar perfil do usuário
+    // IMPORTANTE: Definir banca_id para que o colaborador seja associado à banca correta
     const { error: profileError } = await supabaseAdmin
       .from("user_profiles")
       .upsert({
@@ -190,6 +191,7 @@ export async function POST(req: NextRequest) {
         whatsapp: whatsapp || null,
         role: "jornaleiro",
         jornaleiro_access_level: access_level || "collaborator",
+        banca_id: banca_ids[0], // Associar à primeira banca selecionada
         active: true,
         email_verified: true,
       });

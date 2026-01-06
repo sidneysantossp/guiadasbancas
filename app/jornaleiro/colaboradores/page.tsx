@@ -47,8 +47,18 @@ export default function ColaboradoresPage() {
     }
   };
 
+  // Carregar colaboradores ao montar e quando a página receber foco
   useEffect(() => {
     load();
+    
+    // Recarregar quando a janela receber foco (usuário voltou da página de cadastro)
+    const handleFocus = () => {
+      console.log("[Colaboradores] Janela recebeu foco, recarregando...");
+      load();
+    };
+    
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
   const handleDelete = async (id: string) => {

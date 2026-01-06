@@ -194,8 +194,10 @@ export default function NovoColaboradorPage() {
 
       setSuccessMessage("✅ Colaborador cadastrado com sucesso!");
       setTimeout(() => {
+        // Usar refresh + push para forçar recarregamento da lista
+        router.refresh();
         router.push("/jornaleiro/colaboradores");
-      }, 2000);
+      }, 1500);
     } catch (e: any) {
       setError(e?.message || "Erro ao cadastrar colaborador");
     } finally {
