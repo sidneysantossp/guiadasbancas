@@ -70,12 +70,15 @@ export async function GET(req: NextRequest) {
     }
 
     // Se não é dono, buscar permissões como colaborador
+    console.log("[MyPermissions] Buscando memberships para userId:", userId);
+    
     const { data: memberships, error: membershipsError } = await supabaseAdmin
       .from("banca_members")
       .select("access_level, permissions, banca_id")
       .eq("user_id", userId);
 
-    console.log("[MyPermissions] memberships:", JSON.stringify(memberships));
+    console.log("[MyPermissions] memberships encontradas:", memberships?.length || 0);
+    console.log("[MyPermissions] memberships detalhes:", JSON.stringify(memberships, null, 2));
     console.log("[MyPermissions] membershipsError:", membershipsError);
 
     if (!memberships || memberships.length === 0) {
