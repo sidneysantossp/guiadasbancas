@@ -588,7 +588,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
         }}
       />
       
-      <section className="container-max max-w-[980px] py-2 md:py-8 pb-24">
+      <section className="container-max py-2 md:py-8 pb-24">
         {/* Breadcrumbs */}
         <SEOBreadcrumbs 
           items={[
