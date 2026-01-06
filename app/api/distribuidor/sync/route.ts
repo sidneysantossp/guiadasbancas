@@ -175,95 +175,51 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Sync] ${allProdutos.length} produtos recebidos da Mercos (full=${full})`);
 
-    let produtosAtualizados = 0;
-    let produtosNovos = 0;
+    let produtosProcessados = 0;
     let erros = 0;
 
-    // Processar em lotes para melhor performance
-    const PROCESS_BATCH_SIZE = 100;
+    // Processar em lotes grandes usando UPSERT (muito mais rápido)
+    const UPSERT_BATCH_SIZE = 500;
+    const now = new Date().toISOString();
     
-    for (let i = 0; i < allProdutos.length; i += PROCESS_BATCH_SIZE) {
-      const batch = allProdutos.slice(i, i + PROCESS_BATCH_SIZE);
-      const mercosIds = batch.map((p: any) => p.id);
+    for (let i = 0; i < allProdutos.length; i += UPSERT_BATCH_SIZE) {
+      const batch = allProdutos.slice(i, i + UPSERT_BATCH_SIZE);
       
-      // Buscar todos os existentes deste lote em uma única query
-      const { data: existentesRows } = await supabaseAdmin
+      // Preparar payload para upsert
+      const upsertPayload = batch.map((produto: any) => ({
+        name: produto.nome || 'Sem nome',
+        description: produto.descricao || produto.observacoes || '',
+        price: parseFloat(produto.preco_tabela) || 0,
+        stock_qty: produto.saldo_estoque || 0,
+        active: Boolean(produto.ativo && !produto.excluido),
+        mercos_id: produto.id,
+        codigo_mercos: produto.codigo || null,
+        distribuidor_id: distribuidorId,
+        sincronizado_em: now,
+        origem: 'mercos',
+        track_stock: true,
+        sob_encomenda: false,
+        pre_venda: false,
+        pronta_entrega: true,
+        // NÃO incluir category_id para evitar foreign key error
+      }));
+      
+      // UPSERT: insere novos ou atualiza existentes baseado em mercos_id + distribuidor_id
+      const { error: upsertError } = await supabaseAdmin
         .from('products')
-        .select('id, mercos_id')
-        .eq('distribuidor_id', distribuidorId)
-        .in('mercos_id', mercosIds);
+        .upsert(upsertPayload, {
+          onConflict: 'mercos_id,distribuidor_id',
+          ignoreDuplicates: false,
+        });
       
-      const existentesMap = new Map<number, string>();
-      for (const row of existentesRows || []) {
-        existentesMap.set(row.mercos_id as number, row.id as string);
+      if (upsertError) {
+        console.error(`[Sync] Erro no upsert batch ${i}:`, upsertError.message);
+        erros += batch.length;
+      } else {
+        produtosProcessados += batch.length;
       }
       
-      const novosPayload: any[] = [];
-      const updatesPayload: { id: string; data: any }[] = [];
-      
-      for (const produto of batch) {
-        try {
-          const productData = {
-            name: produto.nome,
-            description: produto.descricao || produto.observacoes || '',
-            price: parseFloat(produto.preco_tabela) || 0,
-            stock_qty: produto.saldo_estoque || 0,
-            active: produto.ativo && !produto.excluido,
-            mercos_id: produto.id,
-            codigo_mercos: produto.codigo || null,
-            distribuidor_id: distribuidorId,
-            sincronizado_em: new Date().toISOString(),
-          };
-
-          const existingId = existentesMap.get(produto.id);
-          if (existingId) {
-            updatesPayload.push({ id: existingId, data: productData });
-          } else {
-            novosPayload.push({
-              ...productData,
-              origem: 'mercos',
-              track_stock: true,
-              sob_encomenda: false,
-              pre_venda: false,
-              pronta_entrega: true,
-            });
-          }
-        } catch (err) {
-          console.error(`[Sync] Erro ao preparar produto ${produto.id}:`, err);
-          erros++;
-        }
-      }
-      
-      // Inserir novos em batch
-      if (novosPayload.length > 0) {
-        const { error: insertError } = await supabaseAdmin
-          .from('products')
-          .insert(novosPayload);
-        if (insertError) {
-          console.error('[Sync] Erro ao inserir batch:', insertError);
-          erros += novosPayload.length;
-        } else {
-          produtosNovos += novosPayload.length;
-        }
-      }
-      
-      // Atualizar existentes (Supabase não suporta batch update, então fazemos em paralelo)
-      const updatePromises = updatesPayload.map(async (u) => {
-        const { error } = await supabaseAdmin
-          .from('products')
-          .update(u.data)
-          .eq('id', u.id);
-        if (error) {
-          console.error(`[Sync] Erro ao atualizar produto:`, error);
-          erros++;
-        } else {
-          produtosAtualizados++;
-        }
-      });
-      
-      await Promise.all(updatePromises);
-      
-      console.log(`[Sync] Processados ${i + batch.length}/${allProdutos.length} produtos`);
+      console.log(`[Sync] Processados ${Math.min(i + UPSERT_BATCH_SIZE, allProdutos.length)}/${allProdutos.length} produtos`);
     }
 
     // Se sincronização full, desativar produtos que não vieram na resposta
@@ -312,13 +268,12 @@ export async function POST(request: NextRequest) {
       .eq('distribuidor_id', distribuidorId)
       .eq('active', true);
 
-    console.log(`[Sync] Concluído: ${produtosNovos} novos, ${produtosAtualizados} atualizados, ${erros} erros`);
+    console.log(`[Sync] Concluído: ${produtosProcessados} processados, ${erros} erros`);
 
     return NextResponse.json({
       success: true,
       data: {
-        produtos_novos: produtosNovos,
-        produtos_atualizados: produtosAtualizados,
+        produtos_processados: produtosProcessados,
         erros: erros,
         total_produtos: totalProdutos || 0,
         sincronizado_em: new Date().toISOString(),

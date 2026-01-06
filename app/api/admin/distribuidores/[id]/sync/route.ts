@@ -193,7 +193,7 @@ export async function POST(
             distribuidor_id: params.id,
             mercos_id: produtoMercos.id,
             codigo_mercos: produtoMercos.codigo || null,
-            category_id: mappedCategoryId || CATEGORIA_SEM_CATEGORIA_ID,
+            category_id: mappedCategoryId || null, // NULL se não tiver categoria mapeada (evita FK error)
             origem: 'mercos' as const,
             sincronizado_em: new Date().toISOString(),
             track_stock: true,
