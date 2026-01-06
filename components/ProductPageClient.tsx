@@ -209,7 +209,7 @@ function useItemsPerView() {
   return 5;                   // desktop: 5
 }
 
-function RelatedCarousel({ items }: { items: RelatedProduct[] }) {
+function RelatedCarousel({ items, bancaId }: { items: RelatedProduct[]; bancaId?: string }) {
   const perView = useItemsPerView();
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);
@@ -255,7 +255,7 @@ function RelatedCarousel({ items }: { items: RelatedProduct[] }) {
                 style={{ flex: `0 0 ${100 / perView}%` }}
               >
                 <Link
-                  href={("/produto/" + slugify(it.name) + "-" + it.id) as Route}
+                  href={("/produto/" + slugify(it.name) + "-" + it.id + (bancaId ? `?banca=${bancaId}` : '')) as Route}
                   className="block rounded-2xl border border-gray-200 bg-white shadow-sm p-3 h-full hover:shadow-md hover:border-gray-300 transition-all"
                 >
                   {/* Imagem */}
@@ -680,7 +680,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
       </div>
 
       {/* Veja mais produtos desta banca */}
-      {relatedProducts.length > 0 && <RelatedCarousel items={relatedProducts} />}
+      {relatedProducts.length > 0 && <RelatedCarousel items={relatedProducts} bancaId={product.vendor.id} />}
     </section>
     </>
   );
