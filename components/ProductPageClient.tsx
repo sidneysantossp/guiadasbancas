@@ -539,7 +539,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
         />
         
         {/* Top: Galeria + Info */}
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] gap-2 md:gap-8 max-w-4xl">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_480px] gap-4 md:gap-10">
         {/* Galeria */}
         <div className="flex gap-3">
           {/* Thumbnails verticais à esquerda */}
