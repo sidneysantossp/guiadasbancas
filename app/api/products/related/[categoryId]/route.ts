@@ -12,7 +12,7 @@ export async function GET(
     const excludeId = searchParams.get("exclude") || "";
 
     // Buscar produtos da mesma categoria
-    // IMPORTANTE: Excluir produtos de distribuidor da listagem pública
+    // Incluir produtos de distribuidores para ter mais variedade
     let query = supabaseAdmin
       .from('products')
       .select(`
@@ -28,7 +28,6 @@ export async function GET(
       `)
       .eq('category_id', categoryId)
       .eq('active', true)
-      .is('distribuidor_id', null) // Excluir produtos de distribuidor
       .limit(limit);
 
     // Excluir produto atual se especificado
@@ -55,10 +54,10 @@ export async function GET(
 
     const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
 
-    // Filtrar produtos com imagem e banca cotista ativa
+    // Filtrar produtos com imagem (produtos de distribuidor ou de banca cotista)
     const filteredProducts = (data || [])
       .filter(product => product.images && product.images.length > 0)
-      .filter(product => isActiveCotistaBanca(bancaMap.get(product.banca_id)))
+      .filter(product => product.distribuidor_id || isActiveCotistaBanca(bancaMap.get(product.banca_id)))
       .map(product => ({
         id: product.id,
         name: product.name || 'Produto',
