@@ -406,27 +406,57 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
                 });
               }
               
-              const mappedProducts: Product[] = productsArray
+              // Buscar bancas cotistas para associar produtos de distribuidor
+              const bancasCotistas = Array.from(bancasMap.values())
+                .filter((banca: any) => banca.active !== false)
+                .filter((banca: any) => banca.is_cotista === true || !!banca.cotista_id);
+              
+              const mappedProducts: Product[] = [];
+              
+              productsArray
                 .filter((item: any) => item.images && item.images.length > 0 && item.active !== false)
-                .map((item: any) => {
-                  const banca = item.banca_id ? bancasMap.get(item.banca_id) : null;
-                  return {
-                    id: item.id,
-                    name: item.name || 'Produto',
-                    price: Number(item.price || 0),
-                    image: item.images[0],
-                    vendor: banca?.name || 'Banca',
-                    vendorAvatar: banca?.avatar || banca?.cover_image || '',
-                    lat: banca?.lat || -23.5505,
-                    lng: banca?.lng || -46.6333,
-                    rating: item.rating_avg || 5,
-                    reviews: item.reviews_count || 0,
-                    ready: true,
-                    bancaId: item.banca_id,
-                    phone: banca?.contact?.whatsapp || banca?.whatsapp || banca?.phone || banca?.telefone || banca?.whatsapp_phone,
-                  };
+                .forEach((item: any) => {
+                  if (item.banca_id) {
+                    // Produto com banca específica
+                    const banca = bancasMap.get(item.banca_id);
+                    mappedProducts.push({
+                      id: item.id,
+                      name: item.name || 'Produto',
+                      price: Number(item.price || 0),
+                      image: item.images[0],
+                      vendor: banca?.name || 'Banca',
+                      vendorAvatar: banca?.avatar || banca?.cover_image || '',
+                      lat: banca?.lat || -23.5505,
+                      lng: banca?.lng || -46.6333,
+                      rating: item.rating_avg || 5,
+                      reviews: item.reviews_count || 0,
+                      ready: true,
+                      bancaId: item.banca_id,
+                      phone: banca?.contact?.whatsapp || banca?.whatsapp || banca?.phone || banca?.telefone || banca?.whatsapp_phone,
+                    });
+                  } else if (item.distribuidor_id && bancasCotistas.length > 0) {
+                    // Produto de distribuidor - criar uma instância para cada banca cotista
+                    bancasCotistas.forEach((banca: any) => {
+                      mappedProducts.push({
+                        id: `${item.id}-${banca.id}`, // ID único para cada combinação produto-banca
+                        name: item.name || 'Produto',
+                        price: Number(item.price || 0),
+                        image: item.images[0],
+                        vendor: banca.name || 'Banca',
+                        vendorAvatar: banca.avatar || banca.cover_image || '',
+                        lat: banca.lat || -23.5505,
+                        lng: banca.lng || -46.6333,
+                        rating: item.rating_avg || 5,
+                        reviews: item.reviews_count || 0,
+                        ready: true,
+                        bancaId: banca.id,
+                        phone: banca.contact?.whatsapp || banca.whatsapp || banca.phone || banca.telefone || banca.whatsapp_phone,
+                      });
+                    });
+                  }
                 });
               
+              console.log(`[CategoryResults] Produtos mapeados (com bancas cotistas): ${mappedProducts.length}`);
               setProducts(mappedProducts);
               
               // Verificar se há produtos de distribuidor (sem banca_id)
