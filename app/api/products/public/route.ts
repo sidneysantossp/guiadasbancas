@@ -13,15 +13,49 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const category = searchParams.get("category") || "";
+    const categoryName = searchParams.get("categoryName") || ""; // Busca por nome da categoria (slug)
     const distribuidor = searchParams.get("distribuidor") || "";
     const limit = Math.min(parseInt(searchParams.get("limit") || "12"), 100); // Máximo 100
     const sort = searchParams.get("sort") || "name"; // Mudado de created_at para name (alfabético)
     const order = searchParams.get("order") || "asc"; // Mudado de desc para asc
 
+    // Se tiver categoryName, buscar o ID da categoria primeiro
+    let categoryId = category;
+    if (categoryName && !categoryId) {
+      // Buscar nas duas tabelas de categorias (bancas e distribuidores)
+      const searchName = categoryName.replace(/-/g, ' '); // "capinhas-celular" -> "capinhas celular"
+      
+      // Buscar em categories (bancas)
+      const { data: catData } = await supabaseAdmin
+        .from('categories')
+        .select('id, name')
+        .ilike('name', `%${searchName}%`)
+        .limit(1);
+      
+      if (catData && catData.length > 0) {
+        categoryId = catData[0].id;
+        console.log(`[API Public] Categoria encontrada (bancas): ${catData[0].name} -> ${categoryId}`);
+      } else {
+        // Buscar em distribuidor_categories
+        const { data: distCatData } = await supabaseAdmin
+          .from('distribuidor_categories')
+          .select('id, nome')
+          .ilike('nome', `%${searchName}%`)
+          .limit(1);
+        
+        if (distCatData && distCatData.length > 0) {
+          categoryId = distCatData[0].id;
+          console.log(`[API Public] Categoria encontrada (distribuidores): ${distCatData[0].nome} -> ${categoryId}`);
+        } else {
+          console.log(`[API Public] Categoria não encontrada para: ${searchName}`);
+        }
+      }
+    }
+
     // Query otimizada - apenas produtos ativos
     // Se buscar por categoria específica, incluir produtos de distribuidores também
     // Isso permite que seções como Bomboniere e Bebidas funcionem na home
-    const includeDistribuidor = !!category; // Incluir distribuidores apenas quando filtrar por categoria
+    const includeDistribuidor = !!(categoryId || categoryName); // Incluir distribuidores quando filtrar por categoria
     
     let query = supabaseAdmin
       .from('products')
@@ -51,8 +85,8 @@ export async function GET(req: NextRequest) {
     }
 
     // Filtro de categoria
-    if (category) {
-      query = query.eq('category_id', category);
+    if (categoryId) {
+      query = query.eq('category_id', categoryId);
     }
 
     // Filtro de distribuidor

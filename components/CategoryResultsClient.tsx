@@ -10,7 +10,7 @@ import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import { shippingConfig } from "@/components/shippingConfig";
 
-// Mocks simples (substituir por API futuramente)
+// Tipos para produtos e bancas (dados vêm do Supabase)
 export type Product = {
   id: string;
   name: string;
@@ -39,83 +39,6 @@ export type Banca = {
   reviews?: number;
   open?: boolean;
 };
-
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: "p1",
-    name: "Chocolate Sprinkle Donut",
-    price: 120,
-    image: "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=800&auto=format&fit=crop",
-    vendor: "Banca Centro",
-    lat: -23.5617,
-    lng: -46.6560,
-  },
-  {
-    id: "p2",
-    name: "Croissant",
-    price: 47.5,
-    image: "https://images.unsplash.com/photo-1542831371-29b0f74f9713?q=80&w=800&auto=format&fit=crop",
-    vendor: "Banca Paulista",
-    vendorAvatar: "https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=200&auto=format&fit=crop",
-    lat: -23.5660,
-    lng: -46.6530,
-    rating: 4.8,
-    reviews: 12,
-    ready: true,
-  },
-  {
-    id: "p3",
-    name: "Samosa",
-    price: 2,
-    image: "https://images.unsplash.com/photo-1604908176997-43162a5fae9b?q=80&w=800&auto=format&fit=crop",
-    vendor: "Banca Liberdade",
-    vendorAvatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop",
-    lat: -23.5631,
-    lng: -46.6397,
-    rating: 4.5,
-    reviews: 7,
-    ready: true,
-  },
-];
-
-const MOCK_BANCAS: Banca[] = [
-  {
-    id: "b1",
-    name: "Banca Centro",
-    cover: "https://images.unsplash.com/photo-1529429612777-728c1e7f1f3f?q=80&w=1200&auto=format&fit=crop",
-    avatar: "https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=200&auto=format&fit=crop",
-    lat: -23.5617,
-    lng: -46.6560,
-    itemsCount: 128,
-    rating: 4.7,
-    reviews: 31,
-    open: true,
-  },
-  {
-    id: "b2",
-    name: "Banca Paulista",
-    cover: "https://images.unsplash.com/photo-1499028344343-cd173ffc68a9?q=80&w=1200&auto=format&fit=crop",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop",
-    lat: -23.5660,
-    lng: -46.6530,
-    itemsCount: 86,
-    rating: 4.9,
-    reviews: 18,
-    open: true,
-  },
-  {
-    id: "b3",
-    name: "Banca Liberdade",
-    cover: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=1200&auto=format&fit=crop",
-    avatar: "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?q=80&w=200&auto=format&fit=crop",
-    lat: -23.5631,
-    lng: -46.6397,
-    itemsCount: 73,
-    rating: 4.6,
-    reviews: 11,
-    open: false,
-  },
-];
 
 function DistancePill({ km }: { km: number | null }) {
   if (km == null) return null;
@@ -463,15 +386,63 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
             console.log(`[CategoryResults] Bancas mapeadas: ${mappedBancas.length}`);
           }
         } else {
-          console.log('[CategoryResults] Usando dados mock - categoria não encontrada');
-          setProducts(MOCK_PRODUCTS);
-          setBancas(MOCK_BANCAS);
+          console.log('[CategoryResults] Categoria não encontrada - buscando por nome do slug');
+          // Tentar buscar produtos pelo nome da categoria (slug)
+          const productsRes = await fetch(`/api/products/public?categoryName=${encodeURIComponent(slug)}&limit=100`);
+          if (productsRes.ok) {
+            const productsData = await productsRes.json();
+            const productsArray = Array.isArray(productsData?.items) ? productsData.items : (Array.isArray(productsData?.data) ? productsData.data : []);
+            
+            if (productsArray.length > 0) {
+              console.log(`[CategoryResults] Produtos encontrados por nome: ${productsArray.length}`);
+              
+              const bancasMap = new Map<string, any>();
+              const bancasRes = await fetch('/api/bancas');
+              if (bancasRes.ok) {
+                const bancasData = await bancasRes.json();
+                const bancasArray = Array.isArray(bancasData?.data) ? bancasData.data : (Array.isArray(bancasData) ? bancasData : []);
+                bancasArray.forEach((banca: any) => {
+                  bancasMap.set(banca.id, banca);
+                });
+              }
+              
+              const mappedProducts: Product[] = productsArray
+                .filter((item: any) => item.images && item.images.length > 0 && item.active !== false)
+                .map((item: any) => {
+                  const banca = item.banca_id ? bancasMap.get(item.banca_id) : null;
+                  return {
+                    id: item.id,
+                    name: item.name || 'Produto',
+                    price: Number(item.price || 0),
+                    image: item.images[0],
+                    vendor: banca?.name || 'Banca',
+                    vendorAvatar: banca?.avatar || banca?.cover_image || '',
+                    lat: banca?.lat || -23.5505,
+                    lng: banca?.lng || -46.6333,
+                    rating: item.rating_avg || 5,
+                    reviews: item.reviews_count || 0,
+                    ready: true,
+                    bancaId: item.banca_id,
+                    phone: banca?.contact?.whatsapp || banca?.whatsapp || banca?.phone || banca?.telefone || banca?.whatsapp_phone,
+                  };
+                });
+              
+              setProducts(mappedProducts);
+            } else {
+              console.log('[CategoryResults] Nenhum produto encontrado para esta categoria');
+              setProducts([]);
+              setBancas([]);
+            }
+          } else {
+            setProducts([]);
+            setBancas([]);
+          }
         }
         
       } catch (error) {
         console.error('[CategoryResults] Erro ao buscar dados:', error);
-        setProducts(MOCK_PRODUCTS);
-        setBancas(MOCK_BANCAS);
+        setProducts([]);
+        setBancas([]);
       } finally {
         setLoading(false);
       }
@@ -481,7 +452,7 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
   }, [slug, initialCategories]);
 
   const sortedProducts = useMemo(() => {
-    const dataSource = products.length > 0 ? products : MOCK_PRODUCTS;
+    const dataSource = products;
 
     const withinKm = (d: number | null) => {
       if (d == null) return true; // sem loc, não filtra por km
@@ -511,13 +482,12 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
   }, [loc, products, prodMaxKm, prodMinStars, maxPriceFilter]);
 
   const maxAvailablePrice = useMemo(() => {
-    const dataSource = products.length > 0 ? products : MOCK_PRODUCTS;
-    const max = dataSource.reduce((m, p) => Math.max(m, p.price || 0), 0);
+    const max = products.reduce((m, p) => Math.max(m, p.price || 0), 0);
     return max > 0 ? Math.ceil(max) : 500;
   }, [products]);
 
   const sortedBancas = useMemo(() => {
-    const dataSource = bancas.length > 0 ? bancas : MOCK_BANCAS;
+    const dataSource = bancas;
     if (!loc) {
       console.log('[CategoryResults] Sem localização do usuário - não ordena por distância');
       return dataSource.map((b) => ({ b, km: null as number | null }));
