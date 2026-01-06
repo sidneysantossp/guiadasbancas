@@ -29,7 +29,7 @@ interface AuthContextType {
   session: any;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, metadata: { full_name: string; role: UserRole }) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, metadata: { full_name: string; role: UserRole; cpf?: string; phone?: string; banca_data?: any }) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: Error | null }>;
   isAdmin: boolean;
@@ -154,11 +154,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Registro
-  const signUp = async (email: string, password: string, metadata: { full_name: string; role: UserRole }) => {
+  const signUp = async (email: string, password: string, metadata: { full_name: string; role: UserRole; cpf?: string; phone?: string; banca_data?: any }) => {
     try {
       console.log('🔐 Iniciando signup para:', email);
       
-      // 1. Criar usuário via API
+      // 1. Criar usuário via API (incluindo CPF, phone e dados da banca)
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -167,6 +167,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           password,
           full_name: metadata.full_name,
           role: metadata.role,
+          cpf: metadata.cpf,
+          phone: metadata.phone,
+          banca_data: metadata.banca_data,
         }),
       });
 

@@ -643,57 +643,9 @@ export default function JornaleiroRegistrarPageClient() {
     
     try {
       setIsBusy(true);
-      setToast('Criando sua conta...');
+      setToast('Preparando dados...');
       
-      // 1. Criar usuário no Supabase Auth
-      const { error: authError } = await signUp(email, password, {
-        full_name: name,
-        role: 'jornaleiro',
-      });
-
-      if (authError) {
-        // Se o usuário clicou duas vezes, a conta já pode ter sido criada na primeira tentativa.
-        // Nesse caso, apenas seguir o fluxo normalmente (signIn + onboarding).
-        const msg = (authError as any)?.message || '';
-        const code = (authError as any)?.code || '';
-        const looksLikeAlreadyExists =
-          code === 'user_already_exists' ||
-          /already\s*registered/i.test(msg) ||
-          /já\s*está\s*cadastrado/i.test(msg) ||
-          /User\s+already\s+registered/i.test(msg);
-
-        if (!looksLikeAlreadyExists) {
-          setError(msg || 'Erro ao criar conta');
-          setStep(2);
-          setIsBusy(false);
-          setToast(null);
-          finishingRef.current = false;
-          return;
-        }
-        // Se já existe, tentar autenticar com a senha informada.
-        // Se a senha bater, seguimos o fluxo normalmente (usuário comum virando jornaleiro)
-        setToast('Conta já existe. Verificando credenciais...');
-        const login = await signIn(email, password);
-        if (login?.error) {
-          // Senha não bateu - usuário comum com senha diferente
-          // Redirecionar para login normal ao invés de bloquear
-          setError("Você já possui uma conta com este e-mail. Use a mesma senha da sua conta existente ou faça login primeiro na área 'Minha Conta' e depois retorne aqui.");
-          setStep(2);
-          setIsBusy(false);
-          setToast(null);
-          finishingRef.current = false;
-          return;
-        }
-        // Login OK! Usuário comum autenticado, pode virar jornaleiro
-        logger.log('[Wizard] ✅ Usuário existente autenticado. Convertendo para jornaleiro.');
-      }
-
-      setToast('Conta criada! Autenticando...');
-
-      // Tentar autenticar explicitamente (reforço)
-      try { await signIn(email, password); } catch {}
-
-      // 2. Preparar dados da banca
+      // 1. Preparar dados da banca ANTES do signup (para enviar junto)
       const inProgressBank: Bank | null = bankName ? {
         name: bankName,
         whatsapp: servicePhone,
@@ -722,14 +674,14 @@ export default function JornaleiroRegistrarPageClient() {
       const allBanks = inProgressBank ? [...banks, inProgressBank] : banks;
       if (allBanks.length === 0) {
         setError('Adicione pelo menos uma banca.');
-        setStep(2);
+        setStep(3);
         setIsBusy(false);
         setToast(null);
         finishingRef.current = false;
         return;
       }
 
-      // 3. Criar banca no Supabase (via API)
+      // 2. Montar objeto bancaData para salvar no Supabase (NÃO no localStorage)
       const bancaData = {
         name: allBanks[0].name,
         description: '',
@@ -741,6 +693,12 @@ export default function JornaleiroRegistrarPageClient() {
         instagram: allBanks[0].socials.instagram || null,
         facebook: allBanks[0].socials.facebook || null,
         cep: allBanks[0].address.cep,
+        street: allBanks[0].address.street,
+        number: allBanks[0].address.number,
+        complement: allBanks[0].address.complement,
+        neighborhood: allBanks[0].address.neighborhood,
+        city: allBanks[0].address.city,
+        uf: allBanks[0].address.uf,
         address: `${allBanks[0].address.street}, ${allBanks[0].address.number}${allBanks[0].address.complement ? ' - ' + allBanks[0].address.complement : ''} - ${allBanks[0].address.neighborhood}, ${allBanks[0].address.city} - ${allBanks[0].address.uf}`,
         lat: allBanks[0].meta?.location?.lat || -23.5505,
         lng: allBanks[0].meta?.location?.lng || -46.6333,
@@ -756,29 +714,76 @@ export default function JornaleiroRegistrarPageClient() {
         cotista_codigo: selectedCotaAtiva?.codigo || null,
         cotista_razao_social: selectedCotaAtiva?.razao_social || null,
         cotista_cnpj_cpf: selectedCotaAtiva?.cnpj_cpf || null,
-        // Dados do jornaleiro para salvar no perfil
-        cpf: cpf, // CPF/CNPJ do jornaleiro
-        full_name: name, // Nome completo do jornaleiro
       };
 
-      // Salvar backup local (apenas dados da banca)
-      logger.log('[Wizard] 💾 Salvando bancaData:', bancaData);
+      logger.log('[Wizard] 📦 Dados da banca preparados:', bancaData);
       logger.log('[Wizard] 🏢 is_cotista:', bancaData.is_cotista);
-      logger.log('[Wizard] 🏢 cotista_id:', bancaData.cotista_id);
-      localStorage.setItem("gb:bancaData", JSON.stringify(bancaData));
+
+      setToast('Criando sua conta...');
       
-      // Limpar wizard para evitar popup de confirmação de saída
-      localStorage.removeItem('gb:sellerWizard');
+      // 3. Criar usuário no Supabase Auth COM CPF, phone e dados da banca
+      // Tudo é salvo diretamente no Supabase, sem usar localStorage
+      const { error: authError } = await signUp(email, password, {
+        full_name: name,
+        role: 'jornaleiro',
+        cpf: cpf,
+        phone: phone,
+        banca_data: bancaData, // Dados da banca salvos no Supabase
+      });
+
+      if (authError) {
+        const msg = (authError as any)?.message || '';
+        const code = (authError as any)?.code || '';
+        const looksLikeAlreadyExists =
+          code === 'user_already_exists' ||
+          /already\s*registered/i.test(msg) ||
+          /já\s*está\s*cadastrado/i.test(msg) ||
+          /User\s+already\s+registered/i.test(msg);
+
+        if (!looksLikeAlreadyExists) {
+          setError(msg || 'Erro ao criar conta');
+          setStep(2);
+          setIsBusy(false);
+          setToast(null);
+          finishingRef.current = false;
+          return;
+        }
+        // Se já existe, tentar autenticar com a senha informada
+        setToast('Conta já existe. Verificando credenciais...');
+        const login = await signIn(email, password);
+        if (login?.error) {
+          setError("Você já possui uma conta com este e-mail. Use a mesma senha da sua conta existente ou faça login primeiro na área 'Minha Conta' e depois retorne aqui.");
+          setStep(2);
+          setIsBusy(false);
+          setToast(null);
+          finishingRef.current = false;
+          return;
+        }
+        logger.log('[Wizard] ✅ Usuário existente autenticado. Convertendo para jornaleiro.');
+        
+        // Salvar dados da banca para usuário existente via API separada
+        try {
+          await fetch('/api/jornaleiro/save-pending-banca', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ banca_data: bancaData }),
+          });
+        } catch (e) {
+          logger.warn('[Wizard] Erro ao salvar banca pendente:', e);
+        }
+      }
+
+      setToast('Conta criada! Autenticando...');
+
+      // Tentar autenticar explicitamente (reforço)
+      try { await signIn(email, password); } catch {}
       
       setToast('✅ Cadastro concluído! Redirecionando...');
       
       // Aguardar sessão ser estabelecida com polling (máximo 5 tentativas)
-      let sessionReady = false;
       for (let attempt = 0; attempt < 5; attempt++) {
         await new Promise(r => setTimeout(r, 500));
-        // Verificar se a sessão foi estabelecida
         if (profile?.role === 'jornaleiro') {
-          sessionReady = true;
           logger.log('[Wizard] ✅ Sessão estabelecida na tentativa', attempt + 1);
           break;
         }

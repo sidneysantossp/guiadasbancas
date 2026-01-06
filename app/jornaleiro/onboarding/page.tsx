@@ -81,32 +81,51 @@ export default function JornaleiroOnboardingPage() {
     try {
       setStatus("creating");
       setMessage("Criando sua banca...");
-      // Recuperar dados salvos no localStorage
-      const bancaDataStr = localStorage.getItem("gb:bancaData");
       
-      // Se não tem dados no localStorage, redirecionar para o cadastro
+      // Buscar dados da banca pendente do Supabase (NÃO do localStorage)
+      logger.log('[Onboarding] 🔍 Buscando dados da banca no Supabase...');
+      
       let saved: any = null;
-      if (!bancaDataStr) {
-        logger.warn('[Onboarding] ❌ Dados não encontrados no localStorage!');
-        logger.log('[Onboarding] 🔄 Redirecionando para página de cadastro...');
+      try {
+        const res = await fetch('/api/jornaleiro/get-pending-banca', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.banca_data) {
+            saved = data.banca_data;
+            logger.log('[Onboarding] ✅ Dados recuperados do Supabase');
+            logger.log('[Onboarding] 🏢 is_cotista:', saved.is_cotista);
+          }
+        }
+      } catch (e) {
+        logger.warn('[Onboarding] ⚠️ Erro ao buscar do Supabase:', e);
+      }
+      
+      // Fallback: tentar localStorage (para compatibilidade com cadastros antigos)
+      if (!saved) {
+        const bancaDataStr = localStorage.getItem("gb:bancaData");
+        if (bancaDataStr) {
+          saved = JSON.parse(bancaDataStr);
+          logger.log('[Onboarding] 📦 Dados recuperados do localStorage (fallback)');
+        }
+      }
+      
+      // Se não tem dados em nenhum lugar, redirecionar para o cadastro
+      if (!saved) {
+        logger.warn('[Onboarding] ❌ Dados não encontrados!');
         setStatus("error");
         setMessage("Dados de cadastro não encontrados. Redirecionando...");
         setTimeout(() => {
           router.push("/jornaleiro/registrar" as Route);
         }, 2000);
         return;
-      } else {
-        saved = JSON.parse(bancaDataStr);
-        logger.log('[Onboarding] 📦 Dados recuperados do localStorage');
-        logger.log('[Onboarding] 🏢 is_cotista:', saved.is_cotista);
       }
 
-      // Tentar recuperar os dados completos do wizard para normalizar campos
-      let wizard: any = null;
-      try {
-        const wizStr = localStorage.getItem('gb:sellerWizard');
-        wizard = wizStr ? JSON.parse(wizStr) : null;
-      } catch {}
+      // Não precisamos mais do wizard do localStorage
+      const wizard: any = null;
 
       const normalizedAddress = wizard
         ? `${wizard.street || ''}, ${wizard.number || ''}${wizard.neighborhood ? ' - ' + wizard.neighborhood : ''}, ${wizard.city || ''}${wizard.uf ? ' - ' + wizard.uf : ''}`.replace(/\s+,/g, ',').replace(/,\s+,/g, ', ')
@@ -282,12 +301,19 @@ export default function JornaleiroOnboardingPage() {
       const data = parsed.data;
       logger.log('[Onboarding] ✅ Banca criada com sucesso!');
 
-      // Salvar banca no cache imediatamente
-      sessionStorage.setItem(`gb:banca:${user!.id}`, JSON.stringify(data));
+      // Limpar dados pendentes do Supabase
+      try {
+        await fetch('/api/jornaleiro/get-pending-banca', { method: 'DELETE' });
+        logger.log('[Onboarding] 🗑️ Dados pendentes removidos do Supabase');
+      } catch (e) {
+        logger.warn('[Onboarding] ⚠️ Erro ao limpar dados pendentes:', e);
+      }
 
-      // Limpar localStorage do wizard
-      localStorage.removeItem("gb:bancaData");
-      localStorage.removeItem("gb:sellerWizard");
+      // Limpar localStorage (fallback para cadastros antigos)
+      try {
+        localStorage.removeItem("gb:bancaData");
+        localStorage.removeItem("gb:sellerWizard");
+      } catch {}
 
       setStatus("success");
       setMessage("Banca criada com sucesso! Redirecionando...");
