@@ -277,63 +277,97 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
               });
             }
             
+            // Buscar bancas cotistas para associar produtos de distribuidor
+            const bancasCotistas = Array.from(bancasMap.values())
+              .filter((banca: any) => banca.active !== false)
+              .filter((banca: any) => banca.is_cotista === true || !!banca.cotista_id);
+            
+            // Verificar se há produtos de distribuidor (sem banca_id)
+            const hasDistribuidorProducts = productsArray.some((p: any) => p.distribuidor_id && !p.banca_id);
+            
             // Mapear produtos com informações da banca
-            const mappedProducts: Product[] = productsArray
+            const mappedProducts: Product[] = [];
+            
+            productsArray
               .filter((item: any) => item.images && item.images.length > 0 && item.active !== false)
-              .map((item: any) => {
-                const banca = item.banca_id ? bancasMap.get(item.banca_id) : null;
-                return {
-                  id: item.id,
-                  name: item.name || 'Produto',
-                  price: Number(item.price || 0),
-                  image: item.images[0],
-                  vendor: banca?.name || 'Banca',
-                  vendorAvatar: banca?.avatar || banca?.cover_image || '',
-                  lat: banca?.lat || -23.5505,
-                  lng: banca?.lng || -46.6333,
-                  rating: item.rating_avg || 5,
-                  reviews: item.reviews_count || 0,
-                  ready: true,
-                  bancaId: item.banca_id,
-                  phone: banca?.contact?.whatsapp || banca?.whatsapp || banca?.phone || banca?.telefone || banca?.whatsapp_phone,
-                };
+              .forEach((item: any) => {
+                if (item.banca_id) {
+                  // Produto com banca específica
+                  const banca = bancasMap.get(item.banca_id);
+                  mappedProducts.push({
+                    id: item.id,
+                    name: item.name || 'Produto',
+                    price: Number(item.price || 0),
+                    image: item.images[0],
+                    vendor: banca?.name || 'Banca',
+                    vendorAvatar: banca?.avatar || banca?.cover_image || '',
+                    lat: banca?.lat || -23.5505,
+                    lng: banca?.lng || -46.6333,
+                    rating: item.rating_avg || 5,
+                    reviews: item.reviews_count || 0,
+                    ready: true,
+                    bancaId: item.banca_id,
+                    phone: banca?.contact?.whatsapp || banca?.whatsapp || banca?.phone || banca?.telefone || banca?.whatsapp_phone,
+                  });
+                } else if (item.distribuidor_id && bancasCotistas.length > 0) {
+                  // Produto de distribuidor - criar uma instância para cada banca cotista
+                  bancasCotistas.forEach((banca: any) => {
+                    mappedProducts.push({
+                      id: `${item.id}-${banca.id}`,
+                      name: item.name || 'Produto',
+                      price: Number(item.price || 0),
+                      image: item.images[0],
+                      vendor: banca.name || 'Banca',
+                      vendorAvatar: banca.avatar || banca.cover_image || '',
+                      lat: banca.lat || -23.5505,
+                      lng: banca.lng || -46.6333,
+                      rating: item.rating_avg || 5,
+                      reviews: item.reviews_count || 0,
+                      ready: true,
+                      bancaId: banca.id,
+                      phone: banca.contact?.whatsapp || banca.whatsapp || banca.phone || banca.telefone || banca.whatsapp_phone,
+                    });
+                  });
+                }
               });
             
             setProducts(mappedProducts);
-            console.log(`[CategoryResults] Produtos mapeados: ${mappedProducts.length}`);
+            console.log(`[CategoryResults] Produtos mapeados (com bancas cotistas): ${mappedProducts.length}`);
             
             // 3. Buscar bancas que possuem produtos dessa categoria
             const uniqueBancaIds = new Set<string>(productsArray.map((p: any) => p.banca_id).filter(Boolean));
-            console.log(`[CategoryResults] Bancas únicas com produtos: ${uniqueBancaIds.size}`);
             
-            const mappedBancas: Banca[] = Array.from(uniqueBancaIds)
-              .map((bancaId: string) => bancasMap.get(bancaId))
-              .filter(Boolean)
-              .filter((banca: any) => banca.active !== false)
-              .map((banca: any) => {
-                // Contar quantos produtos dessa categoria a banca tem
-                const productsCount = productsArray.filter((p: any) => p.banca_id === banca.id).length;
-                
-                // Log para debug de coordenadas
-                console.log(`[CategoryResults] Banca "${banca.name}":`, {
-                  lat: banca.lat,
-                  lng: banca.lng,
-                  hasCoordinates: !!(banca.lat && banca.lng)
-                });
-                
-                return {
-                  id: banca.id,
-                  name: banca.name || 'Banca',
-                  cover: banca.cover_image || banca.cover || '',
-                  avatar: banca.avatar || banca.cover_image || '',
-                  lat: banca.lat || -23.5505,
-                  lng: banca.lng || -46.6333,
-                  itemsCount: productsCount,
-                  rating: 4.5,
-                  reviews: 0,
-                  open: true,
-                };
-              });
+            let allBancasToShow: any[] = [];
+            
+            if (hasDistribuidorProducts) {
+              // Se há produtos de distribuidor, mostrar TODAS as bancas cotistas
+              console.log(`[CategoryResults] Produtos de distribuidor detectados - mostrando todas bancas cotistas`);
+              allBancasToShow = bancasCotistas;
+            } else {
+              // Apenas bancas que têm produtos próprios dessa categoria
+              allBancasToShow = Array.from(uniqueBancaIds)
+                .map((bancaId: string) => bancasMap.get(bancaId))
+                .filter(Boolean)
+                .filter((banca: any) => banca.active !== false);
+            }
+            
+            const mappedBancas: Banca[] = allBancasToShow.map((banca: any) => {
+              const productsCount = productsArray.filter((p: any) => p.banca_id === banca.id).length;
+              const totalCount = productsCount > 0 ? productsCount : productsArray.filter((p: any) => p.distribuidor_id).length;
+              
+              return {
+                id: banca.id,
+                name: banca.name || 'Banca',
+                cover: banca.cover_image || banca.cover || '',
+                avatar: banca.avatar || banca.cover_image || '',
+                lat: banca.lat || -23.5505,
+                lng: banca.lng || -46.6333,
+                itemsCount: totalCount,
+                rating: 4.5,
+                reviews: 0,
+                open: true,
+              };
+            });
             
             setBancas(mappedBancas);
             console.log(`[CategoryResults] Bancas mapeadas: ${mappedBancas.length}`);
