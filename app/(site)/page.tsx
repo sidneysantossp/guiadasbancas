@@ -293,6 +293,9 @@ const TrendingProducts = nextDynamic(() => import("@/components/TrendingProducts
 const MarvelComicsProducts = nextDynamic(() => import("@/components/MarvelComicsProducts"), {
   ssr: false
 });
+const PlanetMangaProducts = nextDynamic(() => import("@/components/PlanetMangaProducts"), {
+  ssr: false
+});
 const ReferralBanner = nextDynamic(() => import("@/components/ReferralBanner"), { 
   ssr: false
 });
@@ -350,6 +353,11 @@ export default async function HomePage() {
       {/* Marvel Comics */}
       <Suspense fallback={null}>
         <MarvelComicsProducts />
+      </Suspense>
+
+      {/* Planet Manga */}
+      <Suspense fallback={null}>
+        <PlanetMangaProducts />
       </Suspense>
 
       {/* Mundo Marvel (Brancaleone) logo após HQs & Comics */}
