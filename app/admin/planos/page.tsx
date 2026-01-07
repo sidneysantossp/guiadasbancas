@@ -32,6 +32,8 @@ export default function AdminPlanosPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [saving, setSaving] = useState(false);
+  const [menuEnabled, setMenuEnabled] = useState(true);
+  const [savingMenu, setSavingMenu] = useState(false);
 
   const [form, setForm] = useState<{
     name: string;
@@ -75,8 +77,46 @@ export default function AdminPlanosPage() {
     }
   };
 
+  const loadMenuSetting = async () => {
+    try {
+      const res = await fetch("/api/admin/settings?keys=plans_menu_enabled");
+      const data = await res.json();
+      if (data.success && data.data?.length > 0) {
+        setMenuEnabled(data.data[0].value === "true");
+      }
+    } catch (error) {
+      console.error("Erro ao carregar configuração:", error);
+    }
+  };
+
+  const toggleMenu = async () => {
+    setSavingMenu(true);
+    try {
+      const newValue = !menuEnabled;
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "plans_menu_enabled",
+          value: String(newValue),
+          description: "Habilita o menu Meu Plano no painel do jornaleiro",
+          is_secret: false,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMenuEnabled(newValue);
+      }
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+    } finally {
+      setSavingMenu(false);
+    }
+  };
+
   useEffect(() => {
     loadPlans();
+    loadMenuSetting();
   }, []);
 
   const openModal = (plan?: Plan) => {
@@ -200,6 +240,27 @@ export default function AdminPlanosPage() {
 
   return (
     <div className="p-6">
+      {/* Toggle do Menu */}
+      <div className="mb-6 p-4 bg-white rounded-xl border border-gray-200 flex items-center justify-between">
+        <div>
+          <h3 className="font-medium text-gray-900">Menu "Meu Plano" no Painel do Jornaleiro</h3>
+          <p className="text-sm text-gray-500">Ative para exibir a opção de planos no menu do jornaleiro</p>
+        </div>
+        <button
+          onClick={toggleMenu}
+          disabled={savingMenu}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            menuEnabled ? "bg-green-500" : "bg-gray-300"
+          } ${savingMenu ? "opacity-50" : ""}`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              menuEnabled ? "translate-x-6" : "translate-x-1"
+            }`}
+          />
+        </button>
+      </div>
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Planos</h1>

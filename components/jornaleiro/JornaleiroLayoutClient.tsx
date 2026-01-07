@@ -136,6 +136,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [isOwner, setIsOwner] = useState<boolean | null>(null); // null = carregando
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const [plansMenuEnabled, setPlansMenuEnabled] = useState(true);
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
@@ -164,6 +165,22 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   // Mounted state para evitar hydration mismatch
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Carregar configuração do menu de planos
+  useEffect(() => {
+    const loadPlansMenuSetting = async () => {
+      try {
+        const res = await fetch("/api/settings/plans-menu");
+        const data = await res.json();
+        if (data.success) {
+          setPlansMenuEnabled(data.enabled);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar config de planos:", error);
+      }
+    };
+    loadPlansMenuSetting();
   }, []);
 
   // Buscar permissões do usuário - IMPORTANTE: só busca quando banca está disponível
@@ -262,6 +279,12 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
       console.log("[FilteredMenu] Não é Banca PRIME, removendo 'Distribuidores'");
       menu = menu.filter(item => item.label !== "Distribuidores");
     }
+
+    // Filtrar "Meu Plano" se desabilitado pelo admin
+    if (!plansMenuEnabled) {
+      console.log("[FilteredMenu] Menu de planos desabilitado pelo admin");
+      menu = menu.filter(item => item.label !== "Meu Plano");
+    }
     
     if (!permissionsLoaded) {
       // Enquanto permissões não carregam, mostrar apenas Dashboard
@@ -289,7 +312,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     
     console.log("[FilteredMenu] Menu filtrado:", filtered.map(i => i.label));
     return filtered;
-  }, [permissionsLoaded, isOwner, userPermissions, banca?.is_cotista]);
+  }, [permissionsLoaded, isOwner, userPermissions, banca?.is_cotista, plansMenuEnabled]);
 
   // IMPORTANTE: TODOS os hooks devem vir ANTES de qualquer return condicional!
   // Isso evita o erro React #310 "Rendered fewer hooks than during the previous render"
