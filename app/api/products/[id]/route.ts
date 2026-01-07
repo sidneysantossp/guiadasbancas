@@ -32,10 +32,31 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       }
     }
 
-    // Produtos de distribuidor são públicos - podem ser vendidos por qualquer banca cotista
-    // A associação com a banca específica é feita no momento da compra
+    // Produtos de distribuidor: aplicar markup antes de retornar
     if (data.distribuidor_id) {
-      console.log(`[API/PRODUCTS/ID] Produto ${productId} de distribuidor - acesso público permitido`);
+      console.log(`[API/PRODUCTS/ID] Produto ${productId} de distribuidor - aplicando markup`);
+      
+      // Buscar markup do distribuidor
+      const { data: dist } = await supabaseAdmin
+        .from('distribuidores')
+        .select('markup_global_percentual, markup_global_fixo')
+        .eq('id', data.distribuidor_id)
+        .single();
+
+      if (dist) {
+        const precoBase = data.price || 0;
+        const perc = Number(dist.markup_global_percentual || 0);
+        const fixo = Number(dist.markup_global_fixo || 0);
+        
+        if (perc > 0 || fixo > 0) {
+          const precoComMarkup = precoBase * (1 + perc / 100) + fixo;
+          console.log(`[API/PRODUCTS/ID] Markup aplicado: ${precoBase} -> ${precoComMarkup} (${perc}% + R$${fixo})`);
+          
+          // Atualizar preço no objeto de retorno
+          data.price = Math.round(precoComMarkup * 100) / 100; // Arredondar para 2 casas
+          data.cost_price = precoBase; // Guardar preço base para referência
+        }
+      }
     }
 
     return NextResponse.json(data);

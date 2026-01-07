@@ -189,28 +189,61 @@ export async function GET(req: NextRequest) {
       return isActiveCotistaBanca(bancaMap.get(p.banca_id));
     });
 
-    // Formatar produtos para o formato esperado
-    const items = filteredProducts.map((p: any) => ({
-      id: p.id,
-      name: p.name,
-      price: p.price || 0,
-      price_original: p.price_original || null,
-      discount_percent: p.discount_percent || null,
-      images: Array.isArray(p.images) ? p.images : [],
-      image: Array.isArray(p.images) && p.images.length > 0 
-        ? p.images[0] 
-        : 'https://placehold.co/400x400/e5e7eb/666666?text=Sem+Imagem',
-      category_id: p.category_id,
-      banca_id: p.banca_id,
-      distribuidor_id: p.distribuidor_id,
-      rating_avg: p.rating_avg || null,
-      reviews_count: p.reviews_count || null,
-      codigo_mercos: p.codigo_mercos || null,
-      pronta_entrega: p.pronta_entrega || false,
-      sob_encomenda: p.sob_encomenda || false,
-      pre_venda: p.pre_venda || false,
-      banca_name: bancaMap.get(p.banca_id)?.name || null
-    }));
+    // Buscar markups de distribuidores para aplicar nos preços
+    const distribuidorIds = Array.from(new Set(
+      filteredProducts.filter((p: any) => p.distribuidor_id).map((p: any) => p.distribuidor_id)
+    ));
+    const markupMap = new Map<string, { perc: number; fixo: number }>();
+    
+    if (distribuidorIds.length > 0) {
+      const { data: distribuidores } = await supabaseAdmin
+        .from('distribuidores')
+        .select('id, markup_global_percentual, markup_global_fixo')
+        .in('id', distribuidorIds);
+      
+      (distribuidores || []).forEach((d: any) => {
+        markupMap.set(d.id, {
+          perc: Number(d.markup_global_percentual || 0),
+          fixo: Number(d.markup_global_fixo || 0)
+        });
+      });
+    }
+
+    // Formatar produtos para o formato esperado (aplicando markup para produtos de distribuidor)
+    const items = filteredProducts.map((p: any) => {
+      let finalPrice = p.price || 0;
+      
+      // Aplicar markup se for produto de distribuidor
+      if (p.distribuidor_id && markupMap.has(p.distribuidor_id)) {
+        const markup = markupMap.get(p.distribuidor_id)!;
+        if (markup.perc > 0 || markup.fixo > 0) {
+          finalPrice = finalPrice * (1 + markup.perc / 100) + markup.fixo;
+          finalPrice = Math.round(finalPrice * 100) / 100; // Arredondar para 2 casas
+        }
+      }
+      
+      return {
+        id: p.id,
+        name: p.name,
+        price: finalPrice,
+        price_original: p.price_original || null,
+        discount_percent: p.discount_percent || null,
+        images: Array.isArray(p.images) ? p.images : [],
+        image: Array.isArray(p.images) && p.images.length > 0 
+          ? p.images[0] 
+          : 'https://placehold.co/400x400/e5e7eb/666666?text=Sem+Imagem',
+        category_id: p.category_id,
+        banca_id: p.banca_id,
+        distribuidor_id: p.distribuidor_id,
+        rating_avg: p.rating_avg || null,
+        reviews_count: p.reviews_count || null,
+        codigo_mercos: p.codigo_mercos || null,
+        pronta_entrega: p.pronta_entrega || false,
+        sob_encomenda: p.sob_encomenda || false,
+        pre_venda: p.pre_venda || false,
+        banca_name: bancaMap.get(p.banca_id)?.name || null
+      };
+    });
 
     return NextResponse.json({
       success: true,
