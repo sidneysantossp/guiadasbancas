@@ -321,8 +321,8 @@ export default function AppFooter({
           <div>© {new Date().getFullYear()} {data.title}. Todos os direitos reservados.</div>
           <div className="flex items-center gap-4">
             <Link href="/privacidade" className="hover:text-gray-900 transition-colors">Privacidade</Link>
-            <Link href="/termos-de-uso" className="hover:text-gray-900 transition-colors">Termos de uso</Link>
-            <Link href="/cookies" className="hover:text-gray-900 transition-colors">Cookies</Link>
+            <Link href="/termos" className="hover:text-gray-900 transition-colors">Termos de Uso</Link>
+            <Link href="/lgpd" className="hover:text-gray-900 transition-colors">LGPD</Link>
           </div>
         </div>
       </div>
