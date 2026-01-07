@@ -54,114 +54,34 @@ export default function JornaleiroDashboardPage() {
     try {
       setLoadingMetrics(true);
       
-      // Buscar pedidos em PARALELO
-      const fetchPromises: Promise<Response>[] = [
-        fetch('/api/orders?limit=50', { 
+      // Buscar stats e pedidos recentes em paralelo
+      const [statsRes, ordersRes] = await Promise.all([
+        fetch('/api/jornaleiro/stats', { 
           cache: 'no-store',
           credentials: 'include'
         }),
-      ];
+        fetch('/api/orders?limit=5', { 
+          cache: 'no-store',
+          credentials: 'include'
+        }),
+      ]);
       
-      // Só buscar produtos se for cotista (não-cotistas começam com 0 produtos)
-      // Não-cotistas precisam cadastrar produtos manualmente
-      if (banca?.is_cotista) {
-        fetchPromises.push(
-          fetch('/api/products?limit=50', { 
-            cache: 'no-store',
-            credentials: 'include'
-          }),
-          fetch('/api/jornaleiro/catalogo-distribuidor', { 
-            cache: 'no-store',
-            credentials: 'include'
-          })
-        );
-      } else {
-        // Para não-cotistas, buscar apenas produtos próprios cadastrados manualmente
-        fetchPromises.push(
-          fetch('/api/products?limit=50', { 
-            cache: 'no-store',
-            credentials: 'include'
-          })
-        );
+      const statsJson = await statsRes.json();
+      const ordersJson = await ordersRes.json();
+      
+      console.log('[Dashboard] 📊 Stats:', statsJson);
+      
+      if (statsJson.success && statsJson.data) {
+        const stats = statsJson.data;
+        setMetrics({
+          pedidosHoje: stats.pedidosHoje || 0,
+          faturamentoHoje: stats.faturamentoHoje || 0,
+          pedidosPendentes: stats.pedidosPendentes || 0,
+          produtosAtivos: stats.produtosAtivos || 0,
+        });
       }
       
-      const responses = await Promise.all(fetchPromises);
-      const parsedResponses = await Promise.all(
-        responses.map(async (r) => {
-          const text = await r.text();
-          try {
-            return JSON.parse(text);
-          } catch (parseErr) {
-            console.error('[Dashboard] ❌ Resposta inválida ao carregar métricas:', text);
-            return {};
-          }
-        })
-      );
-      
-      const ordersData = parsedResponses[0];
-      const productsData = parsedResponses[1] || {};
-      const catalogoData = banca?.is_cotista ? (parsedResponses[2] || {}) : {};
-      
-      console.log('[Dashboard] 🔍 is_cotista:', banca?.is_cotista);
-      console.log('[Dashboard] 📦 productsData:', productsData);
-      console.log('[Dashboard] 📦 catalogoData:', catalogoData);
-      
-      const orders = ordersData.items || [];
-      const products = productsData.items || productsData.products || [];
-      
-      // Produtos do catálogo do distribuidor (APENAS se cotista)
-      const catalogoProdutos = banca?.is_cotista ? (catalogoData?.data || catalogoData?.products || []) : [];
-      
-      console.log('[Dashboard] 📊 products.length:', products.length);
-      console.log('[Dashboard] 📊 catalogoProdutos.length:', catalogoProdutos.length);
-
-      // Calcular data de hoje no timezone local
-      const hoje = new Date();
-      const hojeStart = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-      
-      const pedidosHoje = orders.filter((o: any) => {
-        const orderDate = new Date(o.created_at);
-        return orderDate >= hojeStart;
-      });
-
-      const faturamentoHoje = pedidosHoje.reduce((acc: number, o: any) => acc + Number(o.total || 0), 0);
-      const pedidosPendentes = orders.filter((o: any) => 
-        !['entregue', 'cancelado'].includes(o.status)
-      ).length;
-      
-      // Produtos próprios ativos: visíveis e com estoque (se rastrear)
-      const produtosProprios = products.filter((p: any) => {
-        // Se o produto está oculto/inativo, não conta
-        if (p.is_hidden || p.status === 'inactive') {
-          return false;
-        }
-        
-        // Se rastreia estoque, precisa ter estoque disponível
-        if (p.track_stock) {
-          return (p.stock_qty || 0) > 0;
-        }
-        
-        // Se não rastreia estoque, está ativo
-        return true;
-      }).length;
-      
-      // Produtos do distribuidor ativos (já vem filtrados pela API)
-      const produtosDistribuidor = catalogoProdutos.length;
-      
-      // Total de produtos ativos = próprios + distribuidor
-      const produtosAtivos = produtosProprios + produtosDistribuidor;
-      
-      console.log('[Dashboard] 📊 Produtos próprios:', produtosProprios);
-      console.log('[Dashboard] 📊 Produtos distribuidor:', produtosDistribuidor);
-      console.log('[Dashboard] 📊 Total produtos ativos:', produtosAtivos);
-
-      setMetrics({
-        pedidosHoje: pedidosHoje.length,
-        faturamentoHoje,
-        pedidosPendentes,
-        produtosAtivos,
-      });
-      
+      const orders = ordersJson.items || [];
       setRecentOrders(orders.slice(0, 5));
     } catch (error) {
       console.error('[Dashboard] Erro ao carregar métricas:', error);
