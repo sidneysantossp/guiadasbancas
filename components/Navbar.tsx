@@ -656,7 +656,7 @@ useEffect(() => {
                   onQueryChange={setQ}
                   onSelect={handleSearchSelect}
                   onSubmit={handleSearchSubmit}
-                  placeholder="O que você procura hoje?"
+                  placeholder="Buscar por nome ou código..."
                   className="w-full rounded-lg border border-gray-300 bg-white pl-11 pr-4 py-2.5 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00]"
                 />
               </div>
@@ -843,7 +843,7 @@ useEffect(() => {
                 <input
                   ref={inputRef}
                   className="w-full rounded-lg border border-gray-300 bg-gray-50 pl-11 pr-4 py-3.5 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00] focus:bg-white"
-                  placeholder="O que você procura hoje?"
+                  placeholder="Buscar por nome ou código..."
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   aria-label="Buscar"
