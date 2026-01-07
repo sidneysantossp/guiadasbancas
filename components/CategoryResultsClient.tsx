@@ -257,8 +257,9 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
         }
         
         // 2. Buscar produtos da categoria via Supabase
-        if (categoryId) {
-          const productsRes = await fetch(`/api/products/public?category=${categoryId}&limit=100`);
+        // SEMPRE usar categoryName para passar pelo mapeamento de subcategorias
+        if (categoryId || slug) {
+          const productsRes = await fetch(`/api/products/public?categoryName=${encodeURIComponent(slug)}&limit=500`);
           if (productsRes.ok) {
             const productsData = await productsRes.json();
             const productsArray = Array.isArray(productsData?.items) ? productsData.items : (Array.isArray(productsData?.data) ? productsData.data : []);
