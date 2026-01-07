@@ -233,7 +233,8 @@ export default function TrendingProducts() {
         const seen = new Set<string>();
         const mapped: TrendProduct[] = merged
           .filter(p => {
-            if (!p?.id || typeof p.price !== 'number') return false;
+            // Exigir imagem real - sem fallback para mock
+            if (!p?.id || typeof p.price !== 'number' || !p.images || !p.images[0]) return false;
             const name = String(p.name || "");
             if (blockedNamePatterns.some((re) => re.test(name))) return false;
             if (seen.has(p.id)) return false;
@@ -244,7 +245,7 @@ export default function TrendingProducts() {
             return {
               id: p.id,
               name: p.name,
-              image: (p.images && p.images[0]) || "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=1200&auto=format&fit=crop",
+              image: p.images![0], // Imagem real do banco - já verificada no filter
               price: Number(p.price || 0),
               priceOriginal: p.price_original != null ? Number(p.price_original) : null,
               discountPercent: p.discount_percent != null ? Number(p.discount_percent) : null,
