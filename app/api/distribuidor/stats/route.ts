@@ -18,27 +18,37 @@ export async function GET(request: NextRequest) {
 
     console.log('[Stats] Buscando estatísticas para distribuidor:', distribuidorId);
 
-    // CORREÇÃO: Buscar todos os produtos e contar manualmente
-    // O Supabase count com filtros combinados pode retornar valores incorretos
-    const { data: todosProdutos, error: errProdutos } = await supabaseAdmin
-      .from('products')
-      .select('id, active')
-      .eq('distribuidor_id', distribuidorId);
+    // Usar COUNT direto para evitar limite de 1000 registros do Supabase
+    const [
+      { count: totalProdutos },
+      { count: produtosAtivos },
+      { count: produtosInativos },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('distribuidor_id', distribuidorId),
+      supabaseAdmin
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('distribuidor_id', distribuidorId)
+        .eq('active', true),
+      supabaseAdmin
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('distribuidor_id', distribuidorId)
+        .eq('active', false),
+    ]);
 
-    const totalProdutos = todosProdutos?.length || 0;
-    const produtosAtivos = todosProdutos?.filter(p => p.active === true).length || 0;
-    const produtosInativos = todosProdutos?.filter(p => p.active === false).length || 0;
-    const produtosNull = todosProdutos?.filter(p => p.active === null).length || 0;
+    const produtosNull = (totalProdutos || 0) - (produtosAtivos || 0) - (produtosInativos || 0);
 
     // Log detalhado para debug
-    console.log('[Stats] Contagens (manual):', {
+    console.log('[Stats] Contagens (COUNT):', {
       distribuidorId,
       totalProdutos,
       produtosAtivos,
       produtosInativos,
       produtosNull,
-      soma: produtosAtivos + produtosInativos + produtosNull,
-      errProdutos: errProdutos?.message,
     });
 
     // Buscar dados do distribuidor (para última sincronização, etc)
