@@ -266,7 +266,7 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
 
   return (
     <section className="w-full px-5">
-      <div className="container-max relative px-3 sm:px-6 md:px-8 py-6">
+      <div className="container-max relative px-3 sm:px-6 md:px-8 py-10">
         <div className="relative z-10 mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg sm:text-xl font-semibold">Bancas em Destaque</h2>
