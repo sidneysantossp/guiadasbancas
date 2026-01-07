@@ -13,6 +13,8 @@ const PRODUCT_FIELDS_MINIMAL = `
   id,
   name,
   price,
+  price_original,
+  discount_percent,
   images,
   stock_qty,
   category_id,
