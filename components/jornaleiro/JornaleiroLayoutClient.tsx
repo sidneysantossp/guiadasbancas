@@ -26,6 +26,7 @@ import {
   IconSettings,
   IconHome,
   IconBell,
+  IconCreditCard,
 } from "@tabler/icons-react";
 
 const hedvig = Hedvig_Letters_Serif({
@@ -50,6 +51,7 @@ const journaleiroIconComponents = {
   notifications: IconBell,
   academy: IconSchool,
   settings: IconSettings,
+  plan: IconCreditCard,
 } as const;
 
 type JournaleiroIconKey = keyof typeof journaleiroIconComponents;
@@ -73,6 +75,7 @@ const PERMISSION_MAP: Record<string, string> = {
   "Relatórios": "relatorios",
   "Academy": "academy",
   "Configurações": "configuracoes",
+  "Meu Plano": "plano",
 };
 
 const JOURNALEIRO_MENU: JournaleiroMenuItem[] = [
@@ -102,6 +105,7 @@ const JOURNALEIRO_MENU: JournaleiroMenuItem[] = [
   { label: "Cupons", href: "/jornaleiro/coupons" as Route, icon: "coupons" },
   { label: "Relatórios", href: "/jornaleiro/relatorios" as Route, icon: "reports" },
   { label: "Academy", href: "/jornaleiro/academy" as Route, icon: "academy" },
+  { label: "Meu Plano", href: "/jornaleiro/meu-plano" as Route, icon: "plan" },
   { label: "Configurações", href: "/jornaleiro/configuracoes" as Route, icon: "settings" },
 ];
 
