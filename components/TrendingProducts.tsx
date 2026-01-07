@@ -211,7 +211,7 @@ export default function TrendingProducts() {
       try {
         setLoading(true);
         // Usar categoryName para passar pelo mapeamento de subcategorias
-        const r = await fetch(`/api/products/public?categoryName=panini&limit=24&sort=created_at&order=desc`, {
+        const r = await fetch(`/api/products/public?categoryName=panini&limit=100&sort=created_at&order=desc`, {
           next: { revalidate: 60 } as any,
         });
         if (!r.ok) {
