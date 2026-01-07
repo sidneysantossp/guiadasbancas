@@ -290,6 +290,9 @@ const FavoritePicks = nextDynamic(() => import("@/components/FavoritePicks"), {
 const TrendingProducts = nextDynamic(() => import("@/components/TrendingProducts"), {
   ssr: false
 });
+const MarvelComicsProducts = nextDynamic(() => import("@/components/MarvelComicsProducts"), {
+  ssr: false
+});
 const ReferralBanner = nextDynamic(() => import("@/components/ReferralBanner"), { 
   ssr: false
 });
@@ -342,6 +345,11 @@ export default async function HomePage() {
       {/* HQs & Comics logo após Turma da Mônica */}
       <Suspense fallback={null}>
         <TrendingProducts />
+      </Suspense>
+
+      {/* Marvel Comics */}
+      <Suspense fallback={null}>
+        <MarvelComicsProducts />
       </Suspense>
 
       {/* Mundo Marvel (Brancaleone) logo após HQs & Comics */}
