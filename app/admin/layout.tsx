@@ -38,6 +38,7 @@ import {
   IconBrandWhatsapp,
   IconUserCheck,
   IconArticle,
+  IconCreditCard,
 } from "@tabler/icons-react";
 
 const hedvig = Hedvig_Letters_Serif({
@@ -78,6 +79,7 @@ const iconComponents = {
   brandWhatsapp: IconBrandWhatsapp,
   userCheck: IconUserCheck,
   article: IconArticle,
+  creditCard: IconCreditCard,
 } as const;
 
 type IconKey = keyof typeof iconComponents;
@@ -132,6 +134,13 @@ const ADMIN_MENU = [
       { label: "Banner Jornaleiro", href: "/admin/cms/vendor-banner", icon: "newspaper" as IconKey },
       { label: "Banner Indicação", href: "/admin/cms/referral-banner", icon: "gift" as IconKey },
       { label: "Newsletter", href: "/admin/newsletter", icon: "mail" as IconKey },
+    ]
+  },
+  {
+    section: "Assinaturas",
+    items: [
+      { label: "Planos", href: "/admin/planos", icon: "creditCard" as IconKey },
+      { label: "Pagamentos Asaas", href: "/admin/configuracoes", icon: "settings" as IconKey },
     ]
   },
   {
