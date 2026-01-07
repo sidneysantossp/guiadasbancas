@@ -43,6 +43,11 @@ async function getProductData(productId: string): Promise<Produto | null> {
       .single();
     
     if (data) {
+      // Produtos de distribuidor são públicos
+      if ((data as any).distribuidor_id) {
+        return data as Produto;
+      }
+      // Produtos próprios só são públicos se a banca for cotista ativa
       const banca = (data as any)?.bancas;
       const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
       if (!isActiveCotistaBanca(banca)) {

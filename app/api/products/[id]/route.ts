@@ -32,41 +32,10 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       }
     }
 
-    // IMPORTANTE: Produtos de distribuidor só podem ser acessados se:
-    // 1. Não têm distribuidor_id (produto próprio da banca)
-    // 2. OU temos bancaIdFromQuery e essa banca é cotista
-    // 3. OU a banca vinculada ao produto é cotista
+    // Produtos de distribuidor são públicos - podem ser vendidos por qualquer banca cotista
+    // A associação com a banca específica é feita no momento da compra
     if (data.distribuidor_id) {
-      // É produto de distribuidor - verificar se banca é cotista
-      let bancaParaValidar = null;
-      
-      // Se temos banca da query string, buscar dados dela
-      if (bancaIdFromQuery) {
-        const { data: bancaQuery } = await supabaseAdmin
-          .from('bancas')
-          .select('id, name, is_cotista, cotista_id')
-          .eq('id', bancaIdFromQuery)
-          .single();
-        
-        bancaParaValidar = bancaQuery;
-      } else {
-        // Usar banca do produto (join)
-        bancaParaValidar = data.bancas as any;
-      }
-      
-      if (!bancaParaValidar) {
-        // Produto de distribuidor sem banca válida
-        console.warn(`[API/PRODUCTS/ID] Produto ${productId} é de distribuidor mas não tem banca válida`);
-        return NextResponse.json({ error: "Produto não disponível" }, { status: 404 });
-      }
-      
-      if (!isActiveCotistaBanca(bancaParaValidar)) {
-        // Banca não é cotista - não deveria ter acesso a produtos de distribuidor
-        console.warn(`[API/PRODUCTS/ID] Produto ${productId} é de distribuidor mas banca ${bancaParaValidar.id} não é cotista`);
-        return NextResponse.json({ error: "Produto não disponível" }, { status: 404 });
-      }
-      
-      console.log(`[API/PRODUCTS/ID] Produto ${productId} de distribuidor - banca ${bancaParaValidar.name} é cotista ✓`);
+      console.log(`[API/PRODUCTS/ID] Produto ${productId} de distribuidor - acesso público permitido`);
     }
 
     return NextResponse.json(data);
