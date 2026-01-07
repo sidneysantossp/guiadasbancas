@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     // Mapeamento de categorias pai para subcategorias (usado na home)
     const CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
       'tabacaria': ['Boladores', 'Carvão Narguile', 'Charutos e Cigarrilhas', 'Cigarros', 'Essências', 'Filtros', 'Incensos', 'Isqueiros', 'Palheiros', 'Piteiras', 'Porta Cigarros', 'Seda OCB', 'Tabaco e Seda', 'Tabacos Importados', 'Trituradores'],
-      'bebidas': ['Energéticos', 'Bebidas'],
+      'bebidas': ['Energéticos', 'Energético', 'Bebidas', 'Bebida', 'Água', 'Águas', 'Refrigerantes', 'Refrigerante', 'Sucos', 'Suco', 'Isotônicos', 'Isotônico'],
       'bomboniere': ['Balas e Drops', 'Balas a Granel', 'Biscoitos', 'Chicletes', 'Chocolates', 'Doces', 'Pirulitos', 'Salgadinhos', 'Snacks'],
       'brinquedos': ['Blocos de Montar', 'Carrinhos', 'Massinha', 'Pelúcias', 'Brinquedos', 'Livros Infantis'],
       'cartas': ['Baralhos', 'Baralhos e Cards', 'Cards Colecionáveis', 'Cards Pokémon', 'Jogos Copag', 'Jogos de Cartas'],
@@ -44,27 +44,38 @@ export async function GET(req: NextRequest) {
         // É uma categoria pai - buscar IDs de todas as subcategorias
         console.log(`[API Public] Categoria pai "${searchName}" - buscando subcategorias: ${subcategories.join(', ')}`);
         
-        // Buscar em distribuidor_categories
+        // Buscar em distribuidor_categories (case-insensitive)
         const { data: distCatData } = await supabaseAdmin
           .from('distribuidor_categories')
-          .select('id, nome')
-          .in('nome', subcategories);
+          .select('id, nome');
         
         if (distCatData && distCatData.length > 0) {
-          categoryIds = distCatData.map(c => c.id);
-          console.log(`[API Public] Subcategorias encontradas: ${distCatData.length} (${distCatData.map(c => c.nome).join(', ')})`);
+          // Filtrar case-insensitive
+          const matchedDist = distCatData.filter(c => 
+            subcategories.some(sub => c.nome?.toLowerCase() === sub.toLowerCase())
+          );
+          if (matchedDist.length > 0) {
+            categoryIds = matchedDist.map(c => c.id);
+            console.log(`[API Public] Subcategorias encontradas: ${matchedDist.length} (${matchedDist.map(c => c.nome).join(', ')})`);
+          }
         }
         
-        // Também buscar em categories (bancas)
+        // Também buscar em categories (bancas) - case-insensitive
         const { data: catData } = await supabaseAdmin
           .from('categories')
-          .select('id, name')
-          .in('name', subcategories);
+          .select('id, name');
         
         if (catData && catData.length > 0) {
-          categoryIds = [...categoryIds, ...catData.map(c => c.id)];
-          console.log(`[API Public] + Categorias de bancas: ${catData.length}`);
+          const matchedCat = catData.filter(c => 
+            subcategories.some(sub => c.name?.toLowerCase() === sub.toLowerCase())
+          );
+          if (matchedCat.length > 0) {
+            categoryIds = [...categoryIds, ...matchedCat.map(c => c.id)];
+            console.log(`[API Public] + Categorias de bancas: ${matchedCat.length}`);
+          }
         }
+        
+        console.log(`[API Public] Total de categoryIds encontrados: ${categoryIds.length}`);
       } else {
         // Busca normal por nome
         const { data: catData } = await supabaseAdmin
