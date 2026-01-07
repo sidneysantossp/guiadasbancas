@@ -210,8 +210,8 @@ export default function TrendingProducts() {
     (async () => {
       try {
         setLoading(true);
-        const HQS_COMICS_ID = '1e813114-e1bc-442d-96e4-2704910d157d';
-        const r = await fetch(`/api/products/public?category=${encodeURIComponent(HQS_COMICS_ID)}&limit=24&sort=created_at&order=desc`, {
+        // Usar categoryName para passar pelo mapeamento de subcategorias
+        const r = await fetch(`/api/products/public?categoryName=panini&limit=24&sort=created_at&order=desc`, {
           next: { revalidate: 60 } as any,
         });
         if (!r.ok) {
