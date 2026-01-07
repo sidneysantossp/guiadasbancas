@@ -98,13 +98,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Contar TODAS as bancas ativas da plataforma (todas vendem produtos dos distribuidores)
-    const { count: totalBancasAtivas } = await supabaseAdmin
+    // Contar apenas bancas COTISTAS ativas (que realmente vendem produtos de distribuidores)
+    const { count: totalBancasCotistas } = await supabaseAdmin
       .from('bancas')
       .select('*', { count: 'exact', head: true })
-      .eq('active', true);
+      .eq('active', true)
+      .or('is_cotista.eq.true,cotista_id.not.is.null');
 
-    console.log(`[Stats] Distribuidor ${distribuidor?.nome}: ${produtosAtivos}/${totalProdutos} produtos, ${totalBancasAtivas} bancas ativas`);
+    console.log(`[Stats] Distribuidor ${distribuidor?.nome}: ${produtosAtivos}/${totalProdutos} produtos, ${totalBancasCotistas} bancas ativas`);
 
     // Se houver inconsistência (ativos > total), usar a soma real como total
     const totalReal = (produtosAtivos || 0) + (produtosInativos || 0) + (produtosNull || 0);
@@ -133,7 +134,7 @@ export async function GET(request: NextRequest) {
           produtosAtivos: produtosAtivos || 0,
           totalPedidosHoje,
           totalPedidos,
-          totalBancas: totalBancasAtivas || 0,
+          totalBancas: totalBancasCotistas || 0,
           faturamentoMes,
           ultimaSincronizacao: distribuidor?.ultima_sincronizacao || null,
         },
@@ -147,7 +148,7 @@ export async function GET(request: NextRequest) {
         produtosAtivos: produtosAtivos || 0,
         totalPedidosHoje,
         totalPedidos,
-        totalBancas: totalBancasAtivas || 0,
+        totalBancas: totalBancasCotistas || 0,
         faturamentoMes,
         ultimaSincronizacao: distribuidor?.ultima_sincronizacao || null,
       },
