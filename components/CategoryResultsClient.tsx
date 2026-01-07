@@ -212,6 +212,10 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
   const [bancas, setBancas] = useState<Banca[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  
+  // Paginação de produtos
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 50;
 
   useEffect(() => {
     setMounted(true);
@@ -693,11 +697,66 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
                   <p className="text-sm text-gray-500 mt-1">Tente ajustar o preço, a distância ou a avaliação mínima</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                  {sortedProducts.map(({ p, km }) => (
-                    <ProductCard key={p.id} p={p} km={km} />
-                  ))}
-                </div>
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {sortedProducts
+                      .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                      .map(({ p, km }) => (
+                        <ProductCard key={p.id} p={p} km={km} />
+                      ))}
+                  </div>
+                  
+                  {/* Paginação */}
+                  {sortedProducts.length > ITEMS_PER_PAGE && (
+                    <div className="mt-6 flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                      >
+                        Anterior
+                      </button>
+                      
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.ceil(sortedProducts.length / ITEMS_PER_PAGE) }).map((_, i) => {
+                          const page = i + 1;
+                          const totalPages = Math.ceil(sortedProducts.length / ITEMS_PER_PAGE);
+                          // Mostrar apenas páginas próximas da atual
+                          if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
+                            return (
+                              <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                className={`w-10 h-10 rounded-lg text-sm font-medium transition ${
+                                  currentPage === page
+                                    ? 'bg-[#ff5c00] text-white'
+                                    : 'border border-gray-300 hover:bg-gray-50'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            );
+                          } else if (page === currentPage - 2 || page === currentPage + 2) {
+                            return <span key={page} className="px-1">...</span>;
+                          }
+                          return null;
+                        })}
+                      </div>
+                      
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(Math.ceil(sortedProducts.length / ITEMS_PER_PAGE), p + 1))}
+                        disabled={currentPage >= Math.ceil(sortedProducts.length / ITEMS_PER_PAGE)}
+                        className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                      >
+                        Próxima
+                      </button>
+                      
+                      <span className="ml-4 text-sm text-gray-500">
+                        Página {currentPage} de {Math.ceil(sortedProducts.length / ITEMS_PER_PAGE)}
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
