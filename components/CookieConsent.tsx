@@ -102,47 +102,63 @@ export default function CookieConsent() {
   if (!isMounted || !visible) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center pointer-events-none">
-      <div className="absolute inset-0 bg-black/50 pointer-events-auto sm:hidden" aria-hidden />
-      <div className="relative w-full pointer-events-auto sm:max-w-6xl sm:px-6 sm:pb-8">
-        <div className="mx-auto w-full max-w-[calc(100%-2rem)] px-4 pb-20 sm:max-w-none sm:px-0 sm:pb-0">
-          <div className="rounded-2xl border border-[#ff5c00]/30 bg-white shadow-2xl sm:rounded-xl sm:border sm:shadow-[0_-16px_48px_-24px_rgba(0,0,0,0.35)]">
-            <div className="hidden sm:block h-1 w-full bg-gradient-to-r from-[#ff6b18] via-[#ff5c00] to-[#ff7a33]" aria-hidden />
-            <div className="px-4 py-4 sm:px-6 sm:py-4">
-              <p className="text-sm text-gray-700 sm:max-w-4xl">
-                Ao clicar em "Aceitar todos os cookies", concorda com o armazenamento de cookies no seu dispositivo para
-                melhorar a navegação no site, analisar a utilização e ajudar nas nossas iniciativas de marketing. Para mais
-                informações consulte a nossa {""}
-                <Link href="/privacidade" className="font-semibold text-[#ff5c00] underline underline-offset-2">
-                  Política de cookies
-                </Link>
-                .
-              </p>
+    <div className="fixed bottom-4 right-4 z-[70] pointer-events-none sm:bottom-6 sm:right-6">
+      <div className="pointer-events-auto max-w-sm">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-lg">
+          <div className="p-3">
+            <p className="text-xs text-gray-600">
+              Usamos cookies para melhorar sua experiência.{" "}
+              <Link href="/privacidade" className="text-[#ff5c00] underline">
+                Saiba mais
+              </Link>
+            </p>
 
-              {settingsOpen && (
-                <div className="mt-4 space-y-3 rounded-xl border border-[#ff5c00]/20 bg-[#fff4ec] p-3">
-                  <PreferencesItem
-                    label="Cookies necessários"
-                    description="Essenciais para o funcionamento do site e não podem ser desativados."
-                    checked
-                    disabled
-                  />
-                  <PreferencesItem
-                    label="Cookies analíticos"
-                    description="Ajudam a analisar o desempenho e entender como os visitantes interagem com o site."
-                    checked={preferences.analytics}
-                    onToggle={() => togglePreference("analytics")}
-                  />
-                  <PreferencesItem
-                    label="Cookies de marketing"
-                    description="Utilizados para personalizar ofertas e campanhas relevantes para você."
-                    checked={preferences.marketing}
-                    onToggle={() => togglePreference("marketing")}
-                  />
-                </div>
-              )}
+            {settingsOpen && (
+              <div className="mt-3 space-y-2 rounded-lg border border-gray-100 bg-gray-50 p-2">
+                <PreferencesItem
+                  label="Necessários"
+                  description="Essenciais para o site funcionar."
+                  checked
+                  disabled
+                />
+                <PreferencesItem
+                  label="Analíticos"
+                  description="Ajudam a melhorar o site."
+                  checked={preferences.analytics}
+                  onToggle={() => togglePreference("analytics")}
+                />
+                <PreferencesItem
+                  label="Marketing"
+                  description="Personalizam ofertas."
+                  checked={preferences.marketing}
+                  onToggle={() => togglePreference("marketing")}
+                />
+              </div>
+            )}
 
-              <div className="mt-4">{actionButtons}</div>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(prev => !prev)}
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                {settingsOpen ? "Fechar" : "Opções"}
+              </button>
+              <div className="flex-1" />
+              <button
+                type="button"
+                onClick={handleRejectAll}
+                className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
+              >
+                Rejeitar
+              </button>
+              <button
+                type="button"
+                onClick={settingsOpen ? handleSavePreferences : handleAcceptAll}
+                className="rounded bg-[#ff5c00] px-3 py-1 text-xs font-medium text-white hover:bg-[#ff7a33]"
+              >
+                {settingsOpen ? "Salvar" : "Aceitar"}
+              </button>
             </div>
           </div>
         </div>
