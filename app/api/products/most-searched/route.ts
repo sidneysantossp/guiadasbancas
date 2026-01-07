@@ -178,7 +178,7 @@ export async function GET(req: NextRequest) {
       distribuidorIds.length
         ? supabase
             .from('distribuidores')
-            .select('id, nome')
+            .select('id, nome, markup_global_percentual, markup_global_fixo, tipo_calculo, margem_divisor')
             .in('id', distribuidorIds)
         : Promise.resolve({ data: [], error: null } as any),
     ]);
