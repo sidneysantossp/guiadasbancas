@@ -31,6 +31,7 @@ export type ProductDetail = {
   stock?: number;
   description?: string;
   specs?: Record<string, string>;
+  codigo_mercos?: string;
 };
 
 // MOCK removido - dados devem vir exclusivamente da API
@@ -402,6 +403,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
           stock: p.stock_qty || 0,
           description: p.description_full || p.description || "Descrição não disponível",
           specs: p.specifications ? (typeof p.specifications === 'string' ? JSON.parse(p.specifications) : p.specifications) : {},
+          codigo_mercos: p.codigo_mercos || undefined,
         };
         
         console.log("Produto carregado com sucesso:", mappedProduct.name);
@@ -594,6 +596,13 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
         {/* Info direita */}
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold">{product.name}</h1>
+          {(product.codigo_mercos || product.id) && (
+            <p className="mt-1 text-xs text-gray-500">
+              {product.codigo_mercos && <span>Cód: {product.codigo_mercos}</span>}
+              {product.codigo_mercos && product.id && <span className="mx-1">|</span>}
+              <span>ID: {product.id}</span>
+            </p>
+          )}
           {product.description && (
             <p className="mt-1 text-sm text-gray-700 line-clamp-2">{product.description}</p>
           )}
