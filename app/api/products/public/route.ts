@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
       'panini': ['Colecionáveis', 'Conan', 'DC Comics', 'Disney Comics', 'Marvel Comics', 'Maurício de Sousa Produções', 'Panini Books', 'Panini Comics', 'Panini Magazines', 'Panini Partwork', 'Planet Manga', 'HQs', 'HQ', 'Comics', 'Quadrinhos', 'Mangás', 'Manga', 'Graphic Novels', 'Graphic Novel', 'Revistas', 'Gibis', 'Gibi'],
       'marvel': ['Marvel Comics', 'Marvel', 'Vingadores', 'Avengers', 'Homem-Aranha', 'Spider-Man', 'X-Men', 'Deadpool', 'Wolverine', 'Thor', 'Hulk', 'Homem de Ferro', 'Iron Man', 'Capitão América', 'Captain America'],
       'manga': ['Planet Manga', 'Mangá', 'Mangás', 'Manga', 'Anime', 'Naruto', 'One Piece', 'Dragon Ball', 'Demon Slayer', 'Jujutsu Kaisen', 'My Hero Academia', 'Attack on Titan', 'Death Note', 'Bleach', 'Hunter x Hunter'],
+      'mauricio': ['Maurício de Sousa Produções', 'Maurício de Sousa', 'Turma da Mônica', 'Mônica', 'Cebolinha', 'Cascão', 'Magali', 'Chico Bento', 'Pelezinho', 'Horácio', 'Astronauta', 'Piteco'],
     };
 
     // Se tiver categoryName, buscar o ID da categoria primeiro

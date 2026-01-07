@@ -296,6 +296,9 @@ const MarvelComicsProducts = nextDynamic(() => import("@/components/MarvelComics
 const PlanetMangaProducts = nextDynamic(() => import("@/components/PlanetMangaProducts"), {
   ssr: false
 });
+const MauricioSousaProducts = nextDynamic(() => import("@/components/MauricioSousaProducts"), {
+  ssr: false
+});
 const ReferralBanner = nextDynamic(() => import("@/components/ReferralBanner"), { 
   ssr: false
 });
@@ -358,6 +361,11 @@ export default async function HomePage() {
       {/* Planet Manga */}
       <Suspense fallback={null}>
         <PlanetMangaProducts />
+      </Suspense>
+
+      {/* Maurício de Sousa */}
+      <Suspense fallback={null}>
+        <MauricioSousaProducts />
       </Suspense>
 
       {/* Mundo Marvel (Brancaleone) logo após HQs & Comics */}
