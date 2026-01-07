@@ -277,10 +277,10 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
               });
             }
             
-            // Buscar bancas cotistas para associar produtos de distribuidor
-            const bancasCotistas = Array.from(bancasMap.values())
-              .filter((banca: any) => banca.active !== false)
-              .filter((banca: any) => banca.is_cotista === true || !!banca.cotista_id);
+            // Buscar TODAS as bancas ativas para associar produtos de distribuidor
+            // (não apenas cotistas, pois todas as bancas podem vender produtos de distribuidor)
+            const todasBancasAtivas = Array.from(bancasMap.values())
+              .filter((banca: any) => banca.active !== false);
             
             // Verificar se há produtos de distribuidor (sem banca_id)
             const hasDistribuidorProducts = productsArray.some((p: any) => p.distribuidor_id && !p.banca_id);
@@ -309,9 +309,9 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
                     bancaId: item.banca_id,
                     phone: banca?.contact?.whatsapp || banca?.whatsapp || banca?.phone || banca?.telefone || banca?.whatsapp_phone,
                   });
-                } else if (item.distribuidor_id && bancasCotistas.length > 0) {
+                } else if (item.distribuidor_id && todasBancasAtivas.length > 0) {
                   // Produto de distribuidor - criar uma instância para cada banca cotista
-                  bancasCotistas.forEach((banca: any) => {
+                  todasBancasAtivas.forEach((banca: any) => {
                     mappedProducts.push({
                       id: `${item.id}-${banca.id}`,
                       name: item.name || 'Produto',
@@ -342,7 +342,7 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
             if (hasDistribuidorProducts) {
               // Se há produtos de distribuidor, mostrar TODAS as bancas cotistas
               console.log(`[CategoryResults] Produtos de distribuidor detectados - mostrando todas bancas cotistas`);
-              allBancasToShow = bancasCotistas;
+              allBancasToShow = todasBancasAtivas;
             } else {
               // Apenas bancas que têm produtos próprios dessa categoria
               allBancasToShow = Array.from(uniqueBancaIds)
@@ -393,10 +393,9 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
                 });
               }
               
-              // Buscar bancas cotistas para associar produtos de distribuidor
-              const bancasCotistas = Array.from(bancasMap.values())
-                .filter((banca: any) => banca.active !== false)
-                .filter((banca: any) => banca.is_cotista === true || !!banca.cotista_id);
+              // Buscar TODAS as bancas ativas para associar produtos de distribuidor
+              const todasBancasAtivas = Array.from(bancasMap.values())
+                .filter((banca: any) => banca.active !== false);
               
               const mappedProducts: Product[] = [];
               
@@ -421,9 +420,9 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
                       bancaId: item.banca_id,
                       phone: banca?.contact?.whatsapp || banca?.whatsapp || banca?.phone || banca?.telefone || banca?.whatsapp_phone,
                     });
-                  } else if (item.distribuidor_id && bancasCotistas.length > 0) {
+                  } else if (item.distribuidor_id && todasBancasAtivas.length > 0) {
                     // Produto de distribuidor - criar uma instância para cada banca cotista
-                    bancasCotistas.forEach((banca: any) => {
+                    todasBancasAtivas.forEach((banca: any) => {
                       mappedProducts.push({
                         id: `${item.id}-${banca.id}`, // ID único para cada combinação produto-banca
                         name: item.name || 'Produto',
