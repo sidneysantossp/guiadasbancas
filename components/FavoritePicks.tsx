@@ -341,15 +341,17 @@ export default function FavoritePicks() {
         
         console.log(`[FavoritePicks] Total de produtos: ${list.length}`);
 
-        const mapped: FavItem[] = list.map((p) => {
+        // Filtrar apenas produtos com imagem real - sem fallback para mock
+        const productsWithImages = list.filter((p) => p.images && p.images[0]);
+        console.log(`[FavoritePicks] Produtos com imagem real: ${productsWithImages.length}`);
+
+        const mapped: FavItem[] = productsWithImages.map((p) => {
           const price = Number(p.price || 0);
           const priceOriginal = p.price_original != null ? Number(p.price_original) : null;
           const discountPercent = p.discount_percent != null ? Number(p.discount_percent) : (priceOriginal && priceOriginal > price ? Math.round((1 - price / priceOriginal) * 100) : null);
           
-          // Cache-busting: adiciona timestamp na URL da imagem
-          const imageUrl = p.images && p.images[0]
-            ? `${p.images[0]}${p.images[0].includes('?') ? '&' : '?'}t=${Date.now()}`
-            : 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=1200&auto=format&fit=crop';
+          // Usar imagem real do banco
+          const imageUrl = p.images![0];
           
           return {
             id: p.id,
