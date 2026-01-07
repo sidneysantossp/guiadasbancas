@@ -82,7 +82,10 @@ function BancaCard({
   }, []);
   
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg transition-transform transition-shadow duration-200 hover:shadow-xl hover:-translate-y-0.5">
+    <Link 
+      href={(buildBancaHref(name, id, uf) as Route)} 
+      className="block overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg transition-transform transition-shadow duration-200 hover:shadow-xl hover:-translate-y-0.5 cursor-pointer"
+    >
       {/* Imagem com padding e borda arredondada interna */}
       <div className="relative h-44 w-full p-2">
         <div className="relative h-full w-full overflow-hidden rounded-xl">
@@ -153,31 +156,25 @@ function BancaCard({
 
         {/* Ver no Mapa + distância */}
         <div className="mt-2 flex items-center">
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${address}`)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[12px] text-black hover:underline"
-            onClick={(e) => e.stopPropagation()}
+          <span
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${address}`)}`, '_blank');
+            }}
+            className="inline-flex items-center gap-1 text-[12px] text-black hover:underline cursor-pointer"
           >
             <Image src="https://cdn-icons-png.flaticon.com/128/2875/2875433.png" alt="Mapa" width={16} height={16} className="h-4 w-4 rounded-full object-contain" />
             Ver no Mapa
-          </a>
+          </span>
           {distanceLabel && (
             <span className="ml-2 text-[12px] text-gray-700">
               • {distanceLabel}
             </span>
           )}
         </div>
-
-        {/* Botão Ver Banca */}
-        <div className="mt-3">
-          <Link href={(buildBancaHref(name, id, uf) as Route)} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white hover:opacity-95">
-            Ver Banca
-          </Link>
-        </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
