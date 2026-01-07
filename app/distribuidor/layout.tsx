@@ -70,14 +70,15 @@ const DISTRIBUIDOR_MENU = [
       { label: "Bancas Parceiras", href: "/distribuidor/bancas", icon: "truck" as IconKey },
     ]
   },
-  {
-    section: "Relatórios",
-    items: [
-      { label: "Vendas", href: "/distribuidor/relatorios/vendas", icon: "money" as IconKey },
-      { label: "Produtos", href: "/distribuidor/relatorios/produtos", icon: "package" as IconKey },
-      { label: "Analytics", href: "/distribuidor/analytics", icon: "chart" as IconKey },
-    ]
-  },
+  // Seção de Relatórios ocultada temporariamente
+  // {
+  //   section: "Relatórios",
+  //   items: [
+  //     { label: "Vendas", href: "/distribuidor/relatorios/vendas", icon: "money" as IconKey },
+  //     { label: "Produtos", href: "/distribuidor/relatorios/produtos", icon: "package" as IconKey },
+  //     { label: "Analytics", href: "/distribuidor/analytics", icon: "chart" as IconKey },
+  //   ]
+  // },
   {
     section: "Configurações",
     items: [
