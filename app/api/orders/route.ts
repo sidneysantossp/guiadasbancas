@@ -99,10 +99,15 @@ export async function GET(req: NextRequest) {
       const bancaData = await getActiveBancaRowForUser(userId, 'id, user_id');
       
       if (!bancaData) {
+        console.error('[API/ORDERS/GET] Banca não encontrada para jornaleiro:', userId);
         return NextResponse.json({ error: "Banca não encontrada" }, { status: 404 });
       }
       userBancaId = bancaData.id;
+      console.log('[API/ORDERS/GET] Jornaleiro:', userId, '-> Banca:', userBancaId);
     }
+    
+    // Log para debug
+    console.log('[API/ORDERS/GET] Role:', userRole, '| UserId:', userId, '| BancaId filtro:', userBancaId || 'N/A');
     
     // Buscar pedidos do Supabase (evitar join pesado para jornaleiro)
     const selectForAdmin = `*, bancas:banca_id ( id, name, address, whatsapp )`;
