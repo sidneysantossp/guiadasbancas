@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/CartContext";
-// import { useAuth } from "../../hooks/useAuth";
+import { useSession } from "next-auth/react";
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { shippingConfig } from "@/components/shippingConfig";
@@ -14,7 +14,7 @@ import FreeShippingProgress from "@/components/FreeShippingProgress";
 export default function CheckoutPageClient() {
   const router = useRouter();
   const { items, totalCount, addToCart, removeFromCart, clearCart } = useCart();
-  // const { isAuthenticated, isLoading } = useAuth();
+  const { data: session, status: sessionStatus } = useSession();
   const { show } = useToast();
   
   // Todos os hooks devem estar no início
@@ -220,28 +220,30 @@ export default function CheckoutPageClient() {
 
   const total = Math.max(0, subtotal - discount) + shippingCost;
 
+  // Usar NextAuth session para verificar se usuário está logado
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("gb:user");
-      setIsLogged(!!raw);
-      const user = raw ? JSON.parse(raw) : null;
-      setUserObj(user);
+    if (sessionStatus === 'loading') return;
+    
+    const logged = sessionStatus === 'authenticated' && !!session?.user;
+    setIsLogged(logged);
+    
+    if (logged && session?.user) {
+      const user = session.user as any;
+      setUserObj({ name: user.name || '', email: user.email || '' });
       
       // Preencher dados do usuário logado automaticamente
-      if (user) {
-        if (user.name) setName(user.name);
-        if (user.email) setEmail(user.email);
-      }
+      if (user.name) setName(user.name);
+      if (user.email) setEmail(user.email);
       
-      // Buscar telefone do perfil do usuário (salvo separadamente)
-      const profileRaw = localStorage.getItem("gb:userProfile");
-      if (profileRaw) {
-        const profile = JSON.parse(profileRaw);
-        if (profile.phone) setPhone(profile.phone);
-      }
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      // Buscar dados adicionais do perfil (telefone, etc) via API
+      fetch('/api/auth/me')
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.profile?.phone) setPhone(data.profile.phone);
+        })
+        .catch(() => {});
+    }
+  }, [session, sessionStatus]);
 
   // Se usuário logado e não há endereço salvo, força modo 'new'.
   const hasPrimaryAddress = useMemo(() => addresses.length > 0, [addresses]);
@@ -525,17 +527,14 @@ export default function CheckoutPageClient() {
       return;
     }
 
-    // Exigir login/registro antes de finalizar
-    try {
-      const logged = typeof window !== "undefined" && !!localStorage.getItem("gb:user");
-      if (!logged) {
-        show("Entre ou registre-se para finalizar a compra");
-        try { localStorage.setItem("gb:redirectAfterLogin", "/checkout"); } catch {}
-        router.push("/minha-conta");
-        setSubmitting(false);
-        return;
-      }
-    } catch {}
+    // Exigir login/registro antes de finalizar (usando NextAuth session)
+    if (!isLogged) {
+      show("Entre ou registre-se para finalizar a compra");
+      router.push("/minha-conta?redirect=/checkout");
+      setSubmitting(false);
+      return;
+    }
+
     // Enviar pedido ao endpoint mock
     try {
       const genTxn = () => `TXN-${Date.now()}`;
