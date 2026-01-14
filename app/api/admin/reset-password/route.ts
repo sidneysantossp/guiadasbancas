@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-
-function verifyAdminAuth(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  return Boolean(authHeader && authHeader === "Bearer admin-token");
-}
+import { auth } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    if (!verifyAdminAuth(req)) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-    if (process.env.ALLOW_LOCAL_RESET !== "true") {
-      return NextResponse.json({ error: "Local reset disabled" }, { status: 403 });
+    // Verificar se usuário é admin via NextAuth session
+    const session = await auth();
+    const userRole = (session?.user as any)?.role;
+    
+    if (!session?.user || userRole !== 'admin') {
+      return NextResponse.json({ error: "Não autorizado - apenas admins" }, { status: 401 });
     }
 
     const { email, password } = await req.json();
