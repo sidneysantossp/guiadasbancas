@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { IconBuildingStore } from "@tabler/icons-react";
+import { IconBuildingStore, IconSearch } from "@tabler/icons-react";
 
 type SearchResult = {
   type: 'product' | 'banca';
@@ -231,23 +231,26 @@ export default function SearchAutocomplete({
 
   return (
     <div className="relative w-full">
-      <input
-        ref={inputRef}
-        type="text"
-        value={query}
-        onChange={(e) => {
-          onQueryChange(e.target.value);
-          setAllowOpen(true);
-        }}
-        onKeyDown={handleKeyDown}
-        onFocus={() => {
-          setAllowOpen(true);
-          if (query.length >= 2 && results.length > 0) setIsOpen(true);
-        }}
-        placeholder={placeholder}
-        className={`w-full ${className}`}
-        autoComplete="off"
-      />
+      <div className="relative">
+        <IconSearch size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => {
+            onQueryChange(e.target.value);
+            setAllowOpen(true);
+          }}
+          onKeyDown={handleKeyDown}
+          onFocus={() => {
+            setAllowOpen(true);
+            if (query.length >= 2 && results.length > 0) setIsOpen(true);
+          }}
+          placeholder={placeholder}
+          className={`w-full pl-10 ${className}`}
+          autoComplete="off"
+        />
+      </div>
 
       {/* Dropdown de resultados */}
       {isOpen && (
