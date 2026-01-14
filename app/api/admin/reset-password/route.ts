@@ -4,11 +4,14 @@ import { auth } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    // Verificar se usuário é admin via NextAuth session
+    // Verificar autenticação: aceitar sessão NextAuth OU header admin-token
     const session = await auth();
     const userRole = (session?.user as any)?.role;
+    const authHeader = req.headers.get("authorization");
+    const hasAdminToken = authHeader === "Bearer admin-token";
+    const hasAdminSession = session?.user && userRole === 'admin';
     
-    if (!session?.user || userRole !== 'admin') {
+    if (!hasAdminToken && !hasAdminSession) {
       return NextResponse.json({ error: "Não autorizado - apenas admins" }, { status: 401 });
     }
 
