@@ -294,7 +294,7 @@ export default function SearchAutocomplete({
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       {result.type === 'banca' ? (
-                        // Banca: mostrar apenas badge de distância
+                        // Banca: mostrar badge de distância
                         result.distance !== undefined && (
                           <span className="inline-flex items-center px-2 py-0.5 bg-[#ff5c00] text-white text-xs rounded-full font-medium">
                             {result.distance < 1 
@@ -303,8 +303,17 @@ export default function SearchAutocomplete({
                           </span>
                         )
                       ) : (
-                        // Produto: mostrar nome da banca
-                        <span className="text-gray-500 truncate">{(result.banca_name || '').split(' ')[0] || 'Banca'}</span>
+                        // Produto: mostrar nome da banca + distância
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 truncate max-w-[120px]">{result.banca_name || 'Banca'}</span>
+                          {result.distance !== undefined && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded font-medium">
+                              {result.distance < 1 
+                                ? `${Math.round(result.distance * 1000)}m` 
+                                : `${result.distance.toFixed(1)}km`}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>

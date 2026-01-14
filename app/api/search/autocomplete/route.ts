@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
       .flatMap((t) => ([`name.ilike.%${t}%`, `codigo_mercos.ilike.%${t}%`]))
       .join(',');
 
-    // Query única com JOIN para produtos
+    // Query única com JOIN para produtos (incluindo distribuidor_id para markup)
     const { data: productsData, error: productsError } = await supabase
       .from('products')
       .select(`
@@ -116,12 +116,33 @@ export async function GET(req: NextRequest) {
         images,
         banca_id,
         category_id,
+        distribuidor_id,
         categories(name),
         bancas(name, lat, lng, is_cotista, cotista_id, active)
       `)
       .eq('active', true)
       .or(productOr)
       .limit(fetchLimit);
+    
+    // Buscar markups de distribuidores para aplicar nos preços
+    const distribuidorIds = Array.from(new Set(
+      (productsData || []).filter((p: any) => p.distribuidor_id).map((p: any) => p.distribuidor_id)
+    ));
+    const markupMap = new Map<string, { perc: number; fixo: number }>();
+    
+    if (distribuidorIds.length > 0) {
+      const { data: distribuidores } = await supabase
+        .from('distribuidores')
+        .select('id, markup_global_percentual, markup_global_fixo')
+        .in('id', distribuidorIds);
+      
+      (distribuidores || []).forEach((d: any) => {
+        markupMap.set(d.id, {
+          perc: Number(d.markup_global_percentual || 0),
+          fixo: Number(d.markup_global_fixo || 0)
+        });
+      });
+    }
 
     if (productsError) {
       if (process.env.NODE_ENV === 'development') {
@@ -144,13 +165,23 @@ export async function GET(req: NextRequest) {
           distance = calculateDistance(userLat, userLng, parseFloat(banca.lat), parseFloat(banca.lng));
         }
 
+        // Calcular preço final com markup do distribuidor
+        let finalPrice = p.price || 0;
+        if (p.distribuidor_id && markupMap.has(p.distribuidor_id)) {
+          const markup = markupMap.get(p.distribuidor_id)!;
+          if (markup.perc > 0 || markup.fixo > 0) {
+            finalPrice = finalPrice * (1 + markup.perc / 100) + markup.fixo;
+            finalPrice = Math.round(finalPrice * 100) / 100; // Arredondar para 2 casas
+          }
+        }
+
         const category = Array.isArray(p.categories) ? p.categories[0] : p.categories;
         results.push({
           type: 'product',
           id: p.id,
           name: p.name,
           image: p.images && p.images.length > 0 ? p.images[0] : null,
-          price: p.price,
+          price: finalPrice,
           category: category?.name || 'Produto',
           banca_name: banca?.name || 'Banca',
           banca_id: p.banca_id,
@@ -199,21 +230,21 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Ordenação e deduplicação
+    // Ordenação e deduplicação - PRIORIZAR DISTÂNCIA (bancas mais próximas primeiro)
     results.sort((a, b) => {
       // Produtos primeiro, depois bancas
       if (a.type !== b.type) {
         return a.type === 'product' ? -1 : 1;
       }
 
-      // Ordenar alfabeticamente por nome
-      const nameCmp = a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
-      if (nameCmp !== 0) return nameCmp;
-
-      // Desempate por distância (se disponível)
+      // PRIORIDADE 1: Ordenar por distância (mais próximo primeiro)
       const ad = typeof a.distance === 'number' ? a.distance : Number.POSITIVE_INFINITY;
       const bd = typeof b.distance === 'number' ? b.distance : Number.POSITIVE_INFINITY;
       if (ad !== bd) return ad - bd;
+
+      // PRIORIDADE 2: Desempate por nome
+      const nameCmp = a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
+      if (nameCmp !== 0) return nameCmp;
 
       return a.id.localeCompare(b.id);
     });
