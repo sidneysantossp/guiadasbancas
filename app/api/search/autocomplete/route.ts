@@ -214,24 +214,105 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Erro na busca' }, { status: 500 });
     }
 
-    const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
+    // Verificar se banca é cotista E está ativa
+    const isActiveCotistaBanca = (b: any) => {
+      if (!b) return false;
+      const isCotista = b.is_cotista === true || !!b.cotista_id;
+      const isActive = b.active !== false; // active pode ser undefined, então só exclui se for explicitamente false
+      return isCotista && isActive;
+    };
 
-    // Processar produtos
+    // Separar produtos normais e produtos de distribuidores
+    const produtosNormais: any[] = [];
+    const produtosDistribuidor: any[] = [];
+    
     if (productsData) {
       for (const p of productsData) {
-        const banca = Array.isArray(p.bancas) ? p.bancas[0] : p.bancas;
-        if (!isActiveCotistaBanca(banca)) {
+        if (p.distribuidor_id) {
+          produtosDistribuidor.push(p);
+        } else {
+          const banca = Array.isArray(p.bancas) ? p.bancas[0] : p.bancas;
+          if (isActiveCotistaBanca(banca)) {
+            produtosNormais.push(p);
+          }
+        }
+      }
+    }
+
+    // Para produtos de distribuidores, buscar TODAS as bancas cotistas ativas
+    let bancasCotistas: any[] = [];
+    let desabilitadosMap = new Map<string, Set<string>>(); // banca_id -> Set<product_id>
+    
+    if (produtosDistribuidor.length > 0) {
+      // Buscar todas as bancas cotistas ativas
+      const { data: bancas } = await supabase
+        .from('bancas')
+        .select('id, name, lat, lng, is_cotista, cotista_id, active')
+        .eq('active', true)
+        .or('is_cotista.eq.true,cotista_id.not.is.null');
+      
+      bancasCotistas = bancas || [];
+      
+      // Buscar quais produtos foram explicitamente desabilitados por cada banca
+      const productIds = produtosDistribuidor.map(p => p.id);
+      const { data: desabilitados } = await supabase
+        .from('banca_produtos_distribuidor')
+        .select('banca_id, product_id, enabled')
+        .in('product_id', productIds)
+        .eq('enabled', false);
+      
+      // Criar mapa de produtos desabilitados por banca
+      (desabilitados || []).forEach((d: any) => {
+        if (!desabilitadosMap.has(d.banca_id)) {
+          desabilitadosMap.set(d.banca_id, new Set());
+        }
+        desabilitadosMap.get(d.banca_id)!.add(d.product_id);
+      });
+    }
+
+    // Processar produtos normais (não distribuidores)
+    for (const p of produtosNormais) {
+      const banca = Array.isArray(p.bancas) ? p.bancas[0] : p.bancas;
+      let distance: number | undefined;
+      if (userLat && userLng && banca?.lat && banca?.lng) {
+        distance = calculateDistance(userLat, userLng, parseFloat(banca.lat), parseFloat(banca.lng));
+      }
+
+      const finalPrice = calcularPrecoFinal(p);
+      const category = Array.isArray(p.categories) ? p.categories[0] : p.categories;
+      
+      results.push({
+        type: 'product',
+        id: p.id,
+        name: p.name,
+        image: p.images && p.images.length > 0 ? p.images[0] : null,
+        price: finalPrice,
+        category: category?.name || 'Produto',
+        banca_name: banca?.name || 'Banca',
+        banca_id: p.banca_id,
+        distance,
+        banca_lat: banca?.lat ? parseFloat(banca.lat) : undefined,
+        banca_lng: banca?.lng ? parseFloat(banca.lng) : undefined
+      });
+    }
+
+    // Processar produtos de distribuidores - criar entrada para CADA banca cotista
+    for (const p of produtosDistribuidor) {
+      const finalPrice = calcularPrecoFinal(p);
+      const category = Array.isArray(p.categories) ? p.categories[0] : p.categories;
+      
+      for (const banca of bancasCotistas) {
+        // Verificar se esta banca desabilitou explicitamente este produto
+        const desabilitados = desabilitadosMap.get(banca.id);
+        if (desabilitados && desabilitados.has(p.id)) {
           continue;
         }
+        
         let distance: number | undefined;
-        if (userLat && userLng && banca?.lat && banca?.lng) {
+        if (userLat && userLng && banca.lat && banca.lng) {
           distance = calculateDistance(userLat, userLng, parseFloat(banca.lat), parseFloat(banca.lng));
         }
-
-        // Calcular preço final com markup completo do distribuidor
-        const finalPrice = calcularPrecoFinal(p);
-
-        const category = Array.isArray(p.categories) ? p.categories[0] : p.categories;
+        
         results.push({
           type: 'product',
           id: p.id,
@@ -239,11 +320,11 @@ export async function GET(req: NextRequest) {
           image: p.images && p.images.length > 0 ? p.images[0] : null,
           price: finalPrice,
           category: category?.name || 'Produto',
-          banca_name: banca?.name || 'Banca',
-          banca_id: p.banca_id,
+          banca_name: banca.name || 'Banca',
+          banca_id: banca.id,
           distance,
-          banca_lat: banca?.lat ? parseFloat(banca.lat) : undefined,
-          banca_lng: banca?.lng ? parseFloat(banca.lng) : undefined
+          banca_lat: banca.lat ? parseFloat(banca.lat) : undefined,
+          banca_lng: banca.lng ? parseFloat(banca.lng) : undefined
         });
       }
     }
