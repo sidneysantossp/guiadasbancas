@@ -211,9 +211,10 @@ export default function SearchAutocomplete({
       // Rota pública canônica: /bancas/[id]
       router.push(`/bancas/${result.id}`);
     } else {
-      // Redirecionar para a página do produto
-      // Rota pública canônica: /produto/[id]
-      router.push(`/produto/${result.id}`);
+      // Redirecionar para a página do produto com banca_id para mostrar a banca correta
+      // Rota pública canônica: /produto/[id]?banca=[banca_id]
+      const bancaParam = result.banca_id ? `?banca=${result.banca_id}` : '';
+      router.push(`/produto/${result.id}${bancaParam}`);
     }
   };
 

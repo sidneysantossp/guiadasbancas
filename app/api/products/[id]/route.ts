@@ -99,6 +99,35 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       // Atualizar preço no objeto de retorno
       data.price = Math.round(precoFinal * 100) / 100;
       data.cost_price = precoBase;
+      
+      // Para produtos de distribuidor, usar a banca especificada na query (se fornecida e válida)
+      if (bancaIdFromQuery) {
+        const { data: bancaOverride } = await supabaseAdmin
+          .from('bancas')
+          .select('id, name, address, whatsapp, is_cotista, cotista_id, active')
+          .eq('id', bancaIdFromQuery)
+          .eq('active', true)
+          .or('is_cotista.eq.true,cotista_id.not.is.null')
+          .single();
+        
+        if (bancaOverride) {
+          // Verificar se a banca não desabilitou este produto
+          const { data: desabilitado } = await supabaseAdmin
+            .from('banca_produtos_distribuidor')
+            .select('enabled')
+            .eq('banca_id', bancaIdFromQuery)
+            .eq('product_id', productId)
+            .eq('enabled', false)
+            .single();
+          
+          if (!desabilitado) {
+            // Usar a banca da query
+            data.bancas = bancaOverride;
+            data.banca_id = bancaOverride.id;
+            console.log(`[API/PRODUCTS/ID] Usando banca da query: ${bancaOverride.name}`);
+          }
+        }
+      }
     }
 
     return NextResponse.json(data);
