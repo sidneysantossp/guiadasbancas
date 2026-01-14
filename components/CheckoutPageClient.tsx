@@ -528,7 +528,14 @@ export default function CheckoutPageClient() {
     }
 
     // Exigir login/registro antes de finalizar (usando NextAuth session)
-    if (!isLogged) {
+    // Não redirecionar se a sessão ainda está carregando
+    if (sessionStatus === 'loading') {
+      show("Verificando sua sessão...");
+      setSubmitting(false);
+      return;
+    }
+    
+    if (sessionStatus !== 'authenticated' || !session?.user) {
       show("Entre ou registre-se para finalizar a compra");
       router.push("/minha-conta?redirect=/checkout");
       setSubmitting(false);
