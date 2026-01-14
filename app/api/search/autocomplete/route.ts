@@ -99,8 +99,9 @@ export async function GET(req: NextRequest) {
 
     const results: SearchResultItem[] = [];
 
-    // OTIMIZAÇÃO: Busca otimizada com uma única query para produtos
-    const fetchLimit = Math.min(Math.max(limit * 2, limit), 20);
+    // Buscar MAIS produtos para garantir que produtos de bancas próximas sejam incluídos
+    // Depois ordenamos por distância e limitamos no final
+    const fetchLimit = 100; // Buscar mais para ter variedade de bancas
 
     const productOr = (searchVariants.length ? searchVariants : terms)
       .flatMap((t) => ([`name.ilike.%${t}%`, `codigo_mercos.ilike.%${t}%`]))
