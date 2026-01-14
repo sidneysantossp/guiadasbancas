@@ -261,11 +261,15 @@ export async function POST(req: NextRequest) {
     const timestamp = Date.now();
     const orderNumber = `${bancaPrefix}-${currentYear}-${timestamp}`;
 
+    // Obter user_id da sessão (para associar pedido ao cliente)
+    const userId = session?.user?.id || (session?.user as any)?.id || null;
+    
     // Criar pedido no Supabase (id será UUID gerado automaticamente)
     const { data: newOrder, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert({
         order_number: orderNumber,
+        user_id: userId, // Associar pedido ao usuário logado
         customer_name: customer.name || "Cliente",
         customer_phone: customer.phone || "",
         customer_email: customer.email || "",
