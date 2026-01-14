@@ -118,13 +118,15 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
 
   return (
     <SiteProviders>
-      <Navbar initialBranding={branding ?? undefined} />
-      <main className="pt-[140px] md:pt-[80px]">{children}</main>
-      <AppFooter
-        initialFooterData={DEFAULT_FOOTER_DATA}
-        initialCategories={footerCategories}
-        initialBrandingLogo={brandingLogo}
-      />
+      <div className="min-h-screen flex flex-col">
+        <Navbar initialBranding={branding ?? undefined} />
+        <main className="pt-[140px] md:pt-[80px] flex-grow">{children}</main>
+        <AppFooter
+          initialFooterData={DEFAULT_FOOTER_DATA}
+          initialCategories={footerCategories}
+          initialBrandingLogo={brandingLogo}
+        />
+      </div>
       <FloatingCart />
       <CookieConsent />
     </SiteProviders>
