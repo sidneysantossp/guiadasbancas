@@ -125,25 +125,87 @@ export async function GET(req: NextRequest) {
       .or(productOr)
       .limit(fetchLimit);
     
-    // Buscar markups de distribuidores para aplicar nos preços
+    // Buscar markups completos de distribuidores para aplicar nos preços
     const distribuidorIds = Array.from(new Set(
       (productsData || []).filter((p: any) => p.distribuidor_id).map((p: any) => p.distribuidor_id)
     ));
-    const markupMap = new Map<string, { perc: number; fixo: number }>();
+    const distMap = new Map<string, any>();
+    const markupProdutosMap = new Map<string, any>();
+    const markupCategoriasMap = new Map<string, any>();
     
     if (distribuidorIds.length > 0) {
-      const { data: distribuidores } = await supabase
-        .from('distribuidores')
-        .select('id, markup_global_percentual, markup_global_fixo')
-        .in('id', distribuidorIds);
+      // Buscar configuração completa do distribuidor
+      const [distribuidoresRes, markupProdutosRes, markupCategoriasRes] = await Promise.all([
+        supabase
+          .from('distribuidores')
+          .select('id, markup_global_percentual, markup_global_fixo, margem_divisor, tipo_calculo')
+          .in('id', distribuidorIds),
+        supabase
+          .from('distribuidor_markup_produtos')
+          .select('distribuidor_id, product_id, markup_percentual, markup_fixo')
+          .in('distribuidor_id', distribuidorIds),
+        supabase
+          .from('distribuidor_markup_categorias')
+          .select('distribuidor_id, category_id, markup_percentual, markup_fixo')
+          .in('distribuidor_id', distribuidorIds)
+      ]);
       
-      (distribuidores || []).forEach((d: any) => {
-        markupMap.set(d.id, {
-          perc: Number(d.markup_global_percentual || 0),
-          fixo: Number(d.markup_global_fixo || 0)
-        });
+      (distribuidoresRes.data || []).forEach((d: any) => {
+        distMap.set(d.id, d);
+      });
+      
+      (markupProdutosRes.data || []).forEach((m: any) => {
+        markupProdutosMap.set(`${m.distribuidor_id}:${m.product_id}`, m);
+      });
+      
+      (markupCategoriasRes.data || []).forEach((m: any) => {
+        markupCategoriasMap.set(`${m.distribuidor_id}:${m.category_id}`, m);
       });
     }
+    
+    // Função para calcular preço final com markup completo
+    const calcularPrecoFinal = (produto: any): number => {
+      const precoBase = produto.price || 0;
+      if (!produto.distribuidor_id) return precoBase;
+      
+      const dist = distMap.get(produto.distribuidor_id);
+      if (!dist) return precoBase;
+      
+      // 1. Prioridade: Markup por Produto
+      const markupProduto = markupProdutosMap.get(`${produto.distribuidor_id}:${produto.id}`);
+      if (markupProduto) {
+        const perc = Number(markupProduto.markup_percentual || 0);
+        const fixo = Number(markupProduto.markup_fixo || 0);
+        return Math.round((precoBase * (1 + perc / 100) + fixo) * 100) / 100;
+      }
+      
+      // 2. Prioridade: Markup por Categoria
+      if (produto.category_id) {
+        const markupCategoria = markupCategoriasMap.get(`${produto.distribuidor_id}:${produto.category_id}`);
+        if (markupCategoria) {
+          const perc = Number(markupCategoria.markup_percentual || 0);
+          const fixo = Number(markupCategoria.markup_fixo || 0);
+          return Math.round((precoBase * (1 + perc / 100) + fixo) * 100) / 100;
+        }
+      }
+      
+      // 3. Prioridade: Markup Global (com suporte a margem/divisor)
+      const tipoCalculo = dist.tipo_calculo || 'markup';
+      if (tipoCalculo === 'margem') {
+        const divisor = Number(dist.margem_divisor || 1);
+        if (divisor > 0 && divisor < 1) {
+          return Math.round((precoBase / divisor) * 100) / 100;
+        }
+      } else {
+        const perc = Number(dist.markup_global_percentual || 0);
+        const fixo = Number(dist.markup_global_fixo || 0);
+        if (perc > 0 || fixo > 0) {
+          return Math.round((precoBase * (1 + perc / 100) + fixo) * 100) / 100;
+        }
+      }
+      
+      return precoBase;
+    };
 
     if (productsError) {
       if (process.env.NODE_ENV === 'development') {
@@ -166,15 +228,8 @@ export async function GET(req: NextRequest) {
           distance = calculateDistance(userLat, userLng, parseFloat(banca.lat), parseFloat(banca.lng));
         }
 
-        // Calcular preço final com markup do distribuidor
-        let finalPrice = p.price || 0;
-        if (p.distribuidor_id && markupMap.has(p.distribuidor_id)) {
-          const markup = markupMap.get(p.distribuidor_id)!;
-          if (markup.perc > 0 || markup.fixo > 0) {
-            finalPrice = finalPrice * (1 + markup.perc / 100) + markup.fixo;
-            finalPrice = Math.round(finalPrice * 100) / 100; // Arredondar para 2 casas
-          }
-        }
+        // Calcular preço final com markup completo do distribuidor
+        const finalPrice = calcularPrecoFinal(p);
 
         const category = Array.isArray(p.categories) ? p.categories[0] : p.categories;
         results.push({
