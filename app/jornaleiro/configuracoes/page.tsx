@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import WhatsAppTemplates from "@/components/admin/WhatsAppTemplates";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useToast } from "@/components/ToastProvider";
+import { useToast } from "@/components/admin/ToastProvider";
 
 type ConfigTab = "whatsapp" | "notifications" | "general" | "delivery" | "payment";
 

@@ -7,6 +7,7 @@ import FiltersBar from "@/components/admin/FiltersBar";
 import DataTable, { type Column } from "@/components/admin/DataTable";
 import StatusBadge from "@/components/admin/StatusBadge";
 import { useToast } from "@/components/admin/ToastProvider";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 const STATUS_FLOW = ["novo","confirmado","em_preparo","saiu_para_entrega","parcialmente_retirado","entregue"] as const;
 
@@ -51,6 +52,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function JornaleiroPedidosPage() {
+  const { user, profile } = useAuth();
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -59,9 +61,30 @@ export default function JornaleiroPedidosPage() {
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 0 });
   const toast = useToast();
+  const [bancaId, setBancaId] = useState<string | null>(null);
 
   // Referência para controlar detecção de novos pedidos
   const prevTotalRef = useRef<number | null>(null);
+
+  // Buscar banca do jornaleiro primeiro
+  useEffect(() => {
+    const loadBanca = async () => {
+      try {
+        const res = await fetch('/api/jornaleiro/banca', { 
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        const json = await res.json();
+        if (json?.success && json?.data?.id) {
+          setBancaId(json.data.id);
+          console.log('[Pedidos] Banca carregada:', json.data.id);
+        }
+      } catch (e) {
+        console.error('[Pedidos] Erro ao carregar banca:', e);
+      }
+    };
+    if (user) loadBanca();
+  }, [user]);
 
   // Função para tocar beep quando chegar novo pedido
   const playBeep = () => {
@@ -92,19 +115,29 @@ export default function JornaleiroPedidosPage() {
   };
 
   const fetchRows = async (page = 1) => {
+    // Não buscar sem banca_id para garantir filtro correto
+    if (!bancaId) {
+      console.log('[Pedidos] Aguardando banca_id para buscar pedidos...');
+      return;
+    }
+    
     try {
       setLoading(true);
       const params = new URLSearchParams();
+      // IMPORTANTE: Sempre passar banca_id para garantir que só veja pedidos da própria banca
+      params.set("banca_id", bancaId);
       if (selectedStatuses.length > 0) params.set("status", selectedStatuses.join(','));
       if (q) params.set("q", q);
       if (paymentMethod) params.set("payment_method", paymentMethod);
       params.set("page", page.toString());
-      params.set("limit", "20"); // Aumentado para reduzir paginação
+      params.set("limit", "20");
       params.set("sort", "created_at");
       params.set("order", "desc");
       
+      console.log('[Pedidos] Buscando pedidos para banca:', bancaId);
       const res = await fetch(`/api/orders?${params.toString()}`, {
-        next: { revalidate: 15 } // Cache de 15 segundos
+        credentials: 'include',
+        cache: 'no-store'
       });
       const json = await res.json();
       setRows(Array.isArray(json?.items) ? json.items : []);
@@ -126,15 +159,18 @@ export default function JornaleiroPedidosPage() {
   };
 
   useEffect(() => {
-    fetchRows(1);
+    if (bancaId) fetchRows(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStatuses, q, paymentMethod]);
+  }, [selectedStatuses, q, paymentMethod, bancaId]);
 
   // Polling para detectar novos pedidos
   useEffect(() => {
+    if (!bancaId) return;
+    
     const checkForNewOrders = async () => {
       try {
-        const res = await fetch('/api/orders?limit=1&sort=created_at&order=desc', {
+        const res = await fetch(`/api/orders?banca_id=${bancaId}&limit=1&sort=created_at&order=desc`, {
+          credentials: 'include',
           cache: 'no-store'
         });
         const json = await res.json();
@@ -157,7 +193,7 @@ export default function JornaleiroPedidosPage() {
     const interval = setInterval(checkForNewOrders, 10000);
     
     return () => clearInterval(interval);
-  }, [toast]);
+  }, [toast, bancaId]);
 
   const filtered = useMemo(() => rows, [rows]);
 

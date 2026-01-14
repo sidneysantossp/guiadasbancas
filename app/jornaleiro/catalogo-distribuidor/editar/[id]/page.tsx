@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useFetchAuth } from '@/lib/hooks/useFetchAuth';
 import Image from 'next/image';
-import { useToast } from '@/components/ToastProvider';
+import { useToast } from '@/components/admin/ToastProvider';
 
 interface Product {
   id: string;
