@@ -793,15 +793,19 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   const [searchTerm, setSearchTerm] = useState<string>(''); // Busca local de produtos
   const catScrollerRef = useRef<HTMLDivElement | null>(null);
   const [hasCatOverflow, setHasCatOverflow] = useState(false);
-  // Estado das sanfonas (qual está aberta)
-  const [openAccordions, setOpenAccordions] = useState<Set<string>>(new Set(['Panini', 'Tabacaria']));
+  // Estado das sanfonas (qual está aberta) - inicia todas fechadas
+  const [openAccordions, setOpenAccordions] = useState<Set<string>>(new Set());
 
+  // Accordion: ao abrir uma categoria, fecha as outras
   const toggleAccordion = (name: string) => {
     setOpenAccordions(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
+      if (prev.has(name)) {
+        // Se já está aberta, fecha
+        return new Set();
+      } else {
+        // Abre apenas esta, fechando as outras
+        return new Set([name]);
+      }
     });
   };
 
