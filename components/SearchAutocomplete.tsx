@@ -232,7 +232,6 @@ export default function SearchAutocomplete({
   return (
     <div className="relative w-full">
       <div className="relative">
-        <IconSearch size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
           ref={inputRef}
           type="text"
@@ -247,9 +246,10 @@ export default function SearchAutocomplete({
             if (query.length >= 2 && results.length > 0) setIsOpen(true);
           }}
           placeholder={placeholder}
-          className={`w-full pl-10 ${className}`}
+          className={`w-full pr-10 ${className}`}
           autoComplete="off"
         />
+        <IconSearch size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
       </div>
 
       {/* Dropdown de resultados */}
