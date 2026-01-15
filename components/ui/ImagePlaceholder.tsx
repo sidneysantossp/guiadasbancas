@@ -34,10 +34,16 @@ export default function ImagePlaceholder({
   const isMockUrl = !src || 
     src.includes('unsplash.com') || 
     src.includes('placeholder.com') || 
+    src.includes('placehold.co') ||
     src.includes('picsum.photos') ||
     src.includes('via.placeholder.com');
   
   const showPlaceholder = hasError || isMockUrl;
+  
+  // DEBUG: Log quando mostrar placeholder
+  if (showPlaceholder && src && !isMockUrl) {
+    console.log('[ImagePlaceholder] Erro ao carregar:', src);
+  }
   
   if (showPlaceholder) {
     return (
@@ -71,7 +77,10 @@ export default function ImagePlaceholder({
       className={className}
       sizes={sizes}
       priority={priority}
-      onError={() => setHasError(true)}
+      onError={(e) => {
+        console.error('[ImagePlaceholder] Falha ao carregar imagem:', src, e);
+        setHasError(true);
+      }}
     />
   );
 }
