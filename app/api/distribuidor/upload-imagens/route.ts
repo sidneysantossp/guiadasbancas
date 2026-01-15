@@ -161,15 +161,22 @@ export async function POST(req: NextRequest) {
         const currentImages = Array.isArray(produto.images) ? produto.images : [];
         const updatedImages = [publicUrl, ...currentImages];
 
-        const { error: updateError } = await supabaseAdmin
+        console.log(`[UPLOAD-IMAGENS] Produto ${produto.id} (${produto.name})`);
+        console.log(`[UPLOAD-IMAGENS] Imagens atuais:`, currentImages);
+        console.log(`[UPLOAD-IMAGENS] Nova URL:`, publicUrl);
+        console.log(`[UPLOAD-IMAGENS] Imagens após update:`, updatedImages);
+
+        const { data: updateData, error: updateError } = await supabaseAdmin
           .from('products')
           .update({ 
             images: updatedImages,
             updated_at: new Date().toISOString()
           })
-          .eq('id', produto.id);
+          .eq('id', produto.id)
+          .select('id, images');
 
         if (updateError) {
+          console.error(`[UPLOAD-IMAGENS] Erro ao atualizar:`, updateError);
           results.errors.push({
             file: fileName,
             codigo: codigoMercos,
@@ -177,6 +184,8 @@ export async function POST(req: NextRequest) {
           });
           continue;
         }
+
+        console.log(`[UPLOAD-IMAGENS] Update retornou:`, updateData);
 
         results.success.push({
           file: fileName,
