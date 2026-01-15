@@ -301,6 +301,12 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       total: totalCount || produtos.length,
       limit: requestedLimit,
       products: mappedProducts,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
 
 
