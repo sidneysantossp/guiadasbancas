@@ -67,6 +67,9 @@ export default function ImagePlaceholder({
     );
   }
   
+  // Verificar se é URL externa do Supabase
+  const isSupabaseUrl = src?.includes('supabase.co');
+  
   return (
     <Image
       src={src!}
@@ -77,6 +80,7 @@ export default function ImagePlaceholder({
       className={className}
       sizes={sizes}
       priority={priority}
+      unoptimized={isSupabaseUrl}
       onError={(e) => {
         console.error('[ImagePlaceholder] Falha ao carregar imagem:', src, e);
         setHasError(true);
