@@ -527,7 +527,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         setLoadingProdutos(true);
         
         // 1. Carregar primeiros 100 produtos rapidamente (sem fast mode para garantir preço correto)
-        const resInitial = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/products?limit=100`);
+        const resInitial = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/products?limit=100&_t=${Date.now()}`, { cache: 'no-store' });
         const jsonInitial = await resInitial.json();
         
         if (resInitial.ok && jsonInitial.success && active) {
@@ -537,7 +537,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           
           // 2. Se há mais produtos, carregar o resto em background
           if (jsonInitial.total > 100) {
-            const resAll = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/products?limit=10000`);
+            const resAll = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/products?limit=10000&_t=${Date.now()}`, { cache: 'no-store' });
             const jsonAll = await resAll.json();
             
             if (resAll.ok && jsonAll.success && active) {
@@ -565,7 +565,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       try {
         setLoadingDestaque(true);
         const idForProducts = banca?.id || bancaId;
-        const res = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/featured`, { cache: 'no-store' });
+        const res = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/featured?_t=${Date.now()}`, { cache: 'no-store' });
         const json = await res.json();
         
         if (!res.ok || !json.success) {
