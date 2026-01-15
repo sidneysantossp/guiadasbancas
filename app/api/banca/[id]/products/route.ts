@@ -255,6 +255,17 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       }
       
       let images = produto.images || [];
+      
+      // DEBUG: Log para produtos específicos
+      if (produto.codigo_mercos === '1054835') {
+        console.log('[DEBUG] Produto 1054835:', {
+          id: produto.id,
+          images_raw: produto.images,
+          images_is_array: Array.isArray(produto.images),
+          images_length: Array.isArray(produto.images) ? produto.images.length : 0
+        });
+      }
+      
       if (!Array.isArray(images) || images.length === 0) {
         images = [DEFAULT_PRODUCT_IMAGE];
       }
