@@ -338,7 +338,8 @@ export async function GET(req: NextRequest) {
 
       const { data: bancasData, error: bancasError } = await supabase
         .from('bancas')
-        .select('id, name, cover_image, address, lat, lng')
+        .select('id, name, cover_image, profile_image, address, lat, lng')
+        .eq('active', true)
         .or(bancaOr)
         .limit(remainingLimit);
 
@@ -353,7 +354,7 @@ export async function GET(req: NextRequest) {
             type: 'banca',
             id: b.id,
             name: b.name,
-            image: b.cover_image,
+            image: b.cover_image || b.profile_image || null,
             price: null,
             category: 'Banca',
             banca_name: b.name,

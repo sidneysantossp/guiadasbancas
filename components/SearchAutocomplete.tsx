@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { IconBuildingStore, IconSearch } from "@tabler/icons-react";
@@ -44,6 +43,7 @@ export default function SearchAutocomplete({
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [allowOpen, setAllowOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{lat: number; lng: number} | null>(null);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const selectedQueryRef = useRef<string | null>(null);
@@ -229,6 +229,18 @@ export default function SearchAutocomplete({
     }
   };
 
+  // Handler para erro de carregamento de imagem
+  const handleImageError = useCallback((imageUrl: string) => {
+    setFailedImages(prev => new Set(prev).add(imageUrl));
+  }, []);
+
+  // Verificar se deve mostrar imagem ou fallback
+  const shouldShowImage = (imageUrl: string | null | undefined): boolean => {
+    if (!imageUrl) return false;
+    if (failedImages.has(imageUrl)) return false;
+    return true;
+  };
+
   return (
     <div className="relative w-full">
       <div className="relative">
@@ -276,13 +288,13 @@ export default function SearchAutocomplete({
                 >
                   {/* Imagem */}
                   <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
-                    {result.image ? (
-                      <Image
-                        src={result.image}
+                    {shouldShowImage(result.image) ? (
+                      <img
+                        src={result.image!}
                         alt={result.name}
-                        width={48}
-                        height={48}
                         className="w-full h-full object-cover"
+                        onError={() => handleImageError(result.image!)}
+                        loading="lazy"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400 text-lg">
