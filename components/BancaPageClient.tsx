@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+// Removido next/image - usando img nativo para evitar falhas em produção
 import Link from "next/link";
 import type { Route } from "next";
 import TrustBadges from "@/components/TrustBadges";
@@ -195,7 +195,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
           disabled={outOfStock}
           className={`absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border ${outOfStock ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed' : 'border-gray-200 bg-white shadow hover:bg-gray-50'}`}
         >
-          <Image src="https://cdn-icons-png.flaticon.com/128/4982/4982841.png" alt="Carrinho" width={20} height={20} className={`h-5 w-5 object-contain ${outOfStock ? 'opacity-60' : ''}`} />
+          <img src="https://cdn-icons-png.flaticon.com/128/4982/4982841.png" alt="Carrinho" className={`h-5 w-5 object-contain ${outOfStock ? 'opacity-60' : ''}`} />
         </button>
       </div>
       <div className="p-2.5 flex flex-col flex-1">
@@ -306,7 +306,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
                 }}
                 className={`w-full inline-flex items-center justify-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold ${outOfStock ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50 pointer-events-none' : 'border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15'}`}
               >
-                <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
+                <img src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" className="h-3.5 w-3.5 object-contain" />
                 {outOfStock ? 'Indisponível' : 'Comprar'}
               </a>
             ) : (
@@ -314,7 +314,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
                 disabled
                 className="w-full inline-flex items-center justify-center gap-1.5 rounded border border-gray-300 text-gray-400 px-2.5 py-1 text-[11px] font-semibold cursor-not-allowed"
               >
-                <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain opacity-50" />
+                <img src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" className="h-3.5 w-3.5 object-contain opacity-50" />
                 Comprar
               </button>
             )}
@@ -370,12 +370,17 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   const [allCategoriesFromDB, setAllCategoriesFromDB] = useState<Array<{id: string; name: string}>>([]);
   const [deliveryEnabled, setDeliveryEnabled] = useState<boolean>(false);
   
+  // Hierarquia de categorias dinâmica (vinda da API, sincronizada com Mercos)
+  const [dynamicCategoryHierarchy, setDynamicCategoryHierarchy] = useState<Record<string, string[]>>({});
+  const [dynamicStandaloneCategories, setDynamicStandaloneCategories] = useState<string[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  
   const [loadingProdutos, setLoadingProdutos] = useState(false);
   const [loadingDestaque, setLoadingDestaque] = useState(false);
   const [highlightCoupon, setHighlightCoupon] = useState<null | { title: string; code: string; discountText: string; expiresAt?: string }>(null);
   const [copiedCoupon, setCopiedCoupon] = useState(false);
 
-  // Carregar categorias da API
+  // Carregar categorias da API (geral)
   useEffect(() => {
     (async () => {
       try {
@@ -398,6 +403,28 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       }
     })();
   }, []);
+
+  // Carregar hierarquia de categorias dinâmica da banca (sincronizada com Mercos)
+  useEffect(() => {
+    if (!bancaId) return;
+    let active = true;
+    (async () => {
+      try {
+        setLoadingCategories(true);
+        const res = await fetch(`/api/banca/${encodeURIComponent(bancaId)}/categories`);
+        const json = await res.json();
+        if (active && json?.success) {
+          setDynamicCategoryHierarchy(json.hierarchy || {});
+          setDynamicStandaloneCategories(json.standalone || []);
+        }
+      } catch (e) {
+        console.error('Erro ao carregar hierarquia de categorias:', e);
+      } finally {
+        if (active) setLoadingCategories(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [bancaId]);
   const { show } = useToast();
   const [hoursOpen, setHoursOpen] = useState(false);
   const hoursRef = useRef<HTMLDivElement | null>(null);
@@ -809,55 +836,35 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     });
   };
 
-  // Configuração de categorias pai e suas subcategorias
-  const CATEGORY_GROUPS: Record<string, string[]> = {
-    // Brancaleone - Panini
-    'Panini': [
-      'Colecionáveis', 'Conan', 'DC Comics', 'Disney Comics', 'Marvel Comics',
-      'Maurício de Sousa Produções', 'Panini Books', 'Panini Comics',
-      'Panini Magazines', 'Panini Partwork', 'Planet Manga'
-    ],
-    // Bambino - Categorias pai com subcategorias
-    'Bebidas': ['Energéticos', 'Bebidas'],
-    'Bomboniere': ['Balas e Drops', 'Balas a Granel', 'Biscoitos', 'Chicletes', 'Chocolates', 'Doces', 'Pirulitos', 'Salgadinhos', 'Snacks'],
-    'Brinquedos': ['Blocos de Montar', 'Carrinhos', 'Massinha', 'Pelúcias', 'Brinquedos', 'Livros Infantis'],
-    'Cartas': ['Baralhos', 'Baralhos e Cards', 'Cards Colecionáveis', 'Cards Pokémon', 'Jogos Copag', 'Jogos de Cartas'],
-    'Diversos': ['Acessórios', 'Acessórios Celular', 'Adesivos Times', 'Chaveiros', 'Diversos', 'Guarda-Chuvas', 'Mochilas', 'Outros', 'Papelaria', 'Utilidades', 'Figurinhas'],
-    'Eletrônicos': ['Caixas de Som', 'Fones de Ouvido', 'Informática', 'Pilhas', 'Eletrônicos'],
-    'Pokémon': ['Cards Pokémon', 'Fichários Pokémon'],
-    'Tabacaria': [
-      'Boladores', 'Carvão Narguile', 'Charutos e Cigarrilhas', 'Cigarros', 'Essências',
-      'Filtros', 'Incensos', 'Isqueiros', 'Palheiros', 'Piteiras', 'Porta Cigarros',
-      'Seda OCB', 'Tabaco e Seda', 'Tabacos Importados', 'Trituradores'
-    ],
-  };
-
-  // Separar categorias em grupos e avulsas
+  // Separar categorias em grupos e avulsas (usando hierarquia dinâmica da API Mercos)
   const { groupedCategories, standaloneCategories } = useMemo(() => {
-    const allSubcats = new Set<string>();
-    const groupNames = new Set(Object.keys(CATEGORY_GROUPS));
-    Object.values(CATEGORY_GROUPS).forEach(subs => subs.forEach(s => allSubcats.add(s)));
-    
-    const grouped: Record<string, string[]> = {};
-    const standalone: string[] = [];
-    
-    // Para cada grupo, verificar quais subcategorias existem nos produtos
-    for (const [groupName, subcats] of Object.entries(CATEGORY_GROUPS)) {
-      const existingSubs = subcats.filter(s => allCategories.includes(s));
-      if (existingSubs.length > 0) {
-        grouped[groupName] = existingSubs.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    // Se temos hierarquia dinâmica da API, usar ela
+    if (Object.keys(dynamicCategoryHierarchy).length > 0 || dynamicStandaloneCategories.length > 0) {
+      const grouped: Record<string, string[]> = {};
+      
+      // Filtrar grupos que têm subcategorias presentes nos produtos
+      for (const [groupName, subcats] of Object.entries(dynamicCategoryHierarchy)) {
+        const existingSubs = subcats.filter(s => allCategories.includes(s));
+        if (existingSubs.length > 0) {
+          grouped[groupName] = existingSubs.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        }
       }
+      
+      // Filtrar standalone que existem nos produtos
+      const standalone = dynamicStandaloneCategories.filter(s => allCategories.includes(s));
+      
+      return { 
+        groupedCategories: grouped, 
+        standaloneCategories: standalone.sort((a, b) => a.localeCompare(b, 'pt-BR')) 
+      };
     }
     
-    // Categorias que não pertencem a nenhum grupo (excluir nomes de grupos também)
-    for (const cat of allCategories) {
-      if (!allSubcats.has(cat) && !groupNames.has(cat)) {
-        standalone.push(cat);
-      }
-    }
-    
-    return { groupedCategories: grouped, standaloneCategories: standalone.sort((a, b) => a.localeCompare(b, 'pt-BR')) };
-  }, [allCategories]);
+    // Fallback: todas as categorias como standalone (sem hierarquia)
+    return { 
+      groupedCategories: {}, 
+      standaloneCategories: allCategories.sort((a, b) => a.localeCompare(b, 'pt-BR')) 
+    };
+  }, [allCategories, dynamicCategoryHierarchy, dynamicStandaloneCategories]);
 
 
   // Auto-rolagem do slider de categorias (todas as larguras; apenas os chips após 'Todos')
@@ -1010,7 +1017,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     <section className="container-max pt-3 sm:pt-4 pb-28 sm:pb-32">
       {/* Capa + Header da Banca */}
       <div className="relative h-96 sm:h-72 w-full rounded-2xl overflow-hidden border border-gray-200">
-        <Image src={banca.cover} alt={banca.name} fill sizes="100vw" className="object-cover" />
+        <img src={banca.cover} alt={banca.name} className="absolute inset-0 w-full h-full object-cover" />
         {banca.featured && (
           <div className="absolute left-3 top-3">
             <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 text-[#ff5c00] border border-orange-200 px-2 py-[2px] text-[10px] font-semibold shadow">
@@ -1029,7 +1036,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
               aria-label="WhatsApp"
               className="group relative grid place-items-center h-8 w-8 md:h-9 md:w-9 rounded-full bg-white/60 backdrop-blur-md shadow border border-white/40"
             >
-              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="" width={16} height={16} className="h-4 w-4 object-contain" />
+              <img src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="" className="h-4 w-4 object-contain" />
               <span className="sr-only">WhatsApp</span>
               <span role="tooltip" className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-[10px] text-white opacity-0 translate-y-1 transition group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:translate-y-0">WhatsApp</span>
             </a>
@@ -1043,7 +1050,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
               aria-label="Compartilhar"
               className="group relative grid place-items-center h-8 w-8 md:h-9 md:w-9 rounded-full bg-white/60 backdrop-blur-md shadow border border-white/40"
             >
-              <Image src="https://cdn-icons-png.flaticon.com/128/3989/3989188.png" alt="" width={16} height={16} className="h-4 w-4 object-contain" />
+              <img src="https://cdn-icons-png.flaticon.com/128/3989/3989188.png" alt="" className="h-4 w-4 object-contain" />
               <span className="sr-only">Compartilhar</span>
               <span role="tooltip" className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-[10px] text-white opacity-0 translate-y-1 transition group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:translate-y-0">Compartilhar</span>
             </a>
@@ -1056,7 +1063,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
               aria-label="Facebook"
               className="group relative grid place-items-center h-8 w-8 md:h-9 md:w-9 rounded-full bg-white/60 backdrop-blur-md shadow border border-white/40"
             >
-              <Image src="https://cdn-icons-png.flaticon.com/128/4628/4628653.png" alt="Facebook" width={16} height={16} className="h-4 w-4 object-contain" />
+              <img src="https://cdn-icons-png.flaticon.com/128/4628/4628653.png" alt="Facebook" className="h-4 w-4 object-contain" />
               <span className="sr-only">Facebook</span>
               <span role="tooltip" className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-[10px] text-white opacity-0 translate-y-1 transition group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:translate-y-0">Facebook</span>
             </a>
@@ -1069,7 +1076,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
               aria-label="Instagram"
               className="group relative grid place-items-center h-8 w-8 md:h-9 md:w-9 rounded-full bg-white/60 backdrop-blur-md shadow border border-white/40"
             >
-              <Image src="https://cdn-icons-png.flaticon.com/128/1077/1077042.png" alt="Instagram" width={16} height={16} className="h-4 w-4 object-contain" />
+              <img src="https://cdn-icons-png.flaticon.com/128/1077/1077042.png" alt="Instagram" className="h-4 w-4 object-contain" />
               <span className="sr-only">Instagram</span>
               <span role="tooltip" className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-[10px] text-white opacity-0 translate-y-1 transition group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:translate-y-0">Instagram</span>
             </a>
@@ -1082,7 +1089,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
               aria-label="Google"
               className="group relative grid place-items-center h-8 w-8 md:h-9 md:w-9 rounded-full bg-white/60 backdrop-blur-md shadow border border-white/40"
             >
-              <Image src="https://cdn-icons-png.flaticon.com/128/300/300221.png" alt="Google" width={16} height={16} className="h-4 w-4 object-contain" />
+              <img src="https://cdn-icons-png.flaticon.com/128/300/300221.png" alt="Google" className="h-4 w-4 object-contain" />
               <span className="sr-only">Google</span>
               <span role="tooltip" className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-[10px] text-white opacity-0 translate-y-1 transition group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:translate-y-0">Google</span>
             </a>
@@ -1130,7 +1137,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           <div className="flex items-center gap-3">
             <div className="h-14 w-14 rounded-full bg-white p-1 shadow ring-1 ring-black/5 overflow-hidden">
               <div className="h-full w-full rounded-full overflow-hidden">
-                <Image src={banca.avatar} alt={banca.name} width={56} height={56} className="h-full w-full object-cover" />
+                <img src={banca.avatar} alt={banca.name} className="h-full w-full object-cover" />
               </div>
             </div>
             <div>
@@ -1178,7 +1185,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-1.5 rounded-md border border-[#25D366] text-[#128C7E] font-semibold px-3 py-2 leading-tight hover:bg-emerald-50 text-xs"
             >
-              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
+              <img src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" className="h-3.5 w-3.5 object-contain" />
               WhatsApp
             </a>
           )}
@@ -1357,7 +1364,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                           onClick={()=>handleRoute('google')}
                           className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
                         >
-                          <Image src="https://cdn-icons-png.flaticon.com/128/2702/2702604.png" alt="Google Maps" width={16} height={16} className="h-4 w-4 object-contain" />
+                          <img src="https://cdn-icons-png.flaticon.com/128/2702/2702604.png" alt="Google Maps" className="h-4 w-4 object-contain" />
                           Google Maps
                         </button>
                         <button
@@ -1365,7 +1372,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                           onClick={()=>handleRoute('waze')}
                           className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
                         >
-                          <Image src="https://cdn-icons-png.flaticon.com/128/3771/3771526.png" alt="Waze" width={16} height={16} className="h-4 w-4 object-contain" />
+                          <img src="https://cdn-icons-png.flaticon.com/128/3771/3771526.png" alt="Waze" className="h-4 w-4 object-contain" />
                           Waze
                         </button>
                       </div>
@@ -1386,7 +1393,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           <div className="mt-2 flex gap-3 overflow-x-auto pb-1">
             {banca.gallery.map((src, i) => (
               <div key={i} className="relative h-28 w-44 rounded-xl overflow-hidden border border-gray-200 shadow-sm shrink-0">
-                <Image src={src} alt={`${banca.name} - foto ${i+1}`} fill sizes="176px" className="object-cover" />
+                <img src={src} alt={`${banca.name} - foto ${i+1}`} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
               </div>
             ))}
           </div>

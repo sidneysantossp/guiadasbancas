@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import Image from "next/image";
+// Removido next/image - usando img nativo para evitar falhas de otimização em produção
 
 type HeroSlide = {
   id: string;
@@ -393,15 +393,12 @@ export default function FullBanner({ bancaId, initialSlides, initialConfig }: Fu
           }}
         >
           {/* Background image */}
-          <Image
+          <img
             src={slide.imageUrl}
             alt={slide.imageAlt}
-            fill
-            priority
-            onLoadingComplete={() => setHeroLoaded(true)}
-            onError={() => setHeroLoaded(true)} // Garantir visibilidade mesmo se imagem falhar
-            className={`object-cover transition-opacity duration-500 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}
-            sizes="100vw"
+            onLoad={() => setHeroLoaded(true)}
+            onError={() => setHeroLoaded(true)}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
           {/* Gradient overlay */}
           <div 

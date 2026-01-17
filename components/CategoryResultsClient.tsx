@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+// Removido next/image - usando img nativo para evitar falhas em produção
 import Link from "next/link";
 import { buildBancaHref } from "@/lib/slug";
 import type { Route } from "next";
@@ -101,7 +101,7 @@ function ProductCard({ p, km }: { p: Product; km: number | null }) {
       className="block rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition cursor-pointer"
     >
       <div className="relative h-40 sm:h-44 lg:h-36 w-full group">
-        <Image src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 16vw" className="object-cover" />
+        <img src={p.image} alt={p.name} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
         {/* Efeito hover sutil sobre a imagem */}
         <div className="pointer-events-none absolute inset-0 rounded-[14px] bg-black/0 group-hover:bg-black/5 transition" />
         {p.ready && (
@@ -124,7 +124,7 @@ function ProductCard({ p, km }: { p: Product; km: number | null }) {
         </div>
         <div className="mt-2 flex items-center gap-2 min-w-0">
           <div className="h-6 w-6 rounded-full overflow-hidden flex-shrink-0">
-            <Image src={p.vendorAvatar || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop"} alt={p.vendor} width={24} height={24} className="h-full w-full object-cover" />
+            <img src={p.vendorAvatar || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop"} alt={p.vendor} className="h-full w-full object-cover" loading="lazy" />
           </div>
           <span className="text-[12px] text-gray-700 font-medium truncate">{p.vendor}</span>
         </div>
@@ -156,7 +156,7 @@ function BancaCard({ b, km, loc, description }: { b: Banca; km: number | null; l
   return (
     <Link href={(buildBancaHref(b.name, b.id, loc) as Route)} className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition block">
       <div className="relative h-36 w-full">
-        <Image src={b.cover} alt={b.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 16vw" className="object-cover" />
+        <img src={b.cover} alt={b.name} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
         <div className="absolute left-2 bottom-2">{b.open ? <OpenBadge /> : <ClosedBadge />}</div>
       </div>
       <div className="p-3">
@@ -168,7 +168,7 @@ function BancaCard({ b, km, loc, description }: { b: Banca; km: number | null; l
         {/* Avatar + nome */}
         <div className="mt-2 flex items-center gap-2">
           <div className="h-8 w-8 rounded-full bg-white p-1 shadow ring-1 ring-gray-200 overflow-hidden">
-            <Image src={b.avatar || "https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=200&auto=format&fit=crop"} alt={b.name} width={28} height={28} className="h-full w-full object-cover rounded-full" />
+            <img src={b.avatar || "https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=200&auto=format&fit=crop"} alt={b.name} className="h-full w-full object-cover rounded-full" loading="lazy" />
           </div>
           <div className="text-[13px] font-semibold leading-snug line-clamp-2">{b.name}</div>
         </div>
@@ -179,7 +179,7 @@ function BancaCard({ b, km, loc, description }: { b: Banca; km: number | null; l
         {/* Ver no Mapa */}
         <div className="mt-1 flex items-center">
           <span className="inline-flex items-center gap-1 text-[12px] text-black">
-            <Image src="https://cdn-icons-png.flaticon.com/128/2875/2875433.png" alt="Mapa" width={14} height={14} className="h-3.5 w-3.5 rounded-full object-contain" />
+            <img src="https://cdn-icons-png.flaticon.com/128/2875/2875433.png" alt="Mapa" className="h-3.5 w-3.5 rounded-full object-contain" loading="lazy" />
             Ver no Mapa
           </span>
         </div>
@@ -216,6 +216,105 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
   // Paginação de produtos
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 50;
+
+  // Estado da categoria ativa e sanfonas
+  const [activeCategory, setActiveCategory] = useState<string>('Todos');
+  const [openAccordions, setOpenAccordions] = useState<Set<string>>(new Set());
+
+  const toggleAccordion = (name: string) => {
+    setOpenAccordions(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  // Configuração de categorias pai e suas subcategorias
+  const CATEGORY_GROUPS: Record<string, string[]> = {
+    'Panini': [
+      'Colecionáveis', 'Conan', 'DC Comics', 'Disney Comics', 'Marvel Comics',
+      'Maurício de Sousa Produções', 'Panini Books', 'Panini Comics',
+      'Panini Magazines', 'Panini Partwork', 'Planet Manga'
+    ],
+    'Bebidas': ['Energéticos', 'Bebidas'],
+    'Bomboniere': ['Balas e Drops', 'Balas a Granel', 'Biscoitos', 'Chicletes', 'Chocolates', 'Doces', 'Pirulitos', 'Salgadinhos', 'Snacks'],
+    'Brinquedos': ['Blocos de Montar', 'Carrinhos', 'Massinha', 'Pelúcias', 'Brinquedos', 'Livros Infantis'],
+    'Cartas': ['Baralhos', 'Baralhos e Cards', 'Cards Colecionáveis', 'Cards Pokémon', 'Jogos Copag', 'Jogos de Cartas'],
+    'Diversos': ['Acessórios', 'Acessórios Celular', 'Adesivos Times', 'Chaveiros', 'Diversos', 'Guarda-Chuvas', 'Mochilas', 'Outros', 'Papelaria', 'Utilidades', 'Figurinhas'],
+    'Eletrônicos': ['Caixas de Som', 'Fones de Ouvido', 'Informática', 'Pilhas', 'Eletrônicos'],
+    'Pokémon': ['Cards Pokémon', 'Fichários Pokémon'],
+    'Tabacaria': [
+      'Boladores', 'Carvão Narguile', 'Charutos e Cigarrilhas', 'Cigarros', 'Essências',
+      'Filtros', 'Incensos', 'Isqueiros', 'Palheiros', 'Piteiras', 'Porta Cigarros',
+      'Seda OCB', 'Tabaco e Seda', 'Tabacos Importados', 'Trituradores'
+    ],
+  };
+
+  // Extrair categorias únicas dos produtos (usa products não filtrados para mostrar todas as categorias)
+  const allCategories = useMemo(() => {
+    const categorySet = new Set<string>();
+    for (const p of products) {
+      // Tentar extrair categoria do produto (pode vir do nome da categoria ou ID)
+      if ((p as any).category && typeof (p as any).category === 'string') {
+        categorySet.add((p as any).category.trim());
+      }
+    }
+    return Array.from(categorySet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [products]);
+
+  // Separar categorias em grupos e avulsas
+  const { groupedCategories, standaloneCategories } = useMemo(() => {
+    const allSubcats = new Set<string>();
+    const groupNames = new Set(Object.keys(CATEGORY_GROUPS));
+    Object.values(CATEGORY_GROUPS).forEach(subs => subs.forEach(s => allSubcats.add(s)));
+    
+    const grouped: Record<string, string[]> = {};
+    const standalone: string[] = [];
+    
+    // Para cada grupo, verificar quais subcategorias existem nos produtos
+    for (const [groupName, subcats] of Object.entries(CATEGORY_GROUPS)) {
+      const existingSubs = subcats.filter(s => allCategories.includes(s));
+      if (existingSubs.length > 0) {
+        grouped[groupName] = existingSubs.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      }
+    }
+    
+    // Categorias que não pertencem a nenhum grupo
+    for (const cat of allCategories) {
+      if (!allSubcats.has(cat) && !groupNames.has(cat)) {
+        standalone.push(cat);
+      }
+    }
+    
+    return { groupedCategories: grouped, standaloneCategories: standalone.sort((a, b) => a.localeCompare(b, 'pt-BR')) };
+  }, [allCategories]);
+
+  // Auto-abrir a sanfona da categoria buscada baseado no slug
+  useEffect(() => {
+    const slugLower = slug.toLowerCase().replace(/-/g, ' ');
+    
+    // Verificar se o slug corresponde a algum grupo pai
+    for (const [groupName, subcats] of Object.entries(CATEGORY_GROUPS)) {
+      if (groupName.toLowerCase() === slugLower) {
+        setOpenAccordions(new Set([groupName]));
+        return;
+      }
+      // Verificar se corresponde a alguma subcategoria
+      for (const subcat of subcats) {
+        if (subcat.toLowerCase() === slugLower || subcat.toLowerCase().includes(slugLower)) {
+          setOpenAccordions(new Set([groupName]));
+          setActiveCategory(subcat);
+          return;
+        }
+      }
+    }
+  }, [slug]);
+
+  // Reset da página ao trocar de categoria
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory]);
 
   useEffect(() => {
     setMounted(true);
@@ -528,16 +627,22 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
       return price <= maxPriceFilter + 1e-9;
     };
 
+    const meetsCategory = (p: Product) => {
+      if (activeCategory === 'Todos') return true;
+      const pCategory = ((p as any).category || '').trim().toLowerCase();
+      return pCategory === activeCategory.toLowerCase();
+    };
+
     if (!loc) {
-      const filtered = dataSource.filter((p) => meetsStars(p.rating) && meetsPrice(p.price));
+      const filtered = dataSource.filter((p) => meetsStars(p.rating) && meetsPrice(p.price) && meetsCategory(p));
       return filtered.map((p) => ({ p, km: null as number | null }));
     }
 
     return [...dataSource]
       .map((p) => ({ p, km: haversineKm({ lat: loc.lat, lng: loc.lng }, { lat: p.lat, lng: p.lng }) }))
-      .filter(({ p, km }) => withinKm(km) && meetsStars(p.rating) && meetsPrice(p.price))
+      .filter(({ p, km }) => withinKm(km) && meetsStars(p.rating) && meetsPrice(p.price) && meetsCategory(p))
       .sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity));
-  }, [loc, products, prodMaxKm, prodMinStars, maxPriceFilter]);
+  }, [loc, products, prodMaxKm, prodMinStars, maxPriceFilter, activeCategory]);
 
   const maxAvailablePrice = useMemo(() => {
     const max = products.reduce((m, p) => Math.max(m, p.price || 0), 0);
@@ -657,69 +762,190 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
       {/* Content */}
       {tab === "produtos" ? (
         <>
-          {/* Layout Produtos: sidebar de filtros + lista de produtos */}
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-[260px,1fr] gap-4 items-start">
-            {/* Sidebar filtros Produtos */}
-            <aside className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
-              <div className="text-sm font-semibold text-gray-800">Filtros</div>
-              <div className="text-xs text-gray-600">Resultados: <span className="font-semibold">{sortedProducts.length}</span></div>
-
-              {/* Filtro preço máximo */}
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-gray-800">Preço máximo</div>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={0}
-                    max={maxAvailablePrice}
-                    step={1}
-                    value={maxPriceFilter}
-                    onChange={(e) => setMaxPriceFilter(Number(e.target.value))}
-                    className="accent-[#ff5c00] range-orange flex-1"
-                  />
-                  <span className="text-xs text-gray-700 w-24 text-right">
-                    {maxPriceFilter <= 0 ? 'Sem limite' : `Até R$ ${maxPriceFilter.toFixed(0)}`}
-                  </span>
-                </div>
-              </div>
-
-              {/* Filtro distância */}
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-gray-800">Bancas mais próximas</div>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={0}
-                    max={5}
-                    step={0.5}
-                    value={prodMaxKm}
-                    onChange={(e)=>setProdMaxKm(Number(e.target.value))}
-                    className="accent-[#ff5c00] range-orange flex-1"
-                  />
-                  <span className="text-xs text-gray-700 w-12 text-right">{prodMaxKm>=5? '5+Km' : `${prodMaxKm.toFixed(1)}Km`}</span>
-                </div>
-              </div>
-
-              {/* Filtro avaliação */}
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-gray-800">Avaliação</div>
-                <div className="flex flex-wrap gap-2">
-                  {[0,1,2,3,4,5].map((n)=> (
+          {/* Layout Produtos: sidebar de categorias + lista de produtos */}
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-[280px,1fr] gap-6 items-start">
+            {/* Sidebar de Categorias - Menu em Sanfona */}
+            <aside className="hidden lg:block">
+              <div className="sticky top-4">
+                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Categorias</h3>
+                  <div className="text-xs text-gray-500 mb-3">Resultados: <span className="font-semibold text-gray-700">{sortedProducts.length}</span></div>
+                  
+                  <nav className="space-y-1">
+                    {/* Botão "Todos os Produtos" */}
                     <button
-                      key={n}
-                      type="button"
-                      onClick={()=>setProdMinStars(n)}
-                      className={`h-8 px-2 rounded-md border text-sm ${prodMinStars===n? 'bg-[#fff3ec] border-[#ffd7bd] text-[#ff5c00]' : 'bg-white border-gray-300 text-gray-700'}`}
+                      onClick={() => setActiveCategory('Todos')}
+                      className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                        activeCategory === 'Todos'
+                          ? 'bg-[#ff5c00] text-white font-medium'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
                     >
-                      {n===0? 'Qualquer' : `${n}+★`}
+                      Todos os Produtos
                     </button>
-                  ))}
+
+                    {/* Sanfonas de categorias agrupadas */}
+                    {Object.entries(groupedCategories).map(([groupName, subcats]) => (
+                      <div key={groupName} className="border-t border-gray-100 pt-2 mt-2">
+                        <button
+                          onClick={() => toggleAccordion(groupName)}
+                          className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          <span>{groupName}</span>
+                          <svg
+                            className={`w-4 h-4 transition-transform duration-200 ${openAccordions.has(groupName) ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        
+                        {/* Subcategorias */}
+                        <div className={`overflow-hidden transition-all duration-200 ${openAccordions.has(groupName) ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                          <div className="pl-3 space-y-0.5 mt-1">
+                            {subcats.map((name) => (
+                              <button
+                                key={name}
+                                onClick={() => setActiveCategory(name)}
+                                className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
+                                  activeCategory === name
+                                    ? 'bg-[#ff5c00] text-white font-medium'
+                                    : 'text-gray-600 hover:bg-gray-50'
+                                }`}
+                              >
+                                {name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Categorias avulsas (não agrupadas) */}
+                    {standaloneCategories.length > 0 && (
+                      <div className="border-t border-gray-100 pt-2 mt-2">
+                        {standaloneCategories.map((name) => (
+                          <button
+                            key={name}
+                            onClick={() => setActiveCategory(name)}
+                            className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                              activeCategory === name
+                                ? 'bg-[#ff5c00] text-white font-medium'
+                                : 'text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </nav>
+                </div>
+
+                {/* Filtros adicionais abaixo do menu de categorias */}
+                <div className="bg-white rounded-xl border border-gray-200 p-4 mt-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Filtros</h3>
+                  
+                  {/* Filtro preço máximo */}
+                  <div className="space-y-2 mb-4">
+                    <div className="text-sm font-medium text-gray-700">Preço máximo</div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min={0}
+                        max={maxAvailablePrice}
+                        step={1}
+                        value={maxPriceFilter}
+                        onChange={(e) => setMaxPriceFilter(Number(e.target.value))}
+                        className="accent-[#ff5c00] range-orange flex-1"
+                      />
+                      <span className="text-xs text-gray-600 w-24 text-right">
+                        {maxPriceFilter <= 0 ? 'Sem limite' : `Até R$ ${maxPriceFilter.toFixed(0)}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Filtro distância */}
+                  <div className="space-y-2 mb-4">
+                    <div className="text-sm font-medium text-gray-700">Distância</div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min={0}
+                        max={5}
+                        step={0.5}
+                        value={prodMaxKm}
+                        onChange={(e)=>setProdMaxKm(Number(e.target.value))}
+                        className="accent-[#ff5c00] range-orange flex-1"
+                      />
+                      <span className="text-xs text-gray-600 w-12 text-right">{prodMaxKm>=5? '5+Km' : `${prodMaxKm.toFixed(1)}Km`}</span>
+                    </div>
+                  </div>
+
+                  {/* Filtro avaliação */}
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-gray-700">Avaliação</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[0,1,2,3,4,5].map((n)=> (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={()=>setProdMinStars(n)}
+                          className={`h-7 px-2 rounded-md border text-xs ${prodMinStars===n? 'bg-[#fff3ec] border-[#ffd7bd] text-[#ff5c00]' : 'bg-white border-gray-300 text-gray-700'}`}
+                        >
+                          {n===0? 'Qualquer' : `${n}+★`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </aside>
 
             {/* Lista de produtos */}
-            <div>
+            <div className="min-w-0">
+              {/* Barra de chips mobile (categorias) - visível apenas em telas menores */}
+              <div className="lg:hidden mb-4 sticky top-[60px] z-40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-100 -mx-4 px-4 py-2 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs text-gray-500">Categorias ({sortedProducts.length} produtos)</div>
+                  {activeCategory !== 'Todos' && (
+                    <button 
+                      onClick={() => setActiveCategory('Todos')} 
+                      className="text-xs text-[#ff5c00] font-medium hover:underline"
+                    >
+                      Limpar filtro
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                  <button
+                    onClick={() => setActiveCategory('Todos')}
+                    className={`whitespace-nowrap shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                      activeCategory === 'Todos'
+                        ? 'border-[#ff5c00] bg-[#ff5c00] text-white'
+                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  {allCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveCategory(cat)}
+                      className={`whitespace-nowrap shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                        activeCategory === cat
+                          ? 'border-[#ff5c00] bg-[#ff5c00] text-white'
+                          : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {sortedProducts.length === 0 ? (
                 <div className="text-center py-12 bg-gray-50 rounded-lg">
                   <svg viewBox="0 0 24 24" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" strokeWidth="2">
@@ -800,6 +1026,8 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
             .range-orange::-moz-range-track{background:#ffe2d2;height:6px;border-radius:9999px}
             .range-orange::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;background:#ff5c00;border-radius:9999px;margin-top:-5px;border:2px solid #fff;box-shadow:0 0 0 1px #ffd7bd}
             .range-orange::-moz-range-thumb{width:16px;height:16px;background:#ff5c00;border:2px solid #fff;border-radius:9999px;box-shadow:0 0 0 1px #ffd7bd}
+            .no-scrollbar::-webkit-scrollbar{display:none}
+            .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
           `}</style>
         </>
       ) : (

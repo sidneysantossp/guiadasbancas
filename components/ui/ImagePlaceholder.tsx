@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+// Removido next/image - usando img nativo para evitar falhas em produção
 import { useState } from "react";
 
 type ImagePlaceholderProps = {
@@ -67,22 +67,20 @@ export default function ImagePlaceholder({
     );
   }
   
-  // Verificar se é URL externa do Supabase
-  const isSupabaseUrl = src?.includes('supabase.co');
+  // Usar img nativo para evitar falhas de otimização Next.js em produção
+  const imgStyle = fill 
+    ? { position: 'absolute' as const, inset: 0, width: '100%', height: '100%' }
+    : { width, height };
   
   return (
-    <Image
+    <img
       src={src!}
       alt={alt}
-      fill={fill}
-      width={!fill ? width : undefined}
-      height={!fill ? height : undefined}
       className={className}
-      sizes={sizes}
-      priority={priority}
-      unoptimized={isSupabaseUrl}
-      onError={(e) => {
-        console.error('[ImagePlaceholder] Falha ao carregar imagem:', src, e);
+      style={imgStyle}
+      loading={priority ? 'eager' : 'lazy'}
+      onError={() => {
+        console.error('[ImagePlaceholder] Falha ao carregar imagem:', src);
         setHasError(true);
       }}
     />

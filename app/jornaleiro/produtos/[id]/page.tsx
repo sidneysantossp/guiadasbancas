@@ -560,15 +560,6 @@ export default function SellerProductEditPage() {
                     />
                     <p className="text-xs text-gray-500 mt-1">O preço de venda será ajustado automaticamente</p>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">Cupom</label>
-                    <input
-                      name="coupon_code"
-                      defaultValue={product.coupon_code}
-                      placeholder="EX: BANCAX10"
-                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                    />
-                  </div>
                 </div>
               </>
             ) : (
