@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
+// Removido next/image - usando img nativo para evitar falhas em produção
 import Link from "next/link";
 import { useToast } from "@/components/admin/ToastProvider";
 
@@ -292,11 +292,10 @@ export default function GerenciarCatalogoPage() {
             >
               <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-gray-100">
                 {product.images && product.images[0] ? (
-                  <Image
+                  <img
                     src={product.images[0]}
                     alt={product.name}
-                    fill
-                    className="object-cover"
+                    className="absolute inset-0 w-full h-full object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">

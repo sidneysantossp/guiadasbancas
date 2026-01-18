@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+// Removido next/image - usando img nativo para evitar falhas em produção
 import type { Route } from "next";
 import { useEffect, useMemo, useState } from "react";
 import FiltersBar from "@/components/admin/FiltersBar";
@@ -134,12 +134,10 @@ export default function JornaleiroProdutosPage() {
         <div className="flex items-center gap-3">
           <div className="relative w-12 h-16 flex-shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-50">
             {r.image ? (
-              <Image
+              <img
                 src={r.image}
                 alt={r.name}
-                fill
-                sizes="48px"
-                className="object-contain"
+                className="absolute inset-0 w-full h-full object-contain"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
