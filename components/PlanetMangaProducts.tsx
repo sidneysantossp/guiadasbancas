@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+// Removido next/image - usando img nativo para evitar falhas em produção
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Route } from "next";
@@ -75,12 +75,11 @@ function ProductCard({ p }: { p: MangaProduct }) {
       <div className="relative w-full group h-48 sm:h-56">
         <div className="absolute inset-0 p-2">
           <div className="relative h-full w-full rounded-[14px] overflow-hidden">
-            <Image
+            <img
               src={p.image}
               alt={p.name}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className="object-contain bg-gray-50"
+              className="absolute inset-0 w-full h-full object-contain bg-gray-50"
+              loading="lazy"
             />
             <Link
               href={href}
@@ -100,11 +99,9 @@ function ProductCard({ p }: { p: MangaProduct }) {
           aria-label="Adicionar ao carrinho"
           className="absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white shadow hover:bg-gray-50"
         >
-          <Image
+          <img
             src="https://cdn-icons-png.flaticon.com/128/4982/4982841.png"
             alt="Carrinho"
-            width={20}
-            height={20}
             className="h-5 w-5 object-contain"
           />
         </button>
@@ -181,7 +178,7 @@ function ProductCard({ p }: { p: MangaProduct }) {
               }}
               className="w-full inline-flex items-center justify-center gap-1.5 rounded border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15 px-2.5 py-1 text-[11px] font-semibold"
             >
-              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
+              <img src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" className="h-3.5 w-3.5 object-contain" />
               Comprar pelo WhatsApp
             </button>
           </div>
