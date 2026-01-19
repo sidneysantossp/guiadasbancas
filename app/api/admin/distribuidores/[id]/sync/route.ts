@@ -183,17 +183,18 @@ export async function POST(
           // A tabela products tem FK para 'categories', não 'distribuidor_categories'
           // Categorias serão mapeadas posteriormente se necessário
           
-          const produtoData = {
+          // PRESERVAR imagens e categorias existentes ao atualizar
+          const existingId = existentes.get(produtoMercos.id);
+          
+          const produtoData: any = {
             name: produtoMercos.nome,
             description: produtoMercos.observacoes || '',
             price: produtoMercos.preco_tabela,
             stock_qty: produtoMercos.saldo_estoque || 0,
-            images: [],
             banca_id: null,
             distribuidor_id: params.id,
             mercos_id: produtoMercos.id,
             codigo_mercos: produtoMercos.codigo || null,
-            category_id: null, // SEMPRE NULL para evitar FK error
             origem: 'mercos' as const,
             sincronizado_em: new Date().toISOString(),
             track_stock: true,
@@ -202,8 +203,13 @@ export async function POST(
             pronta_entrega: true,
             active: produtoMercos.ativo && !produtoMercos.excluido,
           };
+          
+          // Só definir images e category_id para produtos NOVOS
+          if (!existingId) {
+            produtoData.images = [];
+            produtoData.category_id = null;
+          }
 
-          const existingId = existentes.get(produtoMercos.id);
           if (existingId) {
             updatesPayload.push({ id: existingId, data: produtoData, mercosId: produtoMercos.id, nome: produtoMercos.nome });
           } else {

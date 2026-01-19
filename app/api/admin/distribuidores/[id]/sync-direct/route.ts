@@ -126,12 +126,25 @@ export async function POST(
           .eq('distribuidor_id', distribuidorId)
           .in('mercos_id', mercosIds);
 
-        // Criar map de produtos existentes
+        // Criar map de produtos existentes - INCLUIR images e category_id para preservar
         const existingMap = new Map();
         if (existingProducts) {
           existingProducts.forEach(p => {
-            existingMap.set(p.mercos_id, p.id);
+            existingMap.set(p.mercos_id, { id: p.id });
           });
+        }
+        
+        // Buscar imagens e categorias dos produtos existentes para preservar
+        const existingIds = existingProducts?.map(p => p.id) || [];
+        let existingDataMap = new Map();
+        if (existingIds.length > 0) {
+          const { data: existingData } = await supabase
+            .from('products')
+            .select('id, images, category_id')
+            .in('id', existingIds);
+          if (existingData) {
+            existingData.forEach(p => existingDataMap.set(p.id, { images: p.images, category_id: p.category_id }));
+          }
         }
 
         // Separar em produtos para atualizar e inserir
@@ -140,16 +153,28 @@ export async function POST(
 
         produtos.forEach(produto => {
           const isAtivo = produto.ativo && !produto.excluido;
+          const existing = existingMap.get(produto.id);
+          const existingId = existing?.id;
+          
+          // PRESERVAR imagens e categorias existentes
+          const existingData = existingId ? existingDataMap.get(existingId) : null;
+          const existingImages = existingData?.images || [];
+          const hasExistingImages = Array.isArray(existingImages) && existingImages.length > 0;
+          const existingCategory = existingData?.category_id;
+          const hasValidCategory = existingCategory && existingCategory !== CATEGORIA_SEM_CATEGORIA_ID;
+          
           const productData = {
             name: produto.nome,
             description: produto.observacoes || '',
             price: produto.preco_tabela,
             stock_qty: produto.saldo_estoque || 0,
-            images: [],
+            // PRESERVAR imagens: manter as existentes se houver
+            images: hasExistingImages ? existingImages : [],
             banca_id: null,
             distribuidor_id: distribuidorId,
             mercos_id: produto.id,
-            category_id: CATEGORIA_SEM_CATEGORIA_ID,
+            // PRESERVAR categoria: manter a existente se for válida
+            category_id: hasValidCategory ? existingCategory : CATEGORIA_SEM_CATEGORIA_ID,
             origem: 'mercos',
             sincronizado_em: new Date().toISOString(),
             track_stock: true,
@@ -161,7 +186,6 @@ export async function POST(
             updated_at: new Date().toISOString(),
           };
 
-          const existingId = existingMap.get(produto.id);
           if (existingId) {
             toUpdate.push({ ...productData, id: existingId });
           } else {

@@ -251,26 +251,37 @@ async function processProduct(
   distribuidorId: string
 ): Promise<{ isNew: boolean }> {
   // Primeiro verificar se já existe para determinar se é novo ou atualização
+  // IMPORTANTE: Buscar também as imagens para preservá-las
   const { data: existing } = await supabase
     .from('products')
-    .select('id')
+    .select('id, images, category_id')
     .eq('mercos_id', produto.id)
     .eq('distribuidor_id', distribuidorId)
     .maybeSingle();
 
   const isNew = !existing;
+  
+  // PRESERVAR imagens existentes - não sobrescrever se já tiver imagens cadastradas manualmente
+  const existingImages = existing?.images || [];
+  const hasExistingImages = Array.isArray(existingImages) && existingImages.length > 0;
+  
+  // PRESERVAR categoria existente - não sobrescrever se já tiver categoria definida
+  const existingCategory = existing?.category_id;
+  const hasValidCategory = existingCategory && existingCategory !== CATEGORIA_SEM_CATEGORIA_ID;
 
   const productData = {
     name: produto.nome,
     description: produto.observacoes || '',
     price: produto.preco_tabela,
     stock_qty: produto.saldo_estoque || 0,
-    images: [],
+    // PRESERVAR imagens: manter as existentes se houver, senão array vazio
+    images: hasExistingImages ? existingImages : [],
     banca_id: null,
     distribuidor_id: distribuidorId,
     mercos_id: produto.id,
     codigo_mercos: produto.codigo || null,
-    category_id: CATEGORIA_SEM_CATEGORIA_ID,
+    // PRESERVAR categoria: manter a existente se for válida
+    category_id: hasValidCategory ? existingCategory : CATEGORIA_SEM_CATEGORIA_ID,
     origem: 'mercos',
     sincronizado_em: new Date().toISOString(),
     track_stock: true,

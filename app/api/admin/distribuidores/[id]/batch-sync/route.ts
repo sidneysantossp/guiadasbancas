@@ -234,10 +234,10 @@ async function processSingleProduct(
   try {
     console.log(`[PROCESS-PRODUCT] Processando produto ${produto.id} - ${produto.nome}`);
     
-    // Verificar se o produto já existe
+    // Verificar se o produto já existe - INCLUIR images e category_id para preservar
     const { data: existingProduct, error: fetchError } = await supabase
       .from('products')
-      .select('id, name, price, stock_qty, ativo')
+      .select('id, name, price, stock_qty, ativo, images, category_id')
       .eq('mercos_id', produto.id)
       .eq('distribuidor_id', distribuidorId)
       .maybeSingle();
@@ -248,16 +248,27 @@ async function processSingleProduct(
     }
 
     const isAtivo = produto.ativo && !produto.excluido;
+    
+    // PRESERVAR imagens existentes - não sobrescrever se já tiver imagens cadastradas manualmente
+    const existingImages = existingProduct?.images || [];
+    const hasExistingImages = Array.isArray(existingImages) && existingImages.length > 0;
+    
+    // PRESERVAR categoria existente - não sobrescrever se já tiver categoria definida
+    const existingCategory = existingProduct?.category_id;
+    const hasValidCategory = existingCategory && existingCategory !== CATEGORIA_SEM_CATEGORIA_ID;
+    
     const productData = {
       name: produto.nome,
       description: produto.observacoes || '',
       price: produto.preco_tabela,
       stock_qty: produto.saldo_estoque || 0,
-      images: [],
+      // PRESERVAR imagens: manter as existentes se houver
+      images: hasExistingImages ? existingImages : [],
       banca_id: null,
       distribuidor_id: distribuidorId,
       mercos_id: produto.id,
-      category_id: CATEGORIA_SEM_CATEGORIA_ID,
+      // PRESERVAR categoria: manter a existente se for válida
+      category_id: hasValidCategory ? existingCategory : CATEGORIA_SEM_CATEGORIA_ID,
       origem: 'mercos',
       sincronizado_em: new Date().toISOString(),
       track_stock: true,

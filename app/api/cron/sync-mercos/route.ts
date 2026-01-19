@@ -118,14 +118,14 @@ export async function POST(request: NextRequest) {
           recebidos += lote.length;
           if ((Date.now() - startTime) > MAX_EXECUTION_TIME) { atingiuLimiteTempo = true; break; }
 
-          // Buscar mapa de existentes em uma consulta
+          // Buscar mapa de existentes em uma consulta - INCLUIR images e category_id para preservar
           const mercosIds = lote.map(p => p.id);
           const { data: existentesRows } = await supabase
             .from('products')
-            .select('id, mercos_id')
+            .select('id, mercos_id, images, category_id')
             .eq('distribuidor_id', distribuidor.id)
             .in('mercos_id', mercosIds);
-          const existentes = new Map<number, string>((existentesRows || []).map(r => [r.mercos_id as number, r.id as string]));
+          const existentes = new Map<number, { id: string; images: any; category_id: string | null }>((existentesRows || []).map(r => [r.mercos_id as number, { id: r.id as string, images: r.images, category_id: r.category_id }]));
 
           const novosPayload: any[] = [];
           const updatesPayload: { id: string; data: any; mercosId: number; nome: string }[] = [];
@@ -136,7 +136,8 @@ export async function POST(request: NextRequest) {
             
             // Verificar se o produto está ativo
             const isAtivo = produtoMercos.ativo && !produtoMercos.excluido;
-            const existingId = existentes.get(produtoMercos.id);
+            const existing = existentes.get(produtoMercos.id);
+            const existingId = existing?.id;
             
             // Se o produto está INATIVO e existe no banco, deletar
             if (!isAtivo && existingId) {
@@ -151,21 +152,29 @@ export async function POST(request: NextRequest) {
             }
             
             // Produto ATIVO - processar normalmente
-            // Mapear categoria: usar mapa do distribuidor ou null (sem categoria)
+            // PRESERVAR imagens existentes - não sobrescrever se já tiver imagens cadastradas manualmente
+            const existingImages = existing?.images || [];
+            const hasExistingImages = Array.isArray(existingImages) && existingImages.length > 0;
+            
+            // PRESERVAR categoria existente se já tiver, senão usar mapeamento
+            const existingCategory = existing?.category_id;
             const mercosCatId = produtoMercos.categoria_id;
             const mappedCategoryId = mercosCatId ? categoryMap.get(mercosCatId) : null;
+            // Prioridade: categoria existente > categoria mapeada > null
+            const finalCategoryId = existingCategory || mappedCategoryId || null;
             
-            const produtoData = {
+            const produtoData: any = {
               name: produtoMercos.nome,
               description: produtoMercos.observacoes || '',
               price: produtoMercos.preco_tabela,
               stock_qty: produtoMercos.saldo_estoque || 0,
-              images: [],
+              // PRESERVAR imagens: manter as existentes se houver
+              images: hasExistingImages ? existingImages : [],
               banca_id: null,
               distribuidor_id: distribuidor.id,
               mercos_id: produtoMercos.id,
               codigo_mercos: produtoMercos.codigo || null,
-              category_id: mappedCategoryId || null, // Categoria mapeada do distribuidor
+              category_id: finalCategoryId,
               origem: 'mercos' as const,
               track_stock: true,
               sob_encomenda: false,
