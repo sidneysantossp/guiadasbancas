@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+// Removido next/image - usando img nativo para evitar falhas em produção
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useMemo, useState, useRef } from "react";
@@ -236,7 +236,7 @@ function FavCard({ item }: { item: FavItem }) {
       <div className="p-2 flex items-center gap-3">
         {/* Imagem à esquerda com padding e badge - clicável */}
         <Link href={("/produto/" + slugify(name) + "-" + id) as Route} className="relative w-28 h-24 rounded-xl overflow-hidden shrink-0">
-          <Image src={image} alt={name} fill sizes="112px" className="object-contain bg-gray-50" />
+          <img src={image} alt={name} className="absolute inset-0 w-full h-full object-contain bg-gray-50" />
           <DiscountBadge percent={discountPercent} />
         </Link>
         {/* Conteúdo + coluna de ícones à direita */}
@@ -464,7 +464,7 @@ export default function FavoritePicks() {
         <div className="mb-3 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <Image src="https://stackfood-react.6amtech.com/_next/static/media/fire.612dd1de.svg" alt="Fogo" width={23} height={23} />
+              <img src="https://stackfood-react.6amtech.com/_next/static/media/fire.612dd1de.svg" alt="Fogo" width={23} height={23} />
               <h2 className="text-lg sm:text-xl font-semibold">Bebidas</h2>
             </div>
             <p className="text-sm text-gray-600 mt-1">As melhores bebidas para você</p>
