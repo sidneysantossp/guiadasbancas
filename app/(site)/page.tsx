@@ -278,9 +278,6 @@ const BrancaleoneProducts = nextDynamic(() => import("@/components/BrancaleonePr
 const MiniBanners = nextDynamic(() => import("@/components/MiniBanners"), { 
   ssr: false
 });
-const TurmaMonicaStrip = nextDynamic(() => import("@/components/TurmaMonicaStrip"), {
-  ssr: false
-});
 const TopReviewed = nextDynamic(() => import("@/components/TopReviewed"), {
   ssr: false
 });
@@ -334,18 +331,14 @@ export default async function HomePage() {
         <BancasSections initialBancas={initialBancas} />
       </Suspense>
 
-      {/* Mini banners + Turma da Mônica logo abaixo das bancas */}
+      {/* Mini banners logo abaixo das bancas */}
       <Suspense fallback={null}>
         <div className="py-6">
           <MiniBanners />
         </div>
       </Suspense>
 
-      <Suspense fallback={null}>
-        <TurmaMonicaStrip />
-      </Suspense>
-
-      {/* HQs & Comics logo após Turma da Mônica */}
+      {/* HQs & Comics */}
       <Suspense fallback={null}>
         <TrendingProducts />
       </Suspense>
