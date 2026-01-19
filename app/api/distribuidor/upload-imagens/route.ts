@@ -33,8 +33,13 @@ export async function POST(req: NextRequest) {
         const baseName = fileName.replace(/\.[^.]+$/, '');
         const primaryToken = baseName.split(/[\s._-]/)[0];
         const codigoMercos = (primaryToken || baseName).toUpperCase();
+        // Tentar extrair número do código (pode ser mercos_id)
         const numericIdMatch = baseName.match(/\b(\d{3,})\b/);
         const possibleMercosId = numericIdMatch ? parseInt(numericIdMatch[1], 10) : null;
+        // Também tentar converter o código diretamente para número
+        const directNumericId = /^\d+$/.test(codigoMercos) ? parseInt(codigoMercos, 10) : null;
+        
+        console.log(`[UPLOAD] Arquivo: ${fileName}, Código extraído: ${codigoMercos}, MercosId possível: ${possibleMercosId || directNumericId}, DistribuidorId: ${distribuidorId}`);
 
         // Buscar produto por codigo_mercos do distribuidor
         let { data: produto, error: produtoError } = await supabaseAdmin
@@ -48,15 +53,42 @@ export async function POST(req: NextRequest) {
           .maybeSingle();
 
         // Fallback 1: tentar por mercos_id quando houver número no nome do arquivo
-        if ((!produto || produtoError) && possibleMercosId) {
+        const mercosIdToSearch = possibleMercosId || directNumericId;
+        if ((!produto || produtoError) && mercosIdToSearch) {
+          console.log(`[UPLOAD] Buscando por mercos_id: ${mercosIdToSearch}`);
           const byId = await supabaseAdmin
             .from('products')
             .select('id, name, images, codigo_mercos, mercos_id, distribuidor_id')
             .eq('distribuidor_id', distribuidorId)
-            .eq('mercos_id', possibleMercosId)
+            .eq('mercos_id', mercosIdToSearch)
             .maybeSingle();
           produto = byId.data as any;
           produtoError = byId.error as any;
+          if (produto) {
+            console.log(`[UPLOAD] Encontrado por mercos_id: ${produto.name}`);
+          }
+        }
+        
+        // Fallback 1b: tentar por mercos_id SEM filtro de distribuidor (produtos podem não ter distribuidor_id)
+        if ((!produto || produtoError) && mercosIdToSearch) {
+          console.log(`[UPLOAD] Buscando por mercos_id sem filtro de distribuidor: ${mercosIdToSearch}`);
+          const byIdGlobal = await supabaseAdmin
+            .from('products')
+            .select('id, name, images, codigo_mercos, mercos_id, distribuidor_id')
+            .eq('mercos_id', mercosIdToSearch)
+            .maybeSingle();
+          if (byIdGlobal.data) {
+            produto = byIdGlobal.data as any;
+            produtoError = null;
+            console.log(`[UPLOAD] Encontrado globalmente por mercos_id: ${byIdGlobal.data.name}`);
+            // Associar ao distribuidor se não tiver
+            if (!byIdGlobal.data.distribuidor_id) {
+              await supabaseAdmin
+                .from('products')
+                .update({ distribuidor_id: distribuidorId })
+                .eq('id', byIdGlobal.data.id);
+            }
+          }
         }
 
         // Fallback 2: buscar por codigo_mercos case-insensitive
