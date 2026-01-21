@@ -50,38 +50,54 @@ export default function SearchAutocomplete({
   const router = useRouter();
   const pathname = usePathname();
 
-  // Fallback: usar localização salva (CEP/modal) quando geolocalização não estiver disponível
+  // 🎯 PRIORIDADE 1: Usar localização salva (CEP manual) - tem prioridade sobre geolocalização
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('gb:userLocation');
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      const lat = typeof parsed?.lat === 'number' ? parsed.lat : parseFloat(parsed?.lat);
-      const lng = typeof parsed?.lng === 'number' ? parsed.lng : parseFloat(parsed?.lng);
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        setUserLocation({ lat, lng });
+      const raw = localStorage.getItem('gdb_location'); // Chave correta do location.ts
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const lat = typeof parsed?.lat === 'number' ? parsed.lat : parseFloat(parsed?.lat);
+        const lng = typeof parsed?.lng === 'number' ? parsed.lng : parseFloat(parsed?.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          console.log('[SearchAutocomplete] 📍 Usando localização do CEP manual:', { lat, lng, source: parsed.source });
+          setUserLocation({ lat, lng });
+          return; // Não buscar geolocalização se já tem CEP manual
+        }
       }
-    } catch {
-      // ignore
+      
+      // 🎯 PRIORIDADE 2: Se não tem CEP manual, tentar geolocalização do navegador
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            console.log('[SearchAutocomplete] 📍 Usando geolocalização do navegador');
+            setUserLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            });
+          },
+          (error) => {
+            console.log('[SearchAutocomplete] ⚠️ Geolocalização não disponível:', error.message);
+          },
+          { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
+        );
+      }
+    } catch (e) {
+      console.error('[SearchAutocomplete] Erro ao carregar localização:', e);
     }
   }, []);
-
-  // Obter geolocalização do usuário
+  
+  // 🔄 Escutar mudanças na localização (quando usuário muda CEP)
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-        },
-        (error) => {
-          console.log('Geolocalização não disponível:', error.message);
-        },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
-      );
-    }
+    const handleLocationUpdate = (event: any) => {
+      const loc = event.detail;
+      if (loc?.lat && loc?.lng) {
+        console.log('[SearchAutocomplete] 🔄 Localização atualizada:', { lat: loc.lat, lng: loc.lng, source: loc.source });
+        setUserLocation({ lat: loc.lat, lng: loc.lng });
+      }
+    };
+    
+    window.addEventListener('gdb:location-updated', handleLocationUpdate);
+    return () => window.removeEventListener('gdb:location-updated', handleLocationUpdate);
   }, []);
 
   // Buscar produtos/bancas da API

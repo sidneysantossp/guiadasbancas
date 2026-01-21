@@ -155,6 +155,7 @@ export default function BancasPertoDeMimPageClient({
   useEffect(() => {
     const stored = loadStoredLocation();
     if (stored) {
+      console.log('[BancasPerto] 📍 Usando localização salva:', stored.source);
       setLoc(stored);
       return;
     }
@@ -162,6 +163,7 @@ export default function BancasPertoDeMimPageClient({
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
+          console.log('[BancasPerto] 📍 Usando geolocalização do navegador');
           // Enriquecer com reverse-geocode e persistir
           (async () => {
             const saved = await saveCoordsAsLocation(latitude, longitude);
@@ -177,16 +179,20 @@ export default function BancasPertoDeMimPageClient({
       setGeoError("Geolocalização não suportada no navegador.");
     }
   }, []);
-
-  // Ouvir atualizações de localização da Navbar
+  
+  // 🔄 Escutar mudanças na localização (quando usuário muda CEP)
   useEffect(() => {
-    const handleLocationUpdate = (e: CustomEvent<UserLocation>) => {
-      console.log('[BancasPerto] Localização atualizada via evento:', e.detail);
-      setLoc(e.detail);
+    const handleLocationUpdate = (event: any) => {
+      const newLoc = event.detail;
+      if (newLoc?.lat && newLoc?.lng) {
+        console.log('[BancasPerto] 🔄 Localização atualizada via CEP:', newLoc);
+        setLoc(newLoc);
+        setGeoError(null);
+      }
     };
     
-    window.addEventListener('gdb:location-updated', handleLocationUpdate as EventListener);
-    return () => window.removeEventListener('gdb:location-updated', handleLocationUpdate as EventListener);
+    window.addEventListener('gdb:location-updated', handleLocationUpdate);
+    return () => window.removeEventListener('gdb:location-updated', handleLocationUpdate);
   }, []);
 
   // Buscar bancas reais do Admin CMS; se tiver localização, usar endpoint com lat/lng para reduzir payload
