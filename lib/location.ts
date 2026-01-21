@@ -120,13 +120,20 @@ export function loadStoredLocation(): UserLocation | null {
 export function saveStoredLocation(loc: UserLocation) {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(loc));
-  console.log('[Location] Salvando localização:', loc);
+  console.log('[Location] 💾 Salvando localização:', { source: loc.source, lat: loc.lat, lng: loc.lng });
+  
+  // 🔒 Se for CEP manual, marcar como prioritário para evitar sobrescrita por geolocalização
+  if (loc.source === 'cep') {
+    sessionStorage.setItem('gdb_location_manual', 'true');
+    console.log('[Location] 🔒 Localização manual (CEP) - bloqueando geolocalização automática');
+  }
+  
   try {
     const ev = new CustomEvent('gdb:location-updated', { detail: loc });
     window.dispatchEvent(ev);
-    console.log('[Location] Evento gdb:location-updated disparado');
+    console.log('[Location] 📡 Evento gdb:location-updated disparado');
   } catch (e) {
-    console.error('[Location] Erro ao disparar evento:', e);
+    console.error('[Location] ❌ Erro ao disparar evento:', e);
   }
 }
 

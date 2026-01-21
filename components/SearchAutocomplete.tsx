@@ -59,16 +59,30 @@ export default function SearchAutocomplete({
         const lat = typeof parsed?.lat === 'number' ? parsed.lat : parseFloat(parsed?.lat);
         const lng = typeof parsed?.lng === 'number' ? parsed.lng : parseFloat(parsed?.lng);
         if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          console.log('[SearchAutocomplete] 📍 Usando localização do CEP manual:', { lat, lng, source: parsed.source });
+          console.log('[SearchAutocomplete] 📍 Usando localização salva:', { lat, lng, source: parsed.source });
           setUserLocation({ lat, lng });
-          return; // Não buscar geolocalização se já tem CEP manual
+          return; // Não buscar geolocalização se já tem localização salva
         }
       }
       
-      // 🎯 PRIORIDADE 2: Se não tem CEP manual, tentar geolocalização do navegador
+      // 🎯 PRIORIDADE 2: Se não tem localização salva, tentar geolocalização do navegador
+      // 🔒 MAS APENAS se usuário não definiu CEP manual
+      const isManualLocation = sessionStorage.getItem('gdb_location_manual');
+      if (isManualLocation) {
+        console.log('[SearchAutocomplete] 🔒 Localização manual definida - ignorando geolocalização');
+        return;
+      }
+      
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
+            // 🔒 Verificar novamente antes de aplicar (race condition)
+            const stillManual = sessionStorage.getItem('gdb_location_manual');
+            if (stillManual) {
+              console.log('[SearchAutocomplete] 🔒 CEP manual foi definido durante geolocalização - ignorando');
+              return;
+            }
+            
             console.log('[SearchAutocomplete] 📍 Usando geolocalização do navegador');
             setUserLocation({
               lat: position.coords.latitude,
