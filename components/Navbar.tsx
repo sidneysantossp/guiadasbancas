@@ -7,6 +7,7 @@ import { useToast } from "@/components/ToastProvider";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import DepartmentsMegaMenu from "./DepartmentsMegaMenu";
 import LocationModal from "./LocationModal";
+import LocationPromptBanner from "./LocationPromptBanner";
 import SearchAutocomplete from "./SearchAutocomplete";
 import AutoGeolocation from "./AutoGeolocation";
 import { loadStoredLocation, UserLocation } from "@/lib/location";
@@ -694,19 +695,25 @@ useEffect(() => {
           {/* Ações - sempre visíveis */}
           <div className={`flex items-center gap-6 text-sm ${inDashboard || isOnBancaPage ? 'flex-1 justify-end' : ''}`}>
                 {mounted && (
-                  <button
-                    type="button"
-                    onClick={() => setLocOpen(true)}
-                    className="inline-flex items-center gap-2 text-gray-700 hover:text-[#ff5c00] transition-colors"
-                    title={locationTooltip}
-                  >
-                    <IconMapPin size={20} stroke={1.5} className="text-gray-600" />
-                    <span className="text-left leading-tight">
-                      <span className="block text-[10px] text-gray-500">{locationLinePrimary}</span>
-                      <span className="block text-xs font-medium text-gray-900 max-w-[120px] truncate">{locationLineSecondary}</span>
-                    </span>
-                    <IconChevronDown size={14} stroke={2} className="text-gray-400" />
-                  </button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setLocOpen(true)}
+                      className="inline-flex items-center gap-2 text-gray-700 hover:text-[#ff5c00] transition-colors"
+                      title={locationTooltip}
+                    >
+                      <IconMapPin size={20} stroke={1.5} className="text-gray-600" />
+                      <span className="text-left leading-tight">
+                        <span className="block text-[10px] text-gray-500">{locationLinePrimary}</span>
+                        <span className="block text-xs font-medium text-gray-900 max-w-[120px] truncate">{locationLineSecondary}</span>
+                      </span>
+                      <IconChevronDown size={14} stroke={2} className="text-gray-400" />
+                    </button>
+                    <LocationPromptBanner
+                      onConfirmClick={() => setLocOpen(true)}
+                      onDismiss={() => {}}
+                    />
+                  </div>
                 )}
 
                 <div
@@ -942,9 +949,8 @@ useEffect(() => {
       <AutoGeolocation 
         onLocationUpdate={handleLocationUpdate} 
         onGeoDenied={() => {
-          // Quando geolocalização é negada, mostrar popup de CEP
-          setLocPromptMode(true);
-          setLocOpen(true);
+          // Não abrir modal automaticamente - deixar apenas o banner discreto aparecer
+          // O banner LocationPromptBanner já cuida disso de forma menos intrusiva
         }}
       />
     </header>

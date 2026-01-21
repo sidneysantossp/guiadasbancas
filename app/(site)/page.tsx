@@ -302,9 +302,6 @@ const Newsletter = nextDynamic(() => import("@/components/Newsletter"), {
 const Testimonials = nextDynamic(() => import("@/components/Testimonials"), { 
   ssr: false
 });
-const HomeLocationPrompt = nextDynamic(() => import("@/components/HomeLocationPrompt"), { 
-  ssr: false
-});
 
 export default async function HomePage() {
   const hero = await getHeroSlides();
@@ -318,9 +315,6 @@ export default async function HomePage() {
   }));
   return (
     <div className="">{/* full-bleed, colado na navbar */}
-      {/* Modal de CEP - aparece automaticamente na primeira visita */}
-      <HomeLocationPrompt />
-      
       <div>
         <FullBanner initialSlides={hero.slides} initialConfig={hero.config} />
       </div>
