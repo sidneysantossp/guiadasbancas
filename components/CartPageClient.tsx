@@ -36,12 +36,23 @@ export default function CartPageClient() {
           <div className="divide-y divide-gray-100">
             {items.map((it) => (
               <div key={it.id} className="p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
-                <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-gray-50 border border-gray-200">
+                <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 flex items-center justify-center">
                   {it.image ? (
-                    <Image src={it.image} alt={it.name} fill sizes="64px" className="object-cover" />
-                  ) : (
-                    <div className="grid h-full w-full place-items-center text-gray-400 text-xs">Sem imagem</div>
-                  )}
+                    <Image 
+                      src={it.image} 
+                      alt={it.name} 
+                      fill 
+                      sizes="64px" 
+                      className="object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                  ) : null}
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xl">
+                    {!it.image && '📦'}
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold line-clamp-1">{it.name}</div>

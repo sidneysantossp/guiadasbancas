@@ -90,10 +90,23 @@ function MiniCartDropdown({ onClose }: { onClose: () => void }) {
         ) : (
           recent.map((it) => (
             <div key={it.id} className="p-3 flex items-center gap-3">
-              <div className="relative h-12 w-12 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+              <div className="relative h-12 w-12 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
                 {it.image ? (
-                  <Image src={it.image} alt={it.name} fill sizes="48px" className="object-cover" />
+                  <Image 
+                    src={it.image} 
+                    alt={it.name} 
+                    fill 
+                    sizes="48px" 
+                    className="object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
                 ) : null}
+                <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs font-medium">
+                  {!it.image && '📦'}
+                </div>
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-medium line-clamp-1">{it.name}</div>
@@ -150,8 +163,23 @@ function MiniCartSheet({ onClose }: { onClose: () => void }) {
           ) : (
             items.map((it) => (
               <div key={it.id} className="p-4 flex items-center gap-3">
-                <div className="relative h-16 w-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
-                  {it.image ? <Image src={it.image} alt={it.name} fill sizes="64px" className="object-cover" /> : null}
+                <div className="relative h-16 w-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
+                  {it.image ? (
+                    <Image 
+                      src={it.image} 
+                      alt={it.name} 
+                      fill 
+                      sizes="64px" 
+                      className="object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                  ) : null}
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xl font-medium">
+                    {!it.image && '📦'}
+                  </div>
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold line-clamp-1">{it.name}</div>
