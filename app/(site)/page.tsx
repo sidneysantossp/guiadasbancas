@@ -155,13 +155,24 @@ function toSliderConfig(dbCfg: any): SliderConfig {
 
 async function getHeroSlides(): Promise<{ slides: HeroSlide[]; config: SliderConfig }> {
   try {
-    const [{ data: slideData, error: slideError }, { data: cfgData }] = await Promise.all([
+    console.log("[home] 🔍 Buscando hero slides do Supabase...");
+    const [{ data: slideData, error: slideError }, { data: cfgData, error: cfgError }] = await Promise.all([
       supabase.from("hero_slides").select("*").order("order", { ascending: true }),
       supabase.from("slider_config").select("*").single(),
     ]);
 
     if (slideError) {
-      console.error("[home] Erro ao buscar hero slides:", slideError);
+      console.error("[home] ❌ Erro ao buscar hero slides:", slideError);
+      console.log("[home] ⚠️ Usando DEFAULT_HERO_SLIDES como fallback");
+    } else {
+      console.log("[home] ✅ Hero slides carregados:", slideData?.length || 0, "slides");
+    }
+
+    if (cfgError) {
+      console.error("[home] ❌ Erro ao buscar slider config:", cfgError);
+      console.log("[home] ⚠️ Usando DEFAULT_SLIDER_CONFIG como fallback");
+    } else {
+      console.log("[home] ✅ Slider config carregado");
     }
 
     const slides = Array.isArray(slideData)
@@ -169,12 +180,21 @@ async function getHeroSlides(): Promise<{ slides: HeroSlide[]; config: SliderCon
       : [];
     const config = cfgData ? toSliderConfig(cfgData) : DEFAULT_SLIDER_CONFIG;
 
-    return {
+    const result = {
       slides: slides.length > 0 ? slides : DEFAULT_HERO_SLIDES,
       config
     };
+
+    console.log("[home] 📊 Resultado final:", {
+      slidesCount: result.slides.length,
+      usingDefaults: slides.length === 0,
+      config: result.config
+    });
+
+    return result;
   } catch (error) {
-    console.error("[home] Exception ao buscar hero slides:", error);
+    console.error("[home] 💥 Exception ao buscar hero slides:", error);
+    console.log("[home] ⚠️ Usando dados DEFAULT como fallback");
     return { slides: DEFAULT_HERO_SLIDES, config: DEFAULT_SLIDER_CONFIG };
   }
 }
