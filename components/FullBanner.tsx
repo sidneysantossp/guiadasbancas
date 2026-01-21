@@ -212,8 +212,6 @@ type FullBannerProps = {
 };
 
 export default function FullBanner({ bancaId, initialSlides, initialConfig }: FullBannerProps) {
-  const hasInitialSlides = Array.isArray(initialSlides) && initialSlides.length > 0;
-  const hasInitialConfig = initialConfig != null;
   const [slides, setSlides] = useState<HeroSlide[]>(() => {
     const seeded = normalizeSlides(initialSlides);
     return seeded.length > 0 ? seeded : DEFAULT_SLIDES;
@@ -225,46 +223,9 @@ export default function FullBanner({ bancaId, initialSlides, initialConfig }: Fu
   const [heroLoaded, setHeroLoaded] = useState(false);
 
   useEffect(() => {
-    if (!hasInitialSlides || !hasInitialConfig) {
-      // Carregar slides/config da API quando nao recebidos do servidor
-      const loadSlides = async () => {
-        try {
-          const response = await fetch('/api/admin/hero-slides');
-          if (response.ok) {
-            const result = await response.json();
-            if (result.success) {
-              const ordered = normalizeSlides(result.data);
-              // Usar DEFAULT_SLIDES como fallback se não houver slides válidos
-              setSlides(ordered.length > 0 ? ordered : DEFAULT_SLIDES);
-              if (result.config) {
-                // Aplicar normalização para evitar valores inválidos
-                setConfig(mergeConfig(result.config));
-              } else {
-                // fallback: buscar config explicitamente
-                try {
-                  const cfgRes = await fetch('/api/admin/hero-slides?type=config');
-                  if (cfgRes.ok) {
-                    const cfgJ = await cfgRes.json();
-                    if (cfgJ?.success && cfgJ?.data) setConfig(mergeConfig(cfgJ.data));
-                  }
-                } catch {}
-              }
-            } else {
-              // Fallback para DEFAULT_SLIDES
-              setSlides(DEFAULT_SLIDES);
-            }
-          } else {
-            // Fallback para DEFAULT_SLIDES em caso de erro HTTP
-            setSlides(DEFAULT_SLIDES);
-          }
-        } catch {
-          // Fallback para DEFAULT_SLIDES em caso de erro de rede
-          setSlides(DEFAULT_SLIDES);
-        }
-      };
-
-      loadSlides();
-    }
+    // NÃO fazer fetch client-side - usar apenas dados SSR
+    // Isso evita timeout e melhora performance
+    // Os dados já vêm do servidor via initialSlides/initialConfig
     
     // Carregar cupom em destaque apenas se tiver bancaId específico
     const loadCoupon = async () => {
@@ -285,7 +246,7 @@ export default function FullBanner({ bancaId, initialSlides, initialConfig }: Fu
       } catch {}
     };
     loadCoupon();
-  }, [bancaId, hasInitialSlides, hasInitialConfig]);
+  }, [bancaId]);
 
   // Calcular displaySlides para o autoplay
   const effectiveSlides = slides.length > 0 ? slides : DEFAULT_SLIDES;
