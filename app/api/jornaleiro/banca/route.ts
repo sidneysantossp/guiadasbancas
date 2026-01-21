@@ -162,52 +162,93 @@ async function loadBancaForUser(userId: string): Promise<any> {
     const activeBancaId = (profile as any)?.banca_id as string | null | undefined;
     const journaleiroAccessLevel = (profile as any)?.jornaleiro_access_level as string | null | undefined;
 
-    const canAccessBanca = async (bancaId: string): Promise<any | null> => {
-      const { data: banca } = await supabaseAdmin.from('bancas').select('*').eq('id', bancaId).maybeSingle();
-      if (!banca) return null;
-
-      // Dono da banca
-      if ((banca as any).user_id === userId) return banca;
-
-      // Colaborador vinculado
-      const { data: membership } = await supabaseAdmin
-        .from('banca_members')
-        .select('access_level')
-        .eq('banca_id', bancaId)
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (membership) return banca;
-      return null;
-    };
-
-    // 1) Tentar carregar pela banca ativa do profile
+    // 🚨 SEGURANÇA CRÍTICA: Buscar banca APENAS do usuário autenticado
+    // NUNCA usar fallbacks que podem retornar banca de outro usuário
     let data: any = null;
     let error: any = null;
 
+    // 1) Se tem banca_id no profile, validar que pertence ao usuário
     if (activeBancaId) {
-      data = await canAccessBanca(activeBancaId);
+      console.log('[loadBancaForUser] Tentando carregar banca ativa do profile:', activeBancaId);
+      
+      const { data: bancaData, error: bancaError } = await supabaseAdmin
+        .from('bancas')
+        .select('*')
+        .eq('id', activeBancaId)
+        .maybeSingle();
+      
+      if (bancaData) {
+        // Validar que é do usuário OU que tem vínculo via banca_members
+        if (bancaData.user_id === userId) {
+          console.log('[loadBancaForUser] ✅ Banca ativa é do usuário (dono)');
+          data = bancaData;
+        } else {
+          // Verificar se é colaborador
+          const { data: membership } = await supabaseAdmin
+            .from('banca_members')
+            .select('access_level')
+            .eq('banca_id', activeBancaId)
+            .eq('user_id', userId)
+            .maybeSingle();
+          
+          if (membership) {
+            console.log('[loadBancaForUser] ✅ Banca ativa - usuário é colaborador');
+            data = bancaData;
+          } else {
+            console.error('[loadBancaForUser] 🚨 Banca ativa não pertence ao usuário!');
+          }
+        }
+      } else {
+        console.warn('[loadBancaForUser] ⚠️ Banca ativa não encontrada:', bancaError?.message);
+      }
     }
 
-    // 2) Fallback: pegar a banca mais recente do usuário
+    // 2) Se não tem banca ativa OU não pertence ao usuário, buscar APENAS bancas do usuário
     if (!data) {
-      const res = await supabaseAdmin.from('bancas').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();
-      data = res.data;
-      error = res.error;
-    }
-
-    // 3) Fallback: pegar a banca mais recente onde é colaborador
-    if (!data) {
-      const { data: memberFallback } = await supabaseAdmin
-        .from('banca_members')
-        .select('banca_id')
+      console.log('[loadBancaForUser] Buscando bancas do usuário (user_id):', userId);
+      
+      const { data: userBancas, error: userError } = await supabaseAdmin
+        .from('bancas')
+        .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+      
+      if (userBancas) {
+        console.log('[loadBancaForUser] ✅ Encontrada banca do usuário (dono)');
+        data = userBancas;
+      } else {
+        console.log('[loadBancaForUser] Nenhuma banca própria encontrada, buscando vínculos como colaborador...');
+        error = userError;
+      }
+    }
 
-      if (memberFallback?.banca_id) {
-        data = await canAccessBanca(memberFallback.banca_id as string);
+    // 3) Se não é dono de nenhuma banca, buscar vínculos como colaborador
+    if (!data) {
+      console.log('[loadBancaForUser] Buscando vínculos em banca_members para user_id:', userId);
+      
+      const { data: memberData } = await supabaseAdmin
+        .from('banca_members')
+        .select('banca_id, access_level')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (memberData?.banca_id) {
+        console.log('[loadBancaForUser] Encontrado vínculo como colaborador, banca_id:', memberData.banca_id);
+        
+        const { data: bancaData } = await supabaseAdmin
+          .from('bancas')
+          .select('*')
+          .eq('id', memberData.banca_id)
+          .maybeSingle();
+        
+        if (bancaData) {
+          console.log('[loadBancaForUser] ✅ Banca do vínculo carregada');
+          data = bancaData;
+        }
       }
     }
 
@@ -224,11 +265,14 @@ async function loadBancaForUser(userId: string): Promise<any> {
       email: data.email,
       is_cotista: data.is_cotista,
       cotista_razao_social: data.cotista_razao_social,
-      MATCH: data.user_id === userId ? '✅ CORRETO' : '❌ ERRO: user_id não bate!'
+      MATCH: data.user_id === userId ? '✅ CORRETO' : '⚠️ VERIFICAR VÍNCULO'
     });
 
-    // Segurança: banca deve ser do usuário OU estar vinculada via banca_members
+    // 🚨 VALIDAÇÃO FINAL CRÍTICA: Garantir que a banca pertence ao usuário
+    // Banca deve ser do usuário OU estar vinculada via banca_members
     if (data.user_id !== userId) {
+      console.log("[loadBancaForUser] user_id da banca difere, verificando vínculo via banca_members...");
+      
       const { data: membership } = await supabaseAdmin
         .from('banca_members')
         .select('access_level')
@@ -237,11 +281,19 @@ async function loadBancaForUser(userId: string): Promise<any> {
         .maybeSingle();
 
       if (!membership) {
-        console.error("[loadBancaForUser] 🚨🚨🚨 ERRO CRÍTICO: Usuário sem acesso à banca!");
-        console.error("[loadBancaForUser] user_id:", userId);
+        console.error("[loadBancaForUser] 🚨🚨🚨 ERRO CRÍTICO DE SEGURANÇA! 🚨🚨🚨");
+        console.error("[loadBancaForUser] Banca não pertence ao usuário e não há vínculo!");
+        console.error("[loadBancaForUser] user_id solicitado:", userId);
+        console.error("[loadBancaForUser] user_id da banca:", data.user_id);
         console.error("[loadBancaForUser] banca_id:", data.id);
+        console.error("[loadBancaForUser] banca_name:", data.name);
+        console.error("[loadBancaForUser] BLOQUEANDO ACESSO!");
         return null;
       }
+      
+      console.log("[loadBancaForUser] ✅ Vínculo via banca_members confirmado, access_level:", membership.access_level);
+    } else {
+      console.log("[loadBancaForUser] ✅ user_id bate perfeitamente (dono da banca)");
     }
 
     // Se o profile não tinha banca_id ou estava desatualizado, atualizar para a banca carregada

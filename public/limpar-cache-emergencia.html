@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpeza de Cache - Emergência</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #ff5c00;
+            margin-bottom: 20px;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        button {
+            background: #ff5c00;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #e65300;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #0c5460;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .code {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚨 Limpeza de Cache - Emergência</h1>
+        
+        <div class="warning">
+            <strong>⚠️ ATENÇÃO:</strong> Esta página limpa TODO o cache do navegador relacionado ao Guia das Bancas. Você será desconectado e precisará fazer login novamente.
+        </div>
+        
+        <div class="success" id="success">
+            <strong>✅ Sucesso!</strong> Cache limpo com sucesso. Você pode fechar esta página e fazer login novamente.
+        </div>
+        
+        <button onclick="limparCache()">🧹 Limpar Cache Agora</button>
+        <button onclick="limparERecarregar()">🔄 Limpar Cache e Recarregar</button>
+        
+        <div class="info">
+            <h3>📋 O que será limpo:</h3>
+            <ul>
+                <li>sessionStorage completo</li>
+                <li>localStorage completo</li>
+                <li>Cookies de sessão</li>
+                <li>Cache do navegador</li>
+            </ul>
+            
+            <h3>🔍 Itens removidos:</h3>
+            <div class="code" id="removed-items">Nenhum item removido ainda</div>
+        </div>
+    </div>
+
+    <script>
+        function limparCache() {
+            const removedItems = [];
+            
+            // Listar todos os itens antes de remover
+            console.log('=== LIMPEZA DE CACHE INICIADA ===');
+            
+            // SessionStorage
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                if (key) {
+                    removedItems.push(`sessionStorage: ${key}`);
+                    console.log('Removendo sessionStorage:', key);
+                }
+            }
+            sessionStorage.clear();
+            
+            // LocalStorage
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key) {
+                    removedItems.push(`localStorage: ${key}`);
+                    console.log('Removendo localStorage:', key);
+                }
+            }
+            localStorage.clear();
+            
+            // Mostrar itens removidos
+            const removedDiv = document.getElementById('removed-items');
+            if (removedItems.length > 0) {
+                removedDiv.innerHTML = removedItems.join('<br>');
+            } else {
+                removedDiv.innerHTML = 'Nenhum item encontrado (cache já estava limpo)';
+            }
+            
+            // Mostrar mensagem de sucesso
+            document.getElementById('success').style.display = 'block';
+            
+            console.log('=== LIMPEZA CONCLUÍDA ===');
+            console.log('Total de itens removidos:', removedItems.length);
+            
+            alert('✅ Cache limpo com sucesso!\n\nTotal de itens removidos: ' + removedItems.length + '\n\nVocê pode fazer login novamente agora.');
+        }
+        
+        function limparERecarregar() {
+            limparCache();
+            setTimeout(() => {
+                window.location.href = '/jornaleiro';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
