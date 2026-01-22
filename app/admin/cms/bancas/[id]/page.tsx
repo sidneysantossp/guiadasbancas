@@ -7,6 +7,7 @@ import { maskCEP, maskPhoneBR } from "@/lib/masks";
 import { fetchViaCEP } from "@/lib/viacep";
 import ImageUploadDragDrop from "@/components/admin/ImageUploadDragDrop";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
+import CotistaSearch from "@/components/CotistaSearch";
 
 export default function EditBancaPage() {
   const router = useRouter();
@@ -71,6 +72,15 @@ export default function EditBancaPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState<string>("");
+  
+  // Estados para cotista
+  const [isCotista, setIsCotista] = useState<boolean>(false);
+  const [selectedCotista, setSelectedCotista] = useState<{
+    id: string;
+    codigo: string;
+    razao_social: string;
+    cnpj_cpf: string;
+  } | null>(null);
   
   // Estados brasileiros
   const estados = [
@@ -161,6 +171,16 @@ export default function EditBancaPage() {
           if (banca.tpu_url) setTpuUrl(banca.tpu_url);
           // Email do jornaleiro (proprietário) quando disponível
           if (banca.ownerEmail) setOwnerEmail(String(banca.ownerEmail));
+          // Dados do cotista
+          setIsCotista(banca.is_cotista || false);
+          if (banca.cotista_id) {
+            setSelectedCotista({
+              id: banca.cotista_id,
+              codigo: banca.cotista_codigo || '',
+              razao_social: banca.cotista_razao_social || '',
+              cnpj_cpf: banca.cotista_cnpj_cpf || '',
+            });
+          }
         } else {
           setError("Banca não encontrada");
         }
@@ -345,6 +365,11 @@ export default function EditBancaPage() {
         hours,
         featured,
         active,
+        is_cotista: isCotista,
+        cotista_id: selectedCotista?.id || null,
+        cotista_codigo: selectedCotista?.codigo || null,
+        cotista_razao_social: selectedCotista?.razao_social || null,
+        cotista_cnpj_cpf: selectedCotista?.cnpj_cpf || null,
       };
 
       const res = await fetch('/api/admin/bancas', {
@@ -805,8 +830,77 @@ export default function EditBancaPage() {
                     </div>
                   </div>
 
+                  {/* Cotista */}
+                  <div className="border-t border-gray-200 pt-4">
+                    <h4 className="text-sm font-medium mb-3">Cota Ativa (Cotista)</h4>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Vincule esta banca a um cotista para dar acesso ao catálogo de produtos dos distribuidores.
+                    </p>
+                    
+                    <div className="space-y-4">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isCotista}
+                          onChange={(e) => {
+                            setIsCotista(e.target.checked);
+                            if (!e.target.checked) {
+                              setSelectedCotista(null);
+                            }
+                          }}
+                          className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                        />
+                        <span className="text-sm">Esta banca é cotista</span>
+                      </label>
+
+                      {isCotista && (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Buscar Cotista
+                            </label>
+                            <CotistaSearch
+                              mode="admin"
+                              onSelect={(cotista) => setSelectedCotista(cotista)}
+                              selectedCnpjCpf={selectedCotista?.cnpj_cpf}
+                            />
+                          </div>
+
+                          {selectedCotista && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <p className="text-sm font-semibold text-green-900">
+                                    ✓ Cotista Vinculado
+                                  </p>
+                                  <p className="text-xs text-green-700 mt-1">
+                                    {selectedCotista.razao_social}
+                                  </p>
+                                  <p className="text-xs text-green-600 mt-1 font-mono">
+                                    CPF/CNPJ: {selectedCotista.cnpj_cpf}
+                                  </p>
+                                </div>
+                                <span className="text-xs font-semibold text-orange-600 bg-orange-100 px-2 py-1 rounded">
+                                  #{selectedCotista.codigo}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {!selectedCotista && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                              <p className="text-xs text-yellow-800">
+                                ⚠️ Selecione um cotista para vincular à banca
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Categorias */}
-                  <div>
+                  <div className="border-t border-gray-200 pt-4">
                     <h4 className="text-sm font-medium mb-3">Categorias</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-60 overflow-y-auto">
                       {categories.map((category: any) => (
