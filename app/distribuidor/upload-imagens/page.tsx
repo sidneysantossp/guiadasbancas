@@ -18,6 +18,7 @@ export default function DistribuidorUploadImagensPage() {
   const [results, setResults] = useState<any>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; batch: number; batches: number } | null>(null);
   const BATCH_SIZE = 5; // Reduzido de 8 para 5 para evitar rate limiting
+  const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4 MB
 
   useEffect(() => {
     const raw = localStorage.getItem("gb:distribuidor");
@@ -57,6 +58,14 @@ export default function DistribuidorUploadImagensPage() {
 
     if (selected.length === 0) {
       alert('Selecione pelo menos uma imagem');
+      return;
+    }
+
+    // Validar tamanho dos arquivos
+    const oversizedFiles = selected.filter(file => file.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      const fileList = oversizedFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`).join('\n');
+      alert(`❌ Arquivos muito grandes:\n\n${fileList}\n\nMáximo permitido: 4 MB por arquivo.\n\nPor favor, reduza o tamanho das imagens antes de fazer upload.`);
       return;
     }
 
@@ -206,9 +215,13 @@ export default function DistribuidorUploadImagensPage() {
           <li>Arraste as imagens para a área abaixo ou clique para selecionar</li>
           <li>O sistema vincula automaticamente cada imagem ao produto correspondente</li>
           <li>Imagens são adicionadas ao início da galeria do produto</li>
+          <li><strong>Tamanho máximo:</strong> 4 MB por imagem</li>
         </ol>
         <div className="mt-3 p-3 bg-blue-100 rounded-lg text-sm text-blue-900">
           <strong>Dica:</strong> Você pode enviar variações como <code className="bg-white px-1 rounded">AKOTO001_01.jpg</code>, <code className="bg-white px-1 rounded">AKOTO001_02.jpg</code> - todas serão vinculadas ao mesmo produto.
+        </div>
+        <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-900">
+          <strong>⚠️ Importante:</strong> Imagens maiores que 4 MB serão rejeitadas. Use ferramentas como TinyPNG ou Compressor.io para reduzir o tamanho se necessário.
         </div>
       </div>
 

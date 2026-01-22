@@ -4,6 +4,9 @@ import { supabaseAdmin } from '@/lib/supabase';
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
+// Limite de tamanho por arquivo: 4 MB (seguro para Vercel)
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4 MB
+
 // POST /api/distribuidor/upload-imagens
 // Upload em massa de imagens com vinculação automática por código Mercos
 export async function POST(req: NextRequest) {
@@ -18,6 +21,16 @@ export async function POST(req: NextRequest) {
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'Nenhuma imagem enviada' }, { status: 400 });
+    }
+
+    // Validar tamanho dos arquivos
+    const oversizedFiles = files.filter(file => file.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      const fileNames = oversizedFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`).join(', ');
+      return NextResponse.json({ 
+        error: `Arquivos muito grandes: ${fileNames}. Máximo permitido: 4 MB por arquivo.`,
+        oversizedFiles: oversizedFiles.map(f => ({ name: f.name, size: f.size }))
+      }, { status: 413 });
     }
 
     const results = {
