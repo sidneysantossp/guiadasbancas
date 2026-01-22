@@ -146,8 +146,8 @@ export default function JornaleiroNovaBancaPage() {
       return;
     }
 
-    if (!number.trim() || !street.trim() || !city.trim() || !uf.trim()) {
-      setError("Informe endereço completo (rua, número, cidade e UF).");
+    if (!street.trim() || !city.trim() || !uf.trim()) {
+      setError("Informe endereço completo (rua, cidade e UF).");
       return;
     }
 
@@ -165,7 +165,9 @@ export default function JornaleiroNovaBancaPage() {
     }
 
     const addressParts = [
-      `${street.trim()}, ${number.trim()}${complement.trim() ? " - " + complement.trim() : ""}`,
+      number.trim() 
+        ? `${street.trim()}, ${number.trim()}${complement.trim() ? " - " + complement.trim() : ""}`
+        : `${street.trim()}${complement.trim() ? " - " + complement.trim() : ""}`,
       neighborhood.trim() ? neighborhood.trim() : null,
       `${city.trim()} - ${uf.trim().toUpperCase()}`,
     ].filter(Boolean);
@@ -288,13 +290,13 @@ export default function JornaleiroNovaBancaPage() {
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="text-sm font-medium">Número</label>
+                <label className="text-sm font-medium">Número (opcional)</label>
                 <input
                   ref={numberInputRef}
                   value={number}
                   onChange={(e) => setNumber(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                  required
+                  placeholder="Ex: 123 ou Em frente ao banco"
                 />
               </div>
               <div className="md:col-span-4">
