@@ -202,12 +202,12 @@ export async function POST(
             pre_venda: false,
             pronta_entrega: true,
             active: produtoMercos.ativo && !produtoMercos.excluido,
+            category_id: null, // SEMPRE NULL para evitar FK constraint error
           };
           
-          // Só definir images e category_id para produtos NOVOS
+          // Só definir images para produtos NOVOS
           if (!existingId) {
             produtoData.images = [];
-            produtoData.category_id = null;
           }
 
           if (existingId) {
