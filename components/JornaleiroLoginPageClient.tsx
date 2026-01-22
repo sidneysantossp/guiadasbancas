@@ -247,13 +247,16 @@ export default function JornaleiroLoginPageClient() {
             </form>
 
             {/* Links */}
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-3">
               <p className="text-sm text-gray-600">
-                Quer ser um parceiro?{" "}
-                <Link href="/jornaleiro/registrar" className="font-semibold text-[#ff7a1f] hover:underline">
-                  Cadastre-se aqui
-                </Link>
+                Quer ser um parceiro?
               </p>
+              <Link 
+                href="/jornaleiro/registrar" 
+                className="block w-full rounded-lg bg-black hover:bg-gray-800 px-4 py-3.5 text-base font-semibold text-white transition-colors focus:outline-none focus:ring-2 focus:ring-black/50 focus:ring-offset-2"
+              >
+                CADASTRE-SE AQUI
+              </Link>
             </div>
 
             {/* Voltar */}

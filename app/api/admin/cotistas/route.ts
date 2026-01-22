@@ -33,16 +33,18 @@ export async function GET(request: NextRequest) {
     if (search) {
       const isNumericSearch = /^\d+$/.test(search.trim());
       
-      // Se for busca puramente numérica, buscar código EXATO
-      if (isNumericSearch) {
+      // Se for busca puramente numérica com 4 dígitos ou menos, buscar código EXATO
+      if (isNumericSearch && searchDigits.length <= 4) {
         query = query.eq('codigo', search.trim());
       } else {
         const ors: string[] = [];
         // texto livre em razão social
         ors.push(`razao_social.ilike.%${search}%`);
         // busca por documento com dígitos (bd armazena apenas números)
+        // MUDANÇA: Usar busca parcial (ilike) ao invés de exata (eq) para CPF/CNPJ
+        // Isso permite encontrar múltiplas cotas da mesma pessoa
         if (searchDigits.length === 11 || searchDigits.length === 14) {
-          ors.unshift(`cnpj_cpf.eq.${searchDigits}`);
+          ors.push(`cnpj_cpf.ilike.%${searchDigits}%`);
         } else if (searchDigits.length >= 3) {
           ors.push(`cnpj_cpf.ilike.%${searchDigits}%`);
         }
@@ -66,13 +68,13 @@ export async function GET(request: NextRequest) {
       .eq('ativo', true);
     if (search) {
       const isNumericSearch = /^\d+$/.test(search.trim());
-      if (isNumericSearch) {
+      if (isNumericSearch && searchDigits.length <= 4) {
         activeQuery = activeQuery.eq('codigo', search.trim());
       } else {
         const ors: string[] = [];
         ors.push(`razao_social.ilike.%${search}%`);
         if (searchDigits.length === 11 || searchDigits.length === 14) {
-          ors.unshift(`cnpj_cpf.eq.${searchDigits}`);
+          ors.push(`cnpj_cpf.ilike.%${searchDigits}%`);
         } else if (searchDigits.length >= 3) {
           ors.push(`cnpj_cpf.ilike.%${searchDigits}%`);
         }
