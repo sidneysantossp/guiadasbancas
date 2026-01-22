@@ -1042,6 +1042,7 @@ export default function BancaV2Page() {
                   Buscar Cota Ativa
                 </label>
                 <CotistaSearch
+                  mode="public"
                   onSelect={(cotista) => {
                     setSelectedCotista(cotista);
                     // Forçar form como dirty para habilitar botão salvar

@@ -389,7 +389,35 @@ export default function JornaleiroRegistrarPageClient() {
     const only = (cep || "").replace(/\D/g, "");
     if (only.length !== 8) return;
     if (only === lastCepFetched) return;
-    fetchAndFillCep(only);
+    
+    // Executar busca inline para evitar problemas de dependência
+    const executeFetch = async () => {
+      setLoadingCep(true);
+      setCepError(null);
+      const data: ViaCEP | null = await fetchViaCEP(only);
+      setLoadingCep(false);
+      if (data) {
+        setStreet(data.logradouro || "");
+        setNeighborhood(data.bairro || "");
+        setCity(data.localidade || "");
+        setUf(data.uf || "");
+        setLastCepFetched(only);
+        try { localStorage.setItem('gb:lastCepFetched', only); } catch {}
+        // Focar no campo Número para agilizar o preenchimento
+        setTimeout(() => numberInputRef.current?.focus(), 0);
+      } else {
+        setCepError('CEP não encontrado. Verifique e tente novamente.');
+        // Selecionar o CEP para facilitar correção
+        setTimeout(() => {
+          if (cepInputRef.current) {
+            cepInputRef.current.focus();
+            cepInputRef.current.select();
+          }
+        }, 0);
+      }
+    };
+    
+    executeFetch();
   }, [cep, lastCepFetched]);
 
   // Prefill service phone on step 3 from step 2 phone
