@@ -41,8 +41,9 @@ export async function GET() {
 
   const activeBancaId = (profile as any)?.banca_id || null;
   const accountAccessLevel = ((profile as any)?.jornaleiro_access_level as string | null) || "admin";
+  const userCpf = (profile as any)?.cpf || null;
 
-  // Bancas onde é dono
+  // Bancas onde é dono (por user_id)
   const { data: owned, error: ownedError } = await supabaseAdmin
     .from("bancas")
     .select(
@@ -55,6 +56,24 @@ export async function GET() {
   if (ownedError) {
     console.error("[API/JORNALEIRO/BANCAS] Erro ao listar bancas (owner):", ownedError);
     return NextResponse.json({ success: false, error: ownedError.message }, { status: 500 });
+  }
+
+  // Bancas vinculadas ao mesmo CPF (cotista_cnpj_cpf)
+  let cpfBancas: any[] = [];
+  if (userCpf) {
+    const { data: cpfRows, error: cpfError } = await supabaseAdmin
+      .from("bancas")
+      .select(
+        "id, user_id, name, email, address, cep, profile_image, cover_image, active, approved, created_at, updated_at, is_cotista, cotista_codigo"
+      )
+      .eq("cotista_cnpj_cpf", userCpf)
+      .order("created_at", { ascending: false });
+
+    if (cpfError) {
+      console.error("[API/JORNALEIRO/BANCAS] Erro ao listar bancas por CPF:", cpfError);
+    } else {
+      cpfBancas = cpfRows || [];
+    }
   }
 
   // Bancas onde é colaborador (via banca_members)
@@ -90,6 +109,14 @@ export async function GET() {
   const itemsMap = new Map<string, any>();
   (owned || []).forEach((b: any) => {
     itemsMap.set(b.id, { ...b, my_access_level: "admin", my_relation: "owner" });
+  });
+  cpfBancas.forEach((b: any) => {
+    if (itemsMap.has(b.id)) return; // Já está como owner
+    itemsMap.set(b.id, {
+      ...b,
+      my_access_level: "admin",
+      my_relation: "cpf_linked", // Vinculada pelo CPF
+    });
   });
   memberBancas.forEach((b: any) => {
     if (itemsMap.has(b.id)) return;
