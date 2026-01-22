@@ -17,7 +17,7 @@ export default function DistribuidorUploadImagensPage() {
   const [uploading, setUploading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; batch: number; batches: number } | null>(null);
-  const BATCH_SIZE = 8;
+  const BATCH_SIZE = 5; // Reduzido de 8 para 5 para evitar rate limiting
 
   useEffect(() => {
     const raw = localStorage.getItem("gb:distribuidor");
@@ -72,14 +72,37 @@ export default function DistribuidorUploadImagensPage() {
         const slice = selected.slice(b * BATCH_SIZE, (b + 1) * BATCH_SIZE);
         setProgress({ done: b * BATCH_SIZE, total: selected.length, batch: b + 1, batches: totalBatches });
 
-        const formData = new FormData();
-        formData.append('distribuidor_id', distribuidor.id);
-        slice.forEach(file => formData.append('images', file));
+        let retryCount = 0;
+        const maxRetries = 3;
+        let response: Response | null = null;
 
-        const response = await fetch('/api/distribuidor/upload-imagens', {
-          method: 'POST',
-          body: formData,
-        });
+        // Retry logic para erros 403/429
+        while (retryCount <= maxRetries) {
+          const formData = new FormData();
+          formData.append('distribuidor_id', distribuidor.id);
+          slice.forEach(file => formData.append('images', file));
+
+          response = await fetch('/api/distribuidor/upload-imagens', {
+            method: 'POST',
+            body: formData,
+          });
+
+          // Se sucesso ou erro diferente de 403/429, sair do loop
+          if (response.ok || (response.status !== 403 && response.status !== 429)) {
+            break;
+          }
+
+          // Se for 403/429 e ainda tem retries, aguardar e tentar novamente
+          if (retryCount < maxRetries) {
+            retryCount++;
+            console.log(`[UPLOAD] Lote ${b + 1}: Erro ${response.status}, tentativa ${retryCount}/${maxRetries}`);
+            await new Promise(r => setTimeout(r, 2000 * retryCount)); // Backoff exponencial
+          } else {
+            break;
+          }
+        }
+
+        if (!response) continue;
 
         let data: any = null;
         const text = await response.text();
@@ -126,7 +149,7 @@ export default function DistribuidorUploadImagensPage() {
 
         setResults({ ...aggregate });
         setProgress({ done: Math.min((b + 1) * BATCH_SIZE, selected.length), total: selected.length, batch: b + 1, batches: totalBatches });
-        await new Promise(r => setTimeout(r, 120));
+        await new Promise(r => setTimeout(r, 500)); // Aumentado de 120ms para 500ms
       }
 
       setProgress(p => p ? { ...p, done: p.total } : null);
