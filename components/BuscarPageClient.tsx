@@ -616,14 +616,14 @@ export default function BuscarPageClient({
                           key={b.id}
                           id={b.id}
                           name={b.name}
-                          address={b.address}
+                          address={b.address || ''}
                           rating={b.rating ?? 4.7}
                           openNow={open}
                           imageUrl={b.cover}
                           profileImageUrl={b.avatar}
                           categories={b.categories || []}
                           featured={b.featured}
-                          description={b.address}
+                          description={b.address || ''}
                         />
                       );
                     })}
