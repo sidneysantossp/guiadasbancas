@@ -44,7 +44,7 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 700px"
-            unoptimized={!coverSrc || coverSrc.startsWith('/placeholder')}
+            unoptimized={!coverSrc || coverSrc.startsWith('/placeholder') || coverSrc.includes('supabase.co')}
             onError={() => setCoverSrc("/placeholder/banca-cover.svg")}
           />
         </div>
@@ -78,7 +78,7 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
         }
         <div className="mt-2 flex items-center gap-2 min-w-0">
           <div className="relative h-9 w-9 overflow-hidden rounded-full bg-white ring-2 ring-gray-200 p-1">
-            <Image src={avatarSrc} alt={name} fill className="object-cover" sizes="36px" unoptimized={avatarSrc.startsWith('/placeholder')} onError={() => setAvatarSrc("/placeholder/banca-avatar.svg")} />
+            <Image src={avatarSrc} alt={name} fill className="object-cover" sizes="36px" unoptimized={avatarSrc.startsWith('/placeholder') || avatarSrc.includes('supabase.co')} onError={() => setAvatarSrc("/placeholder/banca-avatar.svg")} />
           </div>
           <h3 className="text-base font-semibold leading-snug line-clamp-2">{name}</h3>
         </div>
