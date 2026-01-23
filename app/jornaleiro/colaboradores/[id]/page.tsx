@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { IconAlertCircle, IconArrowLeft } from "@tabler/icons-react";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 type Banca = {
   id: string;
@@ -30,6 +31,7 @@ const MODULES = [
 export default function EditarColaboradorPage() {
   const router = useRouter();
   const params = useParams();
+  const { profile } = useAuth();
   const colaboradorId = params.id as string;
 
   const [bancas, setBancas] = useState<Banca[]>([]);
@@ -37,6 +39,9 @@ export default function EditarColaboradorPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  
+  // Verificar se o usuário logado é admin
+  const isCurrentUserAdmin = (profile as any)?.jornaleiro_access_level === "admin";
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -227,9 +232,14 @@ export default function EditarColaboradorPage() {
             <div>
               <label className="text-sm font-medium">Nível de acesso</label>
               <select value={accessLevel} onChange={(e) => setAccessLevel(e.target.value as any)} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                <option value="admin">Administrador (acesso total)</option>
+                <option value="admin" disabled={!isCurrentUserAdmin}>Administrador (acesso total)</option>
                 <option value="collaborator">Colaborador (acesso restrito)</option>
               </select>
+              {!isCurrentUserAdmin && (
+                <p className="mt-1 text-xs text-amber-600">
+                  ⚠️ Apenas jornaleiros com perfil Administrador podem promover outros para administrador.
+                </p>
+              )}
             </div>
           </div>
 

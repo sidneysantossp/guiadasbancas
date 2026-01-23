@@ -121,6 +121,23 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Verificar o nível de acesso do usuário atual
+    const { data: currentUserProfile } = await supabaseAdmin
+      .from("user_profiles")
+      .select("jornaleiro_access_level")
+      .eq("id", userId)
+      .single();
+
+    const currentAccessLevel = currentUserProfile?.jornaleiro_access_level || "collaborator";
+
+    // REGRA: Apenas ADMIN pode promover outros para ADMIN
+    if (access_level === "admin" && currentAccessLevel !== "admin") {
+      return NextResponse.json({ 
+        success: false, 
+        error: "Apenas jornaleiros com perfil Administrador podem promover outros para administrador." 
+      }, { status: 403 });
+    }
+
     // Buscar bancas que o usuário atual é DONO
     const { data: ownedBancas } = await supabaseAdmin
       .from("bancas")

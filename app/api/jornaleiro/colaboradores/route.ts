@@ -124,6 +124,23 @@ export async function POST(req: NextRequest) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Verificar o nível de acesso do usuário atual
+    const { data: currentUserProfile } = await supabaseAdmin
+      .from("user_profiles")
+      .select("jornaleiro_access_level")
+      .eq("id", userId)
+      .single();
+
+    const currentAccessLevel = currentUserProfile?.jornaleiro_access_level || "collaborator";
+
+    // REGRA: Apenas ADMIN pode criar outros ADMIN
+    if (access_level === "admin" && currentAccessLevel !== "admin") {
+      return NextResponse.json({ 
+        success: false, 
+        error: "Apenas jornaleiros com perfil Administrador podem criar outros administradores." 
+      }, { status: 403 });
+    }
+
     if (!email || !password) {
       return NextResponse.json({ success: false, error: "Email e senha são obrigatórios" }, { status: 400 });
     }
