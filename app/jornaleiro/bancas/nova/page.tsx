@@ -169,6 +169,12 @@ export default function JornaleiroNovaBancaPage() {
         setError("Informe um email válido.");
         return;
       }
+      // Validar se não está usando o próprio email
+      const currentUserEmail = (profile as any)?.email;
+      if (currentUserEmail && accessEmail.trim().toLowerCase() === currentUserEmail.toLowerCase()) {
+        setError("Você não pode usar seu próprio email. Deixe os campos em branco para gerenciar você mesmo, ou use um email diferente para outro funcionário.");
+        return;
+      }
       if (!accessPassword.trim()) {
         setError("Informe a senha do usuário.");
         return;
@@ -304,9 +310,9 @@ export default function JornaleiroNovaBancaPage() {
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
             <div>
               <div className="text-sm font-semibold text-blue-900">Acesso à Banca (Opcional)</div>
-              <div className="text-xs text-blue-700 mt-1">
-                Preencha estes campos se deseja criar um usuário para que outra pessoa gerencie esta banca.
-                Se deixar em branco, você mesmo será o responsável.
+              <div className="text-xs text-blue-700 mt-1 space-y-1">
+                <p><strong>Deixe em branco</strong> se você mesmo vai gerenciar esta banca (você verá todas as suas bancas com um único login).</p>
+                <p><strong>Preencha com email diferente do seu</strong> se deseja criar um usuário para que outro funcionário gerencie apenas esta banca.</p>
               </div>
             </div>
 
