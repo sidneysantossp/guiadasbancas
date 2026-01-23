@@ -59,9 +59,9 @@ export default function EditarBancaPage() {
         // Aguardar mais um pouco antes de redirecionar
         await new Promise(resolve => setTimeout(resolve, 200));
 
-        // Redirecionar para o formulário de edição completo
+        // Redirecionar para o formulário de edição simplificado
         console.log('🚀 [EditarBanca] Redirecionando para formulário de edição...');
-        router.push("/jornaleiro/banca-v2?tab=banca");
+        router.push(`/jornaleiro/bancas/${bancaId}/editar-form`);
       } catch (error) {
         console.error("❌ [EditarBanca] Erro ao ativar banca:", error);
         router.push("/jornaleiro/bancas");
