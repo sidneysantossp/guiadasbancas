@@ -44,7 +44,7 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 700px"
-            unoptimized={!coverSrc || coverSrc.startsWith('/placeholder') || coverSrc.includes('supabase.co')}
+            unoptimized
             onError={() => setCoverSrc("/placeholder/banca-cover.svg")}
           />
         </div>
@@ -78,7 +78,7 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
         }
         <div className="mt-2 flex items-center gap-2 min-w-0">
           <div className="relative h-9 w-9 overflow-hidden rounded-full bg-white ring-2 ring-gray-200 p-1">
-            <Image src={avatarSrc} alt={name} fill className="object-cover" sizes="36px" unoptimized={avatarSrc.startsWith('/placeholder') || avatarSrc.includes('supabase.co')} onError={() => setAvatarSrc("/placeholder/banca-avatar.svg")} />
+            <Image src={avatarSrc} alt={name} fill className="object-cover" sizes="36px" unoptimized onError={() => setAvatarSrc("/placeholder/banca-avatar.svg")} />
           </div>
           <h3 className="text-base font-semibold leading-snug line-clamp-2">{name}</h3>
         </div>
@@ -94,7 +94,7 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-[12px] text-black hover:underline"
           >
-            <Image src="https://cdn-icons-png.flaticon.com/128/2875/2875433.png" alt="Mapa" width={16} height={16} className="h-4 w-4 rounded-full object-contain" />
+            <Image src="https://cdn-icons-png.flaticon.com/128/2875/2875433.png" alt="Mapa" width={16} height={16} className="h-4 w-4 rounded-full object-contain" unoptimized />
             Ver no Mapa
           </a>
           {typeof distanceKm === 'number' && isFinite(distanceKm) && distanceKm <= 100 && (
