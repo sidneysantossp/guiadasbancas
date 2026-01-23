@@ -25,10 +25,34 @@ export async function PUT(
     return NextResponse.json({ success: false, error: "JSON inválido" }, { status: 400 });
   }
 
-  const { banca } = body;
+  const { banca, newPassword } = body;
 
   if (!banca) {
     return NextResponse.json({ success: false, error: "Dados da banca são obrigatórios" }, { status: 400 });
+  }
+
+  // Se foi fornecida uma nova senha, atualizar no Supabase Auth
+  if (newPassword && typeof newPassword === "string" && newPassword.trim()) {
+    try {
+      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { password: newPassword.trim() }
+      );
+
+      if (passwordError) {
+        console.error("[API/JORNALEIRO/BANCAS/PUT] Erro ao atualizar senha:", passwordError);
+        return NextResponse.json({ 
+          success: false, 
+          error: "Erro ao atualizar senha: " + passwordError.message 
+        }, { status: 500 });
+      }
+    } catch (e: any) {
+      console.error("[API/JORNALEIRO/BANCAS/PUT] Erro ao atualizar senha:", e);
+      return NextResponse.json({ 
+        success: false, 
+        error: "Erro ao atualizar senha" 
+      }, { status: 500 });
+    }
   }
 
   // Verificar se o usuário tem acesso à banca (dono ou membro admin)
