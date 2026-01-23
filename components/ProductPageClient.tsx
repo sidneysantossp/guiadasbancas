@@ -261,7 +261,7 @@ function RelatedCarousel({ items, bancaId }: { items: RelatedProduct[]; bancaId?
                 >
                   {/* Imagem */}
                   <div className="relative h-36 w-full rounded-[14px] overflow-hidden">
-                    <Image src={it.image} alt={it.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover" unoptimized={it.image.includes('placeholder') || it.image.endsWith('.svg')} />
+                    <Image src={it.image} alt={it.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover" unoptimized />
                   </div>
                   {/* Título + Badge */}
                   <div className="mt-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-1 md:gap-2">
@@ -396,7 +396,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
           vendor: {
             id: effectiveBancaId || "banca-unknown",
             name: bancaData?.name || "Banca Local",
-            avatar: bancaData?.avatar || bancaData?.images?.avatar || "/placeholder/avatar.svg",
+            avatar: bancaData?.avatar || bancaData?.images?.avatar || "/placeholder/banca-avatar.svg",
             distanceKm: null,
             phone: bancaData?.contact?.whatsapp || bancaData?.phone || bancaData?.telefone || bancaData?.whatsapp_phone,
           },
@@ -544,10 +544,10 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
         <div className="grid grid-cols-1 md:grid-cols-[1fr_480px] gap-4 md:gap-10">
         {/* Galeria */}
         <div className="flex gap-3">
-          {/* Thumbnails verticais à esquerda */}
+          {/* Thumbnails verticais à esquerda - máximo 5 */}
           {product.images.length > 1 && (
             <div className="hidden sm:flex flex-col gap-2 w-16 flex-shrink-0">
-              {product.images.map((src, i) => (
+              {product.images.slice(0, 5).map((src, i) => (
                 <button 
                   key={i} 
                   onClick={() => setActive(i)} 
@@ -557,7 +557,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  <Image src={src} alt={`thumb-${i}`} fill sizes="64px" className="object-contain p-1" unoptimized={src.includes('placeholder') || src.endsWith('.svg')} />
+                  <Image src={src} alt={`thumb-${i}`} fill sizes="64px" className="object-contain p-1" unoptimized />
                 </button>
               ))}
             </div>
@@ -566,16 +566,16 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
           {/* Imagem principal */}
           <div className="flex-1">
             <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden border border-gray-200 bg-white">
-              <Image src={product.images[active]} alt={product.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-contain p-4" unoptimized={product.images[active].includes('placeholder') || product.images[active].endsWith('.svg')} />
+              <Image src={product.images[active]} alt={product.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-contain p-4" unoptimized />
               {product.ready && (
                 <div className="absolute right-3 top-3"><ReadyBadge /></div>
               )}
             </div>
             
-            {/* Thumbnails horizontais apenas no mobile */}
+            {/* Thumbnails horizontais apenas no mobile - máximo 5 */}
             {product.images.length > 1 && (
               <div className="mt-2 flex sm:hidden gap-2 overflow-x-auto pb-2">
-                {product.images.map((src, i) => (
+                {product.images.slice(0, 5).map((src, i) => (
                   <button 
                     key={i} 
                     onClick={() => setActive(i)} 
@@ -585,7 +585,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
                         : "border-gray-200"
                     }`}
                   >
-                    <Image src={src} alt={`thumb-${i}`} fill sizes="56px" className="object-contain p-1" unoptimized={src.includes('placeholder') || src.endsWith('.svg')} />
+                    <Image src={src} alt={`thumb-${i}`} fill sizes="56px" className="object-contain p-1" unoptimized />
                   </button>
                 ))}
               </div>
@@ -658,7 +658,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
                   className="h-10 w-10 rounded-full overflow-hidden ring-1 ring-black/5 hover:ring-2 hover:ring-[#ff5c00] transition-all"
                   title={`Ver perfil de ${product.vendor.name}`}
                 >
-                  <Image src={product.vendor.avatar} alt={product.vendor.name} width={40} height={40} className="h-full w-full object-cover" unoptimized={product.vendor.avatar.includes('placeholder') || product.vendor.avatar.endsWith('.svg')} />
+                  <Image src={product.vendor.avatar} alt={product.vendor.name} width={40} height={40} className="h-full w-full object-cover" unoptimized />
                 </Link>
                 <div>
                   <Link 
