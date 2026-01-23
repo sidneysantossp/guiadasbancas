@@ -9,6 +9,7 @@ import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import { IconFilter, IconX, IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import CategoryCarousel from "@/components/CategoryCarousel";
+import BankCard from "@/components/BankCard";
 
 type Banca = {
   id: string;
@@ -606,31 +607,24 @@ export default function BuscarPageClient({
               {/* Bancas */}
               {filtered.length > 0 && (
                 <div>
-                  <h2 className="text-lg font-semibold mb-4">Bancas</h2>
+                  <h2 className="text-lg font-semibold mb-4">{filtered.length} banca{filtered.length !== 1 ? 's' : ''}</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filtered.map((b) => {
-                      const uf = toUF(b);
+                      const open = isOpenNow(b.hours || []);
                       return (
-                        <Link key={b.id} href={`/banca/${uf}/${b.id}`} className="block rounded-xl overflow-hidden border border-gray-200 bg-white hover:shadow-lg transition-shadow">
-                          <div className="h-36 w-full bg-gray-100">
-                            <img src={b.cover} alt={b.name} className="h-full w-full object-cover" />
-                          </div>
-                          <div className="p-4">
-                            <div className="font-semibold text-gray-900 line-clamp-1">{b.name}</div>
-                            <div className="mt-1 flex items-center gap-2 text-xs">
-                              {typeof b.rating === 'number' && (
-                                <span className="inline-flex items-center gap-1 text-amber-500">
-                                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                                  <span className="text-gray-700">{b.rating.toFixed(1)}</span>
-                                </span>
-                              )}
-                              {b.featured && (
-                                <span className="inline-flex items-center rounded-full bg-orange-50 text-[#ff5c00] border border-orange-200 px-2 py-[2px] text-[11px]">Destaque</span>
-                              )}
-                            </div>
-                            {b.address && <div className="text-xs text-gray-600 mt-1 line-clamp-2">{b.address}</div>}
-                          </div>
-                        </Link>
+                        <BankCard
+                          key={b.id}
+                          id={b.id}
+                          name={b.name}
+                          address={b.address}
+                          rating={b.rating ?? 4.7}
+                          openNow={open}
+                          imageUrl={b.cover}
+                          profileImageUrl={b.avatar}
+                          categories={b.categories || []}
+                          featured={b.featured}
+                          description={b.address}
+                        />
                       );
                     })}
                   </div>
