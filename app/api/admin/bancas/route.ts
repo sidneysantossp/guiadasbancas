@@ -77,7 +77,7 @@ async function readBancas(): Promise<AdminBanca[]> {
         lat: typeof banca.lat === 'number' ? banca.lat : (banca.lat != null ? parseFloat(banca.lat) : undefined),
         lng: typeof banca.lng === 'number' ? banca.lng : (banca.lng != null ? parseFloat(banca.lng) : undefined),
         cover: banca.cover_image || '',
-        avatar: banca.cover_image || '',
+        avatar: banca.profile_image || '',
         description: banca.description || banca.address,
         tpu_url: banca.tpu_url || undefined,
         addressObj: banca.addressObj || undefined,
