@@ -172,6 +172,7 @@ function MiniCartSheet({ onClose }: { onClose: () => void }) {
                       fill 
                       sizes="64px" 
                       className="object-cover"
+                      unoptimized
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
