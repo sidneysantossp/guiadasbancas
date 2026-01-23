@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { useCart } from "@/components/CartContext";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../hooks/useAuth";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 
 export default function FloatingCart() {
   const { items, totalCount, currentBancaName, addToCart, removeFromCart } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { data: session, status } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const router = useRouter();
@@ -16,9 +16,10 @@ export default function FloatingCart() {
   const handleFinalizarCompra = () => {
     setIsOpen(false);
     
-    if (!isAuthenticated) {
+    // Verificar autenticação via NextAuth
+    if (status !== 'authenticated' || !session?.user) {
       // Redirecionar para login com mensagem
-      router.push('/minha-conta?checkout=true');
+      router.push('/entrar?redirect=/checkout');
     } else {
       // Ir direto para checkout
       router.push('/checkout');
