@@ -6,7 +6,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 // import { useToast } from '@/components/admin/ToastProvider'; // REMOVIDO
 import { supabase } from '@/lib/supabase';
 import ImageUploader from '@/components/admin/ImageUploader';
@@ -98,7 +98,7 @@ type BancaFormData = z.infer<typeof bancaSchema>;
 export default function BancaV2Page() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const searchParams = useSearchParams();
   const tabParam = searchParams?.get('tab') as 'jornaleiro' | 'banca' | 'func' | 'social' | null;
   const queryClient = useQueryClient();
   // const toast = useToast(); // REMOVIDO
@@ -113,7 +113,15 @@ export default function BancaV2Page() {
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
   const [imagesChanged, setImagesChanged] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'jornaleiro' | 'banca' | 'func' | 'social'>(tabParam || 'jornaleiro');
+  const [activeTab, setActiveTab] = useState<'jornaleiro' | 'banca' | 'func' | 'social'>('jornaleiro');
+
+  // Atualizar aba quando query parameter mudar
+  useEffect(() => {
+    if (tabParam) {
+      console.log('🔄 [BancaV2] Query param tab detectado:', tabParam);
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
   const [isCotista, setIsCotista] = useState(false);
   const [selectedCotista, setSelectedCotista] = useState<SelectedCotistaInfo | null>(null);
   const [cotistaDirty, setCotistaDirty] = useState(false);
