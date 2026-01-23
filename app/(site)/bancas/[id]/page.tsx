@@ -1,28 +1,27 @@
 import { redirect } from 'next/navigation';
-import { getAdminBancaById } from '@/lib/data/bancas';
 import { toBancaSlug } from '@/lib/slug';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export default async function BancaByIdPage({ params }: { params: { id: string } }) {
   const { id } = params;
   
   try {
-    // Buscar dados da banca pelo ID
-    const banca = await getAdminBancaById(id);
+    // Buscar dados da banca diretamente no Supabase
+    const { data: banca, error } = await supabaseAdmin
+      .from('bancas')
+      .select('id, name, address, cep')
+      .eq('id', id)
+      .single();
     
-    if (!banca) {
-      // Se não encontrar, redirecionar para página de bancas
+    if (error || !banca) {
+      console.error('[BancaByIdPage] Banca não encontrada:', id, error);
       redirect('/bancas');
     }
     
     // Extrair UF do endereço ou usar 'sp' como padrão
     let uf = 'sp';
     
-    // Tentar extrair do address_obj primeiro
-    if (banca.addressObj?.state) {
-      uf = banca.addressObj.state.toLowerCase();
-    } else if (banca.address_obj?.state) {
-      uf = banca.address_obj.state.toLowerCase();
-    } else if (banca.address) {
+    if (banca.address) {
       // Tentar extrair do endereço (ex: "... - SP")
       const match = banca.address.match(/\b([A-Z]{2})\b/);
       if (match) {
