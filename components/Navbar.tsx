@@ -720,7 +720,7 @@ useEffect(() => {
                       <IconMapPin size={20} stroke={1.5} className="text-gray-600" />
                       <span className="text-left leading-tight">
                         <span className="block text-[10px] text-gray-500">{locationLinePrimary}</span>
-                        <span className="block text-xs font-medium text-gray-900 max-w-[120px] truncate">{locationLineSecondary}</span>
+                        <span className="block text-xs font-medium text-gray-900 max-w-[200px] truncate">{locationLineSecondary}</span>
                       </span>
                       <IconChevronDown size={14} stroke={2} className="text-gray-400" />
                     </button>
