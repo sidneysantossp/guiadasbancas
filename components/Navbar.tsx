@@ -598,10 +598,25 @@ useEffect(() => {
   // UF atual baseada na localização armazenada
   const ufQuery = (loc?.state || 'sp').toLowerCase();
   const locationLinePrimary = loc ? 'Sua região' : 'Informe seu';
+  
+  // Melhorar exibição do endereço: priorizar bairro + cidade ao invés de apenas rua
   const locationLineSecondary = loc
-    ? (loc.street
-        ? `${loc.street}${loc.houseNumber ? `, ${loc.houseNumber}` : ''}`
-        : loc.neighborhood || loc.city || (loc.state ? loc.state.toUpperCase() : 'Localização'))
+    ? (() => {
+        // Se temos bairro e cidade, mostrar isso (mais útil que apenas rua)
+        if (loc.neighborhood && loc.city) {
+          return `${loc.neighborhood}, ${loc.city}`;
+        }
+        // Se temos apenas cidade, mostrar cidade
+        if (loc.city) {
+          return loc.city;
+        }
+        // Se temos rua, mostrar rua com número
+        if (loc.street) {
+          return `${loc.street}${loc.houseNumber ? `, ${loc.houseNumber}` : ''}`;
+        }
+        // Fallback: bairro ou estado
+        return loc.neighborhood || (loc.state ? loc.state.toUpperCase() : 'Localização');
+      })()
     : 'CEP';
   const locationTooltipParts = loc
     ? [
