@@ -43,8 +43,8 @@ export default function EditarBancaPage() {
         // Disparar evento de atualização
         window.dispatchEvent(new Event("banca-updated"));
 
-        // Redirecionar para a página de edição principal
-        router.push("/jornaleiro/banca-v2");
+        // Redirecionar para a página de edição principal na aba "Banca"
+        router.push("/jornaleiro/banca-v2?tab=banca");
       } catch (error) {
         console.error("Erro ao ativar banca:", error);
         router.push("/jornaleiro/bancas");

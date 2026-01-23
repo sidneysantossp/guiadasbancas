@@ -98,6 +98,8 @@ type BancaFormData = z.infer<typeof bancaSchema>;
 export default function BancaV2Page() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const tabParam = searchParams?.get('tab') as 'jornaleiro' | 'banca' | 'func' | 'social' | null;
   const queryClient = useQueryClient();
   // const toast = useToast(); // REMOVIDO
   const [formKey, setFormKey] = useState<number>(() => Date.now());
@@ -111,7 +113,7 @@ export default function BancaV2Page() {
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
   const [imagesChanged, setImagesChanged] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'jornaleiro' | 'banca' | 'func' | 'social'>('jornaleiro');
+  const [activeTab, setActiveTab] = useState<'jornaleiro' | 'banca' | 'func' | 'social'>(tabParam || 'jornaleiro');
   const [isCotista, setIsCotista] = useState(false);
   const [selectedCotista, setSelectedCotista] = useState<SelectedCotistaInfo | null>(null);
   const [cotistaDirty, setCotistaDirty] = useState(false);
@@ -134,15 +136,17 @@ export default function BancaV2Page() {
   };
 
   // React Query - buscar dados da banca (SIMPLIFICADO - SEM CACHE)
-  const { data: bancaData, isLoading, error } = useQuery({
+  const { data: bancaData, isLoading, error, refetch: refetchBanca } = useQuery({
     queryKey: ['banca', session?.user?.id],
     queryFn: async () => {
+      console.log('🔄 [BancaV2] Carregando dados da banca...');
       const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}` , {
         cache: 'no-store',
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Erro ao carregar banca');
       const json = await res.json();
+      console.log('✅ [BancaV2] Banca carregada:', json.data?.name, 'ID:', json.data?.id);
       return json.data;
     },
     enabled: status === 'authenticated', // Sempre buscar quando autenticado
@@ -150,6 +154,17 @@ export default function BancaV2Page() {
     refetchOnWindowFocus: false, 
     refetchOnMount: false,
   });
+
+  // Listener para evento banca-updated - recarregar dados quando banca mudar
+  useEffect(() => {
+    const handleBancaUpdated = () => {
+      console.log('🔔 [BancaV2] Evento banca-updated recebido, recarregando dados...');
+      refetchBanca();
+    };
+
+    window.addEventListener('banca-updated', handleBancaUpdated);
+    return () => window.removeEventListener('banca-updated', handleBancaUpdated);
+  }, [refetchBanca]);
 
   // React Query - categorias
   const { data: categoriesData } = useQuery({
