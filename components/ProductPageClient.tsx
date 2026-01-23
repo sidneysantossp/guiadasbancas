@@ -386,7 +386,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
         const mappedProduct: ProductDetail = {
           id: p.id,
           name: p.name || "Produto sem nome",
-          images: allImages.length > 0 ? allImages : ["https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=1200&auto=format&fit=crop"],
+          images: allImages.length > 0 ? allImages : ["/placeholder/product.svg"],
           price: p.price || 0,
           oldPrice: computedOldPrice,
           rating: p.rating_avg || 4.5,
@@ -396,7 +396,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
           vendor: {
             id: effectiveBancaId || "banca-unknown",
             name: bancaData?.name || "Banca Local",
-            avatar: bancaData?.avatar || bancaData?.images?.avatar || "https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=200&auto=format&fit=crop",
+            avatar: bancaData?.avatar || bancaData?.images?.avatar || "/placeholder/avatar.svg",
             distanceKm: null,
             phone: bancaData?.contact?.whatsapp || bancaData?.phone || bancaData?.telefone || bancaData?.whatsapp_phone,
           },

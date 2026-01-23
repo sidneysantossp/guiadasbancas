@@ -70,7 +70,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   // Usar dados reais do produto se disponível, senão fallback para slug
   const productName = product?.name || deslugify(nameSlug);
   const productDescription = product?.description || `Compre ${productName} com segurança nas bancas próximas de você.`;
-  const productImage = product?.images?.[0] || "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=1200&auto=format&fit=crop";
+  const productImage = product?.images?.[0] || "/placeholder/product.svg";
   const productPrice = product?.price || 0;
   
   // Limpar descrição HTML para meta description

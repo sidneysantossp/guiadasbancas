@@ -105,9 +105,9 @@ function MiniCartDropdown({ onClose }: { onClose: () => void }) {
                     }}
                   />
                 ) : null}
-                <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs font-medium">
-                  {!it.image && '📦'}
-                </div>
+                {!it.image && (
+                  <img src="/placeholder/product.svg" alt="Produto" className="w-full h-full object-cover" />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-medium line-clamp-1">{it.name}</div>
@@ -178,9 +178,9 @@ function MiniCartSheet({ onClose }: { onClose: () => void }) {
                       }}
                     />
                   ) : null}
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xl font-medium">
-                    {!it.image && '📦'}
-                  </div>
+                  {!it.image && (
+                    <img src="/placeholder/product.svg" alt="Produto" className="w-full h-full object-cover" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold line-clamp-1">{it.name}</div>

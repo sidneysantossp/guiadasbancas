@@ -129,9 +129,11 @@ export default function FloatingCart() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-2xl">
-                          📦
-                        </div>
+                        <img
+                          src="/placeholder/product.svg"
+                          alt="Produto"
+                          className="w-full h-full object-cover"
+                        />
                       )}
                     </div>
 

@@ -537,9 +537,11 @@ export default function BuscarPageClient({
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-4xl text-gray-300">
-                                  📦
-                                </div>
+                                <img
+                                  src="/placeholder/product.svg"
+                                  alt="Produto sem imagem"
+                                  className="w-full h-full object-cover"
+                                />
                               )}
                               {product.discount_percent && (
                                 <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">

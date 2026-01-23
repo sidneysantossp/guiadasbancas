@@ -50,9 +50,9 @@ export default function CartPageClient() {
                       }}
                     />
                   ) : null}
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xl">
-                    {!it.image && '📦'}
-                  </div>
+                  {!it.image && (
+                    <img src="/placeholder/product.svg" alt="Produto" className="w-full h-full object-cover" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold line-clamp-1">{it.name}</div>
