@@ -25,8 +25,8 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-    // HABILITADO: otimização de imagens para melhor performance
-    unoptimized: false,
+    // DESABILITADO: otimização de imagens para evitar erro 402
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
