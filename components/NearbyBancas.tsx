@@ -76,6 +76,7 @@ function BancaCard({
               className="object-cover" 
               priority={priority}
               loading={priority ? undefined : "lazy"}
+              unoptimized
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-orange-50">
@@ -109,7 +110,7 @@ function BancaCard({
         <div className="mt-2 flex items-center gap-2 min-w-0">
           <div className="relative h-9 w-9 overflow-hidden rounded-full bg-white ring-2 ring-gray-200 shrink-0">
             {profileImage ? (
-              <Image src={profileImage} alt={name} fill className="object-cover" sizes="36px" />
+              <Image src={profileImage} alt={name} fill className="object-cover" sizes="36px" unoptimized />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-orange-100">
                 <svg viewBox="0 0 24 24" className="h-5 w-5 text-orange-400" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -135,7 +136,7 @@ function BancaCard({
             className="inline-flex items-center gap-1 text-[12px] text-black hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
-            <Image src="https://cdn-icons-png.flaticon.com/128/2875/2875433.png" alt="Mapa" width={16} height={16} className="h-4 w-4 rounded-full object-contain" />
+            <Image src="https://cdn-icons-png.flaticon.com/128/2875/2875433.png" alt="Mapa" width={16} height={16} className="h-4 w-4 rounded-full object-contain" unoptimized />
             Ver no Mapa
           </a>
           {distanceLabel && (
