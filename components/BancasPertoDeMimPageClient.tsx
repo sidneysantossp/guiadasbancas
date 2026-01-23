@@ -634,7 +634,7 @@ export default function BancasPertoDeMimPageClient({
                 openNow={(b as any).openNow ?? isOpenNowDefault()}
                 closeTimeLabel={(b as any).openNow ? (b as any).close : undefined}
                 imageUrl={(b as any).cover}
-                profileImageUrl={(b as any).avatar || "/placeholder/jornaleiro-profile.jpg"}
+                profileImageUrl={(b as any).avatar || "/placeholder/banca-avatar.svg"}
                 categories={categories}
                 description={(b as any).description || DESCRIPTIONS[b.id as keyof typeof DESCRIPTIONS] || "Banca de jornal com variedades de revistas, jornais, recargas e snacks."}
                 featured={Boolean((b as any).featured)}

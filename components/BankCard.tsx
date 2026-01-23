@@ -30,20 +30,22 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
     try { setLoc(loadStoredLocation()); } catch {}
   }, []);
   const distanceLabel = typeof distanceKm === 'number' ? (distanceKm > 3 ? '+3Km' : `${Math.max(1, Math.round(distanceKm))}Km`) : undefined;
-  const [coverSrc, setCoverSrc] = useState<string | undefined>(imageUrl);
-  const [avatarSrc, setAvatarSrc] = useState<string | undefined>(profileImageUrl);
+  // Usar placeholder se imageUrl for vazio, undefined ou string vazia
+  const [coverSrc, setCoverSrc] = useState<string>(imageUrl && imageUrl.trim() ? imageUrl : "/placeholder/banca-cover.svg");
+  const [avatarSrc, setAvatarSrc] = useState<string>(profileImageUrl && profileImageUrl.trim() ? profileImageUrl : "/placeholder/banca-avatar.svg");
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg transition-transform transition-shadow duration-200 hover:shadow-xl hover:-translate-y-0.5">
       <div className="relative h-44 w-full p-2">
         <div className="relative h-full w-full overflow-hidden rounded-xl">
           <Image
-            src={coverSrc || "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1200&q=60"}
+            src={coverSrc || "/placeholder/banca-cover.svg"}
             alt={name}
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 700px"
-            onError={() => setCoverSrc("https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1200&q=60")}
+            unoptimized={!coverSrc || coverSrc.startsWith('/placeholder')}
+            onError={() => setCoverSrc("/placeholder/banca-cover.svg")}
           />
         </div>
         {featured && (
@@ -76,7 +78,7 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
         }
         <div className="mt-2 flex items-center gap-2 min-w-0">
           <div className="relative h-9 w-9 overflow-hidden rounded-full bg-white ring-2 ring-gray-200 p-1">
-            <Image src={avatarSrc || "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=60"} alt={name} fill className="object-cover" sizes="36px" onError={() => setAvatarSrc("https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=60")} />
+            <Image src={avatarSrc} alt={name} fill className="object-cover" sizes="36px" unoptimized={avatarSrc.startsWith('/placeholder')} onError={() => setAvatarSrc("/placeholder/banca-avatar.svg")} />
           </div>
           <h3 className="text-base font-semibold leading-snug line-clamp-2">{name}</h3>
         </div>
