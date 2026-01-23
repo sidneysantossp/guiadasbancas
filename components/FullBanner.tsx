@@ -353,13 +353,22 @@ export default function FullBanner({ bancaId, initialSlides, initialConfig }: Fu
             transition: `background ${config.transitionSpeed}ms ease`,
           }}
         >
+          {/* Background gradient (sempre visível enquanto imagem carrega) */}
+          <div 
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(to right, ${slide.gradientFrom}, ${slide.gradientTo})`
+            }}
+          />
           {/* Background image */}
           <img
             src={slide.imageUrl}
             alt={slide.imageAlt}
+            loading="eager"
+            fetchPriority="high"
             onLoad={() => setHeroLoaded(true)}
             onError={() => setHeroLoaded(true)}
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className="absolute inset-0 w-full h-full object-cover"
           />
           {/* Gradient overlay */}
           <div 
