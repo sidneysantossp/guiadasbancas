@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import Fuse, { IFuseOptions } from 'fuse.js';
 
 function normalizeSearchTerm(value: string) {
   return String(value || "")
@@ -31,6 +32,20 @@ function buildSearchVariants(value: string): string[] {
 
   return Array.from(variants).filter((v) => v.length >= 2).slice(0, 4);
 }
+
+// Configuração do Fuse.js para busca fuzzy tolerante a erros de digitação
+// Ex: "amisterdan" encontra "amsterdam", "sedex" encontra "seda"
+const FUSE_OPTIONS: IFuseOptions<any> = {
+  threshold: 0.4, // 0 = match exato, 1 = qualquer coisa. 0.4 = boa tolerância para erros
+  distance: 100,
+  includeScore: true,
+  ignoreLocation: true,
+  minMatchCharLength: 2,
+  keys: [
+    { name: 'name', weight: 0.7 },
+    { name: 'codigo_mercos', weight: 0.3 },
+  ],
+};
 
 export async function GET(req: NextRequest) {
   try {
@@ -116,11 +131,42 @@ export async function GET(req: NextRequest) {
     const fetchLimit = (userLat && userLng) ? Math.min(Math.max((limit || 20) * 5, (limit || 20)), 200) : (limit || 20);
     query = query.limit(fetchLimit);
     
-    const { data: items, error } = await query;
+    let { data: items, error } = await query;
     
     if (error) {
       console.error('[SEARCH] Erro ao buscar produtos:', error);
       return NextResponse.json({ ok: false, success: false, error: error.message }, { status: 500 });
+    }
+    
+    // BUSCA FUZZY: Se SQL não encontrou muitos resultados, aplicar Fuse.js
+    // Isso encontra produtos mesmo com erros de digitação (ex: "amisterdan" → "amsterdam")
+    if (search && (!items || items.length < 10)) {
+      console.log('[SEARCH] Poucos resultados SQL, aplicando busca fuzzy...');
+      
+      // Buscar mais produtos para aplicar Fuse.js
+      const { data: moreProducts } = await supabase
+        .from('products')
+        .select(`
+          id, name, price, price_original, discount_percent, images,
+          banca_id, distribuidor_id, category_id, description,
+          stock_qty, track_stock, active, codigo_mercos
+        `)
+        .eq('active', true)
+        .limit(1000);
+      
+      if (moreProducts && moreProducts.length > 0) {
+        const fuse = new Fuse(moreProducts, FUSE_OPTIONS);
+        const fuzzyResults = fuse.search(search, { limit: fetchLimit });
+        
+        // Combinar resultados: SQL primeiro, depois fuzzy (sem duplicatas)
+        const existingIds = new Set((items || []).map((p: any) => p.id));
+        const fuzzyProducts = fuzzyResults
+          .map(r => r.item)
+          .filter((p: any) => !existingIds.has(p.id));
+        
+        items = [...(items || []), ...fuzzyProducts].slice(0, fetchLimit);
+        console.log('[SEARCH] Após fuzzy:', items.length, 'produtos encontrados');
+      }
     }
     
     const bancaIds = Array.from(

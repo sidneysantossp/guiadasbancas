@@ -10,6 +10,7 @@ import { useToast } from "@/components/ToastProvider";
 import { IconFilter, IconX, IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import CategoryCarousel from "@/components/CategoryCarousel";
 import BankCard from "@/components/BankCard";
+import { filterProductsFuzzy, normalizeForSearch } from "@/lib/fuzzySearch";
 
 type Banca = {
   id: string;
@@ -193,13 +194,14 @@ export default function BuscarPageClient({
   }, [loc?.lat, loc?.lng, qTerm, hasInitial]);
 
   const filtered = useMemo(() => {
-    const term = normalizeText(qTerm);
+    const term = normalizeForSearch(qTerm);
     let arr = list.filter((b) => {
+      // BUSCA FUZZY para bancas: usa normalização que remove acentos
       const matchQ = !term
-        || normalizeText(b.name).includes(term)
-        || normalizeText(b.address || "").includes(term)
-        || normalizeText(b.addressObj?.city || "").includes(term)
-        || (b.categories || []).some((c) => normalizeText(c || "").includes(term));
+        || normalizeForSearch(b.name).includes(term)
+        || normalizeForSearch(b.address || "").includes(term)
+        || normalizeForSearch(b.addressObj?.city || "").includes(term)
+        || (b.categories || []).some((c) => normalizeForSearch(c || "").includes(term));
       const matchUF = !ufFilter || (b.addressObj?.uf || "").toLowerCase() === ufFilter.toLowerCase();
       const matchCat = !catFilter || (b.categories || []).some((c) => c.toLowerCase() === catFilter.toLowerCase());
       const matchOpen = !openNow || isOpenNow(b.hours || []);
@@ -221,32 +223,36 @@ export default function BuscarPageClient({
     return arr;
   }, [list, qTerm, ufFilter, catFilter, openNow, sortBy, loc?.lat, loc?.lng]);
   
-  // Filtrar produtos também
+  // Filtrar produtos com BUSCA FUZZY (tolerante a erros de digitação)
+  // Ex: "amisterdan" encontra "amsterdam", "sedex" encontra "seda"
   const filteredProducts = useMemo(() => {
     if (!qTerm) return [];
-    const tokens = tokenize(qTerm);
-    const catTerm = normalizeText(catFilter || "");
-
-    const matchCategory = (p: any) =>
-      !catFilter || normalizeText(p.category || '').includes(catTerm);
-    const matchSearch = (p: any) => {
-      const haystack = normalizeText(`${p.name || ''} ${p.description || ''}`);
-      return tokens.length === 0 || tokens.some((token) => haystack.includes(token));
-    };
-
-    const strict = products.filter(p => {
-      // Usar p.category (nome) ao invés de p.category_id, igual ao filtro das bancas
-      const matchCat = matchCategory(p);
-      const matchTerm = matchSearch(p);
-
-      return matchCat && matchTerm;
-    });
-
-    if (strict.length === 0 && products.length > 0) {
-      return products.filter(matchCategory);
+    
+    let filtered = [...products];
+    
+    // 1. Filtrar por categoria (se houver filtro ativo)
+    if (catFilter) {
+      const catTerm = normalizeForSearch(catFilter);
+      filtered = filtered.filter(p => 
+        normalizeForSearch(p.category || '').includes(catTerm)
+      );
     }
-
-    return strict;
+    
+    // 2. Aplicar busca fuzzy com Fuse.js (tolerante a erros de digitação)
+    // Isso permite encontrar "amsterdam" mesmo digitando "amisterdan", "amyster", etc.
+    if (qTerm.trim().length >= 2) {
+      filtered = filterProductsFuzzy(filtered, qTerm);
+    }
+    
+    // 3. Se não encontrou nada com fuzzy, mostrar todos da categoria selecionada
+    if (filtered.length === 0 && products.length > 0 && catFilter) {
+      const catTerm = normalizeForSearch(catFilter);
+      return products.filter(p => 
+        normalizeForSearch(p.category || '').includes(catTerm)
+      );
+    }
+    
+    return filtered;
   }, [products, catFilter, qTerm]);
   
   // Verificar se há resultados (bancas ou produtos)

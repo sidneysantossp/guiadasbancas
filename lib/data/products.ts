@@ -1,6 +1,7 @@
 import "server-only";
 
 import { supabaseAdmin } from "@/lib/supabase";
+import Fuse, { IFuseOptions } from 'fuse.js';
 
 function normalizeSearchTerm(value: string) {
   return String(value || "")
@@ -31,6 +32,19 @@ function buildSearchVariants(value: string): string[] {
 
   return Array.from(variants).filter((v) => v.length >= 2).slice(0, 4);
 }
+
+// Configuração Fuse.js para busca fuzzy tolerante a erros de digitação
+const FUSE_OPTIONS: IFuseOptions<any> = {
+  threshold: 0.4,
+  distance: 100,
+  includeScore: true,
+  ignoreLocation: true,
+  minMatchCharLength: 2,
+  keys: [
+    { name: 'name', weight: 0.7 },
+    { name: 'codigo_mercos', weight: 0.3 },
+  ],
+};
 
 export async function getSearchProducts(query: string, limit = 20): Promise<any[]> {
   const term = String(query || "").trim();
@@ -75,9 +89,36 @@ export async function getSearchProducts(query: string, limit = 20): Promise<any[
       .or(allConditions.join(','))
       .limit(limit * 3);
     
-    const { data: items, error } = await query_builder;
+    let { data: items, error } = await query_builder;
     
-    if (error || !items) return [];
+    if (error) return [];
+    
+    // BUSCA FUZZY: Se SQL não encontrou muitos resultados, aplicar Fuse.js
+    // Isso encontra produtos mesmo com erros de digitação (ex: "amisterdan" → "amsterdam")
+    if (!items || items.length < 10) {
+      const { data: moreProducts } = await supabaseAdmin
+        .from('products')
+        .select(`
+          id, name, price, price_original, discount_percent, images,
+          banca_id, distribuidor_id, category_id, description, stock_qty, track_stock
+        `)
+        .eq('active', true)
+        .limit(1000);
+      
+      if (moreProducts && moreProducts.length > 0) {
+        const fuse = new Fuse(moreProducts, FUSE_OPTIONS);
+        const fuzzyResults = fuse.search(term, { limit: limit * 3 });
+        
+        const existingIds = new Set((items || []).map((p: any) => p.id));
+        const fuzzyProducts = fuzzyResults
+          .map(r => r.item)
+          .filter((p: any) => !existingIds.has(p.id));
+        
+        items = [...(items || []), ...fuzzyProducts].slice(0, limit * 3);
+      }
+    }
+    
+    if (!items || items.length === 0) return [];
     
     const bancaIds = Array.from(new Set(items.map(p => p.banca_id).filter(Boolean)));
     const categoryIds = Array.from(new Set(items.map(p => p.category_id).filter(Boolean)));
