@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import Fuse, { IFuseOptions } from 'fuse.js';
+import { normalizeForSearch } from "@/lib/fuzzySearch";
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +57,31 @@ function buildSearchVariants(value: string): string[] {
   return Array.from(variants).filter((v) => v.length >= 2).slice(0, 4);
 }
 
+// Configuração do Fuse.js para busca fuzzy tolerante a erros de digitação
+const FUSE_OPTIONS: IFuseOptions<any> = {
+  threshold: 0.4, // 0 = match exato, 1 = match qualquer coisa. 0.4 = tolerância boa para erros
+  distance: 100,
+  includeScore: true,
+  ignoreLocation: true,
+  minMatchCharLength: 2,
+  keys: [
+    { name: 'name', weight: 0.7 },
+    { name: 'codigo_mercos', weight: 0.3 },
+  ],
+};
+
+const FUSE_BANCA_OPTIONS: IFuseOptions<any> = {
+  threshold: 0.4,
+  distance: 100,
+  includeScore: true,
+  ignoreLocation: true,
+  minMatchCharLength: 2,
+  keys: [
+    { name: 'name', weight: 0.8 },
+    { name: 'address', weight: 0.2 },
+  ],
+};
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -99,16 +126,12 @@ export async function GET(req: NextRequest) {
 
     const results: SearchResultItem[] = [];
 
-    // Buscar MAIS produtos para garantir que produtos de bancas próximas sejam incluídos
-    // Depois ordenamos por distância e limitamos no final
-    const fetchLimit = 100; // Buscar mais para ter variedade de bancas
+    // BUSCA FUZZY: SEMPRE aplicar Fuse.js para tolerância a erros de digitação
+    // Ex: "amisterdam" encontra "amsterdam", "amyster" encontra "amsterdam"
+    const fetchLimit = 500;
 
-    const productOr = (searchVariants.length ? searchVariants : terms)
-      .flatMap((t) => ([`name.ilike.%${t}%`, `codigo_mercos.ilike.%${t}%`]))
-      .join(',');
-
-    // Query única com JOIN para produtos (incluindo distribuidor_id para markup)
-    const { data: productsData, error: productsError } = await supabase
+    // Buscar produtos do banco para aplicar Fuse.js
+    const { data: allProducts, error: productsError } = await supabase
       .from('products')
       .select(`
         id,
@@ -118,12 +141,21 @@ export async function GET(req: NextRequest) {
         banca_id,
         category_id,
         distribuidor_id,
+        codigo_mercos,
         categories(name),
         bancas(name, lat, lng, is_cotista, cotista_id, active)
       `)
       .eq('active', true)
-      .or(productOr)
-      .limit(fetchLimit);
+      .limit(1000);
+    
+    let productsData: any[] = [];
+    
+    if (!productsError && allProducts && allProducts.length > 0) {
+      // SEMPRE aplicar busca fuzzy com Fuse.js
+      const fuse = new Fuse(allProducts, FUSE_OPTIONS);
+      const fuzzyResults = fuse.search(searchTerm, { limit: fetchLimit });
+      productsData = fuzzyResults.map(r => r.item);
+    }
     
     // Buscar markups completos de distribuidores para aplicar nos preços
     const distribuidorIds = Array.from(new Set(
