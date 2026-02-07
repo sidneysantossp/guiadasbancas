@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300; // 5 minutos - necessário para processar catálogos grandes
 
 export async function POST(request: NextRequest) {
   try {
@@ -175,23 +175,51 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Sync] ${allProdutos.length} produtos recebidos da Mercos (full=${full})`);
 
-    let produtosProcessados = 0;
+    let produtosNovos = 0;
+    let produtosAtualizados = 0;
     let erros = 0;
-
-    // Processar em lotes grandes usando UPSERT (muito mais rápido)
-    const UPSERT_BATCH_SIZE = 500;
     const now = new Date().toISOString();
-    
-    for (let i = 0; i < allProdutos.length; i += UPSERT_BATCH_SIZE) {
-      const batch = allProdutos.slice(i, i + UPSERT_BATCH_SIZE);
-      
-      // Preparar payload para upsert
-      const upsertPayload = batch.map((produto: any) => ({
+    const INSERT_BATCH_SIZE = 200;
+    const UPDATE_CONCURRENCY = 10;
+
+    // PASSO 1: Buscar todos os mercos_ids existentes de uma vez (evita upsert com partial index)
+    const { data: existingProducts } = await supabaseAdmin
+      .from('products')
+      .select('id, mercos_id, images, category_id')
+      .eq('distribuidor_id', distribuidorId)
+      .not('mercos_id', 'is', null);
+
+    const existentes = new Map<number, { id: string; images: any; category_id: string | null }>(
+      (existingProducts || []).map((r: any) => [r.mercos_id as number, { id: r.id, images: r.images, category_id: r.category_id }])
+    );
+    console.log(`[Sync] ${existentes.size} produtos já existem no banco`);
+
+    // PASSO 2: Separar produtos em novos e existentes
+    const novosPayload: any[] = [];
+    const updatesPayload: { id: string; data: any }[] = [];
+
+    for (const produto of allProdutos) {
+      const isExcluido = !!produto.excluido;
+      const existing = existentes.get(produto.id);
+
+      // Produto excluído: deletar se existir, ignorar se não
+      if (isExcluido) {
+        if (existing) {
+          await supabaseAdmin.from('products').delete().eq('id', existing.id);
+        }
+        continue;
+      }
+
+      // Preservar imagens e categoria existentes
+      const existingImages = existing?.images || [];
+      const hasExistingImages = Array.isArray(existingImages) && existingImages.length > 0;
+
+      const produtoData: any = {
         name: produto.nome || 'Sem nome',
         description: produto.descricao || produto.observacoes || '',
         price: parseFloat(produto.preco_tabela) || 0,
         stock_qty: produto.saldo_estoque || 0,
-        active: Boolean(produto.ativo && !produto.excluido),
+        active: true,
         mercos_id: produto.id,
         codigo_mercos: produto.codigo || null,
         distribuidor_id: distribuidorId,
@@ -201,58 +229,60 @@ export async function POST(request: NextRequest) {
         sob_encomenda: false,
         pre_venda: false,
         pronta_entrega: true,
-        // NÃO incluir category_id para evitar foreign key error
-      }));
-      
-      // UPSERT: insere novos ou atualiza existentes baseado em mercos_id + distribuidor_id
-      const { error: upsertError } = await supabaseAdmin
-        .from('products')
-        .upsert(upsertPayload, {
-          onConflict: 'mercos_id,distribuidor_id',
-          ignoreDuplicates: false,
-        });
-      
-      if (upsertError) {
-        console.error(`[Sync] Erro no upsert batch ${i}:`, upsertError.message);
+      };
+
+      if (existing) {
+        // Preservar imagens e categoria existentes
+        if (hasExistingImages) produtoData.images = existingImages;
+        if (existing.category_id) produtoData.category_id = existing.category_id;
+        updatesPayload.push({ id: existing.id, data: produtoData });
+      } else {
+        produtoData.images = [];
+        novosPayload.push(produtoData);
+      }
+    }
+
+    console.log(`[Sync] ${novosPayload.length} novos, ${updatesPayload.length} para atualizar`);
+
+    // PASSO 3: Inserir novos em lotes
+    for (let i = 0; i < novosPayload.length; i += INSERT_BATCH_SIZE) {
+      const batch = novosPayload.slice(i, i + INSERT_BATCH_SIZE);
+      const { error } = await supabaseAdmin.from('products').insert(batch);
+      if (error) {
+        console.error(`[Sync] Erro ao inserir batch:`, error.message);
         erros += batch.length;
       } else {
-        produtosProcessados += batch.length;
+        produtosNovos += batch.length;
       }
-      
-      console.log(`[Sync] Processados ${Math.min(i + UPSERT_BATCH_SIZE, allProdutos.length)}/${allProdutos.length} produtos`);
+    }
+
+    // PASSO 4: Atualizar existentes com concorrência limitada
+    for (let i = 0; i < updatesPayload.length; i += UPDATE_CONCURRENCY) {
+      const slice = updatesPayload.slice(i, i + UPDATE_CONCURRENCY);
+      const results = await Promise.allSettled(
+        slice.map(async (u) => {
+          const { error } = await supabaseAdmin.from('products').update(u.data).eq('id', u.id);
+          if (error) throw error;
+        })
+      );
+      results.forEach(r => {
+        if (r.status === 'fulfilled') produtosAtualizados++;
+        else erros++;
+      });
     }
 
     // Se sincronização full, desativar produtos que não vieram na resposta
-    if (full) {
-      const mercosIdsSet = new Set(allProdutos.map((p: any) => String(p.id)));
-      // Buscar todos mercos_id existentes para desativar apenas os que não vieram
-      const { data: existingMercosIds } = await supabaseAdmin
-        .from('products')
-        .select('id, mercos_id')
-        .eq('distribuidor_id', distribuidorId)
-        .not('mercos_id', 'is', null);
-
-      const toDeactivate = (existingMercosIds || [])
-        .filter((p: any) => !mercosIdsSet.has(String(p.mercos_id)))
+    if (full && allProdutos.length > 0) {
+      const mercosIdsSet = new Set(allProdutos.map((p: any) => p.id));
+      const toDeactivate = (existingProducts || [])
+        .filter((p: any) => !mercosIdsSet.has(p.mercos_id))
         .map((p: any) => p.id);
 
-      // Desativar em lotes para evitar limites de IN
-      const chunkSize = 500;
-      for (let i = 0; i < toDeactivate.length; i += chunkSize) {
-        const chunk = toDeactivate.slice(i, i + chunkSize);
-        await supabaseAdmin
-          .from('products')
-          .update({ active: false })
-          .in('id', chunk);
+      for (let i = 0; i < toDeactivate.length; i += 500) {
+        const chunk = toDeactivate.slice(i, i + 500);
+        await supabaseAdmin.from('products').update({ active: false }).in('id', chunk);
       }
-
-      // Se resposta veio vazia, desativar todos deste distribuidor
-      if (allProdutos.length === 0) {
-        await supabaseAdmin
-          .from('products')
-          .update({ active: false })
-          .eq('distribuidor_id', distribuidorId);
-      }
+      console.log(`[Sync] ${toDeactivate.length} produtos desativados (não vieram na resposta)`);
     }
 
     // Atualizar última sincronização
@@ -268,12 +298,13 @@ export async function POST(request: NextRequest) {
       .eq('distribuidor_id', distribuidorId)
       .eq('active', true);
 
-    console.log(`[Sync] Concluído: ${produtosProcessados} processados, ${erros} erros`);
+    console.log(`[Sync] Concluído: ${produtosNovos} novos, ${produtosAtualizados} atualizados, ${erros} erros`);
 
     return NextResponse.json({
       success: true,
       data: {
-        produtos_processados: produtosProcessados,
+        produtos_novos: produtosNovos,
+        produtos_atualizados: produtosAtualizados,
         erros: erros,
         total_produtos: totalProdutos || 0,
         sincronizado_em: new Date().toISOString(),
