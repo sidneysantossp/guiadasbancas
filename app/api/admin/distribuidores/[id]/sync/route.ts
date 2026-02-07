@@ -201,7 +201,7 @@ export async function POST(
             sob_encomenda: false,
             pre_venda: false,
             pronta_entrega: true,
-            active: produtoMercos.ativo && !produtoMercos.excluido,
+            active: !produtoMercos.excluido, // Mercos: ativo=false NÃO significa inativo no catálogo, apenas excluido importa
             category_id: null, // SEMPRE NULL para evitar FK constraint error
           };
           

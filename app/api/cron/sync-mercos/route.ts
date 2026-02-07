@@ -134,20 +134,20 @@ export async function POST(request: NextRequest) {
             if ((Date.now() - startTime) > MAX_EXECUTION_TIME) { atingiuLimiteTempo = true; break; }
             processados++;
             
-            // Verificar se o produto está ativo
-            const isAtivo = produtoMercos.ativo && !produtoMercos.excluido;
+            // Verificar se o produto foi excluído (Mercos: ativo=false NÃO significa inativo no catálogo)
+            const isExcluido = !!produtoMercos.excluido;
             const existing = existentes.get(produtoMercos.id);
             const existingId = existing?.id;
             
-            // Se o produto está INATIVO e existe no banco, deletar
-            if (!isAtivo && existingId) {
+            // Se o produto foi EXCLUÍDO e existe no banco, deletar
+            if (isExcluido && existingId) {
               await supabase.from('products').delete().eq('id', existingId);
-              console.log(`[CRON] 🗑️  Produto inativo deletado: ${produtoMercos.nome}`);
+              console.log(`[CRON] 🗑️  Produto excluído deletado: ${produtoMercos.nome}`);
               continue;
             }
             
-            // Se o produto está INATIVO e não existe no banco, ignorar
-            if (!isAtivo) {
+            // Se o produto foi EXCLUÍDO e não existe no banco, ignorar
+            if (isExcluido) {
               continue;
             }
             

@@ -301,7 +301,7 @@ export async function POST(
             pronta_entrega: true,
             ativo: produto.ativo || false,
             excluido: produto.excluido || false,
-            active: produto.ativo && !produto.excluido,
+            active: !produto.excluido, // Mercos: ativo=false NÃO significa inativo no catálogo, apenas excluido importa
             updated_at: new Date().toISOString(),
           });
 

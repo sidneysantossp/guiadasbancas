@@ -106,11 +106,11 @@ export async function POST(
         if ((Date.now() - startTime) > MAX_EXECUTION_TIME) { atingiuLimiteTempo = true; break; }
         processados++;
 
-        const isAtivo = produtoMercos.ativo && !produtoMercos.excluido;
+        const isExcluido = !!produtoMercos.excluido;
         const existing = existentes.get(produtoMercos.id);
 
-        // Produto inativo: deletar se existir, ignorar se não
-        if (!isAtivo) {
+        // Produto excluído: deletar se existir, ignorar se não (Mercos: ativo=false NÃO significa inativo)
+        if (isExcluido) {
           if (existing) {
             await supabase.from('products').delete().eq('id', existing.id);
           }
@@ -141,7 +141,7 @@ export async function POST(
           sob_encomenda: false,
           pre_venda: false,
           pronta_entrega: true,
-          active: true,
+          active: !produtoMercos.excluido, // Mercos: ativo=false NÃO significa inativo no catálogo, apenas excluido importa
         };
 
         if (existing) {
