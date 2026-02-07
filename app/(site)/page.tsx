@@ -236,10 +236,12 @@ async function getFeaturedBancas(limit = 30): Promise<HomeBanca[]> {
 
 async function getCategories(): Promise<HomeCategory[]> {
   try {
-    const { data, error } = await supabase
+    // Usar supabaseAdmin para bypassar RLS e garantir leitura do campo visible
+    const { data, error } = await supabaseAdmin
       .from("categories")
       .select("id, name, image, link, order, visible")
       .eq("active", true)
+      .eq("visible", true)
       .order("order", { ascending: true });
 
     if (error || !data || data.length === 0) {
@@ -252,18 +254,7 @@ async function getCategories(): Promise<HomeCategory[]> {
       }));
     }
 
-    const visibleData = data.filter((cat: any) => cat.visible !== false);
-    if (visibleData.length === 0) {
-      return fallbackCategories.map((cat, index) => ({
-        id: cat.slug,
-        name: cat.name,
-        image: cat.image || "",
-        link: `/categorias/${cat.slug}`,
-        order: index,
-      }));
-    }
-
-    return visibleData.map((cat: any, index: number) => ({
+    return data.map((cat: any, index: number) => ({
       id: cat.id,
       name: cat.name,
       image: cat.image || "",

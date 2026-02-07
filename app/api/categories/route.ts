@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 import { categories as fallbackCategories } from "@/components/categoriesData";
 
 export const revalidate = 300;
@@ -20,10 +20,11 @@ export async function GET(_request: NextRequest) {
   try {
     console.log('[API Categories] Iniciando busca...');
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('categories')
       .select('id, name, image, link, order, visible')
       .eq('active', true)
+      .eq('visible', true)
       .order('order', { ascending: true });
 
     // Log detalhado
@@ -70,36 +71,9 @@ export async function GET(_request: NextRequest) {
       );
     }
 
-    // Filtrar apenas categorias visíveis (visible = true ou null para retrocompatibilidade)
-    const visibleData = data.filter((cat: any) => cat.visible !== false);
-    
-    console.log('[API Categories] Filtro de visibilidade:', {
-      total: data.length,
-      visible: visibleData.length,
-      invisible: data.filter((cat: any) => cat.visible === false).map((c: any) => c.name)
-    });
-    
-    // Se não houver categorias visíveis, usar fallback
-    if (visibleData.length === 0) {
-      console.log('[API Categories] Nenhuma categoria visível, usando fallback');
-      
-      const fallbackData = fallbackCategories.map((cat, index) => ({
-        id: cat.slug,
-        name: cat.name,
-        image: cat.image || '',
-        link: `/categorias/${cat.slug}`,
-        order: index
-      }));
-      
-      return NextResponse.json(
-        { success: true, data: fallbackData, source: 'fallback-invisible' },
-        { headers: cacheHeaders }
-      );
-    }
-    
-    console.log(`[API Categories] Retornando ${visibleData.length} categorias do banco`);
+    console.log(`[API Categories] Retornando ${data.length} categorias visíveis do banco`);
     return NextResponse.json(
-      { success: true, data: visibleData, source: 'database' },
+      { success: true, data, source: 'database' },
       { headers: cacheHeaders }
     );
   } catch (e) {
