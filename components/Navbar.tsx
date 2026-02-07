@@ -10,6 +10,7 @@ import LocationModal from "./LocationModal";
 import LocationPromptBanner from "./LocationPromptBanner";
 import SearchAutocomplete from "./SearchAutocomplete";
 import AutoGeolocation from "./AutoGeolocation";
+import CategoryBar from "./CategoryBar";
 import { loadStoredLocation, UserLocation } from "@/lib/location";
 import Link from "next/link";
 import { useCart } from "@/components/CartContext";
@@ -905,61 +906,7 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Main bar: Horizontal Category Menu */}
-      {!inDashboard && (
-        <div className="hidden">
-          <div className="container-max">
-            <nav className="flex items-center gap-1 text-sm overflow-x-auto scrollbar-hide">
-              <Link 
-                href={"/promocoes" as Route} 
-                className="whitespace-nowrap rounded-md px-4 py-1.5 font-medium text-white bg-black hover:bg-black/80 transition-colors"
-              >
-                {mounted ? (
-                  <span className="inline-flex items-center gap-1">
-                    November Black
-                    <span aria-hidden className="text-base leading-none">🔥</span>
-                  </span>
-                ) : (
-                  'Promoções'
-                )}
-              </Link>
-              <Link 
-                href={"/pre-venda" as Route} 
-                className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 hover:text-[#ff5c00] transition-colors"
-              >
-                Pré Venda
-              </Link>
-              <Link 
-                href={"/categorias" as Route} 
-                className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 hover:text-[#ff5c00] transition-colors"
-              >
-                Categorias
-              </Link>
-              <Link 
-                href={"/bancas-perto-de-mim" as Route} 
-                className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 hover:text-[#ff5c00] transition-colors"
-              >
-                Bancas
-              </Link>
-              <Link 
-                href={"/jornaleiro" as Route} 
-                className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 hover:text-[#ff5c00] transition-colors"
-              >
-                Jornaleiro
-              </Link>
-              <button
-                type="button"
-                className="ml-auto inline-flex items-center gap-1 px-2 py-3 text-gray-500 hover:text-gray-700"
-                aria-label="Ver mais categorias"
-              >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </nav>
-          </div>
-        </div>
-      )}
+      {/* Menu horizontal de categorias antigo removido - substituído pelo CategoryBar */}
 
       {/* Componente de geolocalização automática */}
       <AutoGeolocation 
@@ -970,6 +917,10 @@ useEffect(() => {
         }}
       />
     </header>
+
+    {/* Barra de categorias desktop - abaixo da navbar */}
+    {!inDashboard && <CategoryBar />}
+
     {/* Mobile Search Bar (full width abaixo da navbar) - Ocultar na página da banca */}
     {!inDashboard && !isOnBancaPage && mobileSearchOpen && (
       <div className="md:hidden border-t border-gray-200 bg-white shadow-sm">
