@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
@@ -71,6 +72,16 @@ export async function PATCH(request: NextRequest) {
     }
 
     console.log('[API Visibility PATCH] Sucesso:', data?.[0]);
+
+    // Invalidar cache da home page e da API de categorias
+    try {
+      revalidatePath('/', 'page');
+      revalidatePath('/api/categories', 'page');
+      console.log('[API Visibility PATCH] Cache invalidado para / e /api/categories');
+    } catch (e) {
+      console.warn('[API Visibility PATCH] Erro ao invalidar cache:', e);
+    }
+
     const response = NextResponse.json({ success: true, data: data?.[0] });
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     return response;

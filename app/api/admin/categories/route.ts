@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
@@ -122,6 +123,14 @@ export async function PUT(request: NextRequest) {
       );
       
       await Promise.all(updates);
+      
+      try {
+        revalidatePath('/', 'page');
+        revalidatePath('/api/categories', 'page');
+      } catch (e) {
+        console.warn('[Admin Categories PUT] Erro ao invalidar cache:', e);
+      }
+      
       return NextResponse.json({ success: true, data: list });
     }
 
@@ -161,6 +170,13 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Erro ao atualizar categoria" }, { status: 500 });
     }
     
+    try {
+      revalidatePath('/', 'page');
+      revalidatePath('/api/categories', 'page');
+    } catch (e) {
+      console.warn('[Admin Categories PUT] Erro ao invalidar cache:', e);
+    }
+    
     return NextResponse.json({ success: true, data });
   } catch (e) {
     console.error('Exception updating category:', e);
@@ -196,6 +212,13 @@ export async function DELETE(request: NextRequest) {
       .from('categories')
       .select('*')
       .order('order', { ascending: true });
+    
+    try {
+      revalidatePath('/', 'page');
+      revalidatePath('/api/categories', 'page');
+    } catch (e) {
+      console.warn('[Admin Categories DELETE] Erro ao invalidar cache:', e);
+    }
     
     return NextResponse.json({ success: true, data: remaining || [] });
   } catch (e) {
