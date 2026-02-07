@@ -38,8 +38,14 @@ export async function POST(
           syncBody.lastProcessedId = lastProcessedId;
         }
         
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+          || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+          || (process.env.NEXT_PUBLIC_SITE_URL)
+          || (process.env.NEXT_PUBLIC_BASE_URL)
+          || 'http://localhost:3000';
+        
         const syncResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/admin/distribuidores/${params.id}/sync-full`,
+          `${baseUrl}/api/admin/distribuidores/${params.id}/sync-full`,
           {
             method: 'POST',
             headers: {
