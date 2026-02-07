@@ -56,10 +56,7 @@ export default function AutoGeolocation({ onLocationUpdate, onGeoDenied }: AutoG
             const location = await saveCoordsAsLocation(latitude, longitude);
             onLocationUpdate?.(location);
             
-            // Disparar evento customizado para outros componentes
-            window.dispatchEvent(new CustomEvent('locationUpdate', { 
-              detail: location 
-            }));
+            // Nota: saveCoordsAsLocation já dispara 'gdb:location-updated' via saveStoredLocation
           } catch (error) {
             console.error('Erro ao salvar localização:', error);
             // Se falhou ao salvar, mostrar popup de CEP

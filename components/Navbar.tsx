@@ -906,7 +906,8 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Menu horizontal de categorias antigo removido - substituído pelo CategoryBar */}
+      {/* Barra de categorias desktop - dentro do header fixo */}
+      {!inDashboard && <CategoryBar />}
 
       {/* Componente de geolocalização automática */}
       <AutoGeolocation 
@@ -917,9 +918,6 @@ useEffect(() => {
         }}
       />
     </header>
-
-    {/* Barra de categorias desktop - abaixo da navbar */}
-    {!inDashboard && <CategoryBar />}
 
     {/* Mobile Search Bar (full width abaixo da navbar) - Ocultar na página da banca */}
     {!inDashboard && !isOnBancaPage && mobileSearchOpen && (

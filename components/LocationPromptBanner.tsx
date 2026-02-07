@@ -24,13 +24,13 @@ export default function LocationPromptBanner({ onConfirmClick, onDismiss }: Loca
       return;
     }
 
-    // Aguardar um pouco para dar tempo da geolocalização tentar primeiro
+    // Aguardar tempo suficiente para a geolocalização do navegador completar
     const timer = setTimeout(() => {
       const storedAfterWait = loadStoredLocation();
       if (!storedAfterWait) {
         setShow(true);
       }
-    }, 2000);
+    }, 5000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -42,7 +42,11 @@ export default function LocationPromptBanner({ onConfirmClick, onDismiss }: Loca
     };
 
     window.addEventListener('gdb:location-updated', handleLocationUpdate);
-    return () => window.removeEventListener('gdb:location-updated', handleLocationUpdate);
+    window.addEventListener('locationUpdate', handleLocationUpdate);
+    return () => {
+      window.removeEventListener('gdb:location-updated', handleLocationUpdate);
+      window.removeEventListener('locationUpdate', handleLocationUpdate);
+    };
   }, []);
 
   const handleDismiss = () => {
@@ -54,8 +58,8 @@ export default function LocationPromptBanner({ onConfirmClick, onDismiss }: Loca
   if (!show) return null;
 
   return (
-    <div className="absolute left-0 right-0 top-full mt-2 z-50 mx-4 md:mx-0">
-      <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-md">
+    <div className="absolute right-0 top-full mt-2 z-50 w-[360px]">
+      <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 mt-0.5">
             <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#ff5c00]" fill="none" stroke="currentColor" strokeWidth="2">
@@ -65,17 +69,17 @@ export default function LocationPromptBanner({ onConfirmClick, onDismiss }: Loca
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-semibold text-gray-900 mb-1">
-              Estamos calculando o frete para esse endereço
+              Encontre uma Banca próxima de você!
             </h3>
             <p className="text-xs text-gray-600 mb-3">
-              Por favor, confirme seu CEP e verifique detalhadamente os custos e prazos de entrega.
+              Por favor, confirme o seu CEP para buscarmos uma Banca mais próxima de você.
             </p>
             <div className="flex items-center gap-2">
               <button
                 onClick={onConfirmClick}
                 className="px-4 py-1.5 bg-[#3483fa] hover:bg-[#2968c8] text-white text-xs font-semibold rounded transition-colors"
               >
-                Confirmar CEP
+                Informar CEP
               </button>
               <button
                 onClick={handleDismiss}
