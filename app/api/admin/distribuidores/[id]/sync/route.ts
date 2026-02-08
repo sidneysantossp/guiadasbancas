@@ -179,9 +179,10 @@ export async function POST(
           if (processados % 50 === 0) {
             console.log(`[SYNC] Progresso: ${processados} processados (de ${recebidos} recebidos)`);
           }
-          // IMPORTANTE: category_id deve ser NULL para evitar FK error
-          // A tabela products tem FK para 'categories', não 'distribuidor_categories'
-          // Categorias serão mapeadas posteriormente se necessário
+          // Mapear categoria Mercos → distribuidor_categories UUID
+          const resolvedCategoryId = (produtoMercos.categoria_id && categoryMap.has(produtoMercos.categoria_id))
+            ? categoryMap.get(produtoMercos.categoria_id)!
+            : null;
           
           // PRESERVAR imagens e categorias existentes ao atualizar
           const existingId = existentes.get(produtoMercos.id);
@@ -201,8 +202,8 @@ export async function POST(
             sob_encomenda: false,
             pre_venda: false,
             pronta_entrega: true,
-            active: !produtoMercos.excluido, // Mercos: ativo=false NÃO significa inativo no catálogo, apenas excluido importa
-            category_id: null, // SEMPRE NULL para evitar FK constraint error
+            active: !produtoMercos.excluido,
+            category_id: resolvedCategoryId,
           };
           
           // Só definir images para produtos NOVOS

@@ -192,11 +192,12 @@ function BancaCard({ b, km, loc, description }: { b: Banca; km: number | null; l
 
 type CategoryResultsClientProps = {
   slug: string;
+  sub?: string;
   title: string;
   initialCategories?: Array<{ id: string; name: string; link?: string; image?: string }>;
 };
 
-export default function CategoryResultsClient({ slug, title, initialCategories }: CategoryResultsClientProps) {
+export default function CategoryResultsClient({ slug, sub, title, initialCategories }: CategoryResultsClientProps) {
   const [loc, setLoc] = useState<UserLocation | null>(null);
   const [tab, setTab] = useState<"produtos" | "bancas">("produtos");
   // Filtros (aba Bancas)
@@ -357,8 +358,10 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
         
         // 2. Buscar produtos da categoria via Supabase
         // SEMPRE usar categoryName para passar pelo mapeamento de subcategorias
+        // Se tiver sub, passar como parâmetro para filtrar subcategoria específica
         if (categoryId || slug) {
-          const productsRes = await fetch(`/api/products/public?categoryName=${encodeURIComponent(slug)}&limit=500`);
+          const subParam = sub ? `&sub=${encodeURIComponent(sub)}` : '';
+          const productsRes = await fetch(`/api/products/public?categoryName=${encodeURIComponent(slug)}${subParam}&limit=500`);
           if (productsRes.ok) {
             const productsData = await productsRes.json();
             const productsArray = Array.isArray(productsData?.items) ? productsData.items : (Array.isArray(productsData?.data) ? productsData.data : []);
@@ -606,7 +609,7 @@ export default function CategoryResultsClient({ slug, title, initialCategories }
     };
     
     fetchData();
-  }, [slug, initialCategories]);
+  }, [slug, sub, initialCategories]);
 
   const sortedProducts = useMemo(() => {
     const dataSource = products;

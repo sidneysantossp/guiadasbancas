@@ -15,9 +15,20 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get("category") || "";
     const categoryName = searchParams.get("categoryName") || ""; // Busca por nome da categoria (slug)
     const distribuidor = searchParams.get("distribuidor") || "";
-    const limit = Math.min(parseInt(searchParams.get("limit") || "12"), 100); // Máximo 100
+    const subSlug = searchParams.get("sub") || ""; // Subcategoria específica do mega menu
+    const limit = Math.min(parseInt(searchParams.get("limit") || "12"), 500); // Máximo 500 (categorias podem ter muitos produtos)
     const sort = searchParams.get("sort") || "name"; // Mudado de created_at para name (alfabético)
     const order = searchParams.get("order") || "asc"; // Mudado de desc para asc
+
+    // Aliases de slug do mega menu → chave do mapeamento
+    const SLUG_ALIASES: Record<string, string> = {
+      'cigarros': 'tabacaria',
+      'snacks': 'bomboniere',
+      'quadrinhos': 'panini',
+      'jogos': 'cartas',
+      'presentes': 'diversos',
+      'acessorios': 'diversos',
+    };
 
     // Mapeamento de categorias pai para subcategorias (usado na home)
     const CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
@@ -35,73 +46,143 @@ export async function GET(req: NextRequest) {
       'mauricio': ['Maurício de Sousa Produções', 'Maurício de Sousa', 'Turma da Mônica', 'Mônica', 'Cebolinha', 'Cascão', 'Magali', 'Chico Bento', 'Pelezinho', 'Horácio', 'Astronauta', 'Piteco'],
     };
 
+    // Mapeamento de slug de subcategoria → nomes de categoria no banco
+    const SUB_SLUG_TO_NAMES: Record<string, string[]> = {
+      // Tabacaria
+      'cigarros': ['Cigarros'],
+      'charutos': ['Charutos e Cigarrilhas', 'Charutos'],
+      'tabaco': ['Tabaco e Seda', 'Tabacos Importados', 'Tabaco'],
+      'essencias': ['Essências'],
+      'narguile': ['Carvão Narguile', 'Narguilé'],
+      'seda-papel': ['Seda OCB', 'Seda', 'Papel'],
+      'isqueiros': ['Isqueiros'],
+      // Bebidas
+      'cerveja': ['Cerveja', 'Cervejas'],
+      'refrigerante': ['Refrigerante', 'Refrigerantes'],
+      'energetico': ['Energéticos', 'Energético'],
+      'agua': ['Água', 'Águas'],
+      'suco': ['Suco', 'Sucos'],
+      'destilados': ['Destilados'],
+      'vinho': ['Vinho', 'Vinhos'],
+      'cafe': ['Café'],
+      'cha': ['Chá', 'Chás'],
+      // Snacks
+      'chocolates': ['Chocolates'],
+      'balas-chicletes': ['Balas e Drops', 'Chicletes', 'Balas a Granel'],
+      'salgadinhos': ['Salgadinhos', 'Snacks'],
+      'biscoitos': ['Biscoitos'],
+      'amendoins-castanhas': ['Amendoins', 'Castanhas'],
+      // Panini / HQs
+      'figurinhas': ['Figurinhas', 'Colecionáveis'],
+      'albuns': ['Álbuns'],
+      'cards-colecao': ['Cards Colecionáveis'],
+      'mangas': ['Planet Manga', 'Mangá', 'Mangás'],
+      'quadrinhos': ['Quadrinhos', 'HQs', 'Gibis', 'Comics', 'Panini Comics'],
+      'graphic-novels': ['Graphic Novels', 'Graphic Novel'],
+      'marvel': ['Marvel Comics', 'Marvel'],
+      'dc-comics': ['DC Comics'],
+      // Jogos & Cards
+      'pokemon-tcg': ['Cards Pokémon'],
+      'yugioh': ['Yu-Gi-Oh'],
+      'magic': ['Magic'],
+      // Brinquedos
+      'miniaturas': ['Miniaturas'],
+      'pelucias': ['Pelúcias'],
+      'colecionaveis': ['Colecionáveis'],
+      // Presentes
+      'utilidades': ['Utilidades'],
+      'chaveiros': ['Chaveiros'],
+      // Papelaria
+      'canetas': ['Canetas'],
+      'cadernos': ['Cadernos'],
+      'material-escolar': ['Material Escolar', 'Papelaria'],
+      'adesivos': ['Adesivos', 'Adesivos Times'],
+    };
+
     // Se tiver categoryName, buscar o ID da categoria primeiro
     let categoryId = category;
     let categoryIds: string[] = []; // Para buscar múltiplas subcategorias
+    let nameSearchTerm = ''; // Busca adicional por nome do produto
+    
+    // Carregar ambas as tabelas de categorias uma só vez
+    const { data: allDistCats } = await supabaseAdmin
+      .from('distribuidor_categories')
+      .select('id, nome');
+    const { data: allBancaCats } = await supabaseAdmin
+      .from('categories')
+      .select('id, name');
     
     if (categoryName && !categoryId) {
-      const searchName = categoryName.replace(/-/g, ' ').toLowerCase(); // "capinhas-celular" -> "capinhas celular"
-      const subcategories = CATEGORY_SUBCATEGORIES[searchName];
+      let searchName = categoryName.replace(/-/g, ' ').toLowerCase();
+      // Resolver alias do mega menu (ex: cigarros → tabacaria)
+      const resolvedName = SLUG_ALIASES[searchName] || searchName;
+
+      // Se tiver sub, buscar apenas a subcategoria específica
+      const subSearchName = subSlug ? subSlug.replace(/-/g, ' ').toLowerCase() : '';
+      const subCategoryNames = subSlug ? SUB_SLUG_TO_NAMES[subSlug.toLowerCase()] : null;
+
+      const subcategories = subCategoryNames || CATEGORY_SUBCATEGORIES[resolvedName];
       
       if (subcategories && subcategories.length > 0) {
-        // É uma categoria pai - buscar IDs de todas as subcategorias
-        console.log(`[API Public] Categoria pai "${searchName}" - buscando subcategorias: ${subcategories.join(', ')}`);
+        const label = subSlug ? `subcategoria "${subSlug}"` : `categoria pai "${resolvedName}"`;
+        console.log(`[API Public] ${label} - buscando: ${subcategories.join(', ')}`);
         
         // Buscar em distribuidor_categories (case-insensitive)
-        const { data: distCatData } = await supabaseAdmin
-          .from('distribuidor_categories')
-          .select('id, nome');
-        
-        if (distCatData && distCatData.length > 0) {
-          // Filtrar case-insensitive
-          const matchedDist = distCatData.filter(c => 
-            subcategories.some(sub => c.nome?.toLowerCase() === sub.toLowerCase())
+        if (allDistCats && allDistCats.length > 0) {
+          const matchedDist = allDistCats.filter(c => 
+            subcategories.some(s => c.nome?.toLowerCase() === s.toLowerCase())
           );
           if (matchedDist.length > 0) {
             categoryIds = matchedDist.map(c => c.id);
-            console.log(`[API Public] Subcategorias encontradas: ${matchedDist.length} (${matchedDist.map(c => c.nome).join(', ')})`);
+            console.log(`[API Public] Subcategorias distribuidor: ${matchedDist.length} (${matchedDist.map(c => c.nome).join(', ')})`);
           }
         }
         
         // Também buscar em categories (bancas) - case-insensitive
-        const { data: catData } = await supabaseAdmin
-          .from('categories')
-          .select('id, name');
-        
-        if (catData && catData.length > 0) {
-          const matchedCat = catData.filter(c => 
-            subcategories.some(sub => c.name?.toLowerCase() === sub.toLowerCase())
+        if (allBancaCats && allBancaCats.length > 0) {
+          const matchedCat = allBancaCats.filter(c => 
+            subcategories.some(s => c.name?.toLowerCase() === s.toLowerCase())
           );
           if (matchedCat.length > 0) {
             categoryIds = [...categoryIds, ...matchedCat.map(c => c.id)];
-            console.log(`[API Public] + Categorias de bancas: ${matchedCat.length}`);
+            console.log(`[API Public] + Categorias bancas: ${matchedCat.length}`);
           }
+        }
+        
+        // Se buscando subcategoria e não encontrou, usar categoria pai + filtro por nome
+        if (subSlug && categoryIds.length === 0) {
+          // Buscar a categoria pai (ex: "Tabacaria", "Bebidas")
+          const parentSubcats = CATEGORY_SUBCATEGORIES[resolvedName];
+          if (parentSubcats) {
+            // Buscar IDs da categoria pai nas duas tabelas
+            if (allBancaCats) {
+              const parentCat = allBancaCats.find(c => c.name?.toLowerCase() === resolvedName);
+              if (parentCat) {
+                categoryIds = [parentCat.id];
+                console.log(`[API Public] Usando categoria pai "${parentCat.name}" + filtro por nome "${subSearchName}"`);
+              }
+            }
+          }
+          nameSearchTerm = subSearchName;
+          console.log(`[API Public] Subcategoria não encontrada em categorias, filtrará por nome: "${nameSearchTerm}"`);
         }
         
         console.log(`[API Public] Total de categoryIds encontrados: ${categoryIds.length}`);
       } else {
-        // Busca normal por nome
-        const { data: catData } = await supabaseAdmin
-          .from('categories')
-          .select('id, name')
-          .ilike('name', `%${searchName}%`)
-          .limit(1);
-        
-        if (catData && catData.length > 0) {
-          categoryId = catData[0].id;
-          console.log(`[API Public] Categoria encontrada (bancas): ${catData[0].name} -> ${categoryId}`);
+        // Busca normal por nome - tentar encontrar a categoria exata
+        const matchedCat = allBancaCats?.find(c => c.name?.toLowerCase().includes(resolvedName));
+        if (matchedCat) {
+          categoryId = matchedCat.id;
+          console.log(`[API Public] Categoria encontrada (bancas): ${matchedCat.name} -> ${categoryId}`);
         } else {
-          const { data: distCatData } = await supabaseAdmin
-            .from('distribuidor_categories')
-            .select('id, nome')
-            .ilike('nome', `%${searchName}%`)
-            .limit(1);
-          
-          if (distCatData && distCatData.length > 0) {
-            categoryId = distCatData[0].id;
-            console.log(`[API Public] Categoria encontrada (distribuidores): ${distCatData[0].nome} -> ${categoryId}`);
+          const matchedDist = allDistCats?.find(c => c.nome?.toLowerCase().includes(resolvedName));
+          if (matchedDist) {
+            categoryId = matchedDist.id;
+            console.log(`[API Public] Categoria encontrada (distribuidores): ${matchedDist.nome} -> ${categoryId}`);
           } else {
-            console.log(`[API Public] Categoria não encontrada para: ${searchName}`);
+            // Fallback: buscar por nome do produto
+            nameSearchTerm = resolvedName;
+            console.log(`[API Public] Categoria não encontrada, buscará por nome: "${nameSearchTerm}"`);
           }
         }
       }
@@ -145,6 +226,12 @@ export async function GET(req: NextRequest) {
     } else if (categoryId) {
       query = query.eq('category_id', categoryId);
     }
+    
+    // Filtro por nome do produto (usado quando sub especificado mas subcategoria não existe no DB)
+    // Pode ser combinado com filtro de categoria pai (ex: Tabacaria + "tabaco" no nome)
+    if (nameSearchTerm) {
+      query = query.ilike('name', `%${nameSearchTerm}%`);
+    }
 
     // Filtro de distribuidor
     if (distribuidor) {
@@ -158,6 +245,8 @@ export async function GET(req: NextRequest) {
     query = query.limit(limit);
 
     const { data: products, error } = await query;
+
+    console.log(`[API Public] Query retornou ${products?.length || 0} produtos brutos (categoryIds: ${categoryIds.length}, categoryId: ${categoryId || 'none'}, nameSearch: "${nameSearchTerm}", includeDistribuidor: ${includeDistribuidor})`);
 
     if (error) {
       console.error('[API Public Products] Erro:', error);

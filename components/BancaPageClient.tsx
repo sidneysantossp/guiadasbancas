@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import TrustBadges from "@/components/TrustBadges";
 import { buildBancaHref } from "@/lib/slug";
+import { filterProductsFuzzy } from "@/lib/fuzzySearch";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
@@ -953,24 +954,19 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   const produtosFiltrados = useMemo(() => {
     let filtered = [...produtos];
     
-    // 1. Filtrar por termo de busca (se houver)
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(p => {
-        const name = p.name?.toLowerCase() || '';
-        const category = (p.category || '').toLowerCase();
-        const codigo = p.codigo_mercos?.toLowerCase() || '';
-        
-        return name.includes(searchLower) || category.includes(searchLower) || codigo.includes(searchLower);
-      });
-    }
-    
-    // 2. Filtrar por categoria ativa (se não for 'Todos')
+    // 1. Filtrar por categoria ativa PRIMEIRO (se não for 'Todos')
+    // Isso é feito antes da busca fuzzy para reduzir o universo de busca
     if (activeCategory && activeCategory !== 'Todos') {
       filtered = filtered.filter(p => {
         const pCatName = (p.category || '').trim();
         return pCatName.toLowerCase() === activeCategory.toLowerCase();
       });
+    }
+    
+    // 2. Filtrar por termo de busca com BUSCA FUZZY (tolerante a erros de digitação)
+    // Exemplo: "amisterdan" encontra "amsterdam", "seda" encontra "sedex", etc.
+    if (searchTerm.trim()) {
+      filtered = filterProductsFuzzy(filtered, searchTerm);
     }
     
     // 3. Ordenar por disponibilidade

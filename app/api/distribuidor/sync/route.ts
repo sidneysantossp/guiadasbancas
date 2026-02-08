@@ -175,6 +175,18 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Sync] ${allProdutos.length} produtos recebidos da Mercos (full=${full})`);
 
+    // Carregar mapeamento de categorias Mercos → distribuidor_categories UUID
+    const { data: distCategories } = await supabaseAdmin
+      .from('distribuidor_categories')
+      .select('id, mercos_id')
+      .eq('distribuidor_id', distribuidorId);
+    
+    const categoryMap = new Map<number, string>();
+    for (const cat of distCategories || []) {
+      if (cat.mercos_id) categoryMap.set(cat.mercos_id, cat.id);
+    }
+    console.log(`[Sync] ${categoryMap.size} categorias mapeadas`);
+
     let produtosNovos = 0;
     let produtosAtualizados = 0;
     let erros = 0;
@@ -210,9 +222,14 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Preservar imagens e categoria existentes
+      // Preservar imagens existentes
       const existingImages = existing?.images || [];
       const hasExistingImages = Array.isArray(existingImages) && existingImages.length > 0;
+
+      // Mapear categoria Mercos → distribuidor_categories UUID
+      const resolvedCategoryId = (produto.categoria_id && categoryMap.has(produto.categoria_id))
+        ? categoryMap.get(produto.categoria_id)!
+        : null;
 
       const produtoData: any = {
         name: produto.nome || 'Sem nome',
@@ -229,12 +246,12 @@ export async function POST(request: NextRequest) {
         sob_encomenda: false,
         pre_venda: false,
         pronta_entrega: true,
+        category_id: resolvedCategoryId || existing?.category_id || null,
       };
 
       if (existing) {
-        // Preservar imagens e categoria existentes
+        // Preservar imagens existentes
         if (hasExistingImages) produtoData.images = existingImages;
-        if (existing.category_id) produtoData.category_id = existing.category_id;
         updatesPayload.push({ id: existing.id, data: produtoData });
       } else {
         produtoData.images = [];

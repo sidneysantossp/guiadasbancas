@@ -156,12 +156,11 @@ export async function POST(request: NextRequest) {
             const existingImages = existing?.images || [];
             const hasExistingImages = Array.isArray(existingImages) && existingImages.length > 0;
             
-            // PRESERVAR categoria existente se já tiver, senão usar mapeamento
-            const existingCategory = existing?.category_id;
+            // Mapear categoria Mercos → distribuidor_categories UUID
             const mercosCatId = produtoMercos.categoria_id;
             const mappedCategoryId = mercosCatId ? categoryMap.get(mercosCatId) : null;
-            // Prioridade: categoria existente > categoria mapeada > null
-            const finalCategoryId = existingCategory || mappedCategoryId || null;
+            // Prioridade: Mercos mapeada (fonte de verdade) > categoria existente > null
+            const finalCategoryId = mappedCategoryId || existing?.category_id || null;
             
             const produtoData: any = {
               name: produtoMercos.nome,
