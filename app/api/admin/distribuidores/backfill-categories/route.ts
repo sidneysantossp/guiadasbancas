@@ -132,16 +132,25 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Atualizar em lote
+          // Atualizar em lote (verificar error no retorno do Supabase)
           if (updates.length > 0) {
             for (let i = 0; i < updates.length; i += 50) {
               const batch = updates.slice(i, i + 50);
-              const promises = batch.map(u =>
-                supabaseAdmin.from('products').update({ category_id: u.category_id }).eq('id', u.id)
+              const responses = await Promise.all(
+                batch.map(u =>
+                  supabaseAdmin.from('products').update({ category_id: u.category_id }).eq('id', u.id)
+                )
               );
-              const results = await Promise.allSettled(promises);
-              totalAtualizado += results.filter(r => r.status === 'fulfilled').length;
-              totalErros += results.filter(r => r.status === 'rejected').length;
+              for (const resp of responses) {
+                if (resp.error) {
+                  totalErros++;
+                  if (totalErros <= 3) {
+                    console.error(`[BACKFILL] Erro ao atualizar:`, resp.error.message);
+                  }
+                } else {
+                  totalAtualizado++;
+                }
+              }
             }
           }
 
