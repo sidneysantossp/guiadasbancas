@@ -99,10 +99,10 @@ export async function GET(req: NextRequest) {
       'adesivos': ['Adesivos', 'Adesivos Times'],
     };
 
-    // Se tiver categoryName, buscar o ID da categoria primeiro
+    // Se tiver categoryName, resolver IDs e termos de busca por nome
     let categoryId = category;
-    let categoryIds: string[] = []; // Para buscar múltiplas subcategorias
-    let nameSearchTerm = ''; // Busca adicional por nome do produto
+    let categoryIds: string[] = [];
+    let nameSearchTerms: string[] = []; // Termos para buscar por nome do produto (OR entre eles)
     
     // Carregar ambas as tabelas de categorias uma só vez
     const { data: allDistCats } = await supabaseAdmin
@@ -118,80 +118,55 @@ export async function GET(req: NextRequest) {
       const resolvedName = SLUG_ALIASES[searchName] || searchName;
 
       // Se tiver sub, buscar apenas a subcategoria específica
-      const subSearchName = subSlug ? subSlug.replace(/-/g, ' ').toLowerCase() : '';
       const subCategoryNames = subSlug ? SUB_SLUG_TO_NAMES[subSlug.toLowerCase()] : null;
-
       const subcategories = subCategoryNames || CATEGORY_SUBCATEGORIES[resolvedName];
       
       if (subcategories && subcategories.length > 0) {
         const label = subSlug ? `subcategoria "${subSlug}"` : `categoria pai "${resolvedName}"`;
         console.log(`[API Public] ${label} - buscando: ${subcategories.join(', ')}`);
         
-        // Buscar em distribuidor_categories (case-insensitive)
+        // Buscar IDs em distribuidor_categories (case-insensitive)
         if (allDistCats && allDistCats.length > 0) {
           const matchedDist = allDistCats.filter(c => 
             subcategories.some(s => c.nome?.toLowerCase() === s.toLowerCase())
           );
           if (matchedDist.length > 0) {
             categoryIds = matchedDist.map(c => c.id);
-            console.log(`[API Public] Subcategorias distribuidor: ${matchedDist.length} (${matchedDist.map(c => c.nome).join(', ')})`);
           }
         }
         
-        // Também buscar em categories (bancas) - case-insensitive
+        // Buscar IDs em categories (bancas) - case-insensitive
         if (allBancaCats && allBancaCats.length > 0) {
           const matchedCat = allBancaCats.filter(c => 
             subcategories.some(s => c.name?.toLowerCase() === s.toLowerCase())
           );
           if (matchedCat.length > 0) {
             categoryIds = [...categoryIds, ...matchedCat.map(c => c.id)];
-            console.log(`[API Public] + Categorias bancas: ${matchedCat.length}`);
           }
         }
         
-        // Se buscando subcategoria e não encontrou, usar categoria pai + filtro por nome
-        if (subSlug && categoryIds.length === 0) {
-          // Buscar a categoria pai (ex: "Tabacaria", "Bebidas")
-          const parentSubcats = CATEGORY_SUBCATEGORIES[resolvedName];
-          if (parentSubcats) {
-            // Buscar IDs da categoria pai nas duas tabelas
-            if (allBancaCats) {
-              const parentCat = allBancaCats.find(c => c.name?.toLowerCase() === resolvedName);
-              if (parentCat) {
-                categoryIds = [parentCat.id];
-                console.log(`[API Public] Usando categoria pai "${parentCat.name}" + filtro por nome "${subSearchName}"`);
-              }
-            }
-          }
-          nameSearchTerm = subSearchName;
-          console.log(`[API Public] Subcategoria não encontrada em categorias, filtrará por nome: "${nameSearchTerm}"`);
-        }
+        // SEMPRE adicionar busca por nome também (cobre produtos sem category_id)
+        nameSearchTerms = subcategories.map(s => s.toLowerCase());
         
-        console.log(`[API Public] Total de categoryIds encontrados: ${categoryIds.length}`);
+        console.log(`[API Public] categoryIds: ${categoryIds.length}, nameSearchTerms: ${nameSearchTerms.length}`);
       } else {
         // Busca normal por nome - tentar encontrar a categoria exata
         const matchedCat = allBancaCats?.find(c => c.name?.toLowerCase().includes(resolvedName));
         if (matchedCat) {
           categoryId = matchedCat.id;
-          console.log(`[API Public] Categoria encontrada (bancas): ${matchedCat.name} -> ${categoryId}`);
-        } else {
-          const matchedDist = allDistCats?.find(c => c.nome?.toLowerCase().includes(resolvedName));
-          if (matchedDist) {
-            categoryId = matchedDist.id;
-            console.log(`[API Public] Categoria encontrada (distribuidores): ${matchedDist.nome} -> ${categoryId}`);
-          } else {
-            // Fallback: buscar por nome do produto
-            nameSearchTerm = resolvedName;
-            console.log(`[API Public] Categoria não encontrada, buscará por nome: "${nameSearchTerm}"`);
-          }
         }
+        const matchedDist = allDistCats?.find(c => c.nome?.toLowerCase().includes(resolvedName));
+        if (matchedDist) {
+          categoryIds = [matchedDist.id];
+        }
+        // Também buscar por nome do produto como fallback
+        nameSearchTerms = [resolvedName];
+        console.log(`[API Public] Busca simples: categoryId=${categoryId || 'none'}, categoryIds=${categoryIds.length}, nome="${resolvedName}"`);
       }
     }
 
-    // Query otimizada - apenas produtos ativos
-    // Se buscar por categoria específica, incluir produtos de distribuidores também
-    // Isso permite que seções como Bomboniere e Bebidas funcionem na home
-    const includeDistribuidor = !!(categoryId || categoryName); // Incluir distribuidores quando filtrar por categoria
+    // Query - apenas produtos ativos
+    const includeDistribuidor = !!(categoryId || categoryName || categoryIds.length > 0);
     
     let query = supabaseAdmin
       .from('products')
@@ -220,17 +195,28 @@ export async function GET(req: NextRequest) {
       query = query.is('distribuidor_id', null);
     }
 
-    // Filtro de categoria (pode ser uma única ou múltiplas subcategorias)
-    if (categoryIds.length > 0) {
-      query = query.in('category_id', categoryIds);
-    } else if (categoryId) {
-      query = query.eq('category_id', categoryId);
-    }
-    
-    // Filtro por nome do produto (usado quando sub especificado mas subcategoria não existe no DB)
-    // Pode ser combinado com filtro de categoria pai (ex: Tabacaria + "tabaco" no nome)
-    if (nameSearchTerm) {
-      query = query.ilike('name', `%${nameSearchTerm}%`);
+    // Filtro combinado: category_id OR nome do produto
+    // Usa OR para cobrir produtos COM e SEM category_id preenchido
+    if (categoryIds.length > 0 || categoryId || nameSearchTerms.length > 0) {
+      const orParts: string[] = [];
+      
+      // Filtrar por category_id (quando preenchido nos produtos)
+      if (categoryIds.length > 0) {
+        orParts.push(`category_id.in.(${categoryIds.join(',')})`);
+      }
+      if (categoryId) {
+        orParts.push(`category_id.eq.${categoryId}`);
+      }
+      
+      // Filtrar por nome do produto (cobre produtos sem category_id)
+      for (const term of nameSearchTerms) {
+        orParts.push(`name.ilike.%${term}%`);
+      }
+      
+      if (orParts.length > 0) {
+        query = query.or(orParts.join(','));
+        console.log(`[API Public] OR filter: ${orParts.length} parts`);
+      }
     }
 
     // Filtro de distribuidor
@@ -246,7 +232,7 @@ export async function GET(req: NextRequest) {
 
     const { data: products, error } = await query;
 
-    console.log(`[API Public] Query retornou ${products?.length || 0} produtos brutos (categoryIds: ${categoryIds.length}, categoryId: ${categoryId || 'none'}, nameSearch: "${nameSearchTerm}", includeDistribuidor: ${includeDistribuidor})`);
+    console.log(`[API Public] Query retornou ${products?.length || 0} produtos brutos (categoryIds: ${categoryIds.length}, categoryId: ${categoryId || 'none'}, nameSearchTerms: ${nameSearchTerms.length}, includeDistribuidor: ${includeDistribuidor})`);
 
     if (error) {
       console.error('[API Public Products] Erro:', error);
