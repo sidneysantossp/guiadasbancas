@@ -146,7 +146,16 @@ export async function GET(req: NextRequest) {
         }
         
         // SEMPRE adicionar busca por nome também (cobre produtos sem category_id)
+        // Incluir subcategorias + nome da categoria pai + singular/plural
         nameSearchTerms = subcategories.map(s => s.toLowerCase());
+        if (!nameSearchTerms.includes(resolvedName)) {
+          nameSearchTerms.push(resolvedName);
+        }
+        // Adicionar singular (remover 's' final) para cobrir variações
+        const singular = resolvedName.endsWith('s') ? resolvedName.slice(0, -1) : null;
+        if (singular && !nameSearchTerms.includes(singular)) {
+          nameSearchTerms.push(singular);
+        }
         
         console.log(`[API Public] categoryIds: ${categoryIds.length}, nameSearchTerms: ${nameSearchTerms.length}`);
       } else {
