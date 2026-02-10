@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 60; // Cache de 60 segundos
+export const revalidate = 0; // Sem cache - garantir dados frescos
 
 /**
  * API PÚBLICA para produtos (Home Page)
