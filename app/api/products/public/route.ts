@@ -4,6 +4,9 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0; // Sem cache - garantir dados frescos
+export const fetchCache = 'force-no-store';
+
+const API_VERSION = '2026-02-10-v3';
 
 /**
  * API PÚBLICA para produtos (Home Page)
@@ -12,6 +15,12 @@ export const revalidate = 0; // Sem cache - garantir dados frescos
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+    
+    // Debug: retornar versão se solicitado
+    if (searchParams.get("_version") === "1") {
+      return NextResponse.json({ version: API_VERSION });
+    }
+    
     const category = searchParams.get("category") || "";
     const categoryName = searchParams.get("categoryName") || ""; // Busca por nome da categoria (slug)
     const distribuidor = searchParams.get("distribuidor") || "";
