@@ -142,7 +142,6 @@ export async function GET(req: NextRequest) {
         category_id,
         distribuidor_id,
         codigo_mercos,
-        categories(name),
         bancas(name, lat, lng, is_cotista, cotista_id, active)
       `)
       .eq('active', true)

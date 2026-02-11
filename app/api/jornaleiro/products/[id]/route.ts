@@ -21,7 +21,6 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       .from('products')
       .select(`
         *,
-        categories(name),
         bancas(name)
       `)
       .eq('id', id)

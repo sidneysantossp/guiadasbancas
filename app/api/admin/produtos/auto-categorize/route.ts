@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     // Buscar produtos de distribuidores
     let query = supabaseAdmin
       .from('products')
-      .select('id, name, category_id, categories(name)')
+      .select('id, name, category_id')
       .not('distribuidor_id', 'is', null)
       .eq('active', true);
 
@@ -33,14 +33,29 @@ export async function GET(req: NextRequest) {
       throw error;
     }
 
+    // Carregar mapa de categorias para resolver nomes (FK foi removida)
+    const catIds = [...new Set((products || []).map(p => p.category_id).filter(Boolean))];
+    const catNameMap = new Map<string, string>();
+    if (catIds.length > 0) {
+      const [{ data: dc }, { data: bc }] = await Promise.all([
+        supabaseAdmin.from('distribuidor_categories').select('id, nome').in('id', catIds),
+        supabaseAdmin.from('categories').select('id, name').in('id', catIds),
+      ]);
+      for (const c of dc || []) catNameMap.set(c.id, c.nome);
+      for (const c of bc || []) catNameMap.set(c.id, c.name);
+    }
+
     // Aplicar categorização automática (preview)
-    const categorized = products?.map(p => ({
-      id: p.id,
-      name: p.name,
-      current_category: (p.categories as any)?.name || null,
-      suggested_category: autoCategorizeProduto(p.name),
-      will_change: autoCategorizeProduto(p.name) !== ((p.categories as any)?.name || null)
-    })) || [];
+    const categorized = products?.map(p => {
+      const currentCat = p.category_id ? (catNameMap.get(p.category_id) || null) : null;
+      return {
+        id: p.id,
+        name: p.name,
+        current_category: currentCat,
+        suggested_category: autoCategorizeProduto(p.name),
+        will_change: autoCategorizeProduto(p.name) !== currentCat
+      };
+    }) || [];
 
     // Estatísticas
     const stats = getCategoriesStats(products || []);

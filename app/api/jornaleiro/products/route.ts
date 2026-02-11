@@ -48,7 +48,6 @@ export async function GET(request: NextRequest) {
     .from('products')
     .select(`
       *,
-      categories(name),
       bancas(name)
     `)
     .eq('banca_id', banca.id);
@@ -90,7 +89,6 @@ export async function GET(request: NextRequest) {
       .from('products')
       .select(`
         *,
-        categories(name),
         bancas(name)
       `)
       .not('distribuidor_id', 'is', null)

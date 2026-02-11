@@ -51,7 +51,6 @@ export async function GET(req: NextRequest) {
       .from('products')
       .select(`
         *,
-        categories(name),
         bancas(name)
       `);
 
@@ -96,7 +95,6 @@ export async function GET(req: NextRequest) {
           .from('products')
           .select(`
             *,
-            categories(name),
             bancas(name)
           `)
           .not('distribuidor_id', 'is', null);
