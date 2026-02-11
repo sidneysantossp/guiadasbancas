@@ -154,16 +154,19 @@ export async function GET(req: NextRequest) {
           }
         }
         
-        // SEMPRE adicionar busca por nome também (cobre produtos sem category_id)
-        // Incluir subcategorias + nome da categoria pai + singular/plural
+        // Busca por nome para cobrir produtos sem category_id
         nameSearchTerms = subcategories.map(s => s.toLowerCase());
-        if (!nameSearchTerms.includes(resolvedName)) {
-          nameSearchTerms.push(resolvedName);
-        }
-        // Adicionar singular (remover 's' final) para cobrir variações
-        const singular = resolvedName.endsWith('s') ? resolvedName.slice(0, -1) : null;
-        if (singular && !nameSearchTerms.includes(singular)) {
-          nameSearchTerms.push(singular);
+        // Só adicionar nome da categoria pai quando NÃO for busca por subcategoria específica
+        // (evita que "bebida" match "LIVRARIA DE BEBIDAS" ao buscar "cerveja")
+        if (!subSlug) {
+          if (!nameSearchTerms.includes(resolvedName)) {
+            nameSearchTerms.push(resolvedName);
+          }
+          // Adicionar singular (remover 's' final) para cobrir variações
+          const singular = resolvedName.endsWith('s') ? resolvedName.slice(0, -1) : null;
+          if (singular && !nameSearchTerms.includes(singular)) {
+            nameSearchTerms.push(singular);
+          }
         }
         
         console.log(`[API Public] categoryIds: ${categoryIds.length}, nameSearchTerms: ${nameSearchTerms.length}`);
