@@ -30,7 +30,7 @@ export const categoryMenu: MainCategory[] = [
   },
   {
     name: "Tabacaria",
-    slug: "cigarros",
+    slug: "tabacaria",
     icon: "🚬",
     subcategories: [
       { name: "Cigarros", slug: "cigarros" },
