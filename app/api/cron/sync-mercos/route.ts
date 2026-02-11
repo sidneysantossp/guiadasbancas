@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
               sob_encomenda: false,
               pre_venda: false,
               pronta_entrega: true,
-              active: true,
+              active: produtoMercos.ativo !== false,
               sincronizado_em: new Date().toISOString(),
             };
 

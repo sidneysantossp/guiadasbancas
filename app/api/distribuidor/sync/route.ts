@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
         description: produto.descricao || produto.observacoes || '',
         price: parseFloat(produto.preco_tabela) || 0,
         stock_qty: produto.saldo_estoque || 0,
-        active: true,
+        active: produto.ativo !== false,
         mercos_id: produto.id,
         codigo_mercos: produto.codigo || null,
         distribuidor_id: distribuidorId,

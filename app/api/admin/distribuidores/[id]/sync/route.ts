@@ -211,7 +211,7 @@ export async function POST(
             sob_encomenda: false,
             pre_venda: false,
             pronta_entrega: true,
-            active: !produtoMercos.excluido,
+            active: !produtoMercos.excluido && produtoMercos.ativo !== false,
             category_id: resolvedCategoryId,
           };
           
