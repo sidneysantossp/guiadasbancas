@@ -33,16 +33,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Buscar markups por categoria
+    // Buscar markups por categoria (sem FK join - FK foi removida)
     const { data: markupCategorias } = await supabaseAdmin
       .from('distribuidor_markup_categorias')
-      .select(`
-        id,
-        category_id,
-        markup_percentual,
-        markup_fixo,
-        categories(id, name)
-      `)
+      .select('id, category_id, markup_percentual, markup_fixo')
       .eq('distribuidor_id', distribuidorId);
 
     // Buscar markups por produto
@@ -57,12 +51,20 @@ export async function GET(request: NextRequest) {
       `)
       .eq('distribuidor_id', distribuidorId);
 
-    // Buscar categorias disponíveis para o distribuidor
-    const { data: categoriasDisponiveis } = await supabaseAdmin
-      .from('categories')
-      .select('id, name')
-      .eq('active', true)
-      .order('name');
+    // Buscar categorias disponíveis (distribuidor_categories + categories)
+    const [{ data: distCatsMarkup }, { data: bancaCatsMarkup }] = await Promise.all([
+      supabaseAdmin.from('distribuidor_categories').select('id, nome').eq('distribuidor_id', distribuidorId),
+      supabaseAdmin.from('categories').select('id, name').eq('active', true).order('name'),
+    ]);
+    const catNameMap = new Map<string, string>();
+    for (const c of distCatsMarkup || []) catNameMap.set(c.id, c.nome);
+    for (const c of bancaCatsMarkup || []) catNameMap.set(c.id, c.name);
+
+    // Combinar categorias disponíveis para seleção
+    const categoriasDisponiveis = [
+      ...(distCatsMarkup || []).map((c: any) => ({ id: c.id, name: c.nome })),
+      ...(bancaCatsMarkup || []).map((c: any) => ({ id: c.id, name: c.name })),
+    ].sort((a, b) => a.name.localeCompare(b.name));
 
     // Contar total de produtos do distribuidor (ativos e inativos)
     const { count: totalProdutos } = await supabaseAdmin
@@ -83,7 +85,7 @@ export async function GET(request: NextRequest) {
         categorias: (markupCategorias || []).map((m: any) => ({
           id: m.id,
           category_id: m.category_id,
-          category_name: m.categories?.name || 'Categoria',
+          category_name: catNameMap.get(m.category_id) || 'Categoria',
           markup_percentual: m.markup_percentual || 0,
           markup_fixo: m.markup_fixo || 0,
         })),

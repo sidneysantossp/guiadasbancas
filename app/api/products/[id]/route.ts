@@ -13,7 +13,6 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       .from('products')
       .select(`
         *,
-        categories(id, name),
         bancas(id, name, address, whatsapp, is_cotista, cotista_id, active)
       `)
       .eq('id', productId)
@@ -21,6 +20,19 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
 
     if (error || !data) {
       return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 });
+    }
+
+    // Resolver nome da categoria sem FK join (FK foi removida)
+    if (data.category_id) {
+      const { data: distCat } = await supabaseAdmin.from('distribuidor_categories').select('id, nome').eq('id', data.category_id).single();
+      if (distCat) {
+        (data as any).categories = { id: distCat.id, name: distCat.nome };
+      } else {
+        const { data: bancaCat } = await supabaseAdmin.from('categories').select('id, name').eq('id', data.category_id).single();
+        if (bancaCat) {
+          (data as any).categories = bancaCat;
+        }
+      }
     }
 
     const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);

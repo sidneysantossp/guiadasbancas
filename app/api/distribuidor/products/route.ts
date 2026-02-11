@@ -42,6 +42,15 @@ export async function GET(request: NextRequest) {
     
     console.log('[API Distribuidor] Total de produtos com distribuidor_id =', distribuidorId, ':', countCheck);
 
+    // Carregar mapa de categorias do distribuidor (category_id pode apontar para distribuidor_categories ou categories)
+    const [{ data: distCats }, { data: bancaCats }] = await Promise.all([
+      supabaseAdmin.from('distribuidor_categories').select('id, nome').eq('distribuidor_id', distribuidorId),
+      supabaseAdmin.from('categories').select('id, name'),
+    ]);
+    const categoryNameMap = new Map<string, string>();
+    for (const c of distCats || []) categoryNameMap.set(c.id, c.nome);
+    for (const c of bancaCats || []) categoryNameMap.set(c.id, c.name);
+
     // Buscar produtos em lotes para evitar limite do Supabase (1000 por query)
     const BATCH_SIZE = 1000;
     let allProducts: any[] = [];
@@ -51,10 +60,7 @@ export async function GET(request: NextRequest) {
     while (hasMore) {
       let query = supabaseAdmin
         .from('products')
-        .select(`
-          *,
-          categories(id, name)
-        `)
+        .select('*')
         .eq('distribuidor_id', distribuidorId);
 
       if (productId) {
@@ -234,6 +240,9 @@ export async function GET(request: NextRequest) {
       const precoComMarkup = calcularPrecoComMarkup(precoBase, product.id, product.category_id);
       const hasProductMarkup = markupProdMap.has(product.id);
 
+      // Resolver nome da categoria via mapa (sem FK join)
+      const categoryName = product.category_id ? (categoryNameMap.get(product.category_id) || 'Sem Categoria') : 'Sem Categoria';
+
       return {
         id: product.id,
         name: product.name,
@@ -253,7 +262,7 @@ export async function GET(request: NextRequest) {
         custom_featured: product.custom_featured ?? false,
         image_url: imageUrl,
         images: product.images || [],
-        category: product.categories?.name || 'Sem Categoria',
+        category: categoryName,
         category_id: product.category_id,
         active: product.active ?? true,
         stock_qty: product.stock_qty || 0,
