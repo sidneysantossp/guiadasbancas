@@ -97,6 +97,8 @@ export async function POST(request: NextRequest) {
         let processados = 0;
         let recebidos = 0;
         let atingiuLimiteTempo = false;
+        // Rastrear o maior ultima_alteracao dos produtos processados (cursor real do Mercos)
+        let latestMercosTimestamp: string | null = null;
 
         console.log(`[CRON] ${deveSerCompleta ? 'SINCRONIZAÇÃO COMPLETA' : 'Sincronização incremental'} desde: ${ultimaSincronizacao || '2020-01-01'}`);
 
@@ -133,6 +135,14 @@ export async function POST(request: NextRequest) {
           for (const produtoMercos of lote) {
             if ((Date.now() - startTime) > MAX_EXECUTION_TIME) { atingiuLimiteTempo = true; break; }
             processados++;
+            
+            // Atualizar cursor do Mercos com o maior ultima_alteracao
+            if (produtoMercos.ultima_alteracao) {
+              const ts = produtoMercos.ultima_alteracao.toString();
+              if (!latestMercosTimestamp || ts > latestMercosTimestamp) {
+                latestMercosTimestamp = ts;
+              }
+            }
             
             // Verificar se o produto foi excluído (Mercos: ativo=false NÃO significa inativo no catálogo)
             const isExcluido = !!produtoMercos.excluido;
@@ -227,8 +237,11 @@ export async function POST(request: NextRequest) {
           .select('*', { count: 'exact', head: true })
           .eq('distribuidor_id', distribuidor.id);
 
-        // Atualizar última sincronização apenas se concluído sem timeout
-        const novaUltimaSync = !atingiuLimiteTempo ? new Date().toISOString() : (distribuidor.ultima_sincronizacao || null);
+        // Atualizar última sincronização usando timestamp do Mercos (não server time)
+        const novaUltimaSync = !atingiuLimiteTempo
+          ? (latestMercosTimestamp || distribuidor.ultima_sincronizacao || null)
+          : (distribuidor.ultima_sincronizacao || null);
+        console.log(`[CRON] Cursor de sync: latestMercos=${latestMercosTimestamp}, usando=${novaUltimaSync}`);
         await supabase
           .from('distribuidores')
           .update({

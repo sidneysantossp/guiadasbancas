@@ -191,6 +191,8 @@ export async function POST(request: NextRequest) {
     let produtosAtualizados = 0;
     let erros = 0;
     const now = new Date().toISOString();
+    // Rastrear o maior ultima_alteracao dos produtos processados (cursor real do Mercos)
+    let latestMercosTimestamp: string | null = null;
     const INSERT_BATCH_SIZE = 200;
     const UPDATE_CONCURRENCY = 10;
 
@@ -230,6 +232,14 @@ export async function POST(request: NextRequest) {
       const resolvedCategoryId = (produto.categoria_id && categoryMap.has(produto.categoria_id))
         ? categoryMap.get(produto.categoria_id)!
         : null;
+
+      // Atualizar cursor do Mercos com o maior ultima_alteracao
+      if (produto.ultima_alteracao) {
+        const ts = produto.ultima_alteracao.toString();
+        if (!latestMercosTimestamp || ts > latestMercosTimestamp) {
+          latestMercosTimestamp = ts;
+        }
+      }
 
       const produtoData: any = {
         name: produto.nome || 'Sem nome',
@@ -302,10 +312,13 @@ export async function POST(request: NextRequest) {
       console.log(`[Sync] ${toDeactivate.length} produtos desativados (não vieram na resposta)`);
     }
 
-    // Atualizar última sincronização
+    // Atualizar última sincronização usando o timestamp do Mercos (não server time)
+    // Isso garante que o próximo sync incremental busque a partir do ponto correto
+    const syncTimestamp = latestMercosTimestamp || distribuidor.ultima_sincronizacao || now;
+    console.log(`[Sync] Cursor de sync: latestMercos=${latestMercosTimestamp}, usando=${syncTimestamp}`);
     await supabaseAdmin
       .from('distribuidores')
-      .update({ ultima_sincronizacao: new Date().toISOString() })
+      .update({ ultima_sincronizacao: syncTimestamp })
       .eq('id', distribuidorId);
 
     // Contar total de produtos ativos

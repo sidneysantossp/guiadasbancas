@@ -285,6 +285,12 @@ export default function IntegracaoMercosPage() {
                     {syncResult.data.total_produtos !== undefined && (
                       <p>Total de produtos: <strong>{syncResult.data.total_produtos}</strong></p>
                     )}
+                    {syncResult.data.erros !== undefined && syncResult.data.erros > 0 && (
+                      <p className="text-red-600">Erros: <strong>{syncResult.data.erros}</strong></p>
+                    )}
+                    {(syncResult.data.produtos_atualizados === 0 && syncResult.data.produtos_novos === 0) && (
+                      <p className="text-amber-600 mt-2">Nenhuma alteração detectada na Mercos desde a última sincronização. Se você atualizou estoque/preços na Mercos, aguarde alguns minutos e tente novamente.</p>
+                    )}
                   </div>
                 )}
                 
