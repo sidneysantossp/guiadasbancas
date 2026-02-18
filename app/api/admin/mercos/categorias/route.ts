@@ -51,13 +51,15 @@ export async function GET(request: Request) {
 
     let allCategorias: any[] = [];
     let dataInicial = '2000-01-01T00:00:00';
+    let lastId: number | null = null;
     let hasMore = true;
     let pageCount = 0;
 
-    while (hasMore && pageCount < 50) {
+    while (hasMore && pageCount < 100) {
       pageCount++;
-      const url = `${baseUrl}/categorias?alterado_apos=${dataInicial}&limit=200&order_by=ultima_alteracao&order_direction=asc`;
-      const res = await fetchWithThrottle(url, { headers });
+      let urlStr = `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(dataInicial)}&limit=200&order_by=ultima_alteracao&order_direction=asc`;
+      if (lastId) urlStr += `&id_maior_que=${lastId}`;
+      const res = await fetchWithThrottle(urlStr, { headers });
 
       if (!res.ok) {
         const text = await res.text();
@@ -74,7 +76,9 @@ export async function GET(request: Request) {
 
       const limitou = res.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
       if (limitou && arr.length > 0) {
-        dataInicial = arr[arr.length - 1].ultima_alteracao;
+        const last = arr[arr.length - 1];
+        dataInicial = last.ultima_alteracao;
+        lastId = last.id;
       } else {
         hasMore = false;
       }
