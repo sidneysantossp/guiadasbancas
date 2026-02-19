@@ -54,8 +54,8 @@ async function persistCategoriasNoErp(
 
     const { data: dist, error: distError } = await supabaseAdmin
       .from('distribuidores')
-      .select('id, nome')
-      .eq('company_token', companyToken)
+      .select('id, nome, company_token, mercos_company_token')
+      .or(`company_token.eq.${companyToken},mercos_company_token.eq.${companyToken}`)
       .limit(1)
       .maybeSingle();
 
@@ -69,7 +69,7 @@ async function persistCategoriasNoErp(
     if (!dist) {
       return {
         salvou: false,
-        mensagem: 'Distribuidor não encontrado para este CompanyToken. Registros não foram persistidos no ERP.',
+        mensagem: `Distribuidor não encontrado para este CompanyToken (${companyToken}). Verifique se o token está salvo em company_token ou mercos_company_token no cadastro do distribuidor.`,
       };
     }
 
