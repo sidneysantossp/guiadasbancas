@@ -135,7 +135,11 @@ export default function HomologacaoMercosPage() {
       });
       if (step1Id.trim()) params.set("id", step1Id.trim());
       const res = await fetch(`/api/admin/mercos/categorias?${params}`);
-      const json = await res.json();
+      const text = await res.text();
+      let json: any;
+      try { json = JSON.parse(text); } catch {
+        json = { success: false, error: `Resposta inválida do servidor (HTTP ${res.status}). Possível timeout — tente novamente.`, raw: text.slice(0, 200) };
+      }
       setStep1Result(json);
     } catch (e: any) {
       setStep1Result({ success: false, error: e.message });
@@ -156,7 +160,11 @@ export default function HomologacaoMercosPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const json = await res.json();
+      const text = await res.text();
+      let json: any;
+      try { json = JSON.parse(text); } catch {
+        json = { success: false, error: `Resposta inválida do servidor (HTTP ${res.status}). Tente novamente.`, raw: text.slice(0, 200) };
+      }
       setStep2Result(json);
       if (json.success && json.categoria?.id) {
         setStep3Id(String(json.categoria.id));
@@ -184,7 +192,11 @@ export default function HomologacaoMercosPage() {
           companyToken,
         }),
       });
-      const json = await res.json();
+      const text = await res.text();
+      let json: any;
+      try { json = JSON.parse(text); } catch {
+        json = { success: false, error: `Resposta inválida do servidor (HTTP ${res.status}). Tente novamente.`, raw: text.slice(0, 200) };
+      }
       setStep3Result(json);
     } catch (e: any) {
       setStep3Result({ success: false, error: e.message });
