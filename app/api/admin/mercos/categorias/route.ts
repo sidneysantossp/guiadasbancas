@@ -29,6 +29,46 @@ async function fetchWithThrottle(url: string, options: RequestInit): Promise<Res
 }
 
 /**
+ * Fetch all categories from a given date window, advancing cursor by +1s each page.
+ * The Mercos sandbox returns only 2 records per page regardless of limit param.
+ */
+async function fetchWindow(
+  baseUrl: string,
+  headers: Record<string, string>,
+  startDate: string,
+  seenIds: Set<number>,
+  out: any[]
+): Promise<void> {
+  let cursor = startDate;
+  let page = 0;
+  while (page < 60) {
+    page++;
+    const urlStr = `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(cursor)}&limit=200&order_by=ultima_alteracao&order_direction=asc`;
+    const res = await fetchWithThrottle(urlStr, { headers });
+    if (!res.ok) break;
+    const data = await res.json();
+    const arr = Array.isArray(data) ? data : [];
+    if (arr.length === 0) break;
+    let addedNew = false;
+    for (const c of arr) {
+      if (!seenIds.has(c.id)) {
+        seenIds.add(c.id);
+        out.push(c);
+        addedNew = true;
+      }
+    }
+    const limitou = res.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
+    if (!limitou || !addedNew) break;
+    const last = arr[arr.length - 1];
+    const d = new Date(last.ultima_alteracao.replace(' ', 'T') + 'Z');
+    d.setSeconds(d.getSeconds() + 1);
+    const next = d.toISOString().slice(0, 19);
+    if (next <= cursor) break;
+    cursor = next;
+  }
+}
+
+/**
  * GET /api/admin/mercos/categorias?prefix=xxx&useSandbox=true&companyToken=xxx
  * Busca categorias pelo prefixo do nome (Etapa 1 - GET)
  */
@@ -38,6 +78,7 @@ export async function GET(request: Request) {
     const prefix = (searchParams.get('prefix') || '').trim();
     const useSandbox = searchParams.get('useSandbox') !== 'false';
     const customCompanyToken = searchParams.get('companyToken') || '';
+    const idParam = searchParams.get('id') || '';
 
     if (!prefix) {
       return NextResponse.json({ success: false, error: 'Parâmetro prefix é obrigatório' }, { status: 400 });
@@ -46,41 +87,46 @@ export async function GET(request: Request) {
     const appToken = SANDBOX_APP_TOKEN;
     const companyToken = useSandbox ? (customCompanyToken || SANDBOX_COMPANY_TOKEN) : customCompanyToken;
     const baseUrl = useSandbox ? SANDBOX_BASE_URL : 'https://app.mercos.com/api/v1';
-
     const headers = getMercosHeaders(appToken, companyToken);
 
-    let allCategorias: any[] = [];
-    let dataInicial = '2000-01-01T00:00:00';
-    let lastId: number | null = null;
-    let hasMore = true;
-    let pageCount = 0;
+    const seenIds = new Set<number>();
+    const allCategorias: any[] = [];
 
-    while (hasMore && pageCount < 100) {
-      pageCount++;
-      let urlStr = `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(dataInicial)}&limit=200&order_by=ultima_alteracao&order_direction=asc`;
-      if (lastId) urlStr += `&id_maior_que=${lastId}`;
-      const res = await fetchWithThrottle(urlStr, { headers });
+    // The sandbox returns different records depending on the date window used.
+    // We fetch from multiple windows to maximize coverage.
+    const now = new Date();
+    const thisYear = now.getFullYear();
+    const thisMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const thisDay = String(now.getDate()).padStart(2, '0');
 
-      if (!res.ok) {
-        const text = await res.text();
-        return NextResponse.json({
-          success: false,
-          error: `Erro Mercos API: ${res.status}`,
-          details: text,
-        }, { status: res.status });
-      }
+    const windows = [
+      `${thisYear}-${thisMonth}-${thisDay}T00:00:00`,  // today
+      `${thisYear}-01-01T00:00:00`,                     // this year
+      `${thisYear - 1}-01-01T00:00:00`,                 // last year
+      '2025-11-01T00:00:00',
+      '2025-10-01T00:00:00',
+      '2025-06-01T00:00:00',
+      '2025-01-01T00:00:00',
+      '2024-01-01T00:00:00',
+      '2023-01-01T00:00:00',
+      '2020-01-01T00:00:00',
+      '2000-01-01T00:00:00',
+    ];
 
-      const data = await res.json();
-      const arr = Array.isArray(data) ? data : [];
-      allCategorias = [...allCategorias, ...arr];
+    // Fetch windows sequentially to respect rate limits
+    for (const w of windows) {
+      await fetchWindow(baseUrl, headers, w, seenIds, allCategorias);
+    }
 
-      const limitou = res.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
-      if (limitou && arr.length > 0) {
-        const last = arr[arr.length - 1];
-        dataInicial = last.ultima_alteracao;
-        lastId = last.id;
-      } else {
-        hasMore = false;
+    // Also try direct ID fetch if provided
+    if (idParam) {
+      const directRes = await fetchWithThrottle(`${baseUrl}/categorias/${idParam}`, { headers });
+      if (directRes.ok) {
+        const directCat = await directRes.json();
+        if (directCat?.id && !seenIds.has(directCat.id)) {
+          seenIds.add(directCat.id);
+          allCategorias.push(directCat);
+        }
       }
     }
 
@@ -91,22 +137,6 @@ export async function GET(request: Request) {
     if (encontradas.length === 0) {
       encontradas = allCategorias.filter(c => (c.nome || '').toLowerCase().includes(lower));
       matchMode = 'includes';
-    }
-
-    // If still nothing found, try fetching by ID directly (sandbox workaround)
-    // The sandbox only exposes 2 records via pagination but allows GET by ID
-    if (encontradas.length === 0) {
-      const idParam = searchParams.get('id');
-      if (idParam) {
-        const directRes = await fetchWithThrottle(`${baseUrl}/categorias/${idParam}`, { headers });
-        if (directRes.ok) {
-          const directCat = await directRes.json();
-          if (directCat && (directCat.nome || '').toLowerCase().includes(lower)) {
-            encontradas = [directCat];
-            matchMode = 'directId';
-          }
-        }
-      }
     }
 
     return NextResponse.json({
