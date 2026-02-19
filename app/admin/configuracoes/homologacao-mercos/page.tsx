@@ -543,11 +543,6 @@ export default function HomologacaoMercosPage() {
                           Total persistidas: <strong>{step1Result.salvamento.total_persistidas}</strong>
                         </div>
                       )}
-                      {step1Result.salvamento.distribuidor && (
-                        <div>
-                          Distribuidor: <strong>{step1Result.salvamento.distribuidor.nome}</strong>
-                        </div>
-                      )}
                     </div>
                   )}
                   {/* Show ALL categories returned, highlight prefix matches */}
