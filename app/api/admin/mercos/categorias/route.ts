@@ -196,18 +196,23 @@ export async function GET(request: Request) {
       matchMode = 'includes';
     }
 
+    const mapCat = (c: any) => ({
+      id: c.id,
+      nome: c.nome,
+      categoria_pai_id: c.categoria_pai_id ?? null,
+      ultima_alteracao: c.ultima_alteracao,
+      excluido: c.excluido,
+    });
+
     return NextResponse.json({
       success: true,
       total_categorias: allCategorias.length,
       encontradas: encontradas.length,
       matchMode,
-      categorias: encontradas.map(c => ({
-        id: c.id,
-        nome: c.nome,
-        categoria_pai_id: c.categoria_pai_id ?? null,
-        ultima_alteracao: c.ultima_alteracao,
-        excluido: c.excluido,
-      })),
+      // All categories returned by Mercos in this window (for full visibility)
+      todas_categorias: allCategorias.map(mapCat),
+      // Only the ones matching the prefix
+      categorias: encontradas.map(mapCat),
       log: callLog,
     });
   } catch (error: any) {

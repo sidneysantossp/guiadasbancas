@@ -22,6 +22,7 @@ type StepResult = {
   matchMode?: string;
   scan_completo?: boolean;
   categorias?: Categoria[];
+  todas_categorias?: Categoria[];
   log?: any;
 };
 
@@ -414,80 +415,62 @@ export default function HomologacaoMercosPage() {
                         </span>
                       )}
                   </div>
-                  <div className="overflow-auto rounded-lg border bg-white">
-                    <table className="min-w-full text-xs">
-                      <thead className="border-b bg-gray-50">
-                        <tr>
-                          <th className="px-3 py-2 text-left font-semibold text-gray-600">
-                            ID
-                          </th>
-                          <th className="px-3 py-2 text-left font-semibold text-gray-600">
-                            Nome completo
-                          </th>
-                          <th className="px-3 py-2 text-left font-semibold text-gray-600">
-                            Categoria Pai ID
-                          </th>
-                          <th className="px-3 py-2 text-left font-semibold text-gray-600">
-                            Última alteração
-                          </th>
-                          <th className="px-3 py-2 text-left font-semibold text-gray-600">
-                            Excluído
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {step1Result.categorias &&
-                        step1Result.categorias.length > 0 ? (
-                          step1Result.categorias.map((cat) => (
-                            <tr
-                              key={cat.id}
-                              className="border-b last:border-0 hover:bg-gray-50"
-                            >
-                              <td className="px-3 py-2 font-mono text-gray-700">
-                                {cat.id}
-                              </td>
-                              <td className="px-3 py-2 font-medium text-gray-900">
-                                {cat.nome}
-                              </td>
-                              <td className="px-3 py-2 text-gray-500">
-                                {cat.categoria_pai_id ?? "—"}
-                              </td>
-                              <td className="px-3 py-2 text-gray-500">
-                                {formatDate(cat.ultima_alteracao)}
-                              </td>
-                              <td className="px-3 py-2">
-                                <span
-                                  className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-                                    cat.excluido
-                                      ? "bg-red-100 text-red-700"
-                                      : "bg-green-100 text-green-700"
-                                  }`}
-                                >
-                                  {cat.excluido ? "Sim" : "Não"}
-                                </span>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td
-                              colSpan={5}
-                              className="px-3 py-6 text-center text-gray-400"
-                            >
-                              Nenhuma categoria encontrada com esse prefixo.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  {step1Result.categorias &&
-                    step1Result.categorias.length > 0 && (
-                      <p className="mt-2 text-xs text-green-600">
-                        ✅ Copie o <strong>nome completo</strong> acima e
-                        informe no portal de homologação da Mercos.
+                  {/* Show ALL categories returned, highlight prefix matches */}
+                  {(step1Result.todas_categorias ?? step1Result.categorias ?? []).length > 0 ? (
+                    <>
+                      <p className="mb-1 text-xs text-gray-500">
+                        Todas as categorias retornadas no período — <span className="font-semibold text-green-700">verde = bate com o prefixo</span>
                       </p>
-                    )}
+                      <div className="overflow-auto rounded-lg border bg-white">
+                        <table className="min-w-full text-xs">
+                          <thead className="border-b bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-semibold text-gray-600">ID</th>
+                              <th className="px-3 py-2 text-left font-semibold text-gray-600">Nome completo</th>
+                              <th className="px-3 py-2 text-left font-semibold text-gray-600">Pai ID</th>
+                              <th className="px-3 py-2 text-left font-semibold text-gray-600">Última alteração</th>
+                              <th className="px-3 py-2 text-left font-semibold text-gray-600">Excluído</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(step1Result.todas_categorias ?? step1Result.categorias ?? []).map((cat) => {
+                              const isMatch = (step1Result.categorias ?? []).some(c => c.id === cat.id);
+                              return (
+                                <tr key={cat.id} className={`border-b last:border-0 ${isMatch ? "bg-green-50" : "hover:bg-gray-50"}`}>
+                                  <td className={`px-3 py-2 font-mono ${isMatch ? "font-bold text-green-800" : "text-gray-500"}`}>{cat.id}</td>
+                                  <td className={`px-3 py-2 ${isMatch ? "font-bold text-green-900" : "text-gray-600"}`}>
+                                    {cat.nome}
+                                    {isMatch && <span className="ml-2 rounded bg-green-200 px-1.5 py-0.5 text-xs font-semibold text-green-800">✓ prefixo</span>}
+                                  </td>
+                                  <td className="px-3 py-2 text-gray-500">{cat.categoria_pai_id ?? "—"}</td>
+                                  <td className="px-3 py-2 text-gray-500">{formatDate(cat.ultima_alteracao)}</td>
+                                  <td className="px-3 py-2">
+                                    <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${cat.excluido ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                                      {cat.excluido ? "Sim" : "Não"}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {step1Result.encontradas === 0 && (
+                        <p className="mt-2 text-xs text-amber-700">
+                          ⚠️ Nenhuma categoria bate com o prefixo <strong>{step1Prefix}</strong> — mas os registros acima foram retornados pela Mercos neste período.
+                        </p>
+                      )}
+                      {(step1Result.encontradas ?? 0) > 0 && (
+                        <p className="mt-2 text-xs text-green-600">
+                          ✅ Copie o <strong>nome completo</strong> destacado em verde e informe no portal de homologação da Mercos.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="mt-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-500">
+                      Nenhuma categoria retornada pela Mercos neste período. Verifique o horário de início.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <ResultBox result={step1Result} />
