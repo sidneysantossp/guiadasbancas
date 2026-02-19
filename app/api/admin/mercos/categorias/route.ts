@@ -36,7 +36,10 @@ async function fetchThrottled(url: string, options: RequestInit): Promise<Respon
 }
 
 /**
- * Scan all categories starting from startDate, advancing cursor +1s per page.
+ * Scan all categories from startDate to now.
+ * When a page returns results, advance cursor to last record's timestamp.
+ * When a page returns 0, jump forward exponentially (1s → 1min → 1h → 1day)
+ * until we find more records or pass the current time.
  * Returns true (and stops) as soon as prefix is found.
  */
 async function scanFrom(
@@ -49,29 +52,55 @@ async function scanFrom(
   deadline: number
 ): Promise<boolean> {
   let cursor = startDate;
+  const nowTs = new Date().toISOString().slice(0, 19);
+  // Jump sizes in seconds when we get 0 results: 1s, 60s, 3600s, 86400s
+  const jumpSizes = [1, 60, 3600, 86400];
+  let jumpIdx = 0;
   let page = 0;
-  while (page < 80) {
+
+  while (page < 200) {
     if (Date.now() > deadline) break;
+    if (cursor > nowTs) break; // past current time, nothing more to find
+
     page++;
     const urlStr = `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(cursor)}&limit=200&order_by=ultima_alteracao&order_direction=asc`;
     const res = await fetchThrottled(urlStr, { headers });
     if (!res.ok) break;
     const data = await res.json();
     const arr = Array.isArray(data) ? data : [];
-    if (arr.length === 0) break;
+
+    if (arr.length === 0) {
+      // No results — jump forward
+      const d = new Date(cursor + 'Z');
+      d.setSeconds(d.getSeconds() + jumpSizes[jumpIdx]);
+      const next = d.toISOString().slice(0, 19);
+      // Escalate jump size for next empty response
+      if (jumpIdx < jumpSizes.length - 1) jumpIdx++;
+      cursor = next;
+      continue;
+    }
+
+    // Got results — reset jump size
+    jumpIdx = 0;
     for (const c of arr) {
       if (!seenIds.has(c.id)) { seenIds.add(c.id); out.push(c); }
     }
     if (out.some(c => (c.nome || '').toLowerCase().includes(prefix))) return true;
+
     const limitou = res.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
-    if (!limitou) break;
     const last = arr[arr.length - 1];
-    const d = new Date(last.ultima_alteracao.replace(' ', 'T') + 'Z');
-    d.setSeconds(d.getSeconds() + 1);
-    const next = d.toISOString().slice(0, 19);
-    if (next <= cursor) break;
-    cursor = next;
-    await new Promise(resolve => setTimeout(resolve, 1100)); // 1.1s delay
+    const lastTs = last.ultima_alteracao.replace(' ', 'T');
+
+    if (!limitou) {
+      // No more pages after this — jump past last record
+      const d = new Date(lastTs + 'Z');
+      d.setSeconds(d.getSeconds() + 1);
+      cursor = d.toISOString().slice(0, 19);
+      jumpIdx = 0;
+    } else {
+      // More pages — use exact last timestamp as next cursor
+      cursor = lastTs;
+    }
   }
   return false;
 }
