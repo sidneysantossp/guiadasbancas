@@ -484,6 +484,7 @@ export default function HomologacaoMercosPage() {
               ) : (
                 <ResultBox result={step1Result} />
               )}
+              {step1Result?.log && <LogBox log={step1Result.log} />}
             </>
           )}
         </div>

@@ -130,22 +130,12 @@ export async function GET(request: Request) {
     const allCategorias: any[] = [];
     const lower = prefix.toLowerCase();
     let scanCompleto = false;
+    const callLog: any[] = [];
 
-    // Deadline: 50s from now (Vercel limit is 60s)
-    const deadline = Date.now() + 50_000;
+    // Deadline: 55s from now (Vercel limit is 60s)
+    const deadline = Date.now() + 55_000;
 
     const foundInList = () => allCategorias.some(c => (c.nome || '').toLowerCase().includes(lower));
-
-    // Helper: single fetch for a given alterado_apos cursor (no pagination)
-    async function fetchCursor(cursor: string): Promise<any[]> {
-      const res = await fetchThrottled(
-        `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(cursor)}`,
-        { headers }
-      );
-      if (!res.ok) return [];
-      const data = await res.json().catch(() => []);
-      return Array.isArray(data) ? data : [];
-    }
 
     function addAll(arr: any[]) {
       for (const c of arr) {
@@ -153,34 +143,57 @@ export async function GET(request: Request) {
       }
     }
 
+    async function fetchCursorLogged(cursor: string): Promise<any[]> {
+      const ts = new Date().toISOString();
+      const url = `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(cursor)}`;
+      const res = await fetchThrottled(url, { headers });
+      const data = await res.json().catch(() => []);
+      const arr = Array.isArray(data) ? data : [];
+      callLog.push({
+        timestamp: ts,
+        method: 'GET',
+        url,
+        status: res.status,
+        records_returned: arr.length,
+        limitou: res.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS'),
+        total_mercos: res.headers.get('meuspedidos_qtde_total_registros'),
+      });
+      return arr;
+    }
+
     // 1. Direct ID fetch (instant)
     if (idParam) {
-      const directRes = await fetchThrottled(`${baseUrl}/categorias/${idParam}`, { headers });
-      if (directRes.ok) {
-        const directCat = await directRes.json();
-        if (directCat?.id && !seenIds.has(directCat.id)) {
-          seenIds.add(directCat.id);
-          allCategorias.push(directCat);
-        }
+      const ts = new Date().toISOString();
+      const url = `${baseUrl}/categorias/${idParam}`;
+      const directRes = await fetchThrottled(url, { headers });
+      const directCat = directRes.ok ? await directRes.json().catch(() => null) : null;
+      callLog.push({ timestamp: ts, method: 'GET', url, status: directRes.status, body: directCat });
+      if (directCat?.id && !seenIds.has(directCat.id)) {
+        seenIds.add(directCat.id);
+        allCategorias.push(directCat);
       }
     }
 
-    // 2. Fast path: check today and last 7 days (~8 calls, ~10s)
+    // 2. Fast path: today + last 30 days, ALL fired in parallel via the global throttle queue.
+    //    The throttle serialises them at ~1 req/s, so 30 calls ≈ 33s — well within 55s.
     if (!foundInList()) {
       const now = new Date();
       const pad = (n: number) => String(n).padStart(2, '0');
-      for (let daysAgo = 0; daysAgo <= 7 && !foundInList() && Date.now() < deadline; daysAgo++) {
+      const cursors: string[] = [];
+      for (let daysAgo = 0; daysAgo <= 30; daysAgo++) {
         const d = new Date(now);
         d.setDate(d.getDate() - daysAgo);
-        const cursor = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00:00`;
-        addAll(await fetchCursor(cursor));
+        cursors.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00:00`);
       }
+      // Fire all in parallel — fetchThrottled serialises via lastRequestTime
+      const results = await Promise.all(cursors.map(c => fetchCursorLogged(c)));
+      for (const arr of results) addAll(arr);
     }
 
     // 3. Full scan from 2025-01-01 if still not found and time permits
     if (!foundInList() && Date.now() < deadline) {
       await scanFrom(baseUrl, headers, '2025-01-01T00:00:00', seenIds, allCategorias, lower, deadline);
-      scanCompleto = Date.now() < deadline; // true = completed before deadline
+      scanCompleto = Date.now() < deadline;
     } else if (foundInList()) {
       scanCompleto = true;
     }
@@ -206,6 +219,7 @@ export async function GET(request: Request) {
         ultima_alteracao: c.ultima_alteracao,
         excluido: c.excluido,
       })),
+      log: callLog,
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
