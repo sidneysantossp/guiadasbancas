@@ -152,7 +152,7 @@ export async function POST(
         const toUpdate: any[] = [];
 
         produtos.forEach(produto => {
-          const isAtivo = produto.ativo && !produto.excluido;
+          const isAtivo = produto.ativo && !produto.excluido && (produto.saldo_estoque || 0) > 0;
           const existing = existingMap.get(produto.id);
           const existingId = existing?.id;
           
@@ -182,7 +182,7 @@ export async function POST(
             pre_venda: false,
             pronta_entrega: true,
             ativo: isAtivo,
-            active: isAtivo, // Campo usado pela API de stats
+            active: isAtivo,
             updated_at: new Date().toISOString(),
           };
 

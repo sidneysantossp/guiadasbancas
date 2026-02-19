@@ -301,6 +301,15 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
         updateData[key] = body[key];
       }
     }
+
+    // Auto-desativar produto quando estoque chega a zero
+    if (
+      Object.prototype.hasOwnProperty.call(updateData, 'stock_qty') &&
+      Number(updateData.stock_qty) === 0
+    ) {
+      updateData.active = false;
+    }
+
     updateData.updated_at = new Date().toISOString();
 
     console.log('[PATCH] Atualizando produto:', { id, updateData });

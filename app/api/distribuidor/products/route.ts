@@ -356,6 +356,14 @@ export async function PUT(request: NextRequest) {
     const updatesForProduct: Record<string, any> = { ...(updates || {}) };
     delete updatesForProduct.custom_price;
 
+    // Auto-desativar produto quando estoque chega a zero
+    if (
+      Object.prototype.hasOwnProperty.call(updatesForProduct, 'stock_qty') &&
+      Number(updatesForProduct.stock_qty) === 0
+    ) {
+      updatesForProduct.active = false;
+    }
+
     const updateKeys = Object.keys(updatesForProduct);
     let updatedProductRow: any = null;
 

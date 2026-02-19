@@ -247,7 +247,7 @@ async function processSingleProduct(
       throw fetchError;
     }
 
-    const isAtivo = produto.ativo && !produto.excluido;
+    const isAtivo = produto.ativo && !produto.excluido && (produto.saldo_estoque || 0) > 0;
     
     // PRESERVAR imagens existentes - não sobrescrever se já tiver imagens cadastradas manualmente
     const existingImages = existingProduct?.images || [];
@@ -276,7 +276,7 @@ async function processSingleProduct(
       pre_venda: false,
       pronta_entrega: true,
       ativo: isAtivo,
-      active: isAtivo, // Campo usado pela API de stats
+      active: isAtivo,
       updated_at: new Date().toISOString(),
     };
 

@@ -141,7 +141,7 @@ export async function POST(
           sob_encomenda: false,
           pre_venda: false,
           pronta_entrega: true,
-          active: !produtoMercos.excluido, // Mercos: ativo=false NÃO significa inativo no catálogo, apenas excluido importa
+          active: !produtoMercos.excluido && (produtoMercos.saldo_estoque || 0) > 0,
         };
 
         if (existing) {
