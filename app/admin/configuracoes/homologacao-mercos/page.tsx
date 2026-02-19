@@ -20,6 +20,7 @@ type StepResult = {
   total_categorias?: number;
   encontradas?: number;
   matchMode?: string;
+  scan_completo?: boolean;
   categorias?: Categoria[];
 };
 
@@ -349,6 +350,12 @@ export default function HomologacaoMercosPage() {
             <>
               {step1Result.success ? (
                 <div className="mt-4">
+                  {step1Result.scan_completo === false && step1Result.encontradas === 0 && (
+                    <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+                      ⚠️ <strong>Scan interrompido por timeout</strong> — o sandbox retornou {step1Result.total_categorias} categorias mas pode haver mais.
+                      Clique em <strong>Buscar</strong> novamente para continuar, ou informe o ID da categoria no campo opcional.
+                    </div>
+                  )}
                   <div className="mb-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
                     <span>
                       Total no Mercos:{" "}
@@ -368,6 +375,9 @@ export default function HomologacaoMercosPage() {
                           Modo: {step1Result.matchMode}
                         </span>
                       )}
+                    {step1Result.scan_completo === true && (
+                      <span className="text-green-600">✓ Scan completo</span>
+                    )}
                   </div>
                   <div className="overflow-auto rounded-lg border bg-white">
                     <table className="min-w-full text-xs">

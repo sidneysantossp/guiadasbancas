@@ -129,13 +129,31 @@ export async function GET(request: Request) {
     const seenIds = new Set<number>();
     const allCategorias: any[] = [];
     const lower = prefix.toLowerCase();
+    let scanCompleto = false;
 
     // Deadline: 50s from now (Vercel limit is 60s)
     const deadline = Date.now() + 50_000;
 
     const foundInList = () => allCategorias.some(c => (c.nome || '').toLowerCase().includes(lower));
 
-    // 1. Try direct ID fetch first (instant)
+    // Helper: single fetch for a given alterado_apos cursor (no pagination)
+    async function fetchCursor(cursor: string): Promise<any[]> {
+      const res = await fetchThrottled(
+        `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(cursor)}`,
+        { headers }
+      );
+      if (!res.ok) return [];
+      const data = await res.json().catch(() => []);
+      return Array.isArray(data) ? data : [];
+    }
+
+    function addAll(arr: any[]) {
+      for (const c of arr) {
+        if (!seenIds.has(c.id)) { seenIds.add(c.id); allCategorias.push(c); }
+      }
+    }
+
+    // 1. Direct ID fetch (instant)
     if (idParam) {
       const directRes = await fetchThrottled(`${baseUrl}/categorias/${idParam}`, { headers });
       if (directRes.ok) {
@@ -147,27 +165,24 @@ export async function GET(request: Request) {
       }
     }
 
+    // 2. Fast path: check today and last 7 days (~8 calls, ~10s)
     if (!foundInList()) {
-      // 2. Check recent dates first (Mercos creates the test category today/recently)
-      //    Each window costs only 1-2 API calls if the category is there.
       const now = new Date();
       const pad = (n: number) => String(n).padStart(2, '0');
-      const recentWindows: string[] = [];
-      for (let daysAgo = 0; daysAgo <= 7; daysAgo++) {
+      for (let daysAgo = 0; daysAgo <= 7 && !foundInList() && Date.now() < deadline; daysAgo++) {
         const d = new Date(now);
         d.setDate(d.getDate() - daysAgo);
-        recentWindows.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00:00`);
-      }
-      for (const w of recentWindows) {
-        if (Date.now() > deadline) break;
-        await scanFrom(baseUrl, headers, w, seenIds, allCategorias, lower, deadline);
-        if (foundInList()) break;
+        const cursor = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00:00`;
+        addAll(await fetchCursor(cursor));
       }
     }
 
-    if (!foundInList()) {
-      // 3. Full scan from 2000 as last resort (may hit deadline for large sandboxes)
-      await scanFrom(baseUrl, headers, '2000-01-01T00:00:00', seenIds, allCategorias, lower, deadline);
+    // 3. Full scan from 2025-01-01 if still not found and time permits
+    if (!foundInList() && Date.now() < deadline) {
+      await scanFrom(baseUrl, headers, '2025-01-01T00:00:00', seenIds, allCategorias, lower, deadline);
+      scanCompleto = Date.now() < deadline; // true = completed before deadline
+    } else if (foundInList()) {
+      scanCompleto = true;
     }
 
     let encontradas = allCategorias.filter(c => (c.nome || '').toLowerCase().startsWith(lower));
@@ -183,6 +198,7 @@ export async function GET(request: Request) {
       total_categorias: allCategorias.length,
       encontradas: encontradas.length,
       matchMode,
+      scan_completo: scanCompleto,
       categorias: encontradas.map(c => ({
         id: c.id,
         nome: c.nome,
