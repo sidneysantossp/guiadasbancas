@@ -108,19 +108,31 @@ async function scanFrom(
 }
 
 /**
- * GET /api/admin/mercos/categorias?prefix=xxx&useSandbox=true&companyToken=xxx
- * Busca categorias pelo prefixo do nome (Etapa 1 - GET)
+ * GET /api/admin/mercos/categorias
+ * Params:
+ *   prefix        - texto para filtrar pelo campo nome
+ *   alterado_apos - timestamp ISO de início do processo (ex: "2026-02-19T14:00:00")
+ *                   Mercos support: use the time you started the homologation, or 1 min before.
+ *   useSandbox    - boolean (default true)
+ *   companyToken  - override company token
+ *
+ * Strategy: GET /categorias?alterado_apos=<start>&id_maior_que=<lastId>
+ * Paginate with id_maior_que until MEUSPEDIDOS_LIMITOU_REGISTROS != "1".
+ * This is the correct approach per Mercos support.
  */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const prefix = (searchParams.get('prefix') || '').trim();
+    const alteradoApos = (searchParams.get('alterado_apos') || '').trim();
     const useSandbox = searchParams.get('useSandbox') !== 'false';
     const customCompanyToken = searchParams.get('companyToken') || '';
-    const idParam = searchParams.get('id') || '';
 
     if (!prefix) {
       return NextResponse.json({ success: false, error: 'Parâmetro prefix é obrigatório' }, { status: 400 });
+    }
+    if (!alteradoApos) {
+      return NextResponse.json({ success: false, error: 'Parâmetro alterado_apos é obrigatório (informe o horário de início do processo)' }, { status: 400 });
     }
 
     const appToken = SANDBOX_APP_TOKEN;
@@ -128,95 +140,56 @@ export async function GET(request: Request) {
     const baseUrl = useSandbox ? SANDBOX_BASE_URL : 'https://app.mercos.com/api/v1';
     const headers = getMercosHeaders(appToken, companyToken);
 
-    const seenIds = new Set<number>();
     const allCategorias: any[] = [];
-    const lower = prefix.toLowerCase();
-    let scanCompleto = false;
     const callLog: any[] = [];
+    let lastId = 0;
+    let page = 0;
 
-    // Deadline: 55s from now (Vercel limit is 60s)
-    const deadline = Date.now() + 55_000;
-
-    const foundInList = () => allCategorias.some(c => (c.nome || '').toLowerCase().includes(lower));
-
-    function addAll(arr: any[]) {
-      for (const c of arr) {
-        if (!seenIds.has(c.id)) { seenIds.add(c.id); allCategorias.push(c); }
-      }
-    }
-
-    async function fetchCursorLogged(cursor: string): Promise<any[]> {
-      const ts = new Date().toISOString();
-      const url = `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(cursor)}`;
+    // Paginate: GET ?alterado_apos=<start>&id_maior_que=<lastId>
+    // Stop when MEUSPEDIDOS_LIMITOU_REGISTROS != "1" (no more pages)
+    while (page < 50) {
+      page++;
+      const url = `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(alteradoApos)}&id_maior_que=${lastId}`;
+      const reqTs = new Date().toISOString();
       const res = await fetchThrottled(url, { headers });
+      const resTs = new Date().toISOString();
       const data = await res.json().catch(() => []);
       const arr = Array.isArray(data) ? data : [];
+
+      const limitou = res.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS');
+      const totalMercos = res.headers.get('meuspedidos_qtde_total_registros');
+
       callLog.push({
-        timestamp: ts,
-        method: 'GET',
-        url,
-        status: res.status,
-        records_returned: arr.length,
-        limitou: res.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS'),
-        total_mercos: res.headers.get('meuspedidos_qtde_total_registros'),
+        page,
+        request: {
+          timestamp: reqTs,
+          method: 'GET',
+          url,
+          headers: { ApplicationToken: appToken, CompanyToken: companyToken },
+        },
+        response: {
+          timestamp: resTs,
+          status: res.status,
+          headers: {
+            MEUSPEDIDOS_LIMITOU_REGISTROS: limitou,
+            meuspedidos_qtde_total_registros: totalMercos,
+          },
+          body: arr,
+        },
       });
-      return arr;
-    }
 
-    // 1. Direct ID fetch (instant)
-    if (idParam) {
-      const ts = new Date().toISOString();
-      const url = `${baseUrl}/categorias/${idParam}`;
-      const directRes = await fetchThrottled(url, { headers });
-      const directCat = directRes.ok ? await directRes.json().catch(() => null) : null;
-      callLog.push({ timestamp: ts, method: 'GET', url, status: directRes.status, body: directCat });
-      if (directCat?.id && !seenIds.has(directCat.id)) {
-        seenIds.add(directCat.id);
-        allCategorias.push(directCat);
+      for (const c of arr) {
+        allCategorias.push(c);
+        if (c.id > lastId) lastId = c.id;
       }
+
+      // Stop if no more pages
+      if (limitou !== '1' || arr.length === 0) break;
     }
 
-    // 2. Sequential scan: today → 14 days ago (15 calls × 1.1s ≈ 17s), stop early if found.
-    //    Each day-window catches categories modified that day. Mercos creates test categories today.
-    if (!foundInList()) {
-      const now = new Date();
-      const pad = (n: number) => String(n).padStart(2, '0');
-      for (let daysAgo = 0; daysAgo <= 14; daysAgo++) {
-        if (Date.now() > deadline) break;
-        const d = new Date(now);
-        d.setDate(d.getDate() - daysAgo);
-        const cursor = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00:00`;
-        addAll(await fetchCursorLogged(cursor));
-        if (foundInList()) { scanCompleto = true; break; }
-      }
-    }
-
-    // 3. If still not found, try a few known productive historical cursors (pre-computed from full scan)
-    if (!foundInList() && Date.now() < deadline) {
-      const historicalCursors = [
-        '2025-01-01T00:00:00',
-        '2025-11-01T01:09:55',
-        '2025-11-01T02:50:51',
-        '2025-11-01T10:41:51',
-        '2025-11-02T12:37:51',
-        '2025-11-11T08:27:37',
-        '2025-11-11T10:18:05',
-        '2025-11-13T16:56:49',
-        '2025-11-30T20:20:47',
-        '2025-12-01T20:20:42',
-      ];
-      for (const cursor of historicalCursors) {
-        if (Date.now() > deadline) break;
-        addAll(await fetchCursorLogged(cursor));
-        if (foundInList()) { scanCompleto = true; break; }
-      }
-    }
-
-    if (foundInList()) scanCompleto = true;
-
+    const lower = prefix.toLowerCase();
     let encontradas = allCategorias.filter(c => (c.nome || '').toLowerCase().startsWith(lower));
     let matchMode = 'startsWith';
-
     if (encontradas.length === 0) {
       encontradas = allCategorias.filter(c => (c.nome || '').toLowerCase().includes(lower));
       matchMode = 'includes';
@@ -227,7 +200,6 @@ export async function GET(request: Request) {
       total_categorias: allCategorias.length,
       encontradas: encontradas.length,
       matchMode,
-      scan_completo: scanCompleto,
       categorias: encontradas.map(c => ({
         id: c.id,
         nome: c.nome,

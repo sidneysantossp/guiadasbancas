@@ -126,7 +126,11 @@ export default function HomologacaoMercosPage() {
 
   // Etapa 1 - GET
   const [step1Prefix, setStep1Prefix] = useState("");
-  const [step1Id, setStep1Id] = useState("");
+  const [step1AlteradoApos, setStep1AlteradoApos] = useState(() => {
+    // Default: now minus 1 minute, in local datetime-local format
+    const d = new Date(Date.now() - 60_000);
+    return d.toISOString().slice(0, 16);
+  });
   const [step1Loading, setStep1Loading] = useState(false);
   const [step1Result, setStep1Result] = useState<StepResult | null>(null);
 
@@ -152,16 +156,20 @@ export default function HomologacaoMercosPage() {
       : 1;
 
   async function handleStep1() {
-    if (!step1Prefix.trim()) return;
+    if (!step1Prefix.trim() || !step1AlteradoApos.trim()) return;
     setStep1Loading(true);
     setStep1Result(null);
     try {
+      // Convert datetime-local value ("2026-02-19T14:00") to full ISO without timezone
+      const alteradoApos = step1AlteradoApos.length === 16
+        ? step1AlteradoApos + ":00"
+        : step1AlteradoApos;
       const params = new URLSearchParams({
         prefix: step1Prefix.trim(),
+        alterado_apos: alteradoApos,
         useSandbox: String(useSandbox),
         companyToken,
       });
-      if (step1Id.trim()) params.set("id", step1Id.trim());
       const res = await fetch(`/api/admin/mercos/categorias?${params}`);
       const text = await res.text();
       let json: any;
@@ -331,15 +339,16 @@ export default function HomologacaoMercosPage() {
         </div>
         <div className="p-5">
           <p className="mb-4 text-sm text-gray-600">
-            A Mercos criou registros no sandbox. Informe o valor do campo{" "}
-            <strong>nome</strong> que se inicia com o prefixo indicado no portal
-            de homologação.
+            A Mercos cria os registros no momento em que você inicia o processo.
+            Informe o <strong>horário de início</strong> (ou 1 minuto antes) e o
+            <strong> prefixo</strong> indicado no portal de homologação. A busca
+            pagina automaticamente com <code className="rounded bg-gray-100 px-1">id_maior_que</code> até trazer todos os registros.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-700">
                 Prefixo do campo{" "}
-                <code className="rounded bg-gray-100 px-1">nome</code> (ex.: 3a469312){" "}
+                <code className="rounded bg-gray-100 px-1">nome</code>{" "}
                 <span className="text-red-500">*</span>
               </label>
               <input
@@ -347,27 +356,27 @@ export default function HomologacaoMercosPage() {
                 value={step1Prefix}
                 onChange={(e) => setStep1Prefix(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleStep1()}
-                placeholder="Cole aqui o prefixo informado pela Mercos"
+                placeholder="Ex.: e8f7df45"
                 className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-700">
-                ID da categoria (fallback sandbox){" "}
-                <span className="text-gray-400 font-normal">— opcional</span>
+                Horário de início do processo{" "}
+                <span className="text-red-500">*</span>
+                <span className="ml-1 font-normal text-gray-400">(ou 1 min antes)</span>
               </label>
               <input
-                type="number"
-                value={step1Id}
-                onChange={(e) => setStep1Id(e.target.value)}
-                placeholder="Ex.: 305151 (se busca por prefixo falhar)"
+                type="datetime-local"
+                value={step1AlteradoApos}
+                onChange={(e) => setStep1AlteradoApos(e.target.value)}
                 className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
             </div>
           </div>
           <button
             onClick={handleStep1}
-            disabled={step1Loading || !step1Prefix.trim()}
+            disabled={step1Loading || !step1Prefix.trim() || !step1AlteradoApos.trim()}
             className="mt-3 rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-50"
           >
             {step1Loading ? "Buscando..." : "Buscar"}
@@ -377,10 +386,10 @@ export default function HomologacaoMercosPage() {
             <>
               {step1Result.success ? (
                 <div className="mt-4">
-                  {step1Result.scan_completo === false && step1Result.encontradas === 0 && (
+                  {step1Result.encontradas === 0 && (
                     <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
-                      ⚠️ <strong>Scan interrompido por timeout</strong> — o sandbox retornou {step1Result.total_categorias} categorias mas pode haver mais.
-                      Clique em <strong>Buscar</strong> novamente para continuar, ou informe o ID da categoria no campo opcional.
+                      ⚠️ Nenhuma categoria encontrada com esse prefixo no período informado.
+                      Verifique se o <strong>horário de início</strong> está correto e se a Mercos já criou os registros.
                     </div>
                   )}
                   <div className="mb-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
@@ -402,9 +411,6 @@ export default function HomologacaoMercosPage() {
                           Modo: {step1Result.matchMode}
                         </span>
                       )}
-                    {step1Result.scan_completo === true && (
-                      <span className="text-green-600">✓ Scan completo</span>
-                    )}
                   </div>
                   <div className="overflow-auto rounded-lg border bg-white">
                     <table className="min-w-full text-xs">
