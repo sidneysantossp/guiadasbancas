@@ -23,6 +23,12 @@ type StepResult = {
   scan_completo?: boolean;
   categorias?: Categoria[];
   todas_categorias?: Categoria[];
+  salvamento?: {
+    salvou: boolean;
+    mensagem: string;
+    total_persistidas?: number;
+    distribuidor?: { id: string; nome: string };
+  };
   log?: any;
 };
 
@@ -415,6 +421,32 @@ export default function HomologacaoMercosPage() {
                         </span>
                       )}
                   </div>
+                  {step1Result.salvamento && (
+                    <div
+                      className={`mb-3 rounded-lg border px-4 py-2 text-xs ${
+                        step1Result.salvamento.salvou
+                          ? "border-green-200 bg-green-50 text-green-800"
+                          : "border-red-200 bg-red-50 text-red-800"
+                      }`}
+                    >
+                      <div className="font-semibold">
+                        {step1Result.salvamento.salvou
+                          ? "✅ Registros salvos no ERP"
+                          : "❌ Falha ao salvar no ERP"}
+                      </div>
+                      <div>{step1Result.salvamento.mensagem}</div>
+                      {typeof step1Result.salvamento.total_persistidas === "number" && (
+                        <div>
+                          Total persistidas: <strong>{step1Result.salvamento.total_persistidas}</strong>
+                        </div>
+                      )}
+                      {step1Result.salvamento.distribuidor && (
+                        <div>
+                          Distribuidor: <strong>{step1Result.salvamento.distribuidor.nome}</strong>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {/* Show ALL categories returned, highlight prefix matches */}
                   {(step1Result.todas_categorias ?? step1Result.categorias ?? []).length > 0 ? (
                     <>

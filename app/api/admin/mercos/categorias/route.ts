@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -32,6 +33,80 @@ async function fetchWithRetry(url: string, options: RequestInit = {}): Promise<R
 
 // Kept for POST/PUT handlers that call fetchThrottled
 const fetchThrottled = fetchWithRetry;
+
+async function persistCategoriasNoErp(
+  categorias: any[],
+  companyToken: string
+): Promise<{
+  salvou: boolean;
+  mensagem: string;
+  distribuidor?: { id: string; nome: string };
+  total_persistidas?: number;
+}> {
+  try {
+    if (!categorias.length) {
+      return {
+        salvou: true,
+        mensagem: 'Nenhuma categoria retornada pela Mercos nesta consulta.',
+        total_persistidas: 0,
+      };
+    }
+
+    const { data: dist, error: distError } = await supabaseAdmin
+      .from('distribuidores')
+      .select('id, nome')
+      .eq('company_token', companyToken)
+      .limit(1)
+      .maybeSingle();
+
+    if (distError) {
+      return {
+        salvou: false,
+        mensagem: `Falha ao localizar distribuidor pelo CompanyToken: ${distError.message}`,
+      };
+    }
+
+    if (!dist) {
+      return {
+        salvou: false,
+        mensagem: 'Distribuidor não encontrado para este CompanyToken. Registros não foram persistidos no ERP.',
+      };
+    }
+
+    const rows = categorias.map((c) => ({
+      distribuidor_id: dist.id,
+      mercos_id: c.id,
+      nome: c.nome,
+      categoria_pai_id: c.categoria_pai_id ?? null,
+      ativo: !c.excluido,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error: upsertError } = await supabaseAdmin
+      .from('distribuidor_categories')
+      .upsert(rows, { onConflict: 'distribuidor_id,mercos_id' });
+
+    if (upsertError) {
+      return {
+        salvou: false,
+        mensagem: `Falha ao salvar categorias no ERP: ${upsertError.message}`,
+        distribuidor: { id: dist.id, nome: dist.nome },
+      };
+    }
+
+    return {
+      salvou: true,
+      mensagem: 'Categorias salvas/atualizadas no ERP com sucesso.',
+      distribuidor: { id: dist.id, nome: dist.nome },
+      total_persistidas: rows.length,
+    };
+  } catch (error: any) {
+    return {
+      salvou: false,
+      mensagem: `Falha inesperada ao salvar no ERP: ${error.message}`,
+    };
+  }
+}
 
 /**
  * Scan all categories from startDate to now.
@@ -204,6 +279,8 @@ export async function GET(request: Request) {
       excluido: c.excluido,
     });
 
+    const salvamento = await persistCategoriasNoErp(allCategorias, companyToken);
+
     return NextResponse.json({
       success: true,
       total_categorias: allCategorias.length,
@@ -213,6 +290,7 @@ export async function GET(request: Request) {
       todas_categorias: allCategorias.map(mapCat),
       // Only the ones matching the prefix
       categorias: encontradas.map(mapCat),
+      salvamento,
       log: callLog,
     });
   } catch (error: any) {
