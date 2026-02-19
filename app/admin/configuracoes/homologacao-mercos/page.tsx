@@ -127,9 +127,10 @@ export default function HomologacaoMercosPage() {
   // Etapa 1 - GET
   const [step1Prefix, setStep1Prefix] = useState("");
   const [step1AlteradoApos, setStep1AlteradoApos] = useState(() => {
-    // Default: now minus 1 minute, with seconds (step="1" requires HH:mm:ss)
+    // Default: now minus 1 minute in LOCAL time (Mercos timestamps are local, not UTC)
     const d = new Date(Date.now() - 60_000);
-    return d.toISOString().slice(0, 19);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   });
   const [step1Loading, setStep1Loading] = useState(false);
   const [step1Result, setStep1Result] = useState<StepResult | null>(null);
@@ -160,7 +161,7 @@ export default function HomologacaoMercosPage() {
     setStep1Loading(true);
     setStep1Result(null);
     try {
-      // Convert datetime-local value ("2026-02-19T14:00") to full ISO without timezone
+      // Send exactly what the user typed — Mercos compares in local (Brasília) time
       const alteradoApos = step1AlteradoApos.length === 16
         ? step1AlteradoApos + ":00"
         : step1AlteradoApos;
