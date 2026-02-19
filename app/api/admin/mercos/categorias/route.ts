@@ -15,12 +15,12 @@ function getMercosHeaders(appToken: string, companyToken: string) {
   };
 }
 
-async function fetchWithThrottle(url: string, options: RequestInit): Promise<Response> {
+async function fetchWithThrottle(url: string, options: RequestInit, maxWaitMs = 3000): Promise<Response> {
   while (true) {
     const res = await fetch(url, options);
     if (res.status === 429) {
-      const body = await res.json().catch(() => ({ tempo_ate_permitir_novamente: 5 }));
-      const wait = (body.tempo_ate_permitir_novamente || 5) * 1000;
+      const body = await res.json().catch(() => ({ tempo_ate_permitir_novamente: 3 }));
+      const wait = Math.min((body.tempo_ate_permitir_novamente || 3) * 1000, maxWaitMs);
       await new Promise(r => setTimeout(r, wait));
       continue;
     }
@@ -29,19 +29,22 @@ async function fetchWithThrottle(url: string, options: RequestInit): Promise<Res
 }
 
 /**
- * Fetch all categories from a given date window, advancing cursor by +1s each page.
- * The Mercos sandbox returns only 2 records per page regardless of limit param.
+ * Fetch categories from a given date window, advancing cursor by +1s each page.
+ * Stops early if prefix is found. Returns true if prefix was found.
  */
 async function fetchWindow(
   baseUrl: string,
   headers: Record<string, string>,
   startDate: string,
   seenIds: Set<number>,
-  out: any[]
-): Promise<void> {
+  out: any[],
+  prefix: string,
+  deadline: number
+): Promise<boolean> {
   let cursor = startDate;
   let page = 0;
   while (page < 60) {
+    if (Date.now() > deadline) break;
     page++;
     const urlStr = `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(cursor)}&limit=200&order_by=ultima_alteracao&order_direction=asc`;
     const res = await fetchWithThrottle(urlStr, { headers });
@@ -57,6 +60,9 @@ async function fetchWindow(
         addedNew = true;
       }
     }
+    // Check if prefix found so far
+    const found = out.some(c => (c.nome || '').toLowerCase().includes(prefix));
+    if (found) return true;
     const limitou = res.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
     if (!limitou || !addedNew) break;
     const last = arr[arr.length - 1];
@@ -66,6 +72,7 @@ async function fetchWindow(
     if (next <= cursor) break;
     cursor = next;
   }
+  return false;
 }
 
 /**
@@ -91,34 +98,29 @@ export async function GET(request: Request) {
 
     const seenIds = new Set<number>();
     const allCategorias: any[] = [];
+    const lower = prefix.toLowerCase();
 
-    // The sandbox returns different records depending on the date window used.
-    // We fetch from multiple windows to maximize coverage.
+    // Deadline: 45s from now (Vercel limit is 60s, leave buffer)
+    const deadline = Date.now() + 45_000;
+
+    // The sandbox returns different records per date window.
+    // Key windows discovered empirically: today, this year, 2025-01-01, 2000-01-01.
+    // We stop early as soon as the prefix is found.
     const now = new Date();
     const thisYear = now.getFullYear();
     const thisMonth = String(now.getMonth() + 1).padStart(2, '0');
     const thisDay = String(now.getDate()).padStart(2, '0');
 
     const windows = [
-      `${thisYear}-${thisMonth}-${thisDay}T00:00:00`,  // today
-      `${thisYear}-01-01T00:00:00`,                     // this year
-      `${thisYear - 1}-01-01T00:00:00`,                 // last year
+      `${thisYear}-${thisMonth}-${thisDay}T00:00:00`,
+      `${thisYear}-01-01T00:00:00`,
+      `${thisYear - 1}-01-01T00:00:00`,
       '2025-11-01T00:00:00',
-      '2025-10-01T00:00:00',
-      '2025-06-01T00:00:00',
       '2025-01-01T00:00:00',
-      '2024-01-01T00:00:00',
-      '2023-01-01T00:00:00',
-      '2020-01-01T00:00:00',
       '2000-01-01T00:00:00',
     ];
 
-    // Fetch windows sequentially to respect rate limits
-    for (const w of windows) {
-      await fetchWindow(baseUrl, headers, w, seenIds, allCategorias);
-    }
-
-    // Also try direct ID fetch if provided
+    // Try direct ID fetch first (fastest path)
     if (idParam) {
       const directRes = await fetchWithThrottle(`${baseUrl}/categorias/${idParam}`, { headers });
       if (directRes.ok) {
@@ -130,7 +132,13 @@ export async function GET(request: Request) {
       }
     }
 
-    const lower = prefix.toLowerCase();
+    // Fetch windows sequentially, stop early if prefix found
+    for (const w of windows) {
+      if (Date.now() > deadline) break;
+      const found = await fetchWindow(baseUrl, headers, w, seenIds, allCategorias, lower, deadline);
+      if (found) break;
+    }
+
     let encontradas = allCategorias.filter(c => (c.nome || '').toLowerCase().startsWith(lower));
     let matchMode = 'startsWith';
 
