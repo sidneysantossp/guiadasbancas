@@ -138,15 +138,17 @@ export async function GET(request: Request) {
 
     const allCategorias: any[] = [];
     const callLog: any[] = [];
-    let lastId = 0;
     let page = 0;
 
-    // Paginate: GET ?alterado_apos=<start>&id_maior_que=<lastId>
-    // Stop when MEUSPEDIDOS_LIMITOU_REGISTROS != "1" (no more pages)
+    // Paginate using alterado_apos cursor.
+    // The sandbox IGNORES id_maior_que — the only working pagination is to advance
+    // alterado_apos to the ultima_alteracao of the last record on each page.
+    let cursor = alteradoApos;
+
     while (page < 50) {
       if (page > 0) await sleep(1100); // rate-limit between pages; first call is instant
       page++;
-      const url = `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(alteradoApos)}&id_maior_que=${lastId}`;
+      const url = `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(cursor)}`;
       const reqTs = new Date().toISOString();
       const res = await fetchThrottled(url, { headers });
       const resTs = new Date().toISOString();
@@ -175,13 +177,15 @@ export async function GET(request: Request) {
         },
       });
 
-      for (const c of arr) {
-        allCategorias.push(c);
-        if (c.id > lastId) lastId = c.id;
-      }
+      for (const c of arr) allCategorias.push(c);
 
-      // Stop if no more pages
+      // No more pages
       if (limitou !== '1' || arr.length === 0) break;
+
+      // Advance cursor to last record's timestamp to get next page
+      const lastTs = arr[arr.length - 1].ultima_alteracao.replace(' ', 'T');
+      if (lastTs === cursor) break; // safety: avoid infinite loop if timestamp doesn't advance
+      cursor = lastTs;
     }
 
     const lower = prefix.toLowerCase();
