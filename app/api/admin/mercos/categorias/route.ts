@@ -52,12 +52,30 @@ async function persistCategoriasNoErp(
       };
     }
 
-    const { data: dist, error: distError } = await supabaseAdmin
+    // Try company_token first, then mercos_company_token
+    // (Supabase .or() with hyphenated UUIDs can be unreliable, so use two queries)
+    let dist: any = null;
+    let distError: any = null;
+
+    const q1 = await supabaseAdmin
       .from('distribuidores')
-      .select('id, nome, company_token, mercos_company_token')
-      .or(`company_token.eq.${companyToken},mercos_company_token.eq.${companyToken}`)
+      .select('id, nome')
+      .eq('company_token', companyToken)
       .limit(1)
       .maybeSingle();
+
+    if (q1.data) {
+      dist = q1.data;
+    } else {
+      const q2 = await supabaseAdmin
+        .from('distribuidores')
+        .select('id, nome')
+        .eq('mercos_company_token', companyToken)
+        .limit(1)
+        .maybeSingle();
+      dist = q2.data;
+      distError = q2.error;
+    }
 
     if (distError) {
       return {
