@@ -15,13 +15,20 @@ function getMercosHeaders(appToken: string, companyToken: string) {
   };
 }
 
-async function fetchWithThrottle(url: string, options: RequestInit, maxWaitMs = 3000): Promise<Response> {
+// Global request queue: Mercos sandbox allows ~1 req/s
+let lastRequestTime = 0;
+async function fetchThrottled(url: string, options: RequestInit): Promise<Response> {
   while (true) {
+    const now = Date.now();
+    const elapsed = now - lastRequestTime;
+    if (elapsed < 1100) await new Promise(r => setTimeout(r, 1100 - elapsed));
+    lastRequestTime = Date.now();
     const res = await fetch(url, options);
     if (res.status === 429) {
-      const body = await res.json().catch(() => ({ tempo_ate_permitir_novamente: 3 }));
-      const wait = Math.min((body.tempo_ate_permitir_novamente || 3) * 1000, maxWaitMs);
+      const body = await res.json().catch(() => ({ tempo_ate_permitir_novamente: 2 }));
+      const wait = Math.min((body.tempo_ate_permitir_novamente || 2) * 1000, 5000);
       await new Promise(r => setTimeout(r, wait));
+      lastRequestTime = Date.now();
       continue;
     }
     return res;
@@ -29,10 +36,10 @@ async function fetchWithThrottle(url: string, options: RequestInit, maxWaitMs = 
 }
 
 /**
- * Fetch categories from a given date window, advancing cursor by +1s each page.
- * Stops early if prefix is found. Returns true if prefix was found.
+ * Scan all categories starting from startDate, advancing cursor +1s per page.
+ * Returns true (and stops) as soon as prefix is found.
  */
-async function fetchWindow(
+async function scanFrom(
   baseUrl: string,
   headers: Record<string, string>,
   startDate: string,
@@ -43,34 +50,28 @@ async function fetchWindow(
 ): Promise<boolean> {
   let cursor = startDate;
   let page = 0;
-  while (page < 60) {
+  while (page < 80) {
     if (Date.now() > deadline) break;
     page++;
     const urlStr = `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(cursor)}&limit=200&order_by=ultima_alteracao&order_direction=asc`;
-    const res = await fetchWithThrottle(urlStr, { headers });
+    const res = await fetchThrottled(urlStr, { headers });
     if (!res.ok) break;
     const data = await res.json();
     const arr = Array.isArray(data) ? data : [];
     if (arr.length === 0) break;
-    let addedNew = false;
     for (const c of arr) {
-      if (!seenIds.has(c.id)) {
-        seenIds.add(c.id);
-        out.push(c);
-        addedNew = true;
-      }
+      if (!seenIds.has(c.id)) { seenIds.add(c.id); out.push(c); }
     }
-    // Check if prefix found so far
-    const found = out.some(c => (c.nome || '').toLowerCase().includes(prefix));
-    if (found) return true;
+    if (out.some(c => (c.nome || '').toLowerCase().includes(prefix))) return true;
     const limitou = res.headers.get('MEUSPEDIDOS_LIMITOU_REGISTROS') === '1';
-    if (!limitou || !addedNew) break;
+    if (!limitou) break;
     const last = arr[arr.length - 1];
     const d = new Date(last.ultima_alteracao.replace(' ', 'T') + 'Z');
     d.setSeconds(d.getSeconds() + 1);
     const next = d.toISOString().slice(0, 19);
     if (next <= cursor) break;
     cursor = next;
+    await new Promise(resolve => setTimeout(resolve, 1100)); // 1.1s delay
   }
   return false;
 }
@@ -100,29 +101,12 @@ export async function GET(request: Request) {
     const allCategorias: any[] = [];
     const lower = prefix.toLowerCase();
 
-    // Deadline: 45s from now (Vercel limit is 60s, leave buffer)
-    const deadline = Date.now() + 45_000;
+    // Deadline: 50s from now (Vercel limit is 60s)
+    const deadline = Date.now() + 50_000;
 
-    // The sandbox returns different records per date window.
-    // Key windows discovered empirically: today, this year, 2025-01-01, 2000-01-01.
-    // We stop early as soon as the prefix is found.
-    const now = new Date();
-    const thisYear = now.getFullYear();
-    const thisMonth = String(now.getMonth() + 1).padStart(2, '0');
-    const thisDay = String(now.getDate()).padStart(2, '0');
-
-    const windows = [
-      `${thisYear}-${thisMonth}-${thisDay}T00:00:00`,
-      `${thisYear}-01-01T00:00:00`,
-      `${thisYear - 1}-01-01T00:00:00`,
-      '2025-11-01T00:00:00',
-      '2025-01-01T00:00:00',
-      '2000-01-01T00:00:00',
-    ];
-
-    // Try direct ID fetch first (fastest path)
+    // Try direct ID fetch first (instant if ID known)
     if (idParam) {
-      const directRes = await fetchWithThrottle(`${baseUrl}/categorias/${idParam}`, { headers });
+      const directRes = await fetchThrottled(`${baseUrl}/categorias/${idParam}`, { headers });
       if (directRes.ok) {
         const directCat = await directRes.json();
         if (directCat?.id && !seenIds.has(directCat.id)) {
@@ -130,13 +114,13 @@ export async function GET(request: Request) {
           allCategorias.push(directCat);
         }
       }
-    }
-
-    // Fetch windows sequentially, stop early if prefix found
-    for (const w of windows) {
-      if (Date.now() > deadline) break;
-      const found = await fetchWindow(baseUrl, headers, w, seenIds, allCategorias, lower, deadline);
-      if (found) break;
+      if (allCategorias.some(c => (c.nome || '').toLowerCase().includes(lower))) {
+        // Found via direct ID, skip full scan
+      } else {
+        await scanFrom(baseUrl, headers, '2000-01-01T00:00:00', seenIds, allCategorias, lower, deadline);
+      }
+    } else {
+      await scanFrom(baseUrl, headers, '2000-01-01T00:00:00', seenIds, allCategorias, lower, deadline);
     }
 
     let encontradas = allCategorias.filter(c => (c.nome || '').toLowerCase().startsWith(lower));
@@ -188,7 +172,7 @@ export async function POST(request: Request) {
     if (categoria_pai_id) payload.categoria_pai_id = categoria_pai_id;
 
     const url = `${baseUrl}/categorias`;
-    const res = await fetchWithThrottle(url, {
+    const res = await fetchThrottled(url, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
@@ -243,7 +227,7 @@ export async function PUT(request: Request) {
     const payload = { nome: nome.trim() };
 
     const url = `${baseUrl}/categorias/${id}`;
-    const res = await fetchWithThrottle(url, {
+    const res = await fetchThrottled(url, {
       method: 'PUT',
       headers,
       body: JSON.stringify(payload),
