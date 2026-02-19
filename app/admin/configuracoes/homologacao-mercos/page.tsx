@@ -127,9 +127,9 @@ export default function HomologacaoMercosPage() {
   // Etapa 1 - GET
   const [step1Prefix, setStep1Prefix] = useState("");
   const [step1AlteradoApos, setStep1AlteradoApos] = useState(() => {
-    // Default: now minus 1 minute, in local datetime-local format
+    // Default: now minus 1 minute, with seconds (step="1" requires HH:mm:ss)
     const d = new Date(Date.now() - 60_000);
-    return d.toISOString().slice(0, 16);
+    return d.toISOString().slice(0, 19);
   });
   const [step1Loading, setStep1Loading] = useState(false);
   const [step1Result, setStep1Result] = useState<StepResult | null>(null);
@@ -368,6 +368,7 @@ export default function HomologacaoMercosPage() {
               </label>
               <input
                 type="datetime-local"
+                step="1"
                 value={step1AlteradoApos}
                 onChange={(e) => setStep1AlteradoApos(e.target.value)}
                 className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
