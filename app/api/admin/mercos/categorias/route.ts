@@ -34,13 +34,13 @@ async function fetchWithRetry(url: string, options: RequestInit = {}): Promise<R
 // Kept for POST/PUT handlers that call fetchThrottled
 const fetchThrottled = fetchWithRetry;
 
-async function persistCategoriasNoErp(
+async function persistHomologacaoRegistros(
   categorias: any[],
-  companyToken: string
+  companyToken: string,
+  alteradoApos: string
 ): Promise<{
   salvou: boolean;
   mensagem: string;
-  distribuidor?: { id: string; nome: string };
   total_persistidas?: number;
 }> {
   try {
@@ -52,76 +52,36 @@ async function persistCategoriasNoErp(
       };
     }
 
-    // Try company_token first, then mercos_company_token
-    // (Supabase .or() with hyphenated UUIDs can be unreliable, so use two queries)
-    let dist: any = null;
-    let distError: any = null;
-
-    const q1 = await supabaseAdmin
-      .from('distribuidores')
-      .select('id, nome')
-      .eq('company_token', companyToken)
-      .limit(1)
-      .maybeSingle();
-
-    if (q1.data) {
-      dist = q1.data;
-    } else {
-      const q2 = await supabaseAdmin
-        .from('distribuidores')
-        .select('id, nome')
-        .eq('mercos_company_token', companyToken)
-        .limit(1)
-        .maybeSingle();
-      dist = q2.data;
-      distError = q2.error;
-    }
-
-    if (distError) {
-      return {
-        salvou: false,
-        mensagem: `Falha ao localizar distribuidor pelo CompanyToken: ${distError.message}`,
-      };
-    }
-
-    if (!dist) {
-      return {
-        salvou: false,
-        mensagem: `Distribuidor não encontrado para este CompanyToken (${companyToken}). Verifique se o token está salvo em company_token ou mercos_company_token no cadastro do distribuidor.`,
-      };
-    }
-
     const rows = categorias.map((c) => ({
-      distribuidor_id: dist.id,
+      company_token: companyToken,
       mercos_id: c.id,
       nome: c.nome,
       categoria_pai_id: c.categoria_pai_id ?? null,
-      ativo: !c.excluido,
-      updated_at: new Date().toISOString(),
+      ultima_alteracao: c.ultima_alteracao ?? null,
+      excluido: c.excluido ?? false,
+      alterado_apos: alteradoApos,
     }));
 
     const { error: upsertError } = await supabaseAdmin
-      .from('distribuidor_categories')
-      .upsert(rows, { onConflict: 'distribuidor_id,mercos_id' });
+      .from('mercos_homologacao_registros')
+      .upsert(rows, { onConflict: 'company_token,mercos_id' });
 
     if (upsertError) {
       return {
         salvou: false,
-        mensagem: `Falha ao salvar categorias no ERP: ${upsertError.message}`,
-        distribuidor: { id: dist.id, nome: dist.nome },
+        mensagem: `Falha ao salvar registros de homologação: ${upsertError.message}`,
       };
     }
 
     return {
       salvou: true,
-      mensagem: 'Categorias salvas/atualizadas no ERP com sucesso.',
-      distribuidor: { id: dist.id, nome: dist.nome },
+      mensagem: `${rows.length} registro(s) salvos na tabela de homologação com sucesso.`,
       total_persistidas: rows.length,
     };
   } catch (error: any) {
     return {
       salvou: false,
-      mensagem: `Falha inesperada ao salvar no ERP: ${error.message}`,
+      mensagem: `Falha inesperada ao salvar registros: ${error.message}`,
     };
   }
 }
@@ -297,7 +257,7 @@ export async function GET(request: Request) {
       excluido: c.excluido,
     });
 
-    const salvamento = await persistCategoriasNoErp(allCategorias, companyToken);
+    const salvamento = await persistHomologacaoRegistros(allCategorias, companyToken, alteradoApos);
 
     return NextResponse.json({
       success: true,

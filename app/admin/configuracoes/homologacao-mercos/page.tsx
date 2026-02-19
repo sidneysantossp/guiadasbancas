@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Categoria = {
   id: number;
@@ -8,6 +8,16 @@ type Categoria = {
   categoria_pai_id?: number | null;
   ultima_alteracao?: string;
   excluido?: boolean;
+};
+
+type RegistroSalvo = {
+  mercos_id: number;
+  nome: string;
+  categoria_pai_id?: number | null;
+  ultima_alteracao?: string;
+  excluido?: boolean;
+  alterado_apos?: string;
+  criado_em?: string;
 };
 
 type StepResult = {
@@ -27,7 +37,6 @@ type StepResult = {
     salvou: boolean;
     mensagem: string;
     total_persistidas?: number;
-    distribuidor?: { id: string; nome: string };
   };
   log?: any;
 };
@@ -131,6 +140,33 @@ export default function HomologacaoMercosPage() {
   const [useSandbox, setUseSandbox] = useState(true);
   const [companyToken, setCompanyToken] = useState(SANDBOX_COMPANY_TOKEN);
 
+  // Registros salvos no banco (homologação)
+  const [savedRegistros, setSavedRegistros] = useState<RegistroSalvo[]>([]);
+  const [savedLoading, setSavedLoading] = useState(false);
+
+  async function loadSavedRegistros(token?: string) {
+    const t = token || companyToken;
+    if (!t) return;
+    setSavedLoading(true);
+    try {
+      const res = await fetch(`/api/admin/mercos/homologacao-registros?companyToken=${encodeURIComponent(t)}`);
+      const json = await res.json();
+      if (json.success) setSavedRegistros(json.registros ?? []);
+    } catch {}
+    setSavedLoading(false);
+  }
+
+  async function clearSavedRegistros() {
+    if (!companyToken) return;
+    await fetch(`/api/admin/mercos/homologacao-registros?companyToken=${encodeURIComponent(companyToken)}`, { method: 'DELETE' });
+    setSavedRegistros([]);
+  }
+
+  useEffect(() => {
+    loadSavedRegistros();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Etapa 1 - GET
   const [step1Prefix, setStep1Prefix] = useState("");
   const [step1AlteradoApos, setStep1AlteradoApos] = useState(() => {
@@ -185,6 +221,8 @@ export default function HomologacaoMercosPage() {
         json = { success: false, error: `Resposta inválida do servidor (HTTP ${res.status}). Possível timeout — tente novamente.`, raw: text.slice(0, 200) };
       }
       setStep1Result(json);
+      // Reload saved registros from DB after GET
+      await loadSavedRegistros();
     } catch (e: any) {
       setStep1Result({ success: false, error: e.message });
     } finally {
@@ -297,6 +335,71 @@ export default function HomologacaoMercosPage() {
           Sandbox URL: https://sandbox.mercos.com/api/v1 · App Token fixo do
           sandbox
         </p>
+      </div>
+
+      {/* Registros salvos no banco */}
+      <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-blue-800">
+            📦 Registros salvos no ERP ({savedRegistros.length})
+          </h2>
+          <div className="flex gap-2">
+            <button
+              onClick={() => loadSavedRegistros()}
+              disabled={savedLoading}
+              className="rounded-lg border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+            >
+              {savedLoading ? "Carregando..." : "🔄 Atualizar"}
+            </button>
+            {savedRegistros.length > 0 && (
+              <button
+                onClick={clearSavedRegistros}
+                className="rounded-lg border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+              >
+                🗑️ Limpar
+              </button>
+            )}
+          </div>
+        </div>
+        {savedRegistros.length === 0 ? (
+          <p className="text-xs text-blue-600">
+            Nenhum registro salvo ainda. Faça o GET da Etapa 1 para salvar os registros automaticamente.
+          </p>
+        ) : (
+          <>
+            <p className="mb-2 text-xs text-blue-700">
+              Estes registros foram salvos durante o GET e podem ser usados para validar as etapas mesmo que a Mercos apague os dados.
+            </p>
+            <div className="overflow-auto rounded-lg border bg-white">
+              <table className="min-w-full text-xs">
+                <thead className="border-b bg-gray-50">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600">ID Mercos</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Nome</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Pai ID</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Última alteração</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Excluído</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {savedRegistros.map((r) => (
+                    <tr key={r.mercos_id} className="border-b last:border-0 hover:bg-gray-50">
+                      <td className="px-3 py-2 font-mono font-bold text-blue-700">{r.mercos_id}</td>
+                      <td className="px-3 py-2 font-medium text-gray-900">{r.nome}</td>
+                      <td className="px-3 py-2 text-gray-500">{r.categoria_pai_id ?? "—"}</td>
+                      <td className="px-3 py-2 text-gray-500">{formatDate(r.ultima_alteracao)}</td>
+                      <td className="px-3 py-2">
+                        <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${r.excluido ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                          {r.excluido ? "Sim" : "Não"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Stepper */}
