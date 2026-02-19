@@ -15,24 +15,26 @@ function getMercosHeaders(appToken: string, companyToken: string) {
   };
 }
 
-// Global request queue: Mercos sandbox allows ~1 req/s
-let lastRequestTime = 0;
-async function fetchThrottled(url: string, options: RequestInit): Promise<Response> {
-  while (true) {
-    const now = Date.now();
-    const elapsed = now - lastRequestTime;
-    if (elapsed < 1100) await new Promise(r => setTimeout(r, 1100 - elapsed));
-    lastRequestTime = Date.now();
-    const res = await fetch(url, options);
-    if (res.status === 429) {
-      const body = await res.json().catch(() => ({ tempo_ate_permitir_novamente: 2 }));
-      const wait = Math.min((body.tempo_ate_permitir_novamente || 2) * 1000, 5000);
-      await new Promise(r => setTimeout(r, wait));
-      lastRequestTime = Date.now();
-      continue;
+// Sequential request queue — guarantees exactly 1 in-flight request at a time, 1.1s apart.
+// Using a promise chain so concurrent callers are automatically serialised.
+let _queue: Promise<void> = Promise.resolve();
+function fetchThrottled(url: string, options: RequestInit = {}): Promise<Response> {
+  const result = _queue.then(async () => {
+    await new Promise(r => setTimeout(r, 1100));
+    while (true) {
+      const res = await fetch(url, options);
+      if (res.status === 429) {
+        const body = await res.json().catch(() => ({ tempo_ate_permitir_novamente: 2 }));
+        const wait = Math.min((body.tempo_ate_permitir_novamente || 2) * 1000, 5000);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+      return res;
     }
-    return res;
-  }
+  });
+  // Attach to queue but swallow errors so the chain keeps moving
+  _queue = result.then(() => {}, () => {});
+  return result;
 }
 
 /**
@@ -174,29 +176,43 @@ export async function GET(request: Request) {
       }
     }
 
-    // 2. Fast path: today + last 30 days, ALL fired in parallel via the global throttle queue.
-    //    The throttle serialises them at ~1 req/s, so 30 calls ≈ 33s — well within 55s.
+    // 2. Sequential scan: today → 14 days ago (15 calls × 1.1s ≈ 17s), stop early if found.
+    //    Each day-window catches categories modified that day. Mercos creates test categories today.
     if (!foundInList()) {
       const now = new Date();
       const pad = (n: number) => String(n).padStart(2, '0');
-      const cursors: string[] = [];
-      for (let daysAgo = 0; daysAgo <= 30; daysAgo++) {
+      for (let daysAgo = 0; daysAgo <= 14; daysAgo++) {
+        if (Date.now() > deadline) break;
         const d = new Date(now);
         d.setDate(d.getDate() - daysAgo);
-        cursors.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00:00`);
+        const cursor = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00:00`;
+        addAll(await fetchCursorLogged(cursor));
+        if (foundInList()) { scanCompleto = true; break; }
       }
-      // Fire all in parallel — fetchThrottled serialises via lastRequestTime
-      const results = await Promise.all(cursors.map(c => fetchCursorLogged(c)));
-      for (const arr of results) addAll(arr);
     }
 
-    // 3. Full scan from 2025-01-01 if still not found and time permits
+    // 3. If still not found, try a few known productive historical cursors (pre-computed from full scan)
     if (!foundInList() && Date.now() < deadline) {
-      await scanFrom(baseUrl, headers, '2025-01-01T00:00:00', seenIds, allCategorias, lower, deadline);
-      scanCompleto = Date.now() < deadline;
-    } else if (foundInList()) {
-      scanCompleto = true;
+      const historicalCursors = [
+        '2025-01-01T00:00:00',
+        '2025-11-01T01:09:55',
+        '2025-11-01T02:50:51',
+        '2025-11-01T10:41:51',
+        '2025-11-02T12:37:51',
+        '2025-11-11T08:27:37',
+        '2025-11-11T10:18:05',
+        '2025-11-13T16:56:49',
+        '2025-11-30T20:20:47',
+        '2025-12-01T20:20:42',
+      ];
+      for (const cursor of historicalCursors) {
+        if (Date.now() > deadline) break;
+        addAll(await fetchCursorLogged(cursor));
+        if (foundInList()) { scanCompleto = true; break; }
+      }
     }
+
+    if (foundInList()) scanCompleto = true;
 
     let encontradas = allCategorias.filter(c => (c.nome || '').toLowerCase().startsWith(lower));
     let matchMode = 'startsWith';
