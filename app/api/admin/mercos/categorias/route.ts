@@ -235,15 +235,37 @@ export async function POST(request: Request) {
     if (categoria_pai_id) payload.categoria_pai_id = categoria_pai_id;
 
     const url = `${baseUrl}/categorias`;
+    const requestTimestamp = new Date().toISOString();
     const res = await fetchThrottled(url, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
     });
+    const responseTimestamp = new Date().toISOString();
 
     const responseText = await res.text();
     let responseData: any = null;
     try { responseData = JSON.parse(responseText); } catch { responseData = responseText; }
+
+    const responseHeaders: Record<string, string> = {};
+    res.headers.forEach((v, k) => { responseHeaders[k] = v; });
+
+    const log = {
+      request: {
+        timestamp: requestTimestamp,
+        method: 'POST',
+        url,
+        headers: { ApplicationToken: appToken, CompanyToken: companyToken, 'Content-Type': 'application/json' },
+        body: payload,
+      },
+      response: {
+        timestamp: responseTimestamp,
+        status: res.status,
+        statusText: res.statusText,
+        headers: responseHeaders,
+        body: responseData,
+      },
+    };
 
     if (!res.ok) {
       return NextResponse.json({
@@ -251,6 +273,7 @@ export async function POST(request: Request) {
         error: `Erro Mercos API: ${res.status}`,
         details: responseData,
         status_code: res.status,
+        log,
       }, { status: res.status });
     }
 
@@ -259,6 +282,7 @@ export async function POST(request: Request) {
       categoria: responseData,
       status_code: res.status,
       message: 'Categoria criada com sucesso no Mercos',
+      log,
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -290,15 +314,37 @@ export async function PUT(request: Request) {
     const payload = { nome: nome.trim() };
 
     const url = `${baseUrl}/categorias/${id}`;
+    const requestTimestamp = new Date().toISOString();
     const res = await fetchThrottled(url, {
       method: 'PUT',
       headers,
       body: JSON.stringify(payload),
     });
+    const responseTimestamp = new Date().toISOString();
 
     const responseText = await res.text();
     let responseData: any = null;
     try { responseData = JSON.parse(responseText); } catch { responseData = responseText; }
+
+    const responseHeaders: Record<string, string> = {};
+    res.headers.forEach((v, k) => { responseHeaders[k] = v; });
+
+    const log = {
+      request: {
+        timestamp: requestTimestamp,
+        method: 'PUT',
+        url,
+        headers: { ApplicationToken: appToken, CompanyToken: companyToken, 'Content-Type': 'application/json' },
+        body: payload,
+      },
+      response: {
+        timestamp: responseTimestamp,
+        status: res.status,
+        statusText: res.statusText,
+        headers: responseHeaders,
+        body: responseData,
+      },
+    };
 
     if (!res.ok) {
       return NextResponse.json({
@@ -306,6 +352,7 @@ export async function PUT(request: Request) {
         error: `Erro Mercos API: ${res.status}`,
         details: responseData,
         status_code: res.status,
+        log,
       }, { status: res.status });
     }
 
@@ -314,6 +361,7 @@ export async function PUT(request: Request) {
       categoria: responseData,
       status_code: res.status,
       message: `Categoria ${id} atualizada com sucesso`,
+      log,
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

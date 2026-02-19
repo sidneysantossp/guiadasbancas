@@ -22,6 +22,7 @@ type StepResult = {
   matchMode?: string;
   scan_completo?: boolean;
   categorias?: Categoria[];
+  log?: any;
 };
 
 const SANDBOX_COMPANY_TOKEN = "4b866744-a086-11f0-ada6-5e65486a6283";
@@ -37,6 +38,32 @@ function formatDate(value?: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function LogBox({ log }: { log: any }) {
+  const [copied, setCopied] = useState(false);
+  const text = JSON.stringify(log, null, 2);
+  const copy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="mt-4">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-xs font-semibold text-gray-600">📋 Log JSON (para o suporte Mercos)</span>
+        <button
+          onClick={copy}
+          className="rounded bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200"
+        >
+          {copied ? "✅ Copiado!" : "Copiar JSON"}
+        </button>
+      </div>
+      <pre className="max-h-72 overflow-auto rounded-lg border bg-gray-950 p-4 text-xs text-green-400 leading-relaxed">
+        {text}
+      </pre>
+    </div>
+  );
 }
 
 function StepBadge({ step, current }: { step: number; current: number }) {
@@ -518,6 +545,7 @@ export default function HomologacaoMercosPage() {
           </button>
 
           {step2Result && <ResultBox result={step2Result} />}
+          {step2Result?.log && <LogBox log={step2Result.log} />}
         </div>
       </div>
 
@@ -577,6 +605,7 @@ export default function HomologacaoMercosPage() {
           </button>
 
           {step3Result && <ResultBox result={step3Result} />}
+          {step3Result?.log && <LogBox log={step3Result.log} />}
         </div>
       </div>
 
