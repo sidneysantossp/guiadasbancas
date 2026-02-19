@@ -15,27 +15,23 @@ function getMercosHeaders(appToken: string, companyToken: string) {
   };
 }
 
-// Sequential request queue — guarantees exactly 1 in-flight request at a time, 1.1s apart.
-// Using a promise chain so concurrent callers are automatically serialised.
-let _queue: Promise<void> = Promise.resolve();
-function fetchThrottled(url: string, options: RequestInit = {}): Promise<Response> {
-  const result = _queue.then(async () => {
-    await new Promise(r => setTimeout(r, 1100));
-    while (true) {
-      const res = await fetch(url, options);
-      if (res.status === 429) {
-        const body = await res.json().catch(() => ({ tempo_ate_permitir_novamente: 2 }));
-        const wait = Math.min((body.tempo_ate_permitir_novamente || 2) * 1000, 5000);
-        await new Promise(r => setTimeout(r, wait));
-        continue;
-      }
-      return res;
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+async function fetchWithRetry(url: string, options: RequestInit = {}): Promise<Response> {
+  while (true) {
+    const res = await fetch(url, options);
+    if (res.status === 429) {
+      const body = await res.json().catch(() => ({ tempo_ate_permitir_novamente: 2 }));
+      const wait = Math.min((body.tempo_ate_permitir_novamente || 2) * 1000, 5000);
+      await sleep(wait);
+      continue;
     }
-  });
-  // Attach to queue but swallow errors so the chain keeps moving
-  _queue = result.then(() => {}, () => {});
-  return result;
+    return res;
+  }
 }
+
+// Kept for POST/PUT handlers that call fetchThrottled
+const fetchThrottled = fetchWithRetry;
 
 /**
  * Scan all categories from startDate to now.
@@ -148,6 +144,7 @@ export async function GET(request: Request) {
     // Paginate: GET ?alterado_apos=<start>&id_maior_que=<lastId>
     // Stop when MEUSPEDIDOS_LIMITOU_REGISTROS != "1" (no more pages)
     while (page < 50) {
+      if (page > 0) await sleep(1100); // rate-limit between pages; first call is instant
       page++;
       const url = `${baseUrl}/categorias?alterado_apos=${encodeURIComponent(alteradoApos)}&id_maior_que=${lastId}`;
       const reqTs = new Date().toISOString();
