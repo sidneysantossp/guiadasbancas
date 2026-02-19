@@ -98,6 +98,7 @@ export default function HomologacaoMercosPage() {
 
   // Etapa 1 - GET
   const [step1Prefix, setStep1Prefix] = useState("");
+  const [step1Id, setStep1Id] = useState("");
   const [step1Loading, setStep1Loading] = useState(false);
   const [step1Result, setStep1Result] = useState<StepResult | null>(null);
 
@@ -132,6 +133,7 @@ export default function HomologacaoMercosPage() {
         useSandbox: String(useSandbox),
         companyToken,
       });
+      if (step1Id.trim()) params.set("id", step1Id.trim());
       const res = await fetch(`/api/admin/mercos/categorias?${params}`);
       const json = await res.json();
       setStep1Result(json);
@@ -293,12 +295,12 @@ export default function HomologacaoMercosPage() {
             <strong>nome</strong> que se inicia com o prefixo indicado no portal
             de homologação.
           </p>
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
               <label className="mb-1 block text-xs font-medium text-gray-700">
                 Prefixo do campo{" "}
-                <code className="rounded bg-gray-100 px-1">nome</code> (ex.:
-                3a469312)
+                <code className="rounded bg-gray-100 px-1">nome</code> (ex.: 3a469312){" "}
+                <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -309,14 +311,27 @@ export default function HomologacaoMercosPage() {
                 className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
             </div>
-            <button
-              onClick={handleStep1}
-              disabled={step1Loading || !step1Prefix.trim()}
-              className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {step1Loading ? "Buscando..." : "Buscar"}
-            </button>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-700">
+                ID da categoria (fallback sandbox){" "}
+                <span className="text-gray-400 font-normal">— opcional</span>
+              </label>
+              <input
+                type="number"
+                value={step1Id}
+                onChange={(e) => setStep1Id(e.target.value)}
+                placeholder="Ex.: 305151 (se busca por prefixo falhar)"
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
           </div>
+          <button
+            onClick={handleStep1}
+            disabled={step1Loading || !step1Prefix.trim()}
+            className="mt-3 rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {step1Loading ? "Buscando..." : "Buscar"}
+          </button>
 
           {step1Result && (
             <>

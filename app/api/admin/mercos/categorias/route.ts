@@ -93,6 +93,22 @@ export async function GET(request: Request) {
       matchMode = 'includes';
     }
 
+    // If still nothing found, try fetching by ID directly (sandbox workaround)
+    // The sandbox only exposes 2 records via pagination but allows GET by ID
+    if (encontradas.length === 0) {
+      const idParam = searchParams.get('id');
+      if (idParam) {
+        const directRes = await fetchWithThrottle(`${baseUrl}/categorias/${idParam}`, { headers });
+        if (directRes.ok) {
+          const directCat = await directRes.json();
+          if (directCat && (directCat.nome || '').toLowerCase().includes(lower)) {
+            encontradas = [directCat];
+            matchMode = 'directId';
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       total_categorias: allCategorias.length,
