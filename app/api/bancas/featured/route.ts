@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-export const revalidate = 60;
+export const revalidate = 30;
+export const dynamic = 'force-dynamic';
 
 /**
  * API otimizada para FeaturedBancas - retorna apenas as bancas em destaque
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const limitParam = url.searchParams.get("limit");
-    const limit = Math.min(parseInt(limitParam || "20", 10), 30); // Max 30
+    const limit = Math.min(parseInt(limitParam || "50", 10), 100); // Max 100
 
     // Buscar apenas campos necessários, ordenar por featured e rating
     const { data, error } = await supabaseAdmin
@@ -54,7 +55,7 @@ export async function GET(req: Request) {
       meta: { total: list.length, limit }
     }, {
       headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+        'Cache-Control': 'no-store, no-cache, must-revalidate'
       }
     });
   } catch (e: any) {

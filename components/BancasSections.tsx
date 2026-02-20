@@ -23,29 +23,28 @@ type BancasSectionsProps = {
 
 export default function BancasSections({ initialBancas }: BancasSectionsProps) {
   const hasInitial = Array.isArray(initialBancas) && initialBancas.length > 0;
+  // Usa initialBancas como placeholder imediato, mas sempre refaz o fetch no cliente
   const [apiBancas, setApiBancas] = useState<ApiBanca[] | null>(
-    hasInitial ? initialBancas : null
+    hasInitial ? initialBancas! : null
   );
   
   useEffect(() => {
-    if (hasInitial) {
-      return;
-    }
+    // Sempre busca dados frescos no cliente para garantir novas bancas
     (async () => {
       try {
-        const res = await fetch('/api/bancas/featured?limit=30', { 
-          cache: 'force-cache',
-          next: { revalidate: 60 } as any,
+        const res = await fetch('/api/bancas/featured?limit=50', { 
+          cache: 'no-store',
         });
         if (!res.ok) throw new Error('fail');
         const j = await res.json();
         const list = Array.isArray(j?.data) ? (j.data as ApiBanca[]) : [];
-        setApiBancas(list);
+        if (list.length > 0) setApiBancas(list);
       } catch {
-        setApiBancas([]);
+        if (!hasInitial) setApiBancas([]);
       }
     })();
-  }, [hasInitial]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Aguardar dados carregarem antes de renderizar
   if (apiBancas === null) {

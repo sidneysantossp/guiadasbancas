@@ -8,7 +8,7 @@ import CategoryCarousel from "@/components/CategoryCarousel";
 import BancasSections from "@/components/BancasSections";
 import nextDynamic from "next/dynamic";
 
-export const revalidate = 60;
+export const revalidate = 30;
 
 type HomeBanca = {
   id: string;
@@ -199,7 +199,7 @@ async function getHeroSlides(): Promise<{ slides: HeroSlide[]; config: SliderCon
   }
 }
 
-async function getFeaturedBancas(limit = 30): Promise<HomeBanca[]> {
+async function getFeaturedBancas(limit = 50): Promise<HomeBanca[]> {
   try {
     const { data, error } = await supabaseAdmin
       .from("bancas")
@@ -316,7 +316,7 @@ const Testimonials = nextDynamic(() => import("@/components/Testimonials"), {
 
 export default async function HomePage() {
   const hero = await getHeroSlides();
-  const initialBancas = await getFeaturedBancas();
+  const initialBancas = await getFeaturedBancas(50);
   const initialCategories = await getCategories();
   const initialCategoryItems = initialCategories.map((cat) => ({
     key: cat.id,
