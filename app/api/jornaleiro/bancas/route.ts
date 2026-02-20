@@ -302,8 +302,8 @@ export async function POST(request: NextRequest) {
     cotista_codigo: banca.cotista_codigo ?? null,
     cotista_razao_social: banca.cotista_razao_social ?? null,
     cotista_cnpj_cpf: banca.cotista_cnpj_cpf ?? null,
-    active: false,
-    approved: false,
+    active: true,
+    approved: true,
     created_at: now,
     updated_at: now,
   };
