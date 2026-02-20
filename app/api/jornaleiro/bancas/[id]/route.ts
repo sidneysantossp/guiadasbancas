@@ -95,6 +95,11 @@ export async function PUT(
   if (banca.profile_image !== undefined) updateData.profile_image = banca.profile_image;
   if (banca.hours) updateData.hours = banca.hours;
   if (banca.payment_methods) updateData.payment_methods = banca.payment_methods;
+  if (typeof banca.is_cotista === "boolean") updateData.is_cotista = banca.is_cotista;
+  if (banca.cotista_id !== undefined) updateData.cotista_id = banca.cotista_id;
+  if (banca.cotista_codigo !== undefined) updateData.cotista_codigo = banca.cotista_codigo;
+  if (banca.cotista_razao_social !== undefined) updateData.cotista_razao_social = banca.cotista_razao_social;
+  if (banca.cotista_cnpj_cpf !== undefined) updateData.cotista_cnpj_cpf = banca.cotista_cnpj_cpf;
 
   updateData.updated_at = new Date().toISOString();
 

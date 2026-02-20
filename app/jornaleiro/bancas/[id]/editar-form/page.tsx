@@ -7,6 +7,7 @@ import { useRouter, useParams } from "next/navigation";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
 import { formatCep, isValidCep, resolveCepToLocation } from "@/lib/location";
 import { useAuth } from "@/lib/auth/AuthContext";
+import CotistaSearch from "@/components/CotistaSearch";
 
 type Day = { key: string; label: string; open: boolean; start: string; end: string };
 
@@ -45,6 +46,19 @@ export default function JornaleiroEditarBancaPage() {
   const [error, setError] = useState<string | null>(null);
   const numberInputRef = useRef<HTMLInputElement>(null);
   
+  // Cotista / TPU
+  const [isCotista, setIsCotista] = useState(false);
+  const [cotistaDirty, setCotistaDirty] = useState(false);
+  const [selectedCotista, setSelectedCotista] = useState<{
+    id: string;
+    codigo: string;
+    razao_social: string;
+    cnpj_cpf: string;
+    telefone?: string;
+    cidade?: string;
+    estado?: string;
+  } | null>(null);
+
   // Campos para alterar senha (opcional)
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
@@ -126,6 +140,17 @@ export default function JornaleiroEditarBancaPage() {
         // Carregar horários se existirem
         if (banca.hours && Array.isArray(banca.hours) && banca.hours.length > 0) {
           setHours(banca.hours);
+        }
+
+        // Carregar dados de cotista
+        setIsCotista(banca.is_cotista || false);
+        if (banca.cotista_id) {
+          setSelectedCotista({
+            id: banca.cotista_id,
+            codigo: banca.cotista_codigo || '',
+            razao_social: banca.cotista_razao_social || '',
+            cnpj_cpf: banca.cotista_cnpj_cpf || '',
+          });
         }
         
         setLoading(false);
@@ -262,6 +287,11 @@ export default function JornaleiroEditarBancaPage() {
             profile_image: profileImage || null,
             hours,
             payment_methods: ["pix", "dinheiro"],
+            is_cotista: isCotista,
+            cotista_id: selectedCotista?.id || null,
+            cotista_codigo: selectedCotista?.codigo || null,
+            cotista_razao_social: selectedCotista?.razao_social || null,
+            cotista_cnpj_cpf: selectedCotista?.cnpj_cpf || null,
           },
           newPassword: newPassword.trim() || null,
         }),
@@ -500,6 +530,83 @@ export default function JornaleiroEditarBancaPage() {
                 </select>
               </div>
             </div>
+          </div>
+
+          {/* Seção Cotista / TPU */}
+          <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 space-y-3">
+            <div>
+              <div className="text-sm font-semibold text-orange-900">Cota Ativa (TPU)</div>
+              <div className="text-xs text-orange-700 mt-1">Vincule sua banca a uma cota ativa para que os produtos do distribuidor apareçam no seu perfil.</div>
+            </div>
+
+            <div className="flex gap-4">
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  checked={!isCotista}
+                  onChange={() => { setIsCotista(false); setSelectedCotista(null); setCotistaDirty(true); }}
+                  className="h-4 w-4 text-[#ff5c00] focus:ring-[#ff5c00]"
+                />
+                <span className="text-sm text-gray-700">Não sou cotista</span>
+              </label>
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  checked={isCotista}
+                  onChange={() => setIsCotista(true)}
+                  className="h-4 w-4 text-[#ff5c00] focus:ring-[#ff5c00]"
+                />
+                <span className="text-sm text-gray-700">Sou Banca PRIME</span>
+              </label>
+            </div>
+
+            {isCotista && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Buscar Cota Ativa</label>
+                  <CotistaSearch
+                    mode="public"
+                    onSelect={(cotista) => {
+                      setSelectedCotista(cotista);
+                      setCotistaDirty(true);
+                    }}
+                    onInputChange={(value) => {
+                      if (value.trim()) setCotistaDirty(true);
+                      else setCotistaDirty(false);
+                    }}
+                    selectedCnpjCpf={selectedCotista?.cnpj_cpf}
+                  />
+                </div>
+
+                {selectedCotista && (
+                  <div className="bg-white rounded-lg border border-orange-300 p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-900">✓ Cotista Selecionado</h3>
+                      <span className="text-xs font-semibold text-[#ff5c00] bg-orange-100 px-2 py-1 rounded">#{selectedCotista.codigo}</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-gray-600">Razão Social:</span>
+                        <p className="font-medium text-gray-900">{selectedCotista.razao_social}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">CNPJ/CPF:</span>
+                        <p className="font-medium text-gray-900 font-mono">{selectedCotista.cnpj_cpf}</p>
+                      </div>
+                    </div>
+                    <div className="bg-green-50 border border-green-200 rounded p-2 mt-1">
+                      <p className="text-xs text-green-800">✅ Sua banca terá acesso ao catálogo de produtos dos distribuidores cadastrados.</p>
+                    </div>
+                  </div>
+                )}
+
+                {isCotista && !selectedCotista && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                    <p className="text-xs text-yellow-800">⚠️ Digite seu CPF, CNPJ ou número da cota para vincular sua banca.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="rounded-lg border border-gray-200 p-4 space-y-3">
