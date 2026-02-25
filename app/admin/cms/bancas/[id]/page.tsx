@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 import { useCategories } from "@/lib/useCategories";
 import { maskCEP, maskPhoneBR } from "@/lib/masks";
 import { fetchViaCEP } from "@/lib/viacep";
@@ -35,6 +36,7 @@ export default function EditBancaPage() {
   const [lng, setLng] = useState("");
   const [cover, setCover] = useState("");
   const [avatar, setAvatar] = useState("");
+  const [gallery, setGallery] = useState<string[]>([]);
   
   // Track changes in cover and avatar
   const handleCoverChange = (url: string) => {
@@ -60,8 +62,7 @@ export default function EditBancaPage() {
   const [featured, setFeatured] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [loadingCep, setLoadingCep] = useState(false);
-  const [activeTab, setActiveTab] = useState('basico');
-  // Dono da banca (jornaleiro) e reset de senha (admin)
+    // Dono da banca (jornaleiro) e reset de senha (admin)
   const [ownerEmail, setOwnerEmail] = useState<string>("");
   const [resetPwd, setResetPwd] = useState<string>("");
   const [resetPwd2, setResetPwd2] = useState<string>("");
@@ -114,15 +115,6 @@ export default function EditBancaPage() {
   ];
   
   // Tabs configuration
-  const tabs = [
-    { id: 'basico', label: 'Básico', icon: '📝' },
-    { id: 'endereco', label: 'Endereço', icon: '📍' },
-    { id: 'contato', label: 'Contato', icon: '📱' },
-    { id: 'imagens', label: 'Imagens', icon: '🖼️' },
-    { id: 'horarios', label: 'Horários', icon: '⏰' },
-    { id: 'configuracoes', label: 'Configurações', icon: '⚙️' },
-  ];
-  
   // Horários
   const [hours, setHours] = useState([
     { key: 'monday', label: 'Segunda', open: true, start: '08:00', end: '18:00' },
@@ -277,30 +269,6 @@ export default function EditBancaPage() {
   // Verificar se CEP está preenchido corretamente
   const isCepValid = cep.length === 9;
 
-  // Navegação entre abas
-  const currentTabIndex = tabs.findIndex(tab => tab.id === activeTab);
-  const canGoNext = currentTabIndex < tabs.length - 1;
-
-  const goToNextTab = () => {
-    if (canGoNext) {
-      setActiveTab(tabs[currentTabIndex + 1].id);
-    }
-  };
-
-  // Botão reutilizável de "Próximo" para navegar entre abas
-  const TabNextButton = () => (
-    canGoNext ? (
-      <div className="pt-4 border-t border-gray-200 text-right">
-        <button
-          type="button"
-          onClick={goToNextTab}
-          className="px-4 py-2 text-sm font-medium text-white bg-[#ff5c00] rounded-md hover:opacity-90"
-        >
-          Próximo →
-        </button>
-      </div>
-    ) : null
-  );
 
   const updateHour = (index: number, field: string, value: any) => {
     setHours(prev => prev.map((hour, i) => 
@@ -418,762 +386,575 @@ export default function EditBancaPage() {
     );
   }
 
-  return (
-    <div className="space-y-4">
+    return (
+    <div className="space-y-6 pb-24">
       <div>
-        <h1 className="text-xl font-semibold">Editar Banca</h1>
-        <p className="text-sm text-gray-600">Atualize as informações da banca.</p>
+        <h1 className="text-2xl font-bold text-gray-900">Editar Banca</h1>
+        <p className="text-gray-500 mt-1">Gerencie os dados, endereço, horários e configurações da banca.</p>
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 border border-red-200 p-4">
-          <div className="flex items-center gap-2">
-            <svg className="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-            <div className="text-sm text-red-800 font-medium">{error}</div>
-          </div>
+        <div className="bg-red-50 text-red-600 p-4 rounded-lg flex items-start gap-3 border border-red-100">
+          <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="flex-1">{error}</div>
         </div>
       )}
-      
+
       {success && (
-        <div className="rounded-md bg-green-50 border border-green-200 p-4">
-          <div className="flex items-center gap-2">
-            <svg className="h-5 w-5 text-green-600" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            <div className="text-sm text-green-800 font-medium">{success}</div>
-          </div>
+        <div className="bg-green-50 text-green-600 p-4 rounded-lg flex items-start gap-3 border border-green-100">
+          <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="flex-1">{success}</div>
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Coluna Principal com Tabs */}
-        <div className="lg:col-span-3 space-y-6">
-          {/* Tab Navigation */}
-          <div className="rounded-lg border border-gray-200 bg-white">
-            <div className="border-b border-gray-200">
-              <nav className="flex space-x-8 px-6" aria-label="Tabs">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`
-                      flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap
-                      ${activeTab === tab.id
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }
-                    `}
-                  >
-                    <span>{tab.icon}</span>
-                    {tab.label}
-                  </button>
-                ))}
-              </nav>
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      ) : (
+        <form onSubmit={onSubmit} className="space-y-8">
+          {/* INFORMAÇÕES BÁSICAS */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Informações Básicas</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nome da Banca <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Responsável</label>
+                <input
+                  type="text"
+                  value={ownerEmail}
+                  disabled
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Descrição Curta</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+              </div>
             </div>
+          </div>
 
-            {/* Tab Content */}
-            <div className="p-6">
-              {/* Aba Básico */}
-              {activeTab === 'basico' && (
-                <>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">Nome da Banca</label>
-                      <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
-                      />
-                    </div>
+          {/* ACESSO AO SISTEMA */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Acesso ao Sistema</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">E-mail de Acesso (Login)</label>
+                <input
+                  type="email"
+                  value={ownerEmail}
+                  disabled
+                  className="w-full px-4 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg cursor-not-allowed"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  E-mail utilizado pelo jornaleiro para acessar o painel.
+                </p>
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h3 className="text-sm font-medium text-gray-900 mb-3">Redefinir Senha</h3>
+                <div className="space-y-3">
+                  <input
+                    type="password"
+                    placeholder="Nova Senha"
+                    value={resetPwd}
+                    onChange={(e) => setResetPwd(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Confirmar Nova Senha"
+                    value={resetPwd2}
+                    onChange={(e) => setResetPwd2(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                  
+                  {resetErr && <p className="text-red-600 text-xs font-medium">{resetErr}</p>}
+                  {resetMsg && <p className="text-green-600 text-xs font-medium">{resetMsg}</p>}
+                  
+                  <button
+                    type="button"
+                    onClick={onResetPassword}
+                    disabled={!resetPwd || resetPwd !== resetPwd2 || resetLoading}
+                    className="w-full px-4 py-2 bg-gray-800 text-white text-sm font-medium rounded-lg hover:bg-gray-900 disabled:opacity-50 transition-colors"
+                  >
+                    {resetLoading ? 'Salvando...' : 'Alterar Senha'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
-                    <div>
-                      <label className="text-sm font-medium">Descrição</label>
-                      <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        rows={4}
-                        placeholder="Descrição da banca..."
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
-                      />
-                    </div>
-                  </div>
-                  <TabNextButton />
-                </>
-              )}
+          {/* DADOS DE CONTATO E REDES */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Contato e Redes Sociais</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp</label>
+                <input
+                  type="text"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(maskPhoneBR(e.target.value))}
+                  placeholder="(00) 00000-0000"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Instagram</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">@</span>
+                  <input
+                    type="text"
+                    value={instagram}
+                    onChange={(e) => setInstagram(e.target.value.replace('@', ''))}
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Facebook</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">@</span>
+                  <input
+                    type="text"
+                    value={facebook}
+                    onChange={(e) => setFacebook(e.target.value.replace('@', ''))}
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
 
-              {/* Aba Endereço */}
-              {activeTab === 'endereco' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                    <div className="md:col-span-1">
-                      <label className="text-sm font-medium">CEP</label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={cep}
-                          onChange={(e) => handleCepChange(e.target.value)}
-                          placeholder="00000-000"
-                          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
-                        />
-                        {loadingCep && (
-                          <div className="absolute right-2 top-3">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="md:col-span-4">
-                      <label className="text-sm font-medium">Endereço</label>
-                      <input
-                        type="text"
-                        value={street}
-                        onChange={(e) => setStreet(e.target.value)}
-                        disabled={!isCepValid}
-                        className={`mt-1 w-full rounded-md border px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500 ${
-                          !isCepValid ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300'
-                        }`}
-                        placeholder={!isCepValid ? "Preencha o CEP primeiro" : "Rua, avenida, etc."}
-                      />
-                    </div>
-                    <div className="md:col-span-1">
-                      <label className="text-sm font-medium">Número</label>
-                      <input
-                        type="text"
-                        value={number}
-                        onChange={(e) => setNumber(e.target.value)}
-                        disabled={!isCepValid}
-                        className={`mt-1 w-full rounded-md border px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500 ${
-                          !isCepValid ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300'
-                        }`}
-                        placeholder={!isCepValid ? "CEP" : "123"}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">Complemento</label>
-                      <input
-                        type="text"
-                        value={complement}
-                        onChange={(e) => setComplement(e.target.value)}
-                        disabled={!isCepValid}
-                        placeholder={!isCepValid ? "Preencha o CEP primeiro" : "Apto, sala, etc."}
-                        className={`mt-1 w-full rounded-md border px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500 ${
-                          !isCepValid ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300'
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Bairro</label>
-                      <input
-                        type="text"
-                        value={neighborhood}
-                        onChange={(e) => setNeighborhood(e.target.value)}
-                        disabled={!isCepValid}
-                        className={`mt-1 w-full rounded-md border px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500 ${
-                          !isCepValid ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300'
-                        }`}
-                        placeholder={!isCepValid ? "Preencha o CEP primeiro" : "Nome do bairro"}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Cidade</label>
-                      <input
-                        type="text"
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                        disabled={!isCepValid}
-                        className={`mt-1 w-full rounded-md border px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500 ${
-                          !isCepValid ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300'
-                        }`}
-                        placeholder={!isCepValid ? "Preencha o CEP primeiro" : "Nome da cidade"}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">Estado (UF)</label>
-                      <select
-                        value={uf}
-                        onChange={(e) => setUf(e.target.value)}
-                        disabled={!isCepValid}
-                        className={`mt-1 w-full rounded-md border px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500 ${
-                          !isCepValid ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300'
-                        }`}
-                      >
-                        <option value="">
-                          {!isCepValid ? "Preencha o CEP primeiro" : "Selecione o estado"}
-                        </option>
-                        {estados.map((estado) => (
-                          <option key={estado.sigla} value={estado.sigla}>
-                            {estado.sigla} - {estado.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Latitude</label>
-                      <input
-                        type="text"
-                        value={lat}
-                        onChange={(e) => setLat(e.target.value)}
-                        disabled={!isCepValid}
-                        placeholder={!isCepValid ? "Preencha o CEP primeiro" : "-23.5505"}
-                        className={`mt-1 w-full rounded-md border px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500 ${
-                          !isCepValid ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300'
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Longitude</label>
-                      <input
-                        type="text"
-                        value={lng}
-                        onChange={(e) => setLng(e.target.value)}
-                        disabled={!isCepValid}
-                        placeholder={!isCepValid ? "Preencha o CEP primeiro" : "-46.6333"}
-                        className={`mt-1 w-full rounded-md border px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500 ${
-                          !isCepValid ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300'
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Endereço Completo</label>
-                    <input
-                      type="text"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      disabled={!isCepValid}
-                      placeholder={!isCepValid ? "Preencha o CEP primeiro para gerar o endereço completo" : "Endereço completo para exibição"}
-                      className={`mt-1 w-full rounded-md border px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500 ${
-                        !isCepValid ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300'
-                      }`}
-                    />
-                  </div>
-
-                  {!isCepValid && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                      <div className="flex">
-                        <div className="flex-shrink-0">
-                          <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <div className="ml-3">
-                          <p className="text-sm text-blue-700">
-                            <strong>Dica:</strong> Preencha o CEP primeiro para habilitar os demais campos e buscar automaticamente as informações do endereço.
-                          </p>
-                        </div>
-                      </div>
+          {/* ENDEREÇO */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Localização</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">CEP</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={cep}
+                    onChange={(e) => setCep(e.target.value.replace(/\D/g, '').replace(/^(\d{5})(\d)/, '$1-$2').substring(0, 9))}
+                    onBlur={(e) => {
+                      if (e.target.value.length === 9) handleCepChange(e.target.value);
+                    }}
+                    placeholder="00000-000"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                  {loadingCep && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                     </div>
                   )}
-                  <TabNextButton />
                 </div>
-              )}
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Logradouro / Rua</label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-gray-50"
+                />
+              </div>
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Número</label>
+                <input
+                  type="text"
+                  value={number}
+                  onChange={(e) => setNumber(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Complemento / Referência</label>
+                <input
+                  type="text"
+                  value={complement}
+                  onChange={(e) => setComplement(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
+                <input
+                  type="text"
+                  value={neighborhood}
+                  onChange={(e) => setNeighborhood(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-gray-50"
+                />
+              </div>
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-gray-50"
+                />
+              </div>
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Estado (UF)</label>
+                <input
+                  type="text"
+                  value={uf}
+                  onChange={(e) => setUf(e.target.value)}
+                  maxLength={2}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-gray-50 uppercase"
+                />
+              </div>
+            </div>
+          </div>
 
-              {/* Aba Contato */}
-              {activeTab === 'contato' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">WhatsApp</label>
-                      <input
-                        type="text"
-                        value={whatsapp}
-                        onChange={(e) => setWhatsapp(maskPhoneBR(e.target.value))}
-                        placeholder="(11) 99999-9999"
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Facebook</label>
-                      <input
-                        type="url"
-                        value={facebook}
-                        onChange={(e) => setFacebook(e.target.value)}
-                        placeholder="https://facebook.com/..."
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">Instagram</label>
-                      <input
-                        type="url"
-                        value={instagram}
-                        onChange={(e) => setInstagram(e.target.value)}
-                        placeholder="https://instagram.com/..."
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Google Meu Negócio</label>
-                      <input
-                        type="url"
-                        value={gmb}
-                        onChange={(e) => setGmb(e.target.value)}
-                        placeholder="https://maps.google.com/..."
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
-                      />
-                    </div>
-                  </div>
-                  <TabNextButton />
+          {/* COTISTA / TPU */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Vínculo de Cotista (TPU)</h2>
+                <p className="text-sm text-gray-500">Vincule esta banca a um cotista para uso do PDV.</p>
+              </div>
+              <label className="flex items-center cursor-pointer">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={isCotista}
+                    onChange={(e) => setIsCotista(e.target.checked)}
+                  />
+                  <div className={`block w-10 h-6 rounded-full transition-colors ${isCotista ? 'bg-primary' : 'bg-gray-300'}`}></div>
+                  <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isCotista ? 'transform translate-x-4' : ''}`}></div>
                 </div>
-              )}
+                <span className="ml-3 text-sm font-medium text-gray-700">É Banca Cotista</span>
+              </label>
+            </div>
+            
+            {isCotista && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-4">
+                <CotistaSearch
+                  onSelect={(c) => setSelectedCotista(c ? { id: c.id, codigo: c.codigo, razao_social: c.razao_social, cnpj_cpf: c.cnpj_cpf } : null)}
+                  initialValue={selectedCotista?.codigo}
+                  disabled={false}
+                />
+                
+                {selectedCotista && (
+                  <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-medium text-gray-900">Cotista Selecionado</h4>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCotista(null)}
+                        className="text-xs text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded border border-red-200 hover:bg-red-50 transition-colors"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500 block text-xs mb-1">Código TPU</span>
+                        <span className="font-medium font-mono text-primary bg-primary/5 px-2 py-0.5 rounded">
+                          {selectedCotista.codigo}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 block text-xs mb-1">CNPJ/CPF</span>
+                        <span className="font-medium">{selectedCotista.cnpj_cpf}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-gray-500 block text-xs mb-1">Razão Social / Nome</span>
+                        <span className="font-medium">{selectedCotista.razao_social}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
-              {/* Aba Imagens */}
-              {activeTab === 'imagens' && (
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-sm font-medium mb-3">Avatar (imagem do perfil)</h4>
-                    <div className="flex items-center gap-4">
-                      <ImageUploadDragDrop label="Avatar" value={avatar} onChange={handleAvatarChange} placeholder="https://exemplo.com/avatar.jpg" className="h-24 w-24" />
-                    </div>
+          {/* HORÁRIOS */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Horários de Funcionamento</h2>
+                <p className="text-sm text-gray-500">Defina os horários em que a banca está aberta.</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              {hours.map((day, index) => (
+                <div key={day.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center gap-4 w-48">
+                    <label className="flex items-center cursor-pointer">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={day.open}
+                          onChange={(e) => {
+                            const newHours = [...hours];
+                            newHours[index].open = e.target.checked;
+                            setHours(newHours);
+                          }}
+                        />
+                        <div className={`block w-10 h-6 rounded-full transition-colors ${day.open ? 'bg-primary' : 'bg-gray-300'}`}></div>
+                        <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${day.open ? 'transform translate-x-4' : ''}`}></div>
+                      </div>
+                    </label>
+                    <span className="font-medium text-gray-700 w-24">{day.label}</span>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-medium mb-3">Capa</h4>
-                    <div>
-                      <ImageUploadDragDrop label="Capa" value={cover} onChange={handleCoverChange} placeholder="https://exemplo.com/capa.jpg" className="h-32 w-full" />
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium mb-3">Documento TPU (PDF)</h4>
-                    <FileUploadDragDrop
-                      label="Termo de Permissão de Uso (TPU) - PDF"
-                      value={tpuUrl}
-                      onChange={setTpuUrl}
-                      accept="application/pdf"
-                      role="admin"
-                      className="h-24 w-full"
+
+                  <div className="flex items-center gap-3 flex-1">
+                    <input
+                      type="time"
+                      value={day.start}
+                      disabled={!day.open}
+                      onChange={(e) => {
+                        const newHours = [...hours];
+                        newHours[index].start = e.target.value;
+                        setHours(newHours);
+                      }}
+                      className="px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:text-gray-400"
+                    />
+                    <span className="text-gray-500">às</span>
+                    <input
+                      type="time"
+                      value={day.end}
+                      disabled={!day.open}
+                      onChange={(e) => {
+                        const newHours = [...hours];
+                        newHours[index].end = e.target.value;
+                        setHours(newHours);
+                      }}
+                      className="px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:text-gray-400"
                     />
                   </div>
-                  <TabNextButton />
+                  
+                  {!day.start && (
+                    <span className="text-sm text-gray-500 italic ml-4">Fechado</span>
+                  )}
                 </div>
-              )}
-
-              {/* Aba Horários */}
-              {activeTab === 'horarios' && (
-                <div className="space-y-3">
-                  {hours.map((hour, index) => (
-                    <div key={hour.key} className="flex items-center gap-4">
-                      <div className="w-20">
-                        <span className="text-sm font-medium">{hour.label}</span>
-                      </div>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={hour.open}
-                          onChange={(e) => updateHour(index, 'open', e.target.checked)}
-                          className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                        />
-                        <span className="text-sm">Aberto</span>
-                      </label>
-                      {hour.open && (
-                        <>
-                          <input
-                            type="time"
-                            value={hour.start}
-                            onChange={(e) => updateHour(index, 'start', e.target.value)}
-                            className="rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-orange-500 focus:ring-orange-500"
-                          />
-                          <span className="text-sm">às</span>
-                          <input
-                            type="time"
-                            value={hour.end}
-                            onChange={(e) => updateHour(index, 'end', e.target.value)}
-                            className="rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-orange-500 focus:ring-orange-500"
-                          />
-                        </>
-                      )}
-                    </div>
-                  ))}
-                  <TabNextButton />
-                </div>
-              )}
-
-              {/* Aba Configurações */}
-              {activeTab === 'configuracoes' && (
-                <div className="space-y-6">
-                  {/* Status */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-3">Status da Banca</h4>
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={active}
-                          onChange={(e) => setActive(e.target.checked)}
-                          className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                        />
-                        <span className="text-sm">Banca ativa (visível no site)</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={featured}
-                          onChange={(e) => setFeatured(e.target.checked)}
-                          className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                        />
-                        <span className="text-sm">Banca em destaque</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Cotista */}
-                  <div className="border-t border-gray-200 pt-4">
-                    <h4 className="text-sm font-medium mb-3">Cota Ativa (Cotista)</h4>
-                    <p className="text-xs text-gray-500 mb-3">
-                      Vincule esta banca a um cotista para dar acesso ao catálogo de produtos dos distribuidores.
-                    </p>
-                    
-                    <div className="space-y-4">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={isCotista}
-                          onChange={(e) => {
-                            setIsCotista(e.target.checked);
-                            if (!e.target.checked) {
-                              setSelectedCotista(null);
-                            }
-                          }}
-                          className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                        />
-                        <span className="text-sm">Esta banca é cotista</span>
-                      </label>
-
-                      {isCotista && (
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Buscar Cotista
-                            </label>
-                            <CotistaSearch
-                              mode="admin"
-                              onSelect={(cotista) => setSelectedCotista(cotista)}
-                              selectedCnpjCpf={selectedCotista?.cnpj_cpf}
-                            />
-                          </div>
-
-                          {selectedCotista && (
-                            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <p className="text-sm font-semibold text-green-900">
-                                    ✓ Cotista Vinculado
-                                  </p>
-                                  <p className="text-xs text-green-700 mt-1">
-                                    {selectedCotista.razao_social}
-                                  </p>
-                                  <p className="text-xs text-green-600 mt-1 font-mono">
-                                    CPF/CNPJ: {selectedCotista.cnpj_cpf}
-                                  </p>
-                                </div>
-                                <span className="text-xs font-semibold text-orange-600 bg-orange-100 px-2 py-1 rounded">
-                                  #{selectedCotista.codigo}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-
-                          {!selectedCotista && (
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                              <p className="text-xs text-yellow-800">
-                                ⚠️ Selecione um cotista para vincular à banca
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Categorias */}
-                  <div className="border-t border-gray-200 pt-4">
-                    <h4 className="text-sm font-medium mb-3">Categorias</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-60 overflow-y-auto">
-                      {categories.map((category: any) => (
-                        <label key={category.id} className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={selectedCategories.includes(category.id)}
-                            onChange={() => toggleCategory(category.id)}
-                            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                          />
-                          <span>{category.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Resetar Senha do Jornaleiro (visível dentro da aba Configurações) */}
-                  <div className="border-t border-gray-200 pt-4">
-                    <h4 className="text-sm font-medium mb-2">Resetar senha do jornaleiro</h4>
-                    <p className="text-xs text-gray-500 mb-3">Use esta ação se o jornaleiro esqueceu a senha. Será aplicada imediatamente.</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <label className="block">
-                        <span className="text-gray-700 text-sm">E-mail do jornaleiro</span>
-                        <input
-                          type="email"
-                          value={ownerEmail}
-                          onChange={(e)=>setOwnerEmail(e.target.value)}
-                          placeholder="email@banca.com"
-                          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-gray-700 text-sm">Nova senha</span>
-                        <input
-                          type="password"
-                          value={resetPwd}
-                          onChange={(e)=>setResetPwd(e.target.value)}
-                          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-gray-700 text-sm">Confirmar senha</span>
-                        <input
-                          type="password"
-                          value={resetPwd2}
-                          onChange={(e)=>setResetPwd2(e.target.value)}
-                          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                        />
-                      </label>
-                      <div className="flex items-end">
-                        <button
-                          type="button"
-                          onClick={onResetPassword}
-                          disabled={resetLoading}
-                          className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-                        >
-                          {resetLoading ? 'Aplicando...' : 'Aplicar nova senha'}
-                        </button>
-                      </div>
-                    </div>
-                    {resetErr && (
-                      <div className="mt-2 rounded-md bg-red-50 border border-red-200 p-2 text-xs text-red-700">{resetErr}</div>
-                    )}
-                    {resetMsg && (
-                      <div className="mt-2 rounded-md bg-green-50 border border-green-200 p-2 text-xs text-green-700">{resetMsg}</div>
-                    )}
-                  </div>
-
-                  {/* Zona de Perigo - Excluir Banca */}
-                  <div className="border-t border-red-200 pt-4">
-                    <h4 className="text-sm font-medium mb-2 text-red-700">Zona de Perigo</h4>
-                    <p className="text-xs text-red-600 mb-3">
-                      ⚠️ Atenção: Esta ação é irreversível. Todos os dados da banca, produtos, pedidos e histórico serão permanentemente removidos.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      🗑️ Excluir Banca Permanentemente
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar - Ações */}
-        <div className="space-y-4">
-          {/* Resumo */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <h3 className="text-sm font-medium mb-3">Resumo</h3>
-            <div className="space-y-2 text-sm text-gray-600">
-              <div className="flex justify-between">
-                <span>Status:</span>
-                <span className={active ? 'text-green-600' : 'text-red-600'}>
-                  {active ? 'Ativa' : 'Inativa'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Destaque:</span>
-                <span className={featured ? 'text-yellow-600' : 'text-gray-400'}>
-                  {featured ? 'Sim' : 'Não'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Categorias:</span>
-                <span>{selectedCategories.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Aba atual:</span>
-                <span className="capitalize">{tabs.find(t => t.id === activeTab)?.label}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Navegação rápida */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <h3 className="text-sm font-medium mb-3">Navegação rápida</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`
-                    flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors
-                    ${activeTab === tab.id
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }
-                  `}
-                >
-                  <span>{tab.icon}</span>
-                  <span>{tab.label}</span>
-                </button>
               ))}
             </div>
           </div>
 
-          {/* Ações */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <div className="space-y-2">
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {saving ? "Salvando..." : "Salvar Alterações"}
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push('/admin/cms/bancas')}
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-
-          {/* Resetar Senha do Jornaleiro */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <h3 className="text-sm font-medium mb-2">Resetar senha do jornaleiro</h3>
-            <p className="text-xs text-gray-500 mb-3">Use esta ação se o jornaleiro esqueceu a senha. Será aplicada imediatamente.</p>
-            <div className="space-y-2 text-sm">
-              <label className="block">
-                <span className="text-gray-700">E-mail do jornaleiro</span>
-                <input
-                  type="email"
-                  value={ownerEmail}
-                  onChange={(e)=>setOwnerEmail(e.target.value)}
-                  placeholder="email@banca.com"
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                />
-              </label>
-              <label className="block">
-                <span className="text-gray-700">Nova senha</span>
-                <input
-                  type="password"
-                  value={resetPwd}
-                  onChange={(e)=>setResetPwd(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                />
-              </label>
-              <label className="block">
-                <span className="text-gray-700">Confirmar senha</span>
-                <input
-                  type="password"
-                  value={resetPwd2}
-                  onChange={(e)=>setResetPwd2(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                />
-              </label>
-              {resetErr && (
-                <div className="rounded-md bg-red-50 border border-red-200 p-2 text-xs text-red-700">{resetErr}</div>
-              )}
-              {resetMsg && (
-                <div className="rounded-md bg-green-50 border border-green-200 p-2 text-xs text-green-700">{resetMsg}</div>
-              )}
-              <button
-                type="button"
-                onClick={onResetPassword}
-                disabled={resetLoading}
-                className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-              >
-                {resetLoading ? 'Aplicando...' : 'Aplicar nova senha'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </form>
-
-      {/* Modal de Confirmação de Exclusão */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <div className="flex items-center mb-4">
-                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
-                  <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
+          {/* IMAGENS */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Imagens da Banca</h2>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Foto Principal (Avatar)</label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                  <ImageUploadDragDrop
+                    label="Arraste a imagem ou clique para selecionar"
+                    onUpload={async (url) => handleAvatarChange(url)}
+                    currentImage={avatar}
+                    onRemove={() => handleAvatarChange('')}
+                  />
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    Recomendado: Imagem quadrada (ex: 500x500px), formato JPG, PNG ou WebP. Máx 2MB.
+                  </p>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Confirmar Exclusão</h3>
-              </div>
-              
-              <div className="mb-4">
-                <p className="text-sm text-gray-700 mb-3">
-                  ⚠️ <strong>Esta ação não pode ser desfeita.</strong> Todos os dados da banca serão permanentemente removidos, incluindo:
-                </p>
-                <ul className="text-xs text-gray-600 list-disc list-inside space-y-1 mb-4">
-                  <li>Informações da banca</li>
-                  <li>Produtos cadastrados</li>
-                  <li>Pedidos e histórico</li>
-                  <li>Configurações e preferências</li>
-                </ul>
-                <p className="text-sm font-medium text-gray-900 mb-2">
-                  Para confirmar, digite o nome da banca: <span className="font-mono bg-gray-100 px-1">{name}</span>
-                </p>
-                <input
-                  type="text"
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  placeholder="Digite o nome da banca aqui..."
-                  autoFocus
-                />
               </div>
 
-              <div className="flex gap-3 justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    setDeleteConfirmText('');
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteBanca}
-                  disabled={deleteLoading || deleteConfirmText !== name}
-                  className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {deleteLoading ? 'Excluindo...' : 'Excluir Permanentemente'}
-                </button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Imagem de Capa (Banner)</label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                  <ImageUploadDragDrop
+                    label="Arraste a imagem de capa ou clique"
+                    onUpload={async (url) => handleCoverChange(url)}
+                    currentImage={cover}
+                    onRemove={() => handleCoverChange('')}
+                  />
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    Recomendado: Imagem retangular horizontal (ex: 1200x400px).
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Galeria de Fotos (até 5)</label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                  <FileUploadDragDrop
+                    label="Arraste até 5 fotos para a galeria"
+                    onUploadAction={async (urls) => setGallery(prev => [...prev, ...urls].slice(0, 5))}
+                    currentFiles={gallery}
+                    onRemoveAction={(url) => setGallery(prev => prev.filter(u => u !== url))}
+                    maxFiles={5}
+                  />
+                </div>
               </div>
             </div>
           </div>
-        </div>
+
+          {/* CATEGORIAS */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Categorias</h2>
+            <p className="text-sm text-gray-500 mb-4">Selecione as categorias em que esta banca se enquadra.</p>
+            {loading ? (
+              <div className="animate-pulse space-y-4">
+                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {categories.map((category) => (
+                  <label key={category.id} className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedCategories.includes(category.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedCategories([...selectedCategories, category.id]);
+                        } else {
+                          setSelectedCategories(selectedCategories.filter(id => id !== category.id));
+                        }
+                      }}
+                      className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
+                    />
+                    <span className="text-gray-700">{category.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* CONFIGURAÇÕES DE ADMIN */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Configurações e Permissões</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <label className="flex items-center justify-between cursor-pointer p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex-1 pr-4">
+                  <span className="block text-sm font-medium text-gray-900">Banca Ativa</span>
+                  <span className="block text-xs text-gray-500 mt-1">Se ativa, a banca ficará visível no portal.</span>
+                </div>
+                <div className="relative inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={active}
+                    onChange={(e) => setActive(e.target.checked)}
+                  />
+                  <div className={`block w-10 h-6 rounded-full transition-colors ${active ? 'bg-primary' : 'bg-gray-300'}`}></div>
+                  <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${active ? 'transform translate-x-4' : ''}`}></div>
+                </div>
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex-1 pr-4">
+                  <span className="block text-sm font-medium text-gray-900">Em Destaque</span>
+                  <span className="block text-xs text-gray-500 mt-1">Bancas em destaque aparecem no topo das listagens.</span>
+                </div>
+                <div className="relative inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={featured}
+                    onChange={(e) => setFeatured(e.target.checked)}
+                  />
+                  <div className={`block w-10 h-6 rounded-full transition-colors ${featured ? 'bg-amber-500' : 'bg-gray-300'}`}></div>
+                  <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${featured ? 'transform translate-x-4' : ''}`}></div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* ZONA DE PERIGO (EXCLUSÃO) */}
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-red-800 mb-2">Zona de Perigo</h2>
+            <p className="text-sm text-red-600 mb-6">Ações irreversíveis para esta banca.</p>
+            
+            {!showDeleteConfirm ? (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="px-6 py-2 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors font-medium text-sm"
+              >
+                Excluir Banca
+              </button>
+            ) : (
+              <div className="bg-white border border-red-200 p-4 rounded-lg">
+                <p className="text-sm text-gray-700 font-medium mb-4">
+                  Tem certeza? Para confirmar, digite <strong className="text-red-600">EXCLUIR</strong> no campo abaixo:
+                </p>
+                <div className="flex gap-4">
+                  <input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
+                    placeholder="Digite EXCLUIR"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleDeleteBanca}
+                    disabled={deleteConfirmText !== 'EXCLUIR' || deleteLoading}
+                    className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {deleteLoading ? 'Excluindo...' : 'Confirmar Exclusão'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setDeleteConfirmText('');
+                    }}
+                    className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm border border-gray-200"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* BOTÕES FLUTUANTES (SAVE) */}
+          <div className="fixed bottom-0 left-0 lg:left-64 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 flex justify-end gap-4 px-6 md:px-12">
+            <Link
+              href="/admin/cms/bancas"
+              className="px-6 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm"
+            >
+              Cancelar
+            </Link>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-8 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium flex items-center shadow-md disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Salvando...
+                </>
+              ) : (
+                'Salvar Alterações'
+              )}
+            </button>
+          </div>
+        </form>
       )}
     </div>
   );
