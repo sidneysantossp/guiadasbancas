@@ -18,6 +18,8 @@ export async function getActiveBancaRowForUser(userId: string, select: string = 
   const canAccessBanca = async (bancaId: string): Promise<any | null> => {
     const { data: banca } = await admin.from("bancas").select(select).eq("id", bancaId).maybeSingle();
     if (!banca) return null;
+    // Nunca considerar banca inativa como "banca ativa" do jornaleiro.
+    if ((banca as any).active === false) return null;
 
     // Dono da banca
     if ((banca as any).user_id === userId) return banca;
@@ -41,13 +43,14 @@ export async function getActiveBancaRowForUser(userId: string, select: string = 
   }
 
   // 2) Fallback: banca mais recente do usuário (dono)
-  const { data: ownedFallback } = await admin
+  const { data: ownedRows } = await admin
     .from("bancas")
     .select(select)
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(20);
+
+  const ownedFallback = (ownedRows || []).find((b: any) => b?.active !== false) || null;
 
   if (ownedFallback) {
     // Best-effort: garantir que o profile aponta para uma banca válida
@@ -61,25 +64,24 @@ export async function getActiveBancaRowForUser(userId: string, select: string = 
   }
 
   // 3) Fallback: banca mais recente em que é colaborador
-  const { data: memberFallback } = await admin
+  const { data: memberFallbackRows } = await admin
     .from("banca_members")
     .select("banca_id")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(50);
 
-  if (memberFallback?.banca_id) {
-    const banca = await canAccessBanca(memberFallback.banca_id as string);
-    if (banca) {
-      if (!activeBancaId || activeBancaId !== (banca as any).id) {
-        const { error: setErr } = await admin.from("user_profiles").update({ banca_id: (banca as any).id }).eq("id", userId);
-        if (setErr) {
-          console.warn("[getActiveBancaRowForUser] ⚠️ Falha ao atualizar banca_id no profile:", setErr.message);
-        }
+  for (const member of memberFallbackRows || []) {
+    if (!member?.banca_id) continue;
+    const banca = await canAccessBanca(member.banca_id as string);
+    if (!banca) continue;
+    if (!activeBancaId || activeBancaId !== (banca as any).id) {
+      const { error: setErr } = await admin.from("user_profiles").update({ banca_id: (banca as any).id }).eq("id", userId);
+      if (setErr) {
+        console.warn("[getActiveBancaRowForUser] ⚠️ Falha ao atualizar banca_id no profile:", setErr.message);
       }
-      return banca;
     }
+    return banca;
   }
 
   return null;

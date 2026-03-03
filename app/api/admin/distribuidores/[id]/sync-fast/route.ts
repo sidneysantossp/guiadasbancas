@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
+import { requireAdminAuth } from '@/lib/security/admin-auth';
 
 // Timeout máximo: 5 minutos
 export const maxDuration = 300;
@@ -22,6 +23,12 @@ export async function POST(
   console.log(`[SYNC-FAST] ===== SINCRONIZAÇÃO ULTRA RÁPIDA INICIADA =====`);
   
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
+    const body = await request.json().catch(() => ({}));
+    const allowWithoutCategories = body?.allow_without_categories === true;
+
     const supabase = supabaseAdmin;
     const distribuidorId = params.id;
     
@@ -59,10 +66,17 @@ export async function POST(
       }]);
     }
 
-    // Inicializar API Mercos
+    // Inicializar cliente Mercos para produtos
     const mercosApi = new MercosAPI({
       applicationToken: distribuidor.application_token,
       companyToken: distribuidor.company_token,
+      baseUrl: distribuidor.base_url || 'https://app.mercos.com/api/v1',
+    });
+
+    // Cliente dedicado para categorias (permite token distinto se configurado)
+    const categoriesApi = new MercosAPI({
+      applicationToken: distribuidor.mercos_application_token || distribuidor.application_token,
+      companyToken: distribuidor.mercos_company_token || distribuidor.company_token,
       baseUrl: distribuidor.base_url || 'https://app.mercos.com/api/v1',
     });
 
@@ -81,8 +95,8 @@ export async function POST(
     // PASSO 1: Sincronizar categorias da Mercos
     console.log('[SYNC-FAST] 📂 Sincronizando categorias...');
     try {
-      console.log('[SYNC-FAST] Chamando mercosApi.getAllCategorias()...');
-      const categorias = await mercosApi.getAllCategorias();
+      console.log('[SYNC-FAST] Chamando categoriesApi.getAllCategorias()...');
+      const categorias = await categoriesApi.getAllCategorias();
       console.log(`[SYNC-FAST] ✅ ${categorias.length} categorias encontradas na Mercos`);
       
       if (categorias.length > 0) {
@@ -124,7 +138,18 @@ export async function POST(
         stack: error?.stack,
         error: error
       });
-      // Continua mesmo se falhar - usará categoria fallback
+      if (!allowWithoutCategories) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Falha ao sincronizar categorias na Mercos. Sync de produtos interrompido para evitar inconsistência.',
+            details: error?.message || 'Erro desconhecido em /categorias',
+            hint: 'Após ajustar permissões/tokens de categorias na Mercos, execute novamente o sync.',
+          },
+          { status: 424 }
+        );
+      }
+      console.warn('[SYNC-FAST] ⚠️ Continuando sem categorias por allow_without_categories=true');
     }
 
     // PASSO 2: Criar mapeamento de categorias Mercos -> Supabase
@@ -140,6 +165,17 @@ export async function POST(
       });
     }
     console.log(`[SYNC-FAST] ${categoriasMap.size} categorias mapeadas`);
+
+    if (categoriasMap.size === 0 && !allowWithoutCategories) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Nenhuma categoria do distribuidor está mapeada em distribuidor_categories.',
+          hint: 'Sincronize categorias com sucesso antes de processar produtos, ou use allow_without_categories=true conscientemente.',
+        },
+        { status: 412 }
+      );
+    }
 
     // PASSO 2: Buscar TODOS os mercos_ids que já existem (UMA ÚNICA QUERY)
     console.log('[SYNC-FAST] Buscando produtos já sincronizados...');

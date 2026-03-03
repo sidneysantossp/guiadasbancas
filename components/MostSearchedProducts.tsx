@@ -500,7 +500,7 @@ export default function MostSearchedProducts() {
     return apiItems.slice(0, 10); // Limita a 10 produtos (2 linhas de 5)
   }, [apiItems]);
 
-  const [viewport, setViewport] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1024);
+  const [viewport, setViewport] = useState<number>(1024);
   useEffect(() => {
     const onResize = () => setViewport(window.innerWidth);
     window.addEventListener("resize", onResize);

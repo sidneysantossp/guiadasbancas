@@ -29,12 +29,19 @@ export async function PATCH(request: NextRequest) {
   // Verificar se o usuário tem acesso à banca (dono ou membro)
   const { data: banca, error: bancaError } = await supabaseAdmin
     .from("bancas")
-    .select("id, user_id")
+    .select("id, user_id, active")
     .eq("id", bancaId)
     .single();
 
   if (bancaError || !banca) {
     return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+  }
+
+  if ((banca as any).active === false) {
+    return NextResponse.json(
+      { success: false, error: "Não é possível selecionar uma banca inativa como banca ativa" },
+      { status: 400 }
+    );
   }
 
   const isOwner = (banca as any).user_id === userId;

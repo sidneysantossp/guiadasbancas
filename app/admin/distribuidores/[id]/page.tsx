@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Distribuidor } from '@/types/distribuidor';
+import { fetchAdminWithDevFallback } from '@/lib/admin-client-fetch';
 
 export default function EditarDistribuidorPage() {
   const params = useParams();
@@ -25,7 +26,7 @@ export default function EditarDistribuidorPage() {
 
   const loadDistribuidor = async () => {
     try {
-      const response = await fetch(`/api/admin/distribuidores/${params.id}`);
+      const response = await fetchAdminWithDevFallback(`/api/admin/distribuidores/${params.id}`);
       const result = await response.json();
 
       if (result.success) {
@@ -50,7 +51,7 @@ export default function EditarDistribuidorPage() {
     setSaving(true);
 
     try {
-      const response = await fetch(`/api/admin/distribuidores/${params.id}`, {
+      const response = await fetchAdminWithDevFallback(`/api/admin/distribuidores/${params.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -104,6 +105,35 @@ export default function EditarDistribuidorPage() {
         </Link>
         <h1 className="text-3xl font-bold text-gray-900">Editar Distribuidor</h1>
         <p className="text-gray-600 mt-2">{distribuidor.nome}</p>
+      </div>
+
+      <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-5">
+        <h2 className="text-lg font-semibold text-green-900">
+          Processo de Sincronização de APIs
+        </h2>
+        <p className="mt-1 text-sm text-green-800">
+          O fluxo completo de sincronização Mercos continua disponível para este distribuidor.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            href={`/admin/distribuidores/${params.id}/sync`}
+            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition-colors"
+          >
+            Abrir Sincronização
+          </Link>
+          <Link
+            href={`/admin/distribuidores/${params.id}/produtos`}
+            className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-green-700 border border-green-300 hover:bg-green-100 transition-colors"
+          >
+            Ver Produtos Sincronizados
+          </Link>
+          <Link
+            href={`/admin/distribuidores/${params.id}/categorias`}
+            className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-green-700 border border-green-300 hover:bg-green-100 transition-colors"
+          >
+            Ver Categorias Mercos
+          </Link>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-8">
@@ -264,7 +294,7 @@ export default function EditarDistribuidorPage() {
           href={`/admin/distribuidores/${params.id}/sync`}
           className="flex-1 text-center bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
         >
-          Sincronizar Produtos
+          Abrir Processo de Sincronização
         </Link>
       </div>
     </div>

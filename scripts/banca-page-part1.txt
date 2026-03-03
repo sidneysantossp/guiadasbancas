@@ -1,0 +1,411 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { useCategories } from "@/lib/useCategories";
+import { maskCEP, maskPhoneBR } from "@/lib/masks";
+import { fetchViaCEP } from "@/lib/viacep";
+import ImageUploadDragDrop from "@/components/admin/ImageUploadDragDrop";
+import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
+import CotistaSearch from "@/components/CotistaSearch";
+
+export default function EditBancaPage() {
+  const router = useRouter();
+  const params = useParams();
+  const bancaId = params.id as string;
+  const { items: categories } = useCategories();
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+  
+  // Form fields
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [cep, setCep] = useState("");
+  const [street, setStreet] = useState("");
+  const [number, setNumber] = useState("");
+  const [complement, setComplement] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [city, setCity] = useState("");
+  const [uf, setUf] = useState("");
+  const [lat, setLat] = useState("");
+  const [lng, setLng] = useState("");
+  const [cover, setCover] = useState("");
+  const [avatar, setAvatar] = useState("");
+  
+  // Track changes in cover and avatar
+  const handleCoverChange = (url: string) => {
+    console.log('handleCoverChange called with URL:', url);
+    setCover(url);
+    setHasChanges(true);
+    console.log('hasChanges set to true');
+  };
+  
+  const handleAvatarChange = (url: string) => {
+    console.log('handleAvatarChange called with URL:', url);
+    setAvatar(url);
+    setHasChanges(true);
+    console.log('hasChanges set to true');
+  };
+  const [tpuUrl, setTpuUrl] = useState<string>("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [facebook, setFacebook] = useState("");
+  const [instagram, setInstagram] = useState("");
+  const [gmb, setGmb] = useState("");
+  const [description, setDescription] = useState("");
+  const [active, setActive] = useState(true);
+  const [featured, setFeatured] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [loadingCep, setLoadingCep] = useState(false);
+    // Dono da banca (jornaleiro) e reset de senha (admin)
+  const [ownerEmail, setOwnerEmail] = useState<string>("");
+  const [resetPwd, setResetPwd] = useState<string>("");
+  const [resetPwd2, setResetPwd2] = useState<string>("");
+  const [resetLoading, setResetLoading] = useState<boolean>(false);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [resetErr, setResetErr] = useState<string | null>(null);
+  // Estados para exclusão
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState<string>("");
+  
+  // Estados para cotista
+  const [isCotista, setIsCotista] = useState<boolean>(false);
+  const [selectedCotista, setSelectedCotista] = useState<{
+    id: string;
+    codigo: string;
+    razao_social: string;
+    cnpj_cpf: string;
+  } | null>(null);
+  
+  // Estados brasileiros
+  const estados = [
+    { sigla: 'AC', nome: 'Acre' },
+    { sigla: 'AL', nome: 'Alagoas' },
+    { sigla: 'AP', nome: 'Amapá' },
+    { sigla: 'AM', nome: 'Amazonas' },
+    { sigla: 'BA', nome: 'Bahia' },
+    { sigla: 'CE', nome: 'Ceará' },
+    { sigla: 'DF', nome: 'Distrito Federal' },
+    { sigla: 'ES', nome: 'Espírito Santo' },
+    { sigla: 'GO', nome: 'Goiás' },
+    { sigla: 'MA', nome: 'Maranhão' },
+    { sigla: 'MT', nome: 'Mato Grosso' },
+    { sigla: 'MS', nome: 'Mato Grosso do Sul' },
+    { sigla: 'MG', nome: 'Minas Gerais' },
+    { sigla: 'PA', nome: 'Pará' },
+    { sigla: 'PB', nome: 'Paraíba' },
+    { sigla: 'PR', nome: 'Paraná' },
+    { sigla: 'PE', nome: 'Pernambuco' },
+    { sigla: 'PI', nome: 'Piauí' },
+    { sigla: 'RJ', nome: 'Rio de Janeiro' },
+    { sigla: 'RN', nome: 'Rio Grande do Norte' },
+    { sigla: 'RS', nome: 'Rio Grande do Sul' },
+    { sigla: 'RO', nome: 'Rondônia' },
+    { sigla: 'RR', nome: 'Roraima' },
+    { sigla: 'SC', nome: 'Santa Catarina' },
+    { sigla: 'SP', nome: 'São Paulo' },
+    { sigla: 'SE', nome: 'Sergipe' },
+    { sigla: 'TO', nome: 'Tocantins' }
+  ];
+  
+  // Tabs configuration
+  // Horários
+  const [hours, setHours] = useState([
+    { key: 'monday', label: 'Segunda', open: true, start: '08:00', end: '18:00' },
+    { key: 'tuesday', label: 'Terça', open: true, start: '08:00', end: '18:00' },
+    { key: 'wednesday', label: 'Quarta', open: true, start: '08:00', end: '18:00' },
+    { key: 'thursday', label: 'Quinta', open: true, start: '08:00', end: '18:00' },
+    { key: 'friday', label: 'Sexta', open: true, start: '08:00', end: '18:00' },
+    { key: 'saturday', label: 'Sábado', open: true, start: '08:00', end: '13:00' },
+    { key: 'sunday', label: 'Domingo', open: false, start: '08:00', end: '18:00' },
+  ]);
+
+  // Load banca data
+  useEffect(() => {
+    const loadBanca = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/admin/bancas?id=${bancaId}`, {
+          headers: { 'Authorization': 'Bearer admin-token' }
+        });
+        const json = await res.json();
+        
+        if (json?.success && json.data) {
+          const banca = json.data;
+          setName(banca.name || "");
+          setAddress(banca.address || "");
+          setCep(banca.addressObj?.cep || banca.cep || "");
+          setStreet(banca.addressObj?.street || "");
+          setNumber(banca.addressObj?.number || "");
+          setComplement(banca.addressObj?.complement || "");
+          setNeighborhood(banca.addressObj?.neighborhood || "");
+          setCity(banca.addressObj?.city || "");
+          setUf(banca.addressObj?.uf || "");
+          setLat(banca.lat?.toString() || banca.location?.lat?.toString() || "");
+          setLng(banca.lng?.toString() || banca.location?.lng?.toString() || "");
+          setCover(banca.cover || banca.cover_image || "");
+          setAvatar(banca.avatar || banca.images?.avatar || "");
+          setWhatsapp(banca.contact?.whatsapp || "");
+          setFacebook(banca.socials?.facebook || "");
+          setInstagram(banca.socials?.instagram || "");
+          setGmb(banca.socials?.gmb || "");
+          setDescription(banca.description || "");
+          setActive(banca.active !== false);
+          setFeatured(banca.featured || false);
+          setSelectedCategories(banca.categories || []);
+          if (banca.hours) setHours(banca.hours);
+          if (banca.tpu_url) setTpuUrl(banca.tpu_url);
+          // Email do jornaleiro (proprietário) quando disponível
+          if (banca.ownerEmail) setOwnerEmail(String(banca.ownerEmail));
+          // Dados do cotista
+          setIsCotista(banca.is_cotista || false);
+          if (banca.cotista_id) {
+            setSelectedCotista({
+              id: banca.cotista_id,
+              codigo: banca.cotista_codigo || '',
+              razao_social: banca.cotista_razao_social || '',
+              cnpj_cpf: banca.cotista_cnpj_cpf || '',
+            });
+          }
+        } else {
+          setError("Banca não encontrada");
+        }
+      } catch (err) {
+        setError("Erro ao carregar banca");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (bancaId) {
+      loadBanca();
+    }
+  }, [bancaId]);
+
+  const toggleCategory = (categoryId: string) => {
+    setSelectedCategories(prev => 
+      prev.includes(categoryId) 
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
+
+  const handleCepChange = async (value: string) => {
+    const maskedCep = maskCEP(value);
+    setCep(maskedCep);
+    
+    if (maskedCep.length === 9) {
+      setLoadingCep(true);
+      try {
+        const data = await fetchViaCEP(maskedCep);
+        if (data) {
+          setStreet(data.logradouro || "");
+          setNeighborhood(data.bairro || "");
+          setCity(data.localidade || "");
+          setUf(data.uf || "");
+          setAddress(`${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar CEP:', error);
+      } finally {
+        setLoadingCep(false);
+      }
+    } else {
+      // Limpar campos quando CEP for inválido
+      if (maskedCep.length < 9) {
+        setStreet("");
+        setNeighborhood("");
+        setCity("");
+        setUf("");
+      }
+    }
+  };
+
+  // Resetar senha do jornaleiro (admin-only)
+  const onResetPassword = async () => {
+    setResetErr(null);
+    setResetMsg(null);
+    const email = ownerEmail.trim();
+    if (!email) {
+      setResetErr('Informe o e-mail do jornaleiro.');
+      return;
+    }
+    if (resetPwd.length < 6) {
+      setResetErr('A nova senha deve ter ao menos 6 caracteres.');
+      return;
+    }
+    if (resetPwd !== resetPwd2) {
+      setResetErr('As senhas não coincidem.');
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin-token' },
+        body: JSON.stringify({ email, password: resetPwd })
+      });
+      const j = await res.json().catch(()=>({}));
+      if (!res.ok || j?.error) {
+        setResetErr(j?.error || 'Falha ao resetar senha. Verifique se a função SQL reset está instalada e a variável ALLOW_LOCAL_RESET=true.');
+        return;
+      }
+      setResetMsg('Senha atualizada com sucesso. Avise o jornaleiro.');
+      setResetPwd('');
+      setResetPwd2('');
+    } catch (e) {
+      setResetErr('Erro de conexão ao resetar senha.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  // Verificar se CEP está preenchido corretamente
+  const isCepValid = cep.length === 9;
+
+  // Navegação entre abas
+  const currentTabIndex = tabs.findIndex(tab => tab.id === activeTab);
+  const canGoNext = currentTabIndex < tabs.length - 1;
+
+  const goToNextTab = () => {
+    if (canGoNext) {
+      setActiveTab(tabs[currentTabIndex + 1].id);
+    }
+  };
+
+  // Botão reutilizável de "Próximo" para navegar entre abas
+  const TabNextButton = () => (
+    canGoNext ? (
+      <div className="pt-4 border-t border-gray-200 text-right">
+        <button
+          type="button"
+          onClick={goToNextTab}
+          className="px-4 py-2 text-sm font-medium text-white bg-[#ff5c00] rounded-md hover:opacity-90"
+        >
+          Próximo →
+        </button>
+      </div>
+    ) : null
+  );
+
+  const updateHour = (index: number, field: string, value: any) => {
+    setHours(prev => prev.map((hour, i) => 
+      i === index ? { ...hour, [field]: value } : hour
+    ));
+  };
+
+  // Função para excluir banca
+  const handleDeleteBanca = async () => {
+    if (deleteConfirmText !== name) {
+      alert('O nome digitado não confere com o nome da banca. Digite exatamente: ' + name);
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      const response = await fetch(`/api/admin/bancas?id=${bancaId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer admin-token',
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao excluir banca');
+      }
+
+      alert('Banca excluída com sucesso!');
+      router.push('/admin/cms/bancas'); // Redirecionar para listagem
+    } catch (error: any) {
+      console.error('Erro ao excluir banca:', error);
+      alert('Erro ao excluir banca: ' + error.message);
+    } finally {
+      setDeleteLoading(false);
+      setShowDeleteConfirm(false);
+      setDeleteConfirmText('');
+    }
+  };
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSaving(true);
+
+    try {
+      const data = {
+        id: bancaId,
+        name,
+        address,
+        lat: lat ? Number(lat) : undefined,
+        lng: lng ? Number(lng) : undefined,
+        cover,
+        avatar,
+        tpu_url: tpuUrl || undefined,
+        description,
+        addressObj: { cep, street, number, complement, neighborhood, city, uf },
+        contact: { whatsapp },
+        socials: { facebook, instagram, gmb },
+        categories: selectedCategories,
+        hours,
+        featured,
+        active,
+        is_cotista: isCotista,
+        cotista_id: selectedCotista?.id || null,
+        cotista_codigo: selectedCotista?.codigo || null,
+        cotista_razao_social: selectedCotista?.razao_social || null,
+        cotista_cnpj_cpf: selectedCotista?.cnpj_cpf || null,
+      };
+
+      const res = await fetch('/api/admin/bancas', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer admin-token'
+        },
+        body: JSON.stringify({ data })
+      });
+
+      const json = await res.json();
+      
+      if (json?.success) {
+        setSuccess('✅ Alterações realizadas com sucesso!');
+        setHasChanges(false);
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(json?.error || 'Erro ao atualizar banca');
+      }
+    } catch (err) {
+      setError('Erro de conexão');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 space-y-4 rounded-lg border border-gray-200 bg-white p-4">
+            <div className="animate-pulse space-y-4">
+              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              <div className="h-10 bg-gray-200 rounded"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              <div className="h-20 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  

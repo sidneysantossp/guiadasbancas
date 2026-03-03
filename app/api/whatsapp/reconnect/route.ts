@@ -6,9 +6,9 @@ import { NextResponse } from "next/server";
  */
 export async function POST() {
   try {
-    const baseUrl = process.env.EVOLUTION_API_URL || 'https://api.auditseo.com.br';
-    const apiKey = process.env.EVOLUTION_API_KEY || '43F2839534E2-4231-9BA7-C8193BD064DF';
-    const instanceName = 'SDR_AUDITSEO';
+    const baseUrl = process.env.EVOLUTION_API_URL || 'https://api.guiadasbancas.com.br';
+    const apiKey = process.env.EVOLUTION_API_KEY || '';
+    const instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas-central';
 
     console.log('[WhatsApp Reconnect] Tentando reconectar instância:', instanceName);
 
@@ -64,7 +64,7 @@ export async function POST() {
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao reconectar',
-      recommendation: 'Acesse manualmente: https://api.auditseo.com.br'
+      recommendation: 'Acesse manualmente: https://api.guiadasbancas.com.br'
     }, { status: 500 });
   }
 }
@@ -74,9 +74,9 @@ export async function POST() {
  */
 export async function GET() {
   try {
-    const baseUrl = process.env.EVOLUTION_API_URL || 'https://api.auditseo.com.br';
-    const apiKey = process.env.EVOLUTION_API_KEY || '43F2839534E2-4231-9BA7-C8193BD064DF';
-    const instanceName = 'SDR_AUDITSEO';
+    const baseUrl = process.env.EVOLUTION_API_URL || 'https://api.guiadasbancas.com.br';
+    const apiKey = process.env.EVOLUTION_API_KEY || '';
+    const instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas-central';
 
     console.log('[WhatsApp Status] Verificando status da instância:', instanceName);
 
@@ -106,9 +106,9 @@ export async function GET() {
       instance: instanceName,
       details: statusData,
       nextSteps: isConnected ? [] : [
-        'Acesse: https://api.auditseo.com.br',
+        'Acesse: https://api.guiadasbancas.com.br',
         'Vá em Instâncias',
-        'Conecte a instância SDR_AUDITSEO',
+        'Conecte a instância guiadasbancas-central',
         'Escaneie o QR Code'
       ]
     });

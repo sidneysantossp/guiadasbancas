@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { fetchAdminWithDevFallback } from '@/lib/admin-client-fetch';
 
 export default function NovoDistribuidorPage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function NovoDistribuidorPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/admin/distribuidores', {
+      const response = await fetchAdminWithDevFallback('/api/admin/distribuidores', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

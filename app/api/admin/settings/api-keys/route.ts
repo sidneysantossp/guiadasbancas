@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     // Try to fetch keys
     const { data, error } = await supabaseAdmin
       .from('settings')
@@ -32,6 +36,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
+
     const body = await req.json();
     const { openai, gemini, deepseek } = body;
 

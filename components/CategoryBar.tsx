@@ -2,17 +2,183 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { categoryMenu, type MainCategory } from "./categoryMenuData";
+import { categoryMenu as fallbackCategoryMenu } from "./categoryMenuData";
+
+type MenuSubcategory = {
+  id: string;
+  name: string;
+  slug: string;
+  link: string;
+};
+
+type MenuCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+  link: string;
+  order: number;
+  subcategories: MenuSubcategory[];
+};
 
 interface CategoryBarProps {
   visible?: boolean;
 }
 
+const ICON_RULES: Array<{ pattern: RegExp; icon: string }> = [
+  { pattern: /(bebida|energet|suco|agua|refriger|cervej|vinho|cafe|cha)/i, icon: "🍺" },
+  { pattern: /(tabac|cigar|charut|nargu|essenc|isqueir|palheiro|incenso|seda)/i, icon: "🚬" },
+  { pattern: /(panini|figurinh|album|colecion|comics|manga|hq|marvel|dc|disney|conan)/i, icon: "⚽" },
+  { pattern: /(revista|jornal)/i, icon: "📰" },
+  { pattern: /(livro|book)/i, icon: "📚" },
+  { pattern: /(snack|doce|chocol|bala|chiclete|bombon|salgad)/i, icon: "🍫" },
+  { pattern: /(papelaria|caneta|caderno)/i, icon: "✏️" },
+  { pattern: /(carta|card|jogo|pokemon|baralho)/i, icon: "🎮" },
+  { pattern: /(brinquedo|pelucia|massinha|carrinho)/i, icon: "🧸" },
+  { pattern: /(eletron|fone|caixa de som|informatic|pilha|celular|acessorio)/i, icon: "🔌" },
+];
+
+function slugify(value: string): string {
+  return (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+function iconForCategory(name: string): string {
+  for (const rule of ICON_RULES) {
+    if (rule.pattern.test(name || "")) return rule.icon;
+  }
+  return "📦";
+}
+
+function resolveLink(name: string, link?: string): string {
+  if (typeof link === "string") {
+    const normalized = link.trim();
+    if (normalized.startsWith("/categorias")) return normalized;
+    if (normalized.startsWith("/categoria/")) {
+      return normalized.replace("/categoria/", "/categorias/");
+    }
+    if (normalized.startsWith("/")) return normalized;
+  }
+  return `/categorias/${slugify(name) || "categoria"}`;
+}
+
+function toFallbackMenu(): MenuCategory[] {
+  return fallbackCategoryMenu.map((category, index) => ({
+    id: `fallback-${category.slug}-${index}`,
+    name: category.name,
+    slug: category.slug || slugify(category.name),
+    icon: category.icon || iconForCategory(category.name),
+    link: `/categorias/${category.slug}`,
+    order: index,
+    subcategories: (category.subcategories || []).map((subcategory, subIndex) => ({
+      id: `fallback-${category.slug}-${subcategory.slug}-${subIndex}`,
+      name: subcategory.name,
+      slug: subcategory.slug || slugify(subcategory.name),
+      link: `/categorias/${subcategory.slug || slugify(subcategory.name)}`,
+    })),
+  }));
+}
+
+function normalizeMenuTree(rawTree: any[]): MenuCategory[] {
+  const parsed = (Array.isArray(rawTree) ? rawTree : [])
+    .map((raw, index) => {
+      const name = (raw?.name || "").toString().trim();
+      if (!name) return null;
+
+      const id = (raw?.id || `${slugify(name)}-${index}`).toString();
+      const slug = (raw?.slug || slugify(name) || id).toString();
+      const link = resolveLink(name, raw?.link);
+      const subcategories = (Array.isArray(raw?.subcategories) ? raw.subcategories : [])
+        .map((sub: any, subIndex: number) => {
+          const subName = (sub?.name || "").toString().trim();
+          if (!subName) return null;
+          const subId = (sub?.id || `${id}-sub-${subIndex}`).toString();
+          const subSlug = (sub?.slug || slugify(subName) || subId).toString();
+          return {
+            id: subId,
+            name: subName,
+            slug: subSlug,
+            link: resolveLink(subName, sub?.link),
+          } as MenuSubcategory;
+        })
+        .filter(Boolean) as MenuSubcategory[];
+
+      return {
+        id,
+        name,
+        slug,
+        icon: (raw?.icon || iconForCategory(name)).toString(),
+        link,
+        order: typeof raw?.order === "number" ? raw.order : index,
+        subcategories,
+      } as MenuCategory;
+    })
+    .filter(Boolean) as MenuCategory[];
+
+  const mergedByName = new Map<string, MenuCategory>();
+
+  for (const category of parsed) {
+    const categoryKey = slugify(category.name) || category.id;
+    const existing = mergedByName.get(categoryKey);
+
+    if (!existing) {
+      mergedByName.set(categoryKey, {
+        ...category,
+        subcategories: [...category.subcategories],
+      });
+      continue;
+    }
+
+    if (category.subcategories.length > existing.subcategories.length) {
+      existing.icon = category.icon;
+      existing.link = category.link;
+    }
+
+    existing.order = Math.min(existing.order, category.order);
+
+    const subByName = new Map<string, MenuSubcategory>();
+    for (const subcategory of existing.subcategories) {
+      subByName.set(slugify(subcategory.name) || subcategory.id, subcategory);
+    }
+    for (const subcategory of category.subcategories) {
+      const subKey = slugify(subcategory.name) || subcategory.id;
+      if (!subByName.has(subKey)) {
+        subByName.set(subKey, subcategory);
+      }
+    }
+    existing.subcategories = Array.from(subByName.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, "pt-BR")
+    );
+  }
+
+  const normalized = Array.from(mergedByName.values());
+
+  normalized.sort((a, b) => {
+    const byChildren = b.subcategories.length - a.subcategories.length;
+    if (byChildren !== 0) return byChildren;
+    if (a.order !== b.order) return a.order - b.order;
+    return a.name.localeCompare(b.name, "pt-BR");
+  });
+
+  return normalized;
+}
+
+const FALLBACK_MENU = toFallbackMenu();
+
 export default function CategoryBar({ visible = true }: CategoryBarProps) {
+  const [menuItems, setMenuItems] = useState<MenuCategory[]>(FALLBACK_MENU);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const activeMenuItems = menuItems.length > 0 ? menuItems : FALLBACK_MENU;
 
   const scheduleClose = useCallback(() => {
     if (closeTimeout.current) clearTimeout(closeTimeout.current);
@@ -31,11 +197,12 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
 
   const handleCategoryHover = useCallback(
     (index: number) => {
+      if (index < 0 || index >= activeMenuItems.length) return;
       cancelClose();
       setActiveIndex(index);
       setMenuOpen(true);
     },
-    [cancelClose]
+    [activeMenuItems.length, cancelClose]
   );
 
   const handleBarEnter = useCallback(() => {
@@ -45,6 +212,36 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
   const handleBarLeave = useCallback(() => {
     scheduleClose();
   }, [scheduleClose]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadRealCategories() {
+      try {
+        const response = await fetch("/api/categories", { cache: "force-cache" });
+        if (!response.ok) return;
+        const json = await response.json();
+        const parsedTree = normalizeMenuTree(json?.tree || []);
+        if (!mounted || parsedTree.length === 0) return;
+        setMenuItems(parsedTree);
+      } catch {
+        // Mantém fallback estático em caso de erro de API
+      }
+    }
+
+    loadRealCategories();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Fecha o menu ao trocar para um índice inválido após atualizar categorias
+  useEffect(() => {
+    if (activeIndex === null) return;
+    if (activeIndex >= activeMenuItems.length) {
+      setActiveIndex(activeMenuItems.length > 0 ? 0 : null);
+    }
+  }, [activeIndex, activeMenuItems.length]);
 
   // Close on click outside
   useEffect(() => {
@@ -74,8 +271,8 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
 
   if (!visible) return null;
 
-  const activeCategory: MainCategory | null =
-    activeIndex !== null ? categoryMenu[activeIndex] : null;
+  const activeCategory: MenuCategory | null =
+    activeIndex !== null ? activeMenuItems[activeIndex] || null : null;
 
   return (
     <div
@@ -84,10 +281,8 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
       onMouseEnter={handleBarEnter}
       onMouseLeave={handleBarLeave}
     >
-      {/* Horizontal category links */}
       <div className="container-max">
         <nav className="flex items-center gap-0 text-sm overflow-x-auto scrollbar-hide">
-          {/* "Todas as Categorias" trigger */}
           <button
             type="button"
             onMouseEnter={() => handleCategoryHover(0)}
@@ -95,7 +290,7 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
               if (menuOpen) {
                 setMenuOpen(false);
                 setActiveIndex(null);
-              } else {
+              } else if (activeMenuItems.length > 0) {
                 handleCategoryHover(0);
               }
             }}
@@ -128,25 +323,23 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
 
           <div className="h-5 w-px bg-gray-200" />
 
-          {/* Quick links to main categories */}
-          {categoryMenu.slice(0, 8).map((cat, i) => (
+          {activeMenuItems.slice(0, 8).map((category, index) => (
             <Link
-              key={cat.slug}
-              href={`/categorias/${cat.slug}`}
-              onMouseEnter={() => handleCategoryHover(i)}
+              key={category.id}
+              href={category.link as any}
+              onMouseEnter={() => handleCategoryHover(index)}
               className={`whitespace-nowrap px-3 py-2.5 font-medium transition-colors ${
-                menuOpen && activeIndex === i
+                menuOpen && activeIndex === index
                   ? "text-[#ff5c00]"
                   : "text-gray-600 hover:text-[#ff5c00]"
               }`}
             >
-              {cat.name}
+              {category.name}
             </Link>
           ))}
         </nav>
       </div>
 
-      {/* Mega menu panel */}
       {menuOpen && (
         <div
           className="absolute left-0 right-0 top-full bg-white border-t border-gray-200 shadow-xl z-50"
@@ -155,32 +348,31 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
         >
           <div className="container-max">
             <div className="flex min-h-[340px]">
-              {/* Left sidebar - category list */}
               <div className="w-[240px] flex-shrink-0 border-r border-gray-100 py-3 overflow-y-auto max-h-[420px]">
-                {categoryMenu.map((cat, i) => (
+                {activeMenuItems.map((category, index) => (
                   <button
-                    key={cat.slug}
+                    key={category.id}
                     type="button"
-                    onMouseEnter={() => setActiveIndex(i)}
+                    onMouseEnter={() => setActiveIndex(index)}
                     onClick={() => {
                       setMenuOpen(false);
                       setActiveIndex(null);
-                      window.location.href = `/categorias/${cat.slug}`;
+                      window.location.href = category.link;
                     }}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-left ${
-                      activeIndex === i
+                      activeIndex === index
                         ? "bg-orange-50 text-[#ff5c00] font-semibold"
                         : "text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     <span className="text-lg leading-none w-6 text-center flex-shrink-0">
-                      {cat.icon}
+                      {category.icon}
                     </span>
-                    <span>{cat.name}</span>
+                    <span>{category.name}</span>
                     <svg
                       viewBox="0 0 24 24"
                       className={`h-4 w-4 ml-auto flex-shrink-0 transition-opacity ${
-                        activeIndex === i ? "opacity-100" : "opacity-0"
+                        activeIndex === index ? "opacity-100" : "opacity-0"
                       }`}
                       fill="none"
                       stroke="currentColor"
@@ -192,7 +384,6 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
                 ))}
               </div>
 
-              {/* Right panel - subcategories */}
               <div className="flex-1 p-6">
                 {activeCategory && (
                   <>
@@ -202,25 +393,33 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
                         {activeCategory.name}
                       </h3>
                     </div>
-                    <div className="grid grid-cols-3 gap-x-8 gap-y-1">
-                      {activeCategory.subcategories.map((sub) => (
-                        <Link
-                          key={sub.slug}
-                          href={`/categorias/${activeCategory.slug}?sub=${sub.slug}`}
-                          onClick={() => {
-                            setMenuOpen(false);
-                            setActiveIndex(null);
-                          }}
-                          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-[#ff5c00] transition-colors"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-gray-300 flex-shrink-0" />
-                          {sub.name}
-                        </Link>
-                      ))}
-                    </div>
+
+                    {activeCategory.subcategories.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-x-8 gap-y-1">
+                        {activeCategory.subcategories.map((subcategory) => (
+                          <Link
+                            key={subcategory.id}
+                            href={subcategory.link as any}
+                            onClick={() => {
+                              setMenuOpen(false);
+                              setActiveIndex(null);
+                            }}
+                            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-[#ff5c00] transition-colors"
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-gray-300 flex-shrink-0" />
+                            {subcategory.name}
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                        Explore produtos desta categoria.
+                      </div>
+                    )}
+
                     <div className="mt-6 pt-4 border-t border-gray-100">
                       <Link
-                        href={`/categorias/${activeCategory.slug}`}
+                        href={activeCategory.link as any}
                         onClick={() => {
                           setMenuOpen(false);
                           setActiveIndex(null);

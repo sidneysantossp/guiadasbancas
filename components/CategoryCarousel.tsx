@@ -6,7 +6,8 @@ import SafeImage from "./SafeImage";
 import { useCategories, type UICategory } from "@/lib/useCategories";
 
 function useItemsPerView(length: number) {
-  const [w, setW] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1024);
+  // Keep first client render aligned with SSR to avoid hydration mismatch.
+  const [w, setW] = useState<number>(1024);
   useEffect(() => {
     const onResize = () => setW(window.innerWidth);
     window.addEventListener("resize", onResize);

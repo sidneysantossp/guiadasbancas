@@ -26,6 +26,8 @@ type Category = {
   product_count: number;
   active_product_count: number;
   inactive_product_count: number;
+  mercos_id?: number | null;
+  ultima_sincronizacao?: string | null;
 };
 
 type Stats = {
@@ -42,6 +44,8 @@ export default function DistribuidorCategoriasPage() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"all" | "with_products" | "empty">("all");
   const [distribuidor, setDistribuidor] = useState<any>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{type: 'success' | 'error'; text: string} | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem("gb:distribuidor");
@@ -55,7 +59,11 @@ export default function DistribuidorCategoriasPage() {
 
     try {
       setLoading(true);
-      const res = await fetch(`/api/distribuidor/categories?id=${distribuidor.id}`);
+      const res = await fetch(`/api/distribuidor/categories?id=${distribuidor.id}`, {
+        headers: {
+          'x-distribuidor-id': distribuidor.id,
+        },
+      });
       const json = await res.json();
 
       if (json.success) {
@@ -111,7 +119,55 @@ export default function DistribuidorCategoriasPage() {
             Visualize as categorias e a distribuição dos seus produtos
           </p>
         </div>
+        <button
+          onClick={async () => {
+            if (!confirm('Sincronizar categorias da Mercos? Isso pode levar alguns minutos.')) return;
+            setSyncing(true);
+            setSyncMessage(null);
+            try {
+              const res = await fetch(`/api/distribuidor/sync?id=${distribuidor?.id}&full=true`, {
+                method: 'POST',
+                headers: {
+                  'x-distribuidor-id': distribuidor?.id,
+                },
+              });
+              const j = await res.json();
+              if (j?.success) {
+                setSyncMessage({
+                  type: 'success',
+                  text: `Sincronização concluída! ${j?.data?.produtos_total || 0} produto(s) processado(s).`,
+                });
+                fetchCategories();
+              } else {
+                setSyncMessage({ type: 'error', text: j?.error || 'Erro na sincronização' });
+              }
+            } catch (error: any) {
+              setSyncMessage({ type: 'error', text: 'Erro ao sincronizar com Mercos' });
+            } finally {
+              setSyncing(false);
+              setTimeout(() => setSyncMessage(null), 5000);
+            }
+          }}
+          disabled={syncing || !distribuidor?.id}
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <svg viewBox="0 0 24 24" className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+          </svg>
+          {syncing ? 'Sincronizando...' : 'Sincronizar Mercos'}
+        </button>
       </div>
+
+      {/* Sync Message */}
+      {syncMessage && (
+        <div className={`rounded-lg px-4 py-3 text-sm ${
+          syncMessage.type === 'success' 
+            ? 'bg-green-50 text-green-800 border border-green-200' 
+            : 'bg-red-50 text-red-800 border border-red-200'
+        }`}>
+          {syncMessage.text}
+        </div>
+      )}
 
       {/* Stats Cards */}
       {stats && (
@@ -240,7 +296,13 @@ export default function DistribuidorCategoriasPage() {
               )}
               
               {/* Status badges */}
-              <div className="absolute top-2 right-2 flex gap-1">
+              <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                {category.mercos_id && (
+                  <span className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
+                    Mercos #{category.mercos_id}
+                  </span>
+                )}
+                <div className="flex gap-1">
                 {category.active ? (
                   <span className="px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">
                     Ativa
@@ -255,6 +317,7 @@ export default function DistribuidorCategoriasPage() {
                     <IconEyeOff size={12} /> Oculta
                   </span>
                 )}
+                </div>
               </div>
             </div>
 
@@ -263,6 +326,11 @@ export default function DistribuidorCategoriasPage() {
               <h3 className="font-semibold text-gray-900 text-lg mb-2">
                 {category.name}
               </h3>
+              {category.ultima_sincronizacao && (
+                <p className="text-xs text-gray-500 mb-2">
+                  Última sync: {new Date(category.ultima_sincronizacao).toLocaleString('pt-BR')}
+                </p>
+              )}
 
               {/* Product counts */}
               <div className="space-y-2">

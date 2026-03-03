@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { auth } from "@/lib/auth";
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -7,24 +8,37 @@ export const dynamic = 'force-dynamic';
 // Configuração para Vercel - aumentar limite de tempo e tamanho
 export const maxDuration = 60; // 60 segundos
 
-const ALLOWED_TOKENS = new Set([
+const LEGACY_ALLOWED_TOKENS = new Set([
   "Bearer admin-token",
   "Bearer jornaleiro-token",
 ]);
 
-function verifyUploadAuth(request: NextRequest) {
+function hasLegacyUploadToken(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  return Boolean(authHeader && ALLOWED_TOKENS.has(authHeader));
+  const tokenAllowed = Boolean(authHeader && LEGACY_ALLOWED_TOKENS.has(authHeader));
+  if (!tokenAllowed) return false;
+
+  return process.env.NODE_ENV !== "production" || process.env.ALLOW_LEGACY_UPLOAD_TOKEN === "true";
+}
+
+async function verifyUploadAuth(request: NextRequest) {
+  try {
+    const session = await auth();
+    const role = (session?.user as any)?.role as string | undefined;
+    if (role === "admin" || role === "jornaleiro" || role === "seller") {
+      return true;
+    }
+  } catch {
+    // fallback para token legado
+  }
+
+  return hasLegacyUploadToken(request);
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
-    console.log('[upload] Authorization header:', authHeader);
-    console.log('[upload] Headers:', Object.fromEntries(request.headers.entries()));
-    
-    if (!verifyUploadAuth(request)) {
-      console.error('[upload] Autenticação falhou - header:', authHeader);
+    if (!(await verifyUploadAuth(request))) {
+      console.error('[upload] Autenticação falhou');
       return NextResponse.json({ ok: false, error: "Não autorizado" }, { status: 401 });
     }
     

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
+import { requireAdminAuth } from '@/lib/security/admin-auth';
 
 /**
  * Sincronização Automática Completa
@@ -10,7 +11,7 @@ import { MercosAPI } from '@/lib/mercos-api';
 export const maxDuration = 300; // 5 minutos
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const startTime = Date.now();
@@ -22,6 +23,12 @@ export async function POST(
   console.log(`[SYNC-AUTO] Distribuidor ID: ${params.id}`);
   
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
+    const body = await request.json().catch(() => ({}));
+    const allowWithoutCategories = body?.allow_without_categories === true;
+
     const distribuidorId = params.id;
     const supabase = supabaseAdmin;
 
@@ -69,6 +76,17 @@ export async function POST(
       if (cat.mercos_id) categoryMap.set(cat.mercos_id, cat.id);
     }
     console.log(`[SYNC-AUTO] ${categoryMap.size} categorias mapeadas`);
+
+    if (categoryMap.size === 0 && !allowWithoutCategories) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Nenhuma categoria mapeada para este distribuidor em distribuidor_categories.',
+          hint: 'Sincronize categorias antes de rodar sync-auto, ou use allow_without_categories=true conscientemente.',
+        },
+        { status: 412 }
+      );
+    }
 
     let produtosNovos = 0;
     let produtosAtualizados = 0;
@@ -141,7 +159,7 @@ export async function POST(
           sob_encomenda: false,
           pre_venda: false,
           pronta_entrega: true,
-          active: !produtoMercos.excluido && (produtoMercos.saldo_estoque || 0) > 0,
+          active: !produtoMercos.excluido && produtoMercos.ativo !== false,
         };
 
         if (existing) {

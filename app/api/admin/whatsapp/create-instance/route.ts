@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
+import { callEvolutionApi, getEvolutionErrorMessage } from "@/lib/evolution-api";
 
 // POST - Criar nova instância na Evolution API
 export async function POST(req: NextRequest) {
@@ -18,27 +19,68 @@ export async function POST(req: NextRequest) {
 
     const finalInstanceName = instanceName || config.instanceName;
 
-    // Criar instância na Evolution API
-    const response = await fetch(`${config.baseUrl}/instance/create`, {
+    const payload = {
+      instanceName: finalInstanceName,
+      token: config.apiKey,
+      qrcode: true,
+      integration: "WHATSAPP-BAILEYS"
+    };
+
+    const result = await callEvolutionApi({
+      baseUrl: config.baseUrl,
+      apiKey: config.apiKey,
+      path: '/instance/create',
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': config.apiKey
-      },
-      body: JSON.stringify({
-        instanceName: finalInstanceName,
-        token: config.apiKey, // Usar a mesma API key como token
-        qrcode: true,
-        integration: "WHATSAPP-BAILEYS"
-      })
+      body: payload,
+      timeoutMs: 20000,
     });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorData}`);
+    if (!result.ok) {
+      const errMsg = getEvolutionErrorMessage(result, 'Erro ao criar instância');
+      const alreadyExists =
+        (result.status === 403 || result.status === 409) &&
+        /already in use|já está em uso|already exists|exist/i.test(errMsg);
+
+      if (alreadyExists) {
+        // Quando o nome já existe, validar se a chave atual possui acesso a essa instância.
+        // Se retornar 401/403, o nome está em uso por outro tenant/chave.
+        const ownershipCheck = await callEvolutionApi({
+          baseUrl: config.baseUrl,
+          apiKey: config.apiKey,
+          path: `/instance/connectionState/${encodeURIComponent(finalInstanceName)}`,
+          method: "GET",
+          timeoutMs: 10000,
+        });
+
+        if (!ownershipCheck.ok && (ownershipCheck.status === 401 || ownershipCheck.status === 403)) {
+          return NextResponse.json({
+            success: false,
+            error: `A instância \"${finalInstanceName}\" já existe, mas não pertence a esta API Key. Use um nome novo de instância.`,
+            upstreamStatus: ownershipCheck.status,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: 'Instância já existe e está pronta para conexão',
+          data: {
+            instanceName: finalInstanceName,
+            alreadyExists: true,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      return NextResponse.json({
+        success: false,
+        error: errMsg,
+        upstreamStatus: result.status,
+        timestamp: new Date().toISOString(),
+      });
     }
 
-    const data = await response.json();
+    const data = result.data || {};
 
     console.log('[ADMIN] Instância WhatsApp criada:', {
       instanceName: finalInstanceName,
@@ -50,6 +92,7 @@ export async function POST(req: NextRequest) {
       message: 'Instância criada com sucesso',
       data: {
         instanceName: finalInstanceName,
+        authModeUsed: result.authMode,
         ...data
       }
     });
@@ -60,6 +103,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: false,
       error: error.message || 'Erro ao criar instância'
-    }, { status: 500 });
+    });
   }
 }

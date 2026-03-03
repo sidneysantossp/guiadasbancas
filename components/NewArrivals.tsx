@@ -95,7 +95,7 @@ function ArrivalCard({ a }: { a: Arrival }) {
 }
 
 export default function NewArrivals() {
-  const [w, setW] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
+  const [w, setW] = useState<number>(1200);
   const [userLoc, setUserLoc] = useState<UserLocation | null>(null);
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   useEffect(() => {
@@ -112,7 +112,7 @@ export default function NewArrivals() {
     let active = true;
     (async () => {
       try {
-        const res = await fetch("/api/admin/bancas", { cache: "no-store" });
+        const res = await fetch("/api/bancas", { cache: "no-store" });
         if (!res.ok) throw new Error("fail");
         const json = await res.json();
         const list = Array.isArray(json?.data) ? json.data : [];

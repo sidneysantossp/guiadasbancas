@@ -168,10 +168,10 @@ export default function CheckoutPageClient() {
         setLoadingBancaConfig(true);
         const firstItem = items[0];
         if (firstItem?.banca_id) {
-          const res = await fetch(`/api/admin/bancas?id=${firstItem.banca_id}`);
+          const res = await fetch(`/api/bancas/${encodeURIComponent(firstItem.banca_id)}`, { cache: "no-store" });
           if (res.ok) {
             const data = await res.json();
-            const bancaData = data?.data;
+            const bancaData = data?.data ?? data ?? null;
             setDeliveryEnabled(Boolean(bancaData?.delivery_enabled));
           }
         }
@@ -332,10 +332,11 @@ export default function CheckoutPageClient() {
       
       if (firstItem.banca_id) {
         try {
-          const bancaRes = await fetch(`/api/admin/bancas/${firstItem.banca_id}`);
+          const bancaRes = await fetch(`/api/bancas/${encodeURIComponent(firstItem.banca_id)}`, { cache: "no-store" });
           if (bancaRes.ok) {
-            const bancaData = await bancaRes.json();
-            if (bancaData.cep) {
+            const bancaPayload = await bancaRes.json();
+            const bancaData = bancaPayload?.data ?? bancaPayload ?? null;
+            if (bancaData?.cep) {
               bancaCEP = bancaData.cep;
             }
           }

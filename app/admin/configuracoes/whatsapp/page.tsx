@@ -15,6 +15,9 @@ interface ConnectionStatus {
   status: string;
   timestamp: string;
   error?: string;
+  upstreamStatus?: number | null;
+  authModeTried?: string;
+  authModeUsed?: string;
   instanceInfo?: {
     name: string;
     state: string;
@@ -25,10 +28,10 @@ interface ConnectionStatus {
 
 export default function AdminWhatsAppConfigPage() {
   const [config, setConfig] = useState<EvolutionConfig>({
-    baseUrl: 'https://api.auditseo.com.br',
-    apiKey: '43F2839534E2-4231-9BA7-C8193BD064DF',
-    instanceName: 'SDR_AUDITSEO',
-    isActive: true
+    baseUrl: 'https://api.guiadasbancas.com.br',
+    apiKey: '',
+    instanceName: 'guiadasbancas-central',
+    isActive: false
   });
   const [status, setStatus] = useState<ConnectionStatus | null>(null);
   const [loading, setLoading] = useState(false);
@@ -41,7 +44,9 @@ export default function AdminWhatsAppConfigPage() {
   // Carregar configurações salvas
   const loadConfig = async () => {
     try {
-      const response = await fetch('/api/admin/whatsapp/config');
+      const response = await fetch('/api/admin/whatsapp/config', {
+        headers: { 'Authorization': 'Bearer admin-token' }
+      });
       if (response.ok) {
         const data = await response.json();
         console.log('Configurações carregadas:', data);
@@ -63,7 +68,8 @@ export default function AdminWhatsAppConfigPage() {
       const response = await fetch('/api/admin/whatsapp/config', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer admin-token'
         },
         body: JSON.stringify(config)
       });
@@ -90,7 +96,9 @@ export default function AdminWhatsAppConfigPage() {
   const checkStatus = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/whatsapp/status');
+      const response = await fetch('/api/admin/whatsapp/status', {
+        headers: { 'Authorization': 'Bearer admin-token' }
+      });
       const data = await response.json();
       setStatus(data);
     } catch (error) {
@@ -108,7 +116,8 @@ export default function AdminWhatsAppConfigPage() {
       const response = await fetch('/api/admin/whatsapp/create-instance', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer admin-token'
         },
         body: JSON.stringify({
           instanceName: config.instanceName
@@ -143,7 +152,8 @@ export default function AdminWhatsAppConfigPage() {
       const response = await fetch('/api/admin/whatsapp/test', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer admin-token'
         },
         body: JSON.stringify({
           phone: testPhone,
@@ -328,6 +338,16 @@ export default function AdminWhatsAppConfigPage() {
                 <p className="text-sm text-red-700">
                   <strong>Erro:</strong> {status.error}
                 </p>
+                {typeof status.upstreamStatus === 'number' && (
+                  <p className="text-xs text-red-600 mt-1">
+                    HTTP upstream: {status.upstreamStatus}
+                  </p>
+                )}
+                {(status.upstreamStatus === 401 || status.upstreamStatus === 403) && (
+                  <p className="text-xs text-red-600 mt-2">
+                    Verifique a API Key da Evolution API e permissões da instância.
+                  </p>
+                )}
               </div>
             )}
 

@@ -45,9 +45,9 @@ class WhatsAppService {
 
   constructor() {
     this.config = {
-      baseUrl: process.env.EVOLUTION_API_URL || 'https://api.auditseo.com.br',
-      apiKey: process.env.EVOLUTION_API_KEY || '43F2839534E2-4231-9BA7-C8193BD064DF',
-      instanceName: 'SDR_AUDITSEO', // Sua instância existente
+      baseUrl: process.env.EVOLUTION_API_URL || 'https://api.guiadasbancas.com.br',
+      apiKey: process.env.EVOLUTION_API_KEY || '',
+      instanceName: process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas-central',
       isActive: true
     };
   }

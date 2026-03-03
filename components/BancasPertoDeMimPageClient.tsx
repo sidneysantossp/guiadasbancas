@@ -205,9 +205,9 @@ export default function BancasPertoDeMimPageClient({
       try {
         let res: Response;
         if (loc && typeof loc.lat === 'number' && typeof loc.lng === 'number') {
-          res = await fetch(`/api/admin/bancas?lat=${encodeURIComponent(String(loc.lat))}&lng=${encodeURIComponent(String(loc.lng))}&maxKm=${encodeURIComponent(String(Math.max(1, Math.min(50, maxKm || 50))))}`, { cache: 'no-store' });
+          res = await fetch(`/api/bancas?lat=${encodeURIComponent(String(loc.lat))}&lng=${encodeURIComponent(String(loc.lng))}&radiusKm=${encodeURIComponent(String(Math.max(1, Math.min(50, maxKm || 50))))}`, { cache: 'no-store' });
         } else {
-          res = await fetch('/api/admin/bancas', { cache: 'no-store' });
+          res = await fetch('/api/bancas', { cache: 'no-store' });
         }
         if (!res.ok) throw new Error('fail');
         const j = await res.json();

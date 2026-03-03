@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { fetchAdminWithDevFallback } from '@/lib/admin-client-fetch';
 
 interface Categoria {
   id: string;
@@ -37,7 +38,7 @@ export default function CategoriasPage() {
       console.log('[CATEGORIAS-PAGE] 📍 Distribuidor ID:', params.id);
       
       // Buscar distribuidor
-      const distRes = await fetch(`/api/admin/distribuidores/${params.id}`, {
+      const distRes = await fetchAdminWithDevFallback(`/api/admin/distribuidores/${params.id}`, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
@@ -59,7 +60,7 @@ export default function CategoriasPage() {
       }
 
       // Buscar categorias
-      const catRes = await fetch(`/api/admin/distribuidores/${params.id}/categorias`, {
+      const catRes = await fetchAdminWithDevFallback(`/api/admin/distribuidores/${params.id}/categorias`, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',

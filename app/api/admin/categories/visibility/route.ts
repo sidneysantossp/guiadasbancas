@@ -9,7 +9,7 @@ export async function GET() {
   try {
     const { data, error } = await supabaseAdmin
       .from('categories')
-      .select('id, name, image, link, order, active, visible, jornaleiro_status, jornaleiro_bancas')
+      .select('id, name, image, link, order, active, visible, jornaleiro_status, jornaleiro_bancas, mercos_id, parent_category_id, ultima_sincronizacao')
       .order('order', { ascending: true });
 
     if (error) {

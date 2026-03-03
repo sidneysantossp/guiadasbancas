@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Distribuidor, MercosSyncResult } from '@/types/distribuidor';
+import { fetchAdminWithDevFallback } from '@/lib/admin-client-fetch';
 
 export default function SyncDistribuidorPage() {
   const params = useParams();
@@ -26,7 +27,7 @@ export default function SyncDistribuidorPage() {
 
   const loadDistribuidor = async () => {
     try {
-      const response = await fetch(`/api/admin/distribuidores/${params.id}`);
+      const response = await fetchAdminWithDevFallback(`/api/admin/distribuidores/${params.id}`);
       const data = await response.json();
       
       if (data.success) {
@@ -54,7 +55,7 @@ export default function SyncDistribuidorPage() {
       }
 
       // Usar sempre a rota principal de sincronização, que já trata paginação completa
-      const response = await fetch(
+      const response = await fetchAdminWithDevFallback(
         `/api/admin/distribuidores/${params.id}/sync`,
         {
           method: 'POST',
@@ -103,7 +104,7 @@ export default function SyncDistribuidorPage() {
     try {
       console.log('[UI] Iniciando sincronização automática contínua...');
       
-      const response = await fetch(
+      const response = await fetchAdminWithDevFallback(
         `/api/admin/distribuidores/${params.id}/sync-auto`,
         {
           method: 'POST',
@@ -162,7 +163,7 @@ export default function SyncDistribuidorPage() {
       try {
         console.log(`[UI] Tentativa ${attempt}/${maxRetries} - Iniciando sincronização ultra-rápida...`);
         
-        const response = await fetch(
+        const response = await fetchAdminWithDevFallback(
           `/api/admin/distribuidores/${params.id}/sync-fast`,
           {
             method: 'POST',
@@ -260,7 +261,7 @@ ${data.data.total_no_banco < 7700 ? '⚠️ Clique novamente para continuar até
     // Check if sync might have completed on server despite network error
     try {
       console.log('[UI] Verificando status no servidor...');
-      const statusResponse = await fetch(`/api/admin/distribuidores/${params.id}/sync-status`);
+      const statusResponse = await fetchAdminWithDevFallback(`/api/admin/distribuidores/${params.id}/sync-status`);
       if (statusResponse.ok) {
         const statusData = await statusResponse.json();
         if (statusData.success && statusData.totalProdutos > 500) {
@@ -285,7 +286,7 @@ ${data.data.total_no_banco < 7700 ? '⚠️ Clique novamente para continuar até
     setDebugResult(null);
 
     try {
-      const response = await fetch(
+      const response = await fetchAdminWithDevFallback(
         `/api/admin/distribuidores/${params.id}/sync-debug`,
         {
           method: 'POST',
@@ -330,7 +331,7 @@ ${data.data.total_no_banco < 7700 ? '⚠️ Clique novamente para continuar até
     setDebugResult(null);
 
     try {
-      const response = await fetch(
+      const response = await fetchAdminWithDevFallback(
         `/api/admin/distribuidores/${params.id}/verify-schema`,
         {
           method: 'GET',
@@ -380,7 +381,7 @@ ${data.data.total_no_banco < 7700 ? '⚠️ Clique novamente para continuar até
     setDebugResult(null);
 
     try {
-      const response = await fetch(
+      const response = await fetchAdminWithDevFallback(
         `/api/admin/distribuidores/${params.id}/cleanup-products`,
         {
           method: 'POST',

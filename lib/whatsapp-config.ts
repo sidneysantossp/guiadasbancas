@@ -8,27 +8,54 @@ export interface WhatsAppConfig {
   isActive: boolean;
 }
 
-// Configuração global (simulação de banco)
-let GLOBAL_WHATSAPP_CONFIG: WhatsAppConfig = {
-  baseUrl: 'https://api.auditseo.com.br',
-  apiKey: '43F2839534E2-4231-9BA7-C8193BD064DF',
-  instanceName: 'SDR_AUDITSEO',
-  isActive: true
-};
+// Override em memória (aplicado via painel admin durante a sessão)
+let MEMORY_OVERRIDE: Partial<WhatsAppConfig> | null = null;
 
-// Funções para gerenciar a configuração
+// Lê sempre das variáveis de ambiente como base, com override em memória sobreposto
+// Valores vazios no override NÃO sobrescrevem os valores do env
 export function getWhatsAppConfig(): WhatsAppConfig {
-  return { ...GLOBAL_WHATSAPP_CONFIG };
+  const envConfig: WhatsAppConfig = {
+    baseUrl: (process.env.EVOLUTION_API_URL || 'https://api.guiadasbancas.com.br').replace(/\/$/, ''),
+    apiKey: process.env.EVOLUTION_API_KEY || '',
+    instanceName: process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas',
+    isActive: !!(process.env.EVOLUTION_API_KEY && process.env.EVOLUTION_INSTANCE_NAME),
+  };
+
+  if (MEMORY_OVERRIDE) {
+    return {
+      baseUrl: MEMORY_OVERRIDE.baseUrl || envConfig.baseUrl,
+      apiKey: MEMORY_OVERRIDE.apiKey || envConfig.apiKey,
+      instanceName: MEMORY_OVERRIDE.instanceName || envConfig.instanceName,
+      isActive: MEMORY_OVERRIDE.isActive !== undefined ? MEMORY_OVERRIDE.isActive : envConfig.isActive,
+    };
+  }
+
+  return envConfig;
 }
 
 export function setWhatsAppConfig(config: Partial<WhatsAppConfig>): WhatsAppConfig {
-  GLOBAL_WHATSAPP_CONFIG = {
-    ...GLOBAL_WHATSAPP_CONFIG,
-    ...config
+  const sanitized: Partial<WhatsAppConfig> = {
+    ...config,
+  };
+
+  if (sanitized.baseUrl !== undefined) {
+    sanitized.baseUrl = (sanitized.baseUrl || '').trim().replace(/\/$/, '');
+  }
+  if (sanitized.apiKey !== undefined) {
+    sanitized.apiKey = (sanitized.apiKey || '').trim();
+  }
+  if (sanitized.instanceName !== undefined) {
+    sanitized.instanceName = (sanitized.instanceName || '').trim();
+  }
+
+  MEMORY_OVERRIDE = {
+    ...(MEMORY_OVERRIDE || {}),
+    ...sanitized,
   };
   
-  console.log('[CONFIG] WhatsApp configuração atualizada:', GLOBAL_WHATSAPP_CONFIG);
-  return { ...GLOBAL_WHATSAPP_CONFIG };
+  const result = getWhatsAppConfig();
+  console.log('[CONFIG] WhatsApp configuração atualizada:', result);
+  return result;
 }
 
 export function updateWhatsAppConfig(updates: Partial<WhatsAppConfig>): WhatsAppConfig {

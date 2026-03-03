@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import type { Route } from "next";
+import { signOut as nextAuthSignOut } from "next-auth/react";
 import ToastProvider from "@/components/admin/ToastProvider";
 import { Hedvig_Letters_Serif } from "next/font/google";
 import {
@@ -200,26 +201,62 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
 
-    try {
-      const auth = localStorage.getItem("gb:adminAuth");
-      const userData = localStorage.getItem("gb:admin");
-      
-      if (auth !== "1" || !userData) {
+    const validateAdminAccess = async () => {
+      try {
+        const sessionRes = await fetch("/api/auth/validate-session", {
+          method: "GET",
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+        });
+        const sessionData = await sessionRes.json().catch(() => null);
+
+        if (
+          sessionRes.ok &&
+          sessionData?.authenticated === true &&
+          sessionData?.profile?.role === "admin"
+        ) {
+          const adminData = {
+            id: sessionData.profile.id,
+            name: sessionData.profile.full_name || "Administrador",
+            email: sessionData.user?.email || "admin@guiadasbancas.com",
+            role: "admin",
+          };
+          localStorage.setItem("gb:adminAuth", "1");
+          localStorage.setItem("gb:admin", JSON.stringify(adminData));
+          setUser(adminData);
+          setLoading(false);
+          return;
+        }
+
+        // Compatibilidade local para fluxo legado durante migração.
+        if (process.env.NODE_ENV !== "production") {
+          const auth = localStorage.getItem("gb:adminAuth");
+          const userData = localStorage.getItem("gb:admin");
+          if (auth === "1" && userData) {
+            setUser(JSON.parse(userData));
+            setLoading(false);
+            return;
+          }
+        }
+
+        localStorage.removeItem("gb:adminAuth");
+        localStorage.removeItem("gb:admin");
         router.replace("/admin/login");
-        return;
+      } catch {
+        router.replace("/admin/login");
       }
-      
-      setUser(JSON.parse(userData));
-      setLoading(false);
-    } catch {
-      router.replace("/admin/login");
-    }
+    };
+
+    validateAdminAccess();
   }, [router, pathname]);
 
-  const logout = () => {
+  const logout = async () => {
     try {
       localStorage.removeItem("gb:adminAuth");
       localStorage.removeItem("gb:admin");
+    } catch {}
+    try {
+      await nextAuthSignOut({ redirect: false });
     } catch {}
     router.replace("/admin/login");
   };

@@ -128,14 +128,26 @@ export async function GET() {
   });
 
   const items = Array.from(itemsMap.values());
+  const activeItems = items.filter((b: any) => b?.active !== false);
 
-  // Garantir que banca ativa no profile é acessível
+  // Garantir que banca ativa no profile é acessível e esteja ativa
   let resolvedActiveBancaId = activeBancaId;
   if (resolvedActiveBancaId && !itemsMap.has(resolvedActiveBancaId)) {
     resolvedActiveBancaId = null;
   }
+  if (resolvedActiveBancaId && itemsMap.has(resolvedActiveBancaId)) {
+    const activeCandidate = itemsMap.get(resolvedActiveBancaId) as any;
+    if (activeCandidate?.active === false) {
+      resolvedActiveBancaId = null;
+    }
+  }
+  if (!resolvedActiveBancaId && activeItems.length > 0) {
+    resolvedActiveBancaId = activeItems[0].id;
+  }
   if (!resolvedActiveBancaId && items.length > 0) {
     resolvedActiveBancaId = items[0].id;
+  }
+  if (resolvedActiveBancaId && resolvedActiveBancaId !== activeBancaId) {
     const { error: setErr } = await supabaseAdmin
       .from("user_profiles")
       .update({ banca_id: resolvedActiveBancaId })

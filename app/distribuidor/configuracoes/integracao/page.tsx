@@ -39,7 +39,11 @@ export default function IntegracaoMercosPage() {
     
     setLoading(true);
     try {
-      const res = await fetch(`/api/distribuidor/health?id=${distribuidor.id}`);
+      const res = await fetch(`/api/distribuidor/health?id=${distribuidor.id}`, {
+        headers: {
+          'x-distribuidor-id': distribuidor.id,
+        },
+      });
       const json = await res.json();
       setHealth(json);
     } catch (err) {
@@ -57,6 +61,9 @@ export default function IntegracaoMercosPage() {
     try {
       const res = await fetch(`/api/distribuidor/sync?id=${distribuidor.id}${full ? '&full=true' : ''}`, {
         method: 'POST',
+        headers: {
+          'x-distribuidor-id': distribuidor.id,
+        },
       });
       const text = await res.text();
       let json: any;

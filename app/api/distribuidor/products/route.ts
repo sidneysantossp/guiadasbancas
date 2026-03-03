@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { isAdminAuthorized } from '@/lib/security/admin-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const distribuidorId = searchParams.get('id');
+    const headerDistribuidorId = request.headers.get('x-distribuidor-id');
+    const adminAccess = await isAdminAuthorized(request);
     const limit = parseInt(searchParams.get('limit') || '10000');
     const sort = searchParams.get('sort') || 'name';
     const activeOnly = searchParams.get('active') !== 'false';
@@ -20,6 +24,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'ID do distribuidor é obrigatório' },
         { status: 400 }
+      );
+    }
+
+    if (!UUID_REGEX.test(distribuidorId)) {
+      return NextResponse.json(
+        { success: false, error: 'ID do distribuidor inválido' },
+        { status: 400 }
+      );
+    }
+
+    if (!adminAccess && (!headerDistribuidorId || headerDistribuidorId !== distribuidorId)) {
+      return NextResponse.json(
+        { success: false, error: 'Não autorizado para este distribuidor' },
+        { status: 403 }
       );
     }
 
@@ -326,8 +344,10 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const adminAccess = await isAdminAuthorized(request);
     const body = await request.json();
     const { productId, distribuidorId, updates } = body;
+    const headerDistribuidorId = request.headers.get('x-distribuidor-id');
     const hasCustomPriceKey = !!updates && Object.prototype.hasOwnProperty.call(updates, 'custom_price');
     const customPrice = updates?.custom_price;
 
@@ -335,6 +355,20 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'IDs obrigatórios' },
         { status: 400 }
+      );
+    }
+
+    if (!UUID_REGEX.test(distribuidorId)) {
+      return NextResponse.json(
+        { success: false, error: 'ID do distribuidor inválido' },
+        { status: 400 }
+      );
+    }
+
+    if (!adminAccess && (!headerDistribuidorId || headerDistribuidorId !== distribuidorId)) {
+      return NextResponse.json(
+        { success: false, error: 'Não autorizado para este distribuidor' },
+        { status: 403 }
       );
     }
 

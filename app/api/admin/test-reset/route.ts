@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isProduction, requireAdminAuth } from "@/lib/security/admin-auth";
 
 export async function POST(req: NextRequest) {
   try {
+    if (isProduction()) {
+      return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    }
+
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
+
     const { email, password } = await req.json();
 
     console.log("🔧 Test Reset - Email:", email);

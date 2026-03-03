@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { auth } from "@/lib/auth";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 export async function POST(req: NextRequest) {
   try {
-    // Verificar autenticação: aceitar sessão NextAuth OU header admin-token
-    const session = await auth();
-    const userRole = (session?.user as any)?.role;
-    const authHeader = req.headers.get("authorization");
-    const hasAdminToken = authHeader === "Bearer admin-token";
-    const hasAdminSession = session?.user && userRole === 'admin';
-    
-    if (!hasAdminToken && !hasAdminSession) {
-      return NextResponse.json({ error: "Não autorizado - apenas admins" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
 
     const { email, password } = await req.json();
 

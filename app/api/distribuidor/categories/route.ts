@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isAdminAuthorized } from "@/lib/security/admin-auth";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // GET - Buscar categorias do distribuidor (com contagem de produtos)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const distribuidorId = searchParams.get("id");
+    const headerDistribuidorId = request.headers.get("x-distribuidor-id");
+    const adminAccess = await isAdminAuthorized(request);
 
     if (!distribuidorId) {
       return NextResponse.json(
@@ -18,10 +22,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (!UUID_REGEX.test(distribuidorId)) {
+      return NextResponse.json(
+        { success: false, error: 'ID do distribuidor inválido' },
+        { status: 400 }
+      );
+    }
+
+    if (!adminAccess && (!headerDistribuidorId || headerDistribuidorId !== distribuidorId)) {
+      return NextResponse.json(
+        { success: false, error: 'Não autorizado para este distribuidor' },
+        { status: 403 }
+      );
+    }
+
     // Buscar todas as categorias
     const { data: categories, error: catError } = await supabaseAdmin
       .from('categories')
-      .select('id, name, image, link, order, active, visible')
+      .select('id, name, image, link, order, active, visible, mercos_id, ultima_sincronizacao')
       .order('name', { ascending: true });
 
     if (catError) {

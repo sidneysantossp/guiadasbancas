@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
+import { callEvolutionApi, getEvolutionErrorMessage } from "@/lib/evolution-api";
 
 // GET - Verificar status da instância Evolution API
 export async function GET(req: NextRequest) {
@@ -21,31 +22,45 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Verificar conexão com a Evolution API
-    const response = await fetch(`${config.baseUrl}/instance/connectionState/${config.instanceName}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': config.apiKey
-      }
+    const result = await callEvolutionApi({
+      baseUrl: config.baseUrl,
+      apiKey: config.apiKey,
+      path: `/instance/connectionState/${encodeURIComponent(config.instanceName)}`,
+      method: "GET",
+      timeoutMs: 15000,
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    if (!result.ok) {
+      const unauthorized = result.status === 401 || result.status === 403;
+      const unauthorizedHint = unauthorized
+        ? `Sem permissão para acessar a instância "${config.instanceName}" com a API Key atual.`
+        : null;
+      return NextResponse.json({
+        connected: false,
+        status: unauthorized ? 'Não autorizado' : 'Erro na conexão',
+        error: unauthorizedHint || getEvolutionErrorMessage(result, 'Falha ao conectar com Evolution API'),
+        upstreamStatus: result.status,
+        authModeTried: result.authMode,
+        timestamp: new Date().toISOString()
+      });
     }
 
-    const data = await response.json();
-    const isConnected = data.instance?.state === 'open';
+    const data = result.data || {};
+    const instance = data?.instance || data;
+    const rawState = (instance?.state || instance?.status || instance?.connectionStatus || 'unknown').toString();
+    const state = rawState.toLowerCase();
+    const isConnected = state === 'open' || state === 'connected' || state === 'online';
 
     return NextResponse.json({
       connected: isConnected,
       status: isConnected ? 'Conectado e funcionando' : 'Instância não conectada',
       timestamp: new Date().toISOString(),
+      authModeUsed: result.authMode,
       instanceInfo: {
         name: config.instanceName,
-        state: data.instance?.state || 'unknown',
-        profileName: data.instance?.profileName || null,
-        profilePicUrl: data.instance?.profilePicUrl || null
+        state: rawState || 'unknown',
+        profileName: instance?.profileName || null,
+        profilePicUrl: instance?.profilePicUrl || null
       }
     });
 
@@ -57,6 +72,6 @@ export async function GET(req: NextRequest) {
       status: 'Erro na conexão',
       error: error.message || 'Falha ao conectar com Evolution API',
       timestamp: new Date().toISOString()
-    }, { status: 500 });
+    });
   }
 }

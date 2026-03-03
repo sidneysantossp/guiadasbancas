@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+const allowLegacyDefaultPassword =
+  process.env.NODE_ENV !== 'production' &&
+  process.env.ALLOW_LEGACY_DISTRIBUIDOR_PASSWORD === 'true';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -68,11 +72,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar senha (em produção, usar bcrypt)
-    // Por enquanto, aceita a senha do campo 'senha' ou usa validação simples
+    // Verificar senha
     const senhaValida = distribuidor.senha === password || 
                         distribuidor.password === password ||
-                        password === 'dist123'; // Senha padrão temporária para testes
+                        (allowLegacyDefaultPassword && password === 'dist123');
 
     if (!senhaValida) {
       return NextResponse.json(
@@ -108,6 +111,13 @@ export async function POST(request: NextRequest) {
 // GET para listar distribuidores disponíveis (debug)
 export async function GET() {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { success: false, error: 'Not found' },
+        { status: 404 }
+      );
+    }
+
     const { data: distribuidores } = await supabaseAdmin
       .from('distribuidores')
       .select('id, nome, email, ativo')

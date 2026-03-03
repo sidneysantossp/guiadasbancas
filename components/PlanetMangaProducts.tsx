@@ -189,7 +189,7 @@ function ProductCard({ p }: { p: MangaProduct }) {
 }
 
 export default function PlanetMangaProducts() {
-  const [w, setW] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
+  const [w, setW] = useState<number>(1200);
   useEffect(() => {
     const onResize = () => setW(window.innerWidth);
     window.addEventListener("resize", onResize);

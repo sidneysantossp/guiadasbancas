@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { signIn, signOut } from "next-auth/react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -19,36 +20,76 @@ export default function AdminLoginPage() {
     } catch {}
   }, [router]);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    // Simular delay de autenticação
-    setTimeout(() => {
-      try {
-        // Credenciais de admin padrão
-        if (email === "admin@guiadasbancas.com" && password === "admin123") {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    try {
+      const result = await signIn("credentials", {
+        redirect: false,
+        email: normalizedEmail,
+        password,
+      });
+
+      if (!result?.error) {
+        const sessionRes = await fetch("/api/auth/validate-session", {
+          method: "GET",
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+        });
+        const sessionData = await sessionRes.json().catch(() => null);
+
+        if (
+          sessionRes.ok &&
+          sessionData?.authenticated === true &&
+          sessionData?.profile?.role === "admin"
+        ) {
           const adminData = {
-            id: "admin-1",
-            name: "Administrador",
-            email: "admin@guiadasbancas.com",
-            role: "admin"
+            id: sessionData.profile.id,
+            name: sessionData.profile.full_name || "Administrador",
+            email: sessionData.user?.email || normalizedEmail,
+            role: "admin",
           };
-          
+
           localStorage.setItem("gb:adminAuth", "1");
           localStorage.setItem("gb:admin", JSON.stringify(adminData));
           router.replace("/admin/dashboard");
           return;
         }
-        
-        setError("Credenciais inválidas. Verifique seu email e senha.");
-      } catch {
-        setError("Ocorreu um erro ao efetuar login.");
-      } finally {
-        setLoading(false);
+
+        await signOut({ redirect: false });
+        setError("Acesso negado. Sua conta não possui perfil de administrador.");
+        return;
       }
-    }, 1000);
+
+      // Compatibilidade temporária para ambiente local, sem impacto em produção.
+      if (
+        process.env.NODE_ENV !== "production" &&
+        normalizedEmail === "admin@guiadasbancas.com" &&
+        password === "admin123"
+      ) {
+        const adminData = {
+          id: "admin-legacy-local",
+          name: "Administrador",
+          email: "admin@guiadasbancas.com",
+          role: "admin",
+        };
+
+        localStorage.setItem("gb:adminAuth", "1");
+        localStorage.setItem("gb:admin", JSON.stringify(adminData));
+        router.replace("/admin/dashboard");
+        return;
+      }
+
+      setError("Credenciais inválidas. Verifique seu email e senha.");
+    } catch {
+      setError("Ocorreu um erro ao efetuar login.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

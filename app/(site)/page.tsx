@@ -242,7 +242,8 @@ async function getCategories(): Promise<HomeCategory[]> {
       .select("id, name, image, link, order, visible")
       .eq("active", true)
       .eq("visible", true)
-      .order("order", { ascending: true });
+      .order("order", { ascending: true })
+      .order("name", { ascending: true });
 
     if (error || !data || data.length === 0) {
       return fallbackCategories.map((cat, index) => ({

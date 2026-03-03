@@ -1,19 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { isAdminAuthorized } from '@/lib/security/admin-auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutos - necessário para processar catálogos grandes
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const distribuidorId = searchParams.get('id');
     const full = searchParams.get('full') === 'true';
+    const headerDistribuidorId = request.headers.get('x-distribuidor-id');
+    const adminAccess = await isAdminAuthorized(request);
 
     if (!distribuidorId) {
       return NextResponse.json(
         { success: false, error: 'ID do distribuidor é obrigatório' },
         { status: 400 }
+      );
+    }
+
+    if (!UUID_REGEX.test(distribuidorId)) {
+      return NextResponse.json(
+        { success: false, error: 'ID do distribuidor inválido' },
+        { status: 400 }
+      );
+    }
+
+    if (!adminAccess && (!headerDistribuidorId || headerDistribuidorId !== distribuidorId)) {
+      return NextResponse.json(
+        { success: false, error: 'Não autorizado para este distribuidor' },
+        { status: 403 }
       );
     }
 

@@ -212,7 +212,7 @@ function MonicaCard({ p }: { p: MonicaProduct }) {
 export default function TurmaMonicaStrip() {
   const [items, setItems] = useState<MonicaProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const [w, setW] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
+  const [w, setW] = useState<number>(1200);
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);
 

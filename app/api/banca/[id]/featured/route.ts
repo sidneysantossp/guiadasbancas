@@ -4,7 +4,41 @@ import { supabaseAdmin } from "@/lib/supabase";
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const DEFAULT_PRODUCT_IMAGE = 'https://cdn1.staticpanvel.com.br/produtos/15/produto-sem-imagem.jpg';
+const DEFAULT_PRODUCT_IMAGE = 'https://placehold.co/400x600/e5e7eb/6b7280.png';
+const DISTRIBUIDOR_CATEGORY_FALLBACK = 'Diversos';
+const BANCA_CATEGORY_FALLBACK = 'Geral';
+
+const FEATURED_PRODUCT_FIELDS = `
+  id,
+  name,
+  price,
+  price_original,
+  discount_percent,
+  images,
+  stock_qty,
+  category_id,
+  distribuidor_id,
+  track_stock,
+  pronta_entrega,
+  sob_encomenda,
+  pre_venda,
+  rating_avg,
+  reviews_count,
+  codigo_mercos
+`;
+
+function calcularPrecoComMarkup(precoBase: number, distribuidor: any): number {
+  if (!distribuidor) return precoBase;
+  const tipoCalculo = distribuidor.tipo_calculo || 'markup';
+  if (tipoCalculo === 'margem') {
+    const divisor = distribuidor.margem_divisor || 1;
+    if (divisor <= 0 || divisor >= 1) return precoBase;
+    return precoBase / divisor;
+  }
+  const percentual = distribuidor.markup_global_percentual || 0;
+  const fixo = distribuidor.markup_global_fixo || 0;
+  return precoBase * (1 + percentual / 100) + fixo;
+}
 
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
@@ -16,53 +50,76 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const supabase = supabaseAdmin;
 
     // Verificar se a banca é cotista
-    const { data: banca } = await supabase
+    const { data: banca, error: bancaError } = await supabase
       .from('bancas')
       .select('is_cotista, cotista_id, active')
       .eq('id', bancaId)
       .single();
 
-    const isCotista = (banca?.is_cotista === true || !!banca?.cotista_id);
-
-    if (!isCotista) {
-      return NextResponse.json({
-        success: true,
-        banca_id: bancaId,
-        total: 0,
-        products: []
-      });
+    if (bancaError || !banca) {
+      return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
     }
 
+    const isCotista = (banca?.is_cotista === true || !!banca?.cotista_id);
+
     // 1. Buscar produtos próprios da banca marcados como destaque
-    const { data: produtosProprios } = await supabase
+    const { data: produtosProprios, error: produtosPropriosError } = await supabase
       .from('products')
-      .select('*, categories!category_id(name)')
+      .select(FEATURED_PRODUCT_FIELDS)
       .eq('banca_id', bancaId)
       .is('distribuidor_id', null)
       .eq('featured', true)
       .eq('active', true);
+
+    if (produtosPropriosError) {
+      throw produtosPropriosError;
+    }
+
+    const ownCategoryIds = [...new Set(
+      (produtosProprios || [])
+        .map((p: any) => p.category_id)
+        .filter(Boolean)
+    )];
+
+    const { data: ownCategories, error: ownCategoriesError } = ownCategoryIds.length > 0
+      ? await supabase.from('categories').select('id, name').in('id', ownCategoryIds)
+      : { data: [], error: null };
+
+    if (ownCategoriesError) {
+      throw ownCategoriesError;
+    }
+
+    const ownCategoryMap = new Map((ownCategories || []).map((c: any) => [c.id, c.name]));
 
     // 2. Se for cotista, buscar produtos de distribuidores marcados como destaque
     let produtosDistribuidor: any[] = [];
     
     if (isCotista) {
       // Buscar customizações com custom_featured = true
-      const { data: customizacoesFeatured } = await supabase
+      const { data: customizacoesFeatured, error: customizacoesError } = await supabase
         .from('banca_produtos_distribuidor')
         .select('product_id, enabled, custom_price, custom_stock_enabled, custom_stock_qty')
         .eq('banca_id', bancaId)
         .eq('enabled', true)
         .eq('custom_featured', true);
 
+      if (customizacoesError) {
+        throw customizacoesError;
+      }
+
       if (customizacoesFeatured && customizacoesFeatured.length > 0) {
         const productIds = customizacoesFeatured.map(c => c.product_id);
         
         // Buscar os produtos
-        const { data: produtos } = await supabase
+        const { data: produtos, error: produtosDistError } = await supabase
           .from('products')
-          .select('*, categories!category_id(name)')
+          .select(FEATURED_PRODUCT_FIELDS)
           .in('id', productIds)
           .eq('active', true);
+
+        if (produtosDistError) {
+          throw produtosDistError;
+        }
 
         const customMap = new Map(customizacoesFeatured.map(c => [c.product_id, c]));
 
@@ -77,27 +134,23 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         )];
         
         const [distribuidoresRes, distribuidorCategoriesRes] = await Promise.all([
-          supabase.from('distribuidores').select('id, nome, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor').in('id', distribuidorIds),
-          distribuidorCategoryIds.length > 0 ? supabase.from('distribuidor_categories').select('id, nome').in('id', distribuidorCategoryIds) : { data: [] }
+          distribuidorIds.length > 0
+            ? supabase.from('distribuidores').select('id, nome, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor').in('id', distribuidorIds)
+            : Promise.resolve({ data: [], error: null } as any),
+          distribuidorCategoryIds.length > 0
+            ? supabase.from('distribuidor_categories').select('id, nome').in('id', distribuidorCategoryIds)
+            : Promise.resolve({ data: [], error: null } as any)
         ]);
-        
+
+        if (distribuidoresRes.error) {
+          throw distribuidoresRes.error;
+        }
+        if (distribuidorCategoriesRes.error) {
+          throw distribuidorCategoriesRes.error;
+        }
+
         const distribuidorMap = new Map((distribuidoresRes.data || []).map(d => [d.id, d]));
         const distribuidorCategoryMap = new Map((distribuidorCategoriesRes.data || []).map((c: any) => [c.id, c.nome]));
-
-        // Função para calcular preço com markup do distribuidor
-        function calcularPrecoComMarkup(precoBase: number, distribuidor: any): number {
-          if (!distribuidor) return precoBase;
-          const tipoCalculo = distribuidor.tipo_calculo || 'markup';
-          if (tipoCalculo === 'margem') {
-            const divisor = distribuidor.margem_divisor || 1;
-            if (divisor <= 0) return precoBase;
-            return precoBase / divisor;
-          } else {
-            const percentual = distribuidor.markup_global_percentual || 0;
-            const fixo = distribuidor.markup_global_fixo || 0;
-            return precoBase * (1 + percentual / 100) + fixo;
-          }
-        }
 
         produtosDistribuidor = (produtos || [])
           .map(produto => {
@@ -115,15 +168,13 @@ export async function GET(request: NextRequest, context: { params: { id: string 
               images = [DEFAULT_PRODUCT_IMAGE];
             }
 
-            const { categories, ...produtoLimpo } = produto;
-
             // Determinar nome da categoria (buscar em distribuidor_categories se não houver em categories)
-            let categoryName = categories?.name;
-            if (!categoryName && produto.category_id) {
+            let categoryName: string | undefined;
+            if (produto.category_id) {
               categoryName = distribuidorCategoryMap.get(produto.category_id);
             }
             if (!categoryName) {
-              categoryName = 'Diversos';
+              categoryName = DISTRIBUIDOR_CATEGORY_FALLBACK;
             }
 
             // Calcular preço: prioridade é custom_price do jornaleiro, depois markup do distribuidor
@@ -138,7 +189,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
               (priceOriginal > price ? Math.round((1 - price / priceOriginal) * 100) : 0);
 
             return {
-              ...produtoLimpo,
+              ...produto,
               images,
               category_name: categoryName,
               price,
@@ -160,18 +211,21 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         if (!Array.isArray(images) || images.length === 0) {
           images = [DEFAULT_PRODUCT_IMAGE];
         }
-        const { categories, ...produtoLimpo } = p;
         
         // Calcular desconto
         const price = p.price;
         const priceOriginal = p.price_original || p.price;
         const discountPercent = p.discount_percent || 
           (priceOriginal > price ? Math.round((1 - price / priceOriginal) * 100) : 0);
+
+        const categoryName = p.category_id
+          ? ownCategoryMap.get(p.category_id) || BANCA_CATEGORY_FALLBACK
+          : BANCA_CATEGORY_FALLBACK;
         
         return {
-          ...produtoLimpo,
+          ...p,
           images,
-          category_name: categories?.name,
+          category_name: categoryName,
           price,
           price_original: priceOriginal,
           discount_percent: discountPercent,

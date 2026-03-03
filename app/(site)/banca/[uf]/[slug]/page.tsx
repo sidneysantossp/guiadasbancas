@@ -13,12 +13,32 @@ function unslugify(s: string) {
   }
 }
 
+function decodeSegment(value: string) {
+  try {
+    return decodeURIComponent(value || "");
+  } catch {
+    return value || "";
+  }
+}
+
+function toSafeJsonLd(value: unknown) {
+  // Evita quebra de HTML/hydration quando há "<", ">" ou "&" em dados dinâmicos.
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
 export async function generateMetadata({ params }: { params: { uf: string; slug: string } }): Promise<Metadata> {
-  const uf = (params.uf || "").toUpperCase();
-  const slug = params.slug || "Banca";
-  const parts = slug.split('-');
-  const possibleId = parts.length > 1 ? parts[parts.length - 1] : '';
-  const namePart = possibleId && /\d/.test(possibleId) ? slug.slice(0, slug.lastIndexOf('-' + possibleId)) : slug;
+  const ufDecoded = decodeSegment(params.uf);
+  const slugDecoded = decodeSegment(params.slug);
+  const uf = (ufDecoded || "").toUpperCase();
+  const slug = slugDecoded || "Banca";
+  const uuidMatch = slug.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  const possibleId = uuidMatch ? uuidMatch[0] : '';
+  const namePart = possibleId ? slug.slice(0, Math.max(0, slug.length - possibleId.length - 1)) : slug;
   const name = unslugify(namePart);
   const title = `${name} em ${uf} — Guia das Bancas`;
   const description = `Descubra a ${name} em ${uf}. Veja endereço, horário de funcionamento, avaliações, produtos e como chegar. Encontre bancas perto de você no Guia das Bancas.`;
@@ -54,7 +74,8 @@ export async function generateMetadata({ params }: { params: { uf: string; slug:
 }
 
 export default async function BancaSlugPage({ params }: { params: { uf: string; slug: string } }) {
-  const { uf, slug } = params;
+  const slug = decodeSegment(params.slug);
+  const uf = decodeSegment(params.uf);
   // 1) Resolver ID de forma robusta: buscar todas e casar pelo padrão slug(name)+'-'+id
   let resolvedId: string | null = null;
   try {
@@ -66,10 +87,9 @@ export default async function BancaSlugPage({ params }: { params: { uf: string; 
   } catch {}
 
   // 2) Heurística antiga: tentar pegar último token se parecer com id numérico
-  const parts = slug.split('-');
-  const tail = parts.length > 1 ? parts[parts.length - 1] : '';
-  const heuristicId = tail && /[0-9a-f]/i.test(tail) ? tail : '';
-  const namePart = heuristicId ? slug.slice(0, slug.lastIndexOf('-' + heuristicId)) : slug;
+  const uuidMatch = slug.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  const heuristicId = uuidMatch ? uuidMatch[0] : '';
+  const namePart = heuristicId ? slug.slice(0, Math.max(0, slug.length - heuristicId.length - 1)) : slug;
   const name = unslugify(namePart);
   const url = `https://guiadasbancas.com.br/banca/${uf}/${slug}`;
 
@@ -149,8 +169,8 @@ export default async function BancaSlugPage({ params }: { params: { uf: string; 
   // Quando integrarmos com o backend, buscaremos por (uf, slug) -> bancaId e preencheremos JSON-LD real.
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+      <script suppressHydrationWarning type="application/ld+json" dangerouslySetInnerHTML={{ __html: toSafeJsonLd(ld) }} />
+      <script suppressHydrationWarning type="application/ld+json" dangerouslySetInnerHTML={{ __html: toSafeJsonLd(breadcrumbLd) }} />
       <BancaPageClient bancaId={resolvedId || heuristicId || slug} />
     </>
   );

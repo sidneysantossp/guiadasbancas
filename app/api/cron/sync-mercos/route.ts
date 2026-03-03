@@ -21,9 +21,17 @@ export const maxDuration = 300;
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autorização (opcional, mas recomendado)
+    // Verificar autorização
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (isProduction && !cronSecret) {
+      return NextResponse.json(
+        { success: false, error: 'CRON_SECRET não configurado em produção' },
+        { status: 500 }
+      );
+    }
 
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json(
@@ -189,7 +197,7 @@ export async function POST(request: NextRequest) {
               sob_encomenda: false,
               pre_venda: false,
               pronta_entrega: true,
-              active: produtoMercos.ativo !== false && (produtoMercos.saldo_estoque || 0) > 0,
+              active: !produtoMercos.excluido && produtoMercos.ativo !== false,
               sincronizado_em: new Date().toISOString(),
             };
 
@@ -289,5 +297,9 @@ export async function POST(request: NextRequest) {
 
 // Permitir GET para testes manuais (remover em produção)
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ success: false, error: 'Method not allowed' }, { status: 405 });
+  }
+
   return POST(request);
 }

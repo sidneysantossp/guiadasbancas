@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Distribuidor } from '@/types/distribuidor';
+import { fetchAdminWithDevFallback } from '@/lib/admin-client-fetch';
 
 interface Product {
   id: string;
@@ -54,7 +55,7 @@ export default function ProdutosDistribuidorPage() {
     
     try {
       // Buscar dados do distribuidor (no-store para não usar cache)
-      const distResponse = await fetch(
+      const distResponse = await fetchAdminWithDevFallback(
         `/api/admin/distribuidores/${params.id}${forceRefresh ? `?t=${Date.now()}` : ''}`,
         { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }
       );
@@ -66,7 +67,7 @@ export default function ProdutosDistribuidorPage() {
 
       // Buscar produtos do distribuidor com paginação (no-store para não usar cache)
       const offset = (currentPage - 1) * itemsPerPage;
-      const prodResponse = await fetch(
+      const prodResponse = await fetchAdminWithDevFallback(
         `/api/admin/distribuidores/${params.id}/produtos?limit=${itemsPerPage}&offset=${offset}${forceRefresh ? `&t=${Date.now()}` : ''}`,
         { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }
       );

@@ -12,11 +12,19 @@ type AdminCategory = {
   order: number;
   jornaleiro_status?: 'all' | 'specific' | 'inactive';
   jornaleiro_bancas?: string[];
+  mercos_id?: number | null;
+  parent_category_id?: string | null;
+  ultima_sincronizacao?: string | null;
 };
 
 type AdminBancaOption = {
   id: string;
   name: string;
+};
+
+type AdminDistribuidorOption = {
+  id: string;
+  nome: string;
 };
 
 export default function AdminCategoriesPage() {
@@ -27,6 +35,12 @@ export default function AdminCategoriesPage() {
   const [showForm, setShowForm] = useState(false);
   const [message, setMessage] = useState<{type:'success'|'error'; text:string}|null>(null);
   const [bancas, setBancas] = useState<AdminBancaOption[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{distribuidores_sucesso: number; distribuidores_erro: number} | null>(null);
+  const [distribuidores, setDistribuidores] = useState<AdminDistribuidorOption[]>([]);
+  const [selectedDistribuidorId, setSelectedDistribuidorId] = useState<string>('all');
+  const [mercosIdsByDistribuidor, setMercosIdsByDistribuidor] = useState<Record<string, number[]>>({});
+  const [loadingDistribuidorFilter, setLoadingDistribuidorFilter] = useState(false);
 
   const statusLabels: Record<'all'|'specific'|'inactive', string> = {
     all: 'Ativa para jornaleiros',
@@ -60,7 +74,111 @@ export default function AdminCategoriesPage() {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  const fetchDistribuidores = async () => {
+    try {
+      const res = await fetch('/api/admin/distribuidores', {
+        headers: { 'Authorization': 'Bearer admin-token', 'Cache-Control': 'no-cache' },
+        cache: 'no-store'
+      });
+      const j = await res.json();
+      if (j?.success && Array.isArray(j.data)) {
+        setDistribuidores(
+          j.data
+            .filter((d: any) => d?.id && d?.nome)
+            .map((d: any) => ({ id: d.id as string, nome: d.nome as string }))
+        );
+      }
+    } catch (err) {
+      console.error('Erro ao carregar distribuidores:', err);
+    }
+  };
+
+  const ensureDistribuidorMercosIds = async (distribuidorId: string) => {
+    if (!distribuidorId || distribuidorId === 'all') return;
+    if (mercosIdsByDistribuidor[distribuidorId]) return;
+
+    setLoadingDistribuidorFilter(true);
+    try {
+      const res = await fetch(`/api/admin/distribuidores/${distribuidorId}/categorias`, {
+        headers: { 'Authorization': 'Bearer admin-token', 'Cache-Control': 'no-cache' },
+        cache: 'no-store'
+      });
+      const j = await res.json();
+      const mercosIds = Array.isArray(j?.data)
+        ? j.data
+            .map((cat: any) => cat?.mercos_id)
+            .filter((id: any) => typeof id === 'number')
+        : [];
+
+      setMercosIdsByDistribuidor((prev) => ({
+        ...prev,
+        [distribuidorId]: Array.from(new Set(mercosIds)),
+      }));
+    } catch (err) {
+      console.error('Erro ao carregar categorias do distribuidor:', err);
+      setMercosIdsByDistribuidor((prev) => ({
+        ...prev,
+        [distribuidorId]: [],
+      }));
+    } finally {
+      setLoadingDistribuidorFilter(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAll();
+    fetchDistribuidores();
+  }, []);
+
+  useEffect(() => {
+    if (selectedDistribuidorId === 'all') return;
+    ensureDistribuidorMercosIds(selectedDistribuidorId);
+  }, [selectedDistribuidorId]);
+
+  const syncMercos = async () => {
+    if (!confirm('Sincronizar categorias da Mercos? Isso pode levar alguns minutos.')) return;
+    setSyncing(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/admin/categories/sync-mercos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin-token' },
+        body: JSON.stringify({})
+      });
+      const j = await res.json();
+      if (j?.success) {
+        setMessage({ type: 'success', text: `Sincronização Mercos concluída: ${j.distribuidores_sucesso} distribuidor(es) sincronizado(s)` });
+        setSyncStatus({ distribuidores_sucesso: j.distribuidores_sucesso, distribuidores_erro: j.distribuidores_erro });
+        
+        // Sincronizar global (distribuidor_categories → categories)
+        const resGlobal = await fetch('/api/admin/categories/sync-global', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin-token' }
+        });
+        const jGlobal = await resGlobal.json();
+        if (jGlobal?.success) {
+          setMessage({ type: 'success', text: `Sincronização completa! ${j.distribuidores_sucesso} distribuidor(es) + ${jGlobal.categorias_processadas} categoria(s) global` });
+          fetchAll(); // Recarregar categorias
+        }
+      } else {
+        const detalhes = Array.isArray(j?.results)
+          ? j.results
+              .filter((r: any) => !r?.success)
+              .map((r: any) => `${r?.distribuidor_nome || r?.distribuidor_id}: ${r?.error || 'erro desconhecido'}`)
+              .join(' | ')
+          : '';
+        const textoErro = detalhes
+          ? `${j?.message || 'Erro na sincronização'} ${detalhes}`
+          : (j?.error || 'Erro na sincronização');
+        setMessage({ type: 'error', text: textoErro });
+      }
+    } catch (error: any) {
+      setMessage({ type: 'error', text: 'Erro ao sincronizar com Mercos' });
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
 
   useEffect(() => {
     console.log('[useEffect items] Estado atualizado:', items.map(c => ({ name: c.name, visible: c.visible })));
@@ -86,6 +204,19 @@ export default function AdminCategoriesPage() {
 
   const onCreate = () => { setEditing(null); setShowForm(true); };
   const onEdit = (c: AdminCategory) => { setEditing(c); setShowForm(true); };
+
+  const displayedItems = useMemo(() => {
+    if (selectedDistribuidorId === 'all') return items;
+    const mercosIds = mercosIdsByDistribuidor[selectedDistribuidorId] || [];
+    const idsSet = new Set<number>(mercosIds);
+    return items.filter((cat) => typeof cat.mercos_id === 'number' && idsSet.has(cat.mercos_id));
+  }, [items, selectedDistribuidorId, mercosIdsByDistribuidor]);
+
+  const globalIndexById = useMemo(() => {
+    const map = new Map<string, number>();
+    items.forEach((item, index) => map.set(item.id, index));
+    return map;
+  }, [items]);
 
   const onDelete = async (id: string) => {
     if (!confirm('Excluir esta categoria?')) return;
@@ -190,11 +321,26 @@ export default function AdminCategoriesPage() {
           <p className="text-sm text-gray-500 mt-1">
             💡 <strong>Visibilidade:</strong> Use o ícone de olho para controlar quais categorias aparecem na página /categorias
           </p>
+          <p className="text-sm text-blue-600 mt-1">
+            🔄 <strong>Mercos:</strong> Categorias sincronizadas da API Mercos aparecem com badge azul
+          </p>
         </div>
-        <button onClick={onCreate} className="inline-flex items-center gap-2 rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
-          Nova Categoria
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={syncMercos} 
+            disabled={syncing}
+            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          >
+            <svg viewBox="0 0 24 24" className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+            </svg>
+            {syncing ? 'Sincronizando...' : 'Sincronizar Mercos'}
+          </button>
+          <button onClick={onCreate} className="inline-flex items-center gap-2 rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
+            Nova Categoria
+          </button>
+        </div>
       </div>
 
       {message && (
@@ -205,13 +351,40 @@ export default function AdminCategoriesPage() {
 
       <div className="rounded-lg border border-gray-200 bg-white">
         <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-lg font-semibold">Categorias</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">Categorias</h2>
+            <div className="flex items-center gap-2">
+              <label htmlFor="distribuidor-filter" className="text-sm text-gray-600">
+                Distribuidor:
+              </label>
+              <select
+                id="distribuidor-filter"
+                value={selectedDistribuidorId}
+                onChange={(e) => setSelectedDistribuidorId(e.target.value)}
+                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 bg-white"
+              >
+                <option value="all">Todos os distribuidores</option>
+                {distribuidores.map((dist) => (
+                  <option key={dist.id} value={dist.id}>
+                    {dist.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {selectedDistribuidorId !== 'all' && (
+            <p className="mt-2 text-xs text-gray-500">
+              {loadingDistribuidorFilter
+                ? 'Carregando categorias do distribuidor...'
+                : `Mostrando ${displayedItems.length} categoria(s) vinculada(s) ao distribuidor selecionado.`}
+            </p>
+          )}
         </div>
         {loading ? (
           <div className="p-6 text-sm text-gray-600">Carregando...</div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {items.map((c, idx)=> (
+            {displayedItems.map((c)=> (
               <div key={c.id} className="p-6 flex items-start gap-4">
                 <div className="relative h-16 w-24 rounded-lg overflow-hidden bg-gray-100 shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -220,8 +393,20 @@ export default function AdminCategoriesPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="font-semibold text-gray-900">{c.name}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-semibold text-gray-900">{c.name}</div>
+                        {c.mercos_id && (
+                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800" title={`ID Mercos: ${c.mercos_id}`}>
+                            Mercos #{c.mercos_id}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-gray-600 mt-0.5">Link: {c.link || <span className='text-red-600'>(vazio)</span>}</div>
+                      {c.ultima_sincronizacao && (
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          Última sync: {new Date(c.ultima_sincronizacao).toLocaleString('pt-BR')}
+                        </div>
+                      )}
                       <div className="mt-2 flex items-center gap-2">
                         <span 
                           className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${c.active? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
@@ -250,10 +435,20 @@ export default function AdminCategoriesPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button onClick={()=>move(c.id,'up')} disabled={idx===0} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30" title="Mover para cima">
+                      <button
+                        onClick={()=>move(c.id,'up')}
+                        disabled={(globalIndexById.get(c.id) ?? 0) === 0}
+                        className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                        title="Mover para cima"
+                      >
                         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 15l-6-6-6 6"/></svg>
                       </button>
-                      <button onClick={()=>move(c.id,'down')} disabled={idx===items.length-1} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30" title="Mover para baixo">
+                      <button
+                        onClick={()=>move(c.id,'down')}
+                        disabled={(globalIndexById.get(c.id) ?? -1) === items.length - 1}
+                        className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                        title="Mover para baixo"
+                      >
                         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
                       </button>
                       <button onClick={()=>onToggleActive(c.id)} className={`p-1 ${c.active? 'text-green-600 hover:text-green-800' : 'text-gray-400 hover:text-gray-600'}`} title={c.active? 'Desativar' : 'Ativar'}>
@@ -273,8 +468,12 @@ export default function AdminCategoriesPage() {
                 </div>
               </div>
             ))}
-            {items.length===0 && (
-              <div className="p-12 text-center text-gray-500">Nenhuma categoria cadastrada</div>
+            {displayedItems.length===0 && (
+              <div className="p-12 text-center text-gray-500">
+                {selectedDistribuidorId === 'all'
+                  ? 'Nenhuma categoria cadastrada'
+                  : 'Nenhuma categoria vinculada ao distribuidor selecionado'}
+              </div>
             )}
           </div>
         )}

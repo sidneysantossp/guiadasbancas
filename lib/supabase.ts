@@ -3,25 +3,32 @@ import { createClient } from '@supabase/supabase-js'
 // Supabase configuration - ATIVO
 // Migrado de volta do MySQL para Supabase devido a problemas de conectividade
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://rgqlncxrzwgjreggrjcq.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJncWxuY3hyendnanJlZ2dyamNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyMjMyOTMsImV4cCI6MjA3NDc5OTI5M30.72R42d1a6qchq1KMZLyncBzfiIH7T_yS6BJRCC72mLc'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+}
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Cliente para operações administrativas
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJncWxuY3hyendnanJlZ2dyamNxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTIyMzI5MywiZXhwIjoyMDc0Nzk5MjkzfQ.bdkHUKuaDQ22lZqMmFMT_3P3L0VAK11mGlJ6YkU3d6s'
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+const isBrowser = typeof window !== 'undefined'
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!isBrowser && !supabaseServiceKey) {
+  throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY')
+}
+
+const supabaseAdminKey = !isBrowser && supabaseServiceKey ? supabaseServiceKey : supabaseAnonKey
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseAdminKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
   },
   db: {
     schema: 'public',
-  },
-  global: {
-    headers: {
-      'x-my-custom-header': 'service-role-bypass'
-    }
   }
 })
 

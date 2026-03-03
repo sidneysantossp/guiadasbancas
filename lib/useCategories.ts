@@ -16,7 +16,8 @@ let cachePromise: Promise<UICategory[]> | null = null;
 
 export function useCategories(initialItems?: UICategory[]): { items: UICategory[]; loading: boolean } {
   const seededItems = Array.isArray(initialItems) && initialItems.length > 0 ? initialItems : null;
-  const initialCache = globalCache ?? seededItems;
+  // Preferir sempre os itens seedados para manter SSR/CSR determinísticos.
+  const initialCache = seededItems ?? globalCache;
   const [apiItems, setApiItems] = useState<UICategory[] | null>(initialCache);
   const [loading, setLoading] = useState(!initialCache);
   const [isMobile, setIsMobile] = useState<boolean>(false);

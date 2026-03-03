@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
+import { requireAdminAuth } from '@/lib/security/admin-auth';
 
 // Aumentar timeout para 5 minutos (máximo no Vercel Pro)
 export const maxDuration = 300;
@@ -48,6 +49,9 @@ export async function POST(
 ) {
   console.log(`[SYNC] ===== INICIANDO SINCRONIZAÇÃO (distribuidor: ${params.id}) =====`);
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const supabase = supabaseAdmin;
     
     // Garantir que a categoria fallback existe
@@ -56,6 +60,7 @@ export async function POST(
     // Verificar se é sincronização completa (force)
     const body = await request.json().catch(() => ({}));
     const forceComplete = body?.force === true;
+    const allowWithoutCategories = body?.allow_without_categories === true;
     const startTimestamp = typeof body?.startTimestamp === 'string' && body.startTimestamp.trim() !== ''
       ? body.startTimestamp.trim()
       : undefined;
@@ -124,6 +129,17 @@ export async function POST(
       }
     }
     console.log(`[SYNC] ✓ ${categoryMap.size} categorias mapeadas`);
+
+    if (categoryMap.size === 0 && !allowWithoutCategories) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Nenhuma categoria mapeada em distribuidor_categories para este distribuidor.',
+          hint: 'Sincronize categorias primeiro (Mercos -> distribuidor_categories) antes de sincronizar produtos, ou use allow_without_categories=true conscientemente.',
+        },
+        { status: 412 }
+      );
+    }
 
     // Buscar produtos da API Mercos por lotes (streaming) e processar respeitando o tempo máximo
     console.log(`[SYNC] Iniciando busca na API Mercos (streaming por lotes)...`);
@@ -211,7 +227,7 @@ export async function POST(
             sob_encomenda: false,
             pre_venda: false,
             pronta_entrega: true,
-            active: !produtoMercos.excluido && produtoMercos.ativo !== false && (produtoMercos.saldo_estoque || 0) > 0,
+            active: !produtoMercos.excluido && produtoMercos.ativo !== false,
             category_id: resolvedCategoryId,
           };
           

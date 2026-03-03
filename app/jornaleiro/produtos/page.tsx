@@ -74,6 +74,9 @@ export default function JornaleiroProdutosPage() {
       if (priceFilter) params.set("priceFilter", priceFilter);
       const res = await fetch(`/api/jornaleiro/products?${params.toString()}`, { headers: authHeaders, cache: "no-store" });
       const json = await res.json();
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.error || "Erro ao carregar produtos");
+      }
       const items = Array.isArray(json?.items) ? json.items : (Array.isArray(json?.data) ? json.data : []);
       
       setRows(

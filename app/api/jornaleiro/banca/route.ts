@@ -178,6 +178,9 @@ async function loadBancaForUser(userId: string): Promise<any> {
         .maybeSingle();
       
       if (bancaData) {
+        if (bancaData.active === false) {
+          console.warn('[loadBancaForUser] ⚠️ banca_id do profile está inativa. Buscando fallback ativo...');
+        } else {
         // Validar que é do usuário OU que tem vínculo via banca_members
         if (bancaData.user_id === userId) {
           console.log('[loadBancaForUser] ✅ Banca ativa é do usuário (dono)');
@@ -198,6 +201,7 @@ async function loadBancaForUser(userId: string): Promise<any> {
             console.error('[loadBancaForUser] 🚨 Banca ativa não pertence ao usuário!');
           }
         }
+        }
       } else {
         console.warn('[loadBancaForUser] ⚠️ Banca ativa não encontrada:', bancaError?.message);
       }
@@ -207,13 +211,14 @@ async function loadBancaForUser(userId: string): Promise<any> {
     if (!data) {
       console.log('[loadBancaForUser] Buscando bancas do usuário (user_id):', userId);
       
-      const { data: userBancas, error: userError } = await supabaseAdmin
+      const { data: userBancasRows, error: userError } = await supabaseAdmin
         .from('bancas')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(20);
+
+      const userBancas = (userBancasRows || []).find((b: any) => b?.active !== false) || null;
       
       if (userBancas) {
         console.log('[loadBancaForUser] ✅ Encontrada banca do usuário (dono)');
@@ -228,15 +233,15 @@ async function loadBancaForUser(userId: string): Promise<any> {
     if (!data) {
       console.log('[loadBancaForUser] Buscando vínculos em banca_members para user_id:', userId);
       
-      const { data: memberData } = await supabaseAdmin
+      const { data: memberRows } = await supabaseAdmin
         .from('banca_members')
         .select('banca_id, access_level')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (memberData?.banca_id) {
+        .limit(50);
+
+      for (const memberData of memberRows || []) {
+        if (!memberData?.banca_id) continue;
         console.log('[loadBancaForUser] Encontrado vínculo como colaborador, banca_id:', memberData.banca_id);
         
         const { data: bancaData } = await supabaseAdmin
@@ -245,9 +250,10 @@ async function loadBancaForUser(userId: string): Promise<any> {
           .eq('id', memberData.banca_id)
           .maybeSingle();
         
-        if (bancaData) {
+        if (bancaData && bancaData.active !== false) {
           console.log('[loadBancaForUser] ✅ Banca do vínculo carregada');
           data = bancaData;
+          break;
         }
       }
     }

@@ -85,10 +85,19 @@ export default function MarkupConfigPage() {
     }
   }, [distribuidor]);
 
+  const distribuidorHeaders = (includeJson = false) => {
+    const headers: Record<string, string> = {};
+    if (includeJson) headers['Content-Type'] = 'application/json';
+    if (distribuidor?.id) headers['x-distribuidor-id'] = distribuidor.id;
+    return headers;
+  };
+
   const fetchMarkupConfig = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/distribuidor/markup?id=${distribuidor.id}`);
+      const res = await fetch(`/api/distribuidor/markup?id=${distribuidor.id}`, {
+        headers: distribuidorHeaders(),
+      });
       const json = await res.json();
 
       if (json.success) {
@@ -119,7 +128,7 @@ export default function MarkupConfigPage() {
       setSaving(true);
       const res = await fetch('/api/distribuidor/markup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: distribuidorHeaders(true),
         body: JSON.stringify({
           distribuidor_id: distribuidor.id,
           tipo: 'global',
@@ -152,7 +161,7 @@ export default function MarkupConfigPage() {
       setSaving(true);
       const res = await fetch('/api/distribuidor/markup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: distribuidorHeaders(true),
         body: JSON.stringify({
           distribuidor_id: distribuidor.id,
           tipo: 'categoria',
@@ -181,8 +190,9 @@ export default function MarkupConfigPage() {
 
   const deleteCategoriaMarkup = async (id: string) => {
     try {
-      const res = await fetch(`/api/distribuidor/markup?tipo=categoria&id=${id}`, {
+      const res = await fetch(`/api/distribuidor/markup?tipo=categoria&id=${id}&distribuidor_id=${distribuidor.id}`, {
         method: 'DELETE',
+        headers: distribuidorHeaders(),
       });
 
       const json = await res.json().catch(() => ({} as any));
@@ -206,7 +216,9 @@ export default function MarkupConfigPage() {
     }
 
     try {
-      const res = await fetch(`/api/distribuidor/products?id=${distribuidor.id}&search=${searchTerm}&limit=20`);
+      const res = await fetch(`/api/distribuidor/products?id=${distribuidor.id}&search=${searchTerm}&limit=20`, {
+        headers: distribuidorHeaders(),
+      });
       const json = await res.json();
 
       if (json.success) {
@@ -226,7 +238,9 @@ export default function MarkupConfigPage() {
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/distribuidor/products?id=${distribuidor.id}&search=${searchProduto}&limit=20`);
+        const res = await fetch(`/api/distribuidor/products?id=${distribuidor.id}&search=${searchProduto}&limit=20`, {
+          headers: distribuidorHeaders(),
+        });
         const json = await res.json();
         if (json.success) {
           setProdutosEncontrados(json.data || []);
@@ -246,7 +260,7 @@ export default function MarkupConfigPage() {
       setSaving(true);
       const res = await fetch('/api/distribuidor/markup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: distribuidorHeaders(true),
         body: JSON.stringify({
           distribuidor_id: distribuidor.id,
           tipo: 'produto',
@@ -277,8 +291,9 @@ export default function MarkupConfigPage() {
 
   const deleteProdutoMarkup = async (id: string) => {
     try {
-      const res = await fetch(`/api/distribuidor/markup?tipo=produto&id=${id}`, {
+      const res = await fetch(`/api/distribuidor/markup?tipo=produto&id=${id}&distribuidor_id=${distribuidor.id}`, {
         method: 'DELETE',
+        headers: distribuidorHeaders(),
       });
 
       const json = await res.json().catch(() => ({} as any));
@@ -304,7 +319,7 @@ export default function MarkupConfigPage() {
       setApplyingBulk(true);
       const res = await fetch('/api/distribuidor/markup/bulk', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: distribuidorHeaders(true),
         body: JSON.stringify({
           distribuidor_id: distribuidor.id,
           tipo_calculo: tipoCalculo,
@@ -339,6 +354,7 @@ export default function MarkupConfigPage() {
       setApplyingBulk(true);
       const res = await fetch(`/api/distribuidor/markup/bulk?distribuidor_id=${distribuidor.id}`, {
         method: 'DELETE',
+        headers: distribuidorHeaders(),
       });
 
       const json = await res.json();

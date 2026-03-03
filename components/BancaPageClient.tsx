@@ -365,6 +365,8 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
 
   // Começa sem banca; só exibe header quando houver dados reais da API
   const [banca, setBanca] = useState<BancaDetail | null>(null);
+  const [loadingBanca, setLoadingBanca] = useState(true);
+  const [bancaNotFound, setBancaNotFound] = useState(false);
   const [produtos, setProdutos] = useState<ProdutoResumo[]>([]);
   const [produtosDestaque, setProdutosDestaque] = useState<ProdutoResumo[]>([]);
   const [categoriesMap, setCategoriesMap] = useState<Map<string, string>>(new Map());
@@ -467,18 +469,44 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     let active = true;
     (async () => {
       try {
-        const res = await fetch(`/api/admin/bancas?id=${encodeURIComponent(bancaId)}`, { cache: 'no-store' });
+        if (active) {
+          setLoadingBanca(true);
+          setBancaNotFound(false);
+        }
+        const res = await fetch(`/api/bancas/${encodeURIComponent(bancaId)}`, { cache: 'no-store' });
         if (!res.ok) throw new Error('Failed to fetch banca');
         const j = await res.json();
         const it = j?.data || null;
         if (!it) throw new Error('Banca not found');
-        const cover = it.cover || it.images?.cover || "";
-        const avatar = it.avatar || it.images?.avatar || "";
-        const lat = typeof it.lat === 'number' ? it.lat : (it.location?.lat ?? 0);
-        const lng = typeof it.lng === 'number' ? it.lng : (it.location?.lng ?? 0);
-        const address = it.address || formatAddress(it.addressObj);
-        const phone = it.contact?.whatsapp;
-        const { open, label } = summarizeHours(it.hours);
+
+        const parseMaybeJson = (value: any) => {
+          if (value == null) return undefined;
+          if (typeof value === "object") return value;
+          if (typeof value !== "string") return undefined;
+          try {
+            return JSON.parse(value);
+          } catch {
+            return undefined;
+          }
+        };
+
+        const addressObj = parseMaybeJson(it.addressObj);
+        const location = parseMaybeJson(it.location);
+        const hours = Array.isArray(it.hours) ? it.hours : (parseMaybeJson(it.hours) || undefined);
+        const categories = Array.isArray(it.categories) ? it.categories : (parseMaybeJson(it.categories) || []);
+        const cover = it.cover || it.cover_image || it.images?.cover || "";
+        const avatar = it.avatar || it.profile_image || it.images?.avatar || "";
+        const lat =
+          typeof it.lat === 'number'
+            ? it.lat
+            : (it.lat != null ? Number(it.lat) : (location?.lat ?? 0));
+        const lng =
+          typeof it.lng === 'number'
+            ? it.lng
+            : (it.lng != null ? Number(it.lng) : (location?.lng ?? 0));
+        const address = it.address || formatAddress(addressObj);
+        const phone = it.contact?.whatsapp || it.whatsapp || it.phone || undefined;
+        const { open, label } = summarizeHours(hours);
         const mapped: BancaDetail = {
           id: it.id,
           name: it.name || 'Banca',
@@ -493,9 +521,15 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           phone,
           address,
           hours: label,
-          hoursArray: Array.isArray(it.hours) ? it.hours : undefined,
-          socials: it.socials,
-          categories: Array.isArray(it.categories) ? it.categories.map((cat: any) => normalizeCategory(cat, categoriesMap)).filter(Boolean) : undefined,
+          hoursArray: Array.isArray(hours) ? hours : undefined,
+          socials: it.socials || {
+            facebook: it.facebook || undefined,
+            instagram: it.instagram || undefined,
+            gmb: it.gmb || undefined,
+          },
+          categories: Array.isArray(categories)
+            ? categories.map((cat: any) => normalizeCategory(cat, categoriesMap)).filter(Boolean)
+            : undefined,
           payments: Array.isArray(it.payments) ? it.payments : undefined,
           gallery: Array.isArray(it.gallery) ? it.gallery : undefined,
           featured: Boolean(it.featured),
@@ -503,6 +537,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         };
         if (active) {
           setBanca(mapped);
+          setBancaNotFound(false);
           setDeliveryEnabled(Boolean(it.delivery_enabled));
           
           // Track page view
@@ -513,19 +548,24 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           });
         }
       } catch {
-        if (active) setBanca(null);
+        if (active) {
+          setBanca(null);
+          setBancaNotFound(true);
+        }
+      } finally {
+        if (active) setLoadingBanca(false);
       }
     })();
     return () => { active = false; };
-  }, [banca?.id, bancaId]);
+  }, [bancaId]);
 
   // Fetch produtos da banca usando endpoint direto
   // Função para mapear produtos da API para o formato do frontend
   const mapProducts = (items: any[]) => {
+    const DEFAULT_PRODUCT_IMAGE = 'https://placehold.co/400x600/e5e7eb/6b7280.png';
     return items.map((item: any) => {
       const images = Array.isArray(item.images) ? item.images : [];
-      const firstImage = images[0] || item.image || "";
-      if (!firstImage) return null;
+      const firstImage = images[0] || item.image || DEFAULT_PRODUCT_IMAGE;
       const price = Number(item.price ?? 0);
       const categoryRaw = item.category_name || item.category_id || item.category;
       const stockQty = item.stock_qty != null ? Number(item.stock_qty) : undefined;
@@ -1007,7 +1047,31 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     return () => { try { obs.unobserve(el); obs.disconnect(); } catch {} };
   }, [canLoadMoreWithinPage, isLoadingMore, pageSlice.length]);
 
-  if (!banca) return null;
+  if (loadingBanca) {
+    return (
+      <section className="max-w-6xl mx-auto px-4 py-16">
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center">
+          <p className="text-sm text-gray-600">Carregando perfil da banca...</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (!banca || bancaNotFound) {
+    return (
+      <section className="max-w-6xl mx-auto px-4 py-16">
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center">
+          <h1 className="text-xl font-semibold text-gray-900">Banca não encontrada</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Não foi possível carregar o perfil desta banca no momento.
+          </p>
+          <Link href="/bancas-perto-de-mim" className="mt-5 inline-flex rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white hover:opacity-95">
+            Ver bancas disponíveis
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="container-max pt-3 sm:pt-4 pb-28 sm:pb-32">

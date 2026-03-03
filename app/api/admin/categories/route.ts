@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -13,15 +14,16 @@ export type AdminCategory = {
   order: number;
   jornaleiro_status?: 'all' | 'specific' | 'inactive';
   jornaleiro_bancas?: string[] | null;
+  mercos_id?: number | null;
+  parent_category_id?: string | null;
+  ultima_sincronizacao?: string | null;
 };
-
-function verifyAdminAuth(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  return Boolean(authHeader && authHeader === "Bearer admin-token");
-}
 
 export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const includeInactive = searchParams.get("all") === "true";
     
@@ -50,9 +52,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
     
     const body = await request.json();
     const inputData = body?.data as Partial<AdminCategory>;
@@ -96,9 +97,8 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
     
     const body = await request.json();
     const { type, data: inputData } = body || {};
@@ -186,9 +186,8 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
     
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

@@ -1,20 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { isAdminAuthorized } from '@/lib/security/admin-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // GET - Buscar configurações de markup do distribuidor
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const distribuidorId = searchParams.get('id');
+    const headerDistribuidorId = request.headers.get('x-distribuidor-id');
+    const adminAccess = await isAdminAuthorized(request);
 
     if (!distribuidorId) {
       return NextResponse.json(
         { success: false, error: 'ID do distribuidor é obrigatório' },
         { status: 400 }
+      );
+    }
+
+    if (!UUID_REGEX.test(distribuidorId)) {
+      return NextResponse.json(
+        { success: false, error: 'ID do distribuidor inválido' },
+        { status: 400 }
+      );
+    }
+
+    if (!adminAccess && (!headerDistribuidorId || headerDistribuidorId !== distribuidorId)) {
+      return NextResponse.json(
+        { success: false, error: 'Não autorizado para este distribuidor' },
+        { status: 403 }
       );
     }
 
@@ -120,13 +138,29 @@ export async function GET(request: NextRequest) {
 // POST - Salvar configurações de markup
 export async function POST(request: NextRequest) {
   try {
+    const adminAccess = await isAdminAuthorized(request);
     const body = await request.json();
     const { distribuidor_id, tipo, ...dados } = body;
+    const headerDistribuidorId = request.headers.get('x-distribuidor-id');
 
     if (!distribuidor_id) {
       return NextResponse.json(
         { success: false, error: 'ID do distribuidor é obrigatório' },
         { status: 400 }
+      );
+    }
+
+    if (!UUID_REGEX.test(distribuidor_id)) {
+      return NextResponse.json(
+        { success: false, error: 'ID do distribuidor inválido' },
+        { status: 400 }
+      );
+    }
+
+    if (!adminAccess && (!headerDistribuidorId || headerDistribuidorId !== distribuidor_id)) {
+      return NextResponse.json(
+        { success: false, error: 'Não autorizado para este distribuidor' },
+        { status: 403 }
       );
     }
 
@@ -210,9 +244,12 @@ export async function POST(request: NextRequest) {
 // DELETE - Remover markup específico (categoria ou produto)
 export async function DELETE(request: NextRequest) {
   try {
+    const adminAccess = await isAdminAuthorized(request);
     const { searchParams } = new URL(request.url);
     const tipo = searchParams.get('tipo');
     const id = searchParams.get('id');
+    const distribuidorId = searchParams.get('distribuidor_id');
+    const headerDistribuidorId = request.headers.get('x-distribuidor-id');
 
     if (!tipo || !id) {
       return NextResponse.json(
@@ -221,14 +258,36 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    if (distribuidorId && !UUID_REGEX.test(distribuidorId)) {
+      return NextResponse.json(
+        { success: false, error: 'ID do distribuidor inválido' },
+        { status: 400 }
+      );
+    }
+
+    if (!adminAccess) {
+      if (!distribuidorId || !headerDistribuidorId || headerDistribuidorId !== distribuidorId) {
+        return NextResponse.json(
+          { success: false, error: 'Não autorizado para este distribuidor' },
+          { status: 403 }
+        );
+      }
+    }
+
     const tabela = tipo === 'categoria' 
       ? 'distribuidor_markup_categorias' 
       : 'distribuidor_markup_produtos';
 
-    const { error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from(tabela)
       .delete()
       .eq('id', id);
+
+    if (distribuidorId) {
+      query = query.eq('distribuidor_id', distribuidorId);
+    }
+
+    const { error } = await query;
 
     if (error) throw error;
 

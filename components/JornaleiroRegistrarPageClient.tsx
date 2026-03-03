@@ -6,7 +6,6 @@ import Link from "next/link";
 import { fetchViaCEP, ViaCEP } from "@/lib/viacep";
 import { maskCEP, maskCPF, maskCPFOrCNPJ, maskPhoneBR } from "@/lib/masks";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { supabaseAdmin } from "@/lib/supabase";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
 import CotistaSearch from "@/components/CotistaSearch";
 import logger from "@/lib/logger";

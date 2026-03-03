@@ -69,7 +69,11 @@ export default function DistribuidorProdutosPage() {
   // Buscar markups
   useEffect(() => {
     if (distribuidor?.id) {
-      fetch(`/api/distribuidor/markup?id=${distribuidor.id}`)
+      fetch(`/api/distribuidor/markup?id=${distribuidor.id}`, {
+        headers: {
+          'x-distribuidor-id': distribuidor.id,
+        },
+      })
         .then(res => res.json())
         .then(json => {
           if (json.success) setMarkups(json.data);
@@ -118,7 +122,11 @@ export default function DistribuidorProdutosPage() {
     if (!distribuidor?.id) return;
     
     try {
-      const res = await fetch(`/api/distribuidor/categories?id=${distribuidor.id}`);
+      const res = await fetch(`/api/distribuidor/categories?id=${distribuidor.id}`, {
+        headers: {
+          'x-distribuidor-id': distribuidor.id,
+        },
+      });
       const json = await res.json();
       
       if (json.success) {
@@ -149,7 +157,10 @@ export default function DistribuidorProdutosPage() {
       console.log('[Produtos] Chamando API com id:', distribuidor.id);
       const res = await fetch(`/api/distribuidor/products?id=${distribuidor.id}&active=false`, {
         cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' },
+        headers: {
+          'Cache-Control': 'no-cache',
+          'x-distribuidor-id': distribuidor.id,
+        },
       });
       const json = await res.json();
       console.log('[Produtos] Resposta da API:', json);
@@ -201,7 +212,10 @@ export default function DistribuidorProdutosPage() {
     try {
       const res = await fetch('/api/distribuidor/products', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-distribuidor-id': distribuidor.id,
+        },
         body: JSON.stringify({
           productId,
           distribuidorId: distribuidor.id,

@@ -25,7 +25,9 @@ export async function getPublicBancas(): Promise<any[]> {
 
 export async function getAdminBancas(): Promise<any[]> {
   try {
-    const j = await fetchJson(`${BASE_URL}/api/admin/bancas`, {
+    // Mantido nome legado da função para compatibilidade.
+    // Para páginas públicas, usar endpoint público.
+    const j = await fetchJson(`${BASE_URL}/api/bancas`, {
       next: { revalidate: CACHE_TTL.bancas },
     });
     return Array.isArray(j?.data) ? j.data : [];
@@ -36,7 +38,8 @@ export async function getAdminBancas(): Promise<any[]> {
 
 export async function getAdminBancasAll(): Promise<any[]> {
   try {
-    const j = await fetchJson(`${BASE_URL}/api/admin/bancas?all=true`, {
+    // Endpoint público já retorna bancas ativas, suficiente para rotas públicas.
+    const j = await fetchJson(`${BASE_URL}/api/bancas`, {
       next: { revalidate: CACHE_TTL.bancas },
     });
     return Array.isArray(j?.data) ? j.data : [];
@@ -48,11 +51,18 @@ export async function getAdminBancasAll(): Promise<any[]> {
 export async function getAdminBancaById(id: string): Promise<any | null> {
   if (!id) return null;
   try {
-    const j = await fetchJson(`${BASE_URL}/api/admin/bancas?id=${encodeURIComponent(id)}`, {
+    const j = await fetchJson(`${BASE_URL}/api/bancas/${encodeURIComponent(id)}`, {
       next: { revalidate: CACHE_TTL.bancas },
     });
-    return j?.data ?? null;
+    if (j?.data) return j.data;
   } catch {
-    return null;
+    // fallback para ids abreviados no slug (ex.: últimos 12 chars)
+    try {
+      const list = await getAdminBancasAll();
+      return list.find((b: any) => b?.id === id || (typeof b?.id === "string" && b.id.endsWith(id))) || null;
+    } catch {
+      return null;
+    }
   }
+  return null;
 }

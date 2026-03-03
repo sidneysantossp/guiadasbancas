@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { fetchAdminWithDevFallback } from '@/lib/admin-client-fetch';
 
 export default function AtualizarCodigosPage() {
   const params = useParams();
@@ -18,7 +19,7 @@ export default function AtualizarCodigosPage() {
     setResultado(null);
 
     try {
-      const response = await fetch(`/api/admin/distribuidores/${distribuidorId}/atualizar-codigos`, {
+      const response = await fetchAdminWithDevFallback(`/api/admin/distribuidores/${distribuidorId}/atualizar-codigos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Distribuidor } from '@/types/distribuidor';
+import { fetchAdminWithDevFallback } from '@/lib/admin-client-fetch';
 
 export default function DistribuidoresPage() {
   const [distribuidores, setDistribuidores] = useState<Distribuidor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadDistribuidores();
@@ -14,14 +16,23 @@ export default function DistribuidoresPage() {
 
   const loadDistribuidores = async () => {
     try {
-      const response = await fetch('/api/admin/distribuidores');
-      const result = await response.json();
+      setErrorMessage(null);
+      const response = await fetchAdminWithDevFallback('/api/admin/distribuidores');
+      const result = await response.json().catch(() => null);
       
-      if (result.success) {
+      if (result?.success) {
         setDistribuidores(result.data);
+      } else if (response.status === 401) {
+        setErrorMessage('Sessão administrativa expirada. Faça login novamente.');
+        setDistribuidores([]);
+      } else {
+        setErrorMessage(result?.error || 'Erro ao carregar distribuidores.');
+        setDistribuidores([]);
       }
     } catch (error) {
       console.error('Erro ao carregar distribuidores:', error);
+      setErrorMessage('Erro ao carregar distribuidores.');
+      setDistribuidores([]);
     } finally {
       setLoading(false);
     }
@@ -33,7 +44,7 @@ export default function DistribuidoresPage() {
     }
 
     try {
-      const response = await fetch(`/api/admin/distribuidores/${id}`, {
+      const response = await fetchAdminWithDevFallback(`/api/admin/distribuidores/${id}`, {
         method: 'DELETE',
       });
 
@@ -78,6 +89,12 @@ export default function DistribuidoresPage() {
           + Novo Distribuidor
         </Link>
       </div>
+
+      {errorMessage && (
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
+        </div>
+      )}
 
       {distribuidores.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">

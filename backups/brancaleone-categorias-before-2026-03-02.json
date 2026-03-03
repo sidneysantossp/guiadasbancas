@@ -1,0 +1,112 @@
+[
+  {
+    "id": "24c3acd1-55fe-40f8-a593-b36b2abb4d80",
+    "distribuidor_id": "1511df09-1f4a-4e68-9f8c-05cd06be6269",
+    "mercos_id": 3599981,
+    "nome": "Colecionáveis",
+    "categoria_pai_id": null,
+    "ativo": true,
+    "created_at": "2025-12-04T16:16:00.86302+00:00",
+    "updated_at": "2025-12-04T16:16:00.86302+00:00"
+  },
+  {
+    "id": "43e56a1f-2aef-4518-87d2-d6ea142432d8",
+    "distribuidor_id": "1511df09-1f4a-4e68-9f8c-05cd06be6269",
+    "mercos_id": 3584480,
+    "nome": "Conan",
+    "categoria_pai_id": null,
+    "ativo": true,
+    "created_at": "2025-12-04T16:16:00.86302+00:00",
+    "updated_at": "2025-12-04T16:16:00.86302+00:00"
+  },
+  {
+    "id": "e2997b97-f96d-424d-93b8-af14ae2ecc1d",
+    "distribuidor_id": "1511df09-1f4a-4e68-9f8c-05cd06be6269",
+    "mercos_id": 3584473,
+    "nome": "DC Comics",
+    "categoria_pai_id": null,
+    "ativo": true,
+    "created_at": "2025-12-04T16:16:00.86302+00:00",
+    "updated_at": "2025-12-04T16:16:00.86302+00:00"
+  },
+  {
+    "id": "9fbe6fe3-7ca0-42fe-8316-c960ae9b13a7",
+    "distribuidor_id": "1511df09-1f4a-4e68-9f8c-05cd06be6269",
+    "mercos_id": 3584474,
+    "nome": "Disney",
+    "categoria_pai_id": null,
+    "ativo": true,
+    "created_at": "2025-12-04T16:16:00.86302+00:00",
+    "updated_at": "2025-12-04T16:16:00.86302+00:00"
+  },
+  {
+    "id": "86735daa-7773-44bc-a48c-6757d186c1be",
+    "distribuidor_id": "1511df09-1f4a-4e68-9f8c-05cd06be6269",
+    "mercos_id": 3584478,
+    "nome": "Independentes",
+    "categoria_pai_id": null,
+    "ativo": true,
+    "created_at": "2025-12-04T16:16:00.86302+00:00",
+    "updated_at": "2025-12-04T16:16:00.86302+00:00"
+  },
+  {
+    "id": "ac20e111-97b8-4ea7-acb3-360fb846361a",
+    "distribuidor_id": "1511df09-1f4a-4e68-9f8c-05cd06be6269",
+    "mercos_id": 3584481,
+    "nome": "Mangás",
+    "categoria_pai_id": null,
+    "ativo": true,
+    "created_at": "2025-12-04T16:16:00.86302+00:00",
+    "updated_at": "2025-12-04T16:16:00.86302+00:00"
+  },
+  {
+    "id": "f158777d-8bb2-4481-a41c-8631370d73b7",
+    "distribuidor_id": "1511df09-1f4a-4e68-9f8c-05cd06be6269",
+    "mercos_id": 3584475,
+    "nome": "Marvel",
+    "categoria_pai_id": null,
+    "ativo": true,
+    "created_at": "2025-12-04T16:16:00.86302+00:00",
+    "updated_at": "2025-12-04T16:16:00.86302+00:00"
+  },
+  {
+    "id": "c0c68678-7d3c-412a-9ded-f54275363780",
+    "distribuidor_id": "1511df09-1f4a-4e68-9f8c-05cd06be6269",
+    "mercos_id": 3584477,
+    "nome": "Panini Books",
+    "categoria_pai_id": null,
+    "ativo": true,
+    "created_at": "2026-01-06T20:19:52.177738+00:00",
+    "updated_at": "2026-01-06T20:19:52.177738+00:00"
+  },
+  {
+    "id": "7d4c0638-0392-4825-9d1a-bfd9515cf6f2",
+    "distribuidor_id": "1511df09-1f4a-4e68-9f8c-05cd06be6269",
+    "mercos_id": 3584479,
+    "nome": "Panini Magazines",
+    "categoria_pai_id": null,
+    "ativo": true,
+    "created_at": "2026-01-06T20:19:52.324202+00:00",
+    "updated_at": "2026-01-06T20:19:52.324202+00:00"
+  },
+  {
+    "id": "2df7d703-1947-41ca-beb7-95dbf0b3f014",
+    "distribuidor_id": "1511df09-1f4a-4e68-9f8c-05cd06be6269",
+    "mercos_id": 4362338,
+    "nome": "Panini Partwork",
+    "categoria_pai_id": null,
+    "ativo": true,
+    "created_at": "2026-01-06T20:19:52.581052+00:00",
+    "updated_at": "2026-01-06T20:19:52.581052+00:00"
+  },
+  {
+    "id": "6b1029eb-e078-40b2-8198-520b3b9e123f",
+    "distribuidor_id": "1511df09-1f4a-4e68-9f8c-05cd06be6269",
+    "mercos_id": 3584476,
+    "nome": "Turma da Mônica",
+    "categoria_pai_id": null,
+    "ativo": true,
+    "created_at": "2025-12-04T16:16:00.86302+00:00",
+    "updated_at": "2025-12-04T16:16:00.86302+00:00"
+  }
+]

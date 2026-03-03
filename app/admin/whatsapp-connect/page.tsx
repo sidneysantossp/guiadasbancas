@@ -149,12 +149,12 @@ export default function WhatsAppConnectPage() {
               Ou acesse manualmente:
             </p>
             <a 
-              href="https://api.auditseo.com.br" 
+              href="https://api.guiadasbancas.com.br" 
               target="_blank" 
               rel="noopener noreferrer"
               className="text-blue-600 hover:text-blue-800 font-semibold underline"
             >
-              🌐 https://api.auditseo.com.br
+              🌐 https://api.guiadasbancas.com.br
             </a>
           </div>
 
