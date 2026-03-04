@@ -819,15 +819,15 @@ export default function EditBancaPage() {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {categories.map((category) => (
-                  <label key={category.id} className="flex items-center space-x-3 cursor-pointer">
+                  <label key={category.key} className="flex items-center space-x-3 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={selectedCategories.includes(category.id)}
+                      checked={selectedCategories.includes(category.key)}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedCategories([...selectedCategories, category.id]);
+                          setSelectedCategories([...selectedCategories, category.key]);
                         } else {
-                          setSelectedCategories(selectedCategories.filter(id => id !== category.id));
+                          setSelectedCategories(selectedCategories.filter(id => id !== category.key));
                         }
                       }}
                       className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"

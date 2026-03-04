@@ -123,21 +123,28 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
           .single();
         
         if (bancaOverride) {
-          // Verificar se a banca não desabilitou este produto
-          const { data: desabilitado } = await supabaseAdmin
+          // Verificar customização da banca para esse produto
+          const { data: customizacao } = await supabaseAdmin
             .from('banca_produtos_distribuidor')
-            .select('enabled')
+            .select('enabled, custom_price')
             .eq('banca_id', bancaIdFromQuery)
             .eq('product_id', productId)
-            .eq('enabled', false)
-            .single();
-          
-          if (!desabilitado) {
-            // Usar a banca da query
-            data.bancas = bancaOverride;
-            data.banca_id = bancaOverride.id;
-            console.log(`[API/PRODUCTS/ID] Usando banca da query: ${bancaOverride.name}`);
+            .maybeSingle();
+
+          // Produto desabilitado explicitamente para essa banca
+          if (customizacao?.enabled === false) {
+            return NextResponse.json({ error: "Produto não disponível para esta banca" }, { status: 404 });
           }
+
+          // Se houver preço customizado cadastrado pelo jornaleiro, ele tem prioridade
+          if (customizacao?.custom_price != null) {
+            data.price = Number(customizacao.custom_price);
+          }
+
+          // Usar a banca da query
+          data.bancas = bancaOverride;
+          data.banca_id = bancaOverride.id;
+          console.log(`[API/PRODUCTS/ID] Usando banca da query: ${bancaOverride.name}`);
         }
       }
     }

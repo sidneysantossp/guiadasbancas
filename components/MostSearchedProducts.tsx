@@ -4,11 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useMemo, useState } from "react";
-import { useCart } from "@/components/CartContext";
-import { useToast } from "@/components/ToastProvider";
-import { shippingConfig } from "@/components/shippingConfig";
 import { cachedFetch } from "@/lib/cache";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 export type Product = {
   id: string;
@@ -33,6 +31,11 @@ export type Product = {
   phone?: string;
   codigoMercos?: string;
 };
+
+function formatBancaDisplay(name?: string | null) {
+  if (!name) return 'Banca Local';
+  return /^banca\b/i.test(name) ? name : `Banca ${name}`;
+}
 
 type ApiProduct = {
   id: string;
@@ -68,14 +71,6 @@ function Price({ value, original, size = 'sm' }: { value?: number; original?: nu
   );
 }
 
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD").replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
-}
-
 function Stars({ value, count, size = 'sm' }: { value?: number | null; count?: number; size?: 'sm' | 'md' }) {
   const v = Math.max(0, Math.min(5, Number(value ?? 0)));
   const full = Math.floor(v);
@@ -101,27 +96,15 @@ function Stars({ value, count, size = 'sm' }: { value?: number | null; count?: n
 }
 
 function FeaturedCard({ p }: { p: Product }) {
-  const [fav, setFav] = useState(false);
-  const { addToCart } = useCart();
-  const { show } = useToast();
-  const { items } = useCart();
-  const subtotal = items.reduce((s, it) => s + (it.price ?? 0) * it.qty, 0);
-  const qualifies = shippingConfig.freeShippingEnabled || subtotal >= shippingConfig.freeShippingThreshold;
-  const handleWhatsApp = () => {
-    if (typeof window === "undefined") return;
-    const rawPhone = p.phone;
-    const digits = rawPhone ? String(rawPhone).replace(/\D/g, "") : "";
-    const baseUrl = window.location.origin || "https://guiadasbancas.com";
-    const productPath = "/produto/" + slugify(p.name) + "-" + p.id;
-    const productUrl = baseUrl + productPath;
-    const text = `Olá! Tenho interesse no produto: ${p.name} (R$ ${(p.price || 0).toFixed(2)}).\n\nVer produto: ${productUrl}`;
-    const msg = encodeURIComponent(text);
-    const base = digits ? `https://wa.me/${digits}` : "https://wa.me";
-    const url = `${base}?text=${msg}`;
-    window.location.href = url;
-  };
+  const productHref = buildPublicProductPath(
+    p.name,
+    p.bancaName || p.vendorName,
+    p.id,
+    p.codigoMercos
+  ) as Route;
+  const bancaDisplay = formatBancaDisplay(p.bancaName || p.vendorName);
   return (
-    <Link href={(`/produto/${slugify(p.name)}-${p.id}${p.bancaId ? `?banca=${p.bancaId}` : ''}`) as Route} className="group relative col-span-12 md:col-span-5 row-span-2 overflow-hidden rounded-2xl border border-[#ff5c00] bg-white shadow-lg hover:shadow-xl transition-shadow md:min-h-[620px] flex flex-col">
+    <Link href={productHref} className="group relative col-span-12 md:col-span-5 row-span-2 overflow-hidden rounded-2xl border border-[#ff5c00] bg-white shadow-lg hover:shadow-xl transition-shadow md:min-h-[620px] flex flex-col">
       <div className="relative w-full group h-72 md:h-[280px]">
         {/* Wrapper com padding para a imagem, mantendo cantos arredondados internos */}
         <div className="absolute inset-0 p-2">
@@ -129,7 +112,7 @@ function FeaturedCard({ p }: { p: Product }) {
             <ImagePlaceholder src={p.image} alt={p.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-contain bg-gray-50" />
             {/* Link absoluto cobrindo a imagem para ir à página do produto */}
             <Link
-              href={(`/produto/${slugify(p.name)}-${p.id}${p.bancaId ? `?banca=${p.bancaId}` : ''}`) as Route}
+              href={productHref}
               aria-label={`Ver detalhes de ${p.name}`}
               className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5c00]"
             />
@@ -151,25 +134,6 @@ function FeaturedCard({ p }: { p: Product }) {
             )}
           </div>
         </div>
-        {/* Ícone flutuante de carrinho sob a imagem */}
-        <button
-          onClick={(e) => { 
-            e.preventDefault(); 
-            addToCart({ 
-              id: p.id, 
-              name: p.name, 
-              price: p.price, 
-              image: p.image,
-              banca_id: p.bancaId,
-              banca_name: p.bancaName
-            }, 1); 
-            show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>); 
-          }}
-          aria-label="Adicionar ao carrinho"
-          className="absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white shadow hover:bg-gray-50"
-        >
-          <Image src="https://cdn-icons-png.flaticon.com/128/4982/4982841.png" alt="Carrinho" width={20} height={20} className="h-5 w-5 object-contain" />
-        </button>
       </div>
       <div className="p-4 flex-1 flex items-start justify-between gap-4">
         <div className="flex-1 flex flex-col">
@@ -180,7 +144,7 @@ function FeaturedCard({ p }: { p: Product }) {
                 <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/>
                 <path d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1"/>
               </svg>
-              <span className="truncate">Entregue por: <strong>{p.bancaName || 'Banca Local'}</strong></span>
+              <span className="truncate">Entregue por: <strong>{bancaDisplay}</strong></span>
             </span>
           </div>
           {/* Badges de categorias/estado do Admin */}
@@ -214,18 +178,6 @@ function FeaturedCard({ p }: { p: Product }) {
           <div className="mt-auto">
             <div className="mt-1.5"><Price value={p.price} original={p.priceOriginal} size="lg" /></div>
           </div>
-          {/* Botões no rodapé do card */}
-          <div className="pt-2 flex flex-col gap-2">
-            <button className="w-full rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-3 py-2 text-xs font-semibold text-white shadow hover:opacity-95" onClick={(e)=>{ e.preventDefault(); addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: p.bancaId, banca_name: p.bancaName }, 1); show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>); }}>Comprar</button>
-            <button
-              type="button"
-              onClick={(e)=>{ e.preventDefault(); handleWhatsApp(); }}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-[#ff5c00] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#ff5c00] leading-tight hover:bg-[#fff3ec] whitespace-nowrap"
-            >
-              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
-              Comprar pelo WhatsApp
-            </button>
-          </div>
         </div>
       </div>
     </Link>
@@ -233,23 +185,15 @@ function FeaturedCard({ p }: { p: Product }) {
 }
 
 function SmallCard({ p }: { p: Product }) {
-  const { addToCart } = useCart();
-  const { show } = useToast();
   const outOfStock = Boolean(p.trackStock) && (p.stockQty != null) && (p.stockQty <= 0);
-  const handleWhatsApp = () => {
-    if (typeof window === "undefined") return;
-    const rawPhone = p.phone;
-    const digits = rawPhone ? String(rawPhone).replace(/\D/g, "") : "";
-    const baseUrl = window.location.origin || "https://guiadasbancas.com";
-    const productPath = "/produto/" + slugify(p.name) + "-" + p.id;
-    const productUrl = baseUrl + productPath;
-    const text = `Olá! Tenho interesse no produto: ${p.name} (R$ ${(p.price || 0).toFixed(2)}).\n\nVer produto: ${productUrl}`;
-    const msg = encodeURIComponent(text);
-    const base = digits ? `https://wa.me/${digits}` : "https://wa.me";
-    const url = `${base}?text=${msg}`;
-    window.location.href = url;
-  };
-  
+  const productHref = buildPublicProductPath(
+    p.name,
+    p.bancaName || p.vendorName,
+    p.id,
+    p.codigoMercos
+  ) as Route;
+  const bancaDisplay = formatBancaDisplay(p.bancaName || p.vendorName);
+
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex h-full w-full flex-col flex-1">
       <div className="relative w-full group h-48 sm:h-56">
@@ -259,7 +203,7 @@ function SmallCard({ p }: { p: Product }) {
             <ImagePlaceholder src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 25vw" className="object-contain bg-gray-50" />
             {/* Link absoluto cobrindo a imagem para ir à página do produto */}
             <Link
-              href={(`/produto/${slugify(p.name)}-${p.id}${p.bancaId ? `?banca=${p.bancaId}` : ''}`) as Route}
+              href={productHref}
               aria-label={`Ver detalhes de ${p.name}`}
               className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5c00]"
             />
@@ -284,27 +228,6 @@ function SmallCard({ p }: { p: Product }) {
             )}
           </div>
         </div>
-        {/* Ícone flutuante de carrinho sob a imagem */}
-        <button
-          onClick={() => { 
-            if (!outOfStock) { 
-              addToCart({ 
-                id: p.id, 
-                name: p.name, 
-                price: p.price, 
-                image: p.image,
-                banca_id: p.bancaId,
-                banca_name: p.bancaName
-              }, 1); 
-              show(<span>Adicionado ao carrinho.</span>); 
-            } 
-          }}
-          aria-label="Adicionar ao carrinho"
-          disabled={outOfStock}
-          className={`absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border ${outOfStock ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed' : 'border-gray-200 bg-white shadow hover:bg-gray-50'}`}
-        >
-          <Image src="https://cdn-icons-png.flaticon.com/128/4982/4982841.png" alt="Carrinho" width={20} height={20} className={`h-5 w-5 object-contain ${outOfStock ? 'opacity-60' : ''}`} />
-        </button>
       </div>
       <div className="p-2.5 flex flex-col flex-1">
         <div className="flex flex-wrap gap-1">
@@ -334,7 +257,7 @@ function SmallCard({ p }: { p: Product }) {
             </span>
           )}
         </div>
-        <Link href={(`/produto/${slugify(p.name)}-${p.id}${p.bancaId ? `?banca=${p.bancaId}` : ''}`) as Route} className="mt-2 text-[13px] font-semibold hover:underline">{p.name}</Link>
+        <Link href={productHref} className="mt-2 text-[13px] font-semibold hover:underline">{p.name}</Link>
         {p.codigoMercos && (
           <div className="text-[10px] text-gray-500 font-mono mt-0.5">Cód: {p.codigoMercos}</div>
         )}
@@ -343,7 +266,7 @@ function SmallCard({ p }: { p: Product }) {
         </div>
         {/* Badge "Entregue por" abaixo das avaliações */}
         <div className="mt-1 text-gray-600 text-[10px] font-medium">
-          🚚 Entregue por: {p.bancaName || 'Banca Local'}
+          🚚 Entregue por: {bancaDisplay}
         </div>
         
         {/* Seção inferior com preços e botões sempre alinhados */}
@@ -371,36 +294,6 @@ function SmallCard({ p }: { p: Product }) {
             })()}
           </div>
           
-          {/* Ações: botão carrinho laranja + botão Whats verde */}
-          <div className="flex flex-col gap-1">
-            <button
-              onClick={() => { 
-                if (!outOfStock) { 
-                  addToCart({ 
-                    id: p.id, 
-                    name: p.name, 
-                    price: p.price, 
-                    image: p.image,
-                    banca_id: p.bancaId,
-                    banca_name: p.bancaName
-                  }, 1); 
-                  show(<span>Adicionado ao carrinho.</span>); 
-                } 
-              }}
-              disabled={outOfStock}
-              className={`w-full rounded-md px-3 py-2 text-[12px] font-semibold ${outOfStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#ff5c00] text-white hover:bg-[#ff6f1f]'}`}
-            >
-              {outOfStock ? 'Esgotado' : 'Adicionar ao Carrinho'}
-            </button>
-            <button
-              type="button"
-              onClick={handleWhatsApp}
-              className="w-full inline-flex items-center justify-center gap-1.5 rounded-md border border-[#5ad58a] bg-[#eafff3] text-[#1f9c4a] hover:bg-[#dcffe9] px-3 py-2 text-[12px] font-semibold"
-            >
-              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={16} height={16} className="h-4 w-4 object-contain" />
-              Comprar pelo WhatsApp
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -408,6 +301,7 @@ function SmallCard({ p }: { p: Product }) {
 }
 
 export default function MostSearchedProducts() {
+  const CURATED_SECTION_KEY = 'most_sold_bambino';
   const [apiItems, setApiItems] = useState<Product[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -430,22 +324,31 @@ export default function MostSearchedProducts() {
     (async () => {
       try {
         setLoading(true);
-        // Construir URL com localização do usuário para ordenar por proximidade
-        let apiUrl = '/api/products/most-searched';
-        if (userLocation?.lat && userLocation?.lng) {
-          apiUrl += `?lat=${userLocation.lat}&lng=${userLocation.lng}`;
-        }
-        const pData = await cachedFetch(apiUrl, undefined, 300); // 5 min cache
-        
         let list: any[] = [];
-        
-        // Tenta buscar produtos mais buscados primeiro
-        if (pData?.data) {
-          list = Array.isArray(pData.data) ? pData.data : [];
+
+        // 1) Prioridade manual (vitrine curada pelo admin/importação)
+        try {
+          const curated = await cachedFetch(`/api/featured-products?section=${CURATED_SECTION_KEY}&limit=20`, undefined, 300);
+          if (curated?.success && Array.isArray(curated.data) && curated.data.length > 0) {
+            list = curated.data;
+            console.log(`[MostSearchedProducts] Vitrine curada aplicada: ${list.length} produtos`);
+          }
+        } catch (curatedError) {
+          console.warn('[MostSearchedProducts] Falha ao carregar vitrine curada, usando fallback:', curatedError);
         }
-        
-        // Se não houver produtos mais buscados, busca os últimos produtos cadastrados (a API já faz isso internamente se não tiver analytics real, mas mantemos o fallback por segurança se a primeira falhar totalmente)
-        
+
+        // 2) Fallback: endpoint de mais buscados/proximidade
+        if (!list.length) {
+          let apiUrl = '/api/products/most-searched';
+          if (userLocation?.lat && userLocation?.lng) {
+            apiUrl += `?lat=${userLocation.lat}&lng=${userLocation.lng}`;
+          }
+          const pData = await cachedFetch(apiUrl, undefined, 300);
+          if (pData?.data) {
+            list = Array.isArray(pData.data) ? pData.data : [];
+          }
+        }
+
         const mapped: Product[] = list.map((p) => {
           const price = Number(p.price ?? 0);
           const priceOriginal = p.price_original != null ? Number(p.price_original) : undefined;
@@ -456,7 +359,7 @@ export default function MostSearchedProducts() {
           // Dados da banca já vêm populados da API otimizada
           const bancaData = p.banca || {};
           // NUNCA mostrar nome da distribuidora - apenas o nome da banca
-          const resolvedBancaName = bancaData.name || 'Banca Local';
+          const resolvedBancaName = bancaData.name || p.banca_name || 'Banca Local';
           
           return {
             id: p.id,
@@ -464,7 +367,7 @@ export default function MostSearchedProducts() {
             price,
             priceOriginal,
             discountPercent,
-            image: (p.images && p.images[0]) || '',
+            image: (p.images && p.images[0]) || p.image || '',
             vendorName: resolvedBancaName,
             vendorAvatar: bancaData.avatar || '',
             description: p.description || undefined,
@@ -472,7 +375,7 @@ export default function MostSearchedProducts() {
             trackStock: p.track_stock ?? false,
             ratingAvg: p.rating_avg ?? null,
             reviewsCount: p.reviews_count ?? 0,
-            prontaEntrega: p.pronta_entrega ?? false,
+            prontaEntrega: p.pronta_entrega ?? true,
             sobEncomenda: p.sob_encomenda ?? false,
             preVenda: p.pre_venda ?? false,
             bancaId: p.banca_id || bancaData.id,

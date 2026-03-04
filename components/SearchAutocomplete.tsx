@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { IconBuildingStore, IconSearch } from "@tabler/icons-react";
+import { buildFriendlyProductPath } from "@/lib/product-url";
 
 type SearchResult = {
   type: 'product' | 'banca';
@@ -13,6 +14,7 @@ type SearchResult = {
   price: number | null;
   banca_name: string;
   banca_id: string;
+  codigo_mercos?: string | null;
   distance?: number;
   category: string;
   address?: string;
@@ -241,10 +243,9 @@ export default function SearchAutocomplete({
       // Rota pública canônica: /bancas/[id]
       router.push(`/bancas/${result.id}`);
     } else {
-      // Redirecionar para a página do produto com banca_id para mostrar a banca correta
-      // Rota pública canônica: /produto/[id]?banca=[banca_id]
-      const bancaParam = result.banca_id ? `?banca=${result.banca_id}` : '';
-      router.push(`/produto/${result.id}${bancaParam}`);
+      // Redirecionar para a rota canônica com slug amigável
+      const productPath = buildFriendlyProductPath(result.banca_name, result.name);
+      router.push(productPath);
     }
   };
 

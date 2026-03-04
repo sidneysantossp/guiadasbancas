@@ -257,6 +257,11 @@ export async function GET(req: NextRequest) {
 
     const categoryMap = new Map<string, any>((categoriesRes?.data || []).map((c: any) => [c.id, c]));
 
+    const candidateBancaIds = Array.from(new Set([
+      ...bancaIds,
+      ...sortedCotistaBancas.map((b: any) => b.id).filter(Boolean),
+    ]));
+
     const [
       markupProdutosRes,
       markupCategoriasRes,
@@ -264,7 +269,13 @@ export async function GET(req: NextRequest) {
     ] = await Promise.all([
       distribuidorIds.length ? supabase.from('distribuidor_markup_produtos').select('product_id, distribuidor_id, markup_percentual, markup_fixo').in('distribuidor_id', distribuidorIds) : { data: [] },
       distribuidorIds.length ? supabase.from('distribuidor_markup_categorias').select('distribuidor_id, category_id, markup_percentual, markup_fixo').in('distribuidor_id', distribuidorIds).in('category_id', categoryIds.length ? categoryIds : ['__none__']) : { data: [] },
-      productIds.length && bancaIds.length ? supabase.from('banca_produtos_distribuidor').select('product_id, banca_id, enabled, custom_price').in('product_id', productIds).in('banca_id', bancaIds) : { data: [] }
+      productIds.length && candidateBancaIds.length
+        ? supabase
+            .from('banca_produtos_distribuidor')
+            .select('product_id, banca_id, enabled, custom_price')
+            .in('product_id', productIds)
+            .in('banca_id', candidateBancaIds)
+        : { data: [] }
     ]);
 
     const markupProdMap = new Map((markupProdutosRes.data || []).map((m: any) => [m.product_id, { percentual: m.markup_percentual || 0, fixo: m.markup_fixo || 0 }]));
@@ -337,13 +348,15 @@ export async function GET(req: NextRequest) {
       if (p.distribuidor_id) {
         finalPrice = calcularPrecoComMarkup(p.price, p.id, p.distribuidor_id, p.category_id);
       }
-      const custom = customMap.get(`${p.banca_id}:${p.id}`);
+      const targetBancaId = bancaData?.id || p.banca_id;
+      const custom = targetBancaId ? customMap.get(`${targetBancaId}:${p.id}`) : null;
       if (custom && custom.enabled === false) {
         return null; // Produto desabilitado para essa banca
       }
       if (custom && typeof custom.custom_price === 'number') {
         finalPrice = custom.custom_price;
       }
+      finalPrice = Math.round(Number(finalPrice || 0) * 100) / 100;
 
       const categoryData = p.category_id ? categoryMap.get(p.category_id) : null;
       const categoryName = categoryData?.name || '';

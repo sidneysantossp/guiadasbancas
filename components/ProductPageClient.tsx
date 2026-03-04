@@ -7,9 +7,9 @@ import TrustBadges from "@/components/TrustBadges";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
-import Head from "next/head";
 import SEOBreadcrumbs from "@/components/SEOBreadcrumbs";
 import { shippingConfig } from "@/components/shippingConfig";
+import { buildFriendlyProductPath } from "@/lib/product-url";
 
 export type ProductDetail = {
   id: string;
@@ -102,17 +102,18 @@ function SocialShare({ title }: { title: string }) {
     </div>
   );
 }
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD").replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
+function buildProductPath(
+  product: { name: string; id: string; codigo_mercos?: string | null },
+  bancaName?: string
+) {
+  void product.id;
+  void product.codigo_mercos;
+  return buildFriendlyProductPath(bancaName || "banca", product.name);
 }
 
 function generateProductSchema(product: ProductDetail, reviews: any[], reviewStats: any) {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://guiadasbancas.com";
-  const productUrl = `${baseUrl}/produto/${slugify(product.name)}-${product.id}`;
+  const productUrl = `${baseUrl}${buildProductPath(product, product.vendor.name)}`;
   
   const schema = {
     "@context": "https://schema.org",
@@ -192,7 +193,7 @@ function generateBreadcrumbSchema(product: ProductDetail) {
         "@type": "ListItem",
         "position": 3,
         "name": product.name,
-        "item": `${baseUrl}/produto/${slugify(product.name)}-${product.id}`
+        "item": `${baseUrl}${buildProductPath(product, product.vendor.name)}`
       }
     ]
   };
@@ -210,7 +211,15 @@ function useItemsPerView() {
   return 5;                   // desktop: 5
 }
 
-function RelatedCarousel({ items, bancaId }: { items: RelatedProduct[]; bancaId?: string }) {
+function RelatedCarousel({
+  items,
+  bancaId,
+  bancaName,
+}: {
+  items: RelatedProduct[];
+  bancaId?: string;
+  bancaName?: string;
+}) {
   const perView = useItemsPerView();
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);
@@ -249,42 +258,47 @@ function RelatedCarousel({ items, bancaId }: { items: RelatedProduct[]; bancaId?
               }
             }}
           >
-            {track.map((it, i) => (
-              <div
-                key={`${it.id}-${i}`}
-                className="flex shrink-0 flex-col items-stretch px-1"
-                style={{ flex: `0 0 ${100 / perView}%` }}
-              >
-                <Link
-                  href={("/produto/" + slugify(it.name) + "-" + it.id + (bancaId ? `?banca=${bancaId}` : '')) as Route}
-                  className="block rounded-2xl border border-gray-200 bg-white shadow-sm p-3 h-full hover:shadow-md hover:border-gray-300 transition-all"
+            {track.map((it, i) => {
+              const fallbackQuery = !bancaName && bancaId ? `?banca=${bancaId}` : "";
+              const href = `${buildProductPath(it, bancaName)}${fallbackQuery}` as Route;
+
+              return (
+                <div
+                  key={`${it.id}-${i}`}
+                  className="flex shrink-0 flex-col items-stretch px-1"
+                  style={{ flex: `0 0 ${100 / perView}%` }}
                 >
-                  {/* Imagem */}
-                  <div className="relative h-36 w-full rounded-[14px] overflow-hidden">
-                    <Image src={it.image} alt={it.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover" unoptimized />
-                  </div>
-                  {/* Título + Badge */}
-                  <div className="mt-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-1 md:gap-2">
-                    <div className="flex-1">
-                      <span className="text-[13px] font-semibold line-clamp-2">
-                        {it.name}
-                      </span>
-                      {it.codigo_mercos && (
-                        <p className="text-[10px] text-gray-600 mt-0.5">Cód: {it.codigo_mercos}</p>
-                      )}
+                  <Link
+                    href={href}
+                    className="block rounded-2xl border border-gray-200 bg-white shadow-sm p-3 h-full hover:shadow-md hover:border-gray-300 transition-all"
+                  >
+                    {/* Imagem */}
+                    <div className="relative h-36 w-full rounded-[14px] overflow-hidden">
+                      <Image src={it.image} alt={it.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover" unoptimized />
                     </div>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold whitespace-nowrap md:mt-0 mt-1">
-                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-                      Pronta Entrega
-                    </span>
-                  </div>
-                  {/* Preço */}
-                  <div className="mt-2">
-                    <span className="text-[#ff5c00] font-extrabold">R$ {it.price.toFixed(2)}</span>
-                  </div>
-                </Link>
-              </div>
-            ))}
+                    {/* Título + Badge */}
+                    <div className="mt-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-1 md:gap-2">
+                      <div className="flex-1">
+                        <span className="text-[13px] font-semibold line-clamp-2">
+                          {it.name}
+                        </span>
+                        {it.codigo_mercos && (
+                          <p className="text-[10px] text-gray-600 mt-0.5">Cód: {it.codigo_mercos}</p>
+                        )}
+                      </div>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold whitespace-nowrap md:mt-0 mt-1">
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+                        Pronta Entrega
+                      </span>
+                    </div>
+                    {/* Preço */}
+                    <div className="mt-2">
+                      <span className="text-[#ff5c00] font-extrabold">R$ {it.price.toFixed(2)}</span>
+                    </div>
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         </div>
         {/* Setas de navegação */}
@@ -412,7 +426,8 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
         // Buscar produtos relacionados da mesma categoria
         if (p.category_id) {
           try {
-            const relatedRes = await fetch(`/api/products/related/${p.category_id}?exclude=${productId}&limit=12`);
+            const bancaParam = effectiveBancaId ? `&banca=${encodeURIComponent(effectiveBancaId)}` : "";
+            const relatedRes = await fetch(`/api/products/related/${p.category_id}?exclude=${productId}&limit=12${bancaParam}`);
             if (relatedRes.ok) {
               const relatedJson = await relatedRes.json();
               const relatedList = Array.isArray(relatedJson?.data) ? relatedJson.data : [];
@@ -530,7 +545,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
         }}
       />
       
-      <section className="container-max py-2 md:py-8 pb-24">
+      <section className="container-max pt-8 md:pt-12 pb-24">
         {/* Breadcrumbs */}
         <SEOBreadcrumbs 
           items={[
@@ -596,13 +611,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
         {/* Info direita */}
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold">{product.name}</h1>
-          {(product.codigo_mercos || product.id) && (
-            <p className="mt-1 text-xs text-gray-500">
-              {product.codigo_mercos && <span>Cód: {product.codigo_mercos}</span>}
-              {product.codigo_mercos && product.id && <span className="mx-1">|</span>}
-              <span>ID: {product.id}</span>
-            </p>
-          )}
+          <p className="mt-1 text-xs text-gray-500">Cód: {product.codigo_mercos || "-"}</p>
           {product.description && (
             <p className="mt-1 text-sm text-gray-700 line-clamp-2">{product.description}</p>
           )}
@@ -689,7 +698,13 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
       </div>
 
       {/* Veja mais produtos desta banca */}
-      {relatedProducts.length > 0 && <RelatedCarousel items={relatedProducts} bancaId={product.vendor.id} />}
+      {relatedProducts.length > 0 && (
+        <RelatedCarousel
+          items={relatedProducts}
+          bancaId={product.vendor.id}
+          bancaName={product.vendor.name}
+        />
+      )}
     </section>
     </>
   );

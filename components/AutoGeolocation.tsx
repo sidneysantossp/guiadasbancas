@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { loadStoredLocation, saveCoordsAsLocation, UserLocation } from "@/lib/location";
 
 interface AutoGeolocationProps {
@@ -9,89 +9,120 @@ interface AutoGeolocationProps {
 }
 
 export default function AutoGeolocation({ onLocationUpdate, onGeoDenied }: AutoGeolocationProps) {
-  const [hasRequested, setHasRequested] = useState(false);
-  const [isRequesting, setIsRequesting] = useState(false);
+  const REQUESTED_KEY = "gb:geoRequested";
+  const DENIED_KEY = "gb:geoDenied";
+  const IN_PROGRESS_KEY = "gb:geoInProgress";
+
+  async function getGeolocationPermissionState(): Promise<PermissionState | "unsupported"> {
+    if (typeof navigator === "undefined") return "unsupported";
+    if (!("permissions" in navigator) || typeof navigator.permissions?.query !== "function") {
+      return "unsupported";
+    }
+    try {
+      const status = await navigator.permissions.query({ name: "geolocation" });
+      return status.state;
+    } catch {
+      return "unsupported";
+    }
+  }
 
   useEffect(() => {
-    // Verificar se já temos localização armazenada
-    const stored = loadStoredLocation();
-    if (stored) {
-      onLocationUpdate?.(stored);
-      // Se já tem localização salva (seja por CEP ou geolocalização), não tentar melhorar
-      // Isso evita sobrescrever a escolha do usuário
-      return;
-    }
+    let cancelled = false;
 
-    // Verificar se já solicitamos permissão nesta sessão
-    const sessionRequested = sessionStorage.getItem('gb:geoRequested');
-    if (sessionRequested) {
-      // Se já foi solicitado e negado, mostrar popup de CEP
-      const permanentDenied = localStorage.getItem('gb:geoDenied');
-      if (permanentDenied) {
-        onGeoDenied?.();
+    const run = async () => {
+      const stored = loadStoredLocation();
+      if (stored) {
+        onLocationUpdate?.(stored);
+        return;
       }
-      return;
-    }
 
-    // Verificar se o usuário já negou permanentemente
-    const permanentDenied = localStorage.getItem('gb:geoDenied');
-    if (permanentDenied) {
-      // Se negou e não tem localização salva, mostrar popup de CEP
-      if (!stored) {
+      if (typeof navigator === "undefined" || !navigator.geolocation) {
         onGeoDenied?.();
+        return;
       }
-      return;
-    }
 
-    // Solicitar geolocalização automaticamente
-    if (navigator.geolocation && !hasRequested && !isRequesting) {
-      setHasRequested(true);
-      setIsRequesting(true);
-      sessionStorage.setItem('gb:geoRequested', 'true');
+      const permissionState = await getGeolocationPermissionState();
+      if (cancelled) return;
+
+      const hasRequestedThisSession = sessionStorage.getItem(REQUESTED_KEY) === "true";
+      const hasDeniedFlag = localStorage.getItem(DENIED_KEY) === "true";
+
+      if (permissionState === "granted") {
+        // Corrige estado antigo: se o usuário liberou no navegador, removemos bloqueios locais.
+        localStorage.removeItem(DENIED_KEY);
+        sessionStorage.removeItem(REQUESTED_KEY);
+      } else if (permissionState === "denied") {
+        localStorage.setItem(DENIED_KEY, "true");
+        sessionStorage.removeItem(IN_PROGRESS_KEY);
+        onGeoDenied?.();
+        return;
+      } else if (hasDeniedFlag) {
+        // Flag local estava travando mesmo após mudar permissão para "prompt".
+        localStorage.removeItem(DENIED_KEY);
+      }
+
+      const shouldRequest =
+        permissionState === "granted" || !hasRequestedThisSession;
+
+      if (!shouldRequest) {
+        return;
+      }
+
+      sessionStorage.setItem(REQUESTED_KEY, "true");
+      sessionStorage.setItem(IN_PROGRESS_KEY, "true");
 
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           try {
             const { latitude, longitude } = position.coords;
             const location = await saveCoordsAsLocation(latitude, longitude);
-            onLocationUpdate?.(location);
-            
-            // Nota: saveCoordsAsLocation já dispara 'gdb:location-updated' via saveStoredLocation
+            if (!cancelled) {
+              onLocationUpdate?.(location);
+            }
+            localStorage.removeItem(DENIED_KEY);
           } catch (error) {
-            console.error('Erro ao salvar localização:', error);
-            // Se falhou ao salvar, mostrar popup de CEP
-            onGeoDenied?.();
+            console.error("Erro ao salvar localização:", error);
+            if (!cancelled) {
+              onGeoDenied?.();
+            }
           } finally {
-            setIsRequesting(false);
+            sessionStorage.removeItem(IN_PROGRESS_KEY);
           }
         },
         (error) => {
-          console.log('Geolocalização negada ou erro:', error.message);
-          
-          // Se o usuário negou permanentemente, salvar no localStorage
+          console.log("Geolocalização negada ou erro:", error.message);
+          sessionStorage.removeItem(IN_PROGRESS_KEY);
+
           if (error.code === error.PERMISSION_DENIED) {
-            localStorage.setItem('gb:geoDenied', 'true');
+            localStorage.setItem(DENIED_KEY, "true");
+          } else {
+            // Timeout/indisponível: permite nova tentativa sem precisar recarregar.
+            sessionStorage.removeItem(REQUESTED_KEY);
           }
-          
-          setIsRequesting(false);
-          
-          // Só chamar onLocationUpdate(null) se não houver localização salva
-          // Isso evita sobrescrever uma localização já existente
+
+          if (cancelled) return;
+
           const existingLoc = loadStoredLocation();
           if (!existingLoc) {
             onLocationUpdate?.(null);
-            // Mostrar popup de CEP quando geolocalização é negada e não há localização
             onGeoDenied?.();
           }
         },
         {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000 // 5 minutos
+          enableHighAccuracy: permissionState === "granted",
+          timeout: permissionState === "granted" ? 12000 : 8000,
+          maximumAge: 300000,
         }
       );
-    }
-  }, [hasRequested, isRequesting]); // Removido onLocationUpdate da dependência
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+      sessionStorage.removeItem(IN_PROGRESS_KEY);
+    };
+  }, []);
 
   // Este componente não renderiza nada visível
   return null;

@@ -24,7 +24,7 @@ export default async function CategoriaSelecionadaPage({ params, searchParams }:
   const sub = searchParams?.sub || '';
   return (
     <div className="">
-      <div className="container-max pt-8">
+      <div className="container-max pt-12 md:pt-14 lg:pt-16">
         <h1 className="text-center text-lg sm:text-xl font-semibold">Resultado para "{sub ? sub.replace(/-/g, ' ') : title}"</h1>
       </div>
       <CategoryResultsClient slug={params.slug} sub={sub} title={title} initialCategories={cats} />

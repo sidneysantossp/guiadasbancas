@@ -6,6 +6,7 @@ import MobileCategoryScroller from "@/components/MobileCategoryScroller";
 import MiniCategoryBar from "@/components/MiniCategoryBar";
 import CategoryCarousel from "@/components/CategoryCarousel";
 import BancasSections from "@/components/BancasSections";
+import LazyViewportSection from "@/components/LazyViewportSection";
 import nextDynamic from "next/dynamic";
 
 export const revalidate = 30;
@@ -316,9 +317,11 @@ const Testimonials = nextDynamic(() => import("@/components/Testimonials"), {
 });
 
 export default async function HomePage() {
-  const hero = await getHeroSlides();
-  const initialBancas = await getFeaturedBancas(50);
-  const initialCategories = await getCategories();
+  const [hero, initialBancas, initialCategories] = await Promise.all([
+    getHeroSlides(),
+    getFeaturedBancas(50),
+    getCategories(),
+  ]);
   const initialCategoryItems = initialCategories.map((cat) => ({
     key: cat.id,
     name: cat.name,
@@ -343,75 +346,90 @@ export default async function HomePage() {
         <BancasSections initialBancas={initialBancas} />
       </Suspense>
 
-      {/* Mini banners logo abaixo das bancas */}
-      <Suspense fallback={null}>
-        <div className="py-6">
-          <MiniBanners />
-        </div>
-      </Suspense>
+      {/* Abaixo da dobra: monta sob demanda para evitar tempestade de requests no primeiro paint */}
+      <LazyViewportSection minHeight={240}>
+        <Suspense fallback={null}>
+          <div className="py-6">
+            <MiniBanners />
+          </div>
+        </Suspense>
+      </LazyViewportSection>
 
-      {/* HQs & Comics */}
-      <Suspense fallback={null}>
-        <TrendingProducts />
-      </Suspense>
+      <LazyViewportSection minHeight={420}>
+        <Suspense fallback={null}>
+          <TrendingProducts />
+        </Suspense>
+      </LazyViewportSection>
 
-      {/* Marvel Comics */}
-      <Suspense fallback={null}>
-        <MarvelComicsProducts />
-      </Suspense>
+      <LazyViewportSection minHeight={420}>
+        <Suspense fallback={null}>
+          <MarvelComicsProducts />
+        </Suspense>
+      </LazyViewportSection>
 
-      {/* Planet Manga */}
-      <Suspense fallback={null}>
-        <PlanetMangaProducts />
-      </Suspense>
+      <LazyViewportSection minHeight={420}>
+        <Suspense fallback={null}>
+          <PlanetMangaProducts />
+        </Suspense>
+      </LazyViewportSection>
 
+      <LazyViewportSection minHeight={420}>
+        <Suspense fallback={null}>
+          <BrancaleoneProducts />
+        </Suspense>
+      </LazyViewportSection>
 
-      {/* Mundo Marvel (Brancaleone) logo após HQs & Comics */}
-      <Suspense fallback={null}>
-        <BrancaleoneProducts />
-      </Suspense>
+      <LazyViewportSection minHeight={260}>
+        <Suspense fallback={null}>
+          <div className="py-6">
+            <ReferralBanner />
+          </div>
+        </Suspense>
+      </LazyViewportSection>
 
-      {/* Banner de Indicação da Plataforma (Referral) logo após Mundo Marvel */}
-      <Suspense fallback={null}>
-        <div className="py-6">
-          <ReferralBanner />
-        </div>
-      </Suspense>
+      <LazyViewportSection minHeight={520}>
+        <Suspense fallback={null}>
+          <MostSearchedProducts />
+        </Suspense>
+      </LazyViewportSection>
 
-      {/* LAZY LOADING: Carrega conforme scroll, apenas com dados reais */}
-      <Suspense fallback={null}>
-        <MostSearchedProducts />
-      </Suspense>
+      <LazyViewportSection minHeight={420}>
+        <Suspense fallback={null}>
+          <TopReviewed />
+        </Suspense>
+      </LazyViewportSection>
 
-      {/* Bomboniere */}
-      <Suspense fallback={null}>
-        <TopReviewed />
-      </Suspense>
+      <LazyViewportSection minHeight={420}>
+        <Suspense fallback={null}>
+          <FavoritePicks />
+        </Suspense>
+      </LazyViewportSection>
 
-      {/* Bebidas */}
-      <Suspense fallback={null}>
-        <FavoritePicks />
-      </Suspense>
+      <LazyViewportSection minHeight={260}>
+        <Suspense fallback={null}>
+          <div className="py-6">
+            <CampaignSection />
+          </div>
+        </Suspense>
+      </LazyViewportSection>
 
-      <Suspense fallback={null}>
-        <div className="py-6">
-          <CampaignSection />
-        </div>
-      </Suspense>
+      <LazyViewportSection minHeight={260}>
+        <ReferralPlatformBannerWrapper />
+      </LazyViewportSection>
 
-      {/* Banner de Indicação da Plataforma */}
-      <ReferralPlatformBannerWrapper />
+      <LazyViewportSection minHeight={220}>
+        <Suspense fallback={null}>
+          <Testimonials />
+        </Suspense>
+      </LazyViewportSection>
 
-      {/* Depoimentos de clientes */}
-      <Suspense fallback={null}>
-        <Testimonials />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <div className="pt-6 pb-16">
-          <Newsletter />
-        </div>
-      </Suspense>
+      <LazyViewportSection minHeight={220}>
+        <Suspense fallback={null}>
+          <div className="pt-6 pb-16">
+            <Newsletter />
+          </div>
+        </Suspense>
+      </LazyViewportSection>
     </div>
   );
 }

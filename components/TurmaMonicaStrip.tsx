@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import { useEffect, useMemo, useState } from "react";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 type ApiProduct = {
   id: string;
@@ -44,14 +45,6 @@ type MonicaProduct = {
   bancaPhone?: string | null;
 };
 
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD").replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
-}
-
 function Stars({ value, count }: { value?: number | null; count?: number | null }) {
   const v = Math.max(0, Math.min(5, Number(value ?? 0)));
   const full = Math.floor(v);
@@ -88,7 +81,7 @@ function MonicaCard({ p }: { p: MonicaProduct }) {
     show(<span>Adicionado ao carrinho.</span>);
   };
 
-  const href = ("/produto/" + slugify(p.name) + "-" + p.id) as Route;
+  const href = buildPublicProductPath(p.name, p.vendorName, p.id, p.codigo_mercos) as Route;
 
   const handleWhatsApp = (event: React.MouseEvent) => {
     event.preventDefault();

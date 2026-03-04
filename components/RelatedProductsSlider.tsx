@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 type Product = {
   id: string;
@@ -189,7 +190,7 @@ export default function RelatedProductsSlider({ searchQuery, category }: Related
               className="w-full sm:w-1/2 lg:w-1/4 flex-shrink-0 px-2"
             >
               <Link
-                href={`/produto/${product.id}`}
+                href={buildPublicProductPath(product.name, product.banca_name, product.id)}
                 className="block bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
               >
                 {/* Imagem do produto */}

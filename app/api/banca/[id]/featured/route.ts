@@ -27,8 +27,26 @@ const FEATURED_PRODUCT_FIELDS = `
   codigo_mercos
 `;
 
-function calcularPrecoComMarkup(precoBase: number, distribuidor: any): number {
+function calcularPrecoComMarkup(
+  precoBase: number,
+  distribuidor: any,
+  markupProduto?: { markup_percentual?: number; markup_fixo?: number } | null,
+  markupCategoria?: { markup_percentual?: number; markup_fixo?: number } | null
+): number {
   if (!distribuidor) return precoBase;
+
+  const mpPerc = Number(markupProduto?.markup_percentual || 0);
+  const mpFixo = Number(markupProduto?.markup_fixo || 0);
+  if (mpPerc > 0 || mpFixo > 0) {
+    return precoBase * (1 + mpPerc / 100) + mpFixo;
+  }
+
+  const mcPerc = Number(markupCategoria?.markup_percentual || 0);
+  const mcFixo = Number(markupCategoria?.markup_fixo || 0);
+  if (mcPerc > 0 || mcFixo > 0) {
+    return precoBase * (1 + mcPerc / 100) + mcFixo;
+  }
+
   const tipoCalculo = distribuidor.tipo_calculo || 'markup';
   if (tipoCalculo === 'margem') {
     const divisor = distribuidor.margem_divisor || 1;
@@ -142,15 +160,46 @@ export async function GET(request: NextRequest, context: { params: { id: string 
             : Promise.resolve({ data: [], error: null } as any)
         ]);
 
+        const [markupProdutosRes, markupCategoriasRes] = await Promise.all([
+          distribuidorIds.length > 0
+            ? supabase
+                .from('distribuidor_markup_produtos')
+                .select('distribuidor_id, product_id, markup_percentual, markup_fixo')
+                .in('distribuidor_id', distribuidorIds)
+                .in('product_id', productIds)
+            : Promise.resolve({ data: [], error: null } as any),
+          distribuidorIds.length > 0 && distribuidorCategoryIds.length > 0
+            ? supabase
+                .from('distribuidor_markup_categorias')
+                .select('distribuidor_id, category_id, markup_percentual, markup_fixo')
+                .in('distribuidor_id', distribuidorIds)
+                .in('category_id', distribuidorCategoryIds)
+            : Promise.resolve({ data: [], error: null } as any),
+        ]);
+
         if (distribuidoresRes.error) {
           throw distribuidoresRes.error;
         }
         if (distribuidorCategoriesRes.error) {
           throw distribuidorCategoriesRes.error;
         }
+        if (markupProdutosRes.error) {
+          throw markupProdutosRes.error;
+        }
+        if (markupCategoriasRes.error) {
+          throw markupCategoriasRes.error;
+        }
 
-        const distribuidorMap = new Map((distribuidoresRes.data || []).map(d => [d.id, d]));
-        const distribuidorCategoryMap = new Map((distribuidorCategoriesRes.data || []).map((c: any) => [c.id, c.nome]));
+        const distribuidorMap = new Map<string, any>((distribuidoresRes.data || []).map((d: any) => [String(d.id), d]));
+        const distribuidorCategoryMap = new Map<string, string>(
+          (distribuidorCategoriesRes.data || []).map((c: any) => [String(c.id), String(c.nome || "")])
+        );
+        const markupProdutoMap = new Map<string, any>(
+          (markupProdutosRes.data || []).map((m: any) => [`${m.distribuidor_id}:${m.product_id}`, m])
+        );
+        const markupCategoriaMap = new Map<string, any>(
+          (markupCategoriasRes.data || []).map((m: any) => [`${m.distribuidor_id}:${m.category_id}`, m])
+        );
 
         produtosDistribuidor = (produtos || [])
           .map(produto => {
@@ -182,7 +231,12 @@ export async function GET(request: NextRequest, context: { params: { id: string 
             if (custom?.custom_price) {
               price = custom.custom_price;
             } else if (distribuidor) {
-              price = calcularPrecoComMarkup(produto.price, distribuidor);
+              price = calcularPrecoComMarkup(
+                produto.price,
+                distribuidor,
+                markupProdutoMap.get(`${produto.distribuidor_id}:${produto.id}`),
+                markupCategoriaMap.get(`${produto.distribuidor_id}:${produto.category_id}`)
+              );
             }
             const priceOriginal = produto.price_original || produto.price;
             const discountPercent = produto.discount_percent || 

@@ -25,6 +25,7 @@ type SectionDef = {
 };
 
 const SECTIONS: SectionDef[] = [
+  { key: "most_sold_bambino", title: "Mais Vendidos Bambino", hint: "Seção principal da Home (MostSearchedProducts)" },
   { key: "topreviewed_ei", title: "Eletrônicos e Informática", hint: "Seção da Home (TopReviewed)" },
   // Você pode adicionar outras seções depois (ex.: trending, favoritos, etc.)
 ];

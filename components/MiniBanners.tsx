@@ -25,7 +25,7 @@ export default function MiniBanners() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/mini-banners', { cache: 'no-store' });
+        const res = await fetch('/api/mini-banners', { cache: 'force-cache' });
         const j = await res.json();
         const list: string[] = Array.isArray(j?.data)
           ? (j.data as Array<{ image_url: string }>).map((it) => it.image_url).filter(Boolean)

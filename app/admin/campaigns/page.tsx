@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/admin/ToastProvider";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 interface Campaign {
   id: string;
@@ -366,7 +367,16 @@ export default function AdminCampaignsPage() {
                     
                     {/* Ações gerais sempre disponíveis */}
                     <button
-                      onClick={() => window.open(`/produto/${campaign.products.slug || campaign.products.id}`, '_blank')}
+                      onClick={() =>
+                        window.open(
+                          buildPublicProductPath(
+                            campaign.products.name,
+                            campaign.products.bancas?.name,
+                            campaign.products.id
+                          ),
+                          '_blank'
+                        )
+                      }
                       className="flex items-center gap-1 bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs hover:bg-blue-600"
                       title="Ver produto"
                     >

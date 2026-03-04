@@ -1,0 +1,327 @@
+{
+  "generated_at": "2026-03-04T04:13:11.711Z",
+  "options": {
+    "apply": true,
+    "section": "most_sold_bambino",
+    "distribuidor": "3a989c56-bbd3-4769-b076-a83483e39542",
+    "file": "/Users/trabalho/Downloads/ClassificacaoABC bambino fevereiro-DESKTOP-DABIP9C.xls"
+  },
+  "sheet_total": 918,
+  "active_products_distribuidor": 800,
+  "matched_total": 622,
+  "unmatched_total": 294,
+  "first_matched": [
+    {
+      "ordem": 1,
+      "idProduto": "60223",
+      "nomePlanilha": "Chip Vivo Pré - Combo - Com recarga",
+      "product_id": "fbbaa5ce-9036-4375-b85a-b3afd4949123",
+      "product_name": "Chip Vivo Pré - Combo - Com recarga",
+      "codigo_mercos": "60223"
+    },
+    {
+      "ordem": 2,
+      "idProduto": "SV5004",
+      "nomePlanilha": "Tabaco Amsterdam - Bag 25 Gr -  Unitário",
+      "product_id": "ac7e76ff-026b-457f-88de-f570f395065d",
+      "product_name": "Tabaco Amsterdam - Bag 25 Gr -  Unitário",
+      "codigo_mercos": "SV5004"
+    },
+    {
+      "ordem": 3,
+      "idProduto": "60118",
+      "nomePlanilha": "Chip Vivo Pré - Liso",
+      "product_id": "c79f579d-8ae1-43b7-baab-ebd8f61664c1",
+      "product_name": "Chip Vivo Pré - Liso",
+      "codigo_mercos": "60118"
+    },
+    {
+      "ordem": 4,
+      "idProduto": "G1070",
+      "nomePlanilha": "Guarda Chuva - Liso - Preto",
+      "product_id": "7e38a110-ef1a-41a3-bc30-cfc26b1e89bc",
+      "product_name": "Guarda Chuva - Liso - Preto",
+      "codigo_mercos": "G1070"
+    },
+    {
+      "ordem": 5,
+      "idProduto": "006759-8",
+      "nomePlanilha": "Tabaco Acrema Blend 20 Gr  - Unidade",
+      "product_id": "d84480b6-8cd2-47ea-b82c-7d6c783ae659",
+      "product_name": "Tabaco Acrema Blend 20 Gr  - Unidade",
+      "codigo_mercos": "006759-8"
+    },
+    {
+      "ordem": 6,
+      "idProduto": "60119",
+      "nomePlanilha": "Chip Claro Pré - Liso",
+      "product_id": "4d8b901a-d552-4691-b528-0f845ad9c238",
+      "product_name": "Chip Claro Pré - Liso",
+      "codigo_mercos": "60119"
+    },
+    {
+      "ordem": 7,
+      "idProduto": "60111",
+      "nomePlanilha": "Chip TIM Pré - Liso",
+      "product_id": "eeb6b3de-923b-4c1e-b598-fd1b19834390",
+      "product_name": "Chip TIM Pré - Liso",
+      "codigo_mercos": "60111"
+    },
+    {
+      "ordem": 8,
+      "idProduto": "SV3001",
+      "nomePlanilha": "Cigarro Gudang Garan El  Poncio Cravo - Box Unitário",
+      "product_id": "1ef61725-cc61-4d70-82cf-0c0df0c334e9",
+      "product_name": "Cigarro Gudang Garan El  Poncio Cravo - Box Unitário",
+      "codigo_mercos": "SV3001"
+    },
+    {
+      "ordem": 9,
+      "idProduto": "60221",
+      "nomePlanilha": "Chip Claro Pré - Combo - Com recarga",
+      "product_id": "3b93764d-5cf8-4edf-9097-83c3c32ccabb",
+      "product_name": "Chip Claro Pré - Combo - Com recarga",
+      "codigo_mercos": "60221"
+    },
+    {
+      "ordem": 10,
+      "idProduto": "000015-9",
+      "nomePlanilha": "Tabaco HI Tobacco Golden Virginia 35 Gr  - Unidade",
+      "product_id": "fc7bf231-9810-40dc-b6b9-79044e16e6fd",
+      "product_name": "Tabaco HI Tobacco Golden Virginia 35 Gr  - Unidade",
+      "codigo_mercos": "000015-9"
+    },
+    {
+      "ordem": 11,
+      "idProduto": "35671",
+      "nomePlanilha": "Pokémon Mega Evolução - ME2 - Fogo Fantasmagórico BOOSTER - Unidade",
+      "product_id": "4d916fb9-cd5d-496d-9627-fc8414b719fa",
+      "product_name": "Pokémon Mega Evolução - ME2 - Fogo Fantasmagórico BOOSTER - Unidade",
+      "codigo_mercos": "35671"
+    },
+    {
+      "ordem": 14,
+      "idProduto": "60222",
+      "nomePlanilha": "Chip Tim Pré - Combo - Com recarga",
+      "product_id": "fb79ddc3-746a-4a0e-a2b5-972e59a90be8",
+      "product_name": "Chip Tim Pré - Combo - Com recarga",
+      "codigo_mercos": "60222"
+    },
+    {
+      "ordem": 15,
+      "idProduto": "DTB",
+      "nomePlanilha": "Tabaco Sasso Hash #TAB - Bag de 25 G  - UN",
+      "product_id": "f4692e0f-1d3b-47e0-8d2f-4ba1e9825582",
+      "product_name": "Tabaco Sasso Hash #TAB - Bag de 25 G  - UN",
+      "codigo_mercos": "DTB"
+    },
+    {
+      "ordem": 16,
+      "idProduto": "005567-0",
+      "nomePlanilha": "Tabaco Rainbow Silver Bright 25 Gr  - Unidade",
+      "product_id": "eb9f8e9a-ba05-4d8d-b24c-2fa1b36b0017",
+      "product_name": "Tabaco Rainbow Silver Bright 25 Gr  - Unidade",
+      "codigo_mercos": "005567-0"
+    },
+    {
+      "ordem": 17,
+      "idProduto": "35652",
+      "nomePlanilha": "Pokémon Mega Evolução - ME1 - Mega Evolução - BOOSTER - Unidade",
+      "product_id": "2e01b3c0-78ba-4ab9-9317-6ff39ff33d1f",
+      "product_name": "Pokémon Mega Evolução - ME1 - Mega Evolução - BOOSTER - Unidade",
+      "codigo_mercos": "35652"
+    },
+    {
+      "ordem": 18,
+      "idProduto": "SV6001",
+      "nomePlanilha": "Palheiro Souza Paiol Tradicional  - Unitário",
+      "product_id": "05c8ae3b-a64a-4dc9-b908-9f2b649c26bc",
+      "product_name": "Palheiro Souza Paiol Tradicional  - Unitário",
+      "codigo_mercos": "SV6001"
+    },
+    {
+      "ordem": 19,
+      "idProduto": "SMK001un",
+      "nomePlanilha": "Seda Smoking Master KS - Unitário",
+      "product_id": "88b1d5fd-8827-4120-8427-cb46716bb1a2",
+      "product_name": "Seda Smoking Master KS - Unitário",
+      "codigo_mercos": "SMK001un"
+    },
+    {
+      "ordem": 20,
+      "idProduto": "SMK021Aun",
+      "nomePlanilha": "Seda Smoking Brown King Size - Unitário",
+      "product_id": "1152960e-bce5-4fbc-8891-2fb272dcf0a9",
+      "product_name": "Seda Smoking Brown King Size - Unitário",
+      "codigo_mercos": "SMK021Aun"
+    },
+    {
+      "ordem": 21,
+      "idProduto": "G1070B",
+      "nomePlanilha": "Guarda Chuva - Liso - Cores",
+      "product_id": "03ba04a8-8ef7-41a2-afb0-0d273bb93b78",
+      "product_name": "Guarda Chuva - Liso - Cores",
+      "codigo_mercos": "G1070B"
+    },
+    {
+      "ordem": 22,
+      "idProduto": "GS22P",
+      "nomePlanilha": "Guarda Chuva - (Sombrinha com GANCHO",
+      "product_id": "45272d10-a845-4a0f-a95c-a603dcada761",
+      "product_name": "Guarda Chuva - (Sombrinha com GANCHO) - Preto",
+      "codigo_mercos": "GS22P"
+    }
+  ],
+  "first_unmatched": [
+    {
+      "idProduto": "36440",
+      "nome": "Pokémon -  ME2.5 - Heróis Excelsos - Blister QUADRUPLO - Unidade",
+      "ordem": 12
+    },
+    {
+      "idProduto": "36442",
+      "nome": "Pokémon -  ME2.5 - Heróis Excelsos - Blister TRIPLO - Unidade",
+      "ordem": 13
+    },
+    {
+      "idProduto": "50315",
+      "nome": "Chicle Trident Hortelã, caixa com 21 unidades",
+      "ordem": 33
+    },
+    {
+      "idProduto": "CI-SMK-102",
+      "nome": "Filtro  Smoking Slim LONGO 22 X 6 mm Bag C/120 - Unidade",
+      "ordem": 35
+    },
+    {
+      "idProduto": "35275",
+      "nome": "Pokémon EV8.5 Evoluções Prismaticas Blister Quadruplo- Unidade",
+      "ordem": 36
+    },
+    {
+      "idProduto": "35678",
+      "nome": "Pokémon Mega Evolução - ME2 - Fogo Fantasmagórico - Blister QUADRUPLO - Unidade",
+      "ordem": 37
+    },
+    {
+      "idProduto": "1260",
+      "nome": "Capa de Chuva Descartável Transparente - Unidade",
+      "ordem": 47
+    },
+    {
+      "idProduto": "KD556C",
+      "nome": "Carregador de Tomada - KD556C - 2 Saidas USB para Tipo C - Kaidi",
+      "ordem": 50
+    },
+    {
+      "idProduto": "SV6006",
+      "nome": "Palheiro Paulistinha Tradicional - Unitário",
+      "ordem": 56
+    },
+    {
+      "idProduto": "35877",
+      "nome": "Box Pokemon Premium Box Mega  - VENUSAUR EX - Unidade",
+      "ordem": 59
+    },
+    {
+      "idProduto": "35870",
+      "nome": "Pokemon - Box Mega Charizard X Ex  - Unidade",
+      "ordem": 60
+    },
+    {
+      "idProduto": "10104",
+      "nome": "Seda Bem Bolado Pop King Size Slim - Unidade",
+      "ordem": 61
+    },
+    {
+      "idProduto": "KD550A",
+      "nome": "Carregador de Tomada - KD550A - Saida USB para Lightning / Iphone - Kaidi",
+      "ordem": 65
+    },
+    {
+      "idProduto": "LE853C",
+      "nome": "Cabo - LE853C - USB para Tipo C - LE It Blue LELONG",
+      "ordem": 74
+    },
+    {
+      "idProduto": "36438",
+      "nome": "Box Pokemon Coleção Dia de Pokemon 2026  - Unidade",
+      "ordem": 77
+    },
+    {
+      "idProduto": "CHEV-OPALA",
+      "nome": "Carro em Metal Opala Ss 1978 -  100 Anos",
+      "ordem": 84
+    },
+    {
+      "idProduto": "812122",
+      "nome": "Bala Dura 600GR Santa Fé - CANELA",
+      "ordem": 86
+    },
+    {
+      "idProduto": "36436",
+      "nome": "Pokemon Box  Coleção Mega Charizard X  - Unidade",
+      "ordem": 93
+    },
+    {
+      "idProduto": "1177",
+      "nome": "Amendoim sem pele com sal - Mallu - pacote com 10 unidades de 70g",
+      "ordem": 94
+    },
+    {
+      "idProduto": "92926",
+      "nome": "Tabaco Bem Bolado Original Virginia (Laranja",
+      "ordem": 96
+    },
+    {
+      "idProduto": "LE228FC",
+      "nome": "Carregador de Tomada - LE228FC - 2 Saidas USB para Tipo C - It Blue LELONG",
+      "ordem": 98
+    },
+    {
+      "idProduto": "10303",
+      "nome": "Seda Bem Bolado Brown King Size Large - Unidade",
+      "ordem": 103
+    },
+    {
+      "idProduto": "KD26",
+      "nome": "Cabo - KD26 - Tipo C para Lightning / Iphone - Kaidi",
+      "ordem": 104
+    },
+    {
+      "idProduto": "10106",
+      "nome": "Seda Bem Bolado Pop 1 1/4 Slim  - Unitário",
+      "ordem": 110
+    },
+    {
+      "idProduto": "1048",
+      "nome": "Carnê Previdência Social  - G.P.S. Carnê INSS 12x02  Pcte com 5 carnes",
+      "ordem": 119
+    },
+    {
+      "idProduto": "36444",
+      "nome": "Pokémon ME 2.5  Box Treinador Avançado Herois Excelsos  - Unidade",
+      "ordem": 122
+    },
+    {
+      "idProduto": "50422",
+      "nome": "Bala Halls Mentol, caixa com 21 unidades",
+      "ordem": 123
+    },
+    {
+      "idProduto": "KD16C",
+      "nome": "Cabo - KD16C - USB para Tipo C - Kaidi",
+      "ordem": 126
+    },
+    {
+      "idProduto": "KD16A",
+      "nome": "Cabo - KD16A - USB para Lightning / Iphone - Kaidi",
+      "ordem": 128
+    },
+    {
+      "idProduto": "514286",
+      "nome": "Bala De Banana Oliveira - pct de 500g",
+      "ordem": 131
+    }
+  ]
+}

@@ -8,25 +8,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     }
 
-    const authError = await requireAdminAuth(req);
-    if (authError) return authError;
+    const authGuardError = await requireAdminAuth(req);
+    if (authGuardError) return authGuardError;
 
     const { email, password } = await req.json();
 
     console.log("🧪 [TEST-LOGIN] Iniciando teste para:", email);
 
     // Teste 1: Tentar autenticar
-    const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
+    const { data: authData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (authError) {
-      console.log("❌ [TEST-LOGIN] Erro auth:", authError.message);
+    if (signInError) {
+      console.log("❌ [TEST-LOGIN] Erro auth:", signInError.message);
       return NextResponse.json({
         step: "auth",
         success: false,
-        error: authError.message,
+        error: signInError.message,
         hint: "Senha incorreta ou usuário não existe no Supabase Auth"
       });
     }

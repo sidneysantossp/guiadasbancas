@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { buildBancaHref } from "@/lib/slug";
 import { useEffect, useMemo, useState } from "react";
 import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
@@ -47,6 +48,9 @@ function BancaCard({
   profileImage?: string;
   priority?: boolean;
 }) {
+  const router = useRouter();
+  const href = buildBancaHref(name, id, uf) as Route;
+
   // Formatar distância: arredondar para 1 casa decimal, vírgula como separador, "KM" maiúsculo
   // Ocultar distâncias > 100km (indica erro de localização)
   const distanceLabel = (distance == null || distance > 100) ? null : `${distance.toFixed(1).replace('.', ',')} KM`;
@@ -60,8 +64,16 @@ function BancaCard({
   }, []);
   
   return (
-    <Link 
-      href={(buildBancaHref(name, id, uf) as Route)} 
+    <article
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push(href)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          router.push(href);
+        }
+      }}
       className="block overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg transition-transform transition-shadow duration-200 hover:shadow-xl hover:-translate-y-0.5"
     >
       {/* Imagem com padding e borda arredondada interna */}
@@ -146,7 +158,7 @@ function BancaCard({
           )}
         </div>
       </div>
-    </Link>
+    </article>
   );
 }
 

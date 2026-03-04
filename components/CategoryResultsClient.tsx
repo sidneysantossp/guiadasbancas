@@ -3,13 +3,79 @@
 // Removido next/image - usando img nativo para evitar falhas em produção
 import Link from "next/link";
 import { buildBancaHref } from "@/lib/slug";
+import { buildPublicProductPath } from "@/lib/product-url";
 import type { Route } from "next";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import { shippingConfig } from "@/components/shippingConfig";
 import CategoryCarousel from "@/components/CategoryCarousel";
+
+const CATEGORY_GROUPS: Record<string, string[]> = {
+  Panini: [
+    "Colecionáveis",
+    "Conan",
+    "DC Comics",
+    "Disney",
+    "Disney Comics",
+    "Marvel",
+    "Marvel Comics",
+    "Mangás",
+    "Maurício de Sousa Produções",
+    "Panini Books",
+    "Panini Comics",
+    "Panini Magazines",
+    "Panini Partwork",
+    "Planet Manga",
+  ],
+  Bebidas: ["Energéticos", "Bebidas"],
+  Bomboniere: [
+    "Balas e Drops",
+    "Balas a Granel",
+    "Biscoitos",
+    "Chicletes",
+    "Chocolates",
+    "Doces",
+    "Pirulitos",
+    "Salgadinhos",
+    "Snacks",
+  ],
+  Brinquedos: ["Blocos de Montar", "Carrinhos", "Massinha", "Pelúcias", "Brinquedos", "Livros Infantis"],
+  Cartas: ["Baralhos", "Baralhos e Cards", "Cards Colecionáveis", "Cards Pokémon", "Jogos Copag", "Jogos de Cartas"],
+  Diversos: [
+    "Acessórios",
+    "Acessórios Celular",
+    "Adesivos Times",
+    "Chaveiros",
+    "Diversos",
+    "Guarda-Chuvas",
+    "Mochilas",
+    "Outros",
+    "Papelaria",
+    "Utilidades",
+    "Figurinhas",
+  ],
+  Eletrônicos: ["Caixas de Som", "Fones de Ouvido", "Informática", "Pilhas", "Eletrônicos"],
+  "Pokémon": ["Cards Pokémon", "Fichários Pokémon"],
+  Tabacaria: [
+    "Boladores",
+    "Carvão Narguile",
+    "Charutos e Cigarrilhas",
+    "Cigarros",
+    "Essências",
+    "Filtros",
+    "Incensos",
+    "Isqueiros",
+    "Palheiros",
+    "Piteiras",
+    "Porta Cigarros",
+    "Seda OCB",
+    "Tabaco e Seda",
+    "Tabacos Importados",
+    "Trituradores",
+  ],
+};
 
 // Tipos para produtos e bancas (dados vêm do Supabase)
 export type Product = {
@@ -17,6 +83,7 @@ export type Product = {
   name: string;
   price: number;
   image: string;
+  category?: string;
   vendor: string;
   vendorAvatar?: string;
   lat: number;
@@ -90,10 +157,31 @@ function slugify(text: string) {
     .replace(/(^-|-$)+/g, "");
 }
 
+function normalizeCategoryKey(value: string): string {
+  return (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const CATEGORY_ALIASES: Record<string, string> = {
+  "disney comics": "disney",
+  "marvel comics": "marvel",
+  "planet manga": "mangas",
+  "manga": "mangas",
+};
+
+function canonicalCategory(value: string): string {
+  const normalized = normalizeCategoryKey(value);
+  return CATEGORY_ALIASES[normalized] || normalized;
+}
+
 function ProductCard({ p, km }: { p: Product; km: number | null }) {
   // Extrair código do produto (ID sem UUID da banca se for composto)
   const productCode = p.id.includes('-') ? p.id.split('-')[0] : p.id;
-  const productHref = ("/produto/" + slugify(p.name) + "-" + p.id) as Route;
+  const productHref = buildPublicProductPath(p.name, p.vendor, p.id) as Route;
   
   return (
     <Link 
@@ -231,26 +319,37 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
     });
   };
 
-  // Configuração de categorias pai e suas subcategorias
-  const CATEGORY_GROUPS: Record<string, string[]> = {
-    'Panini': [
-      'Colecionáveis', 'Conan', 'DC Comics', 'Disney Comics', 'Marvel Comics',
-      'Maurício de Sousa Produções', 'Panini Books', 'Panini Comics',
-      'Panini Magazines', 'Panini Partwork', 'Planet Manga'
-    ],
-    'Bebidas': ['Energéticos', 'Bebidas'],
-    'Bomboniere': ['Balas e Drops', 'Balas a Granel', 'Biscoitos', 'Chicletes', 'Chocolates', 'Doces', 'Pirulitos', 'Salgadinhos', 'Snacks'],
-    'Brinquedos': ['Blocos de Montar', 'Carrinhos', 'Massinha', 'Pelúcias', 'Brinquedos', 'Livros Infantis'],
-    'Cartas': ['Baralhos', 'Baralhos e Cards', 'Cards Colecionáveis', 'Cards Pokémon', 'Jogos Copag', 'Jogos de Cartas'],
-    'Diversos': ['Acessórios', 'Acessórios Celular', 'Adesivos Times', 'Chaveiros', 'Diversos', 'Guarda-Chuvas', 'Mochilas', 'Outros', 'Papelaria', 'Utilidades', 'Figurinhas'],
-    'Eletrônicos': ['Caixas de Som', 'Fones de Ouvido', 'Informática', 'Pilhas', 'Eletrônicos'],
-    'Pokémon': ['Cards Pokémon', 'Fichários Pokémon'],
-    'Tabacaria': [
-      'Boladores', 'Carvão Narguile', 'Charutos e Cigarrilhas', 'Cigarros', 'Essências',
-      'Filtros', 'Incensos', 'Isqueiros', 'Palheiros', 'Piteiras', 'Porta Cigarros',
-      'Seda OCB', 'Tabaco e Seda', 'Tabacos Importados', 'Trituradores'
-    ],
-  };
+  const knownSubcategories = useMemo(
+    () => Array.from(new Set(Object.values(CATEGORY_GROUPS).flat())),
+    []
+  );
+
+  const resolveCategoryForItem = useCallback((item: any): string => {
+    const explicitCategory =
+      (typeof item?.category_name === "string" && item.category_name.trim()) ||
+      (typeof item?.category === "string" && item.category.trim()) ||
+      "";
+    if (explicitCategory) return explicitCategory;
+
+    const routeHint = sub || slug;
+    const normalizedHint = normalizeCategoryKey((routeHint || "").replace(/-/g, " "));
+    if (normalizedHint) {
+      const exactByHint = knownSubcategories.find(
+        (candidate) => normalizeCategoryKey(candidate) === normalizedHint
+      );
+      if (exactByHint) return exactByHint;
+    }
+
+    const productName = normalizeCategoryKey(item?.name || "");
+    if (productName) {
+      const byName = [...knownSubcategories]
+        .sort((a, b) => b.length - a.length)
+        .find((candidate) => productName.includes(normalizeCategoryKey(candidate)));
+      if (byName) return byName;
+    }
+
+    return "";
+  }, [knownSubcategories, slug, sub]);
 
   // Extrair categorias únicas dos produtos (usa products não filtrados para mostrar todas as categorias)
   const allCategories = useMemo(() => {
@@ -291,26 +390,36 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
     return { groupedCategories: grouped, standaloneCategories: standalone.sort((a, b) => a.localeCompare(b, 'pt-BR')) };
   }, [allCategories]);
 
-  // Auto-abrir a sanfona da categoria buscada baseado no slug
+  // Auto-abrir a sanfona da categoria buscada baseado no slug/sub, com match exato de slug
   useEffect(() => {
-    const slugLower = slug.toLowerCase().replace(/-/g, ' ');
-    
-    // Verificar se o slug corresponde a algum grupo pai
+    const target = (sub || slug || "").trim();
+    const targetSlug = slugify(target);
+
+    if (!targetSlug) {
+      setOpenAccordions(new Set());
+      setActiveCategory("Todos");
+      return;
+    }
+
     for (const [groupName, subcats] of Object.entries(CATEGORY_GROUPS)) {
-      if (groupName.toLowerCase() === slugLower) {
+      if (slugify(groupName) === targetSlug) {
         setOpenAccordions(new Set([groupName]));
+        setActiveCategory("Todos");
         return;
       }
-      // Verificar se corresponde a alguma subcategoria
-      for (const subcat of subcats) {
-        if (subcat.toLowerCase() === slugLower || subcat.toLowerCase().includes(slugLower)) {
-          setOpenAccordions(new Set([groupName]));
-          setActiveCategory(subcat);
-          return;
-        }
+
+      const matchedSub = subcats.find((subcat) => slugify(subcat) === targetSlug);
+      if (matchedSub) {
+        setOpenAccordions(new Set([groupName]));
+        setActiveCategory(matchedSub);
+        return;
       }
     }
-  }, [slug]);
+
+    // Se não houver correspondência clara no agrupamento, não força filtro local.
+    setOpenAccordions(new Set());
+    setActiveCategory("Todos");
+  }, [slug, sub]);
 
   // Reset da página ao trocar de categoria
   useEffect(() => {
@@ -390,9 +499,15 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
             // Mapear produtos com informações da banca
             const mappedProducts: Product[] = [];
             
-            productsArray
-              .filter((item: any) => item.images && item.images.length > 0 && item.active !== false)
+              productsArray
+              .filter((item: any) => item.active !== false)
               .forEach((item: any) => {
+                const productImage =
+                  item.image ||
+                  (Array.isArray(item.images) && item.images.length > 0
+                    ? item.images[0]
+                    : "https://placehold.co/400x400/e5e7eb/666666?text=Sem+Imagem");
+
                 if (item.banca_id) {
                   // Produto com banca específica
                   const banca = bancasMap.get(item.banca_id);
@@ -400,7 +515,8 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
                     id: item.id,
                     name: item.name || 'Produto',
                     price: Number(item.price || 0),
-                    image: item.images[0],
+                    image: productImage,
+                    category: resolveCategoryForItem(item),
                     vendor: banca?.name || 'Banca',
                     vendorAvatar: banca?.avatar || banca?.cover_image || '',
                     lat: banca?.lat || -23.5505,
@@ -418,7 +534,8 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
                       id: `${item.id}-${banca.id}`,
                       name: item.name || 'Produto',
                       price: Number(item.price || 0),
-                      image: item.images[0],
+                      image: productImage,
+                      category: resolveCategoryForItem(item),
                       vendor: banca.name || 'Banca',
                       vendorAvatar: banca.avatar || banca.cover_image || '',
                       lat: banca.lat || -23.5505,
@@ -502,8 +619,14 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
               const mappedProducts: Product[] = [];
               
               productsArray
-                .filter((item: any) => item.images && item.images.length > 0 && item.active !== false)
+                .filter((item: any) => item.active !== false)
                 .forEach((item: any) => {
+                  const productImage =
+                    item.image ||
+                    (Array.isArray(item.images) && item.images.length > 0
+                      ? item.images[0]
+                      : "https://placehold.co/400x400/e5e7eb/666666?text=Sem+Imagem");
+
                   if (item.banca_id) {
                     // Produto com banca específica
                     const banca = bancasMap.get(item.banca_id);
@@ -511,7 +634,8 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
                       id: item.id,
                       name: item.name || 'Produto',
                       price: Number(item.price || 0),
-                      image: item.images[0],
+                      image: productImage,
+                      category: resolveCategoryForItem(item),
                       vendor: banca?.name || 'Banca',
                       vendorAvatar: banca?.avatar || banca?.cover_image || '',
                       lat: banca?.lat || -23.5505,
@@ -529,7 +653,8 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
                         id: `${item.id}-${banca.id}`, // ID único para cada combinação produto-banca
                         name: item.name || 'Produto',
                         price: Number(item.price || 0),
-                        image: item.images[0],
+                        image: productImage,
+                        category: resolveCategoryForItem(item),
                         vendor: banca.name || 'Banca',
                         vendorAvatar: banca.avatar || banca.cover_image || '',
                         lat: banca.lat || -23.5505,
@@ -632,8 +757,8 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
 
     const meetsCategory = (p: Product) => {
       if (activeCategory === 'Todos') return true;
-      const pCategory = ((p as any).category || '').trim().toLowerCase();
-      return pCategory === activeCategory.toLowerCase();
+      const pCategory = canonicalCategory(p.category || '');
+      return pCategory === canonicalCategory(activeCategory);
     };
 
     if (!loc) {

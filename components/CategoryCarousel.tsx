@@ -5,6 +5,19 @@ import Link from "next/link";
 import SafeImage from "./SafeImage";
 import { useCategories, type UICategory } from "@/lib/useCategories";
 
+function normalizeCategoryKey(value: string): string {
+  return (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasCategoryImage(image: string): boolean {
+  return typeof image === "string" && image.trim().length > 0;
+}
+
 function useItemsPerView(length: number) {
   // Keep first client render aligned with SSR to avoid hydration mismatch.
   const [w, setW] = useState<number>(1024);
@@ -26,14 +39,30 @@ type CategoryCarouselProps = {
 
 export default function CategoryCarousel({ initialItems }: CategoryCarouselProps) {
   const { items } = useCategories(initialItems);
-  const filtered = items.filter((c) => {
-    const n = (c.name || '').trim().toLowerCase();
-    const link = (c.link || '').toLowerCase();
-    const byName = n === 'diversos' || n === 'sem categoria';
-    const byLink = link.includes('/diversos') || link.includes('/sem-categoria');
-    const byId = c.key === 'aaaaaaaa-0000-0000-0000-000000000001' || c.key === 'bbbbbbbb-0000-0000-0000-000000000001';
-    return !(byName || byLink || byId);
-  });
+  const filtered = useMemo(() => {
+    const seenNames = new Set<string>();
+
+    return items.filter((c) => {
+      const n = (c.name || '').trim().toLowerCase();
+      const link = (c.link || '').toLowerCase();
+      const normalizedName = normalizeCategoryKey(c.name || '');
+      const byName = n === 'diversos' || n === 'sem categoria';
+      const byLink = link.includes('/diversos') || link.includes('/sem-categoria');
+      const byId = c.key === 'aaaaaaaa-0000-0000-0000-000000000001' || c.key === 'bbbbbbbb-0000-0000-0000-000000000001';
+      const missingImage = !hasCategoryImage(c.image);
+      const duplicatedName = normalizedName.length > 0 && seenNames.has(normalizedName);
+
+      if (byName || byLink || byId || missingImage || duplicatedName) {
+        return false;
+      }
+
+      if (normalizedName.length > 0) {
+        seenNames.add(normalizedName);
+      }
+
+      return true;
+    });
+  }, [items]);
   const { perView, isMobile } = useItemsPerView(filtered.length);
   const [index, setIndex] = useState(0); // índice do primeiro item no trilho
   const [animating, setAnimating] = useState(true);

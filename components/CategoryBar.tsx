@@ -3,6 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { categoryMenu as fallbackCategoryMenu } from "./categoryMenuData";
+import {
+  IconBallpen,
+  IconBook2,
+  IconBottle,
+  IconCards,
+  IconCategory2,
+  IconDeviceLaptop,
+  IconDog,
+  IconGift,
+  IconNews,
+  IconPuzzle,
+  IconSmoking,
+  IconTag,
+} from "@tabler/icons-react";
 
 type MenuSubcategory = {
   id: string;
@@ -25,17 +39,66 @@ interface CategoryBarProps {
   visible?: boolean;
 }
 
-const ICON_RULES: Array<{ pattern: RegExp; icon: string }> = [
-  { pattern: /(bebida|energet|suco|agua|refriger|cervej|vinho|cafe|cha)/i, icon: "🍺" },
-  { pattern: /(tabac|cigar|charut|nargu|essenc|isqueir|palheiro|incenso|seda)/i, icon: "🚬" },
-  { pattern: /(panini|figurinh|album|colecion|comics|manga|hq|marvel|dc|disney|conan)/i, icon: "⚽" },
-  { pattern: /(revista|jornal)/i, icon: "📰" },
-  { pattern: /(livro|book)/i, icon: "📚" },
-  { pattern: /(snack|doce|chocol|bala|chiclete|bombon|salgad)/i, icon: "🍫" },
-  { pattern: /(papelaria|caneta|caderno)/i, icon: "✏️" },
-  { pattern: /(carta|card|jogo|pokemon|baralho)/i, icon: "🎮" },
-  { pattern: /(brinquedo|pelucia|massinha|carrinho)/i, icon: "🧸" },
-  { pattern: /(eletron|fone|caixa de som|informatic|pilha|celular|acessorio)/i, icon: "🔌" },
+type IconKey =
+  | "drink"
+  | "smoke"
+  | "collectible"
+  | "news"
+  | "books"
+  | "candy"
+  | "stationery"
+  | "cards"
+  | "toys"
+  | "electronics"
+  | "pet"
+  | "promo"
+  | "default";
+
+const ICON_KEYS = new Set<IconKey>([
+  "drink",
+  "smoke",
+  "collectible",
+  "news",
+  "books",
+  "candy",
+  "stationery",
+  "cards",
+  "toys",
+  "electronics",
+  "pet",
+  "promo",
+  "default",
+]);
+
+const LEGACY_ICON_MAP: Record<string, IconKey> = {
+  "🍺": "drink",
+  "🚬": "smoke",
+  "⚽": "collectible",
+  "📰": "news",
+  "📚": "books",
+  "🍫": "candy",
+  "✏️": "stationery",
+  "🎮": "cards",
+  "🧸": "toys",
+  "🔌": "electronics",
+  "🐶": "pet",
+  "🏷️": "promo",
+  "📦": "default",
+};
+
+const ICON_RULES: Array<{ pattern: RegExp; icon: IconKey }> = [
+  { pattern: /(bebida|energet|suco|agua|refriger|cervej|vinho|cafe|cha)/i, icon: "drink" },
+  { pattern: /(tabac|cigar|charut|nargu|essenc|isqueir|palheiro|incenso|seda)/i, icon: "smoke" },
+  { pattern: /(revista|jornal|magazin)/i, icon: "news" },
+  { pattern: /(papelaria|caneta|caderno|escritorio)/i, icon: "stationery" },
+  { pattern: /(carta|card|jogo|pokemon|baralho)/i, icon: "cards" },
+  { pattern: /(brinquedo|pelucia|massinha|carrinho)/i, icon: "toys" },
+  { pattern: /(eletron|fone|caixa de som|informatic|pilha|celular|acessorio)/i, icon: "electronics" },
+  { pattern: /(pet|cao|cachorro|gato)/i, icon: "pet" },
+  { pattern: /(promoc|oferta|desconto)/i, icon: "promo" },
+  { pattern: /(snack|doce|chocol|bala|chiclete|bombon|bomboniere|salgad)/i, icon: "candy" },
+  { pattern: /(livro|book)/i, icon: "books" },
+  { pattern: /(panini|figurinh|album|colecion|comics|manga|hq|marvel|dc|disney|conan)/i, icon: "collectible" },
 ];
 
 function slugify(value: string): string {
@@ -49,11 +112,67 @@ function slugify(value: string): string {
     .replace(/-+/g, "-");
 }
 
-function iconForCategory(name: string): string {
+function iconForCategory(name: string): IconKey {
   for (const rule of ICON_RULES) {
     if (rule.pattern.test(name || "")) return rule.icon;
   }
-  return "📦";
+  return "default";
+}
+
+function resolveIconKey(rawIcon: unknown, categoryName: string): IconKey {
+  if (typeof rawIcon === "string" && rawIcon.trim()) {
+    const normalizedRaw = rawIcon.trim();
+    const normalizedLower = normalizedRaw.toLowerCase();
+    if (ICON_KEYS.has(normalizedLower as IconKey)) {
+      return normalizedLower as IconKey;
+    }
+    if (LEGACY_ICON_MAP[normalizedRaw]) return LEGACY_ICON_MAP[normalizedRaw];
+    if (LEGACY_ICON_MAP[normalizedLower]) return LEGACY_ICON_MAP[normalizedLower];
+  }
+  return iconForCategory(categoryName);
+}
+
+function CategoryIcon({
+  icon,
+  name,
+  className = "h-4 w-4 text-current",
+}: {
+  icon?: string;
+  name: string;
+  className?: string;
+}) {
+  const iconKey = resolveIconKey(icon, name);
+  const props = { stroke: 1.8, className };
+
+  switch (iconKey) {
+    case "drink":
+      return <IconBottle {...props} />;
+    case "smoke":
+      return <IconSmoking {...props} />;
+    case "news":
+      return <IconNews {...props} />;
+    case "books":
+      return <IconBook2 {...props} />;
+    case "candy":
+      return <IconGift {...props} />;
+    case "stationery":
+      return <IconBallpen {...props} />;
+    case "cards":
+      return <IconCards {...props} />;
+    case "toys":
+      return <IconPuzzle {...props} />;
+    case "electronics":
+      return <IconDeviceLaptop {...props} />;
+    case "pet":
+      return <IconDog {...props} />;
+    case "promo":
+      return <IconTag {...props} />;
+    case "collectible":
+      return <IconCards {...props} />;
+    case "default":
+    default:
+      return <IconCategory2 {...props} />;
+  }
 }
 
 function resolveLink(name: string, link?: string): string {
@@ -73,7 +192,7 @@ function toFallbackMenu(): MenuCategory[] {
     id: `fallback-${category.slug}-${index}`,
     name: category.name,
     slug: category.slug || slugify(category.name),
-    icon: category.icon || iconForCategory(category.name),
+    icon: resolveIconKey(category.icon, category.name),
     link: `/categorias/${category.slug}`,
     order: index,
     subcategories: (category.subcategories || []).map((subcategory, subIndex) => ({
@@ -113,7 +232,7 @@ function normalizeMenuTree(rawTree: any[]): MenuCategory[] {
         id,
         name,
         slug,
-        icon: (raw?.icon || iconForCategory(name)).toString(),
+        icon: resolveIconKey(raw?.icon, name),
         link,
         order: typeof raw?.order === "number" ? raw.order : index,
         subcategories,
@@ -169,9 +288,163 @@ function normalizeMenuTree(rawTree: any[]): MenuCategory[] {
   return normalized;
 }
 
-const FALLBACK_MENU = toFallbackMenu();
+function dedupeSubcategories(items: MenuSubcategory[]): MenuSubcategory[] {
+  const byKey = new Map<string, MenuSubcategory>();
+  for (const item of items) {
+    const key = slugify(item.name) || item.id;
+    if (!byKey.has(key)) byKey.set(key, item);
+  }
+  return Array.from(byKey.values());
+}
+
+type FlatMenuNode = {
+  id: string;
+  name: string;
+  slug: string;
+  link: string;
+  icon?: string;
+  order?: number;
+};
+
+function curateMegaMenu(items: MenuCategory[]): MenuCategory[] {
+  if (!Array.isArray(items) || items.length === 0) return items;
+
+  const nodesById = new Map<string, FlatMenuNode>();
+
+  for (const category of items) {
+    nodesById.set(category.id, {
+      id: category.id,
+      name: category.name,
+      slug: category.slug || slugify(category.name),
+      link: resolveLink(category.name, category.link),
+      icon: category.icon,
+      order: category.order,
+    });
+
+    for (const sub of category.subcategories || []) {
+      nodesById.set(sub.id, {
+        id: sub.id,
+        name: sub.name,
+        slug: sub.slug || slugify(sub.name),
+        link: resolveLink(sub.name, sub.link),
+      });
+    }
+  }
+
+  const allNodes = Array.from(nodesById.values());
+  const bySlug = new Map<string, FlatMenuNode>();
+  for (const node of allNodes) {
+    bySlug.set(slugify(node.name), node);
+  }
+
+  const colecionavel =
+    bySlug.get("colecionavel") || {
+      id: "menu-colecionavel",
+      name: "Colecionável",
+      slug: "colecionavel",
+      link: "/categorias/colecionavel",
+      icon: iconForCategory("Colecionável"),
+      order: 0,
+    };
+  const panini =
+    bySlug.get("panini") || {
+      id: "menu-panini",
+      name: "Panini",
+      slug: "panini",
+      link: "/categorias/panini",
+      icon: iconForCategory("Panini"),
+      order: 1,
+    };
+  const paniniCollections =
+    bySlug.get("panini-collections") || {
+      id: "menu-panini-collections",
+      name: "Panini Collections",
+      slug: "panini-collections",
+      link: "/categorias/panini-collections",
+      icon: iconForCategory("Panini Collections"),
+      order: 2,
+    };
+
+  const principalIds = new Set<string>([
+    colecionavel.id,
+    panini.id,
+    paniniCollections.id,
+  ]);
+
+  const paniniUniverseSlugs = new Set<string>([
+    "panini-comics",
+    "panini-books",
+    "panini-magazines",
+    "panini-partwork",
+    "planet-manga",
+    "marvel-comics",
+    "dc-comics",
+    "disney-comics",
+    "mauricio-de-sousa-producoes",
+  ]);
+
+  const collectionsSlugs = new Set<string>([
+    "colecionaveis",
+    "conan",
+    "independentes",
+  ]);
+
+  const grouped = {
+    colecionavel: [] as MenuSubcategory[],
+    panini: [] as MenuSubcategory[],
+    paniniCollections: [] as MenuSubcategory[],
+  };
+
+  const toSub = (node: FlatMenuNode): MenuSubcategory => ({
+    id: node.id,
+    name: node.name,
+    slug: node.slug || slugify(node.name),
+    link: node.link || resolveLink(node.name),
+  });
+
+  for (const node of allNodes) {
+    if (principalIds.has(node.id)) continue;
+
+    const slug = slugify(node.name);
+    const sub = toSub(node);
+
+    if (collectionsSlugs.has(slug) || slug.includes("colecion")) {
+      grouped.paniniCollections.push(sub);
+      continue;
+    }
+
+    if (slug.startsWith("panini-") || paniniUniverseSlugs.has(slug)) {
+      grouped.panini.push(sub);
+      continue;
+    }
+
+    grouped.colecionavel.push(sub);
+  }
+
+  const byName = (a: MenuSubcategory, b: MenuSubcategory) =>
+    a.name.localeCompare(b.name, "pt-BR");
+
+  const buildRoot = (node: FlatMenuNode, order: number, subs: MenuSubcategory[]): MenuCategory => ({
+    id: node.id,
+    name: node.name,
+    slug: node.slug || slugify(node.name),
+    icon: resolveIconKey(node.icon, node.name),
+    link: node.link || resolveLink(node.name),
+    order,
+    subcategories: dedupeSubcategories(subs).sort(byName),
+  });
+
+  return [
+    buildRoot(colecionavel, 0, grouped.colecionavel),
+    buildRoot(panini, 1, grouped.panini),
+    buildRoot(paniniCollections, 2, grouped.paniniCollections),
+  ];
+}
+
+const FALLBACK_MENU = curateMegaMenu(toFallbackMenu());
 
 export default function CategoryBar({ visible = true }: CategoryBarProps) {
+  const [isClientMounted, setIsClientMounted] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuCategory[]>(FALLBACK_MENU);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -214,6 +487,10 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
   }, [scheduleClose]);
 
   useEffect(() => {
+    setIsClientMounted(true);
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
 
     async function loadRealCategories() {
@@ -221,7 +498,7 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
         const response = await fetch("/api/categories", { cache: "force-cache" });
         if (!response.ok) return;
         const json = await response.json();
-        const parsedTree = normalizeMenuTree(json?.tree || []);
+        const parsedTree = curateMegaMenu(normalizeMenuTree(json?.tree || []));
         if (!mounted || parsedTree.length === 0) return;
         setMenuItems(parsedTree);
       } catch {
@@ -270,6 +547,9 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
   }, [menuOpen]);
 
   if (!visible) return null;
+  if (!isClientMounted) {
+    return <div className="hidden md:block border-t border-gray-100 bg-white relative z-40" />;
+  }
 
   const activeCategory: MenuCategory | null =
     activeIndex !== null ? activeMenuItems[activeIndex] || null : null;
@@ -327,7 +607,6 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
             <Link
               key={category.id}
               href={category.link as any}
-              onMouseEnter={() => handleCategoryHover(index)}
               className={`whitespace-nowrap px-3 py-2.5 font-medium transition-colors ${
                 menuOpen && activeIndex === index
                   ? "text-[#ff5c00]"
@@ -365,8 +644,8 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
                         : "text-gray-700 hover:bg-gray-50"
                     }`}
                   >
-                    <span className="text-lg leading-none w-6 text-center flex-shrink-0">
-                      {category.icon}
+                    <span className="w-6 text-center flex-shrink-0 inline-flex items-center justify-center">
+                      <CategoryIcon icon={category.icon} name={category.name} />
                     </span>
                     <span>{category.name}</span>
                     <svg
@@ -388,7 +667,13 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
                 {activeCategory && (
                   <>
                     <div className="flex items-center gap-2 mb-4">
-                      <span className="text-xl">{activeCategory.icon}</span>
+                      <span className="inline-flex items-center justify-center rounded-md bg-gray-100 text-gray-600 h-7 w-7">
+                        <CategoryIcon
+                          icon={activeCategory.icon}
+                          name={activeCategory.name}
+                          className="h-4 w-4 text-gray-600"
+                        />
+                      </span>
                       <h3 className="text-lg font-bold text-gray-900">
                         {activeCategory.name}
                       </h3>

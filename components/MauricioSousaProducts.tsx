@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Route } from "next";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 type MauricioProduct = {
   id: string;
@@ -42,14 +43,6 @@ function TurmaIcon() {
   );
 }
 
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD").replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
-}
-
 function ProductCard({ p }: { p: MauricioProduct }) {
   const { addToCart } = useCart();
   const { show } = useToast();
@@ -68,7 +61,7 @@ function ProductCard({ p }: { p: MauricioProduct }) {
     const added = addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: p.banca_id, banca_name: p.banca_name }, 1);
     if (added) show(<span>Adicionado ao carrinho.</span>);
   };
-  const href = ("/produto/" + slugify(p.name) + "-" + p.id) as Route;
+  const href = buildPublicProductPath(p.name, p.banca_name, p.id, p.codigoMercos) as Route;
 
   return (
     <div className="h-full rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">

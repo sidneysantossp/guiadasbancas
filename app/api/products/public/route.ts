@@ -8,6 +8,53 @@ export const fetchCache = 'force-no-store';
 
 const API_VERSION = '2026-02-10-v3';
 
+type CategoryLookupCache = {
+  allDistCats: Array<{ id: string; nome: string }>;
+  allBancaCats: Array<{ id: string; name: string }>;
+  expiresAt: number;
+};
+
+const CATEGORY_LOOKUP_TTL_MS = 5 * 60 * 1000;
+let categoryLookupCache: CategoryLookupCache | null = null;
+let categoryLookupPromise: Promise<{
+  allDistCats: Array<{ id: string; nome: string }>;
+  allBancaCats: Array<{ id: string; name: string }>;
+}> | null = null;
+
+async function getCategoryLookups() {
+  const now = Date.now();
+  if (categoryLookupCache && categoryLookupCache.expiresAt > now) {
+    return {
+      allDistCats: categoryLookupCache.allDistCats,
+      allBancaCats: categoryLookupCache.allBancaCats,
+    };
+  }
+
+  if (!categoryLookupPromise) {
+    categoryLookupPromise = (async () => {
+      const [distRes, bancaRes] = await Promise.all([
+        supabaseAdmin.from('distribuidor_categories').select('id, nome'),
+        supabaseAdmin.from('categories').select('id, name'),
+      ]);
+
+      const allDistCats = Array.isArray(distRes.data) ? (distRes.data as Array<{ id: string; nome: string }>) : [];
+      const allBancaCats = Array.isArray(bancaRes.data) ? (bancaRes.data as Array<{ id: string; name: string }>) : [];
+
+      categoryLookupCache = {
+        allDistCats,
+        allBancaCats,
+        expiresAt: Date.now() + CATEGORY_LOOKUP_TTL_MS,
+      };
+
+      return { allDistCats, allBancaCats };
+    })().finally(() => {
+      categoryLookupPromise = null;
+    });
+  }
+
+  return categoryLookupPromise;
+}
+
 /**
  * API PÚBLICA para produtos (Home Page)
  * Sem autenticação, apenas produtos ativos visíveis
@@ -24,10 +71,14 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get("category") || "";
     const categoryName = searchParams.get("categoryName") || ""; // Busca por nome da categoria (slug)
     const distribuidor = searchParams.get("distribuidor") || "";
+    const bancaId = searchParams.get("banca_id") || ""; // Opcional: resolve preço customizado para uma banca específica
     const subSlug = searchParams.get("sub") || ""; // Subcategoria específica do mega menu
     const limit = Math.min(parseInt(searchParams.get("limit") || "12"), 500); // Máximo 500 (categorias podem ter muitos produtos)
     const sort = searchParams.get("sort") || "name"; // Mudado de created_at para name (alfabético)
     const order = searchParams.get("order") || "asc"; // Mudado de desc para asc
+    const userLat = searchParams.get("lat") ? parseFloat(searchParams.get("lat") as string) : null;
+    const userLng = searchParams.get("lng") ? parseFloat(searchParams.get("lng") as string) : null;
+    const hasUserLocation = Number.isFinite(userLat) && Number.isFinite(userLng);
 
     // Aliases de slug do mega menu → chave do mapeamento
     const SLUG_ALIASES: Record<string, string> = {
@@ -89,7 +140,17 @@ export async function GET(req: NextRequest) {
       'quadrinhos': ['Quadrinhos', 'HQs', 'Gibis', 'Comics', 'Panini Comics'],
       'graphic-novels': ['Graphic Novels', 'Graphic Novel'],
       'marvel': ['Marvel Comics', 'Marvel'],
+      'marvel-comics': ['Marvel Comics', 'Marvel'],
       'dc-comics': ['DC Comics'],
+      'disney-comics': ['Disney Comics', 'Disney'],
+      'panini-books': ['Panini Books'],
+      'panini-comics': ['Panini Comics'],
+      'panini-magazines': ['Panini Magazines'],
+      'panini-partwork': ['Panini Partwork'],
+      'planet-manga': ['Planet Manga', 'Mangá', 'Mangás'],
+      'mauricio-de-sousa-producoes': ['Maurício de Sousa Produções', 'Maurício de Sousa'],
+      'independentes': ['Independentes'],
+      'panini-collections': ['Colecionáveis'],
       // Jogos & Cards
       'pokemon-tcg': ['Cards Pokémon'],
       'yugioh': ['Yu-Gi-Oh'],
@@ -113,13 +174,16 @@ export async function GET(req: NextRequest) {
     let categoryIds: string[] = [];
     let nameSearchTerms: string[] = []; // Termos para buscar por nome do produto (OR entre eles)
     
-    // Carregar ambas as tabelas de categorias uma só vez
-    const { data: allDistCats } = await supabaseAdmin
-      .from('distribuidor_categories')
-      .select('id, nome');
-    const { data: allBancaCats } = await supabaseAdmin
-      .from('categories')
-      .select('id, name');
+    // Carregar dicionários de categorias com cache em memória (evita repetir essa leitura a cada seção da Home)
+    const { allDistCats, allBancaCats } = await getCategoryLookups();
+
+    const categoryNameById = new Map<string, string>();
+    (allDistCats || []).forEach((cat: any) => {
+      if (cat?.id && cat?.nome) categoryNameById.set(cat.id, cat.nome);
+    });
+    (allBancaCats || []).forEach((cat: any) => {
+      if (cat?.id && cat?.name) categoryNameById.set(cat.id, cat.name);
+    });
     
     if (categoryName && !categoryId) {
       let searchName = categoryName.replace(/-/g, ' ').toLowerCase();
@@ -248,8 +312,11 @@ export async function GET(req: NextRequest) {
     // Ordenação
     query = query.order(sort, { ascending: order === 'asc' });
     
-    // Limite
-    query = query.limit(limit);
+    // Buscar uma janela maior para conseguir intercalar por banca próxima
+    const fetchLimit = hasUserLocation
+      ? Math.min(Math.max(limit * 5, limit), 240)
+      : Math.min(Math.max(limit * 3, limit), 180);
+    query = query.limit(fetchLimit);
 
     const { data: products, error } = await query;
 
@@ -268,56 +335,195 @@ export async function GET(req: NextRequest) {
     if (bancaIds.length > 0) {
       const { data: bancas } = await supabaseAdmin
         .from('bancas')
-        .select('id, name, is_cotista, cotista_id, active')
+        .select('id, name, is_cotista, cotista_id, active, lat, lng')
         .in('id', bancaIds);
       (bancas || []).forEach((b: any) => bancaMap.set(b.id, b));
     }
 
-    // Se buscando por categoria, incluir produtos de distribuidores (eles serão associados a cotistas no frontend)
-    // Caso contrário, filtrar apenas produtos de bancas cotistas
-    const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
-    const filteredProducts = (products || []).filter((p: any) => {
-      // Produtos de distribuidor são permitidos quando buscando por categoria
-      if (p.distribuidor_id && includeDistribuidor) {
-        return true;
-      }
-      // Produtos normais precisam ser de banca cotista
-      return isActiveCotistaBanca(bancaMap.get(p.banca_id));
+    // Bancas cotistas candidatas para distribuir produtos de distribuidor sem banca_id
+    const { data: cotistaBancasData } = await supabaseAdmin
+      .from('bancas')
+      .select('id, name, is_cotista, cotista_id, active, lat, lng')
+      .eq('active', true)
+      .or('is_cotista.eq.true,cotista_id.not.is.null')
+      .not('lat', 'is', null)
+      .not('lng', 'is', null)
+      .limit(80);
+
+    const cotistaBancas = (cotistaBancasData || []).filter((b: any) => b?.id);
+    const sortedCotistaBancas = [...cotistaBancas].map((b: any) => {
+      if (!hasUserLocation) return { ...b, distance: null };
+      const lat = Number(b.lat);
+      const lng = Number(b.lng);
+      const distance = Number.isFinite(lat) && Number.isFinite(lng)
+        ? calculateDistance(userLat as number, userLng as number, lat, lng)
+        : null;
+      return { ...b, distance };
     });
 
-    // Buscar markups de distribuidores para aplicar nos preços
+    if (hasUserLocation) {
+      sortedCotistaBancas.sort((a: any, b: any) => {
+        const da = typeof a.distance === 'number' ? a.distance : Number.POSITIVE_INFINITY;
+        const db = typeof b.distance === 'number' ? b.distance : Number.POSITIVE_INFINITY;
+        return da - db;
+      });
+    } else {
+      sortedCotistaBancas.sort(() => Math.random() - 0.5);
+    }
+
+    // Se buscando por categoria, incluir produtos de distribuidores
+    // Caso contrário, manter apenas produtos de bancas cotistas
+    const isCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
+    const filteredProducts = (products || []).filter((p: any) => {
+      if (p.distribuidor_id && includeDistribuidor) return true;
+      return isCotistaBanca(bancaMap.get(p.banca_id));
+    });
+
+    // Buscar regras de preço de distribuidores (produto > categoria > global)
     const distribuidorIds = Array.from(new Set(
       filteredProducts.filter((p: any) => p.distribuidor_id).map((p: any) => p.distribuidor_id)
     ));
-    const markupMap = new Map<string, { perc: number; fixo: number }>();
-    
+    const distribuidorMap = new Map<string, any>();
+    const markupProdMap = new Map<string, { perc: number; fixo: number }>();
+    const markupCatMap = new Map<string, { perc: number; fixo: number }>();
+    const customMap = new Map<string, { enabled: boolean | null; custom_price: number | null }>();
+
     if (distribuidorIds.length > 0) {
-      const { data: distribuidores } = await supabaseAdmin
-        .from('distribuidores')
-        .select('id, markup_global_percentual, markup_global_fixo')
-        .in('id', distribuidorIds);
-      
-      (distribuidores || []).forEach((d: any) => {
-        markupMap.set(d.id, {
-          perc: Number(d.markup_global_percentual || 0),
-          fixo: Number(d.markup_global_fixo || 0)
+      const distribuidorProducts = filteredProducts.filter((p: any) => p.distribuidor_id);
+      const productIds = Array.from(new Set(distribuidorProducts.map((p: any) => p.id)));
+      const categoryIds = Array.from(new Set(distribuidorProducts.map((p: any) => p.category_id).filter(Boolean)));
+      const candidateBancaIds = bancaId
+        ? [bancaId]
+        : Array.from(new Set([
+            ...bancaIds,
+            ...sortedCotistaBancas.slice(0, 40).map((b: any) => b.id).filter(Boolean),
+          ]));
+
+      const [distRes, markupProdRes, markupCatRes, customRes] = await Promise.all([
+        supabaseAdmin
+          .from('distribuidores')
+          .select('id, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_divisor')
+          .in('id', distribuidorIds),
+        productIds.length > 0
+          ? supabaseAdmin
+              .from('distribuidor_markup_produtos')
+              .select('distribuidor_id, product_id, markup_percentual, markup_fixo')
+              .in('distribuidor_id', distribuidorIds)
+              .in('product_id', productIds)
+          : Promise.resolve({ data: [] as any[] }),
+        categoryIds.length > 0
+          ? supabaseAdmin
+              .from('distribuidor_markup_categorias')
+              .select('distribuidor_id, category_id, markup_percentual, markup_fixo')
+              .in('distribuidor_id', distribuidorIds)
+              .in('category_id', categoryIds)
+          : Promise.resolve({ data: [] as any[] }),
+        productIds.length > 0 && candidateBancaIds.length > 0
+          ? supabaseAdmin
+              .from('banca_produtos_distribuidor')
+              .select('product_id, banca_id, enabled, custom_price')
+              .in('product_id', productIds)
+              .in('banca_id', candidateBancaIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      (distRes.data || []).forEach((d: any) => {
+        distribuidorMap.set(d.id, d);
+      });
+      (markupProdRes.data || []).forEach((m: any) => {
+        markupProdMap.set(`${m.distribuidor_id}:${m.product_id}`, {
+          perc: Number(m.markup_percentual || 0),
+          fixo: Number(m.markup_fixo || 0),
+        });
+      });
+      (markupCatRes.data || []).forEach((m: any) => {
+        markupCatMap.set(`${m.distribuidor_id}:${m.category_id}`, {
+          perc: Number(m.markup_percentual || 0),
+          fixo: Number(m.markup_fixo || 0),
+        });
+      });
+      (customRes.data || []).forEach((c: any) => {
+        customMap.set(`${c.banca_id}:${c.product_id}`, {
+          enabled: c.enabled,
+          custom_price: c.custom_price,
         });
       });
     }
 
-    // Formatar produtos para o formato esperado (aplicando markup para produtos de distribuidor)
-    const items = filteredProducts.map((p: any) => {
-      let finalPrice = p.price || 0;
-      
-      // Aplicar markup se for produto de distribuidor
-      if (p.distribuidor_id && markupMap.has(p.distribuidor_id)) {
-        const markup = markupMap.get(p.distribuidor_id)!;
-        if (markup.perc > 0 || markup.fixo > 0) {
-          finalPrice = finalPrice * (1 + markup.perc / 100) + markup.fixo;
-          finalPrice = Math.round(finalPrice * 100) / 100; // Arredondar para 2 casas
+    const calcularPrecoVendaDistribuidor = (p: any): number => {
+      const precoBase = Number(p.price || 0);
+      if (!p.distribuidor_id) return precoBase;
+
+      const dist = distribuidorMap.get(p.distribuidor_id);
+      if (!dist) return precoBase;
+
+      const markupProd = markupProdMap.get(`${p.distribuidor_id}:${p.id}`);
+      if (markupProd && (markupProd.perc > 0 || markupProd.fixo > 0)) {
+        return Math.round((precoBase * (1 + markupProd.perc / 100) + markupProd.fixo) * 100) / 100;
+      }
+
+      const markupCat = markupCatMap.get(`${p.distribuidor_id}:${p.category_id}`);
+      if (markupCat && (markupCat.perc > 0 || markupCat.fixo > 0)) {
+        return Math.round((precoBase * (1 + markupCat.perc / 100) + markupCat.fixo) * 100) / 100;
+      }
+
+      const tipoCalculo = dist.tipo_calculo || 'markup';
+      if (tipoCalculo === 'margem') {
+        const divisor = Number(dist.margem_divisor || 1);
+        if (divisor > 0 && divisor < 1) {
+          return Math.round((precoBase / divisor) * 100) / 100;
         }
       }
-      
+
+      const perc = Number(dist.markup_global_percentual || 0);
+      const fixo = Number(dist.markup_global_fixo || 0);
+      if (perc > 0 || fixo > 0) {
+        return Math.round((precoBase * (1 + perc / 100) + fixo) * 100) / 100;
+      }
+
+      return precoBase;
+    };
+
+    const isActiveBanca = (b: any) => b?.active !== false;
+    let bancaRotationIndex = 0;
+
+    // Formatar produtos e resolver banca por proximidade (quando aplicável)
+    const formatted = filteredProducts.map((p: any) => {
+      let bancaData = p?.banca_id ? bancaMap.get(p.banca_id) : null;
+
+      // Produtos de distribuidor: distribuir entre bancas cotistas próximas
+      // (na Home queremos variedade por proximidade, exceto quando banca_id é forçada na query)
+      if (p.distribuidor_id && !bancaId && sortedCotistaBancas.length > 0) {
+        bancaData = sortedCotistaBancas[bancaRotationIndex % sortedCotistaBancas.length];
+        bancaRotationIndex++;
+      }
+
+      if (bancaData && !isActiveBanca(bancaData)) {
+        return null;
+      }
+
+      const resolvedBancaId = bancaId || bancaData?.id || p.banca_id || null;
+
+      let finalPrice = Number(p.price || 0);
+      if (p.distribuidor_id) {
+        finalPrice = calcularPrecoVendaDistribuidor(p);
+        const custom = resolvedBancaId ? customMap.get(`${resolvedBancaId}:${p.id}`) : null;
+        if (custom?.enabled === false) {
+          return null;
+        }
+        if (typeof custom?.custom_price === 'number') {
+          finalPrice = Number(custom.custom_price);
+        }
+      }
+      finalPrice = Math.round(finalPrice * 100) / 100;
+
+      const bancaLat = bancaData?.lat != null ? Number(bancaData.lat) : null;
+      const bancaLng = bancaData?.lng != null ? Number(bancaData.lng) : null;
+      let distance: number | null = typeof bancaData?.distance === 'number' ? bancaData.distance : null;
+      if (distance == null && hasUserLocation && Number.isFinite(bancaLat) && Number.isFinite(bancaLng)) {
+        distance = calculateDistance(userLat as number, userLng as number, bancaLat as number, bancaLng as number);
+      }
+
       return {
         id: p.id,
         name: p.name,
@@ -325,11 +531,12 @@ export async function GET(req: NextRequest) {
         price_original: p.price_original || null,
         discount_percent: p.discount_percent || null,
         images: Array.isArray(p.images) ? p.images : [],
-        image: Array.isArray(p.images) && p.images.length > 0 
-          ? p.images[0] 
+        image: Array.isArray(p.images) && p.images.length > 0
+          ? p.images[0]
           : 'https://placehold.co/400x400/e5e7eb/666666?text=Sem+Imagem',
         category_id: p.category_id,
-        banca_id: p.banca_id,
+        category_name: p.category_id ? (categoryNameById.get(p.category_id) || null) : null,
+        banca_id: resolvedBancaId,
         distribuidor_id: p.distribuidor_id,
         rating_avg: p.rating_avg || null,
         reviews_count: p.reviews_count || null,
@@ -337,14 +544,51 @@ export async function GET(req: NextRequest) {
         pronta_entrega: p.pronta_entrega || false,
         sob_encomenda: p.sob_encomenda || false,
         pre_venda: p.pre_venda || false,
-        banca_name: bancaMap.get(p.banca_id)?.name || null
+        banca_name: bancaData?.name || bancaMap.get(p.banca_id)?.name || null,
+        distance,
       };
-    });
+    }).filter(Boolean) as any[];
+
+    // Intercalar produtos por banca para evitar concentração em uma única banca
+    const productsByBanca = new Map<string, any[]>();
+    for (const item of formatted) {
+      const key = item?.banca_id || 'sem-banca';
+      if (!productsByBanca.has(key)) productsByBanca.set(key, []);
+      productsByBanca.get(key)!.push(item);
+    }
+
+    const bancaGroups = Array.from(productsByBanca.entries()).map(([bancaGroupId, groupItems]) => {
+      const avgDistance = groupItems.reduce((acc, it) => {
+        const d = typeof it.distance === 'number' ? it.distance : 9999;
+        return acc + d;
+      }, 0) / Math.max(1, groupItems.length);
+      return { bancaGroupId, groupItems, avgDistance };
+    }).sort((a, b) => a.avgDistance - b.avgDistance);
+
+    const interleaved: any[] = [];
+    const maxGroupSize = bancaGroups.length > 0 ? Math.max(...bancaGroups.map((g) => g.groupItems.length)) : 0;
+    for (let i = 0; i < maxGroupSize; i++) {
+      for (const group of bancaGroups) {
+        if (i < group.groupItems.length) {
+          interleaved.push(group.groupItems[i]);
+        }
+      }
+    }
+
+    const deduplicated: any[] = [];
+    const seenProductIds = new Set<string>();
+    for (const item of interleaved) {
+      if (seenProductIds.has(item.id)) continue;
+      seenProductIds.add(item.id);
+      deduplicated.push(item);
+    }
+
+    const items = deduplicated.slice(0, limit);
 
     return NextResponse.json({
       success: true,
-      data: items, // Formato esperado pelo TrendingProducts
-      items, // Mantém compatibilidade
+      data: items,
+      items,
       total: items.length
     });
 
@@ -355,4 +599,16 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }

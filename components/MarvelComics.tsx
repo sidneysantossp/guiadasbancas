@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 // Mock de itens mais bem avaliados
 type TopItem = {
@@ -111,8 +112,9 @@ function Stars({ value, count }: { value?: number; count?: number }) {
 }
 
 function Card({ p }: { p: TopItem }) {
+  const productHref = buildPublicProductPath(p.title, p.vendor, p.id, p.code);
   return (
-    <Link href={("/produto/" + p.id) as any} className="block rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+    <Link href={productHref as any} className="block rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <div className="relative h-36 w-full">
         <Image src={p.image} alt={p.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover" />
         <DiscountBadge text={p.discountLabel} />
@@ -343,7 +345,7 @@ function EnhancedCard({ p }: { p: TopItem }) {
   const { addToCart } = useCart();
   const { show } = useToast();
   const outOfStock = p.available === false;
-  const productHref = (`/produto/${p.id}` as Route);
+  const productHref = buildPublicProductPath(p.title, p.vendor, p.id, p.code) as Route;
 
   const hasDiscount = typeof p.oldPrice === "number" && p.oldPrice > p.price;
 

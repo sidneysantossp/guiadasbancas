@@ -5,6 +5,15 @@ import { supabaseAdmin } from "@/lib/supabase";
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+function normalizeCategoryName(value: string): string {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export async function GET() {
   try {
     const { data, error } = await supabaseAdmin
@@ -60,29 +69,77 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Nenhum campo para atualizar" }, { status: 400 });
     }
 
+    // Buscar categoria base para aplicar atualização em lote
+    const { data: baseCategory, error: baseError } = await supabaseAdmin
+      .from('categories')
+      .select('id, name')
+      .eq('id', id)
+      .single();
+
+    if (baseError || !baseCategory) {
+      console.error('[API Visibility PATCH] Categoria não encontrada:', baseError);
+      return NextResponse.json({ success: false, error: "Categoria não encontrada" }, { status: 404 });
+    }
+
+    let idsToUpdate: string[] = [id];
+    const normalizedBaseName = normalizeCategoryName(baseCategory.name || '');
+
+    if (normalizedBaseName) {
+      const { data: allCategories, error: allError } = await supabaseAdmin
+        .from('categories')
+        .select('id, name');
+
+      if (allError) {
+        console.warn('[API Visibility PATCH] Erro ao buscar categorias para update em lote:', allError);
+      } else if (Array.isArray(allCategories)) {
+        const groupedIds = allCategories
+          .filter((category) => normalizeCategoryName(category.name || '') === normalizedBaseName)
+          .map((category) => category.id)
+          .filter(Boolean);
+
+        if (groupedIds.length > 0) {
+          idsToUpdate = Array.from(new Set(groupedIds));
+        }
+      }
+    }
+
     const { data, error } = await supabaseAdmin
       .from('categories')
       .update(updatePayload)
-      .eq('id', id)
-      .select();
+      .in('id', idsToUpdate)
+      .select('id, name, visible, jornaleiro_status, jornaleiro_bancas');
 
     if (error) {
       console.error('[API Visibility PATCH] Erro Supabase:', error);
       return NextResponse.json({ success: false, error: "Erro ao atualizar visibilidade" }, { status: 500 });
     }
 
-    console.log('[API Visibility PATCH] Sucesso:', data?.[0]);
+    const primaryRow = Array.isArray(data)
+      ? data.find((row) => row.id === id) || data[0]
+      : null;
+
+    console.log('[API Visibility PATCH] Sucesso:', {
+      categoria: primaryRow?.name,
+      ids_atualizados: idsToUpdate.length,
+    });
 
     // Invalidar cache da home page e da API de categorias
     try {
       revalidatePath('/', 'page');
+      revalidatePath('/buscar', 'page');
+      revalidatePath('/categorias', 'page');
       revalidatePath('/api/categories', 'page');
       console.log('[API Visibility PATCH] Cache invalidado para / e /api/categories');
     } catch (e) {
       console.warn('[API Visibility PATCH] Erro ao invalidar cache:', e);
     }
 
-    const response = NextResponse.json({ success: true, data: data?.[0] });
+    const response = NextResponse.json({
+      success: true,
+      data: primaryRow,
+      updated_ids: idsToUpdate,
+      updated_count: idsToUpdate.length,
+    });
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     return response;
   } catch (e) {

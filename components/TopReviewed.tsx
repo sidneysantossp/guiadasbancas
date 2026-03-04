@@ -4,8 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useMemo, useState } from "react";
-import { useCart } from "@/components/CartContext";
-import { useToast } from "@/components/ToastProvider";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 type TopItem = {
   id: string;
@@ -64,8 +63,12 @@ function Stars({ value, count }: { value?: number; count?: number }) {
 }
 
 function Card({ p }: { p: TopItem }) {
+  const productHref = buildPublicProductPath(p.title, p.vendor, p.id, p.code);
+  const bancaDisplay = p.vendor
+    ? (/^banca\b/i.test(p.vendor) ? p.vendor : `Banca ${p.vendor}`)
+    : 'Banca Local';
   return (
-    <Link href={("/produto/" + p.id) as any} className="block rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+    <Link href={productHref as any} className="block rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <div className="relative h-36 w-full">
         <Image src={p.image} alt={p.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover" />
         <DiscountBadge text={p.discountLabel} />
@@ -77,7 +80,9 @@ function Card({ p }: { p: TopItem }) {
       </div>
       <div className="p-3">
         <div className="text-[13px] font-semibold leading-tight line-clamp-1">{p.title}</div>
-        <div className="text-[12px] text-gray-600 line-clamp-1">{p.vendor}</div>
+        <div className="text-[12px] text-gray-600 line-clamp-1">
+          Entregue por: {bancaDisplay}
+        </div>
         {p.description && (
           <div className="text-[12px] text-gray-500 line-clamp-1">{p.description}</div>
         )}
@@ -116,6 +121,17 @@ export default function TopReviewed() {
     (async () => {
       try {
         setLoading(true);
+        let locationQuery = '';
+        try {
+          const raw = localStorage.getItem('gb:userLocation');
+          if (raw) {
+            const loc = JSON.parse(raw);
+            if (loc?.lat && loc?.lng) {
+              locationQuery = `&lat=${encodeURIComponent(String(loc.lat))}&lng=${encodeURIComponent(String(loc.lng))}`;
+            }
+          }
+        } catch {}
+
         // 1) Tentar vitrine curada desta seção
         const curRes = await fetch('/api/featured-products?section=topreviewed_ei&limit=8', { next: { revalidate: 60 } as any });
 
@@ -131,7 +147,7 @@ export default function TopReviewed() {
           const BOMBONIERE_ID = '6337c11f-c5ab-4f4b-ab9c-73c754d6eaae';
           
           const r = await fetch(
-            `/api/products/public?category=${BOMBONIERE_ID}&limit=50&sort=created_at&order=desc`, 
+            `/api/products/public?category=${BOMBONIERE_ID}&limit=24&sort=created_at&order=desc${locationQuery}`, 
             { next: { revalidate: 60 } as any }
           );
           
@@ -289,10 +305,11 @@ export default function TopReviewed() {
 }
 
 function EnhancedCard({ p }: { p: TopItem }) {
-  const { addToCart } = useCart();
-  const { show } = useToast();
   const outOfStock = p.available === false;
-  const productHref = (`/produto/${p.id}` as Route);
+  const productHref = buildPublicProductPath(p.title, p.vendor, p.id, p.code) as Route;
+  const bancaDisplay = p.vendor
+    ? (/^banca\b/i.test(p.vendor) ? p.vendor : `Banca ${p.vendor}`)
+    : 'Banca Local';
 
   const hasDiscount = typeof p.oldPrice === "number" && p.oldPrice > p.price;
 
@@ -322,23 +339,6 @@ function EnhancedCard({ p }: { p: TopItem }) {
             )}
           </div>
         </div>
-        <button
-          onClick={() => {
-            if (!outOfStock) {
-              const added = addToCart({ id: p.id, name: p.title, price: p.price, image: p.image, banca_id: p.banca_id, banca_name: p.vendor }, 1);
-              if (added) show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>);
-            }
-          }}
-          aria-label="Adicionar ao carrinho"
-          disabled={outOfStock}
-          className={`absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border ${outOfStock ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed' : 'border-gray-200 bg-white shadow hover:bg-gray-50'}`}
-        >
-          <svg viewBox="0 0 24 24" className={`h-5 w-5 ${outOfStock ? 'text-gray-400' : 'text-[#ff5c00]'}`} fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="9" cy="21" r="1"/>
-            <circle cx="20" cy="21" r="1"/>
-            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"/>
-          </svg>
-        </button>
       </div>
       <div className="p-2.5 flex flex-col flex-1">
         <div className="flex flex-wrap gap-1">
@@ -357,7 +357,9 @@ function EnhancedCard({ p }: { p: TopItem }) {
         {p.code && (
           <div className="text-[11px] text-gray-500 font-mono">Cód: {p.code}</div>
         )}
-        <div className="text-[12px] text-gray-600 line-clamp-1">{p.vendor}</div>
+        <div className="text-[12px] text-gray-600 line-clamp-1">
+          Entregue por: {bancaDisplay}
+        </div>
         <div className="mt-1 flex items-center gap-2">
           <Stars value={p.rating} count={p.reviews} />
         </div>
@@ -373,26 +375,6 @@ function EnhancedCard({ p }: { p: TopItem }) {
             ) : (
               <div className="text-[18px] text-[#ff5c00] font-extrabold">R$ {p.price.toFixed(2)}</div>
             )}
-          </div>
-          <div className="flex flex-col gap-1">
-            <button
-              onClick={() => {
-                if (!outOfStock) {
-                  addToCart({ id: p.id, name: p.title, price: p.price, image: p.image }, 1);
-                  show(<span>Adicionado ao carrinho. <Link href={("/carrinho" as Route)} className="underline font-semibold">Ver carrinho</Link></span>);
-                }
-              }}
-              disabled={outOfStock}
-              className={`w-full rounded px-2.5 py-1 text-[11px] font-semibold ${outOfStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#ff5c00] text-white hover:opacity-95'}`}
-            >
-              {outOfStock ? 'Esgotado' : 'Adicionar ao Carrinho'}
-            </button>
-            <button className="w-full inline-flex items-center justify-center gap-1.5 rounded border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15 px-2.5 py-1 text-[11px] font-semibold">
-              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-            </svg>
-              Comprar
-            </button>
           </div>
         </div>
       </div>

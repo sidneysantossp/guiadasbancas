@@ -15,6 +15,15 @@ function slugifyCategoryName(name: string): string {
     .replace(/-+/g, '-');
 }
 
+function normalizeCategoryName(name: string): string {
+  return (name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function buildCategoryLink(name: string, existingLink?: string | null): string {
   if (typeof existingLink === 'string') {
     const normalized = existingLink.trim();
@@ -93,9 +102,20 @@ export async function POST(request: NextRequest) {
       .select('id, mercos_id, name, image, link, visible, order, active, jornaleiro_status, jornaleiro_bancas, parent_category_id');
 
     const existingByMercosId = new Map<number, any>();
+    const existingByNormalizedName = new Map<string, any[]>();
+
     for (const existingCategory of existingCategories || []) {
       if (existingCategory.mercos_id === null || existingCategory.mercos_id === undefined) continue;
       existingByMercosId.set(existingCategory.mercos_id, existingCategory);
+    }
+
+    for (const existingCategory of existingCategories || []) {
+      const normalizedName = normalizeCategoryName(existingCategory.name || '');
+      if (!normalizedName) continue;
+      if (!existingByNormalizedName.has(normalizedName)) {
+        existingByNormalizedName.set(normalizedName, []);
+      }
+      existingByNormalizedName.get(normalizedName)!.push(existingCategory);
     }
 
     // Preparar upserts
@@ -106,21 +126,36 @@ export async function POST(request: NextRequest) {
     // Primeiro passo: criar/atualizar categorias sem hierarquia
     for (const [mercos_id, catData] of categoriasUnicas) {
       const existing = existingByMercosId.get(mercos_id);
+      const sameNameEntries = existingByNormalizedName.get(normalizeCategoryName(catData.nome)) || [];
+      const sameNameWithImage = sameNameEntries.find((entry) => typeof entry?.image === 'string' && entry.image.trim().length > 0);
+      const sameNameWithLink = sameNameEntries.find((entry) => typeof entry?.link === 'string' && entry.link.trim().length > 0);
+      const sameNameWithSpecificStatus = sameNameEntries.find(
+        (entry) => typeof entry?.jornaleiro_status === 'string' && entry.jornaleiro_status !== 'all'
+      );
+      const sameNameWithBancas = sameNameEntries.find(
+        (entry) => Array.isArray(entry?.jornaleiro_bancas) && entry.jornaleiro_bancas.length > 0
+      );
+      const minOrderFromName = sameNameEntries
+        .map((entry) => entry?.order)
+        .filter((order): order is number => typeof order === 'number')
+        .sort((a, b) => a - b)[0];
+      const hasHiddenEntry = sameNameEntries.some((entry) => entry?.visible === false);
+
       const categoryId = existing?.id || crypto.randomUUID();
-      const categoryLink = buildCategoryLink(catData.nome, existing?.link);
+      const categoryLink = buildCategoryLink(catData.nome, existing?.link || sameNameWithLink?.link);
 
       // Sempre enviar campos NOT NULL para evitar erro no upsert
       categoriasParaUpsert.push({
         id: categoryId,
         mercos_id,
         name: catData.nome,
-        image: existing?.image || '',
+        image: existing?.image || sameNameWithImage?.image || '',
         link: categoryLink,
-        visible: existing?.visible ?? true,
-        order: typeof existing?.order === 'number' ? existing.order : 999,
+        visible: existing?.visible ?? (!hasHiddenEntry),
+        order: typeof existing?.order === 'number' ? existing.order : (typeof minOrderFromName === 'number' ? minOrderFromName : 999),
         active: true,
-        jornaleiro_status: existing?.jornaleiro_status ?? 'all',
-        jornaleiro_bancas: existing?.jornaleiro_bancas ?? [],
+        jornaleiro_status: existing?.jornaleiro_status ?? sameNameWithSpecificStatus?.jornaleiro_status ?? 'all',
+        jornaleiro_bancas: existing?.jornaleiro_bancas ?? sameNameWithBancas?.jornaleiro_bancas ?? [],
         ultima_sincronizacao: nowIso,
         updated_at: nowIso,
         ...(existing ? {} : { created_at: nowIso })

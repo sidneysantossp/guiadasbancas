@@ -4,8 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useRef } from "react";
 import type { Route } from "next";
-import { useCart } from "@/components/CartContext";
-import { useToast } from "@/components/ToastProvider";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 type BrancaleoneProduct = {
   id: string;
@@ -22,14 +21,6 @@ type BrancaleoneProduct = {
   pre_venda?: boolean;
   banca_name?: string;
 };
-
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD").replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
-}
 
 function Stars({ value }: { value: number }) {
   const v = Math.max(0, Math.min(5, value));
@@ -53,28 +44,18 @@ function Stars({ value }: { value: number }) {
 }
 
 function ProductCard({ p }: { p: BrancaleoneProduct }) {
-  const { addToCart } = useCart();
-  const { show } = useToast();
   const price = p.price ?? 0;
   const discount = p.discountPercent || 0;
-
-  const handleAddToCart = (event: React.MouseEvent) => {
-    event.preventDefault();
-    addToCart({ id: p.id, name: p.name, price: p.price, image: p.image }, 1);
-    show(<span>Adicionado ao carrinho.</span>);
-  };
-
-  const handleWhatsApp = (event: React.MouseEvent) => {
-    event.preventDefault();
-    const message = encodeURIComponent(`Olá! Gostaria de comprar ${p.name}.`);
-    window.open(`https://wa.me/?text=${message}`, "_blank", "noopener,noreferrer");
-  };
+  const productHref = buildPublicProductPath(p.name, p.banca_name, p.id, p.codigo_mercos) as Route;
+  const bancaDisplay = p.banca_name
+    ? (/^banca\b/i.test(p.banca_name) ? p.banca_name : `Banca ${p.banca_name}`)
+    : 'Banca Local';
 
   return (
     <div className="flex flex-col rounded-[12px] border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow min-w-[220px] overflow-hidden">
       {/* Imagem */}
       <div className="relative">
-        <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route}>
+        <Link href={productHref}>
           <div className="relative aspect-[4/5] bg-gray-50 overflow-hidden">
             <Image
               src={p.image}
@@ -85,19 +66,11 @@ function ProductCard({ p }: { p: BrancaleoneProduct }) {
             />
           </div>
         </Link>
-        {/* Botão carrinho flutuante */}
-        <button
-          onClick={handleAddToCart}
-          aria-label="Adicionar ao carrinho"
-          className="absolute -bottom-4 right-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white shadow hover:bg-gray-50"
-        >
-          <Image src="https://cdn-icons-png.flaticon.com/128/4982/4982841.png" alt="Carrinho" width={16} height={16} className="h-4 w-4 object-contain" />
-        </button>
       </div>
 
       {/* Conteúdo */}
       <div className="p-2 flex flex-col flex-1">
-        <Link href={("/produto/" + slugify(p.name) + "-" + p.id) as Route} className="text-[12px] font-semibold hover:underline line-clamp-2">
+        <Link href={productHref} className="text-[12px] font-semibold hover:underline line-clamp-2">
           {p.name}
         </Link>
         
@@ -108,12 +81,9 @@ function ProductCard({ p }: { p: BrancaleoneProduct }) {
           </p>
         )}
         
-        {/* Nome da banca */}
-        {p.banca_name && (
-          <p className="text-[11px] text-gray-600 mt-0.5">
-            {p.banca_name}
-          </p>
-        )}
+        <p className="text-[11px] text-gray-600 mt-0.5 line-clamp-1">
+          Entregue por: <span className="font-medium">{bancaDisplay}</span>
+        </p>
         
         {/* Badges */}
         <div className="flex flex-wrap gap-1 mt-1">
@@ -159,23 +129,6 @@ function ProductCard({ p }: { p: BrancaleoneProduct }) {
               <div className="text-[16px] text-[#ff5c00] font-extrabold">Por: R$ {price.toFixed(2)}</div>
             )}
           </div>
-          
-          {/* Botões */}
-          <div className="flex flex-col gap-0.5">
-            <button
-              onClick={handleAddToCart}
-              className="w-full rounded px-2 py-0.5 text-[10px] font-semibold bg-[#ff5c00] text-white hover:opacity-95"
-            >
-              Adicionar ao Carrinho
-            </button>
-            <button
-              onClick={handleWhatsApp}
-              className="w-full inline-flex items-center justify-center gap-1 rounded border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15 px-2 py-0.5 text-[10px] font-semibold"
-            >
-              <Image src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" width={12} height={12} className="h-3 w-3 object-contain" />
-              Comprar
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -194,8 +147,18 @@ export default function BrancaleoneProducts() {
     (async () => {
       try {
         setLoading(true);
+        let locationQuery = '';
+        try {
+          const raw = localStorage.getItem('gb:userLocation');
+          if (raw) {
+            const loc = JSON.parse(raw);
+            if (loc?.lat && loc?.lng) {
+              locationQuery = `&lat=${encodeURIComponent(String(loc.lat))}&lng=${encodeURIComponent(String(loc.lng))}`;
+            }
+          }
+        } catch {}
         
-        const prodRes = await fetch(`/api/products/public?limit=50&sort=created_at&order=desc`);
+        const prodRes = await fetch(`/api/products/public?limit=24&sort=created_at&order=desc${locationQuery}`);
         
         if (!prodRes.ok) {
           console.error('Erro ao buscar produtos Brancaleone:', prodRes.status);

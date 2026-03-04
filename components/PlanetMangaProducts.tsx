@@ -4,8 +4,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Route } from "next";
-import { useCart } from "@/components/CartContext";
-import { useToast } from "@/components/ToastProvider";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 type MangaProduct = {
   id: string;
@@ -42,18 +41,7 @@ function MangaIcon() {
   );
 }
 
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD").replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
-}
-
 function ProductCard({ p }: { p: MangaProduct }) {
-  const { addToCart } = useCart();
-  const { show } = useToast();
-
   const price = p.price ?? 0;
   const baseDiscount = typeof p.discountPercent === 'number' ? Math.round(p.discountPercent) : undefined;
   const inferredDiscount = p.priceOriginal && p.priceOriginal > price ? Math.round((1 - price / p.priceOriginal) * 100) : 0;
@@ -61,14 +49,11 @@ function ProductCard({ p }: { p: MangaProduct }) {
   const oldPrice = (p.priceOriginal && p.priceOriginal > price)
     ? p.priceOriginal
     : (discount > 0 ? price / (1 - discount / 100) : null);
-  const installment = price > 0 ? price / 10 : null;
+  const bancaDisplay = p.banca_name
+    ? (/^banca\b/i.test(p.banca_name) ? p.banca_name : `Banca ${p.banca_name}`)
+    : 'Banca Local';
 
-  const handleAddToCart = (event: React.MouseEvent) => {
-    event.preventDefault();
-    const added = addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: p.banca_id, banca_name: p.banca_name }, 1);
-    if (added) show(<span>Adicionado ao carrinho.</span>);
-  };
-  const href = ("/produto/" + slugify(p.name) + "-" + p.id) as Route;
+  const href = buildPublicProductPath(p.name, p.banca_name, p.id, p.codigoMercos) as Route;
 
   return (
     <div className="h-full rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">
@@ -94,17 +79,6 @@ function ProductCard({ p }: { p: MangaProduct }) {
             )}
           </div>
         </div>
-        <button
-          onClick={handleAddToCart}
-          aria-label="Adicionar ao carrinho"
-          className="absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white shadow hover:bg-gray-50"
-        >
-          <img
-            src="https://cdn-icons-png.flaticon.com/128/4982/4982841.png"
-            alt="Carrinho"
-            className="h-5 w-5 object-contain"
-          />
-        </button>
       </div>
 
       <div className="p-2.5 flex flex-col flex-1">
@@ -114,6 +88,9 @@ function ProductCard({ p }: { p: MangaProduct }) {
         {p.codigoMercos && (
           <div className="text-[10px] text-gray-500 font-mono mt-0.5">Cód: {p.codigoMercos}</div>
         )}
+        <div className="text-[11px] text-gray-600 mt-0.5 line-clamp-1">
+          Entregue por: <span className="font-medium">{bancaDisplay}</span>
+        </div>
         <div className="mt-1 flex items-center gap-2 text-[#f59e0b]">
           {(() => {
             const v = Math.max(0, Math.min(5, Number(p.ratingAvg ?? 0)));
@@ -145,42 +122,12 @@ function ProductCard({ p }: { p: MangaProduct }) {
                   De: <span className="text-gray-400 line-through">R$ {oldPrice.toFixed(2)}</span>
                 </div>
                 <div className="text-[18px] text-purple-600 font-extrabold">Por: R$ {price.toFixed(2)}</div>
-                {installment && (
-                  <div className="text-[11px] text-gray-600">10x R$ {Number(installment.toFixed(2)).toFixed(2)} sem juros</div>
-                )}
               </>
             ) : (
               <>
                 <div className="text-[18px] text-purple-600 font-extrabold">R$ {price.toFixed(2)}</div>
-                {installment && (
-                  <div className="text-[11px] text-gray-600">10x R$ {Number(installment.toFixed(2)).toFixed(2)} sem juros</div>
-                )}
               </>
             )}
-          </div>
-          <div className="flex flex-col gap-1">
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              aria-label="Adicionar ao carrinho"
-              className="w-full rounded px-2.5 py-1 text-[11px] font-semibold bg-purple-600 text-white hover:opacity-95"
-            >
-              Adicionar ao Carrinho
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                const message = encodeURIComponent(`Olá! Tenho interesse em ${p.name}.`);
-                if (typeof window !== "undefined") {
-                  window.open(`https://wa.me/?text=${message}`, "_blank", "noopener,noreferrer");
-                }
-              }}
-              className="w-full inline-flex items-center justify-center gap-1.5 rounded border border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15 px-2.5 py-1 text-[11px] font-semibold"
-            >
-              <img src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" className="h-3.5 w-3.5 object-contain" />
-              Comprar pelo WhatsApp
-            </button>
           </div>
         </div>
       </div>
@@ -207,8 +154,19 @@ export default function PlanetMangaProducts() {
     (async () => {
       try {
         setLoading(true);
+        let locationQuery = '';
+        try {
+          const raw = localStorage.getItem('gb:userLocation');
+          if (raw) {
+            const loc = JSON.parse(raw);
+            if (loc?.lat && loc?.lng) {
+              locationQuery = `&lat=${encodeURIComponent(String(loc.lat))}&lng=${encodeURIComponent(String(loc.lng))}`;
+            }
+          }
+        } catch {}
+
         // Buscar produtos da categoria Planet Manga
-        const r = await fetch(`/api/products/public?categoryName=manga&limit=100&sort=created_at&order=desc`, {
+        const r = await fetch(`/api/products/public?categoryName=manga&limit=40&sort=created_at&order=desc${locationQuery}`, {
           next: { revalidate: 60 } as any,
         });
         if (!r.ok) {

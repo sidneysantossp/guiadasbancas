@@ -4,10 +4,10 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { LoginRequiredModal } from "./LoginRequiredModal";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 // Tipos
 type FavItem = {
@@ -74,16 +74,6 @@ function HeartOutline({ filled = false }: { filled?: boolean }) {
   );
 }
 
-function CartIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#ff5c00]" aria-hidden>
-      <circle cx="9" cy="21" r="1"/>
-      <circle cx="20" cy="21" r="1"/>
-      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"/>
-    </svg>
-  );
-}
-
 function EyeIcon() {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600" aria-hidden>
@@ -100,14 +90,6 @@ function DiscountBadge({ percent }: { percent?: number | null }) {
       -{Math.round(percent)}%
     </span>
   );
-}
-
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD").replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
 }
 
 function Stars({ value, count }: { value?: number | null; count?: number | null }) {
@@ -134,12 +116,15 @@ function Stars({ value, count }: { value?: number | null; count?: number | null 
 
 function FavCard({ item }: { item: FavItem }) {
   const { id, name, vendorName, image, price, priceOriginal, discountPercent, ratingAvg, reviewsCount, available, codigo_mercos } = item;
-  const { addToCart } = useCart();
   const { show } = useToast();
   const { user } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const productHref = buildPublicProductPath(name, vendorName, id, codigo_mercos) as Route;
+  const bancaDisplay = vendorName
+    ? (/^banca\b/i.test(vendorName) ? vendorName : `Banca ${vendorName}`)
+    : 'Banca Local';
   
   // Carregar estado inicial dos favoritos
   useEffect(() => {
@@ -164,22 +149,6 @@ function FavCard({ item }: { item: FavItem }) {
     checkFavorite();
   }, [user, id]);
   
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const added = addToCart({ 
-      id, 
-      name, 
-      price, 
-      image,
-      banca_id: item.banca_id,
-      banca_name: vendorName
-    }, 1);
-    if (added) {
-      show(<span>Adicionado ao carrinho!</span>);
-    }
-  };
-
   const handleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -235,18 +204,18 @@ function FavCard({ item }: { item: FavItem }) {
     <div className="group rounded-2xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       <div className="p-2 flex items-center gap-3">
         {/* Imagem à esquerda com padding e badge - clicável */}
-        <Link href={("/produto/" + slugify(name) + "-" + id) as Route} className="relative w-28 h-24 rounded-xl overflow-hidden shrink-0">
+        <Link href={productHref} className="relative w-28 h-24 rounded-xl overflow-hidden shrink-0">
           <img src={image} alt={name} className="absolute inset-0 w-full h-full object-contain bg-gray-50" />
           <DiscountBadge percent={discountPercent} />
         </Link>
         {/* Conteúdo + coluna de ícones à direita */}
         <div className="flex-1 min-w-0 flex gap-2 items-center">
           {/* Bloco de textos/preços - clicável */}
-          <Link href={("/produto/" + slugify(name) + "-" + id) as Route} className="flex-1 min-w-0">
+          <Link href={productHref} className="flex-1 min-w-0">
             <div className="min-w-0">
               <div className="text-[13px] font-semibold leading-tight line-clamp-2 break-words hover:underline">{name}</div>
               {codigo_mercos && <div className="text-[10px] text-gray-500 font-mono mt-0.5">Cód: {codigo_mercos}</div>}
-              {vendorName && <div className="text-[12px] text-gray-600 line-clamp-1">{vendorName}</div>}
+              <div className="text-[12px] text-gray-600 line-clamp-1">Entregue por: {bancaDisplay}</div>
               <div className="mt-1"><Stars value={ratingAvg} count={reviewsCount} /></div>
             </div>
 
@@ -284,16 +253,9 @@ function FavCard({ item }: { item: FavItem }) {
                 <HeartOutline filled={isFavorite} />
               </button>
             )}
-            <Link href={("/produto/" + slugify(name) + "-" + id) as Route} aria-label="Visualizar produto" className="w-9 h-9 grid place-items-center rounded-md border border-gray-300 hover:bg-gray-50">
+            <Link href={productHref} aria-label="Visualizar produto" className="w-9 h-9 grid place-items-center rounded-md border border-gray-300 hover:bg-gray-50">
               <EyeIcon />
             </Link>
-            <button 
-              onClick={handleAddToCart}
-              aria-label="Adicionar ao carrinho" 
-              className="w-9 h-9 grid place-items-center rounded-md border border-[#ff5c00] hover:bg-[#fff3ec]"
-            >
-              <CartIcon />
-            </button>
           </div>
         </div>
       </div>
@@ -307,38 +269,54 @@ function FavCard({ item }: { item: FavItem }) {
   );
 }
 
-// IDs das categorias e distribuidor
-const BAMBINO_ID = '3a989c56-bbd3-4769-b076-a83483e39542';
+// ID da categoria de bebidas
 const BEBIDAS_ID = 'c230ed83-b08a-4b7a-8f19-7c8230f36c86'; // Bebidas
 
 export default function FavoritePicks() {
-  const { user } = useAuth();
-  const { addToCart } = useCart();
-  const { show } = useToast();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<FavItem[]>([]);
-  const [showLoginModal, setShowLoginModal] = useState(false);
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
         setLoading(true);
-        // OTIMIZAÇÃO: Buscar produtos de Bebidas - API agora retorna banca_name via JOIN
-        // Não precisa mais chamar /api/bancas separadamente
-        const pRes = await fetch(`/api/products/public?category=${BEBIDAS_ID}&limit=12&sort=created_at&order=desc`, {
-          next: { revalidate: 60 } as any
-        });
-        
         let list: ApiProduct[] = [];
-        
-        if (pRes.ok) {
+        let locationQuery = '';
+        try {
+          const raw = localStorage.getItem('gb:userLocation');
+          if (raw) {
+            const loc = JSON.parse(raw);
+            if (loc?.lat && loc?.lng) {
+              locationQuery = `&lat=${encodeURIComponent(String(loc.lat))}&lng=${encodeURIComponent(String(loc.lng))}`;
+            }
+          }
+        } catch {}
+
+        // Primeiro tenta por nome da categoria (inclui subcategorias).
+        // Fallback para UUID legado se necessário.
+        const endpoints = [
+          `/api/products/public?categoryName=bebidas&limit=12&sort=created_at&order=desc${locationQuery}`,
+          `/api/products/public?category=${BEBIDAS_ID}&limit=12&sort=created_at&order=desc${locationQuery}`,
+        ];
+
+        for (const endpoint of endpoints) {
+          const pRes = await fetch(endpoint, {
+            next: { revalidate: 60 } as any
+          });
+
+          if (!pRes.ok) continue;
+
           const pj = await pRes.json();
-          list = Array.isArray(pj?.data) ? pj.data : (Array.isArray(pj?.items) ? pj.items : []);
-          
-          console.log(`[FavoritePicks] Produtos de Bebidas encontrados: ${list.length}`);
+          const candidate = Array.isArray(pj?.data) ? pj.data : (Array.isArray(pj?.items) ? pj.items : []);
+
+          if (candidate.length > 0 || endpoint === endpoints[endpoints.length - 1]) {
+            list = candidate;
+            console.log(`[FavoritePicks] Produtos de Bebidas (${endpoint.includes('categoryName') ? 'categoryName' : 'categoryId'}) encontrados: ${list.length}`);
+            break;
+          }
         }
-        
+
         console.log(`[FavoritePicks] Total de produtos: ${list.length}`);
 
         // Filtrar apenas produtos com imagem real - sem fallback para mock

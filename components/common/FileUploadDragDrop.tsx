@@ -4,8 +4,13 @@ import { useRef, useState } from "react";
 
 interface FileUploadDragDropProps {
   label: string;
-  value: string;
-  onChange: (url: string) => void;
+  value?: string;
+  onChange?: (url: string) => void;
+  // Compatibilidade com modo legado (múltiplos arquivos)
+  currentFiles?: string[];
+  onUploadAction?: (urls: string[]) => void | Promise<void>;
+  onRemoveAction?: (url: string) => void;
+  maxFiles?: number;
   placeholder?: string;
   className?: string;
   accept?: string; // e.g. 'application/pdf'
@@ -17,6 +22,10 @@ export default function FileUploadDragDrop({
   label,
   value,
   onChange,
+  currentFiles,
+  onUploadAction,
+  onRemoveAction,
+  maxFiles = 1,
   placeholder,
   className = "h-28 w-full",
   accept = 'application/pdf',
@@ -26,6 +35,9 @@ export default function FileUploadDragDrop({
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isMultiMode = Array.isArray(currentFiles) || typeof onUploadAction === 'function' || maxFiles > 1;
+  const filesValue = Array.isArray(currentFiles) ? currentFiles : [];
+  const primaryValue = value || filesValue[0] || '';
 
   const authHeader = role === 'admin' ? 'Bearer admin-token' : 'Bearer jornaleiro-token';
 
@@ -44,16 +56,15 @@ export default function FileUploadDragDrop({
     setDragOver(false);
 
     const files = Array.from(e.dataTransfer.files);
-    const file = files[0];
-    if (file) {
-      await uploadFile(file);
+    if (files.length > 0) {
+      await uploadFiles(files);
     }
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      await uploadFile(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      await uploadFiles(files);
     }
   };
 
@@ -115,13 +126,11 @@ export default function FileUploadDragDrop({
     });
   };
 
-  const uploadFile = async (file: File) => {
+  const uploadSingleFile = async (file: File): Promise<string | null> => {
     try {
-      setUploading(true);
-
       if (accept && file.type && !file.type.match(accept.replace('*', '.*'))) {
         alert(`Tipo de arquivo inválido. Esperado: ${accept}`);
-        return;
+        return null;
       }
 
       // Comprimir imagem se necessário (limite de 4MB para Vercel)
@@ -134,7 +143,7 @@ export default function FileUploadDragDrop({
       // Verificar tamanho final
       if (fileToUpload.size > 4 * 1024 * 1024) {
         alert('Arquivo muito grande. O tamanho máximo é 4MB. Tente uma imagem menor.');
-        return;
+        return null;
       }
 
       const formData = new FormData();
@@ -149,20 +158,49 @@ export default function FileUploadDragDrop({
       // Verificar erro 413 especificamente
       if (response.status === 413) {
         alert('Arquivo muito grande para o servidor. Tente uma imagem menor (máximo 4MB).');
-        return;
+        return null;
       }
 
       const result = await response.json();
 
       if (result.ok && result.url) {
-        onChange(result.url);
+        return result.url as string;
       } else {
         const detail = result.error || `status ${response.status}`;
         alert('Erro ao fazer upload: ' + detail);
+        return null;
       }
     } catch (error) {
       console.error('Upload error:', error);
       alert('Erro ao fazer upload do arquivo');
+      return null;
+    }
+  };
+
+  const uploadFiles = async (files: File[]) => {
+    try {
+      setUploading(true);
+
+      const allowed = isMultiMode ? Math.max(1, maxFiles) : 1;
+      const filesToProcess = files.slice(0, allowed);
+      const uploadedUrls: string[] = [];
+
+      for (const file of filesToProcess) {
+        const url = await uploadSingleFile(file);
+        if (url) uploadedUrls.push(url);
+      }
+
+      if (uploadedUrls.length === 0) return;
+
+      if (isMultiMode) {
+        if (onUploadAction) {
+          await onUploadAction(uploadedUrls);
+        } else if (onChange) {
+          onChange(uploadedUrls[0]);
+        }
+      } else if (onChange) {
+        onChange(uploadedUrls[0]);
+      }
     } finally {
       setUploading(false);
     }
@@ -195,16 +233,16 @@ export default function FileUploadDragDrop({
   };
 
   const renderPreview = () => {
-    if (!value) return null;
+    if (!primaryValue) return null;
     
-    const isPdf = value.toLowerCase().endsWith('.pdf') || accept.includes('pdf');
-    const isImage = accept.includes('image') || value.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+    const isPdf = primaryValue.toLowerCase().endsWith('.pdf') || accept.includes('pdf');
+    const isImage = accept.includes('image') || primaryValue.match(/\.(jpg|jpeg|png|gif|webp)$/i);
     
     if (isImage) {
       return (
         <div className="rounded-md border p-3 bg-white">
           <img 
-            src={value} 
+            src={primaryValue} 
             alt="Preview" 
             className="w-full h-32 object-cover rounded"
             onError={(e) => {
@@ -216,8 +254,8 @@ export default function FileUploadDragDrop({
     }
     
     if (isPdf) {
-      const isDataUrl = value.startsWith('data:');
-      const rawName = isDataUrl ? 'TPU.pdf' : (value.split('/').pop() || 'Arquivo.pdf');
+      const isDataUrl = primaryValue.startsWith('data:');
+      const rawName = isDataUrl ? 'TPU.pdf' : (primaryValue.split('/').pop() || 'Arquivo.pdf');
       const name = rawName.length > 80 ? `${rawName.slice(0, 40)}...${rawName.slice(-30)}` : rawName;
       return (
         <div className="flex items-center justify-between rounded-md border p-3 bg-white max-w-full overflow-hidden">
@@ -225,7 +263,7 @@ export default function FileUploadDragDrop({
             <svg className="h-6 w-6 text-red-600" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path d="M14 2v6h6" fill="#fff" opacity=".3"/></svg>
             <div className="min-w-0">
               <div className="text-sm font-medium break-all">{name}</div>
-              <a href={value} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline break-all">Abrir documento</a>
+              <a href={primaryValue} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline break-all">Abrir documento</a>
             </div>
           </div>
           {uploading && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500"></div>}
@@ -235,8 +273,34 @@ export default function FileUploadDragDrop({
     return null;
   };
 
-  const isDataUrl = Boolean(value && value.startsWith('data:'));
-  const displayValue = getDisplayValue(value);
+  const isDataUrl = Boolean(primaryValue && primaryValue.startsWith('data:'));
+  const displayValue = isMultiMode
+    ? (filesValue.length > 0 ? `${filesValue.length} arquivo(s)` : '')
+    : getDisplayValue(primaryValue);
+
+  const renderMultiPreview = () => {
+    if (!isMultiMode || filesValue.length === 0) return null;
+    return (
+      <div className="rounded-md border p-3 bg-white space-y-2">
+        {filesValue.map((fileUrl) => (
+          <div key={fileUrl} className="flex items-center justify-between gap-2 text-sm">
+            <a href={fileUrl} target="_blank" rel="noreferrer" className="truncate text-blue-600 hover:underline">
+              {getFileName(fileUrl)}
+            </a>
+            {onRemoveAction && (
+              <button
+                type="button"
+                onClick={() => onRemoveAction(fileUrl)}
+                className="shrink-0 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+              >
+                Remover
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-3 max-w-full">
@@ -246,22 +310,36 @@ export default function FileUploadDragDrop({
         <input
           type="text"
           value={displayValue}
-          onChange={(e) => !isDataUrl && onChange(e.target.value)}
-          readOnly={isDataUrl}
-          title={value}
+          onChange={(e) => {
+            if (!isDataUrl && !isMultiMode && onChange) {
+              onChange(e.target.value);
+            }
+          }}
+          readOnly={isDataUrl || isMultiMode || !onChange}
+          title={primaryValue}
           placeholder={placeholder}
           maxLength={256}
           className="min-w-0 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500 whitespace-nowrap overflow-hidden text-ellipsis"
         />
-        {value && (
-          <button type="button" onClick={() => onChange('')} className="text-xs text-gray-600 hover:text-red-600 shrink-0 px-2 py-1 border rounded">
+        {primaryValue && (
+          <button
+            type="button"
+            onClick={() => {
+              if (isMultiMode && onRemoveAction) {
+                filesValue.forEach((url) => onRemoveAction(url));
+                return;
+              }
+              if (onChange) onChange('');
+            }}
+            className="text-xs text-gray-600 hover:text-red-600 shrink-0 px-2 py-1 border rounded"
+          >
             Limpar
           </button>
         )}
       </div>
 
-      {value ? (
-        renderPreview()
+      {(isMultiMode ? filesValue.length > 0 : Boolean(primaryValue)) ? (
+        isMultiMode ? renderMultiPreview() : renderPreview()
       ) : (
         <div
           onDragOver={handleDragOver}
@@ -291,6 +369,7 @@ export default function FileUploadDragDrop({
         ref={fileInputRef}
         type="file"
         accept={accept}
+        multiple={isMultiMode}
         onChange={handleFileSelect}
         className="hidden"
       />

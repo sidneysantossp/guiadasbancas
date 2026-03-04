@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 interface Campaign {
   id: string;
@@ -199,7 +200,11 @@ export default function CampaignSection() {
                   </div>
                   
                   <Link
-                    href={`/produto/${campaign.products.slug || campaign.products.id}`}
+                    href={buildPublicProductPath(
+                      campaign.products.name,
+                      campaign.products.bancas?.name,
+                      campaign.products.id
+                    )}
                     onClick={() => handleCampaignClick(campaign.id)}
                     className="rounded-md bg-[#ff5c00] px-2 py-1 text-[11px] font-semibold text-white hover:opacity-95"
                   >

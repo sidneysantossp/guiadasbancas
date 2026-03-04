@@ -9,7 +9,8 @@
     "lint": "next lint",
     "clear-cache": "node scripts/clear-cache.js",
     "clear-cache-full": "node scripts/clear-cache.js --full",
-    "fresh-start": "node scripts/clear-cache.js --full && npm run dev"
+    "fresh-start": "node scripts/clear-cache.js --full && npm run dev",
+    "import:bambino-priority": "node scripts/import-bambino-priority.js --apply"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",

@@ -15,12 +15,22 @@ type Cotista = {
 type Props = {
   onSelect: (cotista: Cotista | null) => void;
   selectedCnpjCpf?: string;
+  initialValue?: string;
+  disabled?: boolean;
   mode?: 'admin' | 'public';
   supportWhatsapp?: string;
   onInputChange?: (value: string) => void;
 };
 
-export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin', supportWhatsapp, onInputChange }: Props) {
+export default function CotistaSearch({
+  onSelect,
+  selectedCnpjCpf,
+  initialValue,
+  disabled = false,
+  mode = 'admin',
+  supportWhatsapp,
+  onInputChange,
+}: Props) {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<Cotista[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,6 +52,13 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
   }, []);
 
   const selectedLabel = (c: Cotista | null) => c ? (c.codigo ? `${c.codigo} - ${c.razao_social}` : c.razao_social) : '';
+
+  useEffect(() => {
+    const value = String(initialValue || "").trim();
+    if (!value) return;
+    if (selected) return;
+    setSearch((current) => (current.trim() ? current : value));
+  }, [initialValue, selected]);
 
   // Search cotistas
   useEffect(() => {
@@ -183,8 +200,9 @@ export default function CotistaSearch({ onSelect, selectedCnpjCpf, mode = 'admin
           onFocus={() => mode === 'admin' && results.length > 0 && setShowResults(true)}
           placeholder={mode === 'admin' ? "Digite o nome, CNPJ/CPF ou código da cota..." : "Digite seu CNPJ/CPF ou código..."}
           className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 pr-10 text-sm focus:border-orange-500 focus:ring-orange-500"
-          readOnly={mode === 'public' && !!selected}
-          aria-readonly={mode === 'public' && !!selected}
+          disabled={disabled}
+          readOnly={(mode === 'public' && !!selected) || disabled}
+          aria-readonly={(mode === 'public' && !!selected) || disabled}
         />
         {search && (
           <button

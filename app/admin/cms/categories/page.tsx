@@ -262,9 +262,20 @@ export default function AdminCategoriesPage() {
       console.log('Resposta da API:', j);
       
       if (j?.success && j?.data) {
-        // Atualizar com os dados retornados da API
-        setItems(prev => prev.map(c => c.id === id ? { ...c, visible: j.data.visible } : c));
-        setMessage({ type: 'success', text: `Categoria ${j.data.visible ? 'exibida' : 'ocultada'} no frontend` });
+        const updatedIds = Array.isArray(j.updated_ids) ? j.updated_ids : [id];
+        const updatedVisible = typeof j.data.visible === 'boolean' ? j.data.visible : newVisible;
+        const updatedSet = new Set<string>(updatedIds);
+
+        // Atualizar todos os registros que compartilham o mesmo nome lógico da categoria
+        setItems(prev =>
+          prev.map(c => (updatedSet.has(c.id) ? { ...c, visible: updatedVisible } : c))
+        );
+
+        const groupSuffix = updatedIds.length > 1 ? ` (${updatedIds.length} registros vinculados)` : '';
+        setMessage({
+          type: 'success',
+          text: `Categoria ${updatedVisible ? 'exibida' : 'ocultada'} no frontend${groupSuffix}`,
+        });
         setTimeout(() => setMessage(null), 3000);
       } else {
         setMessage({ type: 'error', text: j?.error || 'Erro ao alterar visibilidade' });

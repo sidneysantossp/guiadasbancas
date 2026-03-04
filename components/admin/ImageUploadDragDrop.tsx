@@ -4,22 +4,35 @@ import { useState, useRef } from "react";
 
 interface ImageUploadDragDropProps {
   label: string;
-  value: string;
-  onChange: (url: string) => void;
+  value?: string;
+  onChange?: (url: string) => void;
+  // Compatibilidade com props legadas
+  currentImage?: string;
+  onUpload?: (url: string) => void | Promise<void>;
+  onRemove?: () => void;
   placeholder?: string;
   className?: string;
 }
 
 export default function ImageUploadDragDrop({ 
   label, 
-  value, 
-  onChange, 
+  value,
+  onChange,
+  currentImage,
+  onUpload,
+  onRemove,
   placeholder = "https://exemplo.com/imagem.jpg",
   className = "h-32 w-32"
 }: ImageUploadDragDropProps) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resolvedValue = currentImage ?? value ?? "";
+
+  const emitChange = async (url: string) => {
+    if (onChange) onChange(url);
+    if (onUpload) await onUpload(url);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -69,7 +82,7 @@ export default function ImageUploadDragDrop({
       
       if (result.ok && result.url) {
         console.log('ImageUpload: Calling onChange with URL:', result.url);
-        onChange(result.url);
+        await emitChange(result.url);
       } else {
         alert('Erro ao fazer upload: ' + (result.error || 'Erro desconhecido'));
       }
@@ -92,8 +105,8 @@ export default function ImageUploadDragDrop({
       {/* URL Input */}
       <input
         type="url"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={resolvedValue}
+        onChange={(e) => { void emitChange(e.target.value); }}
         placeholder={placeholder}
         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
       />
@@ -110,10 +123,10 @@ export default function ImageUploadDragDrop({
           ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
         `}
       >
-        {value ? (
+        {resolvedValue ? (
           <div className={`${className} relative overflow-hidden rounded-lg`}>
             <img 
-              src={value} 
+              src={resolvedValue} 
               alt="Preview" 
               className="h-full w-full object-cover"
             />
@@ -154,6 +167,22 @@ export default function ImageUploadDragDrop({
         onChange={handleFileSelect}
         className="hidden"
       />
+
+      {resolvedValue && (
+        <button
+          type="button"
+          onClick={() => {
+            if (onRemove) {
+              onRemove();
+              return;
+            }
+            void emitChange("");
+          }}
+          className="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Remover imagem
+        </button>
+      )}
       
       {/* Helper Text */}
       <p className="text-xs text-gray-500">

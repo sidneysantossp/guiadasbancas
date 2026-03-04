@@ -11,6 +11,7 @@ import { IconFilter, IconX, IconChevronDown, IconChevronUp } from "@tabler/icons
 import CategoryCarousel from "@/components/CategoryCarousel";
 import BankCard from "@/components/BankCard";
 import { filterProductsFuzzy, normalizeForSearch } from "@/lib/fuzzySearch";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 type Banca = {
   id: string;
@@ -522,9 +523,12 @@ export default function BuscarPageClient({
                   <h2 className="text-lg font-semibold mb-4">Produtos</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredProductsWithPrice.map((product) => {
-                      const productHref = product.banca?.id 
-                        ? `/produto/${product.id}?banca=${product.banca.id}`
-                        : `/produto/${product.id}`;
+                      const productHref = buildPublicProductPath(
+                        product.name,
+                        product.banca?.name,
+                        product.id,
+                        product.codigo_mercos
+                      );
                       const bancaPhone = product.banca?.phone || product.banca?.whatsapp;
                       // IMPORTANTE: Nunca mostrar nome de distribuidor
                       const bancaName = product.banca?.name || 'Banca Local';

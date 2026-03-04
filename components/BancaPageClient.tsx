@@ -16,6 +16,7 @@ import FreeShippingProgress from "@/components/FreeShippingProgress";
 import { ui } from "@/lib/ui";
 import homeCategories from "@/data/categories.json";
 import { trackEvent } from "@/lib/useAnalytics";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 export type BancaDetail = {
   id: string;
@@ -154,6 +155,13 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
   // 2. Tem controle de estoque E estoque <= 0 E status NÃO é 'available'
   const outOfStock = p.status === 'unavailable' || 
     (p.status !== 'available' && Boolean(p.ready) && (p.stockQty != null) && (p.stockQty <= 0));
+  const productHref = buildPublicProductPath(
+    p.name,
+    bancaName,
+    p.id,
+    p.codigo_mercos
+  ) as Route;
+  const productShareUrl = `https://guiadasbancas.com.br${productHref}`;
   
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">
@@ -164,7 +172,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
             <ImagePlaceholder src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-contain bg-gray-50" />
             {/* Link absoluto cobrindo a imagem para ir à página do produto */}
             <Link
-              href={("/produto/" + slugify(p.name) + "-" + p.id) as Route}
+              href={productHref}
               aria-label={`Ver detalhes de ${p.name}`}
               className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5c00]"
             />
@@ -200,7 +208,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
         </button>
       </div>
       <div className="p-2.5 flex flex-col flex-1">
-        <Link href={(`/produto/${slugify(p.name)}-${p.id}?banca=${bancaId}`) as Route} className="text-[13px] font-semibold hover:underline line-clamp-2">{p.name}</Link>
+        <Link href={productHref} className="text-[13px] font-semibold hover:underline line-clamp-2">{p.name}</Link>
         
         {/* Código do produto */}
         {(p as any).codigo_mercos && (
@@ -294,7 +302,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
             </button>
             {phone ? (
               <a
-                href={`https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá! Gostaria de comprar: ${p.name}\n\nPreço: R$ ${p.price.toFixed(2)}\n\nVer produto: https://guiadasbancas.com.br/produto/${slugify(p.name)}-${p.id}`)}`}
+                href={`https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá! Gostaria de comprar: ${p.name}\n\nPreço: R$ ${p.price.toFixed(2)}\n\nVer produto: ${productShareUrl}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => {
@@ -324,14 +332,6 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
       </div>
     </div>
   );
-}
-
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD").replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
 }
 
 const CATEGORY_LOOKUP = (() => {

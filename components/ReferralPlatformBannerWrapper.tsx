@@ -26,30 +26,17 @@ export default function ReferralPlatformBannerWrapper() {
   useEffect(() => {
     const loadBanner = async () => {
       try {
-        console.log('🎯 Carregando banner (fonte: referral-banner admin, no-store)...');
-        const response = await fetch(`/api/admin/referral-banner?_=${Date.now()}`, { 
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        });
+        const response = await fetch('/api/referral-banner', { cache: 'force-cache' });
         
         if (response.ok) {
           const data = await response.json();
-          console.log('🎯 Dados do banner (referral):', data);
           
           if (data.success && data.data) {
-            console.log('🎯 Aplicando dados do banner:', {
-              titulo_novo: data.data.title,
-              dados_completos: data.data
-            });
             setBanner(data.data);
           }
         }
       } catch (error) {
-        console.error('🎯 Erro ao carregar banner de indicação:', error);
+        console.error('Erro ao carregar banner de indicação:', error);
       } finally {
         setLoading(false);
       }

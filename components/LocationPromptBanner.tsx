@@ -12,27 +12,50 @@ export default function LocationPromptBanner({ onConfirmClick, onDismiss }: Loca
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // Verificar se usuário já tem localização salva
-    const stored = loadStoredLocation();
-    if (stored) {
-      return;
-    }
+    let mounted = true;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-    // Verificar se usuário já dispensou o banner nesta sessão
-    const dismissed = sessionStorage.getItem('gdb_location_banner_dismissed');
-    if (dismissed) {
-      return;
-    }
-
-    // Aguardar tempo suficiente para a geolocalização do navegador completar
-    const timer = setTimeout(() => {
-      const storedAfterWait = loadStoredLocation();
-      if (!storedAfterWait) {
-        setShow(true);
+    const shouldStop = () => {
+      const stored = loadStoredLocation();
+      if (stored) {
+        setShow(false);
+        return true;
       }
+
+      const dismissed = sessionStorage.getItem("gdb_location_banner_dismissed");
+      if (dismissed) {
+        setShow(false);
+        return true;
+      }
+
+      const geoInProgress = sessionStorage.getItem("gb:geoInProgress") === "true";
+      if (!geoInProgress) {
+        setShow(true);
+        return true;
+      }
+
+      return false;
+    };
+
+    // Aguarda a geolocalização automática. Se ainda estiver em andamento, continua verificando.
+    const timer = setTimeout(() => {
+      if (!mounted) return;
+      if (shouldStop()) return;
+
+      pollTimer = setInterval(() => {
+        if (!mounted) return;
+        if (shouldStop() && pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      }, 1500);
     }, 5000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      mounted = false;
+      clearTimeout(timer);
+      if (pollTimer) clearInterval(pollTimer);
+    };
   }, []);
 
   // Escutar quando localização for atualizada para ocultar banner

@@ -31,6 +31,15 @@ type TreeCategory = {
   subcategories: TreeSubcategory[];
 };
 
+type FlatTreeNode = {
+  id: string;
+  name: string;
+  slug: string;
+  link: string;
+  icon?: string;
+  order?: number;
+};
+
 const ICON_RULES: Array<{ pattern: RegExp; icon: string }> = [
   { pattern: /(bebida|energet|suco|agua|refriger|cervej|vinho|cafe|cha)/i, icon: "🍺" },
   { pattern: /(tabac|cigar|charut|nargu|essenc|isqueir|palheiro|incenso|seda)/i, icon: "🚬" },
@@ -56,15 +65,28 @@ function slugify(value: string): string {
 }
 
 function resolveCategoryLink(name: string, link?: string | null): string {
+  const expectedSlug = slugify(name) || "categoria";
+  const pinnedRootSlugs = new Set(["colecionavel", "panini", "panini-collections"]);
+
   if (typeof link === "string") {
     const normalized = link.trim();
-    if (normalized.startsWith("/categorias")) return normalized;
+    if (normalized.startsWith("/categorias")) {
+      const [pathname, query] = normalized.split("?");
+      const segments = pathname.split("/").filter(Boolean);
+      const currentSlug = segments[1] || "";
+
+      if (!query && currentSlug && currentSlug !== expectedSlug && !pinnedRootSlugs.has(currentSlug)) {
+        return `/categorias/${expectedSlug}`;
+      }
+
+      return normalized;
+    }
     if (normalized.startsWith("/categoria/")) {
       return normalized.replace("/categoria/", "/categorias/");
     }
     if (normalized.startsWith("/")) return normalized;
   }
-  return `/categorias/${slugify(name) || "categoria"}`;
+  return `/categorias/${expectedSlug}`;
 }
 
 function iconForCategory(name: string): string {
@@ -194,10 +216,25 @@ function buildTree(
     }
   }
 
+  const collectDescendants = (parentId: string, visited: Set<string>): TreeCategory[] => {
+    const directChildren = [...(childrenByParentId.get(parentId) || [])].sort((a, b) =>
+      sortByOrderThenName(a, b)
+    );
+    const collected: TreeCategory[] = [];
+
+    for (const child of directChildren) {
+      if (visited.has(child.id)) continue;
+      visited.add(child.id);
+      collected.push(child);
+      collected.push(...collectDescendants(child.id, visited));
+    }
+
+    return collected;
+  };
+
   for (const root of roots) {
-    const children = childrenByParentId.get(root.id) || [];
-    children.sort((a, b) => sortByOrderThenName(a, b));
-    root.subcategories = children.map((child) => ({
+    const descendants = collectDescendants(root.id, new Set<string>());
+    root.subcategories = descendants.map((child) => ({
       id: child.id,
       name: child.name,
       slug: child.slug,
@@ -212,6 +249,144 @@ function buildTree(
   });
 
   return roots;
+}
+
+function dedupeSubcategories(items: TreeSubcategory[]): TreeSubcategory[] {
+  const map = new Map<string, TreeSubcategory>();
+  for (const item of items) {
+    const key = item.id || slugify(item.name);
+    if (!map.has(key)) {
+      map.set(key, item);
+    }
+  }
+  return Array.from(map.values());
+}
+
+function curateMegaMenuTree(tree: TreeCategory[]): TreeCategory[] {
+  if (!Array.isArray(tree) || tree.length === 0) return tree;
+
+  const nodesById = new Map<string, FlatTreeNode>();
+
+  for (const root of tree) {
+    nodesById.set(root.id, {
+      id: root.id,
+      name: root.name,
+      slug: root.slug || slugify(root.name),
+      link: root.link,
+      icon: root.icon,
+      order: root.order,
+    });
+
+    for (const sub of root.subcategories || []) {
+      nodesById.set(sub.id, {
+        id: sub.id,
+        name: sub.name,
+        slug: sub.slug || slugify(sub.name),
+        link: sub.link,
+      });
+    }
+  }
+
+  const allNodes = Array.from(nodesById.values());
+  const bySlug = new Map<string, FlatTreeNode>();
+  for (const node of allNodes) {
+    bySlug.set(slugify(node.name), node);
+  }
+
+  const colecionavel = bySlug.get("colecionavel");
+  const panini = bySlug.get("panini");
+  const paniniCollections = bySlug.get("panini-collections");
+
+  // Se o conjunto principal não existir completo, mantém a árvore original.
+  if (!colecionavel || !panini || !paniniCollections) {
+    return tree;
+  }
+
+  const principalIds = new Set<string>([
+    colecionavel.id,
+    panini.id,
+    paniniCollections.id,
+  ]);
+
+  const others = allNodes.filter((node) => !principalIds.has(node.id));
+
+  const toSub = (node: FlatTreeNode): TreeSubcategory => ({
+    id: node.id,
+    name: node.name,
+    slug: node.slug || slugify(node.name),
+    link: node.link || resolveCategoryLink(node.name),
+  });
+
+  const paniniUniverseSlugs = new Set<string>([
+    "panini-comics",
+    "panini-books",
+    "panini-magazines",
+    "panini-partwork",
+    "planet-manga",
+    "marvel-comics",
+    "dc-comics",
+    "disney-comics",
+    "mauricio-de-sousa-producoes",
+  ]);
+
+  const collectionsSlugs = new Set<string>([
+    "colecionaveis",
+    "conan",
+    "independentes",
+  ]);
+
+  const classification = {
+    colecionavel: [] as TreeSubcategory[],
+    panini: [] as TreeSubcategory[],
+    paniniCollections: [] as TreeSubcategory[],
+  };
+
+  for (const node of others) {
+    const slug = slugify(node.name);
+    const sub = toSub(node);
+
+    if (collectionsSlugs.has(slug) || slug.includes("colecion")) {
+      classification.paniniCollections.push(sub);
+      continue;
+    }
+
+    if (slug.startsWith("panini-") || paniniUniverseSlugs.has(slug)) {
+      classification.panini.push(sub);
+      continue;
+    }
+
+    classification.colecionavel.push(sub);
+  }
+
+  const colecionavelSubs = dedupeSubcategories(classification.colecionavel).sort((a, b) =>
+    a.name.localeCompare(b.name, "pt-BR")
+  );
+  const paniniSubs = dedupeSubcategories(classification.panini).sort((a, b) =>
+    a.name.localeCompare(b.name, "pt-BR")
+  );
+  const paniniCollectionsSubs = dedupeSubcategories(classification.paniniCollections).sort((a, b) =>
+    a.name.localeCompare(b.name, "pt-BR")
+  );
+
+  const buildRoot = (node: FlatTreeNode, order: number, subs: TreeSubcategory[]): TreeCategory => ({
+    id: node.id,
+    name: node.name,
+    slug: node.slug || slugify(node.name),
+    icon: node.icon || iconForCategory(node.name),
+    link: node.link || resolveCategoryLink(node.name),
+    order,
+    subcategories: subs,
+  });
+
+  return [
+    buildRoot(colecionavel, 0, colecionavelSubs),
+    buildRoot(panini, 1, paniniSubs.length > 0 ? paniniSubs : colecionavelSubs),
+    buildRoot(
+      paniniCollections,
+      2,
+      paniniCollectionsSubs.length > 0 ? paniniCollectionsSubs : colecionavelSubs
+    ),
+  ];
 }
 
 export async function GET(_request: NextRequest) {
@@ -254,8 +429,15 @@ export async function GET(_request: NextRequest) {
       mercos_id: typeof cat.mercos_id === "number" ? cat.mercos_id : null,
     }));
 
+    // Para o mega menu da home, priorizar categorias sincronizadas da Mercos
+    // quando houver ao menos uma categoria com mercos_id.
+    const menuCategories =
+      normalizedData.some((cat) => typeof cat.mercos_id === "number")
+        ? normalizedData.filter((cat) => typeof cat.mercos_id === "number")
+        : normalizedData;
+
     const availableMercosIds = new Set<number>(
-      normalizedData
+      menuCategories
         .map((cat) => cat.mercos_id)
         .filter((mercosId): mercosId is number => typeof mercosId === "number")
     );
@@ -277,7 +459,7 @@ export async function GET(_request: NextRequest) {
       }
     }
 
-    const tree = buildTree(normalizedData, inferredParentByMercos);
+    const tree = curateMegaMenuTree(buildTree(menuCategories, inferredParentByMercos));
 
     return NextResponse.json(
       {
