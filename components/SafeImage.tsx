@@ -1,4 +1,5 @@
 import Image, { ImageProps } from 'next/image';
+import { sanitizePublicImageUrl } from '@/lib/sanitizePublicImageUrl';
 
 interface SafeImageProps extends Omit<ImageProps, 'src'> {
   src: string | null | undefined;
@@ -10,12 +11,12 @@ interface SafeImageProps extends Omit<ImageProps, 'src'> {
  * Evita erros "Image is missing required src property"
  */
 export default function SafeImage({ src, fallback = '/placeholder.png', alt, ...props }: SafeImageProps) {
-  // Validar se src é válido
-  const isValidSrc = src && typeof src === 'string' && src.trim().length > 0;
-  const imageSrc = isValidSrc ? src : fallback;
+  const imageSrc = sanitizePublicImageUrl(src);
+  const fallbackSrc = fallback === "/placeholder.png" ? "" : sanitizePublicImageUrl(fallback);
+  const finalSrc = imageSrc || fallbackSrc;
 
   // Se não tem src válido nem fallback, renderizar div vazia
-  if (!imageSrc || imageSrc === '/placeholder.png') {
+  if (!finalSrc) {
     return (
       <div 
         className="bg-gray-200 flex items-center justify-center text-gray-400 text-xs"
@@ -26,5 +27,5 @@ export default function SafeImage({ src, fallback = '/placeholder.png', alt, ...
     );
   }
 
-  return <Image src={imageSrc} alt={alt} {...props} />;
+  return <Image src={finalSrc} alt={alt} {...props} />;
 }

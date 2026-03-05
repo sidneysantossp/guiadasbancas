@@ -158,7 +158,7 @@ export default function BrancaleoneProducts() {
           }
         } catch {}
         
-        const prodRes = await fetch(`/api/products/public?limit=24&sort=created_at&order=desc${locationQuery}`);
+        const prodRes = await fetch(`/api/products/public?limit=96&sort=created_at&order=desc${locationQuery}`);
         
         if (!prodRes.ok) {
           console.error('Erro ao buscar produtos Brancaleone:', prodRes.status);
@@ -210,7 +210,7 @@ export default function BrancaleoneProducts() {
           }));
 
         console.log('Produtos mapeados:', mapped.length);
-        if (active) setProducts(mapped.slice(0, 12)); // Limitar a 12 produtos
+        if (active) setProducts(mapped.slice(0, 48)); // Desktop: até 48 produtos
       } catch (error) {
         console.error('Erro ao carregar produtos:', error);
         if (active) setProducts([]);

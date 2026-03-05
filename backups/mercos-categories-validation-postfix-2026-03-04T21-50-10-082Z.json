@@ -1,0 +1,24 @@
+{
+  "generated_at": "2026-03-04T21:49:48.090Z",
+  "categories_global_active_mercos": 106,
+  "distribuidores": [
+    {
+      "id": "3a989c56-bbd3-4769-b076-a83483e39542",
+      "nome": "Bambino Distribuidora",
+      "mercos_products": 3669,
+      "active_products_local": 945,
+      "mismatches": 0,
+      "not_found_in_mercos": 0,
+      "active_distribuidor_categories": 91
+    },
+    {
+      "id": "1511df09-1f4a-4e68-9f8c-05cd06be6269",
+      "nome": "Brancaleone Distribuidora",
+      "mercos_products": 9048,
+      "active_products_local": 3555,
+      "mismatches": 0,
+      "not_found_in_mercos": 0,
+      "active_distribuidor_categories": 15
+    }
+  ]
+}

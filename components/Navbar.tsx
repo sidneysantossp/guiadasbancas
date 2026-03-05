@@ -25,14 +25,18 @@ import {
   IconBell,
   IconChevronDown,
   IconMapPin,
-  IconBuildingStore,
   IconSearch,
   IconShoppingBag,
   IconUserCircle,
   IconUser,
 } from "@tabler/icons-react";
 
-const hedvig = Hedvig_Letters_Serif({ subsets: ["latin"] });
+const hedvig = Hedvig_Letters_Serif({
+  subsets: ["latin"],
+  display: "swap",
+  adjustFontFallback: false,
+  fallback: ["serif"],
+});
 
 // Componente para links de Jornaleiro/Admin
 function JornaleiroAdminLinks({ onClose }: { onClose: () => void }) {
@@ -299,8 +303,6 @@ export default function Navbar({ initialBranding }: NavbarProps) {
   const [branding, setBranding] = useState<BrandingConfig | null>(initialBranding ?? null);
   const { items: categoryItems } = useCategories(); // Pré-carrega categorias na inicialização
   const [activeMegaMenu, setActiveMegaMenu] = useState<'categories' | null>(null);
-  const { isJornaleiro, isAdmin } = useAuth();
-
   const socialLinks = useMemo(() => {
     if (!branding) return [] as { key: string; href: string; label: string }[];
     const entries = [
@@ -630,6 +632,55 @@ useEffect(() => {
     : [];
   const locationTooltip = locationTooltipParts.length > 0 ? locationTooltipParts.join(' • ') : undefined;
   const accountGreeting = user?.name ? user.name.split(' ')[0] : null;
+  const showAuthButtons = mounted && !user;
+
+  if (!mounted) {
+    return (
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm">
+        <div className="md:hidden border-b border-gray-100">
+          <div className="flex items-center justify-between pl-1 pr-4 py-3">
+            <Link href="/" className="flex items-center -ml-2">
+              {branding?.logoUrl ? (
+                <Image
+                  src={branding.logoUrl}
+                  alt={branding.logoAlt || "Logo"}
+                  width={180}
+                  height={54}
+                  className="h-14 w-auto object-contain"
+                  priority
+                />
+              ) : (
+                <div className="h-14 w-[180px]" aria-hidden />
+              )}
+            </Link>
+          </div>
+        </div>
+
+        <div className="hidden md:block">
+          <div className="container-max flex items-center gap-8 py-4">
+            <Link href="/" className="flex items-center">
+              {branding?.logoUrl ? (
+                <Image
+                  src={branding.logoUrl}
+                  alt={branding.logoAlt || "Logo"}
+                  width={156}
+                  height={48}
+                  className="h-12 w-auto object-contain"
+                  priority
+                />
+              ) : (
+                <div className="h-12 w-[156px]" aria-hidden />
+              )}
+            </Link>
+            <div className="flex-1 max-w-md">
+              <div className="h-11 rounded-lg border border-gray-300 bg-gray-50" />
+            </div>
+          </div>
+          <div className="border-t border-gray-100 bg-white relative z-40" />
+        </div>
+      </header>
+    );
+  }
 
   return (
     <>
@@ -654,21 +705,33 @@ useEffect(() => {
           </Link>
 
           {/* Atalho conta do usuário */}
-          <div className="flex items-center gap-1 pr-1">
-            <Link
-              href="/jornaleiro"
-              className="inline-flex items-center justify-center h-12 w-12 text-[#2f2f2f] hover:text-[#ff5c00]"
-              aria-label="Área do jornaleiro"
-            >
-              <IconBuildingStore size={28} stroke={2} />
-            </Link>
-            <Link
-              href="/minha-conta"
-              className="inline-flex items-center justify-center h-12 w-12 text-[#2f2f2f] hover:text-[#ff5c00]"
-              aria-label="Minha conta"
-            >
-              <IconUser size={32} stroke={2} />
-            </Link>
+          <div className="flex items-center gap-2 pr-1">
+            {showAuthButtons ? (
+              <>
+                <Link
+                  href="/registrar"
+                  className="inline-flex items-center justify-center rounded-md bg-[#ff5c00] px-3 py-2 text-xs font-semibold text-white shadow hover:opacity-95 transition-colors"
+                  aria-label="Cadastre-se"
+                >
+                  Cadastre-se
+                </Link>
+                <Link
+                  href="/entrar"
+                  className="inline-flex items-center justify-center rounded-md bg-black px-3 py-2 text-xs font-semibold text-white shadow hover:bg-neutral-800 transition-colors"
+                  aria-label="Entrar"
+                >
+                  Entrar
+                </Link>
+              </>
+            ) : mounted && user ? (
+              <Link
+                href="/minha-conta"
+                className="inline-flex items-center justify-center h-12 w-12 text-[#2f2f2f] hover:text-[#ff5c00]"
+                aria-label="Minha conta"
+              >
+                <IconUser size={32} stroke={2} />
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>
@@ -811,19 +874,6 @@ useEffect(() => {
                       </div>
                     )}
                   </div>
-                ) : mounted ? (
-                  <button
-                    type="button"
-                    onClick={() => router.push('/minha-conta')}
-                    className="inline-flex items-center gap-2 text-gray-700 hover:text-[#ff5c00] transition-colors"
-                  >
-                    <IconUserCircle size={20} stroke={1.5} className="text-gray-600" />
-                    <span className="text-left leading-tight">
-                      <span className="block text-[10px] text-gray-500">Olá! Entre na</span>
-                      <span className="block text-xs font-medium text-gray-900">Minha Conta</span>
-                    </span>
-                    <IconChevronDown size={14} stroke={2} className="text-gray-400" />
-                  </button>
                 ) : null}
 
                 {false && (
@@ -846,15 +896,23 @@ useEffect(() => {
                   </button>
                 )}
 
-{/* Botão "Sou Jornaleiro" apenas para usuários não logados ou clientes */}
-                {!user && (
-                  <Link
-                    href="/jornaleiro"
-                    className="inline-flex items-center rounded-md bg-[#ff5c00] text-white px-3 py-2 text-sm font-semibold shadow hover:opacity-95 transition-colors"
-                    aria-label="Sou Jornaleiro"
-                  >
-                    Sou Jornaleiro
-                  </Link>
+                {showAuthButtons && (
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href="/registrar"
+                      className="inline-flex items-center rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white shadow hover:opacity-95 transition-colors"
+                      aria-label="Cadastre-se"
+                    >
+                      Cadastre-se
+                    </Link>
+                    <Link
+                      href="/entrar"
+                      className="inline-flex items-center rounded-md bg-black px-3 py-2 text-sm font-semibold text-white shadow hover:bg-neutral-800 transition-colors"
+                      aria-label="Entrar"
+                    >
+                      Entrar
+                    </Link>
+                  </div>
                 )}
           </div>
         </div>
@@ -1085,22 +1143,17 @@ useEffect(() => {
               </div>
             )}
             <div className="h-px bg-gray-200 my-2" />
-            {!user && (
-              <Link href="/minha-conta" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-100">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5 text-[#ff5c00]" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z" /></svg>
-                <span>Minha Conta</span>
-              </Link>
-            )}
-            {isJornaleiro || isAdmin ? (
-              <Link href="/jornaleiro/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-100">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#ff5c00]" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16v4H4zM6 11v7a1 1 0 001 1h10a1 1 0 001-1v-7"/></svg>
-                <span>Painel</span>
-              </Link>
-            ) : (
-              <Link href="/jornaleiro" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-100">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#ff5c00]" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16v4H4zM6 11v7a1 1 0 001 1h10a1 1 0 001-1v-7"/></svg>
-                <span>Sou Jornaleiro</span>
-              </Link>
+            {showAuthButtons && (
+              <>
+                <Link href="/entrar" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white bg-black hover:bg-neutral-800">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z" /></svg>
+                  <span>Entrar</span>
+                </Link>
+                <Link href="/registrar" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-[#ff5c00] text-white hover:opacity-95">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16v4H4zM6 11v7a1 1 0 001 1h10a1 1 0 001-1v-7"/></svg>
+                  <span>Cadastre-se</span>
+                </Link>
+              </>
             )}
           </nav>
         </aside>

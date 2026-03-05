@@ -1,5 +1,5 @@
-import JornaleiroLoginPageClient from "@/components/JornaleiroLoginPageClient";
+import { redirect } from "next/navigation";
 
 export default function JornaleiroLoginPage() {
-  return <JornaleiroLoginPageClient />;
+  redirect("/entrar");
 }

@@ -3,7 +3,16 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useSession, signIn, signOut as nextAuthSignOut } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
+
+const DISTRIBUIDOR_AUTH_KEY = "gb:distribuidorAuth";
+const DISTRIBUIDOR_DATA_KEY = "gb:distribuidor";
+
+function resolveDashboardByRole(role?: string): string {
+  if (role === "jornaleiro" || role === "seller") return "/jornaleiro/dashboard";
+  if (role === "admin") return "/admin/dashboard";
+  return "/minha-conta";
+}
 
 function EntrarPageContent() {
   const router = useRouter();
@@ -27,25 +36,33 @@ function EntrarPageContent() {
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
       const role = (session.user as any)?.role;
-      
-      // Se é jornaleiro/admin, redirecionar para painel apropriado
-      if (role === 'jornaleiro') {
-        router.replace("/jornaleiro/dashboard");
-        return;
-      }
-      if (role === 'admin') {
-        router.replace("/admin/dashboard");
-        return;
-      }
-      
-      // Cliente comum - redirecionar para destino
+
+      // Se houver sessão NextAuth ativa, limpar autenticação antiga de distribuidor
+      try {
+        localStorage.removeItem(DISTRIBUIDOR_AUTH_KEY);
+        localStorage.removeItem(DISTRIBUIDOR_DATA_KEY);
+      } catch {}
+
+      // Cliente comum - respeitar redirect explicitamente
       if (redirectParam) {
         router.replace(redirectParam);
       } else if (fromCheckout) {
-        router.replace('/checkout');
+        router.replace("/checkout");
       } else {
-        router.replace("/minha-conta");
+        router.replace(resolveDashboardByRole(role));
       }
+      return;
+    }
+
+    // Sessão local do distribuidor (não usa NextAuth)
+    if (status === "unauthenticated") {
+      try {
+        const auth = localStorage.getItem(DISTRIBUIDOR_AUTH_KEY);
+        const dist = localStorage.getItem(DISTRIBUIDOR_DATA_KEY);
+        if (auth === "1" && dist) {
+          router.replace("/distribuidor/dashboard");
+        }
+      } catch {}
     }
   }, [status, session, router, redirectParam, fromCheckout]);
 
@@ -162,16 +179,39 @@ function EntrarPageContent() {
     setLoading(true);
     
     try {
+      // Primeiro tenta login unificado via NextAuth (cliente/jornaleiro/admin)
       const result = await signIn("credentials", {
         redirect: false,
         email: email.trim().toLowerCase(),
         password: password,
       });
-      
-      if (result?.error) {
-        setError("E-mail ou senha incorretos");
+
+      if (result?.ok) {
+        return; // useEffect cuidará do redirecionamento
       }
-      // Se ok, o useEffect vai redirecionar
+
+      // Fallback: tentar autenticação de distribuidor
+      const distRes = await fetch("/api/distribuidor/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+        }),
+      });
+
+      const distData = await distRes.json().catch(() => ({}));
+
+      if (distRes.ok && distData?.success && distData?.distribuidor) {
+        try {
+          localStorage.setItem(DISTRIBUIDOR_AUTH_KEY, "1");
+          localStorage.setItem(DISTRIBUIDOR_DATA_KEY, JSON.stringify(distData.distribuidor));
+        } catch {}
+        router.replace("/distribuidor/dashboard");
+        return;
+      }
+
+      setError("E-mail ou senha incorretos");
     } catch (err: any) {
       setError(err.message || "Erro ao fazer login");
     } finally {
@@ -420,19 +460,10 @@ function EntrarPageContent() {
             </p>
           </div>
 
-          {/* Links jornaleiro e distribuidor */}
+          {/* Acesso unificado */}
           <div className="mt-4 pt-4 border-t border-gray-200 text-center space-y-2">
             <p className="text-sm text-gray-600">
-              É jornaleiro?{" "}
-              <Link href="/jornaleiro" className="font-semibold text-[#ff7a1f] hover:underline">
-                Acesse o painel aqui
-              </Link>
-            </p>
-            <p className="text-sm text-gray-600">
-              É distribuidor?{" "}
-              <Link href="/distribuidor" className="font-semibold text-blue-600 hover:underline">
-                Acesse o portal
-              </Link>
+              Use este mesmo login para cliente, jornaleiro ou distribuidor.
             </p>
           </div>
 

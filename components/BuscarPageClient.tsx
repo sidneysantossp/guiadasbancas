@@ -72,6 +72,8 @@ type BuscarPageClientProps = {
   initialQuery?: string;
 };
 
+const SEARCH_PRODUCTS_PER_PAGE = 48;
+
 export default function BuscarPageClient({
   initialBancas,
   initialProducts,
@@ -147,7 +149,7 @@ export default function BuscarPageClient({
         
         if (shouldFetchProducts) {
           const locQs = loc ? `&lat=${encodeURIComponent(String(loc.lat))}&lng=${encodeURIComponent(String(loc.lng))}` : "";
-          const productsRes = await fetch(`/api/products/most-searched?search=${encodeURIComponent(qTerm)}&limit=20${locQs}`);
+          const productsRes = await fetch(`/api/products/most-searched?search=${encodeURIComponent(qTerm)}&limit=96${locQs}`);
           const productsData = await productsRes.json();
           if (!productsRes.ok) {
             throw new Error(productsData?.error || 'Erro ao buscar produtos');
@@ -165,7 +167,7 @@ export default function BuscarPageClient({
               .sort((a, b) => b.length - a.length);
             const fallbackTerm = ranked[0] || tokens[0];
             if (fallbackTerm && fallbackTerm !== qTerm) {
-              const fallbackRes = await fetch(`/api/products/most-searched?search=${encodeURIComponent(fallbackTerm)}&limit=20${locQs}`);
+              const fallbackRes = await fetch(`/api/products/most-searched?search=${encodeURIComponent(fallbackTerm)}&limit=96${locQs}`);
               const fallbackData = await fallbackRes.json();
               if (fallbackRes.ok) {
                 const fallbackList = Array.isArray(fallbackData?.data)
@@ -293,6 +295,7 @@ export default function BuscarPageClient({
 
   const [priceRange, setPriceRange] = useState<{ min: number; max: number } | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [productPage, setProductPage] = useState(1);
 
   // Filtrar produtos com faixa de preço
   const filteredProductsWithPrice = useMemo(() => {
@@ -302,6 +305,26 @@ export default function BuscarPageClient({
     }
     return result;
   }, [filteredProducts, priceRange]);
+
+  const totalProductPages = Math.max(
+    1,
+    Math.ceil(filteredProductsWithPrice.length / SEARCH_PRODUCTS_PER_PAGE)
+  );
+
+  const paginatedProducts = useMemo(() => {
+    const start = (productPage - 1) * SEARCH_PRODUCTS_PER_PAGE;
+    return filteredProductsWithPrice.slice(start, start + SEARCH_PRODUCTS_PER_PAGE);
+  }, [filteredProductsWithPrice, productPage]);
+
+  useEffect(() => {
+    setProductPage(1);
+  }, [qTerm, catFilter, priceRange?.min, priceRange?.max, products.length]);
+
+  useEffect(() => {
+    if (productPage > totalProductPages) {
+      setProductPage(totalProductPages);
+    }
+  }, [productPage, totalProductPages]);
 
   // Limpar todos os filtros
   const clearAllFilters = () => {
@@ -522,7 +545,7 @@ export default function BuscarPageClient({
                 <div>
                   <h2 className="text-lg font-semibold mb-4">Produtos</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredProductsWithPrice.map((product) => {
+                    {paginatedProducts.map((product) => {
                       const productHref = buildPublicProductPath(
                         product.name,
                         product.banca?.name,
@@ -613,6 +636,60 @@ export default function BuscarPageClient({
                       );
                     })}
                   </div>
+                  {filteredProductsWithPrice.length > SEARCH_PRODUCTS_PER_PAGE && (
+                    <div className="mt-6 flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => setProductPage((p) => Math.max(1, p - 1))}
+                        disabled={productPage === 1}
+                        className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                      >
+                        Anterior
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalProductPages }).map((_, idx) => {
+                          const page = idx + 1;
+                          if (
+                            page === 1 ||
+                            page === totalProductPages ||
+                            (page >= productPage - 1 && page <= productPage + 1)
+                          ) {
+                            return (
+                              <button
+                                key={page}
+                                onClick={() => setProductPage(page)}
+                                className={`w-10 h-10 rounded-lg text-sm font-medium transition ${
+                                  productPage === page
+                                    ? 'bg-[#ff5c00] text-white'
+                                    : 'border border-gray-300 hover:bg-gray-50'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            );
+                          }
+
+                          if (page === productPage - 2 || page === productPage + 2) {
+                            return <span key={page} className="px-1">...</span>;
+                          }
+
+                          return null;
+                        })}
+                      </div>
+
+                      <button
+                        onClick={() => setProductPage((p) => Math.min(totalProductPages, p + 1))}
+                        disabled={productPage >= totalProductPages}
+                        className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                      >
+                        Próxima
+                      </button>
+
+                      <span className="ml-4 text-sm text-gray-500">
+                        Página {productPage} de {totalProductPages}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 

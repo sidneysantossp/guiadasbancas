@@ -271,10 +271,14 @@ function FavCard({ item }: { item: FavItem }) {
 
 // ID da categoria de bebidas
 const BEBIDAS_ID = 'c230ed83-b08a-4b7a-8f19-7c8230f36c86'; // Bebidas
+const HOME_FETCH_PRODUCTS_LIMIT = 96;
+const HOME_DESKTOP_PRODUCTS_LIMIT = 48;
+const HOME_MOBILE_PRODUCTS_LIMIT = 12;
 
 export default function FavoritePicks() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<FavItem[]>([]);
+  const [viewport, setViewport] = useState<number>(1024);
 
   useEffect(() => {
     let active = true;
@@ -296,8 +300,8 @@ export default function FavoritePicks() {
         // Primeiro tenta por nome da categoria (inclui subcategorias).
         // Fallback para UUID legado se necessário.
         const endpoints = [
-          `/api/products/public?categoryName=bebidas&limit=12&sort=created_at&order=desc${locationQuery}`,
-          `/api/products/public?category=${BEBIDAS_ID}&limit=12&sort=created_at&order=desc${locationQuery}`,
+          `/api/products/public?categoryName=bebidas&limit=${HOME_FETCH_PRODUCTS_LIMIT}&sort=created_at&order=desc${locationQuery}`,
+          `/api/products/public?category=${BEBIDAS_ID}&limit=${HOME_FETCH_PRODUCTS_LIMIT}&sort=created_at&order=desc${locationQuery}`,
         ];
 
         for (const endpoint of endpoints) {
@@ -359,9 +363,26 @@ export default function FavoritePicks() {
     return () => { active = false; };
   }, []);
 
-  const data = useMemo(() => Array.isArray(items) ? items.slice(0, 12) : [], [items]);
+  useEffect(() => {
+    const onResize = () => setViewport(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    onResize();
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const isMobile = viewport < 640;
+
+  const data = useMemo(() => {
+    if (!Array.isArray(items)) return [];
+    return items.slice(0, isMobile ? HOME_MOBILE_PRODUCTS_LIMIT : HOME_DESKTOP_PRODUCTS_LIMIT);
+  }, [items, isMobile]);
+
   const [scrollIndex, setScrollIndex] = useState(0);
   const touchRef = useRef<{ startX: number; startY: number; active: boolean } | null>(null);
+
+  useEffect(() => {
+    setScrollIndex(0);
+  }, [data.length, isMobile]);
 
   const scrollNext = () => {
     if (scrollIndex < data.length - 1) {
@@ -525,8 +546,8 @@ export default function FavoritePicks() {
               )}
             </div>
 
-            {/* Desktop/Tablet: Grid 2x3 */}
-            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Desktop/Tablet: Grid */}
+            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {data.map((f) => (
                 <FavCard key={f.id} item={f} />
               ))}

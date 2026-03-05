@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { categories as fallbackCategories } from "@/components/categoriesData";
+import { sanitizePublicImageUrl } from "@/lib/sanitizePublicImageUrl";
 import FullBanner from "@/components/FullBanner";
 import MobileCategoryScroller from "@/components/MobileCategoryScroller";
 import MiniCategoryBar from "@/components/MiniCategoryBar";
@@ -250,7 +251,7 @@ async function getCategories(): Promise<HomeCategory[]> {
       return fallbackCategories.map((cat, index) => ({
         id: cat.slug,
         name: cat.name,
-        image: cat.image || "",
+        image: sanitizePublicImageUrl(cat.image),
         link: `/categorias/${cat.slug}`,
         order: index,
       }));
@@ -259,7 +260,7 @@ async function getCategories(): Promise<HomeCategory[]> {
     return data.map((cat: any, index: number) => ({
       id: cat.id,
       name: cat.name,
-      image: cat.image || "",
+      image: sanitizePublicImageUrl(cat.image),
       link: cat.link,
       order: typeof cat.order === "number" ? cat.order : index,
     }));
@@ -268,7 +269,7 @@ async function getCategories(): Promise<HomeCategory[]> {
     return fallbackCategories.map((cat, index) => ({
       id: cat.slug,
       name: cat.name,
-      image: cat.image || "",
+      image: sanitizePublicImageUrl(cat.image),
       link: `/categorias/${cat.slug}`,
       order: index,
     }));

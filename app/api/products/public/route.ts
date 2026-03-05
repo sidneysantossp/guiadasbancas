@@ -21,6 +21,88 @@ let categoryLookupPromise: Promise<{
   allBancaCats: Array<{ id: string; name: string }>;
 }> | null = null;
 
+function normalizeText(value: string): string {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeSlug(value: string): string {
+  return normalizeText(value).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
+}
+
+function slugBase(value: string): string {
+  const slug = normalizeSlug(value);
+  return slug.endsWith("s") && slug.length > 1 ? slug.slice(0, -1) : slug;
+}
+
+function slugMatches(a: string, b: string): boolean {
+  const sa = slugBase(a);
+  const sb = slugBase(b);
+  return !!sa && !!sb && sa === sb;
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function buildSlugCandidates(raw: string): string[] {
+  const normalized = normalizeSlug(raw);
+  if (!normalized) return [];
+  const variants = [normalized];
+  if (normalized.endsWith("s")) variants.push(normalized.slice(0, -1));
+  else variants.push(`${normalized}s`);
+  return uniqueStrings(variants);
+}
+
+function resolveSubcategoryNamesBySlug(
+  opts: {
+    requestedSubSlug: string;
+    fallbackSlug: string;
+    parentKey: string;
+    parentMap: Record<string, string[]>;
+    slugMap: Record<string, string[]>;
+  }
+): string[] | null {
+  const { requestedSubSlug, fallbackSlug, parentKey, parentMap, slugMap } = opts;
+  const candidateKeys = uniqueStrings([
+    ...buildSlugCandidates(requestedSubSlug),
+    ...buildSlugCandidates(fallbackSlug),
+  ]);
+
+  if (candidateKeys.length === 0) return null;
+
+  for (const key of candidateKeys) {
+    const mapped = slugMap[key];
+    if (mapped && mapped.length > 0) {
+      return uniqueStrings(mapped);
+    }
+  }
+
+  const parentSubs = parentMap[parentKey] || [];
+  if (parentSubs.length > 0) {
+    const matchedParentSubs = parentSubs.filter((name) => {
+      const nameSlug = normalizeSlug(name);
+      return candidateKeys.some((candidate) => slugMatches(nameSlug, candidate));
+    });
+    if (matchedParentSubs.length > 0) return uniqueStrings(matchedParentSubs);
+  }
+
+  if (requestedSubSlug) {
+    const allKnownSubs = uniqueStrings(Object.values(parentMap).flat());
+    const matchedGlobal = allKnownSubs.filter((name) => {
+      const nameSlug = normalizeSlug(name);
+      return candidateKeys.some((candidate) => slugMatches(nameSlug, candidate));
+    });
+    if (matchedGlobal.length > 0) return matchedGlobal;
+  }
+
+  return null;
+}
+
 async function getCategoryLookups() {
   const now = Date.now();
   if (categoryLookupCache && categoryLookupCache.expiresAt > now) {
@@ -92,12 +174,15 @@ export async function GET(req: NextRequest) {
 
     // Mapeamento de categorias pai para subcategorias (usado na home)
     const CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
-      'tabacaria': ['Boladores', 'Carvão Narguile', 'Charutos e Cigarrilhas', 'Cigarros', 'Essências', 'Filtros', 'Incensos', 'Isqueiros', 'Palheiros', 'Piteiras', 'Porta Cigarros', 'Seda OCB', 'Tabaco e Seda', 'Tabacos Importados', 'Trituradores'],
-      'bebidas': ['Energéticos', 'Energético', 'Bebidas', 'Bebida', 'Água', 'Águas', 'Refrigerantes', 'Refrigerante', 'Sucos', 'Suco', 'Isotônicos', 'Isotônico'],
-      'bomboniere': ['Balas e Drops', 'Balas a Granel', 'Biscoitos', 'Chicletes', 'Chocolates', 'Doces', 'Pirulitos', 'Salgadinhos', 'Snacks'],
-      'brinquedos': ['Blocos de Montar', 'Carrinhos', 'Massinha', 'Pelúcias', 'Brinquedos', 'Livros Infantis'],
+      'tabacaria': ['Boladores', 'Carvão Narguile', 'Charutos e Cigarrilhas', 'Cigarros', 'Essências', 'Filtro', 'Filtros', 'Incensos', 'Isqueiros', 'Palheiros', 'Piteira', 'Piteiras', 'Porta Cigarros', 'Seda', 'Seda OCB', 'Tabaco', 'Tabaco e Seda', 'Tabacos Importados', 'Trituradores'],
+      'bebidas': ['Energéticos', 'Energético', 'Bebidas', 'Bebida', 'Cerveja', 'Cervejas', 'Água', 'Águas', 'Refrigerantes', 'Refrigerante', 'Sucos', 'Suco', 'Isotônicos', 'Isotônico'],
+      'bomboniere': ['Bala', 'Bala Doce', 'Balas e Drops', 'Balas a Granel', 'Biscoitos', 'Chiclete', 'Chicletes', 'Chocolate', 'Chocolates', 'Doces', 'Pirulito', 'Pirulitos', 'Salgados', 'Salgadinhos', 'Snacks'],
+      'brinquedos': ['Adesivos', 'Blocos de Montar', 'Bonecos', 'Brinquedos', 'Caminhão', 'Carrinhos', 'Educativos', 'Esportivo', 'Lança Bolhas', 'Massinha', 'Pelúcia', 'Pelúcias', 'Tipo "Lego"', 'Livros Infantis'],
       'cartas': ['Baralhos', 'Baralhos e Cards', 'Cards Colecionáveis', 'Cards Pokémon', 'Jogos Copag', 'Jogos de Cartas'],
-      'eletronicos': ['Caixas de Som', 'Fones de Ouvido', 'Informática', 'Pilhas', 'Eletrônicos'],
+      'eletronicos': ['Acessórios para eletrônicos', 'Adaptadores', 'Cabo', 'Caixa de som', 'Caixas de Som', 'Carregador com tomada', 'Carregador Portátil', 'Carregador veicular', 'Fone', 'Fone de ouvido', 'Fones de Ouvido', 'Informática', 'Pilhas', 'Eletrônicos'],
+      'informatica': ['Informática'],
+      'papelaria': ['Papelaria', 'Adesivos', 'Canetas', 'Cadernos', 'Material Escolar'],
+      'telefonia': ['Telefonia', 'Chip Pré', 'Capinha Para Celular', 'Acessórios Celular'],
       'diversos': ['Acessórios', 'Acessórios Celular', 'Adesivos Times', 'Chaveiros', 'Diversos', 'Guarda-Chuvas', 'Mochilas', 'Outros', 'Papelaria', 'Utilidades', 'Figurinhas'],
       'pokemon': ['Cards Pokémon', 'Fichários Pokémon'],
       'panini': ['Colecionáveis', 'Conan', 'DC Comics', 'Disney Comics', 'Marvel Comics', 'Maurício de Sousa Produções', 'Panini Books', 'Panini Comics', 'Panini Magazines', 'Panini Partwork', 'Planet Manga', 'HQs', 'HQ', 'Comics', 'Quadrinhos', 'Mangás', 'Manga', 'Graphic Novels', 'Graphic Novel', 'Revistas', 'Gibis', 'Gibi'],
@@ -115,11 +200,16 @@ export async function GET(req: NextRequest) {
       'essencias': ['Essências'],
       'narguile': ['Carvão Narguile', 'Narguilé'],
       'seda-papel': ['Seda OCB', 'Seda', 'Papel'],
+      'seda': ['Seda', 'Seda OCB'],
+      'filtro': ['Filtro', 'Filtros'],
       'isqueiros': ['Isqueiros'],
+      'piteira': ['Piteira', 'Piteiras'],
       // Bebidas
+      'bebidas': ['Bebidas', 'Bebida'],
       'cerveja': ['Cerveja', 'Cervejas'],
       'refrigerante': ['Refrigerante', 'Refrigerantes'],
       'energetico': ['Energéticos', 'Energético'],
+      'energeticos': ['Energéticos', 'Energético'],
       'agua': ['Água', 'Águas'],
       'suco': ['Suco', 'Sucos'],
       'destilados': ['Destilados'],
@@ -127,6 +217,11 @@ export async function GET(req: NextRequest) {
       'cafe': ['Café'],
       'cha': ['Chá', 'Chás'],
       // Snacks
+      'bala': ['Bala', 'Balas e Drops', 'Balas a Granel'],
+      'bala-doce': ['Bala Doce', 'Bala'],
+      'chiclete': ['Chiclete', 'Chicletes'],
+      'doces': ['Doces'],
+      'salgados': ['Salgados', 'Salgadinhos', 'Snacks'],
       'chocolates': ['Chocolates'],
       'balas-chicletes': ['Balas e Drops', 'Chicletes', 'Balas a Granel'],
       'salgadinhos': ['Salgadinhos', 'Snacks'],
@@ -159,6 +254,11 @@ export async function GET(req: NextRequest) {
       'miniaturas': ['Miniaturas'],
       'pelucias': ['Pelúcias'],
       'colecionaveis': ['Colecionáveis'],
+      'bonecos': ['Bonecos'],
+      'carrinhos': ['Carrinhos'],
+      'educativos': ['Educativos'],
+      'esportivo': ['Esportivo'],
+      'caminhao': ['Caminhão'],
       // Presentes
       'utilidades': ['Utilidades'],
       'chaveiros': ['Chaveiros'],
@@ -167,6 +267,19 @@ export async function GET(req: NextRequest) {
       'cadernos': ['Cadernos'],
       'material-escolar': ['Material Escolar', 'Papelaria'],
       'adesivos': ['Adesivos', 'Adesivos Times'],
+      // Eletrônicos / Telefonia
+      'cabo': ['Cabo'],
+      'adaptadores': ['Adaptadores'],
+      'caixa-de-som': ['Caixa de som', 'Caixas de Som'],
+      'carregador-com-tomada': ['Carregador com tomada'],
+      'carregador-portatil': ['Carregador Portátil'],
+      'carregador-veicular': ['Carregador veicular'],
+      'fone': ['Fone', 'Fone de ouvido', 'Fones de Ouvido'],
+      'fone-de-ouvido': ['Fone de ouvido', 'Fones de Ouvido'],
+      'informatica': ['Informática'],
+      'papelaria': ['Papelaria'],
+      'telefonia': ['Telefonia'],
+      'chip-pre': ['Chip Pré'],
     };
 
     // Se tiver categoryName, resolver IDs e termos de busca por nome
@@ -189,10 +302,19 @@ export async function GET(req: NextRequest) {
       let searchName = categoryName.replace(/-/g, ' ').toLowerCase();
       // Resolver alias do mega menu (ex: cigarros → tabacaria)
       const resolvedName = SLUG_ALIASES[searchName] || searchName;
+      const normalizedResolvedSlug = normalizeSlug(resolvedName);
+      const normalizedSubSlug = normalizeSlug(subSlug);
+      const resolvedSubSlug = normalizedSubSlug || normalizedResolvedSlug;
 
       // Se tiver sub, buscar apenas a subcategoria específica
-      const subCategoryNames = subSlug ? SUB_SLUG_TO_NAMES[subSlug.toLowerCase()] : null;
-      const subcategories = subCategoryNames || CATEGORY_SUBCATEGORIES[resolvedName];
+      const subCategoryNames = resolveSubcategoryNamesBySlug({
+        requestedSubSlug: normalizedSubSlug,
+        fallbackSlug: resolvedSubSlug,
+        parentKey: normalizedResolvedSlug,
+        parentMap: CATEGORY_SUBCATEGORIES,
+        slugMap: SUB_SLUG_TO_NAMES,
+      });
+      const subcategories = subCategoryNames || CATEGORY_SUBCATEGORIES[normalizedResolvedSlug];
       
       if (subcategories && subcategories.length > 0) {
         const label = subSlug ? `subcategoria "${subSlug}"` : `categoria pai "${resolvedName}"`;
@@ -200,8 +322,8 @@ export async function GET(req: NextRequest) {
         
         // Buscar IDs em distribuidor_categories (case-insensitive)
         if (allDistCats && allDistCats.length > 0) {
-          const matchedDist = allDistCats.filter(c => 
-            subcategories.some(s => c.nome?.toLowerCase() === s.toLowerCase())
+          const matchedDist = allDistCats.filter(c =>
+            subcategories.some(s => normalizeText(c.nome || "") === normalizeText(s))
           );
           if (matchedDist.length > 0) {
             categoryIds = matchedDist.map(c => c.id);
@@ -210,8 +332,8 @@ export async function GET(req: NextRequest) {
         
         // Buscar IDs em categories (bancas) - case-insensitive
         if (allBancaCats && allBancaCats.length > 0) {
-          const matchedCat = allBancaCats.filter(c => 
-            subcategories.some(s => c.name?.toLowerCase() === s.toLowerCase())
+          const matchedCat = allBancaCats.filter(c =>
+            subcategories.some(s => normalizeText(c.name || "") === normalizeText(s))
           );
           if (matchedCat.length > 0) {
             categoryIds = [...categoryIds, ...matchedCat.map(c => c.id)];
@@ -236,11 +358,12 @@ export async function GET(req: NextRequest) {
         console.log(`[API Public] categoryIds: ${categoryIds.length}, nameSearchTerms: ${nameSearchTerms.length}`);
       } else {
         // Busca normal por nome - tentar encontrar a categoria exata
-        const matchedCat = allBancaCats?.find(c => c.name?.toLowerCase().includes(resolvedName));
+        const normalizedResolved = normalizeText(resolvedName);
+        const matchedCat = allBancaCats?.find(c => normalizeText(c.name || "").includes(normalizedResolved));
         if (matchedCat) {
           categoryId = matchedCat.id;
         }
-        const matchedDist = allDistCats?.find(c => c.nome?.toLowerCase().includes(resolvedName));
+        const matchedDist = allDistCats?.find(c => normalizeText(c.nome || "").includes(normalizedResolved));
         if (matchedDist) {
           categoryIds = [matchedDist.id];
         }

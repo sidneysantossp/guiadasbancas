@@ -297,148 +297,40 @@ function dedupeSubcategories(items: MenuSubcategory[]): MenuSubcategory[] {
   return Array.from(byKey.values());
 }
 
-type FlatMenuNode = {
-  id: string;
-  name: string;
-  slug: string;
-  link: string;
-  icon?: string;
-  order?: number;
-};
-
 function curateMegaMenu(items: MenuCategory[]): MenuCategory[] {
   if (!Array.isArray(items) || items.length === 0) return items;
 
-  const nodesById = new Map<string, FlatMenuNode>();
-
-  for (const category of items) {
-    nodesById.set(category.id, {
-      id: category.id,
-      name: category.name,
-      slug: category.slug || slugify(category.name),
-      link: resolveLink(category.name, category.link),
-      icon: category.icon,
-      order: category.order,
+  const prepared = items
+    .map((category, index) => ({
+      ...category,
+      order: typeof category.order === "number" ? category.order : index,
+      subcategories: dedupeSubcategories(
+        (category.subcategories || []).filter((sub) => {
+          const normalized = (sub.name || "").trim();
+          return normalized.length > 0 && !/^\d+$/.test(normalized);
+        })
+      ),
+    }))
+    .sort((a, b) => {
+      if (a.order !== b.order) return a.order - b.order;
+      return a.name.localeCompare(b.name, "pt-BR");
     });
 
-    for (const sub of category.subcategories || []) {
-      nodesById.set(sub.id, {
-        id: sub.id,
-        name: sub.name,
-        slug: sub.slug || slugify(sub.name),
-        link: resolveLink(sub.name, sub.link),
-      });
-    }
+  const bySlug = new Map(prepared.map((category) => [slugify(category.name), category]));
+  const pinnedOrder = ["colecionavel", "panini", "panini-collections"];
+  const hasPinnedSet = pinnedOrder.every((slug) => bySlug.has(slug));
+
+  if (hasPinnedSet) {
+    return pinnedOrder.map((slug, index) => {
+      const category = bySlug.get(slug)!;
+      return {
+        ...category,
+        order: index,
+      };
+    });
   }
 
-  const allNodes = Array.from(nodesById.values());
-  const bySlug = new Map<string, FlatMenuNode>();
-  for (const node of allNodes) {
-    bySlug.set(slugify(node.name), node);
-  }
-
-  const colecionavel =
-    bySlug.get("colecionavel") || {
-      id: "menu-colecionavel",
-      name: "Colecionável",
-      slug: "colecionavel",
-      link: "/categorias/colecionavel",
-      icon: iconForCategory("Colecionável"),
-      order: 0,
-    };
-  const panini =
-    bySlug.get("panini") || {
-      id: "menu-panini",
-      name: "Panini",
-      slug: "panini",
-      link: "/categorias/panini",
-      icon: iconForCategory("Panini"),
-      order: 1,
-    };
-  const paniniCollections =
-    bySlug.get("panini-collections") || {
-      id: "menu-panini-collections",
-      name: "Panini Collections",
-      slug: "panini-collections",
-      link: "/categorias/panini-collections",
-      icon: iconForCategory("Panini Collections"),
-      order: 2,
-    };
-
-  const principalIds = new Set<string>([
-    colecionavel.id,
-    panini.id,
-    paniniCollections.id,
-  ]);
-
-  const paniniUniverseSlugs = new Set<string>([
-    "panini-comics",
-    "panini-books",
-    "panini-magazines",
-    "panini-partwork",
-    "planet-manga",
-    "marvel-comics",
-    "dc-comics",
-    "disney-comics",
-    "mauricio-de-sousa-producoes",
-  ]);
-
-  const collectionsSlugs = new Set<string>([
-    "colecionaveis",
-    "conan",
-    "independentes",
-  ]);
-
-  const grouped = {
-    colecionavel: [] as MenuSubcategory[],
-    panini: [] as MenuSubcategory[],
-    paniniCollections: [] as MenuSubcategory[],
-  };
-
-  const toSub = (node: FlatMenuNode): MenuSubcategory => ({
-    id: node.id,
-    name: node.name,
-    slug: node.slug || slugify(node.name),
-    link: node.link || resolveLink(node.name),
-  });
-
-  for (const node of allNodes) {
-    if (principalIds.has(node.id)) continue;
-
-    const slug = slugify(node.name);
-    const sub = toSub(node);
-
-    if (collectionsSlugs.has(slug) || slug.includes("colecion")) {
-      grouped.paniniCollections.push(sub);
-      continue;
-    }
-
-    if (slug.startsWith("panini-") || paniniUniverseSlugs.has(slug)) {
-      grouped.panini.push(sub);
-      continue;
-    }
-
-    grouped.colecionavel.push(sub);
-  }
-
-  const byName = (a: MenuSubcategory, b: MenuSubcategory) =>
-    a.name.localeCompare(b.name, "pt-BR");
-
-  const buildRoot = (node: FlatMenuNode, order: number, subs: MenuSubcategory[]): MenuCategory => ({
-    id: node.id,
-    name: node.name,
-    slug: node.slug || slugify(node.name),
-    icon: resolveIconKey(node.icon, node.name),
-    link: node.link || resolveLink(node.name),
-    order,
-    subcategories: dedupeSubcategories(subs).sort(byName),
-  });
-
-  return [
-    buildRoot(colecionavel, 0, grouped.colecionavel),
-    buildRoot(panini, 1, grouped.panini),
-    buildRoot(paniniCollections, 2, grouped.paniniCollections),
-  ];
+  return prepared.slice(0, 10);
 }
 
 const FALLBACK_MENU = curateMegaMenu(toFallbackMenu());
@@ -495,7 +387,7 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
 
     async function loadRealCategories() {
       try {
-        const response = await fetch("/api/categories", { cache: "force-cache" });
+        const response = await fetch("/api/categories?menu_version=20260305-2", { cache: "no-store" });
         if (!response.ok) return;
         const json = await response.json();
         const parsedTree = curateMegaMenu(normalizeMenuTree(json?.tree || []));
@@ -621,13 +513,13 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
 
       {menuOpen && (
         <div
-          className="absolute left-0 right-0 top-full bg-white border-t border-gray-200 shadow-xl z-50"
+          className="absolute left-1/2 top-full z-50 mt-2 w-[1080px] max-w-[96vw] -translate-x-1/2"
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
         >
-          <div className="container-max">
-            <div className="flex min-h-[340px]">
-              <div className="w-[240px] flex-shrink-0 border-r border-gray-100 py-3 overflow-y-auto max-h-[420px]">
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+            <div className="flex min-h-[300px] max-h-[460px]">
+              <div className="w-[250px] flex-shrink-0 border-r border-gray-100 py-3 overflow-y-auto">
                 {activeMenuItems.map((category, index) => (
                   <button
                     key={category.id}
@@ -663,7 +555,7 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
                 ))}
               </div>
 
-              <div className="flex-1 p-6">
+              <div className="flex-1 p-5 overflow-hidden">
                 {activeCategory && (
                   <>
                     <div className="flex items-center gap-2 mb-4">
@@ -680,7 +572,7 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
                     </div>
 
                     {activeCategory.subcategories.length > 0 ? (
-                      <div className="grid grid-cols-3 gap-x-8 gap-y-1">
+                      <div className="grid grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-1 max-h-[300px] overflow-y-auto pr-2">
                         {activeCategory.subcategories.map((subcategory) => (
                           <Link
                             key={subcategory.id}
@@ -689,7 +581,7 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
                               setMenuOpen(false);
                               setActiveIndex(null);
                             }}
-                            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-[#ff5c00] transition-colors"
+                            className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-[#ff5c00] transition-colors"
                           >
                             <span className="h-1.5 w-1.5 rounded-full bg-gray-300 flex-shrink-0" />
                             {subcategory.name}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { sanitizePublicImageUrl } from "@/lib/sanitizePublicImageUrl";
 import { categories as fallbackCategories } from "@/components/categoriesData";
 
 export const revalidate = 300;
@@ -31,14 +32,28 @@ type TreeCategory = {
   subcategories: TreeSubcategory[];
 };
 
-type FlatTreeNode = {
+type DistribuidorCategoryRow = {
   id: string;
-  name: string;
-  slug: string;
-  link: string;
-  icon?: string;
-  order?: number;
+  distribuidor_id: string;
+  nome: string;
+  mercos_id: number | null;
+  categoria_pai_id: number | null;
 };
+
+const BRANCALEONE_DISTRIBUIDOR_ID = "1511df09-1f4a-4e68-9f8c-05cd06be6269";
+const BAMBINO_DISTRIBUIDOR_ID = "3a989c56-bbd3-4769-b076-a83483e39542";
+const FOCUSED_MEGA_MENU_ROOTS: ReadonlyArray<{ distribuidorId: string; name: string }> = [
+  { distribuidorId: BRANCALEONE_DISTRIBUIDOR_ID, name: "Panini" },
+  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Bebidas" },
+  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Bomboniere" },
+  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Brinquedos" },
+  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Eletronicos" },
+  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Informática" },
+  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Papelaria" },
+  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Tabacaria" },
+  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Telefonia" },
+] as const;
+const ALWAYS_INCLUDE_ROOTS = new Set<string>(["bebidas"]);
 
 const ICON_RULES: Array<{ pattern: RegExp; icon: string }> = [
   { pattern: /(bebida|energet|suco|agua|refriger|cervej|vinho|cafe|cha)/i, icon: "🍺" },
@@ -107,7 +122,7 @@ function buildFallbackPublicCategories(): PublicCategory[] {
   return fallbackCategories.map((cat, index) => ({
     id: cat.slug,
     name: cat.name,
-    image: cat.image || "",
+    image: sanitizePublicImageUrl(cat.image),
     link: `/categorias/${cat.slug}`,
     order: index,
     parent_category_id: null,
@@ -262,131 +277,202 @@ function dedupeSubcategories(items: TreeSubcategory[]): TreeSubcategory[] {
   return Array.from(map.values());
 }
 
-function curateMegaMenuTree(tree: TreeCategory[]): TreeCategory[] {
-  if (!Array.isArray(tree) || tree.length === 0) return tree;
+function normalizeText(value: string): string {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  const nodesById = new Map<string, FlatTreeNode>();
+async function buildFocusedMegaMenuTree(
+  normalizedData: PublicCategory[]
+): Promise<TreeCategory[] | null> {
+  const distributores = Array.from(
+    new Set(FOCUSED_MEGA_MENU_ROOTS.map((root) => root.distribuidorId))
+  );
 
-  for (const root of tree) {
-    nodesById.set(root.id, {
-      id: root.id,
-      name: root.name,
-      slug: root.slug || slugify(root.name),
-      link: root.link,
-      icon: root.icon,
-      order: root.order,
-    });
+  const { data, error } = await supabaseAdmin
+    .from("distribuidor_categories")
+    .select("id, distribuidor_id, nome, mercos_id, categoria_pai_id")
+    .in("distribuidor_id", distributores)
+    .eq("ativo", true);
 
-    for (const sub of root.subcategories || []) {
-      nodesById.set(sub.id, {
-        id: sub.id,
-        name: sub.name,
-        slug: sub.slug || slugify(sub.name),
-        link: sub.link,
+  if (error || !data || data.length === 0) return null;
+
+  const rows = data as DistribuidorCategoryRow[];
+  const rowsByDistribuidor = new Map<string, DistribuidorCategoryRow[]>();
+  for (const row of rows) {
+    if (!rowsByDistribuidor.has(row.distribuidor_id)) {
+      rowsByDistribuidor.set(row.distribuidor_id, []);
+    }
+    rowsByDistribuidor.get(row.distribuidor_id)!.push(row);
+  }
+
+  const activeProductCategoryIds = new Set<string>();
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data: productsChunk, error: productsError } = await supabaseAdmin
+      .from("products")
+      .select("category_id, distribuidor_id")
+      .in("distribuidor_id", distributores)
+      .eq("active", true)
+      .not("category_id", "is", null)
+      .range(from, from + pageSize - 1);
+
+    if (productsError || !productsChunk || productsChunk.length === 0) break;
+    for (const row of productsChunk) {
+      if (typeof row.category_id === "string" && row.category_id) {
+        activeProductCategoryIds.add(row.category_id);
+      }
+    }
+    if (productsChunk.length < pageSize) break;
+    from += pageSize;
+  }
+
+  type LinkRef = { link: string; score: number };
+  const linkByNormalizedName = new Map<string, LinkRef>();
+  for (const row of normalizedData) {
+    const key = normalizeText(row.name);
+    const score = typeof row.mercos_id === "number" ? 2 : 1;
+    const existing = linkByNormalizedName.get(key);
+    if (!existing || score >= existing.score) {
+      linkByNormalizedName.set(key, {
+        link: row.link,
+        score,
       });
     }
   }
 
-  const allNodes = Array.from(nodesById.values());
-  const bySlug = new Map<string, FlatTreeNode>();
-  for (const node of allNodes) {
-    bySlug.set(slugify(node.name), node);
-  }
+  const tree: TreeCategory[] = [];
 
-  const colecionavel = bySlug.get("colecionavel");
-  const panini = bySlug.get("panini");
-  const paniniCollections = bySlug.get("panini-collections");
+  for (const [index, rootConfig] of FOCUSED_MEGA_MENU_ROOTS.entries()) {
+    const distRows = rowsByDistribuidor.get(rootConfig.distribuidorId) || [];
+    if (distRows.length === 0) continue;
 
-  // Se o conjunto principal não existir completo, mantém a árvore original.
-  if (!colecionavel || !panini || !paniniCollections) {
-    return tree;
-  }
-
-  const principalIds = new Set<string>([
-    colecionavel.id,
-    panini.id,
-    paniniCollections.id,
-  ]);
-
-  const others = allNodes.filter((node) => !principalIds.has(node.id));
-
-  const toSub = (node: FlatTreeNode): TreeSubcategory => ({
-    id: node.id,
-    name: node.name,
-    slug: node.slug || slugify(node.name),
-    link: node.link || resolveCategoryLink(node.name),
-  });
-
-  const paniniUniverseSlugs = new Set<string>([
-    "panini-comics",
-    "panini-books",
-    "panini-magazines",
-    "panini-partwork",
-    "planet-manga",
-    "marvel-comics",
-    "dc-comics",
-    "disney-comics",
-    "mauricio-de-sousa-producoes",
-  ]);
-
-  const collectionsSlugs = new Set<string>([
-    "colecionaveis",
-    "conan",
-    "independentes",
-  ]);
-
-  const classification = {
-    colecionavel: [] as TreeSubcategory[],
-    panini: [] as TreeSubcategory[],
-    paniniCollections: [] as TreeSubcategory[],
-  };
-
-  for (const node of others) {
-    const slug = slugify(node.name);
-    const sub = toSub(node);
-
-    if (collectionsSlugs.has(slug) || slug.includes("colecion")) {
-      classification.paniniCollections.push(sub);
-      continue;
+    const byMercos = new Map<number, DistribuidorCategoryRow>();
+    const rowByNormalizedName = new Map<string, DistribuidorCategoryRow>();
+    for (const row of distRows) {
+      if (typeof row.mercos_id === "number") byMercos.set(row.mercos_id, row);
+      const key = normalizeText(row.nome);
+      if (!rowByNormalizedName.has(key)) rowByNormalizedName.set(key, row);
     }
 
-    if (slug.startsWith("panini-") || paniniUniverseSlugs.has(slug)) {
-      classification.panini.push(sub);
-      continue;
+    const childrenByParent = new Map<number, DistribuidorCategoryRow[]>();
+    for (const row of distRows) {
+      if (typeof row.categoria_pai_id !== "number") continue;
+      if (!byMercos.has(row.categoria_pai_id)) continue;
+      if (!childrenByParent.has(row.categoria_pai_id)) {
+        childrenByParent.set(row.categoria_pai_id, []);
+      }
+      childrenByParent.get(row.categoria_pai_id)!.push(row);
     }
 
-    classification.colecionavel.push(sub);
+    const rootRow = rowByNormalizedName.get(normalizeText(rootConfig.name));
+    if (!rootRow || typeof rootRow.mercos_id !== "number") continue;
+
+    const collectDescendantsWithRows = (
+      parentMercosId: number,
+      visited: Set<number>
+    ): DistribuidorCategoryRow[] => {
+      const children = [...(childrenByParent.get(parentMercosId) || [])].sort((a, b) => {
+        const mercosA = typeof a.mercos_id === "number" ? a.mercos_id : Number.MAX_SAFE_INTEGER;
+        const mercosB = typeof b.mercos_id === "number" ? b.mercos_id : Number.MAX_SAFE_INTEGER;
+        if (mercosA !== mercosB) return mercosA - mercosB;
+        return a.nome.localeCompare(b.nome, "pt-BR");
+      });
+
+      const out: DistribuidorCategoryRow[] = [];
+      for (const child of children) {
+        if (typeof child.mercos_id !== "number") continue;
+        if (visited.has(child.mercos_id)) continue;
+        visited.add(child.mercos_id);
+        out.push(child);
+        out.push(...collectDescendantsWithRows(child.mercos_id, visited));
+      }
+      return out;
+    };
+
+    const descendants = collectDescendantsWithRows(rootRow.mercos_id, new Set<number>());
+
+    const shouldAlwaysIncludeRoot = ALWAYS_INCLUDE_ROOTS.has(normalizeText(rootConfig.name));
+
+    const filteredSubs = descendants.filter((sub) => {
+      const normalizedName = String(sub.nome || "").trim();
+      if (!normalizedName) return false;
+      if (/^\d+$/.test(normalizedName)) return false;
+      if (shouldAlwaysIncludeRoot) return true;
+      return activeProductCategoryIds.has(sub.id);
+    });
+
+    const rootHasProducts =
+      shouldAlwaysIncludeRoot ||
+      activeProductCategoryIds.has(rootRow.id) ||
+      filteredSubs.length > 0;
+    if (!rootHasProducts) continue;
+
+    const rootLinkRef = linkByNormalizedName.get(normalizeText(rootConfig.name));
+    const rootLink = rootLinkRef?.link || resolveCategoryLink(rootConfig.name);
+    const subcategories = dedupeSubcategories(
+      filteredSubs.map((sub, subIndex) => {
+        const subSlug = slugify(sub.nome) || `sub-${subIndex}`;
+        return {
+          id: sub.id || `${rootRow.id}-sub-${subIndex}`,
+          name: sub.nome,
+          slug: subSlug,
+          link: `${rootLink}?sub=${encodeURIComponent(subSlug)}`,
+        };
+      })
+    );
+
+    tree.push({
+      id: rootRow.id || `menu-root-${index}-${slugify(rootConfig.name)}`,
+      name: rootConfig.name,
+      slug: slugify(rootConfig.name) || `root-${index}`,
+      icon: iconForCategory(rootConfig.name),
+      link: rootLink,
+      order: index,
+      subcategories,
+    });
   }
 
-  const colecionavelSubs = dedupeSubcategories(classification.colecionavel).sort((a, b) =>
-    a.name.localeCompare(b.name, "pt-BR")
-  );
-  const paniniSubs = dedupeSubcategories(classification.panini).sort((a, b) =>
-    a.name.localeCompare(b.name, "pt-BR")
-  );
-  const paniniCollectionsSubs = dedupeSubcategories(classification.paniniCollections).sort((a, b) =>
-    a.name.localeCompare(b.name, "pt-BR")
-  );
+  return tree.length > 0 ? tree : null;
+}
 
-  const buildRoot = (node: FlatTreeNode, order: number, subs: TreeSubcategory[]): TreeCategory => ({
-    id: node.id,
-    name: node.name,
-    slug: node.slug || slugify(node.name),
-    icon: node.icon || iconForCategory(node.name),
-    link: node.link || resolveCategoryLink(node.name),
-    order,
-    subcategories: subs,
+function curateMegaMenuTree(tree: TreeCategory[]): TreeCategory[] {
+  if (!Array.isArray(tree) || tree.length === 0) return tree;
+
+  const prepared = tree
+    .map((category, index) => ({
+      ...category,
+      order: typeof category.order === "number" ? category.order : index,
+      subcategories: dedupeSubcategories(
+        (category.subcategories || []).filter((sub) => {
+          const normalized = (sub.name || "").trim();
+          return normalized.length > 0 && !/^\d+$/.test(normalized);
+        })
+      ),
+    }))
+    .sort((a, b) => {
+      if (a.order !== b.order) return a.order - b.order;
+      return a.name.localeCompare(b.name, "pt-BR");
+    });
+
+  const bySlug = new Map(prepared.map((category) => [slugify(category.name), category]));
+  const pinnedOrder = ["colecionavel", "panini", "panini-collections"];
+  const hasPinnedSet = pinnedOrder.every((slug) => bySlug.has(slug));
+
+  if (!hasPinnedSet) return prepared;
+
+  return pinnedOrder.map((slug, index) => {
+    const category = bySlug.get(slug)!;
+    return {
+      ...category,
+      order: index,
+    };
   });
-
-  return [
-    buildRoot(colecionavel, 0, colecionavelSubs),
-    buildRoot(panini, 1, paniniSubs.length > 0 ? paniniSubs : colecionavelSubs),
-    buildRoot(
-      paniniCollections,
-      2,
-      paniniCollectionsSubs.length > 0 ? paniniCollectionsSubs : colecionavelSubs
-    ),
-  ];
 }
 
 export async function GET(_request: NextRequest) {
@@ -422,7 +508,7 @@ export async function GET(_request: NextRequest) {
     const normalizedData: PublicCategory[] = data.map((cat, index) => ({
       id: String(cat.id),
       name: cat.name || "Categoria",
-      image: cat.image || "",
+      image: sanitizePublicImageUrl(cat.image),
       link: resolveCategoryLink(cat.name || "categoria", cat.link),
       order: typeof cat.order === "number" ? cat.order : index,
       parent_category_id: cat.parent_category_id || null,
@@ -436,30 +522,11 @@ export async function GET(_request: NextRequest) {
         ? normalizedData.filter((cat) => typeof cat.mercos_id === "number")
         : normalizedData;
 
-    const availableMercosIds = new Set<number>(
-      menuCategories
-        .map((cat) => cat.mercos_id)
-        .filter((mercosId): mercosId is number => typeof mercosId === "number")
-    );
-
-    let inferredParentByMercos = new Map<number, number>();
-
-    if (availableMercosIds.size > 0) {
-      const { data: relationsData, error: relationError } = await supabaseAdmin
-        .from("distribuidor_categories")
-        .select("mercos_id, categoria_pai_id")
-        .eq("ativo", true)
-        .in("mercos_id", Array.from(availableMercosIds));
-
-      if (!relationError && relationsData) {
-        inferredParentByMercos = inferParentByMercos(
-          relationsData as Array<{ mercos_id: number | null; categoria_pai_id: number | null }>,
-          availableMercosIds
-        );
-      }
-    }
-
-    const tree = curateMegaMenuTree(buildTree(menuCategories, inferredParentByMercos));
+    const treeFromFocusedRoots = await buildFocusedMegaMenuTree(normalizedData);
+    const tree =
+      treeFromFocusedRoots && treeFromFocusedRoots.length > 0
+        ? treeFromFocusedRoots
+        : curateMegaMenuTree(buildTree(menuCategories, new Map<number, number>()));
 
     return NextResponse.json(
       {

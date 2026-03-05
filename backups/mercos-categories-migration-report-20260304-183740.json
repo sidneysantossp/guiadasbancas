@@ -1,0 +1,169 @@
+{
+  "started_at": "2026-03-04T21:37:40.415Z",
+  "snapshot_before_file": "/Applications/MAMP/htdocs/guiadasbancas/backups/mercos-categories-snapshot-before-20260304-183740.json",
+  "distribuidor_categories_sync": [
+    {
+      "distribuidor": "Bambino Distribuidora",
+      "total_mercos_recebidas": 119,
+      "total_ativas_mercos": 91,
+      "inserted": 80,
+      "updated": 11,
+      "stale_desativadas": 48,
+      "active_mercos_ids": {},
+      "active_mercos_ids_count": 91
+    },
+    {
+      "distribuidor": "Brancaleone Distribuidora",
+      "total_mercos_recebidas": 27,
+      "total_ativas_mercos": 15,
+      "inserted": 4,
+      "updated": 11,
+      "stale_desativadas": 4,
+      "active_mercos_ids": {},
+      "active_mercos_ids_count": 15
+    }
+  ],
+  "global_categories_sync": {
+    "total_dist_categories_ativas": 106,
+    "total_global_target": 106,
+    "stale_global_desativadas": 4,
+    "duplicated_global_desativadas": 0,
+    "mercos_to_category_id": {},
+    "mercos_to_category_id_count": 106
+  },
+  "product_recategorization": [
+    {
+      "distribuidor": "Bambino Distribuidora",
+      "mercos_products_total": 3669,
+      "local_products_total": 3192,
+      "inspected_with_mercos_id": 3192,
+      "not_found_in_mercos": 0,
+      "mismatches_before_fix": 3192,
+      "updated_products": 3192,
+      "update_groups": 79,
+      "missing_global_category_mercos_ids": [],
+      "mercos_by_id": {},
+      "mercos_by_id_size": 3669
+    },
+    {
+      "distribuidor": "Brancaleone Distribuidora",
+      "mercos_products_total": 9048,
+      "local_products_total": 9048,
+      "inspected_with_mercos_id": 9048,
+      "not_found_in_mercos": 0,
+      "mismatches_before_fix": 9048,
+      "updated_products": 9048,
+      "update_groups": 12,
+      "missing_global_category_mercos_ids": [],
+      "mercos_by_id": {},
+      "mercos_by_id_size": 9048
+    }
+  ],
+  "product_validation_after": [
+    {
+      "distribuidor": "Bambino Distribuidora",
+      "active_local_products": 804,
+      "active_with_mercos_id": 804,
+      "mismatches_after_fix": 1,
+      "mercos_without_category": 1,
+      "without_global_category_mapping": 1,
+      "not_found_in_mercos": 0
+    },
+    {
+      "distribuidor": "Brancaleone Distribuidora",
+      "active_local_products": 3555,
+      "active_with_mercos_id": 3555,
+      "mismatches_after_fix": 0,
+      "mercos_without_category": 0,
+      "without_global_category_mapping": 0,
+      "not_found_in_mercos": 0
+    }
+  ],
+  "cron_sync_runs": [
+    {
+      "url": "http://localhost:3000/api/cron/sync-mercos?full=true&max_distribuidores=5&batches=10&batch_size=200",
+      "status": 200,
+      "success": true,
+      "resumo": {
+        "total_distribuidores": 2,
+        "sucesso": 2,
+        "falhas": 0,
+        "pulados": 0,
+        "tempo_execucao_ms": 187478
+      },
+      "resultados": [
+        {
+          "distribuidor": "Bambino Distribuidora",
+          "success": true,
+          "skipped": false,
+          "batches": 8,
+          "processed": 3669,
+          "created": 1,
+          "updated": 3192,
+          "deleted": 0,
+          "has_more": false,
+          "cursor_date": "2026-03-04 17:59:39",
+          "cursor_id": null,
+          "categorias_mapeadas": 91
+        },
+        {
+          "distribuidor": "Brancaleone Distribuidora",
+          "success": true,
+          "skipped": false,
+          "batches": 10,
+          "processed": 5000,
+          "created": 0,
+          "updated": 4977,
+          "deleted": 23,
+          "has_more": true,
+          "cursor_date": "2026-01-10 00:22:11",
+          "cursor_id": 212027246,
+          "categorias_mapeadas": 15
+        }
+      ]
+    },
+    {
+      "url": "http://localhost:3000/api/cron/sync-mercos?max_distribuidores=5&batches=10&batch_size=200",
+      "status": 200,
+      "success": true,
+      "resumo": {
+        "total_distribuidores": 2,
+        "sucesso": 2,
+        "falhas": 0,
+        "pulados": 0,
+        "tempo_execucao_ms": 87365
+      },
+      "resultados": [
+        {
+          "distribuidor": "Brancaleone Distribuidora",
+          "success": true,
+          "skipped": false,
+          "batches": 9,
+          "processed": 4048,
+          "created": 0,
+          "updated": 4048,
+          "deleted": 0,
+          "has_more": false,
+          "cursor_date": "2026-03-04 18:39:06",
+          "cursor_id": null,
+          "categorias_mapeadas": 15
+        },
+        {
+          "distribuidor": "Bambino Distribuidora",
+          "success": true,
+          "skipped": false,
+          "batches": 1,
+          "processed": 0,
+          "created": 0,
+          "updated": 0,
+          "deleted": 0,
+          "has_more": false,
+          "cursor_date": "2026-03-04T17:59:39+00:00",
+          "cursor_id": null,
+          "categorias_mapeadas": 91
+        }
+      ]
+    }
+  ],
+  "finished_at": "2026-03-04T21:43:24.976Z"
+}

@@ -302,6 +302,8 @@ function SmallCard({ p }: { p: Product }) {
 
 export default function MostSearchedProducts() {
   const CURATED_SECTION_KEY = 'most_sold_bambino';
+  const HOME_DESKTOP_PRODUCTS_LIMIT = 48;
+  const HOME_MOBILE_PRODUCTS_LIMIT = 12;
   const [apiItems, setApiItems] = useState<Product[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -328,7 +330,7 @@ export default function MostSearchedProducts() {
 
         // 1) Prioridade manual (vitrine curada pelo admin/importação)
         try {
-          const curated = await cachedFetch(`/api/featured-products?section=${CURATED_SECTION_KEY}&limit=20`, undefined, 300);
+          const curated = await cachedFetch(`/api/featured-products?section=${CURATED_SECTION_KEY}&limit=96`, undefined, 300);
           if (curated?.success && Array.isArray(curated.data) && curated.data.length > 0) {
             list = curated.data;
             console.log(`[MostSearchedProducts] Vitrine curada aplicada: ${list.length} produtos`);
@@ -339,9 +341,9 @@ export default function MostSearchedProducts() {
 
         // 2) Fallback: endpoint de mais buscados/proximidade
         if (!list.length) {
-          let apiUrl = '/api/products/most-searched';
+          let apiUrl = '/api/products/most-searched?limit=96';
           if (userLocation?.lat && userLocation?.lng) {
-            apiUrl += `?lat=${userLocation.lat}&lng=${userLocation.lng}`;
+            apiUrl += `&lat=${userLocation.lat}&lng=${userLocation.lng}`;
           }
           const pData = await cachedFetch(apiUrl, undefined, 300);
           if (pData?.data) {
@@ -400,7 +402,7 @@ export default function MostSearchedProducts() {
 
   const items = useMemo(() => {
     if (!apiItems) return [];
-    return apiItems.slice(0, 10); // Limita a 10 produtos (2 linhas de 5)
+    return apiItems.slice(0, HOME_DESKTOP_PRODUCTS_LIMIT);
   }, [apiItems]);
 
   const [viewport, setViewport] = useState<number>(1024);
@@ -412,14 +414,18 @@ export default function MostSearchedProducts() {
   }, []);
 
   const isMobile = viewport < 640;
+  const mobileItems = useMemo(
+    () => (isMobile ? items.slice(0, HOME_MOBILE_PRODUCTS_LIMIT) : items),
+    [isMobile, items, HOME_MOBILE_PRODUCTS_LIMIT]
+  );
   const [slideIndex, setSlideIndex] = useState(0);
   const mobileSlides = useMemo(() => {
     const groups: Product[][] = [];
-    for (let i = 0; i < items.length; i += 2) {
-      groups.push(items.slice(i, i + 2));
+    for (let i = 0; i < mobileItems.length; i += 2) {
+      groups.push(mobileItems.slice(i, i + 2));
     }
     return groups;
-  }, [items]);
+  }, [mobileItems]);
 
   useEffect(() => {
     setSlideIndex(0);
@@ -463,8 +469,8 @@ export default function MostSearchedProducts() {
           isMobile ? (
             <div className="rounded-2xl bg-gray-100 h-[420px] animate-pulse" />
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 auto-rows-fr">
-              {Array.from({ length: 5 }).map((_, i) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-fr">
+              {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="rounded-2xl bg-gray-100 animate-pulse h-80"></div>
               ))}
             </div>
@@ -515,7 +521,7 @@ export default function MostSearchedProducts() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 auto-rows-fr">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-fr">
             {items.map((p) => (
               <SmallCard key={p.id} p={p} />
             ))}

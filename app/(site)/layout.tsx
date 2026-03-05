@@ -34,8 +34,8 @@ const DEFAULT_FOOTER_DATA: FooterData = {
       { id: "8", text: "Suporte", url: "/suporte", section: "para_voce", order: 4 },
     ],
     para_jornaleiro: [
-      { id: "9", text: "Cadastre sua banca", url: "/jornaleiro/cadastro", section: "para_jornaleiro", order: 1 },
-      { id: "10", text: "Fazer login", url: "/jornaleiro/login", section: "para_jornaleiro", order: 2 },
+      { id: "9", text: "Cadastre sua banca", url: "/jornaleiro/registrar", section: "para_jornaleiro", order: 1 },
+      { id: "10", text: "Fazer login", url: "/entrar", section: "para_jornaleiro", order: 2 },
       { id: "11", text: "Central de ajuda", url: "/jornaleiro/ajuda", section: "para_jornaleiro", order: 3 },
       { id: "12", text: "Termos para Parceiros", url: "/termos-parceiros", section: "para_jornaleiro", order: 4 },
     ],
@@ -47,6 +47,14 @@ const DEFAULT_FOOTER_DATA: FooterData = {
     ],
   },
 };
+
+function sanitizeLogoUrl(value: string | null | undefined): string {
+  if (!value) return "/images/logo-default.svg";
+  const normalized = value.trim();
+  if (!normalized) return "/images/logo-default.svg";
+  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(normalized)) return normalized;
+  return normalized;
+}
 
 const getFooterCategories = unstable_cache(async (): Promise<SimpleCategory[]> => {
   try {
@@ -91,7 +99,7 @@ const getBranding = unstable_cache(async (): Promise<BrandingConfig | null> => {
 
     if (error || !data) return null;
     return {
-      logoUrl: data.logo_url || "",
+      logoUrl: sanitizeLogoUrl(data.logo_url),
       logoAlt: data.logo_alt || "Guia das Bancas",
       siteName: data.site_name || "Guia das Bancas",
       primaryColor: data.primary_color || "",
@@ -105,7 +113,7 @@ const getBranding = unstable_cache(async (): Promise<BrandingConfig | null> => {
   } catch {
     return null;
   }
-}, ["site-branding"], { revalidate: CACHE_TTL.branding });
+}, ["site-branding-v2"], { revalidate: CACHE_TTL.branding });
 
 export default async function SiteLayout({ children }: { children: ReactNode }) {
   const [footerCategories, branding] = await Promise.all([

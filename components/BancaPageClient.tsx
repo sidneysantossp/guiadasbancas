@@ -3,7 +3,6 @@
 // Removido next/image - usando img nativo para evitar falhas em produção
 import Link from "next/link";
 import type { Route } from "next";
-import TrustBadges from "@/components/TrustBadges";
 import { buildBancaHref } from "@/lib/slug";
 import { filterProductsFuzzy } from "@/lib/fuzzySearch";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
@@ -17,6 +16,10 @@ import { ui } from "@/lib/ui";
 import homeCategories from "@/data/categories.json";
 import { trackEvent } from "@/lib/useAnalytics";
 import { buildPublicProductPath } from "@/lib/product-url";
+import {
+  DEFAULT_BANCA_ABOUT_TEMPLATE,
+  renderBancaAboutTemplate,
+} from "@/lib/banca-about-template";
 
 export type BancaDetail = {
   id: string;
@@ -113,6 +116,25 @@ function summarizeHours(hours?: Array<{ key: string; label: string; open: boolea
   return { open: isOpen, label };
 }
 
+function stripHtmlToText(value?: string): string {
+  if (!value) return "";
+  return value
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatListPtBr(values: string[]): string {
+  const items = values.map((v) => v.trim()).filter(Boolean);
+  if (items.length === 0) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} e ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")} e ${items[items.length - 1]}`;
+}
+
 function DistancePill({ km }: { km: number | null }) {
   if (km == null) return null;
   const r = Math.ceil(km);
@@ -143,12 +165,7 @@ function ClosedBadge() {
   );
 }
 
-function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone?: string; bancaId: string; bancaName?: string }) {
-  const [liked, setLiked] = useState(false);
-  const [justAdded, setJustAdded] = useState(false);
-  const { addToCart, items } = useCart();
-  const subtotal = items.reduce((s, it) => s + (it.price ?? 0) * it.qty, 0);
-  const qualifies = shippingConfig.freeShippingEnabled || subtotal >= shippingConfig.freeShippingThreshold;
+function ProductCard({ p, bancaName }: { p: ProdutoResumo; bancaName?: string }) {
   
   // Produto está esgotado se:
   // 1. Status explicitamente 'unavailable' OU
@@ -161,7 +178,6 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
     p.id,
     p.codigo_mercos
   ) as Route;
-  const productShareUrl = `https://guiadasbancas.com.br${productHref}`;
   
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">
@@ -197,15 +213,6 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
             )}
           </div>
         </div>
-        {/* Ícone flutuante de carrinho sob a imagem */}
-        <button
-          onClick={() => { if (!outOfStock) { addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: bancaId, banca_name: bancaName }, 1); } }}
-          aria-label="Adicionar ao carrinho"
-          disabled={outOfStock}
-          className={`absolute -bottom-5 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border ${outOfStock ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed' : 'border-gray-200 bg-white shadow hover:bg-gray-50'}`}
-        >
-          <img src="https://cdn-icons-png.flaticon.com/128/4982/4982841.png" alt="Carrinho" className={`h-5 w-5 object-contain ${outOfStock ? 'opacity-60' : ''}`} />
-        </button>
       </div>
       <div className="p-2.5 flex flex-col flex-1">
         <Link href={productHref} className="text-[13px] font-semibold hover:underline line-clamp-2">{p.name}</Link>
@@ -218,12 +225,6 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
         )}
         
         <div className="flex flex-wrap gap-1 mt-2">
-          {p.pronta_entrega && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold">
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-              Pronta Entrega
-            </span>
-          )}
           {p.sob_encomenda && (
             <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-700 px-2 py-[2px] text-[10px] font-semibold">
               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -236,13 +237,6 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
               Pré-Venda
             </span>
           )}
-          {/* Fallback para produtos com track_stock ativo mas sem flags específicas */}
-          {p.ready && !p.pronta_entrega && !p.sob_encomenda && !p.pre_venda && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold">
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-              Pronta Entrega
-            </span>
-          )}
         </div>
         
         <div className="mt-1 flex items-center gap-2">
@@ -252,7 +246,7 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
           )}
         </div>
         
-        {/* Seção inferior com preços e botões sempre alinhados */}
+        {/* Seção inferior com preço */}
         <div className="mt-auto pt-2 flex flex-col gap-1.5">
           {/* Preço com rótulos: 'De:' (antigo) e 'Por:' (atual) */}
           <div className="flex flex-col gap-0.5">
@@ -275,59 +269,6 @@ function ProductCard({ p, phone, bancaId, bancaName }: { p: ProdutoResumo; phone
               </span>
             </div>
           )}
-          
-          {/* Ações: botão carrinho laranja + botão Whats verde */}
-          <div className="flex flex-col gap-1">
-            <button
-              onClick={() => { 
-                if (!outOfStock && !justAdded) { 
-                  addToCart({ id: p.id, name: p.name, price: p.price, image: p.image, banca_id: bancaId, banca_name: bancaName }, 1); 
-                  setJustAdded(true);
-                  setTimeout(() => setJustAdded(false), 2000);
-                } 
-              }}
-              disabled={outOfStock}
-              className={`w-full rounded px-2.5 py-1 text-[11px] font-semibold inline-flex items-center justify-center gap-1 ${
-                outOfStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 
-                justAdded ? 'bg-emerald-500 text-white' : 
-                'bg-[#ff5c00] text-white hover:opacity-95'
-              }`}
-            >
-              {outOfStock ? 'Esgotado' : justAdded ? (
-                <>
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                  Adicionado
-                </>
-              ) : 'Adicionar ao Carrinho'}
-            </button>
-            {phone ? (
-              <a
-                href={`https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá! Gostaria de comprar: ${p.name}\n\nPreço: R$ ${p.price.toFixed(2)}\n\nVer produto: ${productShareUrl}`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => {
-                  trackEvent({
-                    event_type: "whatsapp_click",
-                    banca_id: bancaId,
-                    product_id: p.id,
-                    metadata: { product_name: p.name }
-                  });
-                }}
-                className={`w-full inline-flex items-center justify-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold ${outOfStock ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50 pointer-events-none' : 'border-[#25D366]/30 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/15'}`}
-              >
-                <img src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" className="h-3.5 w-3.5 object-contain" />
-                {outOfStock ? 'Indisponível' : 'Comprar'}
-              </a>
-            ) : (
-              <button
-                disabled
-                className="w-full inline-flex items-center justify-center gap-1.5 rounded border border-gray-300 text-gray-400 px-2.5 py-1 text-[11px] font-semibold cursor-not-allowed"
-              >
-                <img src="https://cdn-icons-png.flaticon.com/128/733/733585.png" alt="WhatsApp" className="h-3.5 w-3.5 object-contain opacity-50" />
-                Comprar
-              </button>
-            )}
-          </div>
         </div>
       </div>
     </div>
@@ -359,6 +300,25 @@ const normalizeCategory = (raw: any, dynamicMap?: Map<string, string>): string =
   return CATEGORY_LOOKUP.get(value) ?? value;
 };
 
+const HIDDEN_TOP_DUPLICATE_CATEGORIES = new Set(
+  ["50", "60"].map((value) =>
+    value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+  )
+);
+
+const isHiddenTopDuplicateCategory = (name: string): boolean => {
+  const normalized = String(name || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+  return HIDDEN_TOP_DUPLICATE_CATEGORIES.has(normalized);
+};
+
 export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   const [loc, setLoc] = useState<UserLocation | null>(null);
   useEffect(() => setLoc(loadStoredLocation()), []);
@@ -376,12 +336,14 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   // Hierarquia de categorias dinâmica (vinda da API, sincronizada com Mercos)
   const [dynamicCategoryHierarchy, setDynamicCategoryHierarchy] = useState<Record<string, string[]>>({});
   const [dynamicStandaloneCategories, setDynamicStandaloneCategories] = useState<string[]>([]);
+  const [dynamicOrderedCategories, setDynamicOrderedCategories] = useState<string[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   
   const [loadingProdutos, setLoadingProdutos] = useState(false);
   const [loadingDestaque, setLoadingDestaque] = useState(false);
   const [highlightCoupon, setHighlightCoupon] = useState<null | { title: string; code: string; discountText: string; expiresAt?: string }>(null);
   const [copiedCoupon, setCopiedCoupon] = useState(false);
+  const [aboutTemplate, setAboutTemplate] = useState<string>(DEFAULT_BANCA_ABOUT_TEMPLATE);
 
   // Carregar categorias da API (geral)
   useEffect(() => {
@@ -407,6 +369,23 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     })();
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/settings/banca-about-template", { cache: "no-store" });
+        const json = await res.json();
+        const templateValue = json?.data?.value;
+        if (active && typeof templateValue === "string" && templateValue.trim()) {
+          setAboutTemplate(templateValue);
+        }
+      } catch {}
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Carregar hierarquia de categorias dinâmica da banca (sincronizada com Mercos)
   useEffect(() => {
     if (!bancaId) return;
@@ -419,6 +398,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         if (active && json?.success) {
           setDynamicCategoryHierarchy(json.hierarchy || {});
           setDynamicStandaloneCategories(json.standalone || []);
+          setDynamicOrderedCategories(json.categories || []);
         }
       } catch (e) {
         console.error('Erro ao carregar hierarquia de categorias:', e);
@@ -704,7 +684,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   }, [banca?.id, bancaId]);
 
   const km = useMemo(() => (loc && banca ? haversineKm({ lat: loc.lat, lng: loc.lng }, { lat: banca.lat, lng: banca.lng }) : null), [loc, banca]);
-  const { items, addToCart } = useCart();
+  const { items } = useCart();
   const subtotal = items.reduce((s, it) => s + (it.price ?? 0) * it.qty, 0);
   const qualifies = shippingConfig.freeShippingEnabled || subtotal >= shippingConfig.freeShippingThreshold;
 
@@ -854,8 +834,8 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         categorySet.add(catName.trim());
       }
     }
-    // Ordenar alfabeticamente
-    return Array.from(categorySet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    // Mantém a ordem de aparição dos produtos para fallback
+    return Array.from(categorySet);
   }, [produtos]);
   const [activeCategory, setActiveCategory] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState<string>(''); // Busca local de produtos
@@ -883,29 +863,141 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     if (Object.keys(dynamicCategoryHierarchy).length > 0 || dynamicStandaloneCategories.length > 0) {
       const grouped: Record<string, string[]> = {};
       
-      // Filtrar grupos que têm subcategorias presentes nos produtos
+      // Preserva 100% da hierarquia retornada pela API Mercos (sem filtrar por produtos)
       for (const [groupName, subcats] of Object.entries(dynamicCategoryHierarchy)) {
-        const existingSubs = subcats.filter(s => allCategories.includes(s));
-        if (existingSubs.length > 0) {
-          grouped[groupName] = existingSubs.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        if (isHiddenTopDuplicateCategory(groupName)) continue;
+        const uniqueSubs = Array.from(new Set((subcats || []).filter(Boolean)));
+        if (uniqueSubs.length > 0) {
+          grouped[groupName] = uniqueSubs;
         }
       }
       
-      // Filtrar standalone que existem nos produtos
-      const standalone = dynamicStandaloneCategories.filter(s => allCategories.includes(s));
+      const standalone = Array.from(
+        new Set((dynamicStandaloneCategories || []).filter(Boolean))
+      ).filter((name) => !isHiddenTopDuplicateCategory(name));
       
       return { 
         groupedCategories: grouped, 
-        standaloneCategories: standalone.sort((a, b) => a.localeCompare(b, 'pt-BR')) 
+        standaloneCategories: standalone
       };
     }
     
     // Fallback: todas as categorias como standalone (sem hierarquia)
     return { 
       groupedCategories: {}, 
-      standaloneCategories: allCategories.sort((a, b) => a.localeCompare(b, 'pt-BR')) 
+      standaloneCategories: allCategories
     };
   }, [allCategories, dynamicCategoryHierarchy, dynamicStandaloneCategories]);
+
+  const orderedCategoryChips = useMemo(() => {
+    if (dynamicOrderedCategories.length === 0) return allCategories;
+    return Array.from(new Set((dynamicOrderedCategories || []).filter(Boolean))).filter(
+      (name) => !isHiddenTopDuplicateCategory(name)
+    );
+  }, [allCategories, dynamicOrderedCategories]);
+
+  const orderedSidebarItems = useMemo(() => {
+    const groupedEntries = Object.entries(groupedCategories);
+    const groupedMap = new Map<string, string[]>(groupedEntries);
+    const standaloneSet = new Set(standaloneCategories);
+
+    // Sem ordem dinâmica, mantém fallback tradicional
+    if (dynamicOrderedCategories.length === 0) {
+      const fallbackItems: Array<
+        { type: "group"; name: string; subcats: string[] } | { type: "standalone"; name: string }
+      > = [];
+      for (const [name, subcats] of groupedEntries) {
+        fallbackItems.push({ type: "group", name, subcats });
+      }
+      for (const name of standaloneCategories) {
+        fallbackItems.push({ type: "standalone", name });
+      }
+      return fallbackItems;
+    }
+
+    const orderedItems: Array<
+      { type: "group"; name: string; subcats: string[] } | { type: "standalone"; name: string }
+    > = [];
+    const usedGroups = new Set<string>();
+    const usedStandalone = new Set<string>();
+
+    for (const categoryName of dynamicOrderedCategories) {
+      if (groupedMap.has(categoryName) && !usedGroups.has(categoryName)) {
+        usedGroups.add(categoryName);
+        orderedItems.push({
+          type: "group",
+          name: categoryName,
+          subcats: groupedMap.get(categoryName) || [],
+        });
+        continue;
+      }
+
+      if (standaloneSet.has(categoryName) && !usedStandalone.has(categoryName)) {
+        usedStandalone.add(categoryName);
+        orderedItems.push({ type: "standalone", name: categoryName });
+      }
+    }
+
+    // Garante que nada fique de fora por inconsistência de ordem
+    for (const [name, subcats] of groupedEntries) {
+      if (!usedGroups.has(name)) {
+        orderedItems.push({ type: "group", name, subcats });
+      }
+    }
+    for (const name of standaloneCategories) {
+      if (!usedStandalone.has(name)) {
+        orderedItems.push({ type: "standalone", name });
+      }
+    }
+
+    return orderedItems;
+  }, [groupedCategories, standaloneCategories, dynamicOrderedCategories]);
+
+  const hasCustomAboutDescription = useMemo(() => {
+    return stripHtmlToText(banca?.description).length > 0;
+  }, [banca?.description]);
+
+  const aboutLocationSnippet = useMemo(() => {
+    if (!banca?.address) return "";
+    const parts = banca.address
+      .split("|")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    return parts[1] || parts[0] || "";
+  }, [banca?.address]);
+
+  const aboutCategoryHighlights = useMemo(() => {
+    const roots = Object.keys(groupedCategories)
+      .filter((name) => !isHiddenTopDuplicateCategory(name))
+      .slice(0, 4);
+    if (roots.length > 0) return roots;
+    return Array.from(new Set(allCategories))
+      .filter((name) => !isHiddenTopDuplicateCategory(name))
+      .slice(0, 4);
+  }, [groupedCategories, allCategories]);
+
+  const fallbackAboutParagraphs = useMemo(() => {
+    if (!banca) return [];
+    const rendered = renderBancaAboutTemplate(aboutTemplate, {
+      banca_nome: banca.name,
+      regiao: aboutLocationSnippet ? `na região de ${aboutLocationSnippet}` : "na sua região",
+      categorias:
+        aboutCategoryHighlights.length > 0
+          ? formatListPtBr(aboutCategoryHighlights)
+          : "produtos para o dia a dia",
+      entrega: deliveryEnabled
+        ? "com opção de entrega conforme disponibilidade da banca"
+        : "com retirada combinada diretamente com a banca",
+    })
+      .split(/\n{2,}/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    if (rendered.length > 0) return rendered;
+    return DEFAULT_BANCA_ABOUT_TEMPLATE.split(/\n{2,}/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+  }, [banca, aboutTemplate, aboutLocationSnippet, aboutCategoryHighlights, deliveryEnabled]);
 
 
   // Auto-rolagem do slider de categorias (todas as larguras; apenas os chips após 'Todos')
@@ -1013,9 +1105,10 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     return filtered.sort((a, b) => (b.ready ? 1 : 0) - (a.ready ? 1 : 0));
   }, [produtos, activeCategory, searchTerm]);
 
-  // Paginação com carregamento incremental por página (30 itens/page)
-  const pageSize = 30;
-  const batchSize = 12; // quantidade carregada por vez dentro da página
+  // Paginação no padrão solicitado: 12 linhas x 4 colunas (desktop) = 48 itens/página
+  const pageSize = 48;
+  // Carrega toda a página de uma vez para manter a experiência semelhante ao marketplace
+  const batchSize = 48;
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(produtosFiltrados.length / pageSize));
   const pageStart = (currentPage - 1) * pageSize;
@@ -1074,9 +1167,9 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
   }
 
   return (
-    <section className="container-max pt-3 sm:pt-4 pb-28 sm:pb-32">
+    <section className="container-max pt-10 sm:pt-12 md:pt-14 pb-28 sm:pb-32">
       {/* Capa + Header da Banca */}
-      <div className="relative h-96 sm:h-72 w-full rounded-2xl overflow-hidden border border-gray-200">
+      <div className="relative h-[20rem] sm:h-[22rem] lg:h-[24rem] w-full rounded-2xl overflow-hidden border border-gray-200 bg-gray-100">
         <img src={banca.cover} alt={banca.name} className="absolute inset-0 w-full h-full object-cover" />
         {banca.featured && (
           <div className="absolute left-3 top-3">
@@ -1228,11 +1321,6 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       </div>
       )}
 
-      {/* Pagamento Facilitado, Compra Segura, Banca Verificada */}
-      <div className="mt-3">
-        <TrustBadges />
-      </div>
-
       {/* Info rápidas e CTA */}
       <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-[12px] text-gray-700" />
@@ -1307,9 +1395,27 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         </div>
 
         <div className="pt-4 pb-4 border-b border-gray-200">
-          {infoTab === 'Sobre' && banca.description && (
+          {infoTab === 'Sobre' && (
             <div>
-              <div className="prose prose-sm max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: banca.description }} />
+              {hasCustomAboutDescription ? (
+                <div
+                  className="prose prose-sm max-w-none text-gray-700"
+                  dangerouslySetInnerHTML={{ __html: banca.description || "" }}
+                />
+              ) : (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                    Sobre a {banca.name}
+                  </h2>
+                  <div className="mt-2 space-y-2">
+                    {fallbackAboutParagraphs.map((paragraph, index) => (
+                      <p key={`${banca.id}-about-fallback-${index}`} className="text-sm text-gray-700">
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {infoTab === 'Horários' && (
@@ -1514,7 +1620,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
               ) : (
                 produtosDestaque.map((p) => (
                   <div key={p.id} className="min-w-[240px] snap-start">
-                    <ProductCard p={p} phone={banca.phone} bancaId={banca.id} bancaName={banca.name} />
+                    <ProductCard p={p} bancaName={banca.name} />
                   </div>
                 ))
               )}
@@ -1524,14 +1630,11 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       </div>
       )}
 
-      {/* Produtos da Banca */}
-      <h2 ref={productsTopRef} className="mt-8 mb-4 text-base sm:text-lg font-semibold">Produtos desta Banca</h2>
-
       {/* Layout com Sidebar + Produtos */}
-      <div className="flex gap-6">
+      <div ref={productsTopRef} className="mt-8 flex gap-6">
         {/* Sidebar de Categorias */}
         <aside className="hidden lg:block w-64 flex-shrink-0">
-          <div className="sticky top-4">
+          <div>
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">Categorias</h3>
               <nav className="space-y-1">
@@ -1546,59 +1649,63 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
                   Todos os Produtos
                 </button>
 
-                {/* Sanfonas de categorias agrupadas */}
-                {Object.entries(groupedCategories).map(([groupName, subcats]) => (
-                  <div key={groupName} className="border-b border-gray-100 pb-2 mb-2">
-                    <button
-                      onClick={() => toggleAccordion(groupName)}
-                      className="w-full flex items-center justify-between px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
-                    >
-                      <span>{groupName}</span>
-                      <svg
-                        className={`w-4 h-4 transition-transform duration-200 ${openAccordions.has(groupName) ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    
-                    {/* Subcategorias */}
-                    <div className={`overflow-hidden transition-all duration-200 ${openAccordions.has(groupName) ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                      <div className="pl-3 space-y-1 mt-1">
-                        {subcats.map((name) => (
-                          <button
-                            key={name}
-                            onClick={() => setActiveCategory(name)}
-                            className={`w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${
-                              activeCategory === name
-                                ? 'bg-[#ff5c00] text-white font-medium'
-                                : 'text-gray-600 hover:bg-gray-50'
-                            }`}
+                {orderedSidebarItems.map((item) => {
+                  if (item.type === "group") {
+                    const groupName = item.name;
+                    const subcats = item.subcats;
+                    return (
+                      <div key={groupName} className="border-b border-gray-100 pb-2 mb-2">
+                        <button
+                          onClick={() => toggleAccordion(groupName)}
+                          className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                        >
+                          <span>{groupName}</span>
+                          <svg
+                            className={`w-4 h-4 transition-transform duration-200 ${openAccordions.has(groupName) ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
-                            {name}
-                          </button>
-                        ))}
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        
+                        <div className={`overflow-hidden transition-all duration-200 ${openAccordions.has(groupName) ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                          <div className="pl-3 space-y-1 mt-1">
+                            {subcats.map((name) => (
+                              <button
+                                key={name}
+                                onClick={() => setActiveCategory(name)}
+                                className={`w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${
+                                  activeCategory === name
+                                    ? 'bg-[#ff5c00] text-white font-medium'
+                                    : 'text-gray-600 hover:bg-gray-50'
+                                }`}
+                              >
+                                {name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  }
 
-                {/* Categorias avulsas (não agrupadas) */}
-                {standaloneCategories.map((name) => (
-                  <button
-                    key={name}
-                    onClick={() => setActiveCategory(name)}
-                    className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
-                      activeCategory === name
-                        ? 'bg-[#ff5c00] text-white font-medium'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {name}
-                  </button>
-                ))}
+                  const name = item.name;
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => setActiveCategory(name)}
+                      className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                        activeCategory === name
+                          ? 'bg-[#ff5c00] text-white font-medium'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  );
+                })}
               </nav>
             </div>
           </div>
@@ -1692,7 +1799,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
               {/* Scroller somente com demais categorias */}
               <div className="relative flex-1 min-w-0 max-w-full">
                 <div ref={catScrollerRef} className="no-scrollbar flex items-center gap-2 w-full max-w-full overflow-x-auto overflow-y-hidden py-2 pr-10 whitespace-nowrap">
-                  {allCategories.map((name) => (
+                  {orderedCategoryChips.map((name) => (
                     <button
                       key={name}
                       onClick={()=>{ setActiveCategory(name); }}
@@ -1735,7 +1842,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             <>
               <div className="mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {visibleProducts.map((p) => (
-                  <ProductCard key={p.id} p={p} phone={banca.phone} bancaId={banca.id} bancaName={banca.name} />
+                  <ProductCard key={p.id} p={p} bancaName={banca.name} />
                 ))}
               </div>
               {/* Loader / sentinela para infinite scroll */}

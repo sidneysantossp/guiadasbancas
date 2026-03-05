@@ -79,6 +79,14 @@ type AppFooterProps = {
   initialBrandingLogo?: { url: string; alt: string } | null;
 };
 
+function normalizeFooterUrl(url: string): string {
+  const raw = (url || "").trim();
+  if (!raw) return raw;
+  if (raw === "/jornaleiro/cadastro") return "/jornaleiro/registrar";
+  if (raw === "/jornaleiro" || raw === "/jornaleiro/login" || raw === "/distribuidor/login") return "/entrar";
+  return raw;
+}
+
 export default function AppFooter({
   initialFooterData,
   initialCategories,
@@ -156,11 +164,17 @@ export default function AppFooter({
   };
 
   const data = footerData || defaultData;
+  const normalizedLinks = {
+    institucional: data.links.institucional.map((link) => ({ ...link, url: normalizeFooterUrl(link.url) })),
+    para_jornaleiro: data.links.para_jornaleiro.map((link) => ({ ...link, url: normalizeFooterUrl(link.url) })),
+    para_voce: data.links.para_voce.map((link) => ({ ...link, url: normalizeFooterUrl(link.url) })),
+    atalhos: data.links.atalhos.map((link) => ({ ...link, url: normalizeFooterUrl(link.url) })),
+  };
   const sections = [
-    { key: 'institucional', label: 'Institucional', links: data.links.institucional.map(link => ({ id: link.id, text: link.text, url: link.url })) },
-    { key: 'para_jornaleiro', label: 'Para o Jornaleiro', links: data.links.para_jornaleiro.map(link => ({ id: link.id, text: link.text, url: link.url })) },
-    { key: 'para_voce', label: 'Para você', links: data.links.para_voce.map(link => ({ id: link.id, text: link.text, url: link.url })) },
-    { key: 'atalhos', label: 'Atalhos', links: data.links.atalhos.map(link => ({ id: link.id, text: link.text, url: link.url })) },
+    { key: 'institucional', label: 'Institucional', links: normalizedLinks.institucional.map(link => ({ id: link.id, text: link.text, url: link.url })) },
+    { key: 'para_jornaleiro', label: 'Para o Jornaleiro', links: normalizedLinks.para_jornaleiro.map(link => ({ id: link.id, text: link.text, url: link.url })) },
+    { key: 'para_voce', label: 'Para você', links: normalizedLinks.para_voce.map(link => ({ id: link.id, text: link.text, url: link.url })) },
+    { key: 'atalhos', label: 'Atalhos', links: normalizedLinks.atalhos.map(link => ({ id: link.id, text: link.text, url: link.url })) },
     ...(categories.length ? [{ key: 'categorias', label: 'Categorias', links: categories.map(cat => ({ id: cat.id, text: cat.name, url: cat.link })) }] : []),
   ].filter(section => section.links.length > 0);
 
@@ -198,7 +212,7 @@ export default function AppFooter({
           <div className="hidden md:block">
             <div className="text-sm font-semibold text-gray-900">Institucional</div>
             <ul className="mt-3 space-y-2 text-sm text-gray-600">
-              {data.links.institucional.map((link) => (
+              {normalizedLinks.institucional.map((link) => (
                 <li key={link.id}>
                   <Link href={link.url as Route} className="hover:text-gray-900 transition-colors">
                     {link.text}
@@ -211,7 +225,7 @@ export default function AppFooter({
           <div className="hidden md:block">
             <div className="text-sm font-semibold text-gray-900">Para o Jornaleiro</div>
             <ul className="mt-3 space-y-2 text-sm text-gray-600">
-              {data.links.para_jornaleiro.map((link) => (
+              {normalizedLinks.para_jornaleiro.map((link) => (
                 <li key={link.id}>
                   <Link href={link.url as Route} className="hover:text-gray-900 transition-colors">
                     {link.text}
@@ -224,7 +238,7 @@ export default function AppFooter({
           <div className="hidden md:block">
             <div className="text-sm font-semibold text-gray-900">Para você</div>
             <ul className="mt-3 space-y-2 text-sm text-gray-600">
-              {data.links.para_voce.map((link) => (
+              {normalizedLinks.para_voce.map((link) => (
                 <li key={link.id}>
                   <Link href={link.url as Route} className="hover:text-gray-900 transition-colors">
                     {link.text}
@@ -237,7 +251,7 @@ export default function AppFooter({
           <div className="hidden md:block">
             <div className="text-sm font-semibold text-gray-900">Atalhos</div>
             <ul className="mt-3 space-y-2 text-sm text-gray-600">
-              {data.links.atalhos.map((link) => (
+              {normalizedLinks.atalhos.map((link) => (
                 <li key={link.id}>
                   <Link href={link.url as Route} className="hover:text-gray-900 transition-colors">
                     {link.text}

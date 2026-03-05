@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { buildBancaHref } from "@/lib/slug";
 import { useEffect, useMemo, useState } from "react";
 import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
@@ -48,7 +47,6 @@ function BancaCard({
   profileImage?: string;
   priority?: boolean;
 }) {
-  const router = useRouter();
   const href = buildBancaHref(name, id, uf) as Route;
 
   // Formatar distância: arredondar para 1 casa decimal, vírgula como separador, "KM" maiúsculo
@@ -64,16 +62,8 @@ function BancaCard({
   }, []);
   
   return (
-    <article
-      role="link"
-      tabIndex={0}
-      onClick={() => router.push(href)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          router.push(href);
-        }
-      }}
+    <Link
+      href={href}
       className="block overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg transition-transform transition-shadow duration-200 hover:shadow-xl hover:-translate-y-0.5"
     >
       {/* Imagem com padding e borda arredondada interna */}
@@ -141,16 +131,20 @@ function BancaCard({
 
         {/* Ver no Mapa + distância */}
         <div className="mt-2 flex items-center">
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${address}`)}`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <span
             className="inline-flex items-center gap-1 text-[12px] text-black hover:underline"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.open(
+                `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${address}`)}`,
+                "_blank"
+              );
+            }}
           >
             <Image src="https://cdn-icons-png.flaticon.com/128/2875/2875433.png" alt="Mapa" width={16} height={16} className="h-4 w-4 rounded-full object-contain" unoptimized />
             Ver no Mapa
-          </a>
+          </span>
           {distanceLabel && (
             <span className="ml-2 text-[12px] text-gray-700">
               • {distanceLabel}
@@ -158,7 +152,7 @@ function BancaCard({
           )}
         </div>
       </div>
-    </article>
+    </Link>
   );
 }
 

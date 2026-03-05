@@ -87,6 +87,8 @@ export async function POST(request: NextRequest) {
       auth_issue?: boolean;
       categorias_sincronizadas: number;
       categorias_desativadas?: number;
+      categorias_desativadas_stale?: number;
+      categorias_desativadas_excluidas?: number;
       total_categorias_mercos?: number;
     }> = [];
 
@@ -155,6 +157,15 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString()
           }));
 
+        const { data: categoriasExistentes, error: existingError } = await supabaseAdmin
+          .from('distribuidor_categories')
+          .select('id, mercos_id, ativo')
+          .eq('distribuidor_id', id);
+
+        if (existingError) {
+          throw new Error(`Erro ao carregar categorias existentes: ${existingError.message}`);
+        }
+
         if (categoriasParaUpsert.length > 0) {
           const { error: upsertError } = await supabaseAdmin
             .from('distribuidor_categories')
@@ -167,17 +178,47 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Marcar categorias excluídas como inativas
-        const categoriasExcluidas = allCategorias
-          .filter(c => c.excluido)
-          .map(c => c.id);
+        // Desativar:
+        // 1) categorias excluídas pela Mercos
+        // 2) categorias antigas locais que não vieram mais na lista ativa da Mercos
+        const mercosIdsAtivos = new Set<number>(
+          categoriasParaUpsert.map((c) => Number(c.mercos_id)).filter((v) => Number.isFinite(v))
+        );
+        const mercosIdsExcluidos = new Set<number>(
+          allCategorias
+            .filter((c) => c.excluido)
+            .map((c) => Number(c.id))
+            .filter((v) => Number.isFinite(v))
+        );
 
-        if (categoriasExcluidas.length > 0) {
-          await supabaseAdmin
+        const staleIds = new Set<string>();
+        const excludedIds = new Set<string>();
+
+        for (const row of categoriasExistentes || []) {
+          if (!row?.id || row.ativo !== true) continue;
+          const mercosId = Number(row.mercos_id);
+
+          if (mercosIdsExcluidos.has(mercosId)) {
+            excludedIds.add(row.id as string);
+            continue;
+          }
+
+          if (!mercosIdsAtivos.has(mercosId)) {
+            staleIds.add(row.id as string);
+          }
+        }
+
+        const idsParaDesativar = Array.from(new Set([...staleIds, ...excludedIds]));
+
+        if (idsParaDesativar.length > 0) {
+          const { error: deactivateError } = await supabaseAdmin
             .from('distribuidor_categories')
             .update({ ativo: false, updated_at: new Date().toISOString() })
-            .eq('distribuidor_id', id)
-            .in('mercos_id', categoriasExcluidas);
+            .in('id', idsParaDesativar);
+
+          if (deactivateError) {
+            throw new Error(`Erro ao desativar categorias antigas/excluídas: ${deactivateError.message}`);
+          }
         }
 
         results.push({
@@ -185,7 +226,9 @@ export async function POST(request: NextRequest) {
           distribuidor_nome: nome,
           success: true,
           categorias_sincronizadas: categoriasParaUpsert.length,
-          categorias_desativadas: categoriasExcluidas.length,
+          categorias_desativadas: idsParaDesativar.length,
+          categorias_desativadas_stale: staleIds.size,
+          categorias_desativadas_excluidas: excludedIds.size,
           total_categorias_mercos: allCategorias.length
         });
 

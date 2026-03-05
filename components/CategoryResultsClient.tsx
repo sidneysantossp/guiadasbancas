@@ -12,7 +12,7 @@ import { useToast } from "@/components/ToastProvider";
 import { shippingConfig } from "@/components/shippingConfig";
 import CategoryCarousel from "@/components/CategoryCarousel";
 
-const CATEGORY_GROUPS: Record<string, string[]> = {
+const FALLBACK_CATEGORY_GROUPS: Record<string, string[]> = {
   Panini: [
     "Colecionáveis",
     "Conan",
@@ -75,6 +75,31 @@ const CATEGORY_GROUPS: Record<string, string[]> = {
     "Tabacos Importados",
     "Trituradores",
   ],
+};
+
+type SidebarMenuNode = {
+  name: string;
+  subcategories: string[];
+  order?: number;
+};
+
+const HIDDEN_TOP_DUPLICATE_CATEGORIES = new Set(
+  ["50", "60"].map((value) =>
+    value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+  )
+);
+
+const isHiddenTopDuplicateCategory = (name: string): boolean => {
+  const normalized = String(name || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+  return HIDDEN_TOP_DUPLICATE_CATEGORIES.has(normalized);
 };
 
 // Tipos para produtos e bancas (dados vêm do Supabase)
@@ -301,10 +326,11 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
   const [bancas, setBancas] = useState<Banca[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [sidebarMenuNodes, setSidebarMenuNodes] = useState<SidebarMenuNode[]>([]);
   
   // Paginação de produtos
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 50;
+  const ITEMS_PER_PAGE = 48;
 
   // Estado da categoria ativa e sanfonas
   const [activeCategory, setActiveCategory] = useState<string>('Todos');
@@ -319,10 +345,16 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
     });
   };
 
-  const knownSubcategories = useMemo(
-    () => Array.from(new Set(Object.values(CATEGORY_GROUPS).flat())),
-    []
+  const effectiveSidebarMenu = useMemo<SidebarMenuNode[]>(
+    () => sidebarMenuNodes,
+    [sidebarMenuNodes]
   );
+
+  const knownSubcategories = useMemo(() => {
+    const fromMenu = effectiveSidebarMenu.flatMap((node) => node.subcategories);
+    if (fromMenu.length > 0) return Array.from(new Set(fromMenu));
+    return Array.from(new Set(Object.values(FALLBACK_CATEGORY_GROUPS).flat()));
+  }, [effectiveSidebarMenu]);
 
   const resolveCategoryForItem = useCallback((item: any): string => {
     const explicitCategory =
@@ -365,15 +397,38 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
 
   // Separar categorias em grupos e avulsas
   const { groupedCategories, standaloneCategories } = useMemo(() => {
+    if (effectiveSidebarMenu.length > 0) {
+      const grouped: Record<string, string[]> = {};
+      const standalone: string[] = [];
+
+      for (const node of effectiveSidebarMenu) {
+        if (isHiddenTopDuplicateCategory(node.name)) continue;
+        const uniqueSubs = Array.from(
+          new Set(
+            (node.subcategories || [])
+              .map((sub) => String(sub || "").trim())
+              .filter(Boolean)
+          )
+        );
+        if (uniqueSubs.length > 0) {
+          grouped[node.name] = uniqueSubs;
+        } else {
+          standalone.push(node.name);
+        }
+      }
+
+      return { groupedCategories: grouped, standaloneCategories: standalone };
+    }
+
     const allSubcats = new Set<string>();
-    const groupNames = new Set(Object.keys(CATEGORY_GROUPS));
-    Object.values(CATEGORY_GROUPS).forEach(subs => subs.forEach(s => allSubcats.add(s)));
+    const groupNames = new Set(Object.keys(FALLBACK_CATEGORY_GROUPS));
+    Object.values(FALLBACK_CATEGORY_GROUPS).forEach(subs => subs.forEach(s => allSubcats.add(s)));
     
     const grouped: Record<string, string[]> = {};
     const standalone: string[] = [];
     
     // Para cada grupo, verificar quais subcategorias existem nos produtos
-    for (const [groupName, subcats] of Object.entries(CATEGORY_GROUPS)) {
+    for (const [groupName, subcats] of Object.entries(FALLBACK_CATEGORY_GROUPS)) {
       const existingSubs = subcats.filter(s => allCategories.includes(s));
       if (existingSubs.length > 0) {
         grouped[groupName] = existingSubs.sort((a, b) => a.localeCompare(b, 'pt-BR'));
@@ -388,7 +443,66 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
     }
     
     return { groupedCategories: grouped, standaloneCategories: standalone.sort((a, b) => a.localeCompare(b, 'pt-BR')) };
-  }, [allCategories]);
+  }, [allCategories, effectiveSidebarMenu]);
+
+  const orderedSidebarItems = useMemo(() => {
+    const groupedMap = new Map<string, string[]>(Object.entries(groupedCategories));
+    const standaloneSet = new Set(standaloneCategories);
+
+    if (effectiveSidebarMenu.length === 0) {
+      return [
+        ...Array.from(groupedMap.entries()).map(([name, subcats]) => ({ type: "group" as const, name, subcats })),
+        ...standaloneCategories.map((name) => ({ type: "standalone" as const, name })),
+      ];
+    }
+
+    const orderedItems: Array<
+      { type: "group"; name: string; subcats: string[] } | { type: "standalone"; name: string }
+    > = [];
+    const usedGroups = new Set<string>();
+    const usedStandalone = new Set<string>();
+
+    for (const node of effectiveSidebarMenu) {
+      const name = String(node.name || "").trim();
+      if (!name || isHiddenTopDuplicateCategory(name)) continue;
+
+      if (groupedMap.has(name) && !usedGroups.has(name)) {
+        usedGroups.add(name);
+        orderedItems.push({
+          type: "group",
+          name,
+          subcats: groupedMap.get(name) || [],
+        });
+        continue;
+      }
+
+      if (standaloneSet.has(name) && !usedStandalone.has(name)) {
+        usedStandalone.add(name);
+        orderedItems.push({ type: "standalone", name });
+      }
+    }
+
+    for (const [name, subcats] of groupedMap.entries()) {
+      if (!usedGroups.has(name)) {
+        orderedItems.push({ type: "group", name, subcats });
+      }
+    }
+
+    for (const name of standaloneCategories) {
+      if (!usedStandalone.has(name)) {
+        orderedItems.push({ type: "standalone", name });
+      }
+    }
+
+    return orderedItems;
+  }, [groupedCategories, standaloneCategories, effectiveSidebarMenu]);
+
+  const sidebarCategoryOptions = useMemo(() => {
+    const options = orderedSidebarItems.flatMap((item) =>
+      item.type === "group" ? item.subcats : [item.name]
+    );
+    return Array.from(new Set(options.map((name) => String(name || "").trim()).filter(Boolean)));
+  }, [orderedSidebarItems]);
 
   // Auto-abrir a sanfona da categoria buscada baseado no slug/sub, com match exato de slug
   useEffect(() => {
@@ -401,7 +515,7 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
       return;
     }
 
-    for (const [groupName, subcats] of Object.entries(CATEGORY_GROUPS)) {
+    for (const [groupName, subcats] of Object.entries(groupedCategories)) {
       if (slugify(groupName) === targetSlug) {
         setOpenAccordions(new Set([groupName]));
         setActiveCategory("Todos");
@@ -419,7 +533,7 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
     // Se não houver correspondência clara no agrupamento, não força filtro local.
     setOpenAccordions(new Set());
     setActiveCategory("Todos");
-  }, [slug, sub]);
+  }, [slug, sub, groupedCategories]);
 
   // Reset da página ao trocar de categoria
   useEffect(() => {
@@ -429,6 +543,52 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
   useEffect(() => {
     setMounted(true);
     setLoc(loadStoredLocation());
+  }, []);
+
+  useEffect(() => {
+    let mountedRef = true;
+
+    async function loadSidebarCategories() {
+      try {
+        const res = await fetch('/api/categories?menu_version=20260305-sidebar', { cache: 'no-store' });
+        if (!res.ok) return;
+
+        const json = await res.json();
+        const tree = Array.isArray(json?.tree) ? json.tree : [];
+        if (!mountedRef || tree.length === 0) return;
+
+        const mapped: SidebarMenuNode[] = tree
+          .map((root: any) => ({
+            name: String(root?.name || '').trim(),
+            subcategories: Array.from(
+              new Set(
+                (Array.isArray(root?.subcategories) ? root.subcategories : [])
+                  .map((subItem: any) => String(subItem?.name || '').trim())
+                  .filter(Boolean)
+              )
+            ),
+            order: typeof root?.order === "number" ? root.order : undefined,
+          }))
+          .filter((node: SidebarMenuNode) => node.name);
+
+        if (mapped.length > 0) {
+          mapped.sort((a, b) => {
+            const orderA = typeof a.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
+            const orderB = typeof b.order === "number" ? b.order : Number.MAX_SAFE_INTEGER;
+            if (orderA !== orderB) return orderA - orderB;
+            return a.name.localeCompare(b.name, "pt-BR");
+          });
+          setSidebarMenuNodes(mapped);
+        }
+      } catch {
+        // fallback estático
+      }
+    }
+
+    loadSidebarCategories();
+    return () => {
+      mountedRef = false;
+    };
   }, []);
 
   // Buscar produtos e bancas reais por categoria
@@ -594,7 +754,7 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
         } else {
           console.log('[CategoryResults] Categoria não encontrada - buscando por nome do slug');
           // Tentar buscar produtos pelo nome da categoria (slug)
-          const productsRes = await fetch(`/api/products/public?categoryName=${encodeURIComponent(slug)}&limit=100`);
+          const productsRes = await fetch(`/api/products/public?categoryName=${encodeURIComponent(slug)}&limit=500`);
           if (productsRes.ok) {
             const productsData = await productsRes.json();
             const productsArray = Array.isArray(productsData?.items) ? productsData.items : (Array.isArray(productsData?.data) ? productsData.data : []);
@@ -912,51 +1072,52 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
                       Todos os Produtos
                     </button>
 
-                    {/* Sanfonas de categorias agrupadas */}
-                    {Object.entries(groupedCategories).map(([groupName, subcats]) => (
-                      <div key={groupName} className="border-t border-gray-100 pt-2 mt-2">
-                        <button
-                          onClick={() => toggleAccordion(groupName)}
-                          className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
-                        >
-                          <span>{groupName}</span>
-                          <svg
-                            className={`w-4 h-4 transition-transform duration-200 ${openAccordions.has(groupName) ? 'rotate-180' : ''}`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        
-                        {/* Subcategorias */}
-                        <div className={`overflow-hidden transition-all duration-200 ${openAccordions.has(groupName) ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                          <div className="pl-3 space-y-0.5 mt-1">
-                            {subcats.map((name) => (
-                              <button
-                                key={name}
-                                onClick={() => setActiveCategory(name)}
-                                className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
-                                  activeCategory === name
-                                    ? 'bg-[#ff5c00] text-white font-medium'
-                                    : 'text-gray-600 hover:bg-gray-50'
-                                }`}
+                    {orderedSidebarItems.map((item, index) => {
+                      if (item.type === "group") {
+                        const groupName = item.name;
+                        const subcats = item.subcats;
+                        return (
+                          <div key={groupName} className={`border-t border-gray-100 pt-2 ${index > 0 ? "mt-2" : ""}`}>
+                            <button
+                              onClick={() => toggleAccordion(groupName)}
+                              className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+                            >
+                              <span>{groupName}</span>
+                              <svg
+                                className={`w-4 h-4 transition-transform duration-200 ${openAccordions.has(groupName) ? 'rotate-180' : ''}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
                               >
-                                {name}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
 
-                    {/* Categorias avulsas (não agrupadas) */}
-                    {standaloneCategories.length > 0 && (
-                      <div className="border-t border-gray-100 pt-2 mt-2">
-                        {standaloneCategories.map((name) => (
+                            <div className={`overflow-hidden transition-all duration-200 ${openAccordions.has(groupName) ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                              <div className="pl-3 space-y-0.5 mt-1">
+                                {subcats.map((name) => (
+                                  <button
+                                    key={name}
+                                    onClick={() => setActiveCategory(name)}
+                                    className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
+                                      activeCategory === name
+                                        ? 'bg-[#ff5c00] text-white font-medium'
+                                        : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {name}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      const name = item.name;
+                      return (
+                        <div key={name} className={`border-t border-gray-100 pt-2 ${index > 0 ? "mt-2" : ""}`}>
                           <button
-                            key={name}
                             onClick={() => setActiveCategory(name)}
                             className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
                               activeCategory === name
@@ -966,9 +1127,9 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
                           >
                             {name}
                           </button>
-                        ))}
-                      </div>
-                    )}
+                        </div>
+                      );
+                    })}
                   </nav>
                 </div>
 
@@ -1058,7 +1219,7 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
                   >
                     Todos
                   </button>
-                  {allCategories.map((cat) => (
+                  {(sidebarCategoryOptions.length > 0 ? sidebarCategoryOptions : allCategories).map((cat) => (
                     <button
                       key={cat}
                       onClick={() => setActiveCategory(cat)}
@@ -1086,7 +1247,7 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4">
                     {sortedProducts
                       .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
                       .map(({ p, km }) => (

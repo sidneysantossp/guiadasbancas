@@ -29,7 +29,7 @@ async function fetchBancas(): Promise<any[]> {
 }
 
 async function fetchProducts(query: string): Promise<any[]> {
-  return getSearchProducts(query, 20);
+  return getSearchProducts(query, 96);
 }
 
 export default async function BuscarPage({ searchParams }: { searchParams: SearchParams }) {

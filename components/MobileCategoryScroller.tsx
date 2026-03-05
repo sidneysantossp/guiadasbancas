@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { categories as fallbackCategories } from "@/components/categoriesData";
+import { sanitizePublicImageUrl } from "@/lib/sanitizePublicImageUrl";
 
 type PublicCategory = {
   id: string;
@@ -47,10 +48,10 @@ export default function MobileCategoryScroller({ initialCategories }: MobileCate
   // Normalize to a unified shape
   const baseItems = useMemo(() => {
     if (cats && cats.length > 0) {
-      return cats.map((c) => ({ key: c.id, name: c.name, image: c.image, link: c.link }));
+      return cats.map((c) => ({ key: c.id, name: c.name, image: sanitizePublicImageUrl(c.image), link: c.link }));
     }
     // fallback to static when API has nothing yet
-    return fallbackCategories.map((c, i) => ({ key: c.slug+':'+i, name: c.name, image: c.image || '', link: `/categorias?cat=${c.slug}` }));
+    return fallbackCategories.map((c, i) => ({ key: c.slug+':'+i, name: c.name, image: sanitizePublicImageUrl(c.image), link: `/categorias?cat=${c.slug}` }));
   }, [cats]);
 
   // Auto-scroll one card at a time with smooth behavior; wraps back to start
