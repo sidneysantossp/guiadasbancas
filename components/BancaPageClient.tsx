@@ -16,6 +16,7 @@ import { ui } from "@/lib/ui";
 import homeCategories from "@/data/categories.json";
 import { trackEvent } from "@/lib/useAnalytics";
 import { buildPublicProductPath } from "@/lib/product-url";
+import CatalogSidebar from "@/components/CatalogSidebar";
 import {
   DEFAULT_BANCA_ABOUT_TEMPLATE,
   renderBancaAboutTemplate,
@@ -953,6 +954,33 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     return orderedItems;
   }, [groupedCategories, standaloneCategories, dynamicOrderedCategories]);
 
+  const sidebarCardItems = useMemo(
+    () =>
+      orderedSidebarItems.map((item) => {
+        if (item.type === "group") {
+          return {
+            type: "group" as const,
+            label: item.name,
+            expanded: openAccordions.has(item.name),
+            onToggle: () => toggleAccordion(item.name),
+            children: item.subcats.map((name) => ({
+              label: name,
+              active: activeCategory === name,
+              onClick: () => setActiveCategory(name),
+            })),
+          };
+        }
+
+        return {
+          type: "standalone" as const,
+          label: item.name,
+          active: activeCategory === item.name,
+          onClick: () => setActiveCategory(item.name),
+        };
+      }),
+    [activeCategory, openAccordions, orderedSidebarItems]
+  );
+
   const hasCustomAboutDescription = useMemo(() => {
     return stripHtmlToText(banca?.description).length > 0;
   }, [banca?.description]);
@@ -1635,79 +1663,15 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         {/* Sidebar de Categorias */}
         <aside className="hidden lg:block w-64 flex-shrink-0">
           <div>
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Categorias</h3>
-              <nav className="space-y-1">
-                <button
-                  onClick={() => setActiveCategory('Todos')}
-                  className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
-                    activeCategory === 'Todos'
-                      ? 'bg-[#ff5c00] text-white font-medium'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Todos os Produtos
-                </button>
-
-                {orderedSidebarItems.map((item) => {
-                  if (item.type === "group") {
-                    const groupName = item.name;
-                    const subcats = item.subcats;
-                    return (
-                      <div key={groupName} className="border-b border-gray-100 pb-2 mb-2">
-                        <button
-                          onClick={() => toggleAccordion(groupName)}
-                          className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
-                        >
-                          <span>{groupName}</span>
-                          <svg
-                            className={`w-4 h-4 transition-transform duration-200 ${openAccordions.has(groupName) ? 'rotate-180' : ''}`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        
-                        <div className={`overflow-hidden transition-all duration-200 ${openAccordions.has(groupName) ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                          <div className="pl-3 space-y-1 mt-1">
-                            {subcats.map((name) => (
-                              <button
-                                key={name}
-                                onClick={() => setActiveCategory(name)}
-                                className={`w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${
-                                  activeCategory === name
-                                    ? 'bg-[#ff5c00] text-white font-medium'
-                                    : 'text-gray-600 hover:bg-gray-50'
-                                }`}
-                              >
-                                {name}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  const name = item.name;
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => setActiveCategory(name)}
-                      className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
-                        activeCategory === name
-                          ? 'bg-[#ff5c00] text-white font-medium'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      {name}
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
+            <CatalogSidebar
+              title="Categorias"
+              allItem={{
+                label: "Todos os Produtos",
+                active: activeCategory === "Todos",
+                onClick: () => setActiveCategory("Todos"),
+              }}
+              items={sidebarCardItems}
+            />
           </div>
         </aside>
 

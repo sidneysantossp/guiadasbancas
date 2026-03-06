@@ -11,6 +11,7 @@ import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import { shippingConfig } from "@/components/shippingConfig";
 import CategoryCarousel from "@/components/CategoryCarousel";
+import CatalogSidebar from "@/components/CatalogSidebar";
 
 const FALLBACK_CATEGORY_GROUPS: Record<string, string[]> = {
   Panini: [
@@ -77,9 +78,15 @@ const FALLBACK_CATEGORY_GROUPS: Record<string, string[]> = {
   ],
 };
 
+type SidebarMenuSubcategory = {
+  name: string;
+  href: string;
+};
+
 type SidebarMenuNode = {
   name: string;
-  subcategories: string[];
+  link: string;
+  subcategories: SidebarMenuSubcategory[];
   order?: number;
 };
 
@@ -201,6 +208,12 @@ const CATEGORY_ALIASES: Record<string, string> = {
 function canonicalCategory(value: string): string {
   const normalized = normalizeCategoryKey(value);
   return CATEGORY_ALIASES[normalized] || normalized;
+}
+
+function buildCategoryRoute(categoryName: string, subcategoryName?: string) {
+  const rootPath = `/categorias/${slugify(categoryName || "categoria")}`;
+  if (!subcategoryName) return rootPath;
+  return `${rootPath}?sub=${encodeURIComponent(slugify(subcategoryName))}`;
 }
 
 function ProductCard({ p, km }: { p: Product; km: number | null }) {
@@ -337,11 +350,9 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
   const [openAccordions, setOpenAccordions] = useState<Set<string>>(new Set());
 
   const toggleAccordion = (name: string) => {
-    setOpenAccordions(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
+    setOpenAccordions((prev) => {
+      if (prev.has(name)) return new Set();
+      return new Set([name]);
     });
   };
 
@@ -351,7 +362,9 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
   );
 
   const knownSubcategories = useMemo(() => {
-    const fromMenu = effectiveSidebarMenu.flatMap((node) => node.subcategories);
+    const fromMenu = effectiveSidebarMenu.flatMap((node) =>
+      node.subcategories.map((subcategory) => subcategory.name)
+    );
     if (fromMenu.length > 0) return Array.from(new Set(fromMenu));
     return Array.from(new Set(Object.values(FALLBACK_CATEGORY_GROUPS).flat()));
   }, [effectiveSidebarMenu]);
@@ -406,7 +419,7 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
         const uniqueSubs = Array.from(
           new Set(
             (node.subcategories || [])
-              .map((sub) => String(sub || "").trim())
+              .map((sub) => String(sub?.name || "").trim())
               .filter(Boolean)
           )
         );
@@ -451,13 +464,26 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
 
     if (effectiveSidebarMenu.length === 0) {
       return [
-        ...Array.from(groupedMap.entries()).map(([name, subcats]) => ({ type: "group" as const, name, subcats })),
-        ...standaloneCategories.map((name) => ({ type: "standalone" as const, name })),
+        ...Array.from(groupedMap.entries()).map(([name, subcats]) => ({
+          type: "group" as const,
+          name,
+          href: buildCategoryRoute(name),
+          subcats: subcats.map((subcat) => ({
+            name: subcat,
+            href: buildCategoryRoute(name, subcat),
+          })),
+        })),
+        ...standaloneCategories.map((name) => ({
+          type: "standalone" as const,
+          name,
+          href: buildCategoryRoute(name),
+        })),
       ];
     }
 
     const orderedItems: Array<
-      { type: "group"; name: string; subcats: string[] } | { type: "standalone"; name: string }
+      | { type: "group"; name: string; href: string; subcats: SidebarMenuSubcategory[] }
+      | { type: "standalone"; name: string; href: string }
     > = [];
     const usedGroups = new Set<string>();
     const usedStandalone = new Set<string>();
@@ -471,26 +497,35 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
         orderedItems.push({
           type: "group",
           name,
-          subcats: groupedMap.get(name) || [],
+          href: node.link || buildCategoryRoute(name),
+          subcats: node.subcategories || [],
         });
         continue;
       }
 
       if (standaloneSet.has(name) && !usedStandalone.has(name)) {
         usedStandalone.add(name);
-        orderedItems.push({ type: "standalone", name });
+        orderedItems.push({ type: "standalone", name, href: node.link || buildCategoryRoute(name) });
       }
     }
 
     for (const [name, subcats] of groupedMap.entries()) {
       if (!usedGroups.has(name)) {
-        orderedItems.push({ type: "group", name, subcats });
+        orderedItems.push({
+          type: "group",
+          name,
+          href: buildCategoryRoute(name),
+          subcats: subcats.map((subcat) => ({
+            name: subcat,
+            href: buildCategoryRoute(name, subcat),
+          })),
+        });
       }
     }
 
     for (const name of standaloneCategories) {
       if (!usedStandalone.has(name)) {
-        orderedItems.push({ type: "standalone", name });
+        orderedItems.push({ type: "standalone", name, href: buildCategoryRoute(name) });
       }
     }
 
@@ -499,9 +534,17 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
 
   const sidebarCategoryOptions = useMemo(() => {
     const options = orderedSidebarItems.flatMap((item) =>
-      item.type === "group" ? item.subcats : [item.name]
+      item.type === "group"
+        ? item.subcats.map((subcat) => ({ name: subcat.name, href: subcat.href }))
+        : [{ name: item.name, href: item.href }]
     );
-    return Array.from(new Set(options.map((name) => String(name || "").trim()).filter(Boolean)));
+    const unique = new Map<string, { name: string; href: string }>();
+    for (const option of options) {
+      const key = String(option.name || "").trim();
+      if (!key || unique.has(key)) continue;
+      unique.set(key, option);
+    }
+    return Array.from(unique.values());
   }, [orderedSidebarItems]);
 
   // Auto-abrir a sanfona da categoria buscada baseado no slug/sub, com match exato de slug
@@ -535,6 +578,42 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
     setActiveCategory("Todos");
   }, [slug, sub, groupedCategories]);
 
+  const currentRootHref = useMemo(() => {
+    const currentRoot = orderedSidebarItems.find(
+      (item) => slugify(item.name) === slugify(slug)
+    );
+    return currentRoot?.href || `/categorias/${slug}`;
+  }, [orderedSidebarItems, slug]);
+
+  const sidebarCardItems = useMemo(
+    () =>
+      orderedSidebarItems.map((item) => {
+        if (item.type === "group") {
+          return {
+            type: "group" as const,
+            label: item.name,
+            active: slugify(item.name) === slugify(slug),
+            href: item.href,
+            expanded: openAccordions.has(item.name),
+            onToggle: () => toggleAccordion(item.name),
+            children: item.subcats.map((subcat) => ({
+              label: subcat.name,
+              href: subcat.href,
+              active: slugify(subcat.name) === slugify(sub || ""),
+            })),
+          };
+        }
+
+        return {
+          type: "standalone" as const,
+          label: item.name,
+          href: item.href,
+          active: !sub && slugify(item.name) === slugify(slug),
+        };
+      }),
+    [openAccordions, orderedSidebarItems, slug, sub]
+  );
+
   // Reset da página ao trocar de categoria
   useEffect(() => {
     setCurrentPage(1);
@@ -560,12 +639,20 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
         const mapped: SidebarMenuNode[] = tree
           .map((root: any) => ({
             name: String(root?.name || '').trim(),
+            link: String(root?.link || buildCategoryRoute(String(root?.name || '').trim())),
             subcategories: Array.from(
-              new Set(
+              new Map(
                 (Array.isArray(root?.subcategories) ? root.subcategories : [])
-                  .map((subItem: any) => String(subItem?.name || '').trim())
-                  .filter(Boolean)
-              )
+                  .map((subItem: any) => {
+                    const subName = String(subItem?.name || '').trim();
+                    const subLink = String(
+                      subItem?.link || buildCategoryRoute(String(root?.name || '').trim(), subName)
+                    );
+                    if (!subName) return null;
+                    return [subName, { name: subName, href: subLink }];
+                  })
+                  .filter(Boolean) as Array<[string, SidebarMenuSubcategory]>
+              ).values()
             ),
             order: typeof root?.order === "number" ? root.order : undefined,
           }))
@@ -1055,83 +1142,21 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
             {/* Sidebar de Categorias - Menu em Sanfona */}
             <aside className="hidden lg:block">
               <div className="sticky top-4">
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Categorias</h3>
-                  <div className="text-xs text-gray-500 mb-3">Resultados: <span className="font-semibold text-gray-700">{sortedProducts.length}</span></div>
-                  
-                  <nav className="space-y-1">
-                    {/* Botão "Todos os Produtos" */}
-                    <button
-                      onClick={() => setActiveCategory('Todos')}
-                      className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
-                        activeCategory === 'Todos'
-                          ? 'bg-[#ff5c00] text-white font-medium'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      Todos os Produtos
-                    </button>
-
-                    {orderedSidebarItems.map((item, index) => {
-                      if (item.type === "group") {
-                        const groupName = item.name;
-                        const subcats = item.subcats;
-                        return (
-                          <div key={groupName} className={`border-t border-gray-100 pt-2 ${index > 0 ? "mt-2" : ""}`}>
-                            <button
-                              onClick={() => toggleAccordion(groupName)}
-                              className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
-                            >
-                              <span>{groupName}</span>
-                              <svg
-                                className={`w-4 h-4 transition-transform duration-200 ${openAccordions.has(groupName) ? 'rotate-180' : ''}`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </button>
-
-                            <div className={`overflow-hidden transition-all duration-200 ${openAccordions.has(groupName) ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                              <div className="pl-3 space-y-0.5 mt-1">
-                                {subcats.map((name) => (
-                                  <button
-                                    key={name}
-                                    onClick={() => setActiveCategory(name)}
-                                    className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
-                                      activeCategory === name
-                                        ? 'bg-[#ff5c00] text-white font-medium'
-                                        : 'text-gray-600 hover:bg-gray-50'
-                                    }`}
-                                  >
-                                    {name}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      const name = item.name;
-                      return (
-                        <div key={name} className={`border-t border-gray-100 pt-2 ${index > 0 ? "mt-2" : ""}`}>
-                          <button
-                            onClick={() => setActiveCategory(name)}
-                            className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors ${
-                              activeCategory === name
-                                ? 'bg-[#ff5c00] text-white font-medium'
-                                : 'text-gray-700 hover:bg-gray-50'
-                            }`}
-                          >
-                            {name}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </nav>
-                </div>
+                <CatalogSidebar
+                  title="Categorias"
+                  summary={
+                    <>
+                      Resultados:{" "}
+                      <span className="font-semibold text-gray-700">{sortedProducts.length}</span>
+                    </>
+                  }
+                  allItem={{
+                    label: "Todos os Produtos",
+                    href: currentRootHref,
+                    active: !sub,
+                  }}
+                  items={sidebarCardItems}
+                />
 
                 {/* Filtros adicionais abaixo do menu de categorias */}
                 <div className="bg-white rounded-xl border border-gray-200 p-4 mt-4">
@@ -1199,38 +1224,38 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
               <div className="lg:hidden mb-4 sticky top-[60px] z-40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-100 -mx-4 px-4 py-2 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs text-gray-500">Categorias ({sortedProducts.length} produtos)</div>
-                  {activeCategory !== 'Todos' && (
-                    <button 
-                      onClick={() => setActiveCategory('Todos')} 
-                      className="text-xs text-[#ff5c00] font-medium hover:underline"
+                  {sub && (
+                    <Link
+                      href={currentRootHref as Route}
+                      className="text-xs font-medium text-[#ff5c00] hover:underline"
                     >
                       Limpar filtro
-                    </button>
+                    </Link>
                   )}
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                  <button
-                    onClick={() => setActiveCategory('Todos')}
+                  <Link
+                    href={currentRootHref as Route}
                     className={`whitespace-nowrap shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                      activeCategory === 'Todos'
+                      !sub
                         ? 'border-[#ff5c00] bg-[#ff5c00] text-white'
                         : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                     }`}
                   >
                     Todos
-                  </button>
-                  {(sidebarCategoryOptions.length > 0 ? sidebarCategoryOptions : allCategories).map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setActiveCategory(cat)}
+                  </Link>
+                  {sidebarCategoryOptions.map((cat) => (
+                    <Link
+                      key={cat.name}
+                      href={cat.href as Route}
                       className={`whitespace-nowrap shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                        activeCategory === cat
+                        slugify(cat.name) === slugify(sub || slug)
                           ? 'border-[#ff5c00] bg-[#ff5c00] text-white'
                           : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                       }`}
                     >
-                      {cat}
-                    </button>
+                      {cat.name}
+                    </Link>
                   ))}
                 </div>
               </div>
