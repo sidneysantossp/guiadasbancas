@@ -33,12 +33,12 @@ export default function RegistrarPage({ searchParams }: RegistrarPageProps) {
                 Escolha o cadastro
               </span>
               <h1 className="mt-5 text-3xl font-semibold leading-tight lg:text-4xl">
-                Como voce quer usar o Guia das Bancas?
+                Como você quer usar o Guia das Bancas?
               </h1>
               <p className="mt-4 text-sm leading-6 text-white/75 lg:text-base">
-                O cadastro de usuario e o cadastro de jornaleiro sao fluxos
-                diferentes. Escolha a opcao correta antes de continuar para
-                evitar bloqueio de e-mail e confusao na aprovacao da banca.
+                O cadastro de usuário e o cadastro de jornaleiro são fluxos
+                diferentes. Escolha a opção correta antes de continuar para
+                evitar bloqueio de e-mail e confusão na aprovação da banca.
               </p>
             </div>
             <div className="mt-8 space-y-3 text-sm text-white/80">
@@ -47,7 +47,7 @@ export default function RegistrarPage({ searchParams }: RegistrarPageProps) {
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                 Jornaleiro: para cadastrar banca, enviar dados e aguardar
-                aprovacao.
+                aprovação.
               </div>
             </div>
           </div>
@@ -61,7 +61,7 @@ export default function RegistrarPage({ searchParams }: RegistrarPageProps) {
                 </svg>
               </div>
               <h2 className="mt-5 text-2xl font-semibold text-gray-900">
-                Sou usuario
+                Sou usuário
               </h2>
               <p className="mt-3 text-sm leading-6 text-gray-600">
                 Quero criar uma conta para comprar produtos, salvar favoritos e
@@ -71,7 +71,7 @@ export default function RegistrarPage({ searchParams }: RegistrarPageProps) {
                 href={clienteHref}
                 className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#ff5c00] px-4 py-3.5 text-sm font-semibold text-white transition-opacity hover:opacity-95"
               >
-                Continuar como usuario
+                Continuar como usuário
               </Link>
             </div>
 
@@ -88,7 +88,7 @@ export default function RegistrarPage({ searchParams }: RegistrarPageProps) {
                 Sou jornaleiro
               </h2>
               <p className="mt-3 text-sm leading-6 text-gray-600">
-                Quero cadastrar minha banca, preencher os dados do negocio e
+                Quero cadastrar minha banca, preencher os dados do negócio e
                 seguir para o onboarding correto.
               </p>
               <Link
@@ -100,7 +100,7 @@ export default function RegistrarPage({ searchParams }: RegistrarPageProps) {
             </div>
 
             <p className="px-2 text-center text-sm text-gray-500">
-              Ja tem conta?{" "}
+              Já tem conta?{" "}
               <Link href={("/entrar" as Route)} className="font-medium text-[#ff5c00] hover:text-[#e65300]">
                 Fazer login
               </Link>

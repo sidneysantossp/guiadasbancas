@@ -273,6 +273,63 @@ export default function JornaleiroPedidosPage() {
     return s.replace(/_/g, ' ');
   };
 
+  const renderOrderActions = (row: Order) => (
+    <div className="flex items-center gap-1.5">
+      <Link
+        href={`/jornaleiro/pedidos/${row.id}`}
+        className="flex h-10 w-10 items-center justify-center rounded-md text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-800"
+        title="Ver detalhes"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+      </Link>
+      <button
+        onClick={() => advanceStatus(row.id)}
+        className="flex h-10 w-10 items-center justify-center rounded-md text-green-600 transition-colors hover:bg-green-50 hover:text-green-800 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+        disabled={row.status === 'entregue' || row.status === 'cancelado'}
+        title="Avançar status"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+        </svg>
+      </button>
+      <button
+        onClick={() => {
+          if (!row.customer_phone) {
+            alert('Este pedido não tem telefone cadastrado.');
+            return;
+          }
+          const message = `Olá ${row.customer_name}! Sobre seu pedido #${row.id}`;
+          const phone = (row.customer_phone || '').replace(/\D/g, '').replace(/^55/, '');
+          const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
+          window.open(url, '_blank');
+        }}
+        className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${row.customer_phone ? 'text-green-600 hover:bg-green-50 hover:text-green-800' : 'cursor-not-allowed text-gray-400'}`}
+        title={row.customer_phone ? "Enviar WhatsApp" : "Sem telefone cadastrado"}
+      >
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.787"/>
+        </svg>
+      </button>
+      {(row.status === 'confirmado' || row.status === 'entregue') && (
+        <button
+          onClick={() => {
+            const receiptUrl = `/jornaleiro/pedidos/${row.id}/comprovante`;
+            window.open(receiptUrl, '_blank');
+          }}
+          className="flex h-10 w-10 items-center justify-center rounded-md text-orange-600 transition-colors hover:bg-orange-50 hover:text-orange-800"
+          title="Gerar comprovante"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+
   // NOTA: Coluna de ID foi removida - não aparece mais na tabela
   const columns: Column<Order>[] = [
     { 
@@ -376,7 +433,7 @@ export default function JornaleiroPedidosPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">Pedidos</h1>
-        <div className="flex items-center justify-between">
+        <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-gray-600">Gerencie os pedidos recebidos pela sua banca.</p>
           <div className="text-sm text-gray-500">
             Total: {pagination.total} pedidos
@@ -473,76 +530,96 @@ export default function JornaleiroPedidosPage() {
 
       {loading && <div className="p-4 text-sm text-gray-500">Carregando...</div>}
 
-      <DataTable
-        columns={columns}
-        data={filtered}
-        getId={(row) => row.id}
-        renderActions={(row) => (
-          <div className="flex items-center gap-1">
-            <Link
-              href={`/jornaleiro/pedidos/${row.id}`}
-              className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
-              title="Ver detalhes"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-            </Link>
-            <button
-              onClick={() => advanceStatus(row.id)}
-              className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-              disabled={row.status === 'entregue' || row.status === 'cancelado'}
-              title="Avançar status"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </button>
-            <button
-              onClick={() => {
-                if (!row.customer_phone) {
-                  alert('Este pedido não tem telefone cadastrado.');
-                  return;
-                }
-                const message = `Olá ${row.customer_name}! Sobre seu pedido #${row.id}`;
-                const phone = (row.customer_phone || '').replace(/\D/g, '').replace(/^55/, '');
-                const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
-                window.open(url, '_blank');
-              }}
-              className={`p-2 rounded-md transition-colors ${row.customer_phone ? 'text-green-600 hover:text-green-800 hover:bg-green-50' : 'text-gray-400 cursor-not-allowed'}`}
-              title={row.customer_phone ? "Enviar WhatsApp" : "Sem telefone cadastrado"}
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.787"/>
-              </svg>
-            </button>
-            {(row.status === 'confirmado' || row.status === 'entregue') && (
-              <button
-                onClick={() => {
-                  // Abrir página dedicada do comprovante
-                  const receiptUrl = `/jornaleiro/pedidos/${row.id}/comprovante`;
-                  window.open(receiptUrl, '_blank');
-                }}
-                className="p-2 text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded-md transition-colors"
-                title="Gerar comprovante"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </button>
-            )}
+      <div className="sm:hidden space-y-3">
+        {filtered.map((row) => (
+          <div key={row.id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-medium text-gray-900">{row.customer_name}</div>
+                <div className="mt-1 break-all text-xs text-gray-500">#{row.id}</div>
+              </div>
+              <StatusBadge label={statusLabel(row.status)} tone={statusTone(row.status)} />
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-md bg-gray-50 p-3">
+                <div className="text-[11px] uppercase tracking-wide text-gray-500">Criado</div>
+                <div className="mt-1 text-gray-800">{formatDate(row.created_at)}</div>
+              </div>
+              <div className="rounded-md bg-gray-50 p-3">
+                <div className="text-[11px] uppercase tracking-wide text-gray-500">Total</div>
+                <div className="mt-1 font-semibold text-gray-900">R$ {Number(row.total || 0).toFixed(2)}</div>
+              </div>
+              <div className="rounded-md bg-gray-50 p-3">
+                <div className="text-[11px] uppercase tracking-wide text-gray-500">Pagamento</div>
+                <div className="mt-1 text-gray-800">{getPaymentMethodLabel(row.payment_method)}</div>
+              </div>
+              <div className="rounded-md bg-gray-50 p-3">
+                <div className="text-[11px] uppercase tracking-wide text-gray-500">Produtos</div>
+                <div className="mt-1 text-gray-800">{row.items.length} item(ns)</div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-md border border-gray-200 p-3">
+              <div className="space-y-2">
+                {row.items.slice(0, 2).map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    {item.product_image ? (
+                      <Image
+                        src={item.product_image}
+                        alt={item.product_name}
+                        width={28}
+                        height={28}
+                        className="h-7 w-7 rounded object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded bg-gray-200">
+                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1 text-sm text-gray-700">
+                      <span className="font-medium">{item.quantity}x</span> <span className="break-words">{item.product_name}</span>
+                    </div>
+                  </div>
+                ))}
+                {row.items.length > 2 && (
+                  <div className="text-xs font-medium text-gray-500">
+                    +{row.items.length - 2} produto{row.items.length - 2 > 1 ? 's' : ''}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+              <span>{row.customer_phone || 'Sem telefone cadastrado'}</span>
+              {row.shipping_fee > 0 && <span>Frete: R$ {row.shipping_fee.toFixed(2)}</span>}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+              {renderOrderActions(row)}
+            </div>
           </div>
-        )}
-      />
+        ))}
+      </div>
+
+      <div className="hidden sm:block">
+        <DataTable
+          columns={columns}
+          data={filtered}
+          getId={(row) => row.id}
+          renderActions={renderOrderActions}
+        />
+      </div>
       
       {/* Paginação */}
       {pagination.pages > 1 && (
-        <div className="flex items-center justify-between mt-4">
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-gray-600">
             Mostrando {rows.length} de {pagination.total} pedidos
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => fetchRows(pagination.page - 1)}
               disabled={pagination.page <= 1}

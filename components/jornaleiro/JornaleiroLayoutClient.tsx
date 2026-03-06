@@ -7,9 +7,9 @@ import Image from "next/image";
 import type { Route } from "next";
 import ToastProvider from "@/components/admin/ToastProvider";
 import NotificationCenter from "@/components/admin/NotificationCenter";
+import DashboardOfficialLogo from "@/components/dashboard/DashboardOfficialLogo";
 import { useAuth } from "@/lib/auth/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { Hedvig_Letters_Serif } from "next/font/google";
 import { QueryProvider } from "@/app/providers/QueryProvider";
 import { buildBancaHref } from "@/lib/slug";
 import {
@@ -28,13 +28,6 @@ import {
   IconBell,
   IconCreditCard,
 } from "@tabler/icons-react";
-
-const hedvig = Hedvig_Letters_Serif({
-  subsets: ["latin"],
-  display: "swap",
-  adjustFontFallback: false,
-  fallback: ["serif"],
-});
 
 const journaleiroIconComponents = {
   dashboard: IconLayoutDashboard,
@@ -109,6 +102,13 @@ const JOURNALEIRO_MENU: JournaleiroMenuItem[] = [
   { label: "Configurações", href: "/jornaleiro/configuracoes" as Route, icon: "settings" },
 ];
 
+const MOBILE_QUICK_LINKS = [
+  { key: "home", label: "Home", menuLabel: "Dashboard", href: "/jornaleiro/dashboard" as Route, icon: "home" as JournaleiroIconKey },
+  { key: "products", label: "Produtos", menuLabel: "Produtos", href: "/jornaleiro/produtos" as Route, icon: "products" as JournaleiroIconKey },
+  { key: "orders", label: "Pedidos", menuLabel: "Pedidos", href: "/jornaleiro/pedidos" as Route, icon: "orders" as JournaleiroIconKey },
+  { key: "distributors", label: "Distrib.", menuLabel: "Distribuidores", href: "/jornaleiro/distribuidores" as Route, icon: "distributors" as JournaleiroIconKey },
+] as const;
+
 interface SellerSession {
   seller?: {
     id?: string;
@@ -125,7 +125,6 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarSections, setSidebarSections] = useState<Record<string, boolean>>({});
   const [session, setSession] = useState<SellerSession | null>(null);
-  const [branding, setBranding] = useState<{ logoUrl?: string; logoAlt?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [banca, setBanca] = useState<any>(null);
   const [bancaValidated, setBancaValidated] = useState(false);
@@ -313,6 +312,24 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     console.log("[FilteredMenu] Menu filtrado:", filtered.map(i => i.label));
     return filtered;
   }, [permissionsLoaded, isOwner, userPermissions, banca?.is_cotista, plansMenuEnabled]);
+
+  const mobileQuickLinks = useMemo(() => {
+    return MOBILE_QUICK_LINKS.flatMap((shortcut) => {
+      const menuItem = filteredMenu.find((item) => item.label === shortcut.menuLabel);
+
+      if (!menuItem || menuItem.disabled) {
+        return [];
+      }
+
+      const href = "children" in menuItem ? menuItem.children[0]?.href : menuItem.href;
+
+      if (!href) {
+        return [];
+      }
+
+      return [{ ...shortcut, href }];
+    });
+  }, [filteredMenu]);
 
   // IMPORTANTE: TODOS os hooks devem vir ANTES de qualquer return condicional!
   // Isso evita o erro React #310 "Rendered fewer hooks than during the previous render"
@@ -625,34 +642,6 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
 
   // Removido - banca já é carregada na validação de segurança
 
-  // Carregar branding (com cache)
-  useEffect(() => {
-    const loadBranding = async () => {
-      // Cache em sessionStorage
-      const cached = sessionStorage.getItem('gb:branding');
-      if (cached) {
-        try {
-          setBranding(JSON.parse(cached));
-          return;
-        } catch {}
-      }
-
-      try {
-        const response = await fetch('/api/admin/branding', { 
-          next: { revalidate: 3600 } // Cache de 1 hora
-        });
-        const result = await response.json();
-        if (result.success && result.data) {
-          setBranding(result.data);
-          sessionStorage.setItem('gb:branding', JSON.stringify(result.data));
-        }
-      } catch (error) {
-        console.error('Erro ao carregar branding:', error);
-      }
-    };
-    loadBranding();
-  }, []);
-
   // TODOS os hooks foram declarados acima. Agora podemos fazer returns condicionais.
   
   // Evitar erros de hydration: enquanto ainda não montou no client,
@@ -736,48 +725,13 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white border-b border-gray-200 shadow-sm">
           <div className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden p-2 rounded-md hover:bg-gray-100"
-                aria-label="Alternar menu"
-              >
-                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 6h18M3 12h18M3 18h18" />
-                </svg>
-              </button>
-
-              <Link href="/jornaleiro" className="flex items-center gap-2">
-                {mounted && branding?.logoUrl ? (
-                  <Image
-                    src={branding.logoUrl}
-                    alt={branding.logoAlt || "Logo"}
-                    width={120}
-                    height={40}
-                    className="h-8 w-auto object-contain"
-                  />
-                ) : (
-                  <>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      className="h-8 w-8 text-[#ff5c00]"
-                      fill="currentColor"
-                    >
-                      <rect x="3" y="4" width="18" height="16" rx="2" ry="2" opacity="0.15" />
-                      <rect x="6" y="7" width="12" height="2" rx="1" />
-                      <rect x="6" y="11" width="9" height="2" rx="1" />
-                      <rect x="6" y="15" width="6" height="2" rx="1" />
-                    </svg>
-                    <span className={`text-lg tracking-wide lowercase ${hedvig.className} text-black`}>
-                      <span className="font-bold text-[#ff5c00]">g</span>uia das bancas
-                    </span>
-                  </>
-                )}
+            <div className="flex items-center">
+              <Link href="/jornaleiro" className="flex items-center">
+                <DashboardOfficialLogo />
               </Link>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
               {/* Centro de Notificações */}
               <NotificationCenter />
               
@@ -787,11 +741,15 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
                   href={buildBancaHref(banca?.name || 'banca', banca.id, (banca as any)?.addressObj?.uf)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors text-gray-600 hover:text-[#ff5c00] hover:bg-orange-50"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl text-gray-600 transition-colors hover:bg-orange-50 hover:text-[#ff5c00] sm:h-auto sm:w-auto sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
                   title="Ver minha banca no site"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-1M14 6h4a2 2 0 012 2v4M7 14l3-3 3 3M14 10l3-3 3 3" />
+                  <svg className="h-6 w-6 shrink-0 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12h18" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3a15.3 15.3 0 014 9 15.3 15.3 0 01-4 9 15.3 15.3 0 01-4-9 15.3 15.3 0 014-9Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.5 7.5A15.8 15.8 0 0112 6c2.8 0 5.4.6 7.5 1.5" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.5 16.5A15.8 15.8 0 0112 18c2.8 0 5.4-.6 7.5-1.5" />
+                    <circle cx="12" cy="12" r="9" strokeWidth={2} />
                   </svg>
                   <span className="hidden sm:inline">Ver Banca</span>
                 </Link>
@@ -802,19 +760,19 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
                   href={buildBancaHref(banca?.name || 'banca', banca.id, (banca as any)?.addressObj?.uf)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                  className="hidden items-center gap-2 rounded-xl transition-opacity hover:opacity-80 lg:flex"
                   title="Ver perfil da banca no site"
                 >
                   {banca?.profile_image ? (
                     <Image
                       src={banca.profile_image}
                       alt={banca.name || sellerName}
-                      width={32}
-                      height={32}
-                      className="h-8 w-8 rounded-full object-cover"
+                      width={44}
+                      height={44}
+                      className="h-11 w-11 rounded-full object-cover sm:h-10 sm:w-10"
                     />
                   ) : (
-                    <div className="h-8 w-8 rounded-full bg-[#ff5c00] text-white grid place-items-center text-sm font-semibold">
+                    <div className="grid h-11 w-11 place-items-center rounded-full bg-[#ff5c00] text-sm font-semibold text-white sm:h-10 sm:w-10">
                       {banca?.name ? banca.name.charAt(0).toUpperCase() : sellerName?.charAt(0)?.toUpperCase() || "B"}
                     </div>
                   )}
@@ -824,8 +782,8 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
                   </div>
                 </Link>
               ) : (
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-[#ff5c00] text-white grid place-items-center text-sm font-semibold">
+                <div className="hidden items-center gap-2 lg:flex">
+                  <div className="grid h-11 w-11 place-items-center rounded-full bg-[#ff5c00] text-sm font-semibold text-white sm:h-10 sm:w-10">
                     {sellerName?.charAt(0)?.toUpperCase() || "B"}
                   </div>
                   <div className="hidden sm:block">
@@ -834,15 +792,14 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
                   </div>
                 </div>
               )}
+
               <button
-                onClick={logout}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
-                title="Sair"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="flex h-11 w-11 items-center justify-center rounded-xl text-gray-700 transition-colors hover:bg-gray-100 lg:hidden"
+                aria-label="Alternar menu"
               >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16,17 21,12 16,7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18M3 12h18M3 18h18" />
                 </svg>
               </button>
             </div>
@@ -853,99 +810,142 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
           <aside
             className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-60 bg-[#334257] border-r border-gray-200 transition-transform duration-300 ease-in-out`}
           >
-            <nav className="p-4 space-y-4 text-gray-100">
-              {filteredMenu.map((item) => {
-                const IconComponent = journaleiroIconComponents[item.icon];
-                const icon = <IconComponent size={20} stroke={1.7} />;
+            <div className="flex h-full flex-col">
+              <div className="border-b border-white/10 p-4 lg:hidden">
+                <div className="flex items-center gap-3 rounded-xl bg-white/10 px-3 py-3 text-white">
+                  {banca?.profile_image ? (
+                    <Image
+                      src={banca.profile_image}
+                      alt={banca?.name || sellerName}
+                      width={44}
+                      height={44}
+                      className="h-11 w-11 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="grid h-11 w-11 place-items-center rounded-full bg-[#ff5c00] text-sm font-semibold text-white">
+                      {banca?.name ? banca.name.charAt(0).toUpperCase() : sellerName?.charAt(0)?.toUpperCase() || "B"}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="text-[11px] uppercase tracking-[0.12em] text-white/60">Jornaleiro</div>
+                    <div className="truncate text-sm font-semibold">{sellerName}</div>
+                    <div className="truncate text-xs text-white/70">{banca?.name || sellerEmail}</div>
+                  </div>
+                </div>
+              </div>
 
-                const isGroup = "children" in item;
+              <nav className="flex-1 p-4 space-y-4 text-gray-100">
+                {filteredMenu.map((item) => {
+                  const IconComponent = journaleiroIconComponents[item.icon];
+                  const icon = <IconComponent size={20} stroke={1.7} />;
 
-                if (isGroup) {
-                  const isCollaborator = (profile as any)?.jornaleiro_access_level === "collaborator";
-                  const children = isCollaborator
-                    ? item.children.filter((c) => c.href !== ("/jornaleiro/bancas/nova" as Route))
-                    : item.children;
+                  const isGroup = "children" in item;
 
-                  const childActive = children.some((c) => pathname === c.href || pathname?.startsWith(`${c.href}/`));
-                  const open = sidebarSections[item.label] ?? childActive;
-                  const groupClasses = item.disabled
+                  if (isGroup) {
+                    const isCollaborator = (profile as any)?.jornaleiro_access_level === "collaborator";
+                    const children = isCollaborator
+                      ? item.children.filter((c) => c.href !== ("/jornaleiro/bancas/nova" as Route))
+                      : item.children;
+
+                    const childActive = children.some((c) => pathname === c.href || pathname?.startsWith(`${c.href}/`));
+                    const open = sidebarSections[item.label] ?? childActive;
+                    const groupClasses = item.disabled
+                      ? "flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-300 bg-white/5 cursor-not-allowed"
+                      : `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          childActive ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm" : "text-gray-100 hover:bg-white/10 hover:text-white"
+                        }`;
+
+                    return (
+                      <div key={item.label} className="space-y-1">
+                        <button
+                          type="button"
+                          disabled={item.disabled}
+                          onClick={() => setSidebarSections((prev) => ({ ...prev, [item.label]: !(prev[item.label] ?? childActive) }))}
+                          className={`${groupClasses} w-full`}
+                        >
+                          {icon}
+                          {item.label}
+                          <span className="ml-auto inline-flex items-center">
+                            <svg
+                              viewBox="0 0 24 24"
+                              className={`h-4 w-4 transition-transform ${open ? "rotate-180" : "rotate-0"}`}
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              aria-hidden
+                            >
+                              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </span>
+                        </button>
+
+                        {open && !item.disabled && (
+                          <div className="pl-9 space-y-1">
+                            {children.map((c) => {
+                              const isActive = pathname === c.href || pathname?.startsWith(`${c.href}/`);
+                              return (
+                                <Link
+                                  key={c.href}
+                                  href={c.href}
+                                  onClick={() => setSidebarOpen(false)}
+                                  className={`block rounded-md px-3 py-2 text-sm transition-colors ${
+                                    isActive ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/10 hover:text-white"
+                                  }`}
+                                >
+                                  {c.label}
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
+                  const classes = item.disabled
                     ? "flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-300 bg-white/5 cursor-not-allowed"
                     : `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        childActive ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm" : "text-gray-100 hover:bg-white/10 hover:text-white"
+                        isActive ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm" : "text-gray-100 hover:bg-white/10 hover:text-white"
                       }`;
 
-                  return (
-                    <div key={item.label} className="space-y-1">
-                      <button
-                        type="button"
-                        disabled={item.disabled}
-                        onClick={() => setSidebarSections((prev) => ({ ...prev, [item.label]: !(prev[item.label] ?? childActive) }))}
-                        className={`${groupClasses} w-full`}
-                      >
+                  if (item.disabled) {
+                    return (
+                      <span key={item.href} className={classes}>
                         {icon}
                         {item.label}
-                        <span className="ml-auto inline-flex items-center">
-                          <svg
-                            viewBox="0 0 24 24"
-                            className={`h-4 w-4 transition-transform ${open ? "rotate-180" : "rotate-0"}`}
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            aria-hidden
-                          >
-                            <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </span>
-                      </button>
+                        <span className="ml-auto text-xs text-gray-400">Em breve</span>
+                      </span>
+                    );
+                  }
 
-                      {open && !item.disabled && (
-                        <div className="pl-9 space-y-1">
-                          {children.map((c) => {
-                            const isActive = pathname === c.href || pathname?.startsWith(`${c.href}/`);
-                            return (
-                              <Link
-                                key={c.href}
-                                href={c.href}
-                                onClick={() => setSidebarOpen(false)}
-                                className={`block rounded-md px-3 py-2 text-sm transition-colors ${
-                                  isActive ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/10 hover:text-white"
-                                }`}
-                              >
-                                {c.label}
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-
-                const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
-                const classes = item.disabled
-                  ? "flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-300 bg-white/5 cursor-not-allowed"
-                  : `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm" : "text-gray-100 hover:bg-white/10 hover:text-white"
-                    }`;
-
-                if (item.disabled) {
                   return (
-                    <span key={item.href} className={classes}>
+                    <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)} className={classes}>
                       {icon}
                       {item.label}
-                      <span className="ml-auto text-xs text-gray-400">Em breve</span>
-                    </span>
+                    </Link>
                   );
-                }
+                })}
+              </nav>
 
-                return (
-                  <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)} className={classes}>
-                    {icon}
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
+              <div className="border-t border-white/10 p-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    logout();
+                  }}
+                  className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-100 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16,17 21,12 16,7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                  Sair
+                </button>
+              </div>
+            </div>
           </aside>
 
           {sidebarOpen && (
@@ -956,13 +956,43 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
           )}
 
           <main className="flex-1 min-h-screen overflow-x-hidden">
-            <div className="p-6 max-w-full overflow-x-hidden">
+            <div className="max-w-full overflow-x-hidden px-3 py-4 pb-24 sm:p-6 lg:pb-6">
               <QueryProvider>
                 {children}
               </QueryProvider>
             </div>
           </main>
         </div>
+
+        {mobileQuickLinks.length > 0 && (
+          <nav
+            className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/95 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden"
+            aria-label="Atalhos principais do painel"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.5rem)" }}
+          >
+            <div className="mx-auto flex max-w-md items-center justify-around gap-2 px-3 pt-2">
+              {mobileQuickLinks.map((shortcut) => {
+                const IconComponent = journaleiroIconComponents[shortcut.icon];
+                const isActive = pathname === shortcut.href || pathname?.startsWith(`${shortcut.href}/`);
+
+                return (
+                  <Link
+                    key={shortcut.key}
+                    href={shortcut.href}
+                    className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium transition-colors ${
+                      isActive
+                        ? "bg-[#fff3ec] text-[#ff5c00]"
+                        : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
+                  >
+                    <IconComponent size={20} stroke={1.8} />
+                    <span className="truncate">{shortcut.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+        )}
       </div>
     </ToastProvider>
   );

@@ -4,9 +4,14 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession, signIn } from "next-auth/react";
+import type { Route } from "next";
 
 const DISTRIBUIDOR_AUTH_KEY = "gb:distribuidorAuth";
 const DISTRIBUIDOR_DATA_KEY = "gb:distribuidor";
+
+type EntrarPageClientProps = {
+  audience?: "cliente" | "distribuidor";
+};
 
 function resolveDashboardByRole(role?: string): string {
   if (role === "jornaleiro" || role === "seller") return "/jornaleiro/dashboard";
@@ -14,7 +19,7 @@ function resolveDashboardByRole(role?: string): string {
   return "/minha-conta";
 }
 
-function EntrarPageContent() {
+function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
@@ -31,11 +36,26 @@ function EntrarPageContent() {
   
   const fromCheckout = searchParams?.get('checkout') === 'true';
   const redirectParam = searchParams?.get('redirect');
-  const registerHref = redirectParam
-    ? `/registrar/cliente?redirect=${encodeURIComponent(redirectParam)}`
+  const callbackUrlParam = searchParams?.get('callbackUrl');
+  const redirectTarget = redirectParam || callbackUrlParam;
+  const registerHref = redirectTarget
+    ? `/registrar/cliente?redirect=${encodeURIComponent(redirectTarget)}`
     : fromCheckout
       ? "/registrar/cliente?redirect=/checkout"
       : "/registrar";
+  const chooseAccessHref = redirectTarget
+    ? `/entrar?redirect=${encodeURIComponent(redirectTarget)}`
+    : fromCheckout
+      ? "/entrar?checkout=true"
+      : "/entrar";
+  const title =
+    audience === "distribuidor"
+      ? "Entrar no portal do distribuidor"
+      : "Entrar na sua conta";
+  const description =
+    audience === "distribuidor"
+      ? "Acesse seu portal para continuar operando."
+      : "Acesse sua conta para continuar comprando";
 
   // Redirecionar se já está logado
   useEffect(() => {
@@ -49,8 +69,8 @@ function EntrarPageContent() {
       } catch {}
 
       // Cliente comum - respeitar redirect explicitamente
-      if (redirectParam) {
-        router.replace(redirectParam);
+      if (redirectTarget) {
+        router.replace(redirectTarget);
       } else if (fromCheckout) {
         router.replace("/checkout");
       } else {
@@ -69,7 +89,7 @@ function EntrarPageContent() {
         }
       } catch {}
     }
-  }, [status, session, router, redirectParam, fromCheckout]);
+  }, [status, session, router, redirectTarget, fromCheckout]);
 
   // Limpar dados antigos do localStorage ao carregar
   useEffect(() => {
@@ -80,6 +100,12 @@ function EntrarPageContent() {
       localStorage.removeItem("gb:userCreatedAt");
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (searchParams?.get("registered") === "true") {
+      setSuccessMessage("Conta criada com sucesso. Faça login para continuar.");
+    }
+  }, [searchParams]);
 
   async function handleRegister() {
     setError(null);
@@ -287,14 +313,8 @@ function EntrarPageContent() {
           </div>
 
           {/* Título */}
-          <h2 className="text-2xl font-bold text-gray-900 lg:text-3xl">
-            {mode === "login" ? "Entrar na sua conta" : "Criar sua conta"}
-          </h2>
-          <p className="mt-2 text-gray-600">
-            {mode === "login" 
-              ? "Acesse sua conta para continuar comprando" 
-              : "Preencha os dados para criar sua conta"}
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900 lg:text-3xl">{title}</h2>
+          <p className="mt-2 text-gray-600">{description}</p>
 
           {/* Mensagem de sucesso */}
           {successMessage && (
@@ -403,9 +423,13 @@ function EntrarPageContent() {
                   <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-[#ff7a1f] focus:ring-[#ff7a1f]" />
                   <span className="text-sm text-gray-600">Lembrar de mim</span>
                 </label>
-                <Link href="/esqueci-senha" className="text-sm font-medium text-[#00a6c0] hover:underline">
-                  Esqueci a Senha
-                </Link>
+                {audience === "cliente" ? (
+                  <Link href="/esqueci-senha" className="text-sm font-medium text-[#00a6c0] hover:underline">
+                    Esqueci a Senha
+                  </Link>
+                ) : (
+                  <span className="text-sm text-gray-400">Suporte via equipe comercial</span>
+                )}
               </div>
             )}
 
@@ -438,38 +462,57 @@ function EntrarPageContent() {
 
           {/* Alternar login/registro */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              {mode === "login" ? (
-                <>
-                  Não tem conta?{" "}
-                  <Link
-                    href={registerHref}
-                    className="font-semibold text-[#ff7a1f] hover:underline"
-                  >
-                    Escolha seu cadastro
-                  </Link>
-                </>
-              ) : (
-                <>
-                  Já tem conta?{" "}
-                  <button 
-                    onClick={() => { setMode("login"); setError(null); setSuccessMessage(null); }} 
-                    className="font-semibold text-[#ff7a1f] hover:underline"
-                    disabled={loading}
-                  >
-                    Entrar
-                  </button>
-                </>
-              )}
-            </p>
+            {audience === "cliente" ? (
+              <p className="text-sm text-gray-600">
+                {mode === "login" ? (
+                  <>
+                    Não tem conta?{" "}
+                    <Link
+                      href={registerHref as Route}
+                      className="font-semibold text-[#ff7a1f] hover:underline"
+                    >
+                      Escolha seu cadastro
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    Já tem conta?{" "}
+                    <button 
+                      onClick={() => { setMode("login"); setError(null); setSuccessMessage(null); }} 
+                      className="font-semibold text-[#ff7a1f] hover:underline"
+                      disabled={loading}
+                    >
+                      Entrar
+                    </button>
+                  </>
+                )}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-600">
+                Precisa acessar outra área?{" "}
+                <Link
+                  href={chooseAccessHref as Route}
+                  className="font-semibold text-[#ff7a1f] hover:underline"
+                >
+                  Escolha o tipo de acesso
+                </Link>
+              </p>
+            )}
           </div>
 
-          {/* Acesso unificado */}
-          <div className="mt-4 pt-4 border-t border-gray-200 text-center space-y-2">
-            <p className="text-sm text-gray-600">
-              Use este mesmo login para cliente, jornaleiro ou distribuidor.
-            </p>
-          </div>
+          {audience === "cliente" && (
+            <div className="mt-4 pt-4 border-t border-gray-200 text-center">
+              <p className="text-sm text-gray-600">
+                Vai acessar o painel da banca?{" "}
+                <Link
+                  href={chooseAccessHref as Route}
+                  className="font-semibold text-[#ff7a1f] hover:underline"
+                >
+                  Escolha outro tipo de acesso
+                </Link>
+              </p>
+            </div>
+          )}
 
           {/* Voltar */}
           <div className="mt-4 text-center">
@@ -483,7 +526,7 @@ function EntrarPageContent() {
   );
 }
 
-export default function EntrarPageClient() {
+export default function EntrarPageClient(props: EntrarPageClientProps) {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
@@ -493,7 +536,7 @@ export default function EntrarPageClient() {
         </div>
       </div>
     }>
-      <EntrarPageContent />
+      <EntrarPageContent {...props} />
     </Suspense>
   );
 }

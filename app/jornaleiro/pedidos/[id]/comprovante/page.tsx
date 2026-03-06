@@ -83,13 +83,13 @@ export default function ComprovanteOrderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-gray-50 px-3 py-4 sm:px-4 sm:py-8">
+      <div className="mx-auto max-w-2xl">
         {/* Header com botão voltar */}
-        <div className="mb-6 flex items-center gap-4">
+        <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:gap-4">
           <Link
             href={`/jornaleiro/pedidos/${params.id}`}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 transition-colors hover:bg-gray-50 sm:w-auto"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -99,7 +99,7 @@ export default function ComprovanteOrderPage() {
           
           <Link
             href="/jornaleiro/pedidos"
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 sm:w-auto"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -107,8 +107,8 @@ export default function ComprovanteOrderPage() {
             Todos os Pedidos
           </Link>
           
-          <div className="flex-1 text-center">
-            <h1 className="text-xl font-semibold text-gray-900">Comprovante do Pedido #{params.id}</h1>
+          <div className="min-w-0 flex-1 text-left sm:text-center">
+            <h1 className="break-words text-lg font-semibold text-gray-900 sm:text-xl">Comprovante do Pedido #{params.id}</h1>
           </div>
         </div>
 

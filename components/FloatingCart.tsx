@@ -19,7 +19,7 @@ export default function FloatingCart() {
     // Verificar autenticação via NextAuth
     if (status !== 'authenticated' || !session?.user) {
       // Redirecionar para login com mensagem
-      router.push('/entrar?redirect=/checkout');
+      router.push('/entrar/cliente?redirect=/checkout');
     } else {
       // Ir direto para checkout
       router.push('/checkout');

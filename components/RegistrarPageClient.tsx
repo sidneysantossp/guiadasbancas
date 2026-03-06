@@ -48,7 +48,7 @@ function RegisterPageContent() {
     } else {
       // Redirecionar para login com parâmetro redirect se existir
       const redirectQuery = redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : '';
-      router.push((`/entrar?registered=true${redirectQuery}` as Route));
+      router.push((`/entrar/cliente?registered=true${redirectQuery}` as Route));
     }
   };
 
@@ -193,7 +193,7 @@ function RegisterPageContent() {
           {/* Link para Login */}
           <div className="mt-6">
             <Link
-              href={("/entrar" as Route)}
+              href={("/entrar/cliente" as Route)}
               className="block w-full text-center px-4 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
             >
               Fazer Login

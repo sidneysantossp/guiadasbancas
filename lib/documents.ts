@@ -136,13 +136,13 @@ export function validateBrazilianDocument(value: string): string | undefined {
 
   if (!digits) return "Informe seu CPF ou CNPJ.";
   if (!type) {
-    return "CPF deve ter 11 digitos ou CNPJ deve ter 14 digitos.";
+    return "CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.";
   }
   if (type === "cpf" && !isValidCPF(digits)) {
-    return "CPF invalido. Verifique os digitos.";
+    return "CPF inválido. Verifique os dígitos.";
   }
   if (type === "cnpj" && !isValidCNPJ(digits)) {
-    return "CNPJ invalido. Verifique os digitos.";
+    return "CNPJ inválido. Verifique os dígitos.";
   }
 
   return undefined;

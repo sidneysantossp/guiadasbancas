@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import EntrarPageClient from "@/components/EntrarPageClient";
 
 export default function DistribuidorLoginPage() {
-  redirect("/entrar");
+  return <EntrarPageClient audience="distribuidor" />;
 }

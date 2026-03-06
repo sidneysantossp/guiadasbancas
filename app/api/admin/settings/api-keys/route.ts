@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('settings')
       .select('key, value')
-      .in('key', ['openai_api_key', 'gemini_api_key', 'deepseek_api_key']);
+      .in('key', ['openai_api_key', 'gemini_api_key', 'deepseek_api_key', 'groq_api_key', 'groq_model']);
 
     if (error) {
       console.error("Error fetching settings:", error);
@@ -26,6 +26,8 @@ export async function GET(request: NextRequest) {
       if (item.key === 'openai_api_key') keys.openai = item.value;
       if (item.key === 'gemini_api_key') keys.gemini = item.value;
       if (item.key === 'deepseek_api_key') keys.deepseek = item.value;
+      if (item.key === 'groq_api_key') keys.groq = item.value;
+      if (item.key === 'groq_model') keys.groqModel = item.value;
     });
 
     return NextResponse.json({ success: true, data: keys });
@@ -40,12 +42,14 @@ export async function POST(req: NextRequest) {
     if (authError) return authError;
 
     const body = await req.json();
-    const { openai, gemini, deepseek } = body;
+    const { openai, gemini, deepseek, groq, groqModel } = body;
 
     const upserts = [
       { key: 'openai_api_key', value: openai || '' },
       { key: 'gemini_api_key', value: gemini || '' },
-      { key: 'deepseek_api_key', value: deepseek || '' }
+      { key: 'deepseek_api_key', value: deepseek || '' },
+      { key: 'groq_api_key', value: groq || '' },
+      { key: 'groq_model', value: groqModel || 'llama-3.1-8b-instant' }
     ];
 
     const { error } = await supabaseAdmin

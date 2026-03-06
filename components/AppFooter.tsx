@@ -83,7 +83,7 @@ function normalizeFooterUrl(url: string): string {
   const raw = (url || "").trim();
   if (!raw) return raw;
   if (raw === "/jornaleiro/cadastro") return "/jornaleiro/registrar";
-  if (raw === "/jornaleiro" || raw === "/jornaleiro/login" || raw === "/distribuidor/login") return "/entrar";
+  if (raw === "/jornaleiro/login") return "/jornaleiro";
   return raw;
 }
 

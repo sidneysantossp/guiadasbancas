@@ -1,6 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+const DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant";
+
+async function loadAiSettings() {
+  const settingsMap = new Map<string, string>();
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("settings")
+      .select("key, value")
+      .in("key", ["openai_api_key", "groq_api_key", "groq_model"]);
+
+    if (!error) {
+      for (const item of data || []) {
+        settingsMap.set(item.key, item.value);
+      }
+    }
+  } catch (error) {
+    console.error("Erro ao buscar configurações de IA:", error);
+  }
+
+  const groqApiKey = process.env.GROQ_API_KEY || settingsMap.get("groq_api_key") || "";
+  const groqModel = process.env.GROQ_MODEL || settingsMap.get("groq_model") || DEFAULT_GROQ_MODEL;
+  const openAiApiKey = process.env.OPENAI_API_KEY || settingsMap.get("openai_api_key") || "";
+
+  return {
+    groqApiKey,
+    groqModel,
+    openAiApiKey,
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { productName, productDescription } = await req.json();
@@ -12,27 +43,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let apiKey = process.env.OPENAI_API_KEY;
-
-    // Tentar buscar do banco se não estiver no env
-    if (!apiKey) {
-      try {
-        const { data } = await supabaseAdmin
-          .from('settings')
-          .select('value')
-          .eq('key', 'openai_api_key')
-          .single();
-        if (data?.value) {
-          apiKey = data.value;
-        }
-      } catch (e) {
-        console.error("Erro ao buscar chave no banco:", e);
-      }
-    }
+    const { groqApiKey, groqModel, openAiApiKey } = await loadAiSettings();
+    const provider = groqApiKey ? "groq" : openAiApiKey ? "openai" : "none";
+    const apiKey = provider === "groq" ? groqApiKey : openAiApiKey;
+    const apiUrl =
+      provider === "groq"
+        ? "https://api.groq.com/openai/v1/chat/completions"
+        : "https://api.openai.com/v1/chat/completions";
+    const model = provider === "groq" ? groqModel : "gpt-3.5-turbo";
 
     // Se não tiver chave de API, retorna um texto simulado (ou erro, dependendo da preferência)
     if (!apiKey) {
-      console.warn("OPENAI_API_KEY não configurada. Retornando texto simulado.");
+      console.warn("Nenhuma chave de IA configurada. Retornando texto simulado.");
       
       const simulacao = `
         <p><strong>${productName}</strong> é a escolha ideal para quem busca qualidade e eficiência.</p>
@@ -53,15 +75,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Chamada à API da OpenAI
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-3.5-turbo", // ou gpt-4 se disponível
+        model,
         messages: [
           {
             role: "system",
@@ -79,8 +100,8 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("Erro na API da OpenAI:", errorData);
-      throw new Error(`Erro na OpenAI: ${errorData.error?.message || response.statusText}`);
+      console.error(`Erro na API da ${provider}:`, errorData);
+      throw new Error(`Erro na ${provider}: ${errorData.error?.message || response.statusText}`);
     }
 
     const data = await response.json();
@@ -88,7 +109,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      html: generatedText
+      html: generatedText,
+      provider,
+      model
     });
 
   } catch (error: any) {

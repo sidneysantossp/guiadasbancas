@@ -399,44 +399,46 @@ export default function OrderDetailsPage() {
     );
   }
 
+  const orderDisplayNumber = order.order_number || order.id.substring(0, 8);
+  const canPrintReceipt = order.status === 'entregue';
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center justify-between sm:justify-start gap-2">
-            <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
               <Link 
                 href="/jornaleiro/pedidos"
-                className="text-gray-500 hover:text-gray-700"
+                className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
               >
                 ← Voltar
               </Link>
               {/* Desktop: mostra título com número do pedido */}
-              <h1 className="hidden sm:block text-xl font-semibold">Pedido #{order.order_number || order.id.substring(0, 8)}</h1>
+              <h1 className="hidden break-words text-xl font-semibold sm:block">Pedido #{orderDisplayNumber}</h1>
               {/* Mobile: mostra título sem ID */}
-              <h1 className="sm:hidden text-xl font-semibold">Pedido</h1>
+              <h1 className="text-xl font-semibold sm:hidden">Pedido</h1>
             </div>
-            {/* Mobile: badge alinhado à direita do título */}
             <div className="sm:hidden">
               <StatusBadge label={statusLabel(order.status)} tone={statusTone(order.status)} />
             </div>
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-600">
             Criado em {formatDate(order.created_at)}
           </p>
           {/* Mobile: número do pedido abaixo da data */}
-          <p className="sm:hidden text-sm text-gray-500">#{order.order_number || order.id.substring(0, 8)}</p>
+          <p className="break-all text-sm text-gray-500 sm:hidden">#{orderDisplayNumber}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between xl:w-auto xl:flex-col xl:items-end">
           {/* Desktop: badge ao lado direito (ações) */}
           <div className="hidden sm:block">
             <StatusBadge label={statusLabel(order.status)} tone={statusTone(order.status)} />
           </div>
-          <div className="flex items-center gap-1">
+          <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
             <button
               onClick={openWhatsApp}
-              className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+              className="flex h-11 items-center justify-center rounded-md bg-green-600 text-white transition-colors hover:bg-green-700"
               title="Enviar WhatsApp"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -444,26 +446,26 @@ export default function OrderDetailsPage() {
               </svg>
             </button>
             <button
-              className={`p-2 rounded-md transition-colors ${
-                order.status === 'entregue' 
+              className={`flex h-11 items-center justify-center rounded-md transition-colors ${
+                canPrintReceipt
                   ? 'bg-orange-600 text-white hover:bg-orange-700' 
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
               title={order.status === 'entregue' ? "Imprimir comprovante" : "Disponível apenas para pedidos concluídos"}
               onClick={() => {
-                if (order.status === 'entregue') {
+                if (canPrintReceipt) {
                   const receiptUrl = `/jornaleiro/pedidos/${order.id}/comprovante`;
                   window.open(receiptUrl, '_blank');
                 }
               }}
-              disabled={order.status !== 'entregue'}
+              disabled={!canPrintReceipt}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
               </svg>
             </button>
             <button
-              className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              className="flex h-11 items-center justify-center rounded-md bg-red-600 text-white transition-colors hover:bg-red-700"
               title="Excluir pedido"
               onClick={deleteOrder}
               disabled={updating}
@@ -476,77 +478,82 @@ export default function OrderDetailsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_20rem] xl:gap-6">
         {/* Informações do Cliente */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white border rounded-lg p-4">
+        <div className="space-y-4 sm:space-y-6">
+          <div className="rounded-lg border bg-white p-4 sm:p-5">
             <h2 className="font-semibold mb-3">Informações do Cliente</h2>
-            <div className="space-y-2">
-              <div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="min-w-0">
                 <span className="text-sm text-gray-600">Nome:</span>
-                <div className="font-medium">{order.customer_name}</div>
+                <div className="font-medium break-words">{order.customer_name}</div>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-sm text-gray-600">Telefone:</span>
-                <div className="font-medium">{order.customer_phone}</div>
+                <div className="font-medium break-words">{order.customer_phone}</div>
               </div>
               {order.customer_email && (
-                <div>
+                <div className="min-w-0">
                   <span className="text-sm text-gray-600">Email:</span>
-                  <div className="font-medium">{order.customer_email}</div>
+                  <div className="font-medium break-all">{order.customer_email}</div>
                 </div>
               )}
               {order.customer_address && (
-                <div>
+                <div className="min-w-0 sm:col-span-2">
                   <span className="text-sm text-gray-600">Endereço:</span>
-                  <div className="font-medium">{order.customer_address}</div>
+                  <div className="font-medium break-words">{order.customer_address}</div>
                 </div>
               )}
             </div>
           </div>
 
           {/* Produtos */}
-          <div className="bg-white border rounded-lg p-4">
+          <div className="rounded-lg border bg-white p-4 sm:p-5">
             <h2 className="font-semibold mb-3">Produtos ({order.items.length})</h2>
             <div className="space-y-3">
               {order.items.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 p-3 border rounded">
-                  {item.product_image ? (
-                    <Image
-                      src={item.product_image}
-                      alt={item.product_name}
-                      width={60}
-                      height={60}
-                      className="rounded object-cover flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                      </svg>
+                <div key={item.id} className="rounded-lg border p-3 sm:p-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 items-start gap-3">
+                      {item.product_image ? (
+                        <Image
+                          src={item.product_image}
+                          alt={item.product_name}
+                          width={72}
+                          height={72}
+                          className="h-[72px] w-[72px] rounded object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded bg-gray-200">
+                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                          </svg>
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium break-words">{item.product_name}</div>
+                        <div className="mt-1 text-sm text-gray-600">
+                          Quantidade: {item.quantity} × R$ {item.unit_price.toFixed(2)}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  <div className="flex-1">
-                    <div className="font-medium">{item.product_name}</div>
-                    <div className="text-sm text-gray-600">
-                      Quantidade: {item.quantity} × R$ {item.unit_price.toFixed(2)}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <select
-                      value={itemStatuses[item.id] || 'a_entregar'}
-                      onChange={(e) => setItemStatuses(prev => ({
-                        ...prev,
-                        [item.id]: e.target.value as ItemStatus
-                      }))}
-                      className="text-xs px-2 py-1 border rounded bg-white"
-                    >
-                      {ITEM_STATUS_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                    <div className="text-right">
-                      <div className="font-semibold">R$ {item.total_price.toFixed(2)}</div>
+                    <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[190px] sm:items-end">
+                      <select
+                        value={itemStatuses[item.id] || 'a_entregar'}
+                        onChange={(e) => setItemStatuses(prev => ({
+                          ...prev,
+                          [item.id]: e.target.value as ItemStatus
+                        }))}
+                        className="w-full rounded border bg-white px-3 py-2 text-sm sm:w-[190px]"
+                      >
+                        {ITEM_STATUS_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                      <div className="rounded-md bg-gray-50 px-3 py-2 text-left sm:text-right">
+                        <div className="text-[11px] uppercase tracking-wide text-gray-500">Total do item</div>
+                        <div className="font-semibold">R$ {item.total_price.toFixed(2)}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -555,14 +562,14 @@ export default function OrderDetailsPage() {
           </div>
 
           {/* Histórico do Pedido */}
-          <div className="bg-white border rounded-lg p-4">
+          <div className="rounded-lg border bg-white p-4 sm:p-5">
             <OrderHistory key={historyKey} orderId={order.id} />
           </div>
 
           {/* Comprovante do Pedido */}
           {showReceipt && (
-            <div className="bg-white border rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
+            <div className="rounded-lg border bg-white p-4 sm:p-5">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="font-semibold">Comprovante do Pedido</h2>
                 <button
                   onClick={() => setShowReceipt(false)}
@@ -585,9 +592,9 @@ export default function OrderDetailsPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Resumo do Pedido */}
-          <div className="bg-white border rounded-lg p-4">
+          <div className="rounded-lg border bg-white p-4 sm:p-5">
             <h2 className="font-semibold mb-3">Resumo</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
@@ -641,7 +648,7 @@ export default function OrderDetailsPage() {
 
           {/* Instruções de Pagamento - Só mostra se status for "novo" */}
           {order.status === 'novo' && (
-            <div className="bg-blue-50 border-2 border-blue-400 rounded-lg p-4">
+            <div className="rounded-lg border-2 border-blue-400 bg-blue-50 p-4 sm:p-5">
               <h2 className="font-semibold mb-3 flex items-center gap-2">
                 <span className="text-2xl">💬</span>
                 Fale com o seu Cliente
@@ -662,7 +669,7 @@ export default function OrderDetailsPage() {
           )}
 
           {/* Observações */}
-          <div className="bg-white border rounded-lg p-4">
+          <div className="rounded-lg border bg-white p-4 sm:p-5">
             <h2 className="font-semibold mb-3">Observações</h2>
             <textarea
               value={notes}
@@ -684,7 +691,7 @@ export default function OrderDetailsPage() {
           </div>
 
           {/* Ações */}
-          <div className="bg-white border rounded-lg p-4">
+          <div className="rounded-lg border bg-white p-4 sm:p-5">
             <h2 className="font-semibold mb-3">Ações</h2>
             {order.status === 'novo' && (
               <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-gray-700">

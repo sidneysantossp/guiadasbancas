@@ -13,7 +13,7 @@ export default function DistribuidorIndexPage() {
     if (auth === "1") {
       router.replace("/distribuidor/dashboard");
     } else {
-      router.replace("/entrar");
+      router.replace("/distribuidor/login");
     }
   }, [router]);
 

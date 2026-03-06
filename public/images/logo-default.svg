@@ -2,6 +2,6 @@
   <rect width="312" height="96" rx="12" fill="white"/>
   <circle cx="48" cy="48" r="26" stroke="#ff5c00" stroke-width="6"/>
   <path d="M59 48h-11v-6h17v20a26 26 0 0 1-17 6c-14 0-26-12-26-26s12-26 26-26c8 0 16 4 21 10l-5 4c-4-5-10-8-16-8-11 0-20 9-20 20s9 20 20 20c4 0 8-1 11-3V48Z" fill="#ff5c00"/>
-  <text x="92" y="43" font-family="Georgia, 'Times New Roman', serif" font-size="20" fill="#1f2937">Guia das</text>
-  <text x="92" y="72" font-family="Georgia, 'Times New Roman', serif" font-size="48" fill="#ff5c00">Bancas</text>
+  <text x="92" y="38" font-family="Georgia, 'Times New Roman', serif" font-size="20" fill="#1f2937">Guia das</text>
+  <text x="92" y="80" font-family="Georgia, 'Times New Roman', serif" font-size="48" fill="#ff5c00">Bancas</text>
 </svg>

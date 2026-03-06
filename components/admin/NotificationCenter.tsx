@@ -156,10 +156,10 @@ export default function NotificationCenter() {
       {/* Botão de Notificações - Ícone de Sininho */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-[#ff5c00] hover:bg-orange-50 rounded-lg transition-colors"
+        className="relative flex h-11 w-11 items-center justify-center rounded-xl text-gray-600 transition-colors hover:bg-orange-50 hover:text-[#ff5c00] sm:h-10 sm:w-10"
         title={newOrdersCount > 0 ? `${newOrdersCount} pedido(s) novo(s)` : 'Notificações'}
       >
-        <IconBell size={24} stroke={1.5} className={newOrdersCount > 0 ? 'animate-[wiggle_1s_ease-in-out_infinite]' : ''} />
+        <IconBell size={22} stroke={1.7} className={newOrdersCount > 0 ? 'animate-[wiggle_1s_ease-in-out_infinite]' : ''} />
         {newOrdersCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center animate-pulse">
             {newOrdersCount > 99 ? "99+" : newOrdersCount}

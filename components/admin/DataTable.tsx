@@ -166,11 +166,11 @@ export default function DataTable<T>({ columns, data, getId, onSelectRows, selec
           })}
         </tbody>
       </table>
-      <div className="flex items-center justify-between p-3 text-sm text-gray-600">
+      <div className="flex flex-col gap-3 p-3 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between">
         <div>
           Mostrando {Math.min(end, total)} de {total}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-2">
           <label className="hidden sm:block">Por página</label>
           <select
             className="rounded-md border border-gray-300 px-2 py-1"
@@ -190,7 +190,7 @@ export default function DataTable<T>({ columns, data, getId, onSelectRows, selec
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-between gap-1 sm:justify-start">
             <button className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50" disabled={currentPage<=1} onClick={()=> serverMode ? onServerPageChange?.(1) : setPage(1)}>{'<<'}</button>
             <button className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50" disabled={currentPage<=1} onClick={()=> serverMode ? onServerPageChange?.(Math.max(1, currentPage-1)) : setPage((p)=>Math.max(1,p-1))}>{'<'}</button>
             <span className="px-2">{currentPage}/{totalPages}</span>

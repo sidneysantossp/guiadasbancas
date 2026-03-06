@@ -191,9 +191,9 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="font-medium text-gray-900">
+      <h3 className="flex flex-wrap items-center gap-2 font-medium text-gray-900">
         Histórico do Pedido 
-        <span className="ml-2 text-xs text-gray-500">({history.length} {history.length === 1 ? 'entrada' : 'entradas'})</span>
+        <span className="text-xs text-gray-500">({history.length} {history.length === 1 ? 'entrada' : 'entradas'})</span>
       </h3>
       
       {history.length === 0 ? (
@@ -212,7 +212,7 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
           </button>
         </div>
       ) : (
-        <div className="flow-root max-h-[600px] overflow-y-auto pr-2">
+        <div className="flow-root max-h-[420px] overflow-y-auto pr-1 sm:max-h-[600px] sm:pr-2">
           <ul className="-mb-8">
             {history.map((entry, index) => (
             <li key={entry.id}>
@@ -223,26 +223,26 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
                     aria-hidden="true"
                   />
                 )}
-                <div className="relative flex space-x-3">
+                <div className="relative flex gap-3">
                   <div>
                     <span className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center ring-8 ring-white">
                       <span className="text-sm">{getActionIcon(entry.action)}</span>
                     </span>
                   </div>
-                  <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                    <div>
-                      <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-1 flex-col gap-2 pt-1.5 sm:flex-row sm:justify-between sm:gap-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
                         {(() => {
                           const isSpecialNote = entry.action === 'note_added' && /Mensagem de boas|Confirmação de recebimento|Cópia do pedido/i.test(entry.new_value || '');
                           const header = isSpecialNote ? (entry.new_value || getActionLabel(entry.action)) : getActionLabel(entry.action);
                           return (
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-gray-900 break-words">
                               {header}
                             </p>
                           );
                         })()}
                         {entry.action === "status_change" && (
-                          <div className="flex items-center gap-1">
+                          <div className="flex flex-wrap items-center gap-1">
                             {entry.old_value && (
                               <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(entry.old_value)}`}>
                                 {entry.old_value}
@@ -269,16 +269,16 @@ export default function OrderHistory({ orderId }: OrderHistoryProps) {
                           ) : null;
                         }
                         return (
-                          <p className="text-sm text-gray-600 mt-1">{getActionDescription(entry)}</p>
+                          <p className="mt-1 break-words text-sm text-gray-600">{getActionDescription(entry)}</p>
                         );
                       })()}
                       {entry.details && entry.action !== "created" && (
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="mt-1 break-words text-xs text-gray-500">
                           {entry.details}
                         </p>
                       )}
                     </div>
-                    <div className="hidden sm:block whitespace-nowrap text-right text-sm text-gray-500">
+                    <div className="hidden shrink-0 whitespace-nowrap text-right text-sm text-gray-500 sm:block">
                       <div>{formatTimestamp(entry.timestamp)}</div>
                       <div className="text-xs">{entry.user_name}</div>
                     </div>

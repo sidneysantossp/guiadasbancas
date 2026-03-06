@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     if (normalizedDocument && !isValidBrazilianDocument(normalizedDocument)) {
       return NextResponse.json(
-        { error: 'CPF/CNPJ invalido' },
+        { error: 'CPF/CNPJ inválido' },
         { status: 400 }
       );
     }

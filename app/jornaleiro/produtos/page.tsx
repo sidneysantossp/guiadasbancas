@@ -26,6 +26,9 @@ type ProdutoListItem = {
 
 type CategoryOption = { id: string; name: string };
 
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+
 export default function JornaleiroProdutosPage() {
   const toast = useToast();
   const [q, setQ] = useState("");
@@ -134,27 +137,50 @@ export default function JornaleiroProdutosPage() {
       key: "name",
       header: "Produto",
       render: (r) => (
-        <div className="flex items-center gap-3">
-          <div className="relative w-12 h-16 flex-shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+        <div className="flex items-start gap-3">
+          <div className="relative h-16 w-12 flex-shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-50 sm:h-16 sm:w-12">
             {r.image ? (
               <img
                 src={r.image}
                 alt={r.name}
-                className="absolute inset-0 w-full h-full object-contain"
+                className="absolute inset-0 h-full w-full object-contain"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
-                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
             )}
           </div>
-          <div>
-            <div className="font-medium">{r.name}</div>
+          <div className="min-w-0 flex-1">
+            <div className="font-medium leading-6 text-gray-900">{r.name}</div>
             {r.codigo_mercos && (
-              <div className="text-xs text-gray-500 font-mono mt-0.5">{r.codigo_mercos}</div>
+              <div className="mt-0.5 text-xs font-mono text-gray-500">{r.codigo_mercos}</div>
             )}
+            <div className="mt-1 hidden text-xs text-gray-500 sm:block">
+              {r.category_name || "Sem categoria"}
+            </div>
+            <div className="mt-3 grid gap-2 sm:hidden">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge label={r.active ? "Ativo" : "Inativo"} tone={r.active ? "emerald" : "gray"} />
+                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+                  Estoque: {r.stock_qty}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Custo</div>
+                  <div className="mt-1 text-sm font-semibold text-gray-700">
+                    {formatCurrency(r.cost_price ?? (r.price_original && r.price_original !== r.price ? r.price_original : r.price))}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-orange-50 px-3 py-2">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-orange-600">Venda</div>
+                  <div className="mt-1 text-sm font-semibold text-gray-900">{formatCurrency(r.price)}</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       ),
@@ -162,12 +188,13 @@ export default function JornaleiroProdutosPage() {
     {
       key: "cost_price",
       header: "Preço de Custo",
+      hiddenOnMobile: true,
       render: (r) => {
         // Prioridade: cost_price > price_original (se diferente de price)
         const costValue = r.cost_price ?? (r.price_original && r.price_original !== r.price ? r.price_original : r.price);
         return (
           <span className="text-gray-600">
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(costValue)}
+            {formatCurrency(costValue)}
           </span>
         );
       },
@@ -176,9 +203,10 @@ export default function JornaleiroProdutosPage() {
     {
       key: "price",
       header: "Preço de Venda",
+      hiddenOnMobile: true,
       render: (r) => (
         <span className="font-semibold text-gray-900">
-          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(r.price)}
+          {formatCurrency(r.price)}
         </span>
       ),
       align: "right",
@@ -186,13 +214,14 @@ export default function JornaleiroProdutosPage() {
     {
       key: "stock_qty",
       header: "Estoque",
+      hiddenOnMobile: true,
       render: (r) => r.stock_qty.toString(),
       align: "right",
     },
   ];
 
   return (
-    <div className="space-y-4 overflow-x-hidden px-3 sm:px-0">
+    <div className="space-y-4 overflow-x-hidden px-3 pb-24 sm:px-0 sm:pb-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold">Produtos</h1>
@@ -208,20 +237,20 @@ export default function JornaleiroProdutosPage() {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-3">
-        <div className="flex flex-col sm:flex-row gap-3 w-full items-end sm:items-center">
+      <div className="rounded-lg border border-gray-200 bg-white p-3 sm:p-4">
+        <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center">
           <div className="flex-1 w-full sm:w-auto">
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Buscar por nome, código ou SKU"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm"
             />
           </div>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full sm:w-auto min-w-[180px] rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="min-w-[180px] w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm sm:w-auto"
           >
             <option value="">Todas categorias</option>
             {categories.map((c) => (
@@ -231,7 +260,7 @@ export default function JornaleiroProdutosPage() {
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="w-full sm:w-auto min-w-[140px] rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="min-w-[140px] w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm sm:w-auto"
           >
             <option value="">Todos status</option>
             <option value="ativo">Ativo</option>
@@ -240,7 +269,7 @@ export default function JornaleiroProdutosPage() {
           <select
             value={priceFilter}
             onChange={(e) => setPriceFilter(e.target.value)}
-            className="w-full sm:w-auto min-w-[180px] rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="min-w-[180px] w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm sm:w-auto"
           >
             <option value="">Todos preços</option>
             <option value="personalizado">Preços Personalizados</option>
@@ -255,7 +284,7 @@ export default function JornaleiroProdutosPage() {
                 setStatus("");
                 setPriceFilter("");
               }}
-              className="px-3 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+              className="rounded-md px-3 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 hover:text-red-800"
             >
               Limpar
             </button>
@@ -270,10 +299,10 @@ export default function JornaleiroProdutosPage() {
         data={filtered}
         getId={(row) => row.id}
         renderActions={(row) => (
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex flex-col items-end justify-end gap-2 sm:flex-row sm:items-center">
             <Link
               href={( `/jornaleiro/produtos/${row.id}` ) as Route}
-              className="rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50 flex items-center justify-center"
+              className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
               title="Editar produto"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -283,7 +312,7 @@ export default function JornaleiroProdutosPage() {
             <button
               onClick={() => toggleActive(row)}
               disabled={savingId === row.id}
-              className="rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center"
+              className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               title={row.active ? "Desativar produto" : "Ativar produto"}
             >
               {row.active ? (

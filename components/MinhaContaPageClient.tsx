@@ -69,7 +69,7 @@ function MinhaContaPageContent() {
     if (status === 'unauthenticated') {
       const fromCheckout = searchParams?.get('checkout') === 'true';
       const redirectParam = searchParams?.get('redirect');
-      let entrarUrl = '/entrar';
+      let entrarUrl = '/entrar/cliente';
       if (redirectParam) {
         entrarUrl += `?redirect=${encodeURIComponent(redirectParam)}`;
       } else if (fromCheckout) {
