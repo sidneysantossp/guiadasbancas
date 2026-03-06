@@ -87,12 +87,6 @@ function ProductCard({ p }: { p: BrancaleoneProduct }) {
         
         {/* Badges */}
         <div className="flex flex-wrap gap-1 mt-1">
-          {p.pronta_entrega && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold">
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-              Pronta Entrega
-            </span>
-          )}
           {p.sob_encomenda && (
             <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-700 px-2 py-[2px] text-[10px] font-semibold">
               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>

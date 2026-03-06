@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useMemo, useState } from "react";
-import { cachedFetch } from "@/lib/cache";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 import { buildPublicProductPath } from "@/lib/product-url";
 
@@ -149,22 +148,11 @@ function FeaturedCard({ p }: { p: Product }) {
           </div>
           {/* Badges de categorias/estado do Admin */}
           <div className="mb-1.5 flex flex-wrap gap-1">
-            {p.prontaEntrega && (
-              <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold">Pronta Entrega</span>
-            )}
             {p.sobEncomenda && (
               <span className="inline-flex items-center rounded-full bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 text-[10px] font-semibold">Sob Encomenda</span>
             )}
             {p.preVenda && (
               <span className="inline-flex items-center rounded-full bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 text-[10px] font-semibold">Pré-Venda</span>
-            )}
-            {/* Fallback simples quando apenas trackStock estiver ativo */}
-            {!p.prontaEntrega && !p.sobEncomenda && !p.preVenda && p.trackStock && (
-              (p.stockQty ?? 0) > 0 ? (
-                <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold">Pronta Entrega</span>
-              ) : (
-                <span className="inline-flex items-center rounded-full bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 text-[10px] font-semibold">Sob Encomenda</span>
-              )
             )}
           </div>
           <div className="text-base md:text-xl font-semibold leading-snug break-words">{p.name}</div>
@@ -231,12 +219,6 @@ function SmallCard({ p }: { p: Product }) {
       </div>
       <div className="p-2.5 flex flex-col flex-1">
         <div className="flex flex-wrap gap-1">
-          {p.prontaEntrega && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold">
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-              Pronta Entrega
-            </span>
-          )}
           {p.sobEncomenda && (
             <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-700 px-2 py-[2px] text-[10px] font-semibold">
               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -247,13 +229,6 @@ function SmallCard({ p }: { p: Product }) {
             <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 text-purple-700 px-2 py-[2px] text-[10px] font-semibold">
               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
               Pré-Venda
-            </span>
-          )}
-          {/* Fallback para produtos com track_stock ativo mas sem flags específicas */}
-          {p.trackStock && !p.prontaEntrega && !p.sobEncomenda && !p.preVenda && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold">
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-              Pronta Entrega
             </span>
           )}
         </div>
@@ -330,7 +305,10 @@ export default function MostSearchedProducts() {
 
         // 1) Prioridade manual (vitrine curada pelo admin/importação)
         try {
-          const curated = await cachedFetch(`/api/featured-products?section=${CURATED_SECTION_KEY}&limit=96`, undefined, 300);
+          const curatedResponse = await fetch(`/api/featured-products?section=${CURATED_SECTION_KEY}&limit=96`, {
+            cache: 'no-store',
+          });
+          const curated = await curatedResponse.json();
           if (curated?.success && Array.isArray(curated.data) && curated.data.length > 0) {
             list = curated.data;
             console.log(`[MostSearchedProducts] Vitrine curada aplicada: ${list.length} produtos`);
@@ -345,7 +323,8 @@ export default function MostSearchedProducts() {
           if (userLocation?.lat && userLocation?.lng) {
             apiUrl += `&lat=${userLocation.lat}&lng=${userLocation.lng}`;
           }
-          const pData = await cachedFetch(apiUrl, undefined, 300);
+          const pResponse = await fetch(apiUrl, { cache: 'no-store' });
+          const pData = await pResponse.json();
           if (pData?.data) {
             list = Array.isArray(pData.data) ? pData.data : [];
           }
@@ -377,7 +356,7 @@ export default function MostSearchedProducts() {
             trackStock: p.track_stock ?? false,
             ratingAvg: p.rating_avg ?? null,
             reviewsCount: p.reviews_count ?? 0,
-            prontaEntrega: p.pronta_entrega ?? true,
+            prontaEntrega: Boolean(p.pronta_entrega),
             sobEncomenda: p.sob_encomenda ?? false,
             preVenda: p.pre_venda ?? false,
             bancaId: p.banca_id || bancaData.id,

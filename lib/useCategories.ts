@@ -50,11 +50,6 @@ function normalizeCategoryLink(name: string, link?: string): string {
   return raw;
 }
 
-let cachePromise: Promise<UICategory[]> | null = null;
-let cachedCategories: UICategory[] | null = null;
-let cacheExpiresAt = 0;
-const CLIENT_CATEGORY_TTL_MS = 5 * 60 * 1000;
-
 export function useCategories(initialItems?: UICategory[]): { items: UICategory[]; loading: boolean } {
   const seededItems = Array.isArray(initialItems) && initialItems.length > 0 ? initialItems : null;
   const [apiItems, setApiItems] = useState<UICategory[] | null>(seededItems);
@@ -70,43 +65,29 @@ export function useCategories(initialItems?: UICategory[]): { items: UICategory[
       return;
     }
 
-    if (cachedCategories && Date.now() < cacheExpiresAt) {
-      setApiItems(cachedCategories);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
 
-    if (!cachePromise) {
-      cachePromise = (async () => {
-        try {
-          const res = await fetch('/api/categories', { cache: 'force-cache' });
-          if (!res.ok) throw new Error('failed');
-          const j = await res.json();
-          const data = Array.isArray(j?.data) ? j.data : [];
-          const mapped = data.map((c: any) => ({
-            key: c.id,
-            name: c.name,
-            image: sanitizePublicImageUrl(c.image),
-            link: c.link
-          }));
-          cachedCategories = mapped;
-          cacheExpiresAt = Date.now() + CLIENT_CATEGORY_TTL_MS;
-          return mapped;
-        } catch {
-          return [] as UICategory[];
-        } finally {
-          cachePromise = null;
-        }
-      })();
-    }
-
-    cachePromise.then((data) => {
-      if (!mounted) return;
-      setApiItems(data);
-      setLoading(false);
-    });
+    (async () => {
+      try {
+        const res = await fetch('/api/categories', { cache: 'no-store' });
+        if (!res.ok) throw new Error('failed');
+        const j = await res.json();
+        const data = Array.isArray(j?.data) ? j.data : [];
+        const mapped = data.map((c: any) => ({
+          key: c.id,
+          name: c.name,
+          image: sanitizePublicImageUrl(c.image),
+          link: c.link
+        }));
+        if (!mounted) return;
+        setApiItems(mapped);
+      } catch {
+        if (!mounted) return;
+        setApiItems([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
 
     return () => { mounted = false; };
   }, [seededItems]);

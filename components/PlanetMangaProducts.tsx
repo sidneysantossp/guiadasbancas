@@ -167,7 +167,7 @@ export default function PlanetMangaProducts() {
 
         // Buscar produtos da categoria Planet Manga
         const r = await fetch(`/api/products/public?categoryName=manga&limit=40&sort=created_at&order=desc${locationQuery}`, {
-          next: { revalidate: 60 } as any,
+          cache: 'no-store',
         });
         if (!r.ok) {
           if (active) setApiItems([]);

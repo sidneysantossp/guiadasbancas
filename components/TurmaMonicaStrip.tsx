@@ -140,14 +140,6 @@ function MonicaCard({ p }: { p: MonicaProduct }) {
       </div>
 
       <div className="p-2.5 flex flex-col flex-1">
-        <div className="flex flex-wrap gap-1">
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold">
-            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
-              <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
-            </svg>
-            Pronta Entrega
-          </span>
-        </div>
         <Link href={href} className="mt-2 text-[13px] font-semibold hover:underline line-clamp-2">
           {p.name}
         </Link>
@@ -224,7 +216,7 @@ export default function TurmaMonicaStrip() {
         setLoading(true);
         const HQS_COMICS_ID = "1e813114-e1bc-442d-96e4-2704910d157d";
         const r = await fetch(`/api/products/public?category=${encodeURIComponent(HQS_COMICS_ID)}&limit=50&sort=created_at&order=desc`, {
-          next: { revalidate: 60 } as any,
+          cache: 'no-store',
         });
         if (!r.ok) {
           if (active) setItems([]);
@@ -232,7 +224,7 @@ export default function TurmaMonicaStrip() {
         }
         const [productsJson, bancasRes] = await Promise.all([
           r.json(),
-          fetch("/api/bancas", { next: { revalidate: 300 } as any })
+          fetch("/api/bancas", { cache: 'no-store' })
         ]);
 
         const merged: ApiProduct[] = Array.isArray(productsJson?.items)

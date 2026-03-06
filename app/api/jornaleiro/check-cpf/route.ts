@@ -1,5 +1,11 @@
 import { NextResponse, NextRequest } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import {
+  getBrazilianDocumentType,
+  getBrazilianDocumentVariants,
+  isValidBrazilianDocument,
+  normalizeBrazilianDocument,
+} from "@/lib/documents";
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,14 +15,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "CPF não informado" }, { status: 400 });
     }
 
-    // Remover formatação do CPF
-    const cpfOnly = cpf.replace(/\D/g, '');
+    const cpfOnly = normalizeBrazilianDocument(cpf);
     
     console.log('[check-cpf] Verificando CPF/CNPJ:', cpfOnly);
     
-    if (cpfOnly.length !== 11 && cpfOnly.length !== 14) {
+    if (!isValidBrazilianDocument(cpfOnly)) {
       return NextResponse.json({ error: "CPF/CNPJ inválido" }, { status: 400 });
     }
+
+    const documentType = getBrazilianDocumentType(cpfOnly);
 
     // Verificar na tabela de cotistas (cota ativa)
     const { data: cotistas, error: cotistasError } = await supabaseAdmin
@@ -52,7 +59,7 @@ export async function POST(req: NextRequest) {
     const { data: profiles, error: profilesError } = await supabaseAdmin
       .from('user_profiles')
       .select('id, full_name, cpf, banca_id')
-      .eq('cpf', cpfOnly);
+      .in('cpf', getBrazilianDocumentVariants(cpfOnly));
 
     if (profilesError) {
       console.error('[check-cpf] Erro ao buscar perfis:', profilesError);
@@ -132,7 +139,7 @@ export async function POST(req: NextRequest) {
       exists: true,
       bancas: bancasFormatted,
       isCotista: isCotistaFound,
-      message: cpfOnly.length === 11 
+      message: documentType === 'cpf' 
         ? 'CPF já possui cadastro com banca ativa' 
         : 'CNPJ já possui cadastro com banca ativa'
     });

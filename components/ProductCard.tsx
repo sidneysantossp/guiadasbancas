@@ -49,9 +49,6 @@ export default function ProductCard({ id, name, price, priceOriginal, image, hre
             {badgeLabel}
           </span>
         )}
-        {readyToShip && (
-          <span className="absolute right-2 top-2 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-semibold px-2 py-[2px]">Pronta entrega</span>
-        )}
       </div>
       <div className="p-3">
         <div className="text-sm font-semibold line-clamp-2 min-h-[2.5rem]">{name}</div>

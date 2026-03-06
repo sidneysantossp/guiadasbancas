@@ -31,6 +31,11 @@ function EntrarPageContent() {
   
   const fromCheckout = searchParams?.get('checkout') === 'true';
   const redirectParam = searchParams?.get('redirect');
+  const registerHref = redirectParam
+    ? `/registrar/cliente?redirect=${encodeURIComponent(redirectParam)}`
+    : fromCheckout
+      ? "/registrar/cliente?redirect=/checkout"
+      : "/registrar";
 
   // Redirecionar se já está logado
   useEffect(() => {
@@ -437,13 +442,12 @@ function EntrarPageContent() {
               {mode === "login" ? (
                 <>
                   Não tem conta?{" "}
-                  <button 
-                    onClick={() => { setMode("register"); setError(null); setSuccessMessage(null); }} 
+                  <Link
+                    href={registerHref}
                     className="font-semibold text-[#ff7a1f] hover:underline"
-                    disabled={loading}
                   >
-                    Crie agora
-                  </button>
+                    Escolha seu cadastro
+                  </Link>
                 </>
               ) : (
                 <>

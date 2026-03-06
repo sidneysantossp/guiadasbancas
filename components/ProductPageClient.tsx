@@ -286,10 +286,6 @@ function RelatedCarousel({
                           <p className="text-[10px] text-gray-600 mt-0.5">Cód: {it.codigo_mercos}</p>
                         )}
                       </div>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold whitespace-nowrap md:mt-0 mt-1">
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-                        Pronta Entrega
-                      </span>
                     </div>
                     {/* Preço */}
                     <div className="mt-2">

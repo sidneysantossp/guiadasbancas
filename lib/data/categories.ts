@@ -1,8 +1,6 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
 import { categories as fallbackCategories } from "@/components/categoriesData";
-import { CACHE_TTL } from "@/lib/data/cache";
 
 export type PublicCategory = {
   id: string;
@@ -43,7 +41,7 @@ function fallbackPublicCategories(): PublicCategory[] {
 const fetchPublicCategories = async (): Promise<PublicCategory[]> => {
   try {
     const res = await fetch(`${BASE_URL}/api/categories`, {
-      next: { revalidate: CACHE_TTL.categories },
+      cache: "no-store",
     });
     if (!res.ok) throw new Error("failed");
     const j = await res.json();
@@ -57,7 +55,7 @@ const fetchPublicCategories = async (): Promise<PublicCategory[]> => {
 const fetchAllCategories = async (): Promise<PublicCategory[]> => {
   try {
     const res = await fetch(`${BASE_URL}/api/admin/categories?all=true`, {
-      next: { revalidate: CACHE_TTL.categories },
+      cache: "no-store",
     });
     if (!res.ok) throw new Error("failed");
     const j = await res.json();
@@ -67,17 +65,13 @@ const fetchAllCategories = async (): Promise<PublicCategory[]> => {
   }
 };
 
-export const getPublicCategories = unstable_cache(
-  fetchPublicCategories,
-  ["public-categories"],
-  { revalidate: CACHE_TTL.categories }
-);
+export async function getPublicCategories(): Promise<PublicCategory[]> {
+  return fetchPublicCategories();
+}
 
-export const getAllCategories = unstable_cache(
-  fetchAllCategories,
-  ["all-categories"],
-  { revalidate: CACHE_TTL.categories }
-);
+export async function getAllCategories(): Promise<PublicCategory[]> {
+  return fetchAllCategories();
+}
 
 export async function getMergedCategories(): Promise<PublicCategory[]> {
   const [publicCats, allCats] = await Promise.all([

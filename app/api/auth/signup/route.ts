@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import {
+  isValidBrazilianDocument,
+  normalizeBrazilianDocument,
+} from '@/lib/documents';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,12 +11,20 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { email, password, full_name, role, cpf, phone, banca_data } = body;
+    const normalizedDocument = normalizeBrazilianDocument(cpf || '');
 
     console.log('📝 [SIGNUP] Iniciando cadastro:', { email, role, full_name, cpf: cpf ? '***' : null, phone });
 
     if (!email || !password || !full_name || !role) {
       return NextResponse.json(
         { error: 'Campos obrigatórios: email, password, full_name, role' },
+        { status: 400 }
+      );
+    }
+
+    if (normalizedDocument && !isValidBrazilianDocument(normalizedDocument)) {
+      return NextResponse.json(
+        { error: 'CPF/CNPJ invalido' },
         { status: 400 }
       );
     }
@@ -100,7 +112,7 @@ export async function POST(request: NextRequest) {
     };
     
     // Adicionar CPF e phone se fornecidos
-    if (cpf) profileData.cpf = cpf;
+    if (normalizedDocument) profileData.cpf = normalizedDocument;
     if (phone) profileData.phone = phone;
 
     console.log('👤 [SIGNUP] Dados do perfil a salvar:', { ...profileData, cpf: cpf ? '***' : null });

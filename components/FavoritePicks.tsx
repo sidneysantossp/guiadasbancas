@@ -306,7 +306,7 @@ export default function FavoritePicks() {
 
         for (const endpoint of endpoints) {
           const pRes = await fetch(endpoint, {
-            next: { revalidate: 60 } as any
+            cache: 'no-store'
           });
 
           if (!pRes.ok) continue;

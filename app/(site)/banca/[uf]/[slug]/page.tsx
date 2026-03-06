@@ -3,6 +3,9 @@ import BancaPageClient from "@/components/BancaPageClient";
 import { toBancaSlug } from "@/lib/slug";
 import { getAdminBancaById, getAdminBancasAll } from "@/lib/data/bancas";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function unslugify(s: string) {
   try {
     return decodeURIComponent(s)

@@ -10,7 +10,8 @@ import BancasSections from "@/components/BancasSections";
 import LazyViewportSection from "@/components/LazyViewportSection";
 import nextDynamic from "next/dynamic";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type HomeBanca = {
   id: string;

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import Fuse, { IFuseOptions } from 'fuse.js';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 function normalizeSearchTerm(value: string) {
   return String(value || "")
     .normalize('NFD')
@@ -48,6 +52,11 @@ const FUSE_OPTIONS: IFuseOptions<any> = {
 };
 
 export async function GET(req: NextRequest) {
+  const headers = {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+    'Surrogate-Control': 'no-store',
+  };
+
   try {
     const { searchParams } = new URL(req.url);
     const category = searchParams.get('category');
@@ -135,7 +144,7 @@ export async function GET(req: NextRequest) {
     
     if (error) {
       console.error('[SEARCH] Erro ao buscar produtos:', error);
-      return NextResponse.json({ ok: false, success: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: false, success: false, error: error.message }, { status: 500, headers });
     }
     
     // BUSCA FUZZY: Se SQL não encontrou muitos resultados, aplicar Fuse.js
@@ -436,9 +445,9 @@ export async function GET(req: NextRequest) {
 
     const finalData = deduplicated.slice(0, limit || 20);
     
-    return NextResponse.json({ ok: true, success: true, data: finalData });
+    return NextResponse.json({ ok: true, success: true, data: finalData }, { headers });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, success: false, error: e?.message || "Erro ao buscar produtos" }, { status: 500 });
+    return NextResponse.json({ ok: false, success: false, error: e?.message || "Erro ao buscar produtos" }, { status: 500, headers });
   }
 }
 

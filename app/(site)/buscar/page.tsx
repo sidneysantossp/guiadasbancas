@@ -4,6 +4,9 @@ import { getPublicCategories } from "@/lib/data/categories";
 import { getPublicBancas } from "@/lib/data/bancas";
 import { getSearchProducts } from "@/lib/data/products";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type SearchParams = {
   q?: string;
 };

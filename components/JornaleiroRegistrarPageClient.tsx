@@ -6,6 +6,11 @@ import Link from "next/link";
 import { fetchViaCEP, ViaCEP } from "@/lib/viacep";
 import { maskCEP, maskCPF, maskCPFOrCNPJ, maskPhoneBR } from "@/lib/masks";
 import { useAuth } from "@/lib/auth/AuthContext";
+import {
+  isValidBrazilianDocument,
+  normalizeBrazilianDocument,
+  validateBrazilianDocument,
+} from "@/lib/documents";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
 import CotistaSearch from "@/components/CotistaSearch";
 import logger from "@/lib/logger";
@@ -84,16 +89,7 @@ export default function JornaleiroRegistrarPageClient() {
     return undefined;
   };
   const validateCpf = (v: string) => {
-    const only = (v || '').replace(/\D/g, '');
-    if (!only) return 'Informe seu CPF ou CNPJ.';
-    if (only.length !== 11 && only.length !== 14) return 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.';
-    if (only.length === 11) {
-      return isValidCPF(v) ? undefined : 'CPF inválido. Verifique os dígitos.';
-    }
-    if (only.length === 14) {
-      return isValidCNPJ(v) ? undefined : 'CNPJ inválido. Verifique os dígitos.';
-    }
-    return undefined;
+    return validateBrazilianDocument(v);
   };
   const validatePhone = (v: string) => {
     const only = (v || '').replace(/\D/g, '');
@@ -222,56 +218,8 @@ export default function JornaleiroRegistrarPageClient() {
   const cepOnly = (cep || "").replace(/\D/g, "");
   const cepValid = cepOnly.length === 8 && lastCepFetched === cepOnly && !cepError;
 
-  // Validação CPF utilitária
-  const isValidCPF = (v: string) => {
-    const only = (v || '').replace(/\D/g, '');
-    if (only.length !== 11 || /^([0-9])\1+$/.test(only)) return false;
-    const dv = (nums: string, factor: number) => {
-      let sum = 0; for (let i=0;i<factor-1;i++) sum += parseInt(nums[i]) * (factor - i);
-      const r = (sum * 10) % 11; return r === 10 ? 0 : r;
-    };
-    const d1 = dv(only, 10); if (d1 !== parseInt(only[9])) return false;
-    const d2 = dv(only, 11); if (d2 !== parseInt(only[10])) return false;
-    return true;
-  };
-
-  // Validação CNPJ utilitária
-  const isValidCNPJ = (v: string) => {
-    const only = (v || '').replace(/\D/g, '');
-    if (only.length !== 14 || /^([0-9])\1+$/.test(only)) return false;
-    
-    let size = only.length - 2;
-    let numbers = only.substring(0, size);
-    const digits = only.substring(size);
-    let sum = 0;
-    let pos = size - 7;
-    
-    for (let i = size; i >= 1; i--) {
-      sum += parseInt(numbers.charAt(size - i)) * pos--;
-      if (pos < 2) pos = 9;
-    }
-    
-    let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
-    if (result !== parseInt(digits.charAt(0))) return false;
-    
-    size = size + 1;
-    numbers = only.substring(0, size);
-    sum = 0;
-    pos = size - 7;
-    
-    for (let i = size; i >= 1; i--) {
-      sum += parseInt(numbers.charAt(size - i)) * pos--;
-      if (pos < 2) pos = 9;
-    }
-    
-    result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
-    if (result !== parseInt(digits.charAt(1))) return false;
-    
-    return true;
-  };
-
-  const cpfOnly = (cpf || '').replace(/\D/g, '');
-  const cpfValid = cpfOnly.length === 11 ? isValidCPF(cpf) : cpfOnly.length === 14 ? isValidCNPJ(cpf) : false;
+  const cpfOnly = normalizeBrazilianDocument(cpf);
+  const cpfValid = isValidBrazilianDocument(cpf);
   const phoneOnly = (phone || '').replace(/\D/g, '');
   const phoneValid = phoneOnly.length === 11; // celular BR (DDD + 9 dígitos)
   const emailValid = !!email && /[^\s@]+@[^\s@]+\.[^\s@]+/.test(email);
@@ -463,18 +411,24 @@ export default function JornaleiroRegistrarPageClient() {
   ];
 
   const validateStep1 = () => {
-    if (!name || !cpf || !phone || !email || !password) return "Preencha todos os campos obrigatórios.";
-    // validação de CPF (dígitos verificadores)
-    const only = cpf.replace(/\D/g, "");
-    if (only.length !== 11 || /^([0-9])\1+$/.test(only)) return "CPF inválido.";
-    const dv = (nums: string, factor: number) => {
-      let sum = 0; for (let i=0;i<factor-1;i++) sum += parseInt(nums[i]) * (factor - i);
-      const r = (sum * 10) % 11; return r === 10 ? 0 : r;
-    };
-    const d1 = dv(only, 10); if (d1 !== parseInt(only[9])) return "CPF inválido.";
-    const d2 = dv(only, 11); if (d2 !== parseInt(only[10])) return "CPF inválido.";
-    if (password.length < 6) return "A senha deve ter pelo menos 6 caracteres.";
-    if (confirmPassword && password !== confirmPassword) return "A confirmação de senha não confere.";
+    const nameError = validateName(name);
+    if (nameError) return nameError;
+
+    const cpfError = validateCpf(cpf);
+    if (cpfError) return cpfError;
+
+    const phoneError = validatePhone(phone);
+    if (phoneError) return phoneError;
+
+    const emailError = validateEmailField(email);
+    if (emailError) return emailError;
+
+    const passwordError = validatePasswordField(password);
+    if (passwordError) return passwordError;
+
+    const confirmError = validateConfirmField(confirmPassword, password);
+    if (confirmError) return confirmError;
+
     return null;
   };
 

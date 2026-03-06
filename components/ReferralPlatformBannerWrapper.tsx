@@ -26,7 +26,7 @@ export default function ReferralPlatformBannerWrapper() {
   useEffect(() => {
     const loadBanner = async () => {
       try {
-        const response = await fetch('/api/referral-banner', { cache: 'force-cache' });
+        const response = await fetch('/api/referral-banner', { cache: 'no-store' });
         
         if (response.ok) {
           const data = await response.json();

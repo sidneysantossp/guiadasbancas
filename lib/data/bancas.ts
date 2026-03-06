@@ -1,7 +1,5 @@
 import "server-only";
 
-import { CACHE_TTL } from "@/lib/data/cache";
-
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
 
 async function fetchJson(url: string, init?: RequestInit) {
@@ -15,7 +13,7 @@ async function fetchJson(url: string, init?: RequestInit) {
 export async function getPublicBancas(): Promise<any[]> {
   try {
     const j = await fetchJson(`${BASE_URL}/api/bancas`, {
-      next: { revalidate: CACHE_TTL.bancas },
+      cache: "no-store",
     });
     return Array.isArray(j?.data) ? j.data : [];
   } catch {
@@ -28,7 +26,7 @@ export async function getAdminBancas(): Promise<any[]> {
     // Mantido nome legado da função para compatibilidade.
     // Para páginas públicas, usar endpoint público.
     const j = await fetchJson(`${BASE_URL}/api/bancas`, {
-      next: { revalidate: CACHE_TTL.bancas },
+      cache: "no-store",
     });
     return Array.isArray(j?.data) ? j.data : [];
   } catch {
@@ -40,7 +38,7 @@ export async function getAdminBancasAll(): Promise<any[]> {
   try {
     // Endpoint público já retorna bancas ativas, suficiente para rotas públicas.
     const j = await fetchJson(`${BASE_URL}/api/bancas`, {
-      next: { revalidate: CACHE_TTL.bancas },
+      cache: "no-store",
     });
     return Array.isArray(j?.data) ? j.data : [];
   } catch {
@@ -52,7 +50,7 @@ export async function getAdminBancaById(id: string): Promise<any | null> {
   if (!id) return null;
   try {
     const j = await fetchJson(`${BASE_URL}/api/bancas/${encodeURIComponent(id)}`, {
-      next: { revalidate: CACHE_TTL.bancas },
+      cache: "no-store",
     });
     if (j?.data) return j.data;
   } catch {

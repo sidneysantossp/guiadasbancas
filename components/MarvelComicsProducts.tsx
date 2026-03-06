@@ -167,7 +167,7 @@ export default function MarvelComicsProducts() {
 
         // Buscar produtos da categoria Marvel Comics
         const r = await fetch(`/api/products/public?categoryName=marvel&limit=40&sort=created_at&order=desc${locationQuery}`, {
-          next: { revalidate: 60 } as any,
+          cache: 'no-store',
         });
         if (!r.ok) {
           if (active) setApiItems([]);

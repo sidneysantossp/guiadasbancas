@@ -124,13 +124,6 @@ export default function CampaignSection() {
                     {campaign.products.discount_percent}% OFF
                   </div>
                 )}
-
-                {/* Badge de disponibilidade */}
-                {campaign.products.pronta_entrega && (
-                  <span className="absolute right-2 top-2 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-semibold px-2 py-[2px]">
-                    Pronta entrega
-                  </span>
-                )}
               </div>
 
               {/* Conteúdo */}

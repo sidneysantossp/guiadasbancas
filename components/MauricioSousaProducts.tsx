@@ -202,7 +202,7 @@ export default function MauricioSousaProducts() {
         setLoading(true);
         // Buscar produtos da categoria Maurício de Sousa
         const r = await fetch(`/api/products/public?categoryName=mauricio&limit=100&sort=created_at&order=desc`, {
-          next: { revalidate: 60 } as any,
+          cache: 'no-store',
         });
         if (!r.ok) {
           if (active) setApiItems([]);

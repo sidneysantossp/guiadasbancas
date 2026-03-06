@@ -175,7 +175,7 @@ export default function TurmaDaMonica() {
         
         const r = await fetch(
           `/api/products/public?category=${HQS_COMICS_ID}&limit=100`, 
-          { next: { revalidate: 60 } as any }
+          { cache: 'no-store' }
         );
         
         if (r.ok) {
@@ -378,18 +378,13 @@ function EnhancedCard({ p }: { p: TopItem }) {
         </button>
       </div>
       <div className="p-2.5 flex flex-col flex-1">
-        <div className="flex flex-wrap gap-1">
-          {outOfStock ? (
+        {outOfStock ? (
+          <div className="flex flex-wrap gap-1">
             <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 px-2 py-[2px] text-[10px] font-semibold">
               Indisponível
             </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold">
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-              Pronta Entrega
-            </span>
-          )}
-        </div>
+          </div>
+        ) : null}
         <Link href={productHref} className="mt-2 text-[13px] font-semibold hover:underline line-clamp-2">{p.title}</Link>
         {p.code && (
           <div className="text-[11px] text-gray-500 font-mono">Cód: {p.code}</div>

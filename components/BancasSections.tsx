@@ -34,7 +34,7 @@ export default function BancasSections({ initialBancas }: BancasSectionsProps) {
     (async () => {
       try {
         const res = await fetch('/api/bancas/featured?limit=50', { 
-          cache: 'force-cache',
+          cache: 'no-store',
         });
         if (!res.ok) throw new Error('fail');
         const j = await res.json();

@@ -63,6 +63,15 @@ function RegisterPageContent() {
             </div>
           </Link>
           <p className="mt-2 text-gray-600">Criar conta de cliente</p>
+          <p className="mt-2 text-sm text-gray-500">
+            Vai cadastrar uma banca?{" "}
+            <Link
+              href={("/registrar" as Route)}
+              className="font-medium text-orange-600 hover:text-orange-700"
+            >
+              Escolha o cadastro de jornaleiro
+            </Link>
+          </p>
         </div>
 
         {/* Card de Registro */}

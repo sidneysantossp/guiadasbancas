@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 const DATA_PATH = path.join(process.cwd(), 'data', 'coupons.json');
 
 type Coupon = {
@@ -26,6 +30,10 @@ async function readCoupons(): Promise<Coupon[]> {
 }
 
 export async function GET(request: Request) {
+  const headers = {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+    'Surrogate-Control': 'no-store',
+  };
   const { searchParams } = new URL(request.url);
   const sellerId = searchParams.get('sellerId') || undefined;
   const all = await readCoupons();
@@ -42,5 +50,5 @@ export async function GET(request: Request) {
   // Retorna o mais recente
   const sorted = filtered.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   const item = sorted[0] || null;
-  return NextResponse.json({ ok: true, data: item });
+  return NextResponse.json({ ok: true, data: item }, { headers });
 }

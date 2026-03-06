@@ -34,7 +34,7 @@ export default function MobileCategoryScroller({ initialCategories }: MobileCate
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch('/api/categories', { cache: 'force-cache', next: { revalidate: 300 } as any });
+        const res = await fetch('/api/categories', { cache: 'no-store' });
         if (!res.ok) throw new Error('failed');
         const j = await res.json();
         if (mounted) setCats(Array.isArray(j?.data) && j.data.length ? j.data : []);

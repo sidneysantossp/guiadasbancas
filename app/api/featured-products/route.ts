@@ -3,13 +3,19 @@ import type { NextRequest } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 60;
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 /**
  * Public API: featured products (curated sections)
  * GET /api/featured-products?section=<key>&limit=8
  */
 export async function GET(req: NextRequest) {
+  const headers = {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+    'Surrogate-Control': 'no-store',
+  };
+
   try {
     const { searchParams } = new URL(req.url);
     const section = (searchParams.get('section') || '').trim();
@@ -17,7 +23,7 @@ export async function GET(req: NextRequest) {
     const bancaId = (searchParams.get('banca_id') || '').trim();
 
     if (!section) {
-      return NextResponse.json({ success: false, error: 'section param required', data: [] }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'section param required', data: [] }, { status: 400, headers });
     }
 
     // 1) Read curated entries
@@ -31,12 +37,12 @@ export async function GET(req: NextRequest) {
 
     if (featsErr) {
       console.error('[featured-products] read featured error', featsErr);
-      return NextResponse.json({ success: false, error: 'Erro ao buscar vitrine', data: [] }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Erro ao buscar vitrine', data: [] }, { status: 500, headers });
     }
 
     const ids = (feats || []).map(f => f.product_id).filter(Boolean);
     if (!ids.length) {
-      return NextResponse.json({ success: true, data: [], total: 0 });
+      return NextResponse.json({ success: true, data: [], total: 0 }, { headers });
     }
 
     // 2) Fetch products by ids (only active products)
@@ -48,7 +54,7 @@ export async function GET(req: NextRequest) {
 
     if (prodErr) {
       console.error('[featured-products] read products error', prodErr);
-      return NextResponse.json({ success: false, error: 'Erro ao buscar produtos', data: [] }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Erro ao buscar produtos', data: [] }, { status: 500, headers });
     }
 
     const bancaIds = Array.from(new Set((prods || []).map((p: any) => p.banca_id).filter(Boolean)));
@@ -191,9 +197,9 @@ export async function GET(req: NextRequest) {
       })
       .filter(Boolean);
 
-    return NextResponse.json({ success: true, data: items, total: items.length });
+    return NextResponse.json({ success: true, data: items, total: items.length }, { headers });
   } catch (e) {
     console.error('[featured-products] GET error', e);
-    return NextResponse.json({ success: false, error: 'Erro interno', data: [] }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Erro interno', data: [] }, { status: 500, headers });
   }
 }

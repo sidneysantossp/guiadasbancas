@@ -3,7 +3,9 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { sanitizePublicImageUrl } from "@/lib/sanitizePublicImageUrl";
 import { categories as fallbackCategories } from "@/components/categoriesData";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export type PublicCategory = {
   id: string;
@@ -477,7 +479,8 @@ function curateMegaMenuTree(tree: TreeCategory[]): TreeCategory[] {
 
 export async function GET(_request: NextRequest) {
   const cacheHeaders = {
-    "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Surrogate-Control": "no-store",
   };
 
   try {

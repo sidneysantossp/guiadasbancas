@@ -149,7 +149,7 @@ export default function BuscarPageClient({
         
         if (shouldFetchProducts) {
           const locQs = loc ? `&lat=${encodeURIComponent(String(loc.lat))}&lng=${encodeURIComponent(String(loc.lng))}` : "";
-          const productsRes = await fetch(`/api/products/most-searched?search=${encodeURIComponent(qTerm)}&limit=96${locQs}`);
+          const productsRes = await fetch(`/api/products/most-searched?search=${encodeURIComponent(qTerm)}&limit=96${locQs}`, { cache: 'no-store' });
           const productsData = await productsRes.json();
           if (!productsRes.ok) {
             throw new Error(productsData?.error || 'Erro ao buscar produtos');
@@ -167,7 +167,7 @@ export default function BuscarPageClient({
               .sort((a, b) => b.length - a.length);
             const fallbackTerm = ranked[0] || tokens[0];
             if (fallbackTerm && fallbackTerm !== qTerm) {
-              const fallbackRes = await fetch(`/api/products/most-searched?search=${encodeURIComponent(fallbackTerm)}&limit=96${locQs}`);
+              const fallbackRes = await fetch(`/api/products/most-searched?search=${encodeURIComponent(fallbackTerm)}&limit=96${locQs}`, { cache: 'no-store' });
               const fallbackData = await fallbackRes.json();
               if (fallbackRes.ok) {
                 const fallbackList = Array.isArray(fallbackData?.data)

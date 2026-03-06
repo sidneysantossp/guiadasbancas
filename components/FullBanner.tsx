@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 // Removido next/image - usando img nativo para evitar falhas de otimização em produção
@@ -212,15 +212,14 @@ type FullBannerProps = {
 };
 
 export default function FullBanner({ bancaId, initialSlides, initialConfig }: FullBannerProps) {
-  const [slides, setSlides] = useState<HeroSlide[]>(() => {
+  const slides = useMemo<HeroSlide[]>(() => {
     const seeded = normalizeSlides(initialSlides);
     return seeded.length > 0 ? seeded : DEFAULT_SLIDES;
-  });
-  const [config, setConfig] = useState<SliderConfig>(() => mergeConfig(initialConfig));
+  }, [initialSlides]);
+  const config = useMemo<SliderConfig>(() => mergeConfig(initialConfig), [initialConfig]);
   const [index, setIndex] = useState(0);
   const [coupon, setCoupon] = useState<{ title: string; code: string; discountText: string } | null>(null);
   const [copied, setCopied] = useState(false);
-  const [heroLoaded, setHeroLoaded] = useState(false);
 
   useEffect(() => {
     // NÃO fazer fetch client-side - usar apenas dados SSR
@@ -236,7 +235,7 @@ export default function FullBanner({ bancaId, initialSlides, initialConfig }: Fu
       
       try {
         const res = await fetch(`/api/coupons/highlight?sellerId=${bancaId}`, {
-          next: { revalidate: 60 } as any
+          cache: 'no-store'
         });
         if (!res.ok) return;
         const j = await res.json();
@@ -291,12 +290,33 @@ export default function FullBanner({ bancaId, initialSlides, initialConfig }: Fu
   const safeIndex = effectiveSlides.length > 0 ? index % effectiveSlides.length : 0;
   const slide = effectiveSlides[safeIndex];
   const currentImageUrl = slide?.imageUrl;
+  const nextImageUrl =
+    effectiveSlides.length > 1
+      ? effectiveSlides[(safeIndex + 1) % effectiveSlides.length]?.imageUrl
+      : null;
 
   useEffect(() => {
-    if (currentImageUrl) {
-      setHeroLoaded(false);
-    }
-  }, [currentImageUrl]);
+    if (typeof window === "undefined") return;
+
+    const preloadTargets = [currentImageUrl, nextImageUrl].filter(
+      (value): value is string => typeof value === "string" && value.length > 0
+    );
+
+    const preloaders = preloadTargets.map((src) => {
+      const image = new window.Image();
+      image.decoding = "sync";
+      image.fetchPriority = "high";
+      image.src = src;
+      return image;
+    });
+
+    return () => {
+      preloaders.forEach((image) => {
+        image.onload = null;
+        image.onerror = null;
+      });
+    };
+  }, [currentImageUrl, nextImageUrl]);
 
   if (effectiveSlides.length === 0 || !slide) {
     return null;
@@ -323,10 +343,6 @@ export default function FullBanner({ bancaId, initialSlides, initialConfig }: Fu
 
   const showCta1 = Boolean(slide?.cta1Text?.trim() && slide?.cta1Link?.trim());
   const showCta2 = Boolean(slide?.cta2Text?.trim() && slide?.cta2Link?.trim());
-
-  // Renderizar o banner mesmo antes da imagem carregar, mas com transição suave
-  // A verificação anterior causava o problema: se heroLoaded=false, retornava null
-  // e a imagem nunca carregava porque o componente não renderizava!
 
   return (
     <section 
@@ -366,8 +382,8 @@ export default function FullBanner({ bancaId, initialSlides, initialConfig }: Fu
             alt={slide.imageAlt}
             loading="eager"
             fetchPriority="high"
-            onLoad={() => setHeroLoaded(true)}
-            onError={() => setHeroLoaded(true)}
+            decoding="sync"
+            draggable={false}
             className="absolute inset-0 w-full h-full object-cover"
           />
           {/* Gradient overlay */}

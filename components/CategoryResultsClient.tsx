@@ -172,15 +172,6 @@ function Stars({ value = 5 }: { value?: number }) {
   );
 }
 
-function ReadyBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold">
-      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-      Pronta Entrega
-    </span>
-  );
-}
-
 function slugify(text: string) {
   return text
     .toLowerCase()
@@ -230,11 +221,6 @@ function ProductCard({ p, km }: { p: Product; km: number | null }) {
         <img src={p.image} alt={p.name} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
         {/* Efeito hover sutil sobre a imagem */}
         <div className="pointer-events-none absolute inset-0 rounded-[14px] bg-black/0 group-hover:bg-black/5 transition" />
-        {p.ready && (
-          <div className="absolute left-2 top-2">
-            <ReadyBadge />
-          </div>
-        )}
       </div>
       <div className="p-3">
         <div className="text-[13px] font-semibold line-clamp-1">{p.name}</div>
@@ -770,7 +756,7 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
                     lng: banca?.lng || -46.6333,
                     rating: item.rating_avg || 5,
                     reviews: item.reviews_count || 0,
-                    ready: true,
+                    ready: Boolean(item.pronta_entrega),
                     bancaId: item.banca_id,
                     phone: banca?.contact?.whatsapp || banca?.whatsapp || banca?.phone || banca?.telefone || banca?.whatsapp_phone,
                   });
@@ -789,7 +775,7 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
                       lng: banca.lng || -46.6333,
                       rating: item.rating_avg || 5,
                       reviews: item.reviews_count || 0,
-                      ready: true,
+                      ready: Boolean(item.pronta_entrega),
                       bancaId: banca.id,
                       phone: banca.contact?.whatsapp || banca.whatsapp || banca.phone || banca.telefone || banca.whatsapp_phone,
                     });
@@ -889,7 +875,7 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
                       lng: banca?.lng || -46.6333,
                       rating: item.rating_avg || 5,
                       reviews: item.reviews_count || 0,
-                      ready: true,
+                      ready: Boolean(item.pronta_entrega),
                       bancaId: item.banca_id,
                       phone: banca?.contact?.whatsapp || banca?.whatsapp || banca?.phone || banca?.telefone || banca?.whatsapp_phone,
                     });
@@ -908,7 +894,7 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
                         lng: banca.lng || -46.6333,
                         rating: item.rating_avg || 5,
                         reviews: item.reviews_count || 0,
-                        ready: true,
+                        ready: Boolean(item.pronta_entrega),
                         bancaId: banca.id,
                         phone: banca.contact?.whatsapp || banca.whatsapp || banca.phone || banca.telefone || banca.whatsapp_phone,
                       });

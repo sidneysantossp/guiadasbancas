@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 const DEFAULT_BANNER = {
   title: "Indique a Plataforma e ganhe benefícios",
@@ -23,7 +25,8 @@ const DEFAULT_BANNER = {
 
 export async function GET() {
   const headers = {
-    "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Surrogate-Control": "no-store",
   };
 
   try {
@@ -44,4 +47,3 @@ export async function GET() {
     return NextResponse.json({ success: true, data: DEFAULT_BANNER }, { headers });
   }
 }
-

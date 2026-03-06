@@ -87,7 +87,7 @@ export default function CatalogSidebar({
               allItem,
               `block w-full rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
                 allItem.active
-                  ? "bg-[#ff5c00] font-medium text-white"
+                  ? "bg-[#ff5c00] text-white"
                   : "text-gray-700 hover:bg-gray-50"
               }`
             )
@@ -103,7 +103,7 @@ export default function CatalogSidebar({
                   item,
                   `block w-full rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
                     item.active
-                      ? "bg-[#ff5c00] font-medium text-white"
+                      ? "bg-[#ff5c00] text-white"
                       : "text-gray-700 hover:bg-gray-50"
                   }`
                 )}
@@ -124,7 +124,7 @@ export default function CatalogSidebar({
                       href: item.href,
                       onClick: item.onClick,
                     },
-                    `flex-1 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
+                    `flex-1 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
                       item.active
                         ? "text-[#ff5c00]"
                         : "text-gray-900 hover:bg-gray-50"
@@ -145,7 +145,7 @@ export default function CatalogSidebar({
                 <button
                   type="button"
                   onClick={item.onToggle}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm text-gray-900 transition-colors hover:bg-gray-50"
                 >
                   <span>{item.label}</span>
                   {item.children.length > 0 ? <Chevron expanded={item.expanded} /> : null}
@@ -165,7 +165,7 @@ export default function CatalogSidebar({
                           child,
                           `block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                             child.active
-                              ? "bg-[#ff5c00] font-medium text-white"
+                              ? "bg-[#ff5c00] text-white"
                               : "text-gray-600 hover:bg-gray-50"
                           }`,
                           <span>{child.label}</span>
