@@ -102,24 +102,36 @@ function isProductPublic(product: ProductRow): boolean {
 }
 
 async function getActiveProductsForPublicRoute(): Promise<ProductRow[]> {
-  const { data, error } = await supabaseAdmin
-    .from("products")
-    .select(`
-      id,
-      name,
-      description,
-      images,
-      codigo_mercos,
-      banca_id,
-      distribuidor_id,
-      active,
-      bancas(id,name,is_cotista,cotista_id,active)
-    `)
-    .eq("active", true)
-    .limit(6000);
+  const pageSize = 1000;
+  const results: ProductRow[] = [];
+  let from = 0;
 
-  if (error || !Array.isArray(data)) return [];
-  return data as ProductRow[];
+  while (true) {
+    const { data, error } = await supabaseAdmin
+      .from("products")
+      .select(`
+        id,
+        name,
+        description,
+        images,
+        codigo_mercos,
+        banca_id,
+        distribuidor_id,
+        active,
+        bancas(id,name,is_cotista,cotista_id,active)
+      `)
+      .eq("active", true)
+      .range(from, from + pageSize - 1);
+
+    if (error || !Array.isArray(data) || data.length === 0) break;
+
+    results.push(...(data as ProductRow[]));
+
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return results;
 }
 
 export async function resolveProductByRawParam(rawParam: string): Promise<PublicProduct | null> {
