@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auth } from '@/lib/auth';
 import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
+import { getNextPlanType } from "@/lib/plan-messaging";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -41,19 +43,45 @@ export async function GET(req: NextRequest) {
     }
 
     const bancaId = banca.id;
-    const isCotista = banca.is_cotista === true && !!banca.cotista_id;
-    console.log('[CATALOGO] Banca encontrada:', bancaId, '- É cotista:', isCotista);
+    const entitlements = await resolveBancaPlanEntitlements(banca);
+    const isCotista = entitlements.isLegacyCotistaLinked;
+    const hasCatalogAccess = entitlements.canAccessDistributorCatalog;
+    console.log('[CATALOGO] Banca encontrada:', bancaId, '- acesso ao catálogo:', hasCatalogAccess);
 
-    // Verificar se é cotista - apenas cotistas têm acesso ao catálogo de distribuidores
-    if (!isCotista) {
-      console.log('[CATALOGO] Usuário não é cotista - acesso negado ao catálogo');
+    if (!hasCatalogAccess) {
+      const overdueLockMessage =
+        entitlements.overdueFeaturesLocked && entitlements.subscription?.plan
+          ? `Seu plano ${entitlements.subscription.plan.name} está com cobrança em aberto. O acesso à rede parceira foi pausado após o período de carência.`
+          : null;
+      const pendingUpgradeMessage =
+        entitlements.paidFeaturesLockedUntilPayment && entitlements.requestedPlan
+          ? `Seu upgrade para ${entitlements.requestedPlan.name} foi iniciado, mas a rede de distribuidores só será liberada após o pagamento da primeira cobrança.`
+          : 'O catálogo de distribuidores é liberado para bancas parceiras ou planos com acesso à rede de distribuidores.';
+
+      console.log('[CATALOGO] Sem acesso ao catálogo de distribuidores');
       return NextResponse.json({
         success: true,
         data: [],
         products: [],
         total: 0,
         is_cotista: false,
-        message: 'Para ter acesso ao catálogo de distribuidores, você precisa se identificar como cotista na sua banca.'
+        has_catalog_access: false,
+        plan: entitlements.plan,
+        requested_plan: entitlements.requestedPlan,
+        subscription: entitlements.subscription,
+        entitlements: {
+          plan_type: entitlements.planType,
+          can_access_distributor_catalog: false,
+          can_access_partner_directory: entitlements.canAccessPartnerDirectory,
+          paid_features_locked_until_payment: entitlements.paidFeaturesLockedUntilPayment,
+          overdue_features_locked: entitlements.overdueFeaturesLocked,
+          overdue_in_grace_period: entitlements.overdueInGracePeriod,
+          overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
+        },
+        message: overdueLockMessage || pendingUpgradeMessage,
+        recommended_plan_type: entitlements.planType === "premium" ? null : "premium",
+        upgrade_url: "/jornaleiro/meu-plano",
+        next_plan_type: getNextPlanType(entitlements.planType),
       });
     }
 
@@ -326,7 +354,14 @@ export async function GET(req: NextRequest) {
       data: produtosComCustom, // backward compatibility
       distribuidores: listaDistribuidores, // Lista de nomes de todos os distribuidores
       total: produtosComCustom.length,
-      is_cotista: true,
+      is_cotista: isCotista,
+      has_catalog_access: true,
+      plan: entitlements.plan,
+      entitlements: {
+        plan_type: entitlements.planType,
+        can_access_distributor_catalog: true,
+        can_access_partner_directory: entitlements.canAccessPartnerDirectory,
+      },
     }, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',

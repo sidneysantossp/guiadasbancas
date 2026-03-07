@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { validateProductCreate } from "@/lib/validators/product";
 import ImageUploader from "@/components/admin/ImageUploader";
 import ProductImageUploader from "@/components/admin/ProductImageUploader";
@@ -10,6 +11,9 @@ import VideoTutorial from "@/components/admin/VideoTutorial";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import SpecificationsEditor from "@/components/admin/SpecificationsEditor";
 import { useToast } from "@/components/admin/ToastProvider";
+import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
+import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
+import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
 
 interface CategoryOption {
   id: string;
@@ -51,6 +55,21 @@ export default function SellerProductCreatePage() {
   const [costPrice, setCostPrice] = useState("");
   const [salePrice, setSalePrice] = useState("");
   const [discountPercent, setDiscountPercent] = useState("");
+  const [planName, setPlanName] = useState("Plano atual");
+  const [planType, setPlanType] = useState<string>("free");
+  const [productLimit, setProductLimit] = useState<number | null>(null);
+  const [limitReachedInfo, setLimitReachedInfo] = useState<{
+    limit: number;
+    currentCount: number;
+    planName: string;
+    planType: string;
+  } | null>(null);
+  const [pendingPlanName, setPendingPlanName] = useState<string | null>(null);
+  const [paidFeaturesLockedUntilPayment, setPaidFeaturesLockedUntilPayment] = useState(false);
+  const [overdueFeaturesLocked, setOverdueFeaturesLocked] = useState(false);
+  const [overdueInGracePeriod, setOverdueInGracePeriod] = useState(false);
+  const [overdueGraceEndsAt, setOverdueGraceEndsAt] = useState<string | null>(null);
+  const [contractedPlanName, setContractedPlanName] = useState<string | null>(null);
   
   // Estados para contexto da IA
   const [productName, setProductName] = useState("");
@@ -83,9 +102,28 @@ export default function SellerProductCreatePage() {
         const res = await fetch("/api/jornaleiro/banca", { headers: authHeaders, cache: "no-store" });
         const json = await res.json();
         const banca = json?.data;
+        const parsedLimit = Number(banca?.entitlements?.product_limit);
         setIsCotista(Boolean(banca?.is_cotista === true && banca?.cotista_id));
+        setPlanName(banca?.plan?.name || "Plano atual");
+        setPlanType(banca?.entitlements?.plan_type || banca?.plan?.type || "free");
+        setProductLimit(Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : null);
+        setPendingPlanName(banca?.requested_plan?.name || null);
+        setPaidFeaturesLockedUntilPayment(banca?.entitlements?.paid_features_locked_until_payment === true);
+        setOverdueFeaturesLocked(banca?.entitlements?.overdue_features_locked === true);
+        setOverdueInGracePeriod(banca?.entitlements?.overdue_in_grace_period === true);
+        setOverdueGraceEndsAt(banca?.entitlements?.overdue_grace_ends_at || null);
+        setContractedPlanName(banca?.subscription?.plan?.name || null);
       } catch {
         setIsCotista(false);
+        setPlanName("Plano atual");
+        setPlanType("free");
+        setProductLimit(null);
+        setPendingPlanName(null);
+        setPaidFeaturesLockedUntilPayment(false);
+        setOverdueFeaturesLocked(false);
+        setOverdueInGracePeriod(false);
+        setOverdueGraceEndsAt(null);
+        setContractedPlanName(null);
       }
     };
     loadBanca();
@@ -190,8 +228,24 @@ export default function SellerProductCreatePage() {
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         console.error('[Create] Erro da API:', errorData);
+        if (errorData?.code === "PLAN_PRODUCT_LIMIT_REACHED") {
+          setLimitReachedInfo({
+            limit: Number(errorData.limit || productLimit || 0),
+            currentCount: Number(errorData.currentCount || 0),
+            planName: errorData.plan?.name || planName,
+            planType: errorData.plan?.type || planType,
+          });
+        } else if (errorData?.code === "PLAN_PENDING_PAYMENT") {
+          setPendingPlanName(errorData?.requested_plan?.name || pendingPlanName || "Plano solicitado");
+          setPaidFeaturesLockedUntilPayment(true);
+        } else if (errorData?.code === "PLAN_OVERDUE_SUSPENDED") {
+          setOverdueFeaturesLocked(true);
+          setContractedPlanName(errorData?.contracted_plan?.name || contractedPlanName || "Plano contratado");
+          setOverdueGraceEndsAt(errorData?.overdue_grace_ends_at || overdueGraceEndsAt || null);
+        }
         throw new Error(errorData.error || "Falha ao criar produto.");
       }
+      setLimitReachedInfo(null);
       toast.success("Produto criado com sucesso");
       router.push("/jornaleiro/produtos");
     } catch (e: any) {
@@ -219,6 +273,36 @@ export default function SellerProductCreatePage() {
         <h1 className="text-xl font-semibold">Novo produto</h1>
         <p className="text-sm text-gray-600">Cadastre um novo item na sua banca.</p>
       </div>
+
+      {productLimit ? (
+        <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+          <div className="font-semibold">Limite do {planName}</div>
+          <p className="mt-1">
+            Este plano permite até <strong>{productLimit} produtos próprios cadastrados</strong>. Se sua banca crescer além disso, o próximo passo é fazer upgrade em{" "}
+            <Link href="/jornaleiro/meu-plano" className="font-semibold text-[#ff5c00] underline">
+              Meu Plano
+            </Link>.
+          </p>
+        </div>
+      ) : null}
+
+      {overdueFeaturesLocked || overdueInGracePeriod ? (
+        <PlanOverdueCard
+          planName={contractedPlanName || planName}
+          graceEndsAt={overdueGraceEndsAt}
+          accessSuspended={overdueFeaturesLocked}
+        />
+      ) : paidFeaturesLockedUntilPayment && pendingPlanName ? (
+        <PlanPendingActivationCard requestedPlanName={pendingPlanName} />
+      ) : limitReachedInfo ? (
+        <PlanUpgradeCard
+          currentPlanType={limitReachedInfo.planType}
+          currentPlanName={limitReachedInfo.planName}
+          context="product-limit"
+          productLimit={limitReachedInfo.limit}
+          currentCount={limitReachedInfo.currentCount}
+        />
+      ) : null}
 
       <form onSubmit={onSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
@@ -477,10 +561,18 @@ export default function SellerProductCreatePage() {
             
             <div className="pt-2">
               <button
-                disabled={saving}
+                disabled={saving || Boolean(limitReachedInfo) || paidFeaturesLockedUntilPayment || overdueFeaturesLocked}
                 className="w-full rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {saving ? "Salvando..." : "Salvar"}
+                {saving
+                  ? "Salvando..."
+                  : overdueFeaturesLocked
+                    ? "Cobrança do plano em aberto"
+                  : paidFeaturesLockedUntilPayment
+                    ? "Aguardando pagamento do upgrade"
+                    : limitReachedInfo
+                      ? "Limite do plano atingido"
+                      : "Salvar"}
               </button>
             </div>
           </div>

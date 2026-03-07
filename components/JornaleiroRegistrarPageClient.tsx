@@ -13,6 +13,7 @@ import {
 } from "@/lib/documents";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
 import CotistaSearch from "@/components/CotistaSearch";
+import PlanEntryGuide from "@/components/jornaleiro/PlanEntryGuide";
 import logger from "@/lib/logger";
 
 export default function JornaleiroRegistrarPageClient() {
@@ -802,7 +803,7 @@ export default function JornaleiroRegistrarPageClient() {
           <div className="text-center">
             <h1 className="text-xl font-semibold">{step === 2 ? 'Dados de Acesso da Banca' : step === 3 ? 'Informações da Banca' : step === 4 ? 'Imagens da Banca' : step === 6 ? 'Conclusão' : 'Cadastro do Jornaleiro'}</h1>
             {step === 1 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Informe seu nome completo, CPF ou CNPJ e WhatsApp para começarmos seu cadastro.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Informe seu nome completo, CPF ou CNPJ e WhatsApp para começarmos seu cadastro. Seu painel entra no plano Free automaticamente.</p>
             ) : step === 2 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Agora precisamos do seu email e senha para criar sua conta de acesso.</p>
             ) : step === 3 ? (
@@ -825,6 +826,7 @@ export default function JornaleiroRegistrarPageClient() {
 
         {step === 1 && (
           <div className="mt-4 grid grid-cols-1 gap-3">
+            <PlanEntryGuide compact />
             <div>
               <label className="text-[12px] text-gray-700">Nome completo</label>
               <input
@@ -1366,7 +1368,7 @@ export default function JornaleiroRegistrarPageClient() {
                     <path d="M12 2a10 10 0 0 1 10 10" opacity="0.75"/>
                   </svg>
                 )}
-                {isBusy ? 'Concluindo...' : 'Concluir cadastro'}
+                {isBusy ? 'Concluindo...' : 'Concluir e ativar plano Free'}
               </button>
             ) : null}
           </div>

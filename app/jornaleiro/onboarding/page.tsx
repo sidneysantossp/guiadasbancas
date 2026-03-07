@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { geocodeByAddressNominatim, resolveCepToLocation, isValidCep } from "@/lib/location";
+import PlanEntryGuide from "@/components/jornaleiro/PlanEntryGuide";
 import logger from "@/lib/logger";
 
 export default function JornaleiroOnboardingPage() {
@@ -38,7 +39,7 @@ export default function JornaleiroOnboardingPage() {
         if (existingBanca) {
           logger.log('[Onboarding] ✅ Banca já existe, redirecionando para dashboard');
           setStatus("success");
-          setMessage("Você já possui uma banca cadastrada. Redirecionando...");
+          setMessage("Você já possui uma banca cadastrada. Seu painel segue liberado no plano Free ou no plano que já estiver ativo.");
           setTimeout(() => {
             if (!cancelled) {
               router.push("/jornaleiro/dashboard" as Route);
@@ -244,7 +245,7 @@ export default function JornaleiroOnboardingPage() {
 
         logger.log('[Onboarding] Banca existente vinculada ao perfil!');
         setStatus("success");
-        setMessage("Você já possui uma banca cadastrada. Redirecionando...");
+        setMessage("Você já possui uma banca cadastrada. Agora vamos abrir o painel da sua banca.");
         setTimeout(() => {
           router.push(("/jornaleiro/dashboard" as Route));
         }, 1500);
@@ -312,7 +313,7 @@ export default function JornaleiroOnboardingPage() {
       } catch {}
 
       setStatus("success");
-      setMessage("Banca criada com sucesso! Redirecionando...");
+      setMessage("Banca criada com sucesso! Seu painel já começa no plano Free. Você decide o upgrade depois.");
       
       logger.log('[Onboarding] 🎉 Sucesso! Redirecionando para dashboard...');
 
@@ -332,9 +333,9 @@ export default function JornaleiroOnboardingPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100 px-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+      <div className="max-w-3xl w-full bg-white rounded-2xl shadow-xl p-8">
         {/* Ícone de Status */}
-        <div className="mb-6">
+        <div className="mb-6 text-center">
           {status === "loading" || status === "creating" ? (
             <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-orange-600 mx-auto"></div>
           ) : status === "success" ? (
@@ -373,10 +374,40 @@ export default function JornaleiroOnboardingPage() {
         </div>
 
         {/* Mensagem */}
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          {status === "success" ? "Tudo pronto!" : status === "error" ? "Ops!" : "Aguarde..."}
-        </h2>
-        <p className="text-gray-600">{message}</p>
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {status === "success" ? "Tudo pronto!" : status === "error" ? "Ops!" : "Aguarde..."}
+          </h2>
+          <p className="text-gray-600">{message}</p>
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+              O que acontece agora
+            </div>
+            <ul className="mt-4 space-y-3 text-sm text-gray-700">
+              <li className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-[#ff5c00]" />
+                <span>Sua conta e sua banca ficam conectadas no mesmo painel.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-[#ff5c00]" />
+                <span>O acesso inicial entra no plano <strong>Free</strong>, sem cobrança agora.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-[#ff5c00]" />
+                <span>Você primeiro organiza a banca, horários e produtos.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-[#ff5c00]" />
+                <span>Quando fizer sentido, ativa <strong>Start</strong> ou <strong>Premium</strong> dentro do painel.</span>
+              </li>
+            </ul>
+          </div>
+
+          <PlanEntryGuide />
+        </div>
 
         {/* Botão de Retry */}
         {status === "error" && (

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getActiveBancaRowForUser } from '@/lib/jornaleiro-banca';
+import { resolveBancaPlanEntitlements } from '@/lib/plan-entitlements';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -34,7 +35,9 @@ export async function GET(req: NextRequest) {
     }
 
     const bancaId = banca.id;
-    const isCotista = banca.is_cotista === true || !!banca.cotista_id;
+    const entitlements = await resolveBancaPlanEntitlements(banca);
+    const canAccessDistributorCatalog = entitlements.canAccessDistributorCatalog;
+    const isCotista = entitlements.isLegacyCotistaLinked;
 
     // Usar COUNT direto para evitar limite de 1000 registros do Supabase
     const hoje = new Date();
@@ -55,7 +58,7 @@ export async function GET(req: NextRequest) {
         .eq('banca_id', bancaId)
         .eq('active', true),
       // Contar TODOS os produtos de distribuidores ativos (apenas se cotista)
-      isCotista
+      canAccessDistributorCatalog
         ? supabaseAdmin
             .from('products')
             .select('*', { count: 'exact', head: true })
@@ -83,7 +86,7 @@ export async function GET(req: NextRequest) {
     ]);
 
     const produtosProprios = produtosPropriosRes.count || 0;
-    const produtosDistribuidor = isCotista ? (produtosDistribuidorRes.count || 0) : 0;
+    const produtosDistribuidor = canAccessDistributorCatalog ? (produtosDistribuidorRes.count || 0) : 0;
     const pedidosHoje = pedidosHojeRes.count || 0;
     const pedidosPendentes = pedidosPendentesRes.count || 0;
     
@@ -96,6 +99,7 @@ export async function GET(req: NextRequest) {
     console.log('[Stats Jornaleiro] Contagens:', {
       bancaId,
       isCotista,
+      canAccessDistributorCatalog,
       produtosProprios,
       produtosDistribuidor,
       produtosAtivos,
@@ -114,6 +118,8 @@ export async function GET(req: NextRequest) {
         pedidosPendentes,
         faturamentoHoje,
         isCotista,
+        canAccessDistributorCatalog,
+        planType: entitlements.planType,
       }
     }, {
       headers: {

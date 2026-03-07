@@ -2,17 +2,33 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
+
+type PlanType = "free" | "start" | "premium";
+
+type PlanLimits = {
+  max_products: number;
+  max_images_per_product: number;
+  distributor_catalog?: boolean;
+  partner_directory?: boolean;
+};
+
+const PLAN_TYPE_META: Record<PlanType, { label: string; className: string }> = {
+  free: { label: "Gratuito", className: "bg-green-100 text-green-700" },
+  start: { label: "Start", className: "bg-blue-100 text-blue-700" },
+  premium: { label: "Premium", className: "bg-purple-100 text-purple-700" },
+};
 
 type Plan = {
   id: string;
   name: string;
   slug: string;
   description: string;
-  type: "free" | "premium";
+  type: PlanType;
   price: number;
   billing_cycle: string;
   features: string[];
-  limits: Record<string, any>;
+  limits: PlanLimits;
   is_active: boolean;
   is_default: boolean;
   sort_order: number;
@@ -32,18 +48,18 @@ export default function AdminPlanosPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [saving, setSaving] = useState(false);
-  const [menuEnabled, setMenuEnabled] = useState(true);
+  const [menuEnabled, setMenuEnabled] = useState(false);
   const [savingMenu, setSavingMenu] = useState(false);
 
   const [form, setForm] = useState<{
     name: string;
     slug: string;
     description: string;
-    type: "free" | "premium";
+    type: PlanType;
     price: number;
     billing_cycle: string;
     features: string[];
-    limits: Record<string, number>;
+    limits: PlanLimits;
     is_active: boolean;
     is_default: boolean;
     sort_order: number;
@@ -51,11 +67,11 @@ export default function AdminPlanosPage() {
     name: "",
     slug: "",
     description: "",
-    type: "premium",
+    type: "start",
     price: 0,
     billing_cycle: "monthly",
     features: [],
-    limits: { max_products: 100, max_images_per_product: 10 },
+    limits: { max_products: 100, max_images_per_product: 10, distributor_catalog: false, partner_directory: false },
     is_active: true,
     is_default: false,
     sort_order: 0,
@@ -63,9 +79,17 @@ export default function AdminPlanosPage() {
 
   const [newFeature, setNewFeature] = useState("");
 
+  const normalizeLimits = (limits?: Record<string, any> | null): PlanLimits => ({
+    max_products: Number(limits?.max_products) > 0 ? Math.floor(Number(limits?.max_products)) : 0,
+    max_images_per_product:
+      Number(limits?.max_images_per_product) > 0 ? Math.floor(Number(limits?.max_images_per_product)) : 5,
+    distributor_catalog: Boolean(limits?.distributor_catalog),
+    partner_directory: Boolean(limits?.partner_directory),
+  });
+
   const loadPlans = async () => {
     try {
-      const res = await fetch("/api/admin/plans");
+      const res = await fetchAdminWithDevFallback("/api/admin/plans");
       const data = await res.json();
       if (data.success) {
         setPlans(data.data || []);
@@ -79,13 +103,16 @@ export default function AdminPlanosPage() {
 
   const loadMenuSetting = async () => {
     try {
-      const res = await fetch("/api/admin/settings?keys=plans_menu_enabled");
+      const res = await fetchAdminWithDevFallback("/api/admin/settings?keys=plans_menu_enabled");
       const data = await res.json();
       if (data.success && data.data?.length > 0) {
         setMenuEnabled(data.data[0].value === "true");
+      } else {
+        setMenuEnabled(false);
       }
     } catch (error) {
       console.error("Erro ao carregar configuração:", error);
+      setMenuEnabled(false);
     }
   };
 
@@ -93,7 +120,7 @@ export default function AdminPlanosPage() {
     setSavingMenu(true);
     try {
       const newValue = !menuEnabled;
-      const res = await fetch("/api/admin/settings", {
+      const res = await fetchAdminWithDevFallback("/api/admin/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -130,7 +157,7 @@ export default function AdminPlanosPage() {
         price: plan.price,
         billing_cycle: plan.billing_cycle,
         features: plan.features || [],
-        limits: plan.limits || { max_products: 100, max_images_per_product: 10 },
+        limits: normalizeLimits(plan.limits),
         is_active: plan.is_active,
         is_default: plan.is_default,
         sort_order: plan.sort_order,
@@ -141,11 +168,11 @@ export default function AdminPlanosPage() {
         name: "",
         slug: "",
         description: "",
-        type: "premium",
+        type: "start",
         price: 0,
         billing_cycle: "monthly",
         features: [],
-        limits: { max_products: 100, max_images_per_product: 10 },
+        limits: { max_products: 100, max_images_per_product: 10, distributor_catalog: false, partner_directory: false },
         is_active: true,
         is_default: false,
         sort_order: plans.length,
@@ -170,7 +197,7 @@ export default function AdminPlanosPage() {
         : "/api/admin/plans";
       const method = editingPlan ? "PUT" : "POST";
 
-      const res = await fetch(url, {
+      const res = await fetchAdminWithDevFallback(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -195,7 +222,7 @@ export default function AdminPlanosPage() {
     if (!confirm(`Excluir o plano "${plan.name}"?`)) return;
 
     try {
-      const res = await fetch(`/api/admin/plans/${plan.id}`, { method: "DELETE" });
+      const res = await fetchAdminWithDevFallback(`/api/admin/plans/${plan.id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
         loadPlans();
@@ -279,13 +306,16 @@ export default function AdminPlanosPage() {
 
       {/* Cards dos Planos */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {plans.map((plan) => (
-          <div
-            key={plan.id}
-            className={`bg-white rounded-xl border-2 p-6 relative ${
-              plan.is_default ? "border-blue-500" : "border-gray-200"
-            } ${!plan.is_active ? "opacity-60" : ""}`}
-          >
+        {plans.map((plan) => {
+          const planTypeMeta = PLAN_TYPE_META[plan.type] || PLAN_TYPE_META.premium;
+
+          return (
+            <div
+              key={plan.id}
+              className={`bg-white rounded-xl border-2 p-6 relative ${
+                plan.is_default ? "border-blue-500" : "border-gray-200"
+              } ${!plan.is_active ? "opacity-60" : ""}`}
+            >
             {plan.is_default && (
               <span className="absolute -top-3 left-4 bg-blue-500 text-white text-xs px-2 py-1 rounded">
                 Padrão
@@ -297,15 +327,13 @@ export default function AdminPlanosPage() {
               </span>
             )}
 
-            <div className="flex items-start justify-between">
-              <div>
-                <span className={`text-xs font-medium px-2 py-1 rounded ${
-                  plan.type === "free" ? "bg-green-100 text-green-700" : "bg-purple-100 text-purple-700"
-                }`}>
-                  {plan.type === "free" ? "Gratuito" : "Premium"}
-                </span>
-                <h3 className="text-xl font-bold mt-2">{plan.name}</h3>
-              </div>
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded ${planTypeMeta.className}`}>
+                    {planTypeMeta.label}
+                  </span>
+                  <h3 className="text-xl font-bold mt-2">{plan.name}</h3>
+                </div>
               <div className="flex gap-1">
                 <button
                   onClick={() => openModal(plan)}
@@ -326,38 +354,59 @@ export default function AdminPlanosPage() {
               </div>
             </div>
 
-            <div className="mt-4">
-              <span className="text-3xl font-bold">
-                {plan.price === 0 ? "Grátis" : `R$ ${plan.price.toFixed(2)}`}
-              </span>
-              {plan.price > 0 && (
-                <span className="text-gray-500 text-sm">/{BILLING_CYCLES[plan.billing_cycle]?.toLowerCase()}</span>
+              <div className="mt-4">
+                <span className="text-3xl font-bold">
+                  {plan.price === 0 ? "Grátis" : `R$ ${plan.price.toFixed(2)}`}
+                </span>
+                {plan.price > 0 && (
+                  <span className="text-gray-500 text-sm">/{BILLING_CYCLES[plan.billing_cycle]?.toLowerCase()}</span>
+                )}
+              </div>
+
+              {plan.description && (
+                <p className="text-gray-600 text-sm mt-2">{plan.description}</p>
               )}
+
+              <ul className="mt-4 space-y-2">
+                {plan.features?.slice(0, 5).map((feature, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-gray-700">
+                    <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {feature}
+                  </li>
+                ))}
+                {plan.features?.length > 5 && (
+                  <li className="text-sm text-gray-500">+{plan.features.length - 5} recursos</li>
+                )}
+              </ul>
+
+              <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-500">
+                <div className="mb-2 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-700">
+                    {plan.limits?.max_products > 0
+                      ? `Até ${plan.limits.max_products} produtos`
+                      : "Produtos ilimitados"}
+                  </span>
+                  <span className="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-700">
+                    {plan.limits?.max_images_per_product || 5} imagens por produto
+                  </span>
+                  {plan.limits?.distributor_catalog ? (
+                    <span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700">
+                      Catálogo de distribuidores
+                    </span>
+                  ) : null}
+                  {plan.limits?.partner_directory ? (
+                    <span className="rounded-full bg-violet-50 px-2 py-1 text-[11px] font-medium text-violet-700">
+                      Rede de distribuidores
+                    </span>
+                  ) : null}
+                </div>
+                Slug: <code className="bg-gray-100 px-1 rounded">{plan.slug}</code>
+              </div>
             </div>
-
-            {plan.description && (
-              <p className="text-gray-600 text-sm mt-2">{plan.description}</p>
-            )}
-
-            <ul className="mt-4 space-y-2">
-              {plan.features?.slice(0, 5).map((feature, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm text-gray-700">
-                  <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  {feature}
-                </li>
-              ))}
-              {plan.features?.length > 5 && (
-                <li className="text-sm text-gray-500">+{plan.features.length - 5} recursos</li>
-              )}
-            </ul>
-
-            <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-500">
-              Slug: <code className="bg-gray-100 px-1 rounded">{plan.slug}</code>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {plans.length === 0 && (
@@ -456,10 +505,11 @@ export default function AdminPlanosPage() {
                   </label>
                   <select
                     value={form.type}
-                    onChange={(e) => setForm({ ...form, type: e.target.value as "free" | "premium" })}
+                    onChange={(e) => setForm({ ...form, type: e.target.value as PlanType })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="free">Gratuito</option>
+                    <option value="start">Start</option>
                     <option value="premium">Premium</option>
                   </select>
                 </div>
@@ -563,6 +613,54 @@ export default function AdminPlanosPage() {
                     })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <h3 className="text-sm font-semibold text-gray-900">Recursos estratégicos do plano</h3>
+                <p className="mt-1 text-xs text-gray-500">
+                  Defina aqui os acessos que entram na régua comercial do jornaleiro.
+                </p>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(form.limits.distributor_catalog)}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          limits: { ...form.limits, distributor_catalog: e.target.checked },
+                        })
+                      }
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-gray-800">Catálogo de distribuidores</span>
+                      <span className="mt-1 block text-xs text-gray-500">
+                        Libera a ativação e gestão dos produtos parceiros dentro da banca.
+                      </span>
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(form.limits.partner_directory)}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          limits: { ...form.limits, partner_directory: e.target.checked },
+                        })
+                      }
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-gray-800">Rede de distribuidores</span>
+                      <span className="mt-1 block text-xs text-gray-500">
+                        Libera a navegação e descoberta dos distribuidores parceiros da plataforma.
+                      </span>
+                    </span>
+                  </label>
                 </div>
               </div>
 

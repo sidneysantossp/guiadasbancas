@@ -37,13 +37,6 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
   }
 
-  if ((banca as any).active === false) {
-    return NextResponse.json(
-      { success: false, error: "Não é possível selecionar uma banca inativa como banca ativa" },
-      { status: 400 }
-    );
-  }
-
   const isOwner = (banca as any).user_id === userId;
   if (!isOwner) {
     const { data: membership } = await supabaseAdmin

@@ -1,19 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
+
+type PlanType = "free" | "start" | "premium";
+
+const PLAN_TYPE_META: Record<PlanType, { label: string; className: string }> = {
+  free: { label: "Gratuito", className: "bg-green-100 text-green-700" },
+  start: { label: "Start", className: "bg-blue-100 text-blue-700" },
+  premium: { label: "Premium", className: "bg-purple-100 text-purple-700" },
+};
 
 type Plan = {
   id: string;
   name: string;
   slug: string;
   description: string;
-  type: "free" | "premium";
+  type: PlanType;
   price: number;
   billing_cycle: string;
   features: string[];
   limits: Record<string, number>;
   is_active: boolean;
+  effective_price?: number;
+  original_price?: number | null;
+  promotion_label?: string | null;
+  promo_applied?: boolean;
+  remaining_launch_slots?: number;
+  launch_offer_available?: boolean;
+  trial_days?: number;
+  trial_available?: boolean;
 };
 
 type Subscription = {
@@ -37,6 +52,31 @@ type Payment = {
   asaas_pix_qrcode: string | null;
   asaas_pix_code: string | null;
   created_at: string;
+};
+
+type CheckoutResult = {
+  id: string | null;
+  asaas_id: string | null;
+  asaas_subscription_id: string | null;
+  invoice_url: string | null;
+  bank_slip_url: string | null;
+  pix_qrcode: string | null;
+  pix_code: string | null;
+  due_date: string;
+  amount: number;
+  recurring: boolean;
+  original_amount?: number | null;
+  promotion_label?: string | null;
+  trial_days_applied?: number;
+  trial_ends_at?: string | null;
+};
+
+type BillingEntitlements = {
+  plan_type: string;
+  paid_features_locked_until_payment?: boolean;
+  overdue_features_locked?: boolean;
+  overdue_in_grace_period?: boolean;
+  overdue_grace_ends_at?: string | null;
 };
 
 const BILLING_CYCLES: Record<string, string> = {
@@ -68,19 +108,28 @@ const PAYMENT_STATUS: Record<string, { label: string; color: string }> = {
 export default function MeuPlanoPage() {
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [effectivePlan, setEffectivePlan] = useState<Plan | null>(null);
+  const [requestedPlan, setRequestedPlan] = useState<Plan | null>(null);
+  const [billingEntitlements, setBillingEntitlements] = useState<BillingEntitlements | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [billingType, setBillingType] = useState<"PIX" | "BOLETO">("PIX");
   const [processing, setProcessing] = useState(false);
-  const [checkoutResult, setCheckoutResult] = useState<any>(null);
+  const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  const getPlanDisplayPrice = (plan: Plan | null | undefined) =>
+    Number(plan?.effective_price ?? plan?.price ?? 0);
+
+  const formatCurrency = (value: number) =>
+    `R$ ${value.toFixed(2).replace(".", ",")}`;
 
   const loadData = async () => {
     try {
       const [subRes, plansRes] = await Promise.all([
         fetch("/api/jornaleiro/subscription"),
-        fetch("/api/admin/plans"),
+        fetch("/api/jornaleiro/plans"),
       ]);
 
       const subData = await subRes.json();
@@ -88,6 +137,9 @@ export default function MeuPlanoPage() {
 
       if (subData.success) {
         setSubscription(subData.subscription);
+        setEffectivePlan(subData.effective_plan || null);
+        setRequestedPlan(subData.requested_plan || null);
+        setBillingEntitlements(subData.entitlements || null);
         setPayments(subData.payments || []);
       }
 
@@ -106,7 +158,9 @@ export default function MeuPlanoPage() {
   }, []);
 
   const handleSelectPlan = async (plan: Plan) => {
-    if (plan.type === "free" || plan.price === 0) {
+    const planPrice = getPlanDisplayPrice(plan);
+
+    if (plan.type === "free" || planPrice === 0) {
       setProcessing(true);
       try {
         const res = await fetch("/api/jornaleiro/subscription", {
@@ -129,6 +183,7 @@ export default function MeuPlanoPage() {
       return;
     }
 
+    setCheckoutResult(null);
     setSelectedPlan(plan);
     setShowPaymentModal(true);
   };
@@ -184,6 +239,35 @@ export default function MeuPlanoPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Meu Plano</h1>
       <p className="text-gray-600 mb-6">Gerencie sua assinatura e pagamentos</p>
 
+      {billingEntitlements?.paid_features_locked_until_payment && requestedPlan ? (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="font-semibold">Upgrade aguardando pagamento</div>
+          <p className="mt-1">
+            Seu upgrade para <strong>{requestedPlan.name}</strong> já foi criado. Os novos recursos serão liberados depois que a primeira cobrança for confirmada.
+          </p>
+        </div>
+      ) : null}
+
+      {billingEntitlements?.overdue_features_locked && subscription?.plan ? (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+          <div className="font-semibold">Recursos do plano pagos estão pausados</div>
+          <p className="mt-1">
+            O plano <strong>{subscription.plan.name}</strong> está com cobrança em aberto e saiu do período de carência. Enquanto isso, sua banca opera com o plano base liberado.
+          </p>
+        </div>
+      ) : null}
+
+      {billingEntitlements?.overdue_in_grace_period && billingEntitlements?.overdue_grace_ends_at ? (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="font-semibold">Cobrança em aberto com carência ativa</div>
+          <p className="mt-1">
+            Sua assinatura está vencida, mas os recursos seguem liberados até{" "}
+            <strong>{new Date(billingEntitlements.overdue_grace_ends_at).toLocaleDateString("pt-BR")}</strong>.
+            Regularize antes dessa data para evitar a suspensão dos recursos pagos.
+          </p>
+        </div>
+      ) : null}
+
       {/* Plano Atual */}
       {subscription?.plan && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
@@ -195,19 +279,41 @@ export default function MeuPlanoPage() {
                   {STATUS_LABELS[subscription.status]?.label || subscription.status}
                 </span>
               </div>
-              {subscription.plan.price > 0 && (
-                <p className="text-gray-600 mt-1">
-                  R$ {subscription.plan.price.toFixed(2)}/{BILLING_CYCLES[subscription.plan.billing_cycle]}
-                </p>
+              {getPlanDisplayPrice(subscription.plan) > 0 ? (
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-gray-600">
+                  {subscription.plan.original_price ? (
+                    <span className="text-sm line-through text-gray-400">
+                      {formatCurrency(subscription.plan.original_price)}
+                    </span>
+                  ) : null}
+                  <p>
+                    {formatCurrency(getPlanDisplayPrice(subscription.plan))}/{BILLING_CYCLES[subscription.plan.billing_cycle]}
+                  </p>
+                  {subscription.plan.promotion_label ? (
+                    <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700">
+                      {subscription.plan.promotion_label}
+                    </span>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-gray-600 mt-1">Plano gratuito ativo</p>
               )}
             </div>
             {subscription.current_period_end && (
               <div className="text-right">
-                <p className="text-sm text-gray-500">Próximo vencimento</p>
+                <p className="text-sm text-gray-500">
+                  {subscription.status === "trial" ? "Fim do período de degustação" : "Próximo vencimento"}
+                </p>
                 <p className="font-medium">{new Date(subscription.current_period_end).toLocaleDateString("pt-BR")}</p>
               </div>
             )}
           </div>
+
+          {effectivePlan && effectivePlan.id !== subscription.plan.id ? (
+            <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+              Plano efetivamente liberado no painel hoje: <strong>{effectivePlan.name}</strong>.
+            </div>
+          ) : null}
 
           {subscription.plan.features && subscription.plan.features.length > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-100">
@@ -235,6 +341,9 @@ export default function MeuPlanoPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
         {plans.map((plan) => {
           const isCurrentPlan = subscription?.plan_id === plan.id;
+          const planTypeMeta = PLAN_TYPE_META[plan.type] || PLAN_TYPE_META.premium;
+          const displayPrice = getPlanDisplayPrice(plan);
+
           return (
             <div
               key={plan.id}
@@ -249,20 +358,23 @@ export default function MeuPlanoPage() {
               )}
 
               <div className="flex items-center gap-2 mb-2">
-                <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                  plan.type === "free" ? "bg-green-100 text-green-700" : "bg-purple-100 text-purple-700"
-                }`}>
-                  {plan.type === "free" ? "Gratuito" : "Premium"}
+                <span className={`text-xs font-medium px-2 py-0.5 rounded ${planTypeMeta.className}`}>
+                  {planTypeMeta.label}
                 </span>
               </div>
 
               <h3 className="text-xl font-bold">{plan.name}</h3>
 
               <div className="mt-3">
+                {plan.original_price ? (
+                  <div className="text-sm text-gray-400 line-through">
+                    {formatCurrency(plan.original_price)}
+                  </div>
+                ) : null}
                 <span className="text-3xl font-bold">
-                  {plan.price === 0 ? "Grátis" : `R$ ${plan.price.toFixed(2)}`}
+                  {displayPrice === 0 ? "Grátis" : formatCurrency(displayPrice)}
                 </span>
-                {plan.price > 0 && (
+                {displayPrice > 0 && (
                   <span className="text-gray-500 text-sm">/{BILLING_CYCLES[plan.billing_cycle]}</span>
                 )}
               </div>
@@ -270,6 +382,23 @@ export default function MeuPlanoPage() {
               {plan.description && (
                 <p className="text-gray-600 text-sm mt-2">{plan.description}</p>
               )}
+
+              {plan.promotion_label ? (
+                <div className="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-700">
+                  <p className="font-medium">{plan.promotion_label}</p>
+                  {typeof plan.remaining_launch_slots === "number" ? (
+                    <p className="mt-1 text-xs text-orange-600">
+                      Restam {plan.remaining_launch_slots} vagas promocionais.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {plan.trial_available && Number(plan.trial_days || 0) > 0 ? (
+                <div className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">
+                  {plan.trial_days} dias de degustação antes da primeira cobrança.
+                </div>
+              ) : null}
 
               <ul className="mt-4 space-y-2">
                 {plan.features?.slice(0, 4).map((feature, i) => (
@@ -291,7 +420,7 @@ export default function MeuPlanoPage() {
                     : "bg-[#ff5c00] text-white hover:bg-[#ff7a33]"
                 }`}
               >
-                {isCurrentPlan ? "Plano Atual" : plan.price === 0 ? "Ativar Grátis" : "Assinar"}
+                {isCurrentPlan ? "Plano Atual" : displayPrice === 0 ? "Ativar Grátis" : "Assinar"}
               </button>
             </div>
           );
@@ -376,10 +505,32 @@ export default function MeuPlanoPage() {
                 <div className="bg-gray-50 rounded-xl p-4">
                   <p className="text-sm text-gray-600">Plano selecionado</p>
                   <p className="font-bold text-lg">{selectedPlan.name}</p>
-                  <p className="text-2xl font-bold text-[#ff5c00] mt-1">
-                    R$ {selectedPlan.price.toFixed(2)}
-                    <span className="text-sm text-gray-500 font-normal">/{BILLING_CYCLES[selectedPlan.billing_cycle]}</span>
+                  <div className="mt-1 flex flex-wrap items-end gap-2">
+                    {selectedPlan.original_price ? (
+                      <span className="text-sm text-gray-400 line-through">
+                        {formatCurrency(selectedPlan.original_price)}
+                      </span>
+                    ) : null}
+                    <p className="text-2xl font-bold text-[#ff5c00]">
+                      {formatCurrency(getPlanDisplayPrice(selectedPlan))}
+                      <span className="text-sm text-gray-500 font-normal">/{BILLING_CYCLES[selectedPlan.billing_cycle]}</span>
+                    </p>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-600">
+                    {selectedPlan.trial_available && Number(selectedPlan.trial_days || 0) > 0
+                      ? `A primeira cobrança fica programada para daqui a ${selectedPlan.trial_days} dias e as próximas seguem de forma recorrente pelo Asaas.`
+                      : "A primeira cobrança será gerada agora e as próximas serão recorrentes pelo Asaas."}
                   </p>
+                  {selectedPlan.promotion_label ? (
+                    <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-700">
+                      {selectedPlan.promotion_label}
+                    </p>
+                  ) : null}
+                  {selectedPlan.trial_available && Number(selectedPlan.trial_days || 0) > 0 ? (
+                    <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">
+                      A degustação é liberada uma única vez por banca.
+                    </p>
+                  ) : null}
                 </div>
 
                 <div>
@@ -431,16 +582,22 @@ export default function MeuPlanoPage() {
                     disabled={processing}
                     className="flex-1 py-3 bg-[#ff5c00] text-white font-semibold rounded-lg hover:bg-[#ff7a33] transition disabled:opacity-50"
                   >
-                    {processing ? "Processando..." : "Pagar"}
+                    {processing ? "Processando..." : "Gerar Assinatura"}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="p-6 space-y-6">
+                <div className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
+                  {checkoutResult.trial_days_applied
+                    ? `A assinatura recorrente foi criada e a degustação vai até ${new Date(checkoutResult.trial_ends_at || checkoutResult.due_date).toLocaleDateString("pt-BR")}.`
+                    : "A assinatura recorrente foi criada com sucesso. Agora basta quitar a primeira cobrança para ativar o plano."}
+                </div>
+
                 {billingType === "PIX" && checkoutResult.pix_qrcode ? (
                   <>
                     <div className="text-center">
-                      <p className="text-green-600 font-medium mb-4">Pagamento via PIX gerado!</p>
+                      <p className="text-green-600 font-medium mb-4">Primeira cobrança PIX gerada!</p>
                       <div className="bg-white border border-gray-200 rounded-xl p-4 inline-block">
                         <img
                           src={`data:image/png;base64,${checkoutResult.pix_qrcode}`}
@@ -449,9 +606,14 @@ export default function MeuPlanoPage() {
                         />
                       </div>
                       <p className="text-sm text-gray-600 mt-4">
-                        Escaneie o QR Code acima ou copie o código abaixo
+                        Escaneie o QR Code acima ou copie o código abaixo para pagar a primeira recorrência
                       </p>
                     </div>
+                    {checkoutResult.promotion_label ? (
+                      <div className="rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-700">
+                        {checkoutResult.promotion_label}
+                      </div>
+                    ) : null}
                     <div className="bg-gray-50 rounded-lg p-3">
                       <p className="text-xs text-gray-500 mb-1">Código PIX (Copia e Cola)</p>
                       <p className="text-xs font-mono break-all text-gray-700">{checkoutResult.pix_code?.substring(0, 80)}...</p>
@@ -465,21 +627,32 @@ export default function MeuPlanoPage() {
                   </>
                 ) : (
                   <div className="text-center">
-                    <p className="text-blue-600 font-medium mb-4">Boleto gerado com sucesso!</p>
-                    <a
-                      href={checkoutResult.bank_slip_url || checkoutResult.invoice_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
-                    >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      Visualizar Boleto
-                    </a>
+                    <p className="text-blue-600 font-medium mb-4">Primeira cobrança por boleto gerada!</p>
+                    {checkoutResult.bank_slip_url || checkoutResult.invoice_url ? (
+                      <a
+                        href={checkoutResult.bank_slip_url || checkoutResult.invoice_url || undefined}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Visualizar Boleto
+                      </a>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        O link do boleto ainda está sendo sincronizado. Atualize a página em instantes.
+                      </p>
+                    )}
                     <p className="text-sm text-gray-500 mt-4">
                       Vencimento: {new Date(checkoutResult.due_date).toLocaleDateString("pt-BR")}
                     </p>
+                    {checkoutResult.promotion_label ? (
+                      <p className="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-700">
+                        {checkoutResult.promotion_label}
+                      </p>
+                    ) : null}
                   </div>
                 )}
 

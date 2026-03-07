@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+export const dynamic = "force-dynamic";
 
 // GET - Buscar plano por ID
 export async function GET(
@@ -12,6 +15,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const { id } = await params;
 
     const { data, error } = await supabaseAdmin
@@ -38,6 +44,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const { id } = await params;
     const body = await request.json();
 
@@ -101,6 +110,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const { id } = await params;
 
     // Verificar se há assinaturas ativas

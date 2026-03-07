@@ -107,6 +107,12 @@ const ADMIN_MENU = [
     ]
   },
   {
+    section: "Planejamento Comercial",
+    items: [
+      { label: "Planejamento Comercial", href: "/admin/planejamento-comercial", icon: "clipboard" as IconKey },
+    ]
+  },
+  {
     section: "Catálogo",
     items: [
       { label: "Produtos", href: "/admin/products", icon: "box" as IconKey },
@@ -133,7 +139,8 @@ const ADMIN_MENU = [
     section: "Assinaturas",
     items: [
       { label: "Planos", href: "/admin/planos", icon: "creditCard" as IconKey },
-      { label: "Pagamentos Asaas", href: "/admin/configuracoes", icon: "settings" as IconKey },
+      { label: "Assinaturas", href: "/admin/assinaturas", icon: "clipboard" as IconKey },
+      { label: "Cobrança e Asaas", href: "/admin/configuracoes", icon: "settings" as IconKey },
     ]
   },
   {

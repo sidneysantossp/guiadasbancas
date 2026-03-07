@@ -1,12 +1,65 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createClient } from "@supabase/supabase-js";
-import { findOrCreateCustomer, createPayment, formatDueDate, getPaymentPixQrCode } from "@/lib/asaas";
+import {
+  cancelSubscription,
+  createSubscription,
+  findOrCreateCustomer,
+  formatDueDate,
+  getPaymentPixQrCode,
+  getSubscriptionPayments,
+} from "@/lib/asaas";
+import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
+import {
+  claimPaidPlanTrial,
+  claimPremiumLaunchOffer,
+  clearBancaPricingOverride,
+  findSubscriptionBindingByBancaId,
+  getBancaPricingOverride,
+  hasBancaUsedPaidPlanTrial,
+  readPaidPlanTrialDays,
+  releasePremiumLaunchOffer,
+  releasePaidPlanTrial,
+  removeSubscriptionBindingByAsaasId,
+  resolvePlanPricing,
+  saveBancaPricingOverride,
+  saveSubscriptionBinding,
+} from "@/lib/subscription-billing";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function addDaysToIso(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
+}
+
+async function waitForFirstSubscriptionPayment(asaasSubscriptionId: string) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const payments = await getSubscriptionPayments(asaasSubscriptionId);
+    const firstPayment = (payments.data || [])
+      .slice()
+      .sort((a: any, b: any) => {
+        const dateA = new Date(a?.dueDate || 0).getTime();
+        const dateB = new Date(b?.dueDate || 0).getTime();
+        return dateA - dateB;
+      })[0];
+
+    if (firstPayment?.id) {
+      return firstPayment;
+    }
+
+    await sleep(700);
+  }
+
+  return null;
+}
 
 // GET - Obter assinatura atual do jornaleiro
 export async function GET(request: NextRequest) {
@@ -28,7 +81,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Buscar assinatura ativa
-    const { data: subscription } = await supabaseAdmin
+    let { data: subscription } = await supabaseAdmin
       .from("subscriptions")
       .select(`
         *,
@@ -38,7 +91,38 @@ export async function GET(request: NextRequest) {
       .in("status", ["active", "trial", "pending", "overdue"])
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
+
+    if (!subscription) {
+      await ensureBancaHasOnboardingPlan(banca.id);
+
+      const { data: onboardingSubscription } = await supabaseAdmin
+        .from("subscriptions")
+        .select(`
+          *,
+          plan:plans(*)
+        `)
+        .eq("banca_id", banca.id)
+        .in("status", ["active", "trial", "pending", "overdue"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      subscription = onboardingSubscription;
+    }
+
+    const pricingOverride = await getBancaPricingOverride(banca.id);
+    if (subscription?.plan && pricingOverride && pricingOverride.planId === subscription.plan_id) {
+      subscription.plan = {
+        ...subscription.plan,
+        price: pricingOverride.effectivePrice,
+        original_price: pricingOverride.originalPrice,
+        promotion_label: pricingOverride.promotionLabel,
+        promo_applied: pricingOverride.promoApplied,
+      };
+    }
+
+    const entitlements = await resolveBancaPlanEntitlements({ id: banca.id });
 
     // Buscar últimos pagamentos
     const { data: payments } = await supabaseAdmin
@@ -51,6 +135,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       subscription,
+      effective_plan: entitlements.plan,
+      requested_plan: entitlements.requestedPlan,
+      entitlements: {
+        plan_type: entitlements.planType,
+        paid_features_locked_until_payment: entitlements.paidFeaturesLockedUntilPayment,
+        overdue_features_locked: entitlements.overdueFeaturesLocked,
+        overdue_in_grace_period: entitlements.overdueInGracePeriod,
+        overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
+      },
       payments: payments || [],
       banca: { id: banca.id, name: banca.name, email: banca.email },
     });
@@ -100,34 +193,61 @@ export async function POST(request: NextRequest) {
 
     // Se for plano gratuito, ativar diretamente
     if (plan.type === "free" || plan.price === 0) {
-      const { data: subscription, error } = await supabaseAdmin
-        .from("subscriptions")
-        .upsert({
-          banca_id: banca.id,
-          plan_id: plan.id,
-          status: "active",
-          current_period_start: new Date().toISOString(),
-          current_period_end: null,
-        }, { onConflict: "banca_id" })
-        .select()
-        .single();
+      const previousBinding = await findSubscriptionBindingByBancaId(banca.id);
+      if (previousBinding?.asaasSubscriptionId) {
+        try {
+          await cancelSubscription(previousBinding.asaasSubscriptionId);
+        } catch (cancelError: any) {
+          console.warn("[API/JORNALEIRO/SUBSCRIPTION] Falha ao cancelar assinatura remota anterior:", cancelError?.message || cancelError);
+        }
 
-      if (error) throw error;
+        await removeSubscriptionBindingByAsaasId(previousBinding.asaasSubscriptionId);
+      }
 
-      // Ativar banca
-      await supabaseAdmin
-        .from("bancas")
-        .update({ active: true })
-        .eq("id", banca.id);
+      await clearBancaPricingOverride(banca.id);
+      const subscription = await ensureBancaHasOnboardingPlan(banca.id, { preferredPlanId: plan.id });
 
       return NextResponse.json({
         success: true,
         subscription,
-        message: "Plano gratuito ativado com sucesso!",
+        message: "Plano gratuito ativado com sucesso! Seu painel já está liberado.",
       });
     }
 
-    // Para planos pagos, criar cobrança no Asaas
+    const [pricingPreview, paidPlanTrialDays, paidPlanTrialAlreadyUsed] = await Promise.all([
+      resolvePlanPricing(plan, banca.id),
+      readPaidPlanTrialDays(),
+      hasBancaUsedPaidPlanTrial(banca.id),
+    ]);
+
+    let trialDaysApplied = 0;
+    let claimedTrialNow = false;
+
+    if (
+      Number(plan.price || 0) > 0 &&
+      (plan.type || "").toLowerCase() !== "free" &&
+      paidPlanTrialDays > 0 &&
+      !paidPlanTrialAlreadyUsed
+    ) {
+      const trialClaim = await claimPaidPlanTrial(banca.id);
+      if (trialClaim.claimedNow) {
+        trialDaysApplied = paidPlanTrialDays;
+        claimedTrialNow = true;
+      }
+    }
+
+    let claimedLaunchOfferNow = false;
+    let pricing = pricingPreview;
+
+    if (pricingPreview.promoApplied && pricingPreview.effectivePrice < Number(plan.price || 0)) {
+      const claimResult = await claimPremiumLaunchOffer(banca.id);
+      if (claimResult.claimedNow) {
+        claimedLaunchOfferNow = true;
+      }
+      pricing = await resolvePlanPricing(plan, banca.id);
+    }
+
+    // Para planos pagos, criar assinatura recorrente no Asaas
     const cpfCnpj = banca.cnpj || banca.cpf;
     
     // Criar ou buscar cliente no Asaas
@@ -139,69 +259,132 @@ export async function POST(request: NextRequest) {
       externalReference: banca.id,
     });
 
-    // Criar cobrança
-    const dueDate = formatDueDate();
-    const payment = await createPayment({
-      customer: customer.id,
-      billingType: billing_type,
-      value: plan.price,
-      dueDate,
-      description: `Assinatura ${plan.name} - Guia das Bancas`,
-      externalReference: `${banca.id}:${plan.id}`,
-    });
-
-    // Se for PIX, buscar QR Code
-    let pixData = null;
-    if (billing_type === "PIX") {
+    const previousBinding = await findSubscriptionBindingByBancaId(banca.id);
+    if (previousBinding?.asaasSubscriptionId) {
       try {
-        pixData = await getPaymentPixQrCode(payment.id);
-      } catch (e) {
-        console.error("Erro ao buscar QR Code PIX:", e);
+        await cancelSubscription(previousBinding.asaasSubscriptionId);
+      } catch (cancelError: any) {
+        console.warn("[API/JORNALEIRO/SUBSCRIPTION] Falha ao cancelar assinatura remota anterior:", cancelError?.message || cancelError);
       }
+      await removeSubscriptionBindingByAsaasId(previousBinding.asaasSubscriptionId);
     }
 
-    // Criar assinatura pendente
+    // Criar assinatura local pendente
     const { data: subscription, error: subError } = await supabaseAdmin
       .from("subscriptions")
       .upsert({
         banca_id: banca.id,
         plan_id: plan.id,
-        status: "pending",
+        status: trialDaysApplied > 0 ? "trial" : "pending",
         asaas_customer_id: customer.id,
         current_period_start: new Date().toISOString(),
+        current_period_end: trialDaysApplied > 0 ? addDaysToIso(trialDaysApplied) : null,
       }, { onConflict: "banca_id" })
       .select()
       .single();
 
     if (subError) throw subError;
 
-    // Registrar pagamento
-    const { data: paymentRecord } = await supabaseAdmin
-      .from("payments")
-      .insert({
-        subscription_id: subscription.id,
-        banca_id: banca.id,
-        asaas_payment_id: payment.id,
-        asaas_invoice_url: payment.invoiceUrl,
-        asaas_bank_slip_url: payment.bankSlipUrl,
-        asaas_pix_qrcode: pixData?.encodedImage,
-        asaas_pix_code: pixData?.payload,
-        amount: plan.price,
-        status: "pending",
-        payment_method: billing_type.toLowerCase(),
-        due_date: dueDate,
-        description: `Assinatura ${plan.name}`,
-      })
-      .select()
-      .single();
+    const dueDate = formatDueDate(undefined, trialDaysApplied > 0 ? trialDaysApplied : 3);
+    const trialEndsAt = trialDaysApplied > 0 ? addDaysToIso(trialDaysApplied) : null;
+    let asaasSubscription: any = null;
+    let firstPayment: any = null;
+    let pixData = null;
+
+    try {
+      asaasSubscription = await createSubscription({
+        customer: customer.id,
+        billingType: billing_type,
+        value: pricing.effectivePrice,
+        cycle: plan.billing_cycle,
+        nextDueDate: dueDate,
+        description: pricing.promotionLabel
+          ? `${plan.name} - ${pricing.promotionLabel}`
+          : trialDaysApplied > 0
+            ? `Assinatura ${plan.name} - ${trialDaysApplied} dias de degustação`
+          : `Assinatura ${plan.name} - Guia das Bancas`,
+        externalReference: `gb-sub:${subscription.id}`,
+      });
+
+      await saveSubscriptionBinding({
+        asaasSubscriptionId: asaasSubscription.id,
+        localSubscriptionId: subscription.id,
+        bancaId: banca.id,
+        planId: plan.id,
+        effectivePrice: pricing.effectivePrice,
+        billingType: billing_type,
+        createdAt: new Date().toISOString(),
+      });
+
+      await saveBancaPricingOverride({
+        bancaId: banca.id,
+        planId: plan.id,
+        effectivePrice: pricing.effectivePrice,
+        originalPrice: pricing.originalPrice,
+        promoApplied: pricing.promoApplied,
+        promotionLabel: pricing.promotionLabel,
+        updatedAt: new Date().toISOString(),
+      });
+
+      firstPayment = await waitForFirstSubscriptionPayment(asaasSubscription.id);
+
+      if (billing_type === "PIX" && firstPayment?.id) {
+        try {
+          pixData = await getPaymentPixQrCode(firstPayment.id);
+        } catch (e) {
+          console.error("Erro ao buscar QR Code PIX:", e);
+        }
+      }
+    } catch (subscriptionError) {
+      if (claimedLaunchOfferNow) {
+        await releasePremiumLaunchOffer(banca.id);
+      }
+      if (claimedTrialNow) {
+        await releasePaidPlanTrial(banca.id);
+      }
+      throw subscriptionError;
+    }
+
+    // Registrar primeira cobrança, se o Asaas já a tiver gerado
+    let paymentRecord: any = null;
+    if (firstPayment?.id) {
+      const { data: createdPayment } = await supabaseAdmin
+        .from("payments")
+        .insert({
+          subscription_id: subscription.id,
+          banca_id: banca.id,
+          asaas_payment_id: firstPayment.id,
+          asaas_invoice_url: firstPayment.invoiceUrl,
+          asaas_bank_slip_url: firstPayment.bankSlipUrl,
+          asaas_pix_qrcode: pixData?.encodedImage,
+          asaas_pix_code: pixData?.payload,
+          amount: pricing.effectivePrice,
+          status: "pending",
+          payment_method: billing_type.toLowerCase(),
+          due_date: firstPayment.dueDate || dueDate,
+          description: pricing.promotionLabel
+            ? `Assinatura ${plan.name} - ${pricing.promotionLabel}`
+            : `Assinatura ${plan.name}`,
+        })
+        .select()
+        .maybeSingle();
+
+      paymentRecord = createdPayment;
+    }
 
     // Criar notificação
     await supabaseAdmin.from("notifications").insert({
       banca_id: banca.id,
       type: "payment_created",
       title: "Nova cobrança gerada",
-      message: `Cobrança de R$ ${plan.price.toFixed(2)} para o plano ${plan.name}`,
-      data: { payment_id: paymentRecord?.id, asaas_payment_id: payment.id },
+      message: `Assinatura recorrente de R$ ${pricing.effectivePrice.toFixed(2)} para o plano ${plan.name} gerada com sucesso.`,
+      data: {
+        payment_id: paymentRecord?.id,
+        asaas_payment_id: firstPayment?.id || null,
+        asaas_subscription_id: asaasSubscription?.id || null,
+        promo_applied: pricing.promoApplied,
+        trial_days_applied: trialDaysApplied,
+      },
     });
 
     return NextResponse.json({
@@ -209,14 +392,24 @@ export async function POST(request: NextRequest) {
       subscription,
       payment: {
         id: paymentRecord?.id,
-        asaas_id: payment.id,
-        invoice_url: payment.invoiceUrl,
-        bank_slip_url: payment.bankSlipUrl,
+        asaas_id: firstPayment?.id || null,
+        asaas_subscription_id: asaasSubscription?.id || null,
+        invoice_url: firstPayment?.invoiceUrl || null,
+        bank_slip_url: firstPayment?.bankSlipUrl || null,
         pix_qrcode: pixData?.encodedImage,
         pix_code: pixData?.payload,
-        due_date: dueDate,
-        amount: plan.price,
+        due_date: firstPayment?.dueDate || dueDate,
+        amount: pricing.effectivePrice,
+        recurring: true,
+        original_amount: pricing.originalPrice,
+        promotion_label: pricing.promotionLabel,
+        trial_days_applied: trialDaysApplied,
+        trial_ends_at: trialEndsAt,
       },
+      message:
+        trialDaysApplied > 0
+          ? `Período de degustação de ${trialDaysApplied} dias ativado com sucesso.`
+          : "Assinatura criada com sucesso! A primeira cobrança foi gerada.",
     });
   } catch (error: any) {
     console.error("[API/JORNALEIRO/SUBSCRIPTION] POST Error:", error);

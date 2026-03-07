@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
+import { getNextPlanType } from "@/lib/plan-messaging";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -27,13 +29,15 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  console.log('[JORNALEIRO/PRODUCTS] Banca row (campos cotista):', {
+  const entitlements = await resolveBancaPlanEntitlements(banca);
+  const isCotista = entitlements.isLegacyCotistaLinked;
+  const canAccessDistributorCatalog = entitlements.canAccessDistributorCatalog;
+  console.log('[JORNALEIRO/PRODUCTS] Banca row (plano + parceiro):', {
     is_cotista: banca.is_cotista,
     cotista_id: banca.cotista_id,
+    plan_type: entitlements.planType,
+    can_access_distributor_catalog: canAccessDistributorCatalog,
   });
-
-  const isCotista = banca.is_cotista === true && !!banca.cotista_id;
-  console.log(`[JORNALEIRO/PRODUCTS] Banca ${banca.id} - É cotista: ${isCotista}`);
 
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") || "").toLowerCase();
@@ -70,7 +74,7 @@ export async function GET(request: NextRequest) {
   let produtosAdmin: any[] = [];
   let totalProdutosDistribuidor = 0;
   
-  if (isCotista) {
+  if (canAccessDistributorCatalog) {
     console.log('[JORNALEIRO/PRODUCTS] Buscando produtos de distribuidores com filtros no banco...');
     
     // Se for apenas estatísticas, buscar contagem total primeiro
@@ -118,7 +122,7 @@ export async function GET(request: NextRequest) {
       console.log(`[JORNALEIRO/PRODUCTS] Cotista - ${produtosAdmin.length} produtos de distribuidores encontrados (limit: ${limit})`);
     }
   } else {
-    console.log(`[JORNALEIRO/PRODUCTS] Não-cotista - produtos de distribuidores NÃO disponíveis`);
+    console.log(`[JORNALEIRO/PRODUCTS] Plano/parceria sem acesso ao catálogo parceiro`);
   }
 
   // Se não trouxe produtos do admin, não precisa buscar customizações
@@ -299,7 +303,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Se for cotista e statsOnly, calcular total real
-  const totalReal = isCotista && statsOnly 
+  const totalReal = canAccessDistributorCatalog && statsOnly 
     ? (produtosBanca?.length || 0) + totalProdutosDistribuidor
     : allItems.length;
 
@@ -309,6 +313,19 @@ export async function GET(request: NextRequest) {
     total: allItems.length,
     totalReal: totalReal, // Total real incluindo todos os produtos de distribuidores
     is_cotista: isCotista,
+    has_catalog_access: canAccessDistributorCatalog,
+    plan: entitlements.plan,
+    requested_plan: entitlements.requestedPlan,
+    subscription: entitlements.subscription,
+    entitlements: {
+      plan_type: entitlements.planType,
+      product_limit: entitlements.productLimit,
+      can_access_distributor_catalog: canAccessDistributorCatalog,
+      paid_features_locked_until_payment: entitlements.paidFeaturesLockedUntilPayment,
+      overdue_features_locked: entitlements.overdueFeaturesLocked,
+      overdue_in_grace_period: entitlements.overdueInGracePeriod,
+      overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
+    },
     stats: {
       proprios: produtosBanca?.length || 0,
       distribuidores: statsOnly ? totalProdutosDistribuidor : produtosAdminCustomizados.length,
@@ -336,6 +353,70 @@ export async function POST(request: NextRequest) {
 
   if (!banca) {
     return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+  }
+
+  const entitlements = await resolveBancaPlanEntitlements(banca);
+  if (entitlements.productLimit) {
+    const { count, error: countError } = await supabaseAdmin
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("banca_id", banca.id)
+      .is("distribuidor_id", null);
+
+    if (countError) {
+      console.error("[API/JORNALEIRO/PRODUCTS] Erro ao contar produtos para limite:", countError);
+      return NextResponse.json({ success: false, error: "Não foi possível validar o limite do plano" }, { status: 500 });
+    }
+
+    const currentCount = count || 0;
+    if (currentCount >= entitlements.productLimit) {
+      if (entitlements.overdueFeaturesLocked && entitlements.subscription?.plan) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Seu plano ${entitlements.subscription.plan.name} está com cobrança em aberto e os recursos avançados foram pausados após o período de carência.`,
+            code: "PLAN_OVERDUE_SUSPENDED",
+            limit: entitlements.productLimit,
+            currentCount,
+            plan: entitlements.plan,
+            contracted_plan: entitlements.subscription.plan,
+            overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
+            upgrade_url: "/jornaleiro/meu-plano",
+          },
+          { status: 403 }
+        );
+      }
+
+      if (entitlements.paidFeaturesLockedUntilPayment && entitlements.requestedPlan) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Seu upgrade para ${entitlements.requestedPlan.name} já foi iniciado. Assim que a primeira cobrança for paga, o novo limite será liberado.`,
+            code: "PLAN_PENDING_PAYMENT",
+            limit: entitlements.productLimit,
+            currentCount,
+            plan: entitlements.plan,
+            requested_plan: entitlements.requestedPlan,
+            upgrade_url: "/jornaleiro/meu-plano",
+          },
+          { status: 403 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Seu plano ${entitlements.plan?.name || "atual"} permite até ${entitlements.productLimit} produtos. Faça upgrade para continuar cadastrando.`,
+          code: "PLAN_PRODUCT_LIMIT_REACHED",
+          limit: entitlements.productLimit,
+          currentCount,
+          plan: entitlements.plan,
+          recommended_plan_type: getNextPlanType(entitlements.planType),
+          upgrade_url: "/jornaleiro/meu-plano",
+        },
+        { status: 403 }
+      );
+    }
   }
 
   let body: any;

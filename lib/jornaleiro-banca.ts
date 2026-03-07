@@ -18,8 +18,6 @@ export async function getActiveBancaRowForUser(userId: string, select: string = 
   const canAccessBanca = async (bancaId: string): Promise<any | null> => {
     const { data: banca } = await admin.from("bancas").select(select).eq("id", bancaId).maybeSingle();
     if (!banca) return null;
-    // Nunca considerar banca inativa como "banca ativa" do jornaleiro.
-    if ((banca as any).active === false) return null;
 
     // Dono da banca
     if ((banca as any).user_id === userId) return banca;
@@ -50,7 +48,7 @@ export async function getActiveBancaRowForUser(userId: string, select: string = 
     .order("created_at", { ascending: false })
     .limit(20);
 
-  const ownedFallback = (ownedRows || []).find((b: any) => b?.active !== false) || null;
+  const ownedFallback = (ownedRows || [])[0] || null;
 
   if (ownedFallback) {
     // Best-effort: garantir que o profile aponta para uma banca válida

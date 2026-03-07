@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -113,6 +114,14 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       const banca = await getActiveBancaRowForUser(session.user.id, 'id, user_id');
 
       if (banca) {
+        const entitlements = await resolveBancaPlanEntitlements(banca);
+        if (!entitlements.canAccessDistributorCatalog) {
+          return NextResponse.json(
+            { success: false, error: "Seu plano atual não permite acessar produtos do catálogo de distribuidores." },
+            { status: 403 }
+          );
+        }
+
         // Buscar customizações específicas da banca
         const { data: customization } = await supabaseAdmin
           .from('banca_produtos_distribuidor')
@@ -225,6 +234,14 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
 
     // Se é produto do distribuidor, permitir apenas customizações de preço
     if (existingProduct.distribuidor_id) {
+      const entitlements = await resolveBancaPlanEntitlements(banca);
+      if (!entitlements.canAccessDistributorCatalog) {
+        return NextResponse.json(
+          { success: false, error: "Seu plano atual não permite editar produtos do catálogo de distribuidores." },
+          { status: 403 }
+        );
+      }
+
       console.log('Produto do distribuidor - salvando customização:', {
         product_id: id,
         featured: body.featured,

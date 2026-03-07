@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
+import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
 
 export const dynamic = 'force-dynamic';
 
@@ -272,6 +273,15 @@ export async function PUT(request: NextRequest) {
             .from("user_profiles")
             .update({ banca_id: (newBanca as any).id } as any)
             .eq("id", user.id) as any);
+
+          try {
+            await ensureBancaHasOnboardingPlan((newBanca as any).id);
+          } catch (subscriptionError: any) {
+            console.warn(
+              "[API Profile PUT] ⚠️ Banca criada, mas não foi possível atribuir plano inicial:",
+              subscriptionError?.message || subscriptionError
+            );
+          }
         }
       }
     }
@@ -290,6 +300,17 @@ export async function PUT(request: NextRequest) {
       .select("*")
       .eq("user_id", user.id)
       .single() as any);
+
+    if ((updatedBanca as any)?.id) {
+      try {
+        await ensureBancaHasOnboardingPlan((updatedBanca as any).id);
+      } catch (subscriptionError: any) {
+        console.warn(
+          "[API Profile PUT] ⚠️ Não foi possível garantir plano inicial após atualização:",
+          subscriptionError?.message || subscriptionError
+        );
+      }
+    }
 
     console.log('✅ [API Profile PUT] Dados atualizados:', {
       profile: updatedProfile,

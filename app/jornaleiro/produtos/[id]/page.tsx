@@ -78,6 +78,7 @@ export default function SellerProductEditPage() {
   const [priceOriginal, setPriceOriginal] = useState("");
   const [discountPercent, setDiscountPercent] = useState(0);
   const [hasCustomPrice, setHasCustomPrice] = useState(false); // Flag para saber se jornaleiro personalizou
+  const isDistributorProduct = Boolean(product?.distribuidor_id);
 
   useEffect(() => {
     const loadBanca = async () => {
@@ -494,7 +495,7 @@ export default function SellerProductEditPage() {
                 ))}
               </select>
             </div>
-            {isCotista === true ? (
+            {isDistributorProduct ? (
               <>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -642,7 +643,7 @@ export default function SellerProductEditPage() {
                 </div>
               </>
             )}
-            {isCotista === true && (
+            {isDistributorProduct && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-sm font-medium">

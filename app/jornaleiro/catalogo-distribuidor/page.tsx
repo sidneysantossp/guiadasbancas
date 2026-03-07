@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useFetchAuth } from '@/lib/hooks/useFetchAuth';
-import CotistaStatusAlert from '@/components/CotistaStatusAlert';
+import PlanCheckoutModal from '@/components/jornaleiro/PlanCheckoutModal';
+import PlanOverdueCard from '@/components/jornaleiro/PlanOverdueCard';
+import PlanPendingActivationCard from '@/components/jornaleiro/PlanPendingActivationCard';
+import PlanUpgradeCard from '@/components/jornaleiro/PlanUpgradeCard';
+import { getPlanUpgradeHint } from '@/lib/plan-messaging';
 
 interface ProdutoDistribuidor {
   id: string;
@@ -35,13 +38,21 @@ interface ProdutoDistribuidor {
 }
 
 export default function CatalogoDistribuidorPage() {
-  const router = useRouter();
   const fetchAuth = useFetchAuth();
   const [produtos, setProdutos] = useState<ProdutoDistribuidor[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [updating, setUpdating] = useState<string | null>(null);
-  const [isCotista, setIsCotista] = useState(false);
+  const [hasCatalogAccess, setHasCatalogAccess] = useState(false);
+  const [planType, setPlanType] = useState<string>('free');
+  const [planName, setPlanName] = useState<string>('Free');
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [paidFeaturesLockedUntilPayment, setPaidFeaturesLockedUntilPayment] = useState(false);
+  const [requestedPlanName, setRequestedPlanName] = useState<string | null>(null);
+  const [overdueFeaturesLocked, setOverdueFeaturesLocked] = useState(false);
+  const [overdueInGracePeriod, setOverdueInGracePeriod] = useState(false);
+  const [overdueGraceEndsAt, setOverdueGraceEndsAt] = useState<string | null>(null);
+  const [contractedPlanName, setContractedPlanName] = useState<string | null>(null);
 
   useEffect(() => {
     loadProdutos();
@@ -54,7 +65,15 @@ export default function CatalogoDistribuidorPage() {
 
       if (data.success) {
         setProdutos(data.data || data.products || []);
-        setIsCotista(data.is_cotista === true);
+        setHasCatalogAccess(data.has_catalog_access === true);
+        setPlanType(data.entitlements?.plan_type || data.plan?.type || 'free');
+        setPlanName(data.plan?.name || 'Free');
+        setPaidFeaturesLockedUntilPayment(data.entitlements?.paid_features_locked_until_payment === true);
+        setRequestedPlanName(data.requested_plan?.name || null);
+        setOverdueFeaturesLocked(data.entitlements?.overdue_features_locked === true);
+        setOverdueInGracePeriod(data.entitlements?.overdue_in_grace_period === true);
+        setOverdueGraceEndsAt(data.entitlements?.overdue_grace_ends_at || null);
+        setContractedPlanName(data.subscription?.plan?.name || null);
       } else {
         alert('Erro ao carregar produtos: ' + data.error);
       }
@@ -124,6 +143,12 @@ export default function CatalogoDistribuidorPage() {
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.mercos_id.toString().includes(searchTerm)
   );
+  const partnerUpgradeHint = getPlanUpgradeHint({
+    currentPlanType: planType,
+    currentPlanName: planName,
+    context: "partner-network",
+  });
+  const canInlineUpgrade = Boolean(partnerUpgradeHint.targetPlanType);
 
   if (loading) {
     return (
@@ -150,13 +175,48 @@ export default function CatalogoDistribuidorPage() {
 
       {/* Alerta de status de cotista */}
       <div className="mb-6">
-        <CotistaStatusAlert 
-          isCotista={isCotista} 
-          stats={{
-            proprios: 0, // Não aplicável nesta página
-            distribuidores: produtos.length
-          }}
-        />
+        {hasCatalogAccess ? (
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl text-green-600 shrink-0">✓</span>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-green-900">
+                  Rede parceira liberada no seu plano
+                </h3>
+                <p className="mt-1 text-sm text-green-800">
+                  Sua banca já pode navegar pelos produtos dos distribuidores e ajustar o catálogo parceiro sem sair do painel.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-3 text-xs">
+                  <div className="rounded border border-green-300 bg-white px-3 py-2">
+                    <span className="text-green-700">Plano:</span>
+                    <span className="ml-2 font-semibold text-green-900">{planName}</span>
+                  </div>
+                  <div className="rounded border border-green-300 bg-white px-3 py-2">
+                    <span className="text-green-700">Produtos parceiros:</span>
+                    <span className="ml-2 font-semibold text-green-900">{produtos.length}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : overdueFeaturesLocked || overdueInGracePeriod ? (
+          <PlanOverdueCard
+            planName={contractedPlanName || planName}
+            graceEndsAt={overdueGraceEndsAt}
+            accessSuspended={overdueFeaturesLocked}
+            showSupportAction
+          />
+        ) : paidFeaturesLockedUntilPayment && requestedPlanName ? (
+          <PlanPendingActivationCard requestedPlanName={requestedPlanName} showSupportAction />
+        ) : (
+          <PlanUpgradeCard
+            currentPlanType={planType}
+            currentPlanName={planName}
+            context="partner-network"
+            showSupportAction
+            onPrimaryAction={canInlineUpgrade ? () => setUpgradeModalOpen(true) : undefined}
+          />
+        )}
       </div>
 
       {/* Barra de busca */}
@@ -171,24 +231,26 @@ export default function CatalogoDistribuidorPage() {
       </div>
 
       {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg shadow">
-          <p className="text-gray-600 text-sm">Total de Produtos</p>
-          <p className="text-2xl font-bold text-gray-900">{produtos.length}</p>
+      {hasCatalogAccess ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white p-4 rounded-lg shadow">
+            <p className="text-gray-600 text-sm">Total de Produtos</p>
+            <p className="text-2xl font-bold text-gray-900">{produtos.length}</p>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <p className="text-gray-600 text-sm">Habilitados</p>
+            <p className="text-2xl font-bold text-green-600">
+              {produtos.filter(p => p.enabled).length}
+            </p>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <p className="text-gray-600 text-sm">Desabilitados</p>
+            <p className="text-2xl font-bold text-gray-600">
+              {produtos.filter(p => !p.enabled).length}
+            </p>
+          </div>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <p className="text-gray-600 text-sm">Habilitados</p>
-          <p className="text-2xl font-bold text-green-600">
-            {produtos.filter(p => p.enabled).length}
-          </p>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <p className="text-gray-600 text-sm">Desabilitados</p>
-          <p className="text-2xl font-bold text-gray-600">
-            {produtos.filter(p => !p.enabled).length}
-          </p>
-        </div>
-      </div>
+      ) : null}
 
       {/* Tabela de produtos */}
       {filteredProdutos.length === 0 ? (
@@ -198,15 +260,34 @@ export default function CatalogoDistribuidorPage() {
           </svg>
           <h3 className="mt-4 text-lg font-medium text-gray-900">Nenhum produto encontrado</h3>
           <p className="mt-2 text-sm text-gray-500">
-            {searchTerm ? 'Tente buscar por outro termo' : 'Cadastre sua banca para ver o catálogo de produtos dos distribuidores'}
+            {searchTerm
+              ? 'Tente buscar por outro termo'
+              : hasCatalogAccess
+                ? 'Ainda não encontramos produtos parceiros para exibir nesta consulta.'
+                : 'Ative o acesso parceiro no seu plano para liberar o catálogo de distribuidores.'}
           </p>
           {!searchTerm && (
-            <Link 
-              href="/jornaleiro/banca" 
-              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#ff5c00] hover:bg-[#ff6a1a]"
-            >
-              Cadastrar Minha Banca
-            </Link>
+            hasCatalogAccess ? (
+              <Link 
+                href="/jornaleiro/banca"
+                className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#ff5c00] hover:bg-[#ff6a1a]"
+              >
+                Revisar minha banca
+              </Link>
+            ) : (
+              <Link
+                href="/jornaleiro/meu-plano"
+                onClick={(event) => {
+                  if (!paidFeaturesLockedUntilPayment && canInlineUpgrade) {
+                    event.preventDefault();
+                    setUpgradeModalOpen(true);
+                  }
+                }}
+                className="mt-4 inline-flex items-center rounded-md border border-transparent bg-[#ff5c00] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#ff6a1a]"
+              >
+                {paidFeaturesLockedUntilPayment || overdueFeaturesLocked ? "Ver cobrança do plano" : canInlineUpgrade ? "Ativar acesso parceiro" : "Ver planos"}
+              </Link>
+            )
           )}
         </div>
       ) : (
@@ -373,6 +454,13 @@ export default function CatalogoDistribuidorPage() {
           </div>
         </div>
       </div>
+
+      <PlanCheckoutModal
+        open={upgradeModalOpen}
+        targetPlanType={partnerUpgradeHint.targetPlanType}
+        onClose={() => setUpgradeModalOpen(false)}
+        onSuccess={loadProdutos}
+      />
     </div>
   );
 }

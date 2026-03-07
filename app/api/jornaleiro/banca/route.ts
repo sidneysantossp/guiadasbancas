@@ -4,6 +4,8 @@ export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
+import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import type { AdminBanca } from "@/app/api/admin/bancas/route";
 
 // Dias da semana para horários
@@ -178,9 +180,6 @@ async function loadBancaForUser(userId: string): Promise<any> {
         .maybeSingle();
       
       if (bancaData) {
-        if (bancaData.active === false) {
-          console.warn('[loadBancaForUser] ⚠️ banca_id do profile está inativa. Buscando fallback ativo...');
-        } else {
         // Validar que é do usuário OU que tem vínculo via banca_members
         if (bancaData.user_id === userId) {
           console.log('[loadBancaForUser] ✅ Banca ativa é do usuário (dono)');
@@ -201,7 +200,6 @@ async function loadBancaForUser(userId: string): Promise<any> {
             console.error('[loadBancaForUser] 🚨 Banca ativa não pertence ao usuário!');
           }
         }
-        }
       } else {
         console.warn('[loadBancaForUser] ⚠️ Banca ativa não encontrada:', bancaError?.message);
       }
@@ -218,7 +216,7 @@ async function loadBancaForUser(userId: string): Promise<any> {
         .order('created_at', { ascending: false })
         .limit(20);
 
-      const userBancas = (userBancasRows || []).find((b: any) => b?.active !== false) || null;
+      const userBancas = (userBancasRows || [])[0] || null;
       
       if (userBancas) {
         console.log('[loadBancaForUser] ✅ Encontrada banca do usuário (dono)');
@@ -250,7 +248,7 @@ async function loadBancaForUser(userId: string): Promise<any> {
           .eq('id', memberData.banca_id)
           .maybeSingle();
         
-        if (bancaData && bancaData.active !== false) {
+        if (bancaData) {
           console.log('[loadBancaForUser] ✅ Banca do vínculo carregada');
           data = bancaData;
           break;
@@ -328,6 +326,12 @@ async function loadBancaForUser(userId: string): Promise<any> {
       console.log('[GET] ⚠️ address_obj não encontrado no banco, usando smartParseAddress:', addressObj);
     }
     
+    const entitlements = await resolveBancaPlanEntitlements({
+      id: data.id,
+      is_cotista: data.is_cotista,
+      cotista_id: data.cotista_id,
+    });
+
     const result = {
       id: data.id,
       user_id: data.user_id, // 🚨 INCLUIR user_id para validação no frontend
@@ -367,6 +371,7 @@ async function loadBancaForUser(userId: string): Promise<any> {
       featured: false,
       ctaUrl: '',
       active: data.active !== false,
+      approved: data.approved === true,
       createdAt: data.created_at,
       delivery_enabled: data.delivery_enabled || false,
       free_shipping_threshold: data.free_shipping_threshold || 120,
@@ -383,6 +388,21 @@ async function loadBancaForUser(userId: string): Promise<any> {
       cotista_codigo: data.cotista_codigo || null,
       cotista_razao_social: data.cotista_razao_social || null,
       cotista_cnpj_cpf: data.cotista_cnpj_cpf || null,
+      plan: entitlements.plan,
+      requested_plan: entitlements.requestedPlan,
+      subscription: entitlements.subscription,
+      entitlements: {
+        plan_type: entitlements.planType,
+        product_limit: entitlements.productLimit,
+        max_images_per_product: entitlements.maxImagesPerProduct,
+        can_access_distributor_catalog: entitlements.canAccessDistributorCatalog,
+        can_access_partner_directory: entitlements.canAccessPartnerDirectory,
+        is_legacy_cotista_linked: entitlements.isLegacyCotistaLinked,
+        paid_features_locked_until_payment: entitlements.paidFeaturesLockedUntilPayment,
+        overdue_features_locked: entitlements.overdueFeaturesLocked,
+        overdue_in_grace_period: entitlements.overdueInGracePeriod,
+        overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
+      },
       // Perfil (para preencher formulário mesmo se /profile falhar)
       profile: {
         full_name: (profile as any)?.full_name || '',
@@ -428,6 +448,14 @@ export async function POST(request: NextRequest) {
     // Se já existe banca vinculada ao usuário, retorna sem recriar
     const existing = await loadBancaForUser(session.user.id);
     if (existing) {
+      try {
+        await ensureBancaHasOnboardingPlan(existing.id);
+      } catch (subscriptionError: any) {
+        console.warn(
+          '[POST] ⚠️ Banca existente encontrada, mas não foi possível garantir plano inicial:',
+          subscriptionError?.message || subscriptionError
+        );
+      }
       console.log('[POST] ✅ Banca já existe, retornando existente');
       return NextResponse.json({ success: true, data: existing, alreadyExists: true });
     }
@@ -494,6 +522,15 @@ export async function POST(request: NextRequest) {
     if (profileError) {
       console.error('[POST] ❌ Erro ao atualizar user_profiles:', profileError);
       return NextResponse.json({ success: false, error: profileError.message }, { status: 500 });
+    }
+
+    try {
+      await ensureBancaHasOnboardingPlan(data.id);
+    } catch (subscriptionError: any) {
+      console.warn(
+        '[POST] ⚠️ Banca criada, mas não foi possível atribuir plano inicial:',
+        subscriptionError?.message || subscriptionError
+      );
     }
 
     console.log('[POST] ✅ Banca criada e perfil atualizado com CPF e nome');

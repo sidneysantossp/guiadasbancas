@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auth } from '@/lib/auth';
 import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 
 // PUT /api/jornaleiro/catalogo-distribuidor/:productId
 // Atualiza customizações de um produto (mesma lógica do PATCH)
@@ -39,6 +40,40 @@ export async function PATCH(
       return NextResponse.json(
         { success: false, error: 'Banca não encontrada' },
         { status: 404 }
+      );
+    }
+
+    const entitlements = await resolveBancaPlanEntitlements(banca);
+    if (!entitlements.canAccessDistributorCatalog) {
+      return NextResponse.json(
+        entitlements.overdueFeaturesLocked && entitlements.subscription?.plan
+          ? {
+              success: false,
+              error: `Seu plano ${entitlements.subscription.plan.name} está com cobrança em aberto e o acesso ao catálogo parceiro foi pausado após a carência.`,
+              code: 'PLAN_OVERDUE_SUSPENDED',
+              plan: entitlements.plan,
+              contracted_plan: entitlements.subscription.plan,
+              overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
+              upgrade_url: '/jornaleiro/meu-plano',
+            }
+          : entitlements.paidFeaturesLockedUntilPayment && entitlements.requestedPlan
+          ? {
+              success: false,
+              error: `Seu upgrade para ${entitlements.requestedPlan.name} está aguardando o pagamento da primeira cobrança. Assim que confirmar, o catálogo parceiro será liberado.`,
+              code: 'PLAN_PENDING_PAYMENT',
+              plan: entitlements.plan,
+              requested_plan: entitlements.requestedPlan,
+              upgrade_url: '/jornaleiro/meu-plano',
+            }
+          : {
+              success: false,
+              error: 'Seu plano atual não permite customizar o catálogo de distribuidores.',
+              code: 'PLAN_DISTRIBUTOR_CATALOG_LOCKED',
+              plan: entitlements.plan,
+              recommended_plan_type: 'premium',
+              upgrade_url: '/jornaleiro/meu-plano',
+            },
+        { status: 403 }
       );
     }
 

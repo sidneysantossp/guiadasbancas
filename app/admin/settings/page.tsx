@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { clearFrontendCaches } from "@/lib/cache";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 import {
   IconSettings,
   IconRefresh,
@@ -33,7 +34,7 @@ export default function AdminSettingsPage() {
     (async () => {
       try {
         setLoadingAboutTemplate(true);
-        const res = await fetch(`/api/admin/settings?keys=${BANCA_ABOUT_TEMPLATE_KEY}`, {
+        const res = await fetchAdminWithDevFallback(`/api/admin/settings?keys=${BANCA_ABOUT_TEMPLATE_KEY}`, {
           cache: "no-store",
         });
         const json = await res.json();
@@ -77,7 +78,7 @@ export default function AdminSettingsPage() {
     setAboutTemplateMessage(null);
 
     try {
-      const res = await fetch("/api/admin/settings", {
+      const res = await fetchAdminWithDevFallback("/api/admin/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

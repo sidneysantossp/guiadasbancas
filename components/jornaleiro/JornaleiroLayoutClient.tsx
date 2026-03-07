@@ -270,12 +270,23 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     console.log("[FilteredMenu] isOwner:", isOwner);
     console.log("[FilteredMenu] userPermissions:", userPermissions);
     console.log("[FilteredMenu] banca.is_cotista:", banca?.is_cotista);
+    console.log("[FilteredMenu] banca.entitlements:", banca?.entitlements);
     
     let menu = JOURNALEIRO_MENU;
+    const hasCatalogAccess = Boolean(
+      banca?.entitlements?.can_access_distributor_catalog ?? banca?.is_cotista
+    );
+    const hasPartnerDirectoryAccess = Boolean(
+      banca?.entitlements?.can_access_partner_directory ?? banca?.is_cotista
+    );
     
-    // Filtrar "Distribuidores" se não for cotista (Banca PRIME)
-    if (!banca?.is_cotista) {
-      console.log("[FilteredMenu] Não é Banca PRIME, removendo 'Distribuidores'");
+    if (!hasCatalogAccess) {
+      console.log("[FilteredMenu] Sem acesso ao catálogo parceiro, removendo 'Catálogo Distribuidor'");
+      menu = menu.filter(item => item.label !== "Catálogo Distribuidor");
+    }
+
+    if (!hasPartnerDirectoryAccess) {
+      console.log("[FilteredMenu] Sem acesso à rede parceira, removendo 'Distribuidores'");
       menu = menu.filter(item => item.label !== "Distribuidores");
     }
 
@@ -311,7 +322,15 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     
     console.log("[FilteredMenu] Menu filtrado:", filtered.map(i => i.label));
     return filtered;
-  }, [permissionsLoaded, isOwner, userPermissions, banca?.is_cotista, plansMenuEnabled]);
+  }, [
+    permissionsLoaded,
+    isOwner,
+    userPermissions,
+    banca?.is_cotista,
+    banca?.entitlements?.can_access_distributor_catalog,
+    banca?.entitlements?.can_access_partner_directory,
+    plansMenuEnabled,
+  ]);
 
   const mobileQuickLinks = useMemo(() => {
     return MOBILE_QUICK_LINKS.flatMap((shortcut) => {

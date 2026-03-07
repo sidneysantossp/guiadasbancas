@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+export const dynamic = "force-dynamic";
+
 // GET - Listar configurações
 export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const keys = searchParams.get("keys")?.split(",");
 
@@ -43,6 +49,9 @@ export async function GET(request: NextRequest) {
 // POST - Criar ou atualizar configuração
 export async function POST(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const body = await request.json();
     const { key, value, description, is_secret } = body;
 
@@ -53,12 +62,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let normalizedValue = value;
+
+    if (
+      key === "subscription_overdue_grace_days" ||
+      key === "premium_launch_slots" ||
+      key === "subscription_trial_days_paid"
+    ) {
+      const parsed = Number(value);
+
+      if (!Number.isInteger(parsed) || parsed < 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              key === "subscription_overdue_grace_days"
+                ? "Os dias de carência devem ser um número inteiro igual ou maior que zero"
+                : key === "subscription_trial_days_paid"
+                  ? "Os dias de degustação devem ser um número inteiro igual ou maior que zero"
+                : "A quantidade de vagas promocionais deve ser um número inteiro igual ou maior que zero",
+          },
+          { status: 400 }
+        );
+      }
+
+      normalizedValue = String(parsed);
+    }
+
+    if (key === "premium_launch_price") {
+      const parsed = Number(value);
+
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "O preço promocional deve ser um número maior que zero",
+          },
+          { status: 400 }
+        );
+      }
+
+      normalizedValue = String(parsed);
+    }
+
     const { data, error } = await supabaseAdmin
       .from("system_settings")
       .upsert(
         {
           key,
-          value,
+          value: normalizedValue,
           description,
           is_secret,
           updated_at: new Date().toISOString(),

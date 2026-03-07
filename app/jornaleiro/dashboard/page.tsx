@@ -6,10 +6,49 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useAuth } from "@/lib/auth/AuthContext";
+import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
+import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
+import PlanEntryGuide from "@/components/jornaleiro/PlanEntryGuide";
+
+const BILLING_CYCLES: Record<string, string> = {
+  monthly: "mês",
+  quarterly: "trimestre",
+  semiannual: "semestre",
+  annual: "ano",
+};
+
+const SUBSCRIPTION_STATUS_META: Record<string, { label: string; className: string; message: string }> = {
+  active: {
+    label: "Ativo",
+    className: "bg-green-100 text-green-700",
+    message: "Seu plano está ativo e liberado para operar normalmente.",
+  },
+  trial: {
+    label: "Teste",
+    className: "bg-blue-100 text-blue-700",
+    message: "Sua banca está em período de teste. Aproveite para validar a operação antes da cobrança.",
+  },
+  pending: {
+    label: "Aguardando pagamento",
+    className: "bg-amber-100 text-amber-700",
+    message: "A assinatura já foi criada. Falta apenas quitar a primeira cobrança para confirmar o novo plano.",
+  },
+  overdue: {
+    label: "Pagamento em aberto",
+    className: "bg-red-100 text-red-700",
+    message: "Existe uma cobrança em aberto. Regularize para evitar impacto nos recursos do plano.",
+  },
+  cancelled: {
+    label: "Cancelado",
+    className: "bg-gray-100 text-gray-700",
+    message: "Sua assinatura foi cancelada. Você pode reativar um plano a qualquer momento.",
+  },
+};
 
 export default function JornaleiroDashboardPage() {
   const { user, profile } = useAuth();
   const [banca, setBanca] = useState<any>(null);
+  const [loadingBanca, setLoadingBanca] = useState(true);
   const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [metrics, setMetrics] = useState({
     pedidosHoje: 0,
@@ -27,6 +66,7 @@ export default function JornaleiroDashboardPage() {
 
   const loadBancaData = async () => {
     try {
+      setLoadingBanca(true);
       const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}`, {
         cache: "no-store",
         credentials: "include",
@@ -41,6 +81,9 @@ export default function JornaleiroDashboardPage() {
       setBanca(json.data);
     } catch (error) {
       console.error('[Dashboard] Erro ao carregar banca:', error);
+      setBanca(null);
+    } finally {
+      setLoadingBanca(false);
     }
   };
 
@@ -97,9 +140,66 @@ export default function JornaleiroDashboardPage() {
   // Memoizar cálculos pesados
   const memoizedMetrics = useMemo(() => metrics, [metrics]);
   const memoizedRecentOrders = useMemo(() => recentOrders, [recentOrders]);
+  const currentPlanType = banca?.entitlements?.plan_type || banca?.plan?.type || "free";
+  const currentPlanName = banca?.plan?.name || "Free";
+  const currentPlanPrice = Number(banca?.plan?.price || 0);
+  const currentPlanPriceLabel =
+    currentPlanPrice > 0
+      ? `R$ ${currentPlanPrice.toFixed(2).replace(".", ",")}/${BILLING_CYCLES[banca?.plan?.billing_cycle || "monthly"] || "mês"}`
+      : "Grátis";
+  const currentPlanLimit = banca?.entitlements?.product_limit ?? null;
+  const currentSubscriptionStatus = banca?.subscription?.status || "active";
+  const currentSubscriptionMeta = SUBSCRIPTION_STATUS_META[currentSubscriptionStatus] || SUBSCRIPTION_STATUS_META.active;
+  const requestedPlanName = banca?.requested_plan?.name || null;
+  const overdueFeaturesLocked = banca?.entitlements?.overdue_features_locked === true;
+  const overdueInGracePeriod = banca?.entitlements?.overdue_in_grace_period === true;
+  const overdueGraceEndsAt = banca?.entitlements?.overdue_grace_ends_at || null;
+  const checklistItems = useMemo(() => {
+    const hasBranding = Boolean(banca?.profile_image || banca?.cover_image);
+    const hasOpeningHours = Array.isArray(banca?.hours) && banca.hours.some((day: any) => day?.open);
+    const hasContactChannel = Boolean(banca?.whatsapp || sellerPhone || sellerEmail);
+    const hasProducts = memoizedMetrics.produtosAtivos > 0;
+
+    return [
+      {
+        id: "branding",
+        title: "Personalize a banca",
+        description: hasBranding ? "Logo ou capa adicionadas." : "Adicione logo e capa para transmitir confiança.",
+        done: hasBranding,
+        href: "/jornaleiro/banca-v2" as Route,
+        actionLabel: hasBranding ? "Revisar" : "Adicionar",
+      },
+      {
+        id: "hours",
+        title: "Defina seu horário",
+        description: hasOpeningHours ? "Horários configurados." : "Informe os dias e horários em que sua banca funciona.",
+        done: hasOpeningHours,
+        href: "/jornaleiro/banca-v2" as Route,
+        actionLabel: hasOpeningHours ? "Ajustar" : "Configurar",
+      },
+      {
+        id: "contact",
+        title: "Confirme seu atendimento",
+        description: hasContactChannel ? "Contato principal disponível." : "Cadastre WhatsApp ou telefone para receber pedidos.",
+        done: hasContactChannel,
+        href: "/jornaleiro/banca-v2" as Route,
+        actionLabel: hasContactChannel ? "Atualizar" : "Informar",
+      },
+      {
+        id: "products",
+        title: "Cadastre o primeiro produto",
+        description: hasProducts ? "Sua vitrine já tem produtos." : "Crie pelo menos um item para começar a vender.",
+        done: hasProducts,
+        href: "/jornaleiro/produtos/create" as Route,
+        actionLabel: hasProducts ? "Ver produtos" : "Cadastrar",
+      },
+    ];
+  }, [banca?.cover_image, banca?.hours, banca?.profile_image, banca?.whatsapp, memoizedMetrics.produtosAtivos, sellerEmail, sellerPhone]);
+  const completedChecklistCount = checklistItems.filter((item) => item.done).length;
+  const isPublished = Boolean(banca?.active && banca?.approved);
 
   // Se não tem banca, mostrar CTA para cadastrar
-  if (!banca && !loadingMetrics) {
+  if (!loadingBanca && !banca) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
@@ -114,6 +214,17 @@ export default function JornaleiroDashboardPage() {
           >
             Cadastrar Minha Banca
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingBanca) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center p-4">
+        <div className="rounded-2xl border border-gray-200 bg-white px-6 py-8 text-center shadow-sm">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-[#ff5c00]" />
+          <p className="mt-4 text-sm text-gray-600">Carregando o painel da sua banca...</p>
         </div>
       </div>
     );
@@ -134,6 +245,224 @@ export default function JornaleiroDashboardPage() {
 
   return (
     <div className="space-y-4 overflow-x-hidden px-3 sm:px-0 max-w-full">
+      <div className="rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 via-white to-white p-4 sm:p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#ff5c00] shadow-sm">
+              {currentPlanType === "free" ? "Plano inicial liberado" : `Plano ${currentPlanName} em uso`}
+            </div>
+            <h1 className="mt-3 text-2xl font-semibold text-gray-900">Olá, {sellerName}</h1>
+            <p className="mt-2 max-w-2xl text-sm text-gray-600 sm:text-base">
+              {currentPlanType === "free"
+                ? "Seu painel já está pronto para uso no plano Free. Complete os passos abaixo para organizar sua banca e preparar a publicação."
+                : `Seu painel já está configurado no plano ${currentPlanName}. Complete os passos abaixo para publicar melhor sua banca e extrair mais valor do plano.`}
+            </p>
+          </div>
+          <div className="flex w-full flex-col gap-2 rounded-2xl border border-orange-100 bg-white/90 p-4 text-sm shadow-sm lg:max-w-xs">
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Progresso inicial</span>
+            <span className="text-3xl font-semibold text-gray-900">{completedChecklistCount}/{checklistItems.length}</span>
+            <span className="text-sm text-gray-600">
+              {completedChecklistCount === checklistItems.length
+                ? "Tudo configurado. Sua banca já está pronta para os próximos ajustes."
+                : "Finalize estes itens para começar a vender com menos atrito."}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+          {checklistItems.map((item) => (
+            <div
+              key={item.id}
+              className={`rounded-2xl border p-4 shadow-sm transition-colors ${
+                item.done ? "border-green-200 bg-green-50/70" : "border-gray-200 bg-white"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                    item.done ? "bg-green-600 text-white" : "bg-orange-100 text-[#ff5c00]"
+                  }`}
+                >
+                  {item.done ? (
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m5 13 4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <span className="text-sm font-semibold">{item.id === "products" ? "4" : item.id === "contact" ? "3" : item.id === "hours" ? "2" : "1"}</span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-base font-semibold text-gray-900">{item.title}</h2>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
+                        item.done ? "bg-green-100 text-green-700" : "bg-orange-100 text-[#ff5c00]"
+                      }`}
+                    >
+                      {item.done ? "Concluído" : "Pendente"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-600">{item.description}</p>
+                  <Link
+                    href={item.href}
+                    className="mt-3 inline-flex items-center text-sm font-semibold text-[#ff5c00] hover:opacity-80"
+                  >
+                    {item.actionLabel}
+                    <svg className="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div
+          className={`mt-4 rounded-2xl border p-4 text-sm shadow-sm ${
+            isPublished ? "border-green-200 bg-green-50 text-green-800" : "border-amber-200 bg-amber-50 text-amber-900"
+          }`}
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold">
+                {isPublished ? "Sua banca já está publicada" : "Sua banca ainda não está publicada"}
+              </h2>
+              <p className="mt-1">
+                {isPublished
+                  ? "Os clientes já podem encontrar sua banca na vitrine pública."
+                  : "Você já pode configurar tudo por aqui, mas a banca ainda não aparece para os clientes enquanto publicação e aprovação não forem concluídas."}
+              </p>
+            </div>
+            <Link
+              href={("/jornaleiro/banca-v2" as Route)}
+              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-4 py-2 font-semibold text-[#ff5c00] shadow-sm ring-1 ring-inset ring-current/10 hover:opacity-90"
+            >
+              Revisar cadastro
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-700">
+                  Seu plano atual
+                </span>
+                <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#ff5c00]">
+                  {currentPlanName}
+                </span>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${currentSubscriptionMeta.className}`}>
+                  {currentSubscriptionMeta.label}
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap items-end gap-2">
+                <h2 className="text-2xl font-semibold text-gray-900">{currentPlanName}</h2>
+                <span className="pb-1 text-sm text-gray-500">{currentPlanPriceLabel}</span>
+              </div>
+              <p className="mt-2 text-sm text-gray-600">
+                O painel já está liberado para você operar com segurança. A ideia agora é completar o básico da banca e fazer upgrade só quando o negócio realmente pedir.
+              </p>
+              {currentSubscriptionStatus === "pending" && requestedPlanName ? (
+                <div className="mt-3">
+                  <PlanPendingActivationCard requestedPlanName={requestedPlanName} />
+                </div>
+              ) : currentSubscriptionStatus === "overdue" ? (
+                <div className="mt-3">
+                  <PlanOverdueCard
+                    planName={banca?.subscription?.plan?.name || currentPlanName}
+                    graceEndsAt={overdueGraceEndsAt}
+                    accessSuspended={overdueFeaturesLocked}
+                    showSupportAction
+                  />
+                </div>
+              ) : (
+                <div className={`mt-3 rounded-2xl border px-4 py-3 text-sm ${
+                  currentSubscriptionStatus === "overdue"
+                    ? "border-red-200 bg-red-50 text-red-900"
+                    : currentSubscriptionStatus === "trial"
+                      ? "border-blue-200 bg-blue-50 text-blue-900"
+                      : "border-green-200 bg-green-50 text-green-900"
+                }`}>
+                  {currentSubscriptionMeta.message}
+                </div>
+              )}
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Capacidade do catálogo</div>
+              <div className="mt-2 text-lg font-semibold text-gray-900">
+                {currentPlanLimit ? `Até ${currentPlanLimit} produtos próprios` : "Sem limite configurado"}
+              </div>
+              <p className="mt-1 text-sm text-gray-600">
+                Hoje sua banca tem {memoizedMetrics.produtosAtivos} produtos ativos na vitrine.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Rede parceira</div>
+              <div className="mt-2 text-lg font-semibold text-gray-900">
+                {banca?.entitlements?.can_access_distributor_catalog ? "Acesso liberado" : "Ainda bloqueado"}
+              </div>
+              <p className="mt-1 text-sm text-gray-600">
+                {banca?.entitlements?.can_access_distributor_catalog
+                  ? "Sua banca já pode navegar pelo catálogo parceiro dentro do painel."
+                  : "Quando fizer sentido para sua operação, você pode liberar distribuidores e catálogo parceiro no upgrade."}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              href={("/jornaleiro/produtos" as Route)}
+              className="inline-flex items-center justify-center rounded-xl bg-[#ff5c00] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+            >
+              Continuar configurando a banca
+            </Link>
+            <Link
+              href={("/jornaleiro/meu-plano" as Route)}
+              className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              {currentSubscriptionStatus === "pending" ? "Ver cobrança do plano" : "Entender meus planos"}
+            </Link>
+            {banca?.entitlements?.can_access_distributor_catalog ? (
+              <Link
+                href={("/jornaleiro/catalogo-distribuidor" as Route)}
+                className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Abrir catálogo parceiro
+              </Link>
+            ) : null}
+          </div>
+
+          {completedChecklistCount === checklistItems.length ? (
+            <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
+              <div className="font-semibold">Checklist inicial concluído</div>
+              <p className="mt-1">
+                Sua banca já passou pelo básico. Continue operando normalmente no {currentPlanName} e deixe o upgrade para quando a operação realmente pedir mais capacidade.
+              </p>
+            </div>
+          ) : null}
+        </div>
+
+        {currentPlanType === "free" ? (
+          <PlanEntryGuide compact className="bg-white" />
+        ) : (
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-700">
+              Plano atual
+            </div>
+            <h3 className="mt-3 text-lg font-semibold text-gray-900">{currentPlanName}</h3>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              Sua banca já está acima do plano inicial. Continue usando o painel normalmente e só revise upgrade quando surgir uma necessidade real de operação.
+            </p>
+            <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+              Produtos, distribuidores e limites mais avançados continuam sendo liberados por contexto, sem forçar uma decisão comercial antes da hora.
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Alerta TPU para não-cotistas sem documento */}
       {needsTpuAlert && (
         <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 sm:p-6 shadow-sm">
@@ -198,7 +527,7 @@ export default function JornaleiroDashboardPage() {
             {loadingMetrics ? "--" : memoizedMetrics.produtosAtivos}
           </div>
           <div className="mt-1 text-xs text-gray-400">
-            {banca?.is_cotista ? 'Próprios + catálogo do distribuidor' : 'Itens visíveis na vitrine'}
+            {banca?.entitlements?.can_access_distributor_catalog ? 'Próprios + catálogo parceiro' : 'Itens visíveis na vitrine'}
           </div>
         </div>
       </div>

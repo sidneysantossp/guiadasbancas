@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 type Setting = {
   id: string;
@@ -9,6 +10,51 @@ type Setting = {
   description: string;
   is_secret: boolean;
 };
+
+const SETTINGS_METADATA = {
+  asaas_api_key: {
+    description: "API Key do Asaas",
+    is_secret: true,
+    defaultValue: "",
+  },
+  asaas_environment: {
+    description: "Ambiente do Asaas",
+    is_secret: false,
+    defaultValue: "sandbox",
+  },
+  subscription_overdue_grace_days: {
+    description: "Dias de carência para assinaturas em aberto antes de pausar recursos pagos",
+    is_secret: false,
+    defaultValue: "5",
+  },
+  subscription_trial_days_paid: {
+    description: "Dias de degustação liberados uma única vez para a primeira assinatura paga da banca",
+    is_secret: false,
+    defaultValue: "0",
+  },
+  paid_plan_trial_claimed_bancas_v1: {
+    description: "Lista interna de bancas que já utilizaram o período de degustação dos planos pagos",
+    is_secret: false,
+    defaultValue: "[]",
+  },
+  premium_launch_price: {
+    description: "Preço promocional da oferta de lançamento do Premium",
+    is_secret: false,
+    defaultValue: "99.9",
+  },
+  premium_launch_slots: {
+    description: "Quantidade de bancas elegíveis para a oferta de lançamento do Premium",
+    is_secret: false,
+    defaultValue: "100",
+  },
+  premium_launch_claimed_bancas_v1: {
+    description: "Lista interna de bancas que já garantiram a oferta de lançamento do Premium",
+    is_secret: false,
+    defaultValue: "[]",
+  },
+} satisfies Record<string, { description: string; is_secret: boolean; defaultValue: string }>;
+
+const SETTINGS_KEYS = Object.keys(SETTINGS_METADATA).join(",");
 
 export default function AdminConfiguracoesPage() {
   const [settings, setSettings] = useState<Setting[]>([]);
@@ -19,13 +65,28 @@ export default function AdminConfiguracoesPage() {
 
   const loadSettings = async () => {
     try {
-      const res = await fetch("/api/admin/settings?keys=asaas_api_key,asaas_environment");
+      const res = await fetchAdminWithDevFallback(`/api/admin/settings?keys=${SETTINGS_KEYS}`);
       const data = await res.json();
       if (data.success) {
-        setSettings(data.data || []);
+        const incomingSettings = Array.isArray(data.data) ? data.data : [];
+        const mergedSettings = Object.entries(SETTINGS_METADATA).map(([key, meta]) => {
+          const current = incomingSettings.find((setting: Setting) => setting.key === key);
+          if (current) return current;
+
+          return {
+            id: key,
+            key,
+            value: meta.defaultValue,
+            description: meta.description,
+            is_secret: meta.is_secret,
+          };
+        });
+
+        setSettings(mergedSettings);
         const values: Record<string, string> = {};
-        data.data?.forEach((s: Setting) => {
-          values[s.key] = s.is_secret ? "" : s.value;
+        mergedSettings.forEach((s: Setting) => {
+          const meta = SETTINGS_METADATA[s.key as keyof typeof SETTINGS_METADATA];
+          values[s.key] = s.is_secret ? "" : s.value || meta?.defaultValue || "";
         });
         setEditValues(values);
       }
@@ -40,23 +101,103 @@ export default function AdminConfiguracoesPage() {
     loadSettings();
   }, []);
 
+  const claimedLaunchBancas = (() => {
+    const raw =
+      settings.find((setting) => setting.key === "premium_launch_claimed_bancas_v1")?.value ??
+      SETTINGS_METADATA.premium_launch_claimed_bancas_v1.defaultValue;
+
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(Boolean).length : 0;
+    } catch {
+      return 0;
+    }
+  })();
+
+  const configuredLaunchSlots = Number(
+    editValues.premium_launch_slots || SETTINGS_METADATA.premium_launch_slots.defaultValue
+  );
+
+  const claimedTrialBancas = (() => {
+    const raw =
+      settings.find((setting) => setting.key === "paid_plan_trial_claimed_bancas_v1")?.value ??
+      SETTINGS_METADATA.paid_plan_trial_claimed_bancas_v1.defaultValue;
+
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(Boolean).length : 0;
+    } catch {
+      return 0;
+    }
+  })();
+
+  const remainingLaunchSlots = Math.max(
+    (Number.isFinite(configuredLaunchSlots) ? Math.floor(configuredLaunchSlots) : 0) -
+      claimedLaunchBancas,
+    0
+  );
+
   const handleSave = async (key: string) => {
     if (!editValues[key] && settings.find(s => s.key === key)?.is_secret) {
       alert("Por favor, insira um valor para salvar");
       return;
     }
 
+    let valueToSave = editValues[key] ?? "";
+
+    if (key === "subscription_overdue_grace_days" || key === "subscription_trial_days_paid") {
+      const parsed = Number(valueToSave);
+
+      if (!Number.isInteger(parsed) || parsed < 0) {
+        alert(
+          key === "subscription_trial_days_paid"
+            ? "Informe um número inteiro igual ou maior que zero para os dias de degustação."
+            : "Informe um número inteiro igual ou maior que zero."
+        );
+        return;
+      }
+
+      valueToSave = String(parsed);
+    }
+
+    if (key === "premium_launch_slots") {
+      const parsed = Number(valueToSave);
+
+      if (!Number.isInteger(parsed) || parsed < 0) {
+        alert("Informe um número inteiro igual ou maior que zero para a quantidade de bancas.");
+        return;
+      }
+
+      valueToSave = String(parsed);
+    }
+
+    if (key === "premium_launch_price") {
+      const parsed = Number(valueToSave);
+
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        alert("Informe um valor promocional maior que zero.");
+        return;
+      }
+
+      valueToSave = String(parsed);
+    }
+
     setSaving(key);
     try {
       const setting = settings.find(s => s.key === key);
-      const res = await fetch("/api/admin/settings", {
+      const res = await fetchAdminWithDevFallback("/api/admin/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           key,
-          value: editValues[key],
-          description: setting?.description,
-          is_secret: setting?.is_secret,
+          value: valueToSave,
+          description:
+            setting?.description ||
+            SETTINGS_METADATA[key as keyof typeof SETTINGS_METADATA]?.description,
+          is_secret:
+            setting?.is_secret ??
+            SETTINGS_METADATA[key as keyof typeof SETTINGS_METADATA]?.is_secret ??
+            false,
         }),
       });
 
@@ -106,8 +247,8 @@ export default function AdminConfiguracoesPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
-        <p className="text-gray-600 mt-1">Configure as integrações da plataforma</p>
+        <h1 className="text-2xl font-bold text-gray-900">Assinaturas e Cobrança</h1>
+        <p className="text-gray-600 mt-1">Controle gateway, carência, degustação e ofertas comerciais dos planos</p>
       </div>
 
       {/* Asaas Config */}
@@ -243,6 +384,205 @@ export default function AdminConfiguracoesPage() {
               )}
             </button>
           </div>
+        </div>
+      </div>
+
+      <div className="mt-6 bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-[#ff5c00] rounded-xl flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Assinaturas e cobrança</h2>
+              <p className="text-sm text-gray-600">Controle a carência antes de pausar os recursos pagos</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Dias de carência para assinatura em aberto
+            </label>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={editValues.subscription_overdue_grace_days || ""}
+                onChange={(e) =>
+                  setEditValues({
+                    ...editValues,
+                    subscription_overdue_grace_days: e.target.value,
+                  })
+                }
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-[#ff5c00] focus:border-[#ff5c00] sm:max-w-[180px]"
+                placeholder="5"
+              />
+              <button
+                onClick={() => handleSave("subscription_overdue_grace_days")}
+                disabled={saving === "subscription_overdue_grace_days"}
+                className="px-4 py-2 bg-[#ff5c00] text-white rounded-lg hover:bg-[#e65300] transition disabled:opacity-50"
+              >
+                {saving === "subscription_overdue_grace_days" ? "Salvando..." : "Salvar carência"}
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Use <strong>0</strong> para suspender os recursos pagos imediatamente quando a assinatura entrar em aberto.
+              O padrão operacional atual é <strong>5 dias</strong>.
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              Depois desse prazo, a banca continua acessando o painel, mas opera apenas com os recursos do plano base até a confirmação do pagamento.
+            </p>
+          </div>
+
+          <div className="border-t border-gray-200 pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Dias de degustação para a primeira assinatura paga
+            </label>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={editValues.subscription_trial_days_paid || ""}
+                onChange={(e) =>
+                  setEditValues({
+                    ...editValues,
+                    subscription_trial_days_paid: e.target.value,
+                  })
+                }
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-[#ff5c00] focus:border-[#ff5c00] sm:max-w-[180px]"
+                placeholder="0"
+              />
+              <button
+                onClick={() => handleSave("subscription_trial_days_paid")}
+                disabled={saving === "subscription_trial_days_paid"}
+                className="px-4 py-2 bg-[#ff5c00] text-white rounded-lg hover:bg-[#e65300] transition disabled:opacity-50"
+              >
+                {saving === "subscription_trial_days_paid" ? "Salvando..." : "Salvar degustação"}
+              </button>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Dias configurados</div>
+                <div className="mt-1 text-2xl font-semibold text-gray-900">
+                  {Number.isFinite(Number(editValues.subscription_trial_days_paid))
+                    ? Math.max(Math.floor(Number(editValues.subscription_trial_days_paid)), 0)
+                    : 0}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Bancas que já usaram</div>
+                <div className="mt-1 text-2xl font-semibold text-gray-900">{claimedTrialBancas}</div>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Use <strong>0</strong> para desativar o período de degustação. Quando ativo, ele vale apenas <strong>uma vez por banca</strong> no primeiro upgrade para plano pago.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-violet-50 to-fuchsia-50">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-violet-600 rounded-xl flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 1.567-3 3.5 0 1.364.67 2.546 1.648 3.12L10 18l2-1 2 1-.648-3.38C14.33 14.046 15 12.864 15 11.5 15 9.567 13.657 8 12 8zm0 0V5m7 7h-3M8 12H5m11.364 4.95l2.122 2.121M5.515 6.636l2.121 2.121m8.728 0 2.122-2.121M5.515 17.071l2.121-2.121" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Oferta de lançamento do Premium</h2>
+              <p className="text-sm text-gray-600">Administre o preço promocional e o número de bancas elegíveis</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Preço promocional do Premium
+              </label>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <input
+                  type="number"
+                  min={0.01}
+                  step={0.01}
+                  value={editValues.premium_launch_price || ""}
+                  onChange={(e) =>
+                    setEditValues({
+                      ...editValues,
+                      premium_launch_price: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                  placeholder="99.90"
+                />
+                <button
+                  onClick={() => handleSave("premium_launch_price")}
+                  disabled={saving === "premium_launch_price"}
+                  className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition disabled:opacity-50"
+                >
+                  {saving === "premium_launch_price" ? "Salvando..." : "Salvar preço"}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Quantidade de bancas elegíveis
+              </label>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={editValues.premium_launch_slots || ""}
+                  onChange={(e) =>
+                    setEditValues({
+                      ...editValues,
+                      premium_launch_slots: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                  placeholder="100"
+                />
+                <button
+                  onClick={() => handleSave("premium_launch_slots")}
+                  disabled={saving === "premium_launch_slots"}
+                  className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition disabled:opacity-50"
+                >
+                  {saving === "premium_launch_slots" ? "Salvando..." : "Salvar vagas"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Já reservadas</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-900">{claimedLaunchBancas}</div>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Vagas configuradas</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-900">
+                {Number.isFinite(configuredLaunchSlots) ? Math.max(Math.floor(configuredLaunchSlots), 0) : 0}
+              </div>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Vagas restantes</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-900">{remainingLaunchSlots}</div>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-500">
+            Se você definir <strong>0 vagas</strong>, nenhuma nova banca entra na oferta de lançamento. As bancas que já contrataram com preço promocional continuam com o valor contratado salvo na assinatura.
+          </p>
         </div>
       </div>
 

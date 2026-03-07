@@ -1,7 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import PlanCheckoutModal from "@/components/jornaleiro/PlanCheckoutModal";
+import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
+import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
+import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
+import { getPlanUpgradeHint } from "@/lib/plan-messaging";
 
 type Distribuidor = {
   id: string;
@@ -30,6 +35,54 @@ const DISTRIBUIDORES: Distribuidor[] = [
 ];
 
 export default function DistribuidoresPage() {
+  const [loadingAccess, setLoadingAccess] = useState(true);
+  const [hasPartnerAccess, setHasPartnerAccess] = useState(false);
+  const [planName, setPlanName] = useState("Free");
+  const [planType, setPlanType] = useState("free");
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [paidFeaturesLockedUntilPayment, setPaidFeaturesLockedUntilPayment] = useState(false);
+  const [requestedPlanName, setRequestedPlanName] = useState<string | null>(null);
+  const [overdueFeaturesLocked, setOverdueFeaturesLocked] = useState(false);
+  const [overdueInGracePeriod, setOverdueInGracePeriod] = useState(false);
+  const [overdueGraceEndsAt, setOverdueGraceEndsAt] = useState<string | null>(null);
+  const [contractedPlanName, setContractedPlanName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadAccess = async () => {
+      try {
+        const res = await fetch("/api/jornaleiro/banca", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        const json = await res.json();
+        if (json?.success && json?.data) {
+          setHasPartnerAccess(Boolean(json.data?.entitlements?.can_access_partner_directory));
+          setPlanName(json.data?.plan?.name || "Free");
+          setPlanType(json.data?.entitlements?.plan_type || json.data?.plan?.type || "free");
+          setPaidFeaturesLockedUntilPayment(json.data?.entitlements?.paid_features_locked_until_payment === true);
+          setRequestedPlanName(json.data?.requested_plan?.name || null);
+          setOverdueFeaturesLocked(json.data?.entitlements?.overdue_features_locked === true);
+          setOverdueInGracePeriod(json.data?.entitlements?.overdue_in_grace_period === true);
+          setOverdueGraceEndsAt(json.data?.entitlements?.overdue_grace_ends_at || null);
+          setContractedPlanName(json.data?.subscription?.plan?.name || null);
+        }
+      } catch (error) {
+        console.error("[Distribuidores] Erro ao carregar acesso:", error);
+      } finally {
+        setLoadingAccess(false);
+      }
+    };
+
+    loadAccess();
+  }, []);
+
+  const partnerUpgradeHint = getPlanUpgradeHint({
+    currentPlanType: planType,
+    currentPlanName: planName,
+    context: "partner-network",
+  });
+  const canInlineUpgrade = Boolean(partnerUpgradeHint.targetPlanType);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -40,8 +93,38 @@ export default function DistribuidoresPage() {
         </p>
       </div>
 
+      {loadingAccess ? (
+        <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+          Validando os acessos do seu plano...
+        </div>
+      ) : overdueFeaturesLocked || overdueInGracePeriod ? (
+        <PlanOverdueCard
+          planName={contractedPlanName || planName}
+          graceEndsAt={overdueGraceEndsAt}
+          accessSuspended={overdueFeaturesLocked}
+          showSupportAction
+        />
+      ) : paidFeaturesLockedUntilPayment && requestedPlanName ? (
+        <PlanPendingActivationCard requestedPlanName={requestedPlanName} showSupportAction />
+      ) : !hasPartnerAccess ? (
+        <PlanUpgradeCard
+          currentPlanType={planType}
+          currentPlanName={planName}
+          context="partner-network"
+          showSupportAction
+          onPrimaryAction={canInlineUpgrade ? () => setUpgradeModalOpen(true) : undefined}
+        />
+      ) : (
+        <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
+          <div className="font-semibold">Rede parceira liberada</div>
+          <p className="mt-1">
+            Seu plano já permite navegar pelos distribuidores disponíveis na plataforma. Escolha um parceiro abaixo para continuar.
+          </p>
+        </div>
+      )}
+
       {/* Cards dos Distribuidores */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className={`grid grid-cols-1 gap-6 md:grid-cols-2 ${!loadingAccess && !hasPartnerAccess ? "opacity-60" : ""}`}>
         {DISTRIBUIDORES.map((distribuidor) => (
           <div
             key={distribuidor.id}
@@ -71,19 +154,36 @@ export default function DistribuidoresPage() {
 
                 {/* Botões de Ação */}
                 <div className="flex gap-3 pt-2">
-                  <Link
-                    href={`/jornaleiro/distribuidores/${distribuidor.id}`}
-                    className={`flex-1 ${distribuidor.cor} text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity text-center`}
-                  >
-                    Acessar Catálogo
-                  </Link>
+                  {hasPartnerAccess ? (
+                    <Link
+                      href={`/jornaleiro/distribuidores/${distribuidor.id}`}
+                      className={`flex-1 ${distribuidor.cor} text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity text-center`}
+                    >
+                      Acessar Catálogo
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/jornaleiro/meu-plano"
+                      onClick={(event) => {
+                        if (!paidFeaturesLockedUntilPayment && canInlineUpgrade) {
+                          event.preventDefault();
+                          setUpgradeModalOpen(true);
+                        }
+                      }}
+                      className="flex-1 rounded-lg bg-gray-900 px-4 py-2 text-center text-sm font-medium text-white hover:opacity-90 transition-opacity"
+                    >
+                      {paidFeaturesLockedUntilPayment || overdueFeaturesLocked ? "Ver cobrança do plano" : canInlineUpgrade ? "Ativar acesso parceiro" : "Ver planos"}
+                    </Link>
+                  )}
                   
                   <a
                     href={distribuidor.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-                    title="Abrir em nova aba"
+                    className={`px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors ${
+                      hasPartnerAccess ? "hover:bg-gray-50" : "pointer-events-none cursor-not-allowed bg-gray-100 text-gray-400"
+                    }`}
+                    title={hasPartnerAccess ? "Abrir em nova aba" : "Disponível apenas para planos com rede parceira"}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -118,9 +218,9 @@ export default function DistribuidoresPage() {
               Como fazer pedidos
             </h4>
             <p className="text-sm text-blue-700">
-              Clique em "Acessar Catálogo" para navegar no site do distribuidor integrado à plataforma, 
-              ou use o botão de link externo para abrir em uma nova aba. Seus pedidos serão processados 
-              diretamente com o distribuidor selecionado.
+              {hasPartnerAccess
+                ? 'Clique em "Acessar Catálogo" para navegar no site do distribuidor integrado à plataforma, ou use o botão de link externo para abrir em uma nova aba. Seus pedidos serão processados diretamente com o distribuidor selecionado.'
+                : 'A rede parceira é liberada conforme o plano da banca. Assim que o acesso for ativado, esta área passa a funcionar normalmente para os distribuidores disponíveis na sua região.'}
             </p>
           </div>
         </div>
@@ -141,6 +241,26 @@ export default function DistribuidoresPage() {
           <div className="text-sm text-gray-600">Valor Total Pedidos</div>
         </div>
       </div>
+
+      <PlanCheckoutModal
+        open={upgradeModalOpen}
+        targetPlanType={partnerUpgradeHint.targetPlanType}
+        onClose={() => setUpgradeModalOpen(false)}
+        onSuccess={async () => {
+          const res = await fetch("/api/jornaleiro/banca", {
+            cache: "no-store",
+            credentials: "include",
+          });
+          const json = await res.json();
+          if (json?.success && json?.data) {
+            setHasPartnerAccess(Boolean(json.data?.entitlements?.can_access_partner_directory));
+            setPlanName(json.data?.plan?.name || "Free");
+            setPlanType(json.data?.entitlements?.plan_type || json.data?.plan?.type || "free");
+            setPaidFeaturesLockedUntilPayment(json.data?.entitlements?.paid_features_locked_until_payment === true);
+            setRequestedPlanName(json.data?.requested_plan?.name || null);
+          }
+        }}
+      />
     </div>
   );
 }

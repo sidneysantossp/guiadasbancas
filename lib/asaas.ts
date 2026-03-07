@@ -193,9 +193,9 @@ export async function getSubscriptionPayments(subscriptionId: string): Promise<{
 
 // ============ UTILS ============
 
-export function formatDueDate(date?: Date): string {
-  const d = date || new Date();
-  d.setDate(d.getDate() + 3); // 3 dias para vencimento padrão
+export function formatDueDate(date?: Date, offsetDays = 3): string {
+  const d = date ? new Date(date) : new Date();
+  d.setDate(d.getDate() + offsetDays);
   return d.toISOString().split("T")[0];
 }
 
