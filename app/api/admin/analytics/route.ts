@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { auth } from "@/lib/auth";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 export async function GET(request: NextRequest) {
   try {
-    // Verificar se é admin
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") || "30d";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 import {
   LineChart,
   Line,
@@ -56,6 +57,43 @@ interface TopSearch {
   count: number;
 }
 
+interface CommercialSummary {
+  total_bancas: number;
+  active_bancas: number;
+  approved_bancas: number;
+  current_subscription_base: number;
+  free_bancas: number;
+  start_bancas: number;
+  premium_bancas: number;
+  paid_bancas: number;
+  paid_conversion_rate: number;
+  active_paid_bancas: number;
+  trial_paid_bancas: number;
+  pending_paid_bancas: number;
+  overdue_paid_bancas: number;
+  mrr_contracted: number;
+  mrr_active: number;
+  open_revenue: number;
+  period_received_revenue: number;
+}
+
+interface CommercialDistributionItem {
+  name: string;
+  key: string;
+  count: number;
+  color: string;
+  [key: string]: string | number;
+}
+
+interface CommercialGrowthItem {
+  date: string;
+  free: number;
+  start: number;
+  premium: number;
+  paid: number;
+  total: number;
+}
+
 const COLORS = ["#f97316", "#3b82f6", "#22c55e", "#8b5cf6", "#ec4899", "#14b8a6"];
 
 export default function AdminAnalyticsPage() {
@@ -66,20 +104,38 @@ export default function AdminAnalyticsPage() {
   const [topBancas, setTopBancas] = useState<TopBanca[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [topSearches, setTopSearches] = useState<TopSearch[]>([]);
+  const [commercialSummary, setCommercialSummary] = useState<CommercialSummary | null>(null);
+  const [commercialPlanDistribution, setCommercialPlanDistribution] = useState<CommercialDistributionItem[]>([]);
+  const [commercialStatusDistribution, setCommercialStatusDistribution] = useState<CommercialDistributionItem[]>([]);
+  const [commercialGrowthChart, setCommercialGrowthChart] = useState<CommercialGrowthItem[]>([]);
 
   useEffect(() => {
     const loadAnalytics = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/admin/analytics?period=${period}`);
-        const data = await res.json();
+        const [analyticsRes, commercialRes] = await Promise.all([
+          fetchAdminWithDevFallback(`/api/admin/analytics?period=${period}`),
+          fetchAdminWithDevFallback(`/api/admin/subscriptions/metrics?period=${period}`),
+        ]);
 
-        if (data.success) {
-          setStats(data.stats);
-          setChartData(data.chartData || []);
-          setTopBancas(data.topBancas || []);
-          setTopProducts(data.topProducts || []);
-          setTopSearches(data.topSearches || []);
+        const [analyticsData, commercialData] = await Promise.all([
+          analyticsRes.json(),
+          commercialRes.json(),
+        ]);
+
+        if (analyticsData.success) {
+          setStats(analyticsData.stats);
+          setChartData(analyticsData.chartData || []);
+          setTopBancas(analyticsData.topBancas || []);
+          setTopProducts(analyticsData.topProducts || []);
+          setTopSearches(analyticsData.topSearches || []);
+        }
+
+        if (commercialData.success) {
+          setCommercialSummary(commercialData.summary || null);
+          setCommercialPlanDistribution(commercialData.planDistribution || []);
+          setCommercialStatusDistribution(commercialData.statusDistribution || []);
+          setCommercialGrowthChart(commercialData.growthChart || []);
         }
       } catch (e) {
         console.error("Erro ao carregar analytics:", e);
@@ -104,6 +160,9 @@ export default function AdminAnalyticsPage() {
     { name: "WhatsApp", value: stats.whatsapp_clicks },
     { name: "Pedidos", value: stats.checkout_completes },
   ].filter(d => d.value > 0) : [];
+
+  const formatCurrency = (value: number) =>
+    `R$ ${Number(value || 0).toFixed(2).replace(".", ",")}`;
 
   if (loading) {
     return (
@@ -138,6 +197,140 @@ export default function AdminAnalyticsPage() {
           <option value="all">Todo o período</option>
         </select>
       </div>
+
+      {commercialSummary && (
+        <>
+          <div className="rounded-xl border bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-lg font-semibold text-gray-900">Visão Comercial</h2>
+              <p className="text-sm text-gray-600">
+                Acompanhe a base de bancas, a conversão para planos pagos e o estado atual das assinaturas.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="rounded-xl border bg-white p-5 shadow-sm">
+              <div className="text-sm text-gray-500">Bancas cadastradas</div>
+              <div className="mt-2 text-3xl font-bold text-gray-900">
+                {commercialSummary.total_bancas.toLocaleString()}
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                {commercialSummary.active_bancas} ativas e {commercialSummary.approved_bancas} aprovadas
+              </div>
+            </div>
+
+            <div className="rounded-xl border bg-white p-5 shadow-sm">
+              <div className="text-sm text-gray-500">Conversão para planos pagos</div>
+              <div className="mt-2 text-3xl font-bold text-gray-900">
+                {commercialSummary.paid_conversion_rate.toFixed(1)}%
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                {commercialSummary.paid_bancas} bancas no Start ou Premium
+              </div>
+            </div>
+
+            <div className="rounded-xl border bg-white p-5 shadow-sm">
+              <div className="text-sm text-gray-500">MRR contratado</div>
+              <div className="mt-2 text-3xl font-bold text-gray-900">
+                {formatCurrency(commercialSummary.mrr_contracted)}
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                {commercialSummary.active_paid_bancas} ativas, {commercialSummary.trial_paid_bancas} em degustação
+              </div>
+            </div>
+
+            <div className="rounded-xl border bg-white p-5 shadow-sm">
+              <div className="text-sm text-gray-500">Recebido no período</div>
+              <div className="mt-2 text-3xl font-bold text-gray-900">
+                {formatCurrency(commercialSummary.period_received_revenue)}
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                Receita confirmada dentro do filtro selecionado
+              </div>
+            </div>
+
+            <div className="rounded-xl border bg-white p-5 shadow-sm">
+              <div className="text-sm text-gray-500">Cobranças em aberto</div>
+              <div className="mt-2 text-3xl font-bold text-gray-900">
+                {formatCurrency(commercialSummary.open_revenue)}
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                {commercialSummary.pending_paid_bancas} aguardando e {commercialSummary.overdue_paid_bancas} em atraso
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            {commercialGrowthChart.length > 0 && (
+              <div className="rounded-xl border bg-white p-6 shadow-sm lg:col-span-2">
+                <h2 className="text-lg font-semibold mb-4">Novas adesões por plano</h2>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={commercialGrowthChart}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip labelFormatter={(label) => formatDate(label as string)} />
+                      <Legend />
+                      <Area type="monotone" dataKey="free" name="Free" stroke="#22c55e" fill="#bbf7d0" />
+                      <Area type="monotone" dataKey="start" name="Start" stroke="#3b82f6" fill="#bfdbfe" />
+                      <Area type="monotone" dataKey="premium" name="Premium" stroke="#8b5cf6" fill="#ddd6fe" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {commercialPlanDistribution.length > 0 && (
+              <div className="rounded-xl border bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-semibold mb-4">Base atual por plano</h2>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={commercialPlanDistribution}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                        outerRadius={100}
+                        dataKey="count"
+                      >
+                        {commercialPlanDistribution.map((entry) => (
+                          <Cell key={entry.key} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {commercialStatusDistribution.length > 0 && (
+            <div className="rounded-xl border bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold mb-4">Estado atual das assinaturas</h2>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={commercialStatusDistribution}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Bar dataKey="count" name="Assinaturas">
+                      {commercialStatusDistribution.map((entry) => (
+                        <Cell key={entry.key} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Cards principais */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
