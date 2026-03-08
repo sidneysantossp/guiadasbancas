@@ -1,7 +1,5 @@
 import "server-only";
 
-import { categories as fallbackCategories } from "@/components/categoriesData";
-
 export type PublicCategory = {
   id: string;
   name: string;
@@ -28,16 +26,6 @@ function normalizeCategories(list: any[]): PublicCategory[] {
     .filter(Boolean) as PublicCategory[];
 }
 
-function fallbackPublicCategories(): PublicCategory[] {
-  return fallbackCategories.map((cat, index) => ({
-    id: cat.slug,
-    name: cat.name,
-    image: cat.image || "",
-    link: `/categorias/${cat.slug}`,
-    order: index,
-  }));
-}
-
 const fetchPublicCategories = async (): Promise<PublicCategory[]> => {
   try {
     const res = await fetch(`${BASE_URL}/api/categories`, {
@@ -46,9 +34,9 @@ const fetchPublicCategories = async (): Promise<PublicCategory[]> => {
     if (!res.ok) throw new Error("failed");
     const j = await res.json();
     const list = normalizeCategories(j?.data || []);
-    return list.length > 0 ? list : fallbackPublicCategories();
+    return list;
   } catch {
-    return fallbackPublicCategories();
+    return [];
   }
 };
 

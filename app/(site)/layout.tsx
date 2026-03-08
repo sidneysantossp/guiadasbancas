@@ -128,7 +128,7 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
     <SiteProviders>
       <div className="min-h-screen flex flex-col">
         <Navbar initialBranding={branding ?? undefined} />
-        <main className="pt-[140px] md:pt-[80px] flex-grow">{children}</main>
+        <main className="pt-[140px] md:pt-[136px] flex-grow">{children}</main>
         <AppFooter
           initialFooterData={DEFAULT_FOOTER_DATA}
           initialCategories={footerCategories}

@@ -452,7 +452,7 @@ export default function BuscarPageClient({
   );
 
   return (
-    <section className="container-max pt-12 pb-6 md:py-6">
+    <section className="container-max pt-12 md:pt-8 lg:pt-10 pb-6">
       {/* Cabeçalho */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Resultados da busca</h1>
@@ -465,7 +465,7 @@ export default function BuscarPageClient({
 
       {/* Carrossel de Categorias - sem initialItems para buscar da API com imagens */}
       <div className="mb-6">
-        <CategoryCarousel />
+        <CategoryCarousel initialItems={initialCategories} />
       </div>
 
       {/* Botão de filtros mobile */}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { categories as fallbackCategories } from "@/components/categoriesData";
 import { sanitizePublicImageUrl } from "@/lib/sanitizePublicImageUrl";
 
 export type UICategory = {
@@ -105,9 +104,7 @@ export function useCategories(initialItems?: UICategory[]): { items: UICategory[
   }, []);
 
   const items = useMemo<UICategory[]>(() => {
-    const rawBase = (apiItems && apiItems.length > 0)
-      ? apiItems
-      : fallbackCategories.map((c, i) => ({ key: `${c.slug}:${i}` , name: c.name, image: sanitizePublicImageUrl(c.image), link: `/categorias?cat=${c.slug}` }));
+    const rawBase = Array.isArray(apiItems) ? apiItems : [];
 
     const base = rawBase.map((c) => ({
       ...c,
