@@ -1,37 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireDistribuidorAccess } from '@/lib/security/distribuidor-auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { isAdminAuthorized } from '@/lib/security/admin-auth';
 
 export const dynamic = 'force-dynamic';
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const distribuidorId = searchParams.get('id');
-    const headerDistribuidorId = request.headers.get('x-distribuidor-id');
-    const adminAccess = await isAdminAuthorized(request);
-
-    if (!distribuidorId) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor é obrigatório' },
-        { status: 400 }
-      );
-    }
-
-    if (!UUID_REGEX.test(distribuidorId)) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor inválido' },
-        { status: 400 }
-      );
-    }
-
-    if (!adminAccess && (!headerDistribuidorId || headerDistribuidorId !== distribuidorId)) {
-      return NextResponse.json(
-        { success: false, error: 'Não autorizado para este distribuidor' },
-        { status: 403 }
-      );
-    }
+    const authError = await requireDistribuidorAccess(request, distribuidorId);
+    if (authError) return authError;
 
     // Buscar dados do distribuidor incluindo status ativo e base_url
     const { data: distribuidor, error: distError } = await supabaseAdmin
@@ -96,7 +74,12 @@ export async function GET(request: NextRequest) {
       }
 
       const mercosData = await mercosRes.json();
-      const sample = Array.isArray(mercosData) && mercosData.length > 0 ? mercosData[0] : null;
+      const mercosItems = Array.isArray(mercosData)
+        ? mercosData
+        : Array.isArray(mercosData?.data)
+          ? mercosData.data
+          : [];
+      const sample = mercosItems.length > 0 ? mercosItems[0] : null;
 
       return NextResponse.json({
         distribuidor: distribuidor.nome,

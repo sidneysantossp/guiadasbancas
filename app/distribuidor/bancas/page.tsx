@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  getDistribuidorAuthHeaders,
+  readDistribuidorClientAuth,
+} from "@/lib/distribuidor-client-auth";
+import {
   IconSearch,
   IconBuildingStore,
   IconPackage,
@@ -56,9 +60,9 @@ export default function DistribuidorBancasPage() {
   const [statusFilter, setStatusFilter] = useState("");
 
   useEffect(() => {
-    const raw = localStorage.getItem("gb:distribuidor");
-    if (raw) {
-      setDistribuidor(JSON.parse(raw));
+    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
+    if (sessionDistribuidor) {
+      setDistribuidor(sessionDistribuidor);
     }
   }, []);
 
@@ -71,7 +75,9 @@ export default function DistribuidorBancasPage() {
       params.set("id", distribuidor.id);
       if (search) params.set("q", search);
 
-      const res = await fetch(`/api/distribuidor/bancas?${params.toString()}`);
+      const res = await fetch(`/api/distribuidor/bancas?${params.toString()}`, {
+        headers: getDistribuidorAuthHeaders({ distribuidorId: distribuidor.id }),
+      });
       const json = await res.json();
 
       if (json.success) {
@@ -149,7 +155,7 @@ export default function DistribuidorBancasPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Bancas</h1>
           <p className="text-gray-600">
-            Todas as bancas ativas cadastradas no sistema
+            Bancas que já têm acesso ao seu catálogo na plataforma
           </p>
         </div>
         <button

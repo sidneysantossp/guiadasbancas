@@ -7,6 +7,10 @@ import type { Route } from "next";
 import ToastProvider from "@/components/admin/ToastProvider";
 import DashboardOfficialLogo from "@/components/dashboard/DashboardOfficialLogo";
 import {
+  clearDistribuidorClientAuth,
+  readDistribuidorClientAuth,
+} from "@/lib/distribuidor-client-auth";
+import {
   IconLayoutDashboard,
   IconBox,
   IconClipboardList,
@@ -96,15 +100,14 @@ export default function DistribuidorLayout({ children }: { children: React.React
     }
 
     try {
-      const auth = localStorage.getItem("gb:distribuidorAuth");
-      const userData = localStorage.getItem("gb:distribuidor");
-      
-      if (auth !== "1" || !userData) {
+      const { distribuidor: sessionDistribuidor, sessionToken } = readDistribuidorClientAuth();
+
+      if (!sessionDistribuidor?.id || !sessionToken) {
         router.replace("/distribuidor/login");
         return;
       }
-      
-      setDistribuidor(JSON.parse(userData));
+
+      setDistribuidor(sessionDistribuidor);
       setLoading(false);
     } catch {
       router.replace("/distribuidor/login");
@@ -112,10 +115,7 @@ export default function DistribuidorLayout({ children }: { children: React.React
   }, [router, pathname]);
 
   const logout = () => {
-    try {
-      localStorage.removeItem("gb:distribuidorAuth");
-      localStorage.removeItem("gb:distribuidor");
-    } catch {}
+    clearDistribuidorClientAuth();
     router.replace("/distribuidor/login");
   };
 

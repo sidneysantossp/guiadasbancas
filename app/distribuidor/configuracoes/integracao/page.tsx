@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { IconRefresh, IconCheck, IconX, IconClock, IconPlugConnected, IconAlertCircle, IconMail } from "@tabler/icons-react";
+import {
+  getDistribuidorAuthHeaders,
+  readDistribuidorClientAuth,
+} from "@/lib/distribuidor-client-auth";
 
 type HealthResult = {
   distribuidor: string;
@@ -28,9 +32,9 @@ export default function IntegracaoMercosPage() {
   const [syncResult, setSyncResult] = useState<any>(null);
 
   useEffect(() => {
-    const raw = localStorage.getItem("gb:distribuidor");
-    if (raw) {
-      setDistribuidor(JSON.parse(raw));
+    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
+    if (sessionDistribuidor) {
+      setDistribuidor(sessionDistribuidor);
     }
   }, []);
 
@@ -40,9 +44,7 @@ export default function IntegracaoMercosPage() {
     setLoading(true);
     try {
       const res = await fetch(`/api/distribuidor/health?id=${distribuidor.id}`, {
-        headers: {
-          'x-distribuidor-id': distribuidor.id,
-        },
+        headers: getDistribuidorAuthHeaders({ distribuidorId: distribuidor.id }),
       });
       const json = await res.json();
       setHealth(json);
@@ -61,9 +63,7 @@ export default function IntegracaoMercosPage() {
     try {
       const res = await fetch(`/api/distribuidor/sync?id=${distribuidor.id}${full ? '&full=true' : ''}`, {
         method: 'POST',
-        headers: {
-          'x-distribuidor-id': distribuidor.id,
-        },
+        headers: getDistribuidorAuthHeaders({ distribuidorId: distribuidor.id }),
       });
       const text = await res.text();
       let json: any;

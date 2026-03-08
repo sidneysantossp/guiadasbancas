@@ -4,6 +4,10 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  getDistribuidorAuthHeaders,
+  readDistribuidorClientAuth,
+} from "@/lib/distribuidor-client-auth";
+import {
   IconSearch,
   IconTags,
   IconBox,
@@ -48,9 +52,9 @@ export default function DistribuidorCategoriasPage() {
   const [syncMessage, setSyncMessage] = useState<{type: 'success' | 'error'; text: string} | null>(null);
 
   useEffect(() => {
-    const raw = localStorage.getItem("gb:distribuidor");
-    if (raw) {
-      setDistribuidor(JSON.parse(raw));
+    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
+    if (sessionDistribuidor) {
+      setDistribuidor(sessionDistribuidor);
     }
   }, []);
 
@@ -60,9 +64,7 @@ export default function DistribuidorCategoriasPage() {
     try {
       setLoading(true);
       const res = await fetch(`/api/distribuidor/categories?id=${distribuidor.id}`, {
-        headers: {
-          'x-distribuidor-id': distribuidor.id,
-        },
+        headers: getDistribuidorAuthHeaders({ distribuidorId: distribuidor.id }),
       });
       const json = await res.json();
 
@@ -127,15 +129,16 @@ export default function DistribuidorCategoriasPage() {
             try {
               const res = await fetch(`/api/distribuidor/sync?id=${distribuidor?.id}&full=true`, {
                 method: 'POST',
-                headers: {
-                  'x-distribuidor-id': distribuidor?.id,
-                },
+                headers: getDistribuidorAuthHeaders({ distribuidorId: distribuidor?.id }),
               });
               const j = await res.json();
               if (j?.success) {
+                const totalProdutos = j?.data?.total_produtos ?? j?.data?.produtos_total ?? 0;
+                const totalCategorias = j?.data?.categorias_sincronizadas ?? 0;
+                const warningText = j?.data?.warning ? ` Aviso: ${j.data.warning}` : '';
                 setSyncMessage({
                   type: 'success',
-                  text: `Sincronização concluída! ${j?.data?.produtos_total || 0} produto(s) processado(s).`,
+                  text: `Sincronização concluída! ${totalProdutos} produto(s) ativos no catálogo e ${totalCategorias} categoria(s) sincronizada(s).${warningText}`,
                 });
                 fetchCategories();
               } else {

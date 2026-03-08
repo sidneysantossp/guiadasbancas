@@ -17,6 +17,10 @@ import {
   IconBrandWhatsapp,
   IconFilter,
 } from "@tabler/icons-react";
+import {
+  getDistribuidorAuthHeaders,
+  readDistribuidorClientAuth,
+} from "@/lib/distribuidor-client-auth";
 
 type OrderItem = {
   id: string;
@@ -73,9 +77,9 @@ export default function DistribuidorPedidosPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
-    const raw = localStorage.getItem("gb:distribuidor");
-    if (raw) {
-      setDistribuidor(JSON.parse(raw));
+    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
+    if (sessionDistribuidor) {
+      setDistribuidor(sessionDistribuidor);
     }
   }, []);
 
@@ -91,7 +95,9 @@ export default function DistribuidorPedidosPage() {
       params.set("page", page.toString());
       params.set("limit", "20");
 
-      const res = await fetch(`/api/distribuidor/pedidos?${params.toString()}`);
+      const res = await fetch(`/api/distribuidor/pedidos?${params.toString()}`, {
+        headers: getDistribuidorAuthHeaders({ distribuidorId: distribuidor.id }),
+      });
       const json = await res.json();
 
       if (json.success) {

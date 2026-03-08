@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateProductCreate } from '@/lib/validators/product';
+import { requireDistribuidorAccess } from '@/lib/security/distribuidor-auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { isAdminAuthorized } from '@/lib/security/admin-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const distribuidorId = searchParams.get('id');
-    const headerDistribuidorId = request.headers.get('x-distribuidor-id');
-    const adminAccess = await isAdminAuthorized(request);
     const limit = parseInt(searchParams.get('limit') || '10000');
     const sort = searchParams.get('sort') || 'name';
     const activeOnly = searchParams.get('active') !== 'false';
@@ -20,26 +18,8 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category') || '';
     const productId = searchParams.get('productId');
 
-    if (!distribuidorId) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor é obrigatório' },
-        { status: 400 }
-      );
-    }
-
-    if (!UUID_REGEX.test(distribuidorId)) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor inválido' },
-        { status: 400 }
-      );
-    }
-
-    if (!adminAccess && (!headerDistribuidorId || headerDistribuidorId !== distribuidorId)) {
-      return NextResponse.json(
-        { success: false, error: 'Não autorizado para este distribuidor' },
-        { status: 403 }
-      );
-    }
+    const authError = await requireDistribuidorAccess(request, distribuidorId);
+    if (authError) return authError;
 
     console.log('[API Distribuidor] Buscando produtos para distribuidor:', distribuidorId);
 
@@ -130,8 +110,13 @@ export async function GET(request: NextRequest) {
           .slice(0, 3) // Limitar a 3 variantes
           .map(s => `name.ilike.%${s}%,codigo_mercos.ilike.%${s}%`)
           .join(',');
-        
-        query = query.or(conditions);
+
+        if (conditions) {
+          query = query.or(conditions);
+        } else {
+          const fallbackSearch = search.trim();
+          query = query.or(`name.ilike.%${fallbackSearch}%,codigo_mercos.ilike.%${fallbackSearch}%`);
+        }
       }
 
       // Ordenação
@@ -342,12 +327,96 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const distribuidorId = body?.distribuidorId || body?.distribuidor_id;
+    const authError = await requireDistribuidorAccess(request, distribuidorId);
+    if (authError) return authError;
+
+    const normalizedImages = Array.isArray(body.images)
+      ? body.images.map((image: unknown) => String(image).trim()).filter(Boolean)
+      : [];
+
+    const parsedPrice = Number(body.price);
+    const parsedStock = Number(body.stock_qty ?? body.stockQty ?? 0);
+
+    const payload = {
+      name: String(body.name || '').trim(),
+      description: String(body.description || '').trim(),
+      category_id: body.category_id ? String(body.category_id).trim() : null,
+      price: Number.isFinite(parsedPrice) ? parsedPrice : 0,
+      stock_qty: Number.isFinite(parsedStock) && parsedStock >= 0 ? parsedStock : 0,
+      track_stock: body.track_stock !== false,
+      sob_encomenda: Boolean(body.sob_encomenda),
+      pre_venda: Boolean(body.pre_venda),
+      pronta_entrega: Boolean(body.pronta_entrega),
+      images: normalizedImages,
+      active: body.active !== false,
+      codigo_mercos: body.codigo_mercos ? String(body.codigo_mercos).trim().toUpperCase() : undefined,
+    };
+
+    const validation = validateProductCreate(payload as any);
+    if (!validation.ok) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const finalPayload: Record<string, any> = {
+      name: payload.name,
+      description: payload.description || '',
+      price: payload.price,
+      stock_qty: payload.stock_qty,
+      track_stock: payload.track_stock,
+      sob_encomenda: payload.sob_encomenda,
+      pre_venda: payload.pre_venda,
+      pronta_entrega: payload.pronta_entrega,
+      images: normalizedImages,
+      active: payload.track_stock && payload.stock_qty <= 0 ? false : payload.active,
+      category_id: payload.category_id,
+      distribuidor_id: distribuidorId,
+      origem: 'manual',
+      sincronizado_em: new Date().toISOString(),
+      codigo_mercos: payload.codigo_mercos || null,
+      banca_id: null,
+    };
+
+    const { data: createdProduct, error: createError } = await supabaseAdmin
+      .from('products')
+      .insert(finalPayload)
+      .select('*')
+      .single();
+
+    if (createError) {
+      throw createError;
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: createdProduct,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      }
+    );
+  } catch (error: any) {
+    console.error('Erro ao criar produto do distribuidor:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PUT(request: NextRequest) {
   try {
-    const adminAccess = await isAdminAuthorized(request);
     const body = await request.json();
     const { productId, distribuidorId, updates } = body;
-    const headerDistribuidorId = request.headers.get('x-distribuidor-id');
     const hasCustomPriceKey = !!updates && Object.prototype.hasOwnProperty.call(updates, 'custom_price');
     const customPrice = updates?.custom_price;
 
@@ -358,19 +427,8 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    if (!UUID_REGEX.test(distribuidorId)) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor inválido' },
-        { status: 400 }
-      );
-    }
-
-    if (!adminAccess && (!headerDistribuidorId || headerDistribuidorId !== distribuidorId)) {
-      return NextResponse.json(
-        { success: false, error: 'Não autorizado para este distribuidor' },
-        { status: 403 }
-      );
-    }
+    const authError = await requireDistribuidorAccess(request, distribuidorId);
+    if (authError) return authError;
 
     // Verificar se o produto pertence ao distribuidor
     const { data: product, error: checkError } = await supabaseAdmin

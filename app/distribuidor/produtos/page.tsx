@@ -4,6 +4,10 @@ import { useState, useEffect } from "react";
 // Removido next/image - usando img nativo para evitar falhas em produção
 import Link from "next/link";
 import {
+  getDistribuidorAuthHeaders,
+  readDistribuidorClientAuth,
+} from "@/lib/distribuidor-client-auth";
+import {
   IconSearch,
   IconFilter,
   IconBox,
@@ -56,13 +60,10 @@ export default function DistribuidorProdutosPage() {
   const [markups, setMarkups] = useState<any>(null);
 
   useEffect(() => {
-    // Carregar dados do distribuidor do localStorage
-    const raw = localStorage.getItem("gb:distribuidor");
-    console.log('[Produtos] Dados do localStorage:', raw);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      console.log('[Produtos] ID do distribuidor:', parsed?.id);
-      setDistribuidor(parsed);
+    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
+    console.log('[Produtos] Distribuidor da sessão:', sessionDistribuidor?.id || null);
+    if (sessionDistribuidor) {
+      setDistribuidor(sessionDistribuidor);
     }
   }, []);
 
@@ -70,9 +71,7 @@ export default function DistribuidorProdutosPage() {
   useEffect(() => {
     if (distribuidor?.id) {
       fetch(`/api/distribuidor/markup?id=${distribuidor.id}`, {
-        headers: {
-          'x-distribuidor-id': distribuidor.id,
-        },
+        headers: getDistribuidorAuthHeaders({ distribuidorId: distribuidor.id }),
       })
         .then(res => res.json())
         .then(json => {
@@ -123,23 +122,34 @@ export default function DistribuidorProdutosPage() {
     
     try {
       const res = await fetch(`/api/distribuidor/categories?id=${distribuidor.id}`, {
-        headers: {
-          'x-distribuidor-id': distribuidor.id,
-        },
+        headers: getDistribuidorAuthHeaders({ distribuidorId: distribuidor.id }),
       });
       const json = await res.json();
       
       if (json.success) {
-        // Mapear para o formato esperado - mostrar apenas categorias com produtos do distribuidor
-        const cats: Category[] = (json.data || [])
-          .filter((c: any) => c.product_count > 0) // Apenas categorias que têm produtos do distribuidor
-          .map((c: any) => ({
-            id: c.name, // Usar nome como ID para filtro
-            name: c.name,
-            count: c.product_count,
-            visible: c.visible,
-          }))
-          .sort((a: Category, b: Category) => a.name.localeCompare(b.name));
+        const grouped = new Map<string, Category>();
+
+        (json.data || [])
+          .filter((category: any) => category.product_count > 0)
+          .forEach((category: any) => {
+            const key = category.name;
+            const current = grouped.get(key);
+
+            if (current) {
+              current.count += category.product_count || 0;
+              current.visible = current.visible !== false && category.visible !== false;
+              return;
+            }
+
+            grouped.set(key, {
+              id: key,
+              name: key,
+              count: category.product_count || 0,
+              visible: category.visible,
+            });
+          });
+
+        const cats: Category[] = Array.from(grouped.values()).sort((a, b) => a.name.localeCompare(b.name));
         
         setCategories(cats);
       }
@@ -159,7 +169,7 @@ export default function DistribuidorProdutosPage() {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
-          'x-distribuidor-id': distribuidor.id,
+          ...getDistribuidorAuthHeaders({ distribuidorId: distribuidor.id }),
         },
       });
       const json = await res.json();
@@ -212,10 +222,7 @@ export default function DistribuidorProdutosPage() {
     try {
       const res = await fetch('/api/distribuidor/products', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-distribuidor-id': distribuidor.id,
-        },
+        headers: getDistribuidorAuthHeaders({ distribuidorId: distribuidor.id, includeJson: true }),
         body: JSON.stringify({
           productId,
           distribuidorId: distribuidor.id,

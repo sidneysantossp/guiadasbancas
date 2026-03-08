@@ -191,11 +191,21 @@ export async function GET(req: NextRequest) {
     }
 
     if (categoryIds.length > 0) {
-      const { data: catRows } = await supabase
-        .from('categories')
-        .select('id, name')
-        .in('id', categoryIds as any);
-      catMap = new Map<string, string>((catRows || []).map((c: any) => [c.id, c.name]));
+      const [{ data: catRows }, { data: distribuidorCatRows }] = await Promise.all([
+        supabase
+          .from('categories')
+          .select('id, name')
+          .in('id', categoryIds as any),
+        supabase
+          .from('distribuidor_categories')
+          .select('id, nome')
+          .in('id', categoryIds as any),
+      ]);
+
+      catMap = new Map<string, string>([
+        ...((catRows || []).map((c: any) => [c.id, c.name]) as Array<[string, string]>),
+        ...((distribuidorCatRows || []).map((c: any) => [c.id, c.nome]) as Array<[string, string]>),
+      ]);
     }
 
     // Buscar markups por categoria de todos os distribuidores

@@ -1,49 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireDistribuidorAccess } from "@/lib/security/distribuidor-auth";
 import { supabaseAdmin } from "@/lib/supabase";
-import { isAdminAuthorized } from "@/lib/security/admin-auth";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // GET - Buscar categorias do distribuidor (com contagem de produtos)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const distribuidorId = searchParams.get("id");
-    const headerDistribuidorId = request.headers.get("x-distribuidor-id");
-    const adminAccess = await isAdminAuthorized(request);
+    const authError = await requireDistribuidorAccess(request, distribuidorId);
+    if (authError) return authError;
 
-    if (!distribuidorId) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor é obrigatório' },
-        { status: 400 }
-      );
-    }
+    const [{ data: categories, error: catError }, { data: distributorCategories, error: distCatError }] =
+      await Promise.all([
+        supabaseAdmin
+          .from('categories')
+          .select('id, name, image, link, order, active, visible, mercos_id, ultima_sincronizacao')
+          .order('name', { ascending: true }),
+        supabaseAdmin
+          .from('distribuidor_categories')
+          .select('id, nome, mercos_id, ativo, updated_at')
+          .eq('distribuidor_id', distribuidorId)
+          .order('nome', { ascending: true }),
+      ]);
 
-    if (!UUID_REGEX.test(distribuidorId)) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor inválido' },
-        { status: 400 }
-      );
-    }
-
-    if (!adminAccess && (!headerDistribuidorId || headerDistribuidorId !== distribuidorId)) {
-      return NextResponse.json(
-        { success: false, error: 'Não autorizado para este distribuidor' },
-        { status: 403 }
-      );
-    }
-
-    // Buscar todas as categorias
-    const { data: categories, error: catError } = await supabaseAdmin
-      .from('categories')
-      .select('id, name, image, link, order, active, visible, mercos_id, ultima_sincronizacao')
-      .order('name', { ascending: true });
-
-    if (catError) {
-      console.error('[Categorias] Erro ao buscar categorias:', catError);
+    if (catError || distCatError) {
+      console.error('[Categorias] Erro ao buscar categorias:', catError || distCatError);
       return NextResponse.json(
         { success: false, error: 'Erro ao buscar categorias' },
         { status: 500 }
@@ -91,8 +76,56 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Combinar categorias com contagem
-    const categoriasComContagem = (categories || []).map((cat: any) => {
+    const combinedCategories = new Map<string, any>();
+
+    for (const category of categories || []) {
+      combinedCategories.set(category.id, {
+        id: category.id,
+        name: category.name,
+        image: category.image || null,
+        link: category.link || null,
+        order: category.order || 0,
+        active: category.active !== false,
+        visible: category.visible !== false,
+        mercos_id: category.mercos_id || null,
+        ultima_sincronizacao: category.ultima_sincronizacao || null,
+        source: 'global',
+      });
+    }
+
+    for (const category of distributorCategories || []) {
+      combinedCategories.set(category.id, {
+        id: category.id,
+        name: category.nome,
+        image: null,
+        link: null,
+        order: 999,
+        active: category.ativo !== false,
+        visible: true,
+        mercos_id: category.mercos_id || null,
+        ultima_sincronizacao: category.updated_at || null,
+        source: 'mercos',
+      });
+    }
+
+    for (const categoryId of countMap.keys()) {
+      if (!combinedCategories.has(categoryId)) {
+        combinedCategories.set(categoryId, {
+          id: categoryId,
+          name: 'Categoria vinculada',
+          image: null,
+          link: null,
+          order: 999,
+          active: true,
+          visible: true,
+          mercos_id: null,
+          ultima_sincronizacao: null,
+          source: 'unknown',
+        });
+      }
+    }
+
+    const categoriasComContagem = Array.from(combinedCategories.values()).map((cat: any) => {
       const counts = countMap.get(cat.id) || { total: 0, active: 0 };
       return {
         ...cat,
@@ -107,7 +140,7 @@ export async function GET(request: NextRequest) {
 
     // Estatísticas gerais
     const stats = {
-      total_categories: categories?.length || 0,
+      total_categories: categoriasComContagem.length,
       categories_with_products: categoriasComContagem.filter((c: any) => c.product_count > 0).length,
       total_products: products?.length || 0,
       active_products: products?.filter((p: any) => p.active).length || 0,

@@ -5,9 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession, signIn } from "next-auth/react";
 import type { Route } from "next";
-
-const DISTRIBUIDOR_AUTH_KEY = "gb:distribuidorAuth";
-const DISTRIBUIDOR_DATA_KEY = "gb:distribuidor";
+import {
+  clearDistribuidorClientAuth,
+  persistDistribuidorClientAuth,
+  readDistribuidorClientAuth,
+} from "@/lib/distribuidor-client-auth";
 
 type EntrarPageClientProps = {
   audience?: "cliente" | "distribuidor";
@@ -63,10 +65,7 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
       const role = (session.user as any)?.role;
 
       // Se houver sessão NextAuth ativa, limpar autenticação antiga de distribuidor
-      try {
-        localStorage.removeItem(DISTRIBUIDOR_AUTH_KEY);
-        localStorage.removeItem(DISTRIBUIDOR_DATA_KEY);
-      } catch {}
+      clearDistribuidorClientAuth();
 
       // Cliente comum - respeitar redirect explicitamente
       if (redirectTarget) {
@@ -81,13 +80,10 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
 
     // Sessão local do distribuidor (não usa NextAuth)
     if (status === "unauthenticated") {
-      try {
-        const auth = localStorage.getItem(DISTRIBUIDOR_AUTH_KEY);
-        const dist = localStorage.getItem(DISTRIBUIDOR_DATA_KEY);
-        if (auth === "1" && dist) {
-          router.replace("/distribuidor/dashboard");
-        }
-      } catch {}
+      const { distribuidor, sessionToken } = readDistribuidorClientAuth();
+      if (distribuidor?.id && sessionToken) {
+        router.replace("/distribuidor/dashboard");
+      }
     }
   }, [status, session, router, redirectTarget, fromCheckout]);
 
@@ -233,11 +229,12 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
 
       const distData = await distRes.json().catch(() => ({}));
 
-      if (distRes.ok && distData?.success && distData?.distribuidor) {
-        try {
-          localStorage.setItem(DISTRIBUIDOR_AUTH_KEY, "1");
-          localStorage.setItem(DISTRIBUIDOR_DATA_KEY, JSON.stringify(distData.distribuidor));
-        } catch {}
+      if (distRes.ok && distData?.success && distData?.distribuidor && distData?.session_token && distData?.session_expires_at) {
+        persistDistribuidorClientAuth({
+          distribuidor: distData.distribuidor,
+          sessionToken: distData.session_token,
+          expiresAt: distData.session_expires_at,
+        });
         router.replace("/distribuidor/dashboard");
         return;
       }

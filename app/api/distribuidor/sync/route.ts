@@ -1,39 +1,104 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { MercosAPI } from '@/lib/mercos-api';
+import { requireDistribuidorAccess } from '@/lib/security/distribuidor-auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { isAdminAuthorized } from '@/lib/security/admin-auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutos - necessário para processar catálogos grandes
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function syncDistribuidorCategories(params: {
+  distribuidorId: string;
+  applicationToken: string;
+  companyToken: string;
+  baseUrl?: string | null;
+}) {
+  const mercosApi = new MercosAPI({
+    applicationToken: params.applicationToken,
+    companyToken: params.companyToken,
+    baseUrl: params.baseUrl || 'https://app.mercos.com/api/v1',
+  });
+
+  const categories = await mercosApi.getAllCategorias();
+  const categoriesToUpsert = categories
+    .filter((category: any) => !category.excluido)
+    .map((category: any) => ({
+      distribuidor_id: params.distribuidorId,
+      mercos_id: category.id,
+      nome: category.nome,
+      categoria_pai_id: category.categoria_pai_id || null,
+      ativo: true,
+      updated_at: new Date().toISOString(),
+    }));
+
+  const { data: existingCategories, error: existingCategoriesError } = await supabaseAdmin
+    .from('distribuidor_categories')
+    .select('id, mercos_id, ativo')
+    .eq('distribuidor_id', params.distribuidorId);
+
+  if (existingCategoriesError) {
+    throw existingCategoriesError;
+  }
+
+  if (categoriesToUpsert.length > 0) {
+    const { error: upsertError } = await supabaseAdmin
+      .from('distribuidor_categories')
+      .upsert(categoriesToUpsert, {
+        onConflict: 'distribuidor_id,mercos_id',
+      });
+
+    if (upsertError) {
+      throw upsertError;
+    }
+  }
+
+  const mercosActiveIds = new Set(
+    categoriesToUpsert
+      .map((category) => Number(category.mercos_id))
+      .filter((mercosId) => Number.isFinite(mercosId))
+  );
+  const mercosExcludedIds = new Set(
+    categories
+      .filter((category: any) => category.excluido)
+      .map((category: any) => Number(category.id))
+      .filter((mercosId) => Number.isFinite(mercosId))
+  );
+
+  const idsToDisable = (existingCategories || [])
+    .filter((category: any) => {
+      const mercosId = Number(category.mercos_id);
+      if (!Number.isFinite(mercosId)) return false;
+      return mercosExcludedIds.has(mercosId) || !mercosActiveIds.has(mercosId);
+    })
+    .map((category: any) => category.id);
+
+  if (idsToDisable.length > 0) {
+    const { error: deactivateError } = await supabaseAdmin
+      .from('distribuidor_categories')
+      .update({
+        ativo: false,
+        updated_at: new Date().toISOString(),
+      })
+      .in('id', idsToDisable);
+
+    if (deactivateError) {
+      throw deactivateError;
+    }
+  }
+
+  return {
+    synced: categoriesToUpsert.length,
+    deactivated: idsToDisable.length,
+    total: categories.length,
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const distribuidorId = searchParams.get('id');
     const full = searchParams.get('full') === 'true';
-    const headerDistribuidorId = request.headers.get('x-distribuidor-id');
-    const adminAccess = await isAdminAuthorized(request);
-
-    if (!distribuidorId) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor é obrigatório' },
-        { status: 400 }
-      );
-    }
-
-    if (!UUID_REGEX.test(distribuidorId)) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor inválido' },
-        { status: 400 }
-      );
-    }
-
-    if (!adminAccess && (!headerDistribuidorId || headerDistribuidorId !== distribuidorId)) {
-      return NextResponse.json(
-        { success: false, error: 'Não autorizado para este distribuidor' },
-        { status: 403 }
-      );
-    }
+    const authError = await requireDistribuidorAccess(request, distribuidorId);
+    if (authError) return authError;
 
     console.log(`[Sync] Iniciando sincronização para distribuidor ${distribuidorId} (full: ${full})`);
 
@@ -71,6 +136,25 @@ export async function POST(request: NextRequest) {
 
     // Preparar parâmetros da requisição usando base_url configurada
     const baseUrl = distribuidor.base_url || 'https://app.mercos.com/api/v1';
+    let categoriesSyncSummary: { synced: number; deactivated: number; total: number } | null = null;
+    let categoriesSyncWarning: string | null = null;
+
+    try {
+      categoriesSyncSummary = await syncDistribuidorCategories({
+        distribuidorId,
+        applicationToken: distribuidor.application_token,
+        companyToken: distribuidor.company_token,
+        baseUrl,
+      });
+      console.log(
+        `[Sync] Categorias Mercos sincronizadas: ${categoriesSyncSummary.synced} ativas, ${categoriesSyncSummary.deactivated} desativadas`
+      );
+    } catch (error: any) {
+      categoriesSyncWarning =
+        error?.message || 'Não foi possível atualizar as categorias da Mercos nesta sincronização.';
+      console.error('[Sync] Falha ao sincronizar categorias da Mercos:', error);
+    }
+
     const BATCH_SIZE = 200; // Limite máximo da API Mercos
     const MAX_PAGES = 100; // Safety cap para evitar loops infinitos
     const allProdutos: any[] = [];
@@ -355,7 +439,11 @@ export async function POST(request: NextRequest) {
         produtos_atualizados: produtosAtualizados,
         erros: erros,
         total_produtos: totalProdutos || 0,
+        categorias_sincronizadas: categoriesSyncSummary?.synced || 0,
+        categorias_desativadas: categoriesSyncSummary?.deactivated || 0,
+        categorias_total_mercos: categoriesSyncSummary?.total || 0,
         sincronizado_em: new Date().toISOString(),
+        warning: categoriesSyncWarning,
       },
     });
   } catch (error: any) {

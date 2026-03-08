@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { readDistribuidorClientAuth } from "@/lib/distribuidor-client-auth";
 import {
   IconSettings,
   IconPlugConnected,
@@ -18,9 +19,9 @@ export default function ConfiguracoesPage() {
   const [distribuidor, setDistribuidor] = useState<any>(null);
 
   useEffect(() => {
-    const raw = localStorage.getItem("gb:distribuidor");
-    if (raw) {
-      setDistribuidor(JSON.parse(raw));
+    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
+    if (sessionDistribuidor) {
+      setDistribuidor(sessionDistribuidor);
     }
   }, []);
 
@@ -87,8 +88,8 @@ export default function ConfiguracoesPage() {
               </span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Plano</span>
-              <span className="text-sm font-medium text-gray-900">Premium</span>
+              <span className="text-sm text-gray-600">Modelo</span>
+              <span className="text-sm font-medium text-gray-900">Distribuidor parceiro</span>
             </div>
             <div className="flex justify-between items-center py-2">
               <span className="text-sm text-gray-600">Integração</span>

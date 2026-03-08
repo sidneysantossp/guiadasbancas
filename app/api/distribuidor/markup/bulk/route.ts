@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireDistribuidorAccess } from '@/lib/security/distribuidor-auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { isAdminAuthorized } from '@/lib/security/admin-auth';
 
 export const dynamic = 'force-dynamic';
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // POST - Aplicar markup em massa a todos os produtos do distribuidor
 export async function POST(request: NextRequest) {
   try {
-    const adminAccess = await isAdminAuthorized(request);
     const body = await request.json();
     const { 
       distribuidor_id, 
@@ -18,28 +16,8 @@ export async function POST(request: NextRequest) {
       margem_percentual,
       margem_divisor 
     } = body;
-    const headerDistribuidorId = request.headers.get('x-distribuidor-id');
-
-    if (!distribuidor_id) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor é obrigatório' },
-        { status: 400 }
-      );
-    }
-
-    if (!UUID_REGEX.test(distribuidor_id)) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor inválido' },
-        { status: 400 }
-      );
-    }
-
-    if (!adminAccess && (!headerDistribuidorId || headerDistribuidorId !== distribuidor_id)) {
-      return NextResponse.json(
-        { success: false, error: 'Não autorizado para este distribuidor' },
-        { status: 403 }
-      );
-    }
+    const authError = await requireDistribuidorAccess(request, distribuidor_id);
+    if (authError) return authError;
 
     console.log('[Markup Bulk] Aplicando markup em massa:', { distribuidor_id, tipo_calculo });
 
@@ -163,31 +141,10 @@ export async function POST(request: NextRequest) {
 // DELETE - Remover todos os markups individuais de produtos
 export async function DELETE(request: NextRequest) {
   try {
-    const adminAccess = await isAdminAuthorized(request);
     const { searchParams } = new URL(request.url);
     const distribuidorId = searchParams.get('distribuidor_id');
-    const headerDistribuidorId = request.headers.get('x-distribuidor-id');
-
-    if (!distribuidorId) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor é obrigatório' },
-        { status: 400 }
-      );
-    }
-
-    if (!UUID_REGEX.test(distribuidorId)) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor inválido' },
-        { status: 400 }
-      );
-    }
-
-    if (!adminAccess && (!headerDistribuidorId || headerDistribuidorId !== distribuidorId)) {
-      return NextResponse.json(
-        { success: false, error: 'Não autorizado para este distribuidor' },
-        { status: 403 }
-      );
-    }
+    const authError = await requireDistribuidorAccess(request, distribuidorId);
+    if (authError) return authError;
 
     console.log('[Markup Bulk] Removendo todos os markups de produtos:', distribuidorId);
 

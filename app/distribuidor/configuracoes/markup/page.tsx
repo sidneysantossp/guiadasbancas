@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from "react";
 import {
+  getDistribuidorAuthHeaders,
+  readDistribuidorClientAuth,
+} from "@/lib/distribuidor-client-auth";
+import {
   IconPercentage,
   IconCurrencyReal,
   IconPlus,
@@ -73,9 +77,9 @@ export default function MarkupConfigPage() {
   const [totalProdutos, setTotalProdutos] = useState(0);
 
   useEffect(() => {
-    const raw = localStorage.getItem("gb:distribuidor");
-    if (raw) {
-      setDistribuidor(JSON.parse(raw));
+    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
+    if (sessionDistribuidor) {
+      setDistribuidor(sessionDistribuidor);
     }
   }, []);
 
@@ -86,10 +90,10 @@ export default function MarkupConfigPage() {
   }, [distribuidor]);
 
   const distribuidorHeaders = (includeJson = false) => {
-    const headers: Record<string, string> = {};
-    if (includeJson) headers['Content-Type'] = 'application/json';
-    if (distribuidor?.id) headers['x-distribuidor-id'] = distribuidor.id;
-    return headers;
+    return getDistribuidorAuthHeaders({
+      distribuidorId: distribuidor?.id,
+      includeJson,
+    });
   };
 
   const fetchMarkupConfig = async () => {

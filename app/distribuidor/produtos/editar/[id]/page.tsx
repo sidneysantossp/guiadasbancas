@@ -3,9 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useFetchAuth } from '@/lib/hooks/useFetchAuth';
 import Image from 'next/image';
 import { useToast } from '@/components/admin/ToastProvider';
+import {
+  getDistribuidorAuthHeaders,
+  readDistribuidorClientAuth,
+} from '@/lib/distribuidor-client-auth';
 import { IconArrowLeft, IconLoader2, IconCheck, IconAlertTriangle, IconPhoto } from '@tabler/icons-react';
 
 interface Product {
@@ -41,21 +44,14 @@ interface Product {
   codigo_mercos?: string | null;
 }
 
-interface Banca {
-  id: string;
-  name: string;
-}
-
 export default function DistribuidorProductEditPage() {
   const params = useParams();
   const router = useRouter();
-  const fetchWithAuth = useFetchAuth();
   const toast = useToast();
   
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [bancas, setBancas] = useState<Banca[]>([]);
   const [distribuidor, setDistribuidor] = useState<any>(null);
   
   const [formData, setFormData] = useState({
@@ -72,19 +68,12 @@ export default function DistribuidorProductEditPage() {
   });
 
   useEffect(() => {
-    const raw = localStorage.getItem('gb:distribuidor');
-    if (!raw) {
+    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
+    if (!sessionDistribuidor) {
       router.push('/distribuidor/login');
       return;
     }
-
-    try {
-      const parsed = JSON.parse(raw);
-      setDistribuidor(parsed);
-    } catch (error) {
-      console.error('Erro ao ler distribuidor do storage:', error);
-      router.push('/distribuidor/login');
-    }
+    setDistribuidor(sessionDistribuidor);
   }, [router]);
 
   useEffect(() => {
@@ -94,12 +83,15 @@ export default function DistribuidorProductEditPage() {
     // Carregar produto
     const loadProduct = async () => {
       try {
-        const response = await fetchWithAuth(`/api/distribuidor/products?id=${distribuidor.id}&productId=${productId}&active=false`, {
+        const response = await fetch(`/api/distribuidor/products?id=${distribuidor.id}&productId=${productId}&active=false`, {
           cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' },
+          headers: {
+            'Cache-Control': 'no-cache',
+            ...getDistribuidorAuthHeaders({ distribuidorId: distribuidor.id }),
+          },
         });
         if (!response.ok) {
-          if (response.status === 401) {
+          if (response.status === 401 || response.status === 403) {
             router.push('/distribuidor/login');
             return;
           }
@@ -138,22 +130,8 @@ export default function DistribuidorProductEditPage() {
       }
     };
 
-    // Carregar bancas
-    const loadBancas = async () => {
-      try {
-        const response = await fetchWithAuth('/api/distribuidor/bancas');
-        if (response.ok) {
-          const data = await response.json();
-          setBancas(data);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar bancas:', error);
-      }
-    };
-
     loadProduct();
-    loadBancas();
-  }, [params.id, distribuidor?.id, fetchWithAuth, router, toast]);
+  }, [params.id, distribuidor?.id, router, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,11 +164,9 @@ export default function DistribuidorProductEditPage() {
         updates.custom_price = parseCurrency(formData.custom_price);
       }
 
-      const response = await fetchWithAuth('/api/distribuidor/products', {
+      const response = await fetch('/api/distribuidor/products', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getDistribuidorAuthHeaders({ distribuidorId: distribuidor?.id, includeJson: true }),
         body: JSON.stringify({
           productId: params.id,
           distribuidorId: distribuidor?.id,

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isAdminAuthorized } from '@/lib/security/admin-auth';
+import { requireDistribuidorAccess } from '@/lib/security/distribuidor-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -7,8 +9,21 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const distribuidorId = searchParams.get('id');
+    const adminAccess = await isAdminAuthorized(request);
+
+    if (distribuidorId) {
+      const authError = await requireDistribuidorAccess(request, distribuidorId);
+      if (authError) return authError;
+    }
 
     if (!distribuidorId) {
+      if (!adminAccess) {
+        return NextResponse.json(
+          { success: false, error: 'Não autorizado' },
+          { status: 403 }
+        );
+      }
+
       // Listar todos os distribuidores
       const { data: distribuidores, error } = await supabaseAdmin
         .from('distribuidores')

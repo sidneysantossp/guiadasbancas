@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
+  getDistribuidorAuthHeaders,
+  readDistribuidorClientAuth,
+} from '@/lib/distribuidor-client-auth';
+import {
   IconUpload,
   IconPhoto,
   IconCheck,
@@ -21,9 +25,9 @@ export default function DistribuidorUploadImagensPage() {
   const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4 MB
 
   useEffect(() => {
-    const raw = localStorage.getItem("gb:distribuidor");
-    if (raw) {
-      setDistribuidor(JSON.parse(raw));
+    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
+    if (sessionDistribuidor) {
+      setDistribuidor(sessionDistribuidor);
     }
   }, []);
 
@@ -93,6 +97,7 @@ export default function DistribuidorUploadImagensPage() {
 
           response = await fetch('/api/distribuidor/upload-imagens', {
             method: 'POST',
+            headers: getDistribuidorAuthHeaders({ distribuidorId: distribuidor.id }),
             body: formData,
           });
 
@@ -127,6 +132,7 @@ export default function DistribuidorUploadImagensPage() {
               singleFD.append('images', file);
               const r = await fetch('/api/distribuidor/upload-imagens', {
                 method: 'POST',
+                headers: getDistribuidorAuthHeaders({ distribuidorId: distribuidor.id }),
                 body: singleFD,
               });
               const t = await r.text();

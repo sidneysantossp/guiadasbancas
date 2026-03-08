@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireDistribuidorAccess } from '@/lib/security/distribuidor-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
@@ -15,9 +16,8 @@ export async function POST(req: NextRequest) {
     const files = formData.getAll('images') as File[];
     const distribuidorId = formData.get('distribuidor_id') as string;
     
-    if (!distribuidorId) {
-      return NextResponse.json({ error: 'ID do distribuidor é obrigatório' }, { status: 400 });
-    }
+    const authError = await requireDistribuidorAccess(req, distribuidorId);
+    if (authError) return authError;
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'Nenhuma imagem enviada' }, { status: 400 });

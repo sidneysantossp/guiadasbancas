@@ -3,12 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  getDistribuidorAuthHeaders,
+  readDistribuidorClientAuth,
+} from "@/lib/distribuidor-client-auth";
+import {
   IconBox,
   IconClipboardList,
   IconBuildingStore,
   IconTrendingUp,
-  IconArrowUpRight,
-  IconArrowDownRight,
+  IconAlertCircle,
 } from "@tabler/icons-react";
 
 interface DistribuidorStats {
@@ -37,8 +40,7 @@ export default function DistribuidorDashboardPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const raw = localStorage.getItem("gb:distribuidor");
-        const dist = raw ? JSON.parse(raw) : null;
+        const { distribuidor: dist } = readDistribuidorClientAuth();
         setDistribuidor(dist);
 
         if (!dist?.id) {
@@ -48,9 +50,15 @@ export default function DistribuidorDashboardPage() {
 
         // Buscar estatísticas do distribuidor
         const [statsRes, ordersRes, productsRes] = await Promise.all([
-          fetch(`/api/distribuidor/stats?id=${dist.id}`),
-          fetch(`/api/distribuidor/orders?id=${dist.id}&limit=5`),
-          fetch(`/api/distribuidor/products?id=${dist.id}&limit=10&sort=vendas`),
+          fetch(`/api/distribuidor/stats?id=${dist.id}`, {
+            headers: getDistribuidorAuthHeaders({ distribuidorId: dist.id }),
+          }),
+          fetch(`/api/distribuidor/orders?id=${dist.id}&limit=5`, {
+            headers: getDistribuidorAuthHeaders({ distribuidorId: dist.id }),
+          }),
+          fetch(`/api/distribuidor/products?id=${dist.id}&limit=10&sort=recent`, {
+            headers: getDistribuidorAuthHeaders({ distribuidorId: dist.id }),
+          }),
         ]);
 
         const [statsJson, ordersJson, productsJson] = await Promise.all([
@@ -122,19 +130,18 @@ export default function DistribuidorDashboardPage() {
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm relative overflow-hidden">
-          <div className="absolute top-2 right-2">
-            <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
-              Em breve
-            </span>
-          </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Pedidos</p>
-              <p className="text-3xl font-bold text-gray-400 mt-1">-</p>
-              <p className="text-xs text-gray-400 mt-1">integração em desenvolvimento</p>
+              <p className="text-sm font-medium text-gray-600">Pedidos (30 dias)</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">
+                {loading ? '...' : stats.totalPedidos}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {stats.totalPedidosHoje} pedido(s) hoje
+              </p>
             </div>
-            <div className="h-12 w-12 bg-gray-100 rounded-xl flex items-center justify-center">
-              <IconClipboardList className="h-6 w-6 text-gray-400" />
+            <div className="h-12 w-12 bg-orange-100 rounded-xl flex items-center justify-center">
+              <IconClipboardList className="h-6 w-6 text-orange-600" />
             </div>
           </div>
         </div>
@@ -154,20 +161,17 @@ export default function DistribuidorDashboardPage() {
           </div>
         </Link>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm relative overflow-hidden">
-          <div className="absolute top-2 right-2">
-            <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
-              Em breve
-            </span>
-          </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Faturamento</p>
-              <p className="text-3xl font-bold text-gray-400 mt-1">-</p>
-              <p className="text-xs text-gray-400 mt-1">integração em desenvolvimento</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">
+                {loading ? '...' : formatCurrency(stats.faturamentoMes)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">somatório do mês</p>
             </div>
-            <div className="h-12 w-12 bg-gray-100 rounded-xl flex items-center justify-center">
-              <IconTrendingUp className="h-6 w-6 text-gray-400" />
+            <div className="h-12 w-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+              <IconTrendingUp className="h-6 w-6 text-emerald-600" />
             </div>
           </div>
         </div>
@@ -220,52 +224,80 @@ export default function DistribuidorDashboardPage() {
           </div>
         </div>
 
-        {/* Pedidos - Em breve */}
+        {/* Pedidos recentes */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Pedidos</h3>
-            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">
-              Em breve
-            </span>
+            <h3 className="text-lg font-semibold text-gray-900">Pedidos recentes</h3>
+            <Link href="/distribuidor/pedidos" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+              Ver todos
+            </Link>
           </div>
-          
-          <div className="text-center py-6">
-            <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <IconClipboardList className="h-8 w-8 text-gray-400" />
-            </div>
-            <p className="text-gray-600 font-medium mb-2">Integração em desenvolvimento</p>
-            <p className="text-sm text-gray-500 max-w-xs mx-auto">
-              Em breve você poderá receber e gerenciar pedidos diretamente pela plataforma.
-            </p>
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-              <p className="text-xs text-blue-700">
-                💡 Por enquanto, os jornaleiros acessam o catálogo e realizam pedidos diretamente pelo site da Mercos.
+
+          {recentOrders.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center">
+              <IconAlertCircle className="mx-auto h-8 w-8 text-gray-400" />
+              <p className="mt-3 text-sm font-medium text-gray-700">Nenhum pedido encontrado</p>
+              <p className="mt-1 text-sm text-gray-500">
+                Assim que uma banca fizer um pedido com seus produtos, ele aparece aqui.
               </p>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-3">
+              {recentOrders.map((order) => (
+                <div key={order.id} className="rounded-lg border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-medium text-gray-900">{order.banca_name || order.customer || 'Banca'}</p>
+                      <p className="text-sm text-gray-500">Pedido #{String(order.id).slice(0, 8)}</p>
+                      <p className="text-xs text-gray-500 mt-1">{order.created_at}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-gray-900">{formatCurrency(Number(order.total || 0))}</p>
+                      <p className="text-xs text-gray-500 capitalize">{order.status || 'novo'}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Top Products & Info */}
+      {/* Produtos recentes e informações */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Relatórios - Em breve */}
+        {/* Produtos recentes */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Relatórios</h3>
-            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">
-              Em breve
-            </span>
+            <h3 className="text-lg font-semibold text-gray-900">Produtos recentes</h3>
+            <Link href="/distribuidor/produtos" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+              Ver catálogo
+            </Link>
           </div>
-          
-          <div className="text-center py-6">
-            <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <IconTrendingUp className="h-8 w-8 text-gray-400" />
+
+          {topProducts.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center">
+              <IconBox className="mx-auto h-8 w-8 text-gray-400" />
+              <p className="mt-3 text-sm font-medium text-gray-700">Nenhum produto encontrado</p>
+              <p className="mt-1 text-sm text-gray-500">
+                Cadastre produtos ou rode a integração com a Mercos para abastecer seu catálogo.
+              </p>
             </div>
-            <p className="text-gray-600 font-medium mb-2">Relatórios em desenvolvimento</p>
-            <p className="text-sm text-gray-500 max-w-xs mx-auto">
-              Em breve você terá acesso a relatórios de vendas, produtos mais vendidos e análises detalhadas.
-            </p>
-          </div>
+          ) : (
+            <div className="space-y-3">
+              {topProducts.slice(0, 5).map((product) => (
+                <div key={product.id} className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 truncate">{product.name}</p>
+                    <p className="text-sm text-gray-500">{product.category || 'Sem categoria'}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-gray-900">{formatCurrency(Number(product.distribuidor_price || product.price || 0))}</p>
+                    <p className="text-xs text-gray-500">Estoque: {product.stock_qty ?? 0}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Informações do Distribuidor */}

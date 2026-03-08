@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireDistribuidorAccess } from "@/lib/security/distribuidor-auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
@@ -23,12 +24,8 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const page = parseInt(searchParams.get("page") || "1");
 
-    if (!distribuidorId) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor é obrigatório' },
-        { status: 400 }
-      );
-    }
+    const authError = await requireDistribuidorAccess(req, distribuidorId);
+    if (authError) return authError;
 
     // Buscar IDs dos produtos do distribuidor
     const { data: produtosDistribuidor } = await supabaseAdmin
@@ -71,11 +68,11 @@ export async function GET(req: NextRequest) {
 
     // Filtrar pedidos que contêm produtos do distribuidor
     const pedidosDoDistribuidor = (allOrders || []).filter((order: any) => {
-      const items = order.items || [];
+      const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
       return items.some((item: OrderItem) => productIds.includes(item.product_id));
     }).map((order: any) => {
       // Filtrar apenas os itens do distribuidor
-      const items = order.items || [];
+      const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
       const itensDoDistribuidor = items.filter((item: OrderItem) => 
         productIds.includes(item.product_id)
       );

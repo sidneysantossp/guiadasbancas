@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getDistribuidorAccessibleBancas } from '@/lib/distribuidor-access';
+import { requireDistribuidorAccess } from '@/lib/security/distribuidor-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -9,12 +11,8 @@ export async function GET(request: NextRequest) {
     const distribuidorId = searchParams.get('id');
     const debug = searchParams.get('debug') === 'true';
 
-    if (!distribuidorId) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor é obrigatório' },
-        { status: 400 }
-      );
-    }
+    const authError = await requireDistribuidorAccess(request, distribuidorId);
+    if (authError) return authError;
 
     console.log('[Stats] Buscando estatísticas para distribuidor:', distribuidorId);
 
@@ -108,14 +106,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Contar apenas bancas COTISTAS ativas (que realmente vendem produtos de distribuidores)
-    const { count: totalBancasCotistas } = await supabaseAdmin
-      .from('bancas')
-      .select('*', { count: 'exact', head: true })
-      .eq('active', true)
-      .or('is_cotista.eq.true,cotista_id.not.is.null');
+    const bancasComAcesso = await getDistribuidorAccessibleBancas();
+    const totalBancasComAcesso = bancasComAcesso.length;
 
-    console.log(`[Stats] Distribuidor ${distribuidor?.nome}: ${produtosAtivos}/${totalProdutos} produtos, ${totalBancasCotistas} bancas ativas`);
+    console.log(`[Stats] Distribuidor ${distribuidor?.nome}: ${produtosAtivos}/${totalProdutos} produtos, ${totalBancasComAcesso} bancas com acesso`);
 
     // Se houver inconsistência (ativos > total), usar a soma real como total
     const totalReal = (produtosAtivos || 0) + (produtosInativos || 0) + (produtosNull || 0);
@@ -144,7 +138,7 @@ export async function GET(request: NextRequest) {
           produtosAtivos: produtosAtivos || 0,
           totalPedidosHoje,
           totalPedidos,
-          totalBancas: totalBancasCotistas || 0,
+          totalBancas: totalBancasComAcesso,
           faturamentoMes,
           ultimaSincronizacao: distribuidor?.ultima_sincronizacao || null,
         },
@@ -158,7 +152,7 @@ export async function GET(request: NextRequest) {
         produtosAtivos: produtosAtivos || 0,
         totalPedidosHoje,
         totalPedidos,
-        totalBancas: totalBancasCotistas || 0,
+        totalBancas: totalBancasComAcesso,
         faturamentoMes,
         ultimaSincronizacao: distribuidor?.ultima_sincronizacao || null,
       },

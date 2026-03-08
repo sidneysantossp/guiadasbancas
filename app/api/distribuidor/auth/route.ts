@@ -1,9 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as bcrypt from 'bcryptjs';
+import { issueDistribuidorSessionToken } from '@/lib/security/distribuidor-session';
 import { supabaseAdmin } from '@/lib/supabase';
 
 const allowLegacyDefaultPassword =
   process.env.NODE_ENV !== 'production' &&
   process.env.ALLOW_LEGACY_DISTRIBUIDOR_PASSWORD === 'true';
+
+function normalizeIdentifier(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .trim();
+}
+
+async function matchesPassword(inputPassword: string, storedPassword?: string | null) {
+  if (!storedPassword) return false;
+  if (storedPassword === inputPassword) return true;
+
+  if (/^\$2[aby]\$\d+\$/.test(storedPassword)) {
+    try {
+      return await bcrypt.compare(inputPassword, storedPassword);
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,22 +58,7 @@ export async function POST(request: NextRequest) {
       distribuidor = distByEmail;
     }
 
-    // 2. Se não encontrou por email, tentar pelo nome (case insensitive)
-    if (!distribuidor) {
-      const { data: distByName } = await supabaseAdmin
-        .from('distribuidores')
-        .select('*')
-        .ilike('nome', `%${emailLower.split('@')[0]}%`)
-        .eq('ativo', true)
-        .limit(1)
-        .maybeSingle();
-
-      if (distByName) {
-        distribuidor = distByName;
-      }
-    }
-
-    // 3. Buscar todos os distribuidores ativos para matching parcial
+    // 2. Fallback controlado: permitir login por nome exato normalizado para bases antigas sem email cadastrado
     if (!distribuidor) {
       const { data: allDist } = await supabaseAdmin
         .from('distribuidores')
@@ -55,11 +66,10 @@ export async function POST(request: NextRequest) {
         .eq('ativo', true);
 
       if (allDist) {
-        // Tentar encontrar pelo nome parcial
-        const searchTerm = emailLower.split('@')[0].toLowerCase();
+        const searchTerm = normalizeIdentifier(emailLower.includes('@') ? emailLower.split('@')[0] : emailLower);
         distribuidor = allDist.find((d: any) => 
-          d.nome?.toLowerCase().includes(searchTerm) ||
-          d.nome?.toLowerCase().replace(/\s+/g, '').includes(searchTerm.replace(/\s+/g, ''))
+          normalizeIdentifier(d.email || '') === searchTerm ||
+          normalizeIdentifier(d.nome || '') === searchTerm
         );
       }
     }
@@ -73,9 +83,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar senha
-    const senhaValida = distribuidor.senha === password || 
-                        distribuidor.password === password ||
-                        (allowLegacyDefaultPassword && password === 'dist123');
+    const senhaValida =
+      (await matchesPassword(password, distribuidor.senha)) ||
+      (await matchesPassword(password, distribuidor.password)) ||
+      (allowLegacyDefaultPassword && password === 'dist123');
 
     if (!senhaValida) {
       return NextResponse.json(
@@ -92,12 +103,19 @@ export async function POST(request: NextRequest) {
       ...distribuidorSeguro,
       email: distribuidor.email || emailLower, // Usar o email do banco ou o email usado no login
     };
+    const session = issueDistribuidorSessionToken({
+      id: distribuidorComEmail.id,
+      email: distribuidorComEmail.email,
+      nome: distribuidorComEmail.nome,
+    });
 
     console.log('[Auth] Login bem-sucedido para distribuidor:', distribuidorComEmail.nome, '- Email:', distribuidorComEmail.email);
 
     return NextResponse.json({
       success: true,
       distribuidor: distribuidorComEmail,
+      session_token: session.token,
+      session_expires_at: session.expiresAt,
     });
   } catch (error: any) {
     console.error('Erro na autenticação do distribuidor:', error);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireDistribuidorAccess } from '@/lib/security/distribuidor-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -9,12 +10,8 @@ export async function GET(request: NextRequest) {
     const distribuidorId = searchParams.get('id');
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    if (!distribuidorId) {
-      return NextResponse.json(
-        { success: false, error: 'ID do distribuidor é obrigatório' },
-        { status: 400 }
-      );
-    }
+    const authError = await requireDistribuidorAccess(request, distribuidorId);
+    if (authError) return authError;
 
     // Buscar IDs dos produtos do distribuidor
     const { data: produtosDistribuidor } = await supabaseAdmin
@@ -31,24 +28,44 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Buscar todos os pedidos
-    const { data: orders, error } = await supabaseAdmin
-      .from('orders')
-      .select('*, bancas(name)')
-      .order('created_at', { ascending: false })
-      .limit(limit * 2); // Buscar mais para filtrar
+    const BATCH_SIZE = Math.max(limit * 3, 50);
+    const filteredOrders: any[] = [];
+    let offset = 0;
+    let hasMore = true;
 
-    if (error) {
-      throw error;
+    while (hasMore && filteredOrders.length < limit) {
+      const { data: orders, error } = await supabaseAdmin
+        .from('orders')
+        .select('*, bancas(name)')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + BATCH_SIZE - 1);
+
+      if (error) {
+        throw error;
+      }
+
+      const batch = orders || [];
+      if (batch.length === 0) {
+        break;
+      }
+
+      for (const order of batch) {
+        const orderItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+        const hasDistributorProduct = orderItems?.some((item: any) =>
+          productIds.includes(item.id) || productIds.includes(item.product_id)
+        );
+
+        if (hasDistributorProduct) {
+          filteredOrders.push(order);
+          if (filteredOrders.length >= limit) {
+            break;
+          }
+        }
+      }
+
+      hasMore = batch.length === BATCH_SIZE;
+      offset += BATCH_SIZE;
     }
-
-    // Filtrar pedidos que contêm produtos deste distribuidor
-    const filteredOrders = (orders || []).filter((order: any) => {
-      const orderItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-      return orderItems?.some((item: any) => 
-        productIds.includes(item.id) || productIds.includes(item.product_id)
-      );
-    }).slice(0, limit);
 
     // Formatar pedidos
     const formattedOrders = filteredOrders.map((order: any) => ({

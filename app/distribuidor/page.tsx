@@ -2,15 +2,15 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { readDistribuidorClientAuth } from "@/lib/distribuidor-client-auth";
 
 export default function DistribuidorIndexPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Verificar se está autenticado
-    const auth = localStorage.getItem("gb:distribuidorAuth");
-    
-    if (auth === "1") {
+    const { distribuidor, sessionToken } = readDistribuidorClientAuth();
+
+    if (distribuidor?.id && sessionToken) {
       router.replace("/distribuidor/dashboard");
     } else {
       router.replace("/distribuidor/login");
