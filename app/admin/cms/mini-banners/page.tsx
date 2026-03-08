@@ -24,7 +24,6 @@ export default function MiniBannersAdminPage() {
     try {
       setLoading(true);
       const res = await fetch("/api/admin/mini-banners", {
-        headers: { Authorization: "Bearer admin-token" },
         cache: "no-store",
       });
       const j = await res.json();
@@ -46,8 +45,7 @@ export default function MiniBannersAdminPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: "Bearer admin-token",
-        },
+          },
         body: JSON.stringify({ image_url: imageUrl, display_order: Number(displayOrder) || 0, active: true }),
       });
       const j = await res.json();
@@ -65,7 +63,7 @@ export default function MiniBannersAdminPage() {
   const updateItem = async (id: string, patch: Partial<MiniBanner>) => {
     const res = await fetch(`/api/admin/mini-banners/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer admin-token" },
+      headers: { "Content-Type": "application/json"},
       body: JSON.stringify(patch),
     });
     const j = await res.json();
@@ -76,8 +74,7 @@ export default function MiniBannersAdminPage() {
     if (!confirm("Excluir este mini banner?")) return;
     const res = await fetch(`/api/admin/mini-banners/${id}`, {
       method: "DELETE",
-      headers: { Authorization: "Bearer admin-token" },
-    });
+      });
     const j = await res.json();
     if (j?.success) await load();
   };

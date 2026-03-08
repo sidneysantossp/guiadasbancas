@@ -58,7 +58,6 @@ export default function UploadImagensMassaPage() {
 
         const response = await fetch('/api/admin/produtos/upload-imagens-massa', {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer admin-token' },
           body: formData,
         });
 
@@ -75,7 +74,6 @@ export default function UploadImagensMassaPage() {
               singleFD.append('images', file);
               const r = await fetch('/api/admin/produtos/upload-imagens-massa', {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer admin-token' },
                 body: singleFD,
               });
               const t = await r.text();

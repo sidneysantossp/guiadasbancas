@@ -16,7 +16,7 @@ export default function AdminCategoriesPage() {
     const load = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/admin/categories?all=true`, { headers: { Authorization: "Bearer admin-token" } });
+        const res = await fetch(`/api/admin/categories?all=true`, {  });
         const json = await res.json();
         const data = Array.isArray(json?.data) ? json.data : [];
         setRows(data.map((c: any) => ({ id: c.id, name: c.name, slug: (c.link || '').replace(/^\/+/, ''), order: c.order ?? 0, active: Boolean(c.active) })));

@@ -69,23 +69,23 @@ export default function AdminCreateCampaignPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // Buscar produtos
       console.log('Buscando produtos...');
       const productsRes = await fetch('/api/admin/products', {
-        headers: { 'Authorization': 'Bearer admin-token' }
+
       });
       const productsJson = await productsRes.json();
       console.log('Produtos response:', productsJson);
-      
+
       // Buscar bancas
       console.log('Buscando bancas...');
       const bancasRes = await fetch('/api/admin/bancas', {
-        headers: { 'Authorization': 'Bearer admin-token' }
+
       });
       const bancasJson = await bancasRes.json();
       console.log('Bancas response:', bancasJson);
-      
+
       if (productsJson.success) {
         const activeProducts = productsJson.data.filter((p: Product) => p.active !== false);
         console.log('Produtos ativos:', activeProducts.length);
@@ -94,7 +94,7 @@ export default function AdminCreateCampaignPage() {
         console.error('Erro ao buscar produtos:', productsJson.error);
         toast.error(`Erro ao buscar produtos: ${productsJson.error}`);
       }
-      
+
       if (bancasJson.success) {
         console.log('Bancas encontradas:', bancasJson.data.length);
         setBancas(bancasJson.data);
@@ -121,14 +121,14 @@ export default function AdminCreateCampaignPage() {
   };
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch = !searchTerm ||
                          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesBanca = !selectedBanca || product.banca_id === selectedBanca;
     return matchesSearch && matchesBanca;
   });
 
-  const filteredBancas = bancas.filter(banca => 
+  const filteredBancas = bancas.filter(banca =>
     !bancaSearchTerm || banca.name.toLowerCase().includes(bancaSearchTerm.toLowerCase())
   );
 
@@ -156,9 +156,7 @@ export default function AdminCreateCampaignPage() {
       const res = await fetch('/api/admin/campaigns', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           product_id: selectedProduct.id,
           banca_id: selectedProduct.banca_id,
@@ -202,7 +200,7 @@ export default function AdminCreateCampaignPage() {
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white p-6 rounded-lg border border-gray-200">
             <h2 className="text-lg font-semibold mb-4">1. Selecione o Produto</h2>
-            
+
             {/* Filtros */}
             <div className="grid md:grid-cols-2 gap-4 mb-4">
               <div>
@@ -231,7 +229,7 @@ export default function AdminCreateCampaignPage() {
                   onFocus={() => setShowBancaDropdown(true)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                 />
-                
+
                 {showBancaDropdown && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
                     <div className="p-2">
@@ -335,7 +333,7 @@ export default function AdminCreateCampaignPage() {
           {selectedProduct && (
             <div className="bg-white p-6 rounded-lg border border-gray-200">
               <h2 className="text-lg font-semibold mb-4">2. Informações da Campanha</h2>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Título da campanha: *</label>
@@ -348,7 +346,7 @@ export default function AdminCreateCampaignPage() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium mb-1">Descrição (opcional):</label>
                   <textarea
@@ -368,7 +366,7 @@ export default function AdminCreateCampaignPage() {
         <div className="space-y-4">
           <div className="bg-white p-6 rounded-lg border border-gray-200">
             <h2 className="text-lg font-semibold mb-4">3. Duração da Campanha</h2>
-            
+
             <div className="space-y-3">
               {durationOptions.map((option) => (
                 <label
@@ -407,7 +405,7 @@ export default function AdminCreateCampaignPage() {
           {selectedProduct && (
             <div className="bg-white p-6 rounded-lg border border-gray-200">
               <h3 className="text-lg font-semibold mb-4">Preview da Campanha</h3>
-              
+
               <div className="border border-gray-200 rounded-lg p-4 bg-gradient-to-r from-orange-50 to-red-50">
                 <div className="relative">
                   <img
@@ -421,7 +419,7 @@ export default function AdminCreateCampaignPage() {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="mt-3 space-y-2">
                   <div className="flex items-center gap-1">
                     {[1,2,3,4,5].map((star) => (
@@ -429,15 +427,15 @@ export default function AdminCreateCampaignPage() {
                     ))}
                     <span className="text-xs text-gray-500">({selectedProduct.reviews_count})</span>
                   </div>
-                  
+
                   <h4 className="font-medium text-gray-900 line-clamp-2">
                     {selectedProduct.name}
                   </h4>
-                  
+
                   <p className="text-sm text-gray-600 line-clamp-2">
                     {selectedProduct.description}
                   </p>
-                  
+
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-gray-900">
                       R$ {selectedProduct.price.toFixed(2)}
@@ -448,7 +446,7 @@ export default function AdminCreateCampaignPage() {
                       </span>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center gap-2 text-xs">
                     <div className="w-6 h-6 bg-gray-300 rounded-full"></div>
                     <span className="text-gray-600">

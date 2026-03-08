@@ -20,7 +20,7 @@ export default function ImportCotistasPage() {
         'application/vnd.ms-excel',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       ];
-      
+
       if (validTypes.includes(selectedFile.type) || selectedFile.name.endsWith('.csv')) {
         setFile(selectedFile);
         setError(null);
@@ -45,15 +45,12 @@ export default function ImportCotistasPage() {
 
       // Usar rota unificada de import
       const endpoint = '/api/admin/cotistas/import';
-      
+
       console.log('[IMPORT] Endpoint:', endpoint);
       console.log('[IMPORT] Arquivo:', file.name, file.type, file.size);
-      
+
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Authorization': 'Bearer admin-token'
-        },
         body: formData
       }).catch(fetchError => {
         console.error('[IMPORT] Fetch error:', fetchError);
@@ -61,7 +58,7 @@ export default function ImportCotistasPage() {
       });
 
       console.log('[IMPORT] Response status:', response.status);
-      
+
       let data;
       try {
         data = await response.json();
@@ -76,7 +73,7 @@ export default function ImportCotistasPage() {
 
       setProgress("Importação concluída!");
       setResult(data);
-      
+
       // Limpar formulário
       setFile(null);
       const fileInput = document.getElementById('file-input') as HTMLInputElement;

@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // extend timeout to handle large files
-
-function verifyAdminAuth(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  return Boolean(authHeader && authHeader === "Bearer admin-token");
-}
 
 // Extrai código do início da razão social (ex: "0001 - NOME" → "0001")
 function extractCodigo(razaoSocial: string): string {
@@ -31,10 +27,8 @@ export async function POST(request: NextRequest) {
   
   try {
     console.log('[IMPORT COTISTAS] Verificando autenticação...');
-    if (!verifyAdminAuth(request)) {
-      console.log('[IMPORT COTISTAS] Não autorizado');
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     console.log('[IMPORT COTISTAS] Obtendo formData...');
     const formData = await request.formData();

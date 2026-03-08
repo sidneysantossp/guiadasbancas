@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
-
-function verifyAdminAuth(request: NextRequest) {
-  const auth = request.headers.get("authorization");
-  return auth === "Bearer admin-token";
-}
 
 export async function GET() {
   try {
@@ -21,9 +17,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
     const body = await request.json();
     const { image_url, display_order = 0, active = true } = body || {};
     if (!image_url) {

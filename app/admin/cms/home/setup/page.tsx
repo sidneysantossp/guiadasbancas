@@ -16,9 +16,7 @@ export default function SetupHeroSlides() {
       const response = await fetch('/api/admin/hero-slides/setup', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        }
+          'Content-Type': 'application/json'}
       });
 
       const data = await response.json();

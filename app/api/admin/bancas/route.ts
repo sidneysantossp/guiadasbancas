@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
@@ -98,12 +99,9 @@ async function readBancas(): Promise<AdminBanca[]> {
   }
 }
 
-function verifyAdminAuth(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  return Boolean(authHeader && authHeader === "Bearer admin-token");
-}
-
 export async function GET(request: NextRequest) {
+  const authError = await requireAdminAuth(request);
+  if (authError) return authError;
   const { searchParams } = new URL(request.url);
   const includeInactive = searchParams.get("all") === "true";
   const id = searchParams.get("id");
@@ -146,9 +144,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const body = await request.json();
     const { data } = body;
@@ -192,9 +189,8 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const body = await request.json();
     const { data } = body;
@@ -256,9 +252,8 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const { searchParams } = new URL(request.url);
     const bancaId = searchParams.get("id");

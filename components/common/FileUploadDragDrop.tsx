@@ -29,7 +29,6 @@ export default function FileUploadDragDrop({
   placeholder,
   className = "h-28 w-full",
   accept = 'application/pdf',
-  role = 'jornaleiro',
   maxDisplayLength = 80,
 }: FileUploadDragDropProps) {
   const [dragOver, setDragOver] = useState(false);
@@ -38,8 +37,6 @@ export default function FileUploadDragDrop({
   const isMultiMode = Array.isArray(currentFiles) || typeof onUploadAction === 'function' || maxFiles > 1;
   const filesValue = Array.isArray(currentFiles) ? currentFiles : [];
   const primaryValue = value || filesValue[0] || '';
-
-  const authHeader = role === 'admin' ? 'Bearer admin-token' : 'Bearer jornaleiro-token';
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -151,7 +148,6 @@ export default function FileUploadDragDrop({
 
       const response = await fetch('/api/upload', {
         method: 'POST',
-        headers: { 'Authorization': authHeader },
         body: formData,
       });
 

@@ -41,10 +41,10 @@ export default function EditCategoryPage() {
     try {
       setLoading(true);
       const response = await fetch('/api/admin/categories?all=true', {
-        headers: { 'Authorization': 'Bearer admin-token' }
+
       });
       const result = await response.json();
-      
+
       if (result.success) {
         const category = result.data.find((c: any) => c.id === categoryId);
         if (category) {
@@ -66,7 +66,7 @@ export default function EditCategoryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!form.name.trim()) {
       toast.error("Nome da categoria é obrigatório");
       return;
@@ -74,7 +74,7 @@ export default function EditCategoryPage() {
 
     try {
       setSaving(true);
-      
+
       const categoryData = {
         ...form,
         name: form.name.trim()
@@ -83,9 +83,7 @@ export default function EditCategoryPage() {
       const response = await fetch('/api/admin/categories', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({ data: categoryData })
       });
 
@@ -112,10 +110,10 @@ export default function EditCategoryPage() {
 
     try {
       setDeleting(true);
-      
+
       const response = await fetch(`/api/admin/categories?id=${categoryId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': 'Bearer admin-token' }
+
       });
 
       const result = await response.json();

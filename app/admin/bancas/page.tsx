@@ -62,8 +62,7 @@ export default function AdminBancasPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token',
-        },
+          },
         body: JSON.stringify({
           data: {
             id: row.id,

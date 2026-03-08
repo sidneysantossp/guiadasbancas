@@ -53,9 +53,7 @@ export default function NewBancaPage() {
       const res = await fetch('/api/admin/bancas', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({ data })
       });
 

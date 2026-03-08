@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 
 interface FeaturedProduct {
@@ -19,19 +19,10 @@ export default function FeaturedProductsManager({ currentProductId, onFeaturedCh
   const [featuredProducts, setFeaturedProducts] = useState<FeaturedProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const authHeaders = useMemo(() => {
-    if (typeof window === "undefined") return {} as Record<string, string>;
-    const token = window.localStorage.getItem("gb:sellerToken") || "seller-token";
-    return { Authorization: `Bearer ${token}` } as Record<string, string>;
-  }, []);
-
   const loadFeaturedProducts = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/jornaleiro/products", { 
-        headers: authHeaders, 
-        cache: "no-store" 
-      });
+      const res = await fetch("/api/jornaleiro/products", { cache: "no-store" });
       const json = await res.json();
       
       if (json?.success) {
@@ -54,7 +45,7 @@ export default function FeaturedProductsManager({ currentProductId, onFeaturedCh
 
   useEffect(() => {
     loadFeaturedProducts();
-  }, [authHeaders]);
+  }, []);
 
   const featuredCount = featuredProducts.filter(p => p.featured).length;
   const canAddMore = featuredCount < 8;
@@ -69,7 +60,7 @@ export default function FeaturedProductsManager({ currentProductId, onFeaturedCh
     try {
       const res = await fetch(`/api/jornaleiro/products/${productId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...authHeaders },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ featured: !currentFeatured }),
       });
 

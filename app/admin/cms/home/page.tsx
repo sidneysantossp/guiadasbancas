@@ -103,12 +103,9 @@ export default function AdminHomePageCMS() {
       const timestamp = Date.now();
       console.log('[CMS Home] loadSlides chamado - timestamp:', timestamp);
       const response = await fetch(`/api/admin/hero-slides?admin=true&_t=${timestamp}`, {
-        headers: {
-          'Authorization': 'Bearer admin-token'
-        },
         cache: 'no-store'
       });
-      
+
       console.log('[CMS Home] loadSlides response status:', response.status);
       if (response.ok) {
         const result = await response.json();
@@ -133,11 +130,9 @@ export default function AdminHomePageCMS() {
   const loadSliderConfig = async () => {
     try {
       const response = await fetch('/api/admin/hero-slides?type=config', {
-        headers: {
-          'Authorization': 'Bearer admin-token'
-        }
+
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
@@ -154,9 +149,7 @@ export default function AdminHomePageCMS() {
       const response = await fetch('/api/admin/hero-slides', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           type: 'bulk',
           data: newSlides
@@ -166,7 +159,7 @@ export default function AdminHomePageCMS() {
       console.log('[CMS Home] Response status:', response.status);
       const result = await response.json();
       console.log('[CMS Home] Response result:', result);
-      
+
       if (result.success) {
         setSlides(newSlides);
         setMessage({ type: 'success', text: 'Slides salvos com sucesso!' });
@@ -191,9 +184,7 @@ export default function AdminHomePageCMS() {
       const response = await fetch('/api/admin/hero-slides', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           type: 'config',
           data: sliderConfig
@@ -201,7 +192,7 @@ export default function AdminHomePageCMS() {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         setMessage({ type: 'success', text: 'Configurações salvas com sucesso!' });
         setTimeout(() => setMessage(null), 3000);
@@ -218,10 +209,10 @@ export default function AdminHomePageCMS() {
   const handleSaveSlide = async (slide: HeroSlide) => {
     console.log('[CMS Home] handleSaveSlide chamado com:', slide);
     console.log('[CMS Home] editingSlide:', editingSlide);
-    const newSlides = editingSlide 
+    const newSlides = editingSlide
       ? slides.map(s => s.id === slide.id ? slide : s)
       : [...slides, { ...slide, id: `slide-${Date.now()}`, order: slides.length + 1 }];
-    
+
     console.log('[CMS Home] newSlides gerado:', newSlides);
     await saveSlides(newSlides);
     console.log('[CMS Home] Salvamento concluído, fechando modal');
@@ -237,7 +228,7 @@ export default function AdminHomePageCMS() {
   };
 
   const handleToggleActive = (id: string) => {
-    const newSlides = slides.map(s => 
+    const newSlides = slides.map(s =>
       s.id === id ? { ...s, active: !s.active } : s
     );
     saveSlides(newSlides);
@@ -252,9 +243,9 @@ export default function AdminHomePageCMS() {
 
     const newSlides = [...slides];
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    
+
     [newSlides[currentIndex], newSlides[targetIndex]] = [newSlides[targetIndex], newSlides[currentIndex]];
-    
+
     // Atualizar ordem
     newSlides.forEach((slide, index) => {
       slide.order = index + 1;
@@ -305,9 +296,9 @@ export default function AdminHomePageCMS() {
               min="3"
               max="10"
               value={sliderConfig.autoPlayTime / 1000}
-              onChange={(e) => setSliderConfig(prev => ({ 
-                ...prev, 
-                autoPlayTime: parseInt(e.target.value) * 1000 
+              onChange={(e) => setSliderConfig(prev => ({
+                ...prev,
+                autoPlayTime: parseInt(e.target.value) * 1000
               }))}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
@@ -322,9 +313,9 @@ export default function AdminHomePageCMS() {
               max="1000"
               step="100"
               value={sliderConfig.transitionSpeed}
-              onChange={(e) => setSliderConfig(prev => ({ 
-                ...prev, 
-                transitionSpeed: parseInt(e.target.value) 
+              onChange={(e) => setSliderConfig(prev => ({
+                ...prev,
+                transitionSpeed: parseInt(e.target.value)
               }))}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
@@ -339,9 +330,9 @@ export default function AdminHomePageCMS() {
               max="800"
               step="20"
               value={sliderConfig.heightDesktop}
-              onChange={(e) => setSliderConfig(prev => ({ 
-                ...prev, 
-                heightDesktop: parseInt(e.target.value) 
+              onChange={(e) => setSliderConfig(prev => ({
+                ...prev,
+                heightDesktop: parseInt(e.target.value)
               }))}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
@@ -356,9 +347,9 @@ export default function AdminHomePageCMS() {
               max="500"
               step="20"
               value={sliderConfig.heightMobile}
-              onChange={(e) => setSliderConfig(prev => ({ 
-                ...prev, 
-                heightMobile: parseInt(e.target.value) 
+              onChange={(e) => setSliderConfig(prev => ({
+                ...prev,
+                heightMobile: parseInt(e.target.value)
               }))}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
@@ -368,9 +359,9 @@ export default function AdminHomePageCMS() {
               <input
                 type="checkbox"
                 checked={sliderConfig.showArrows}
-                onChange={(e) => setSliderConfig(prev => ({ 
-                  ...prev, 
-                  showArrows: e.target.checked 
+                onChange={(e) => setSliderConfig(prev => ({
+                  ...prev,
+                  showArrows: e.target.checked
                 }))}
                 className="rounded border-gray-300"
               />
@@ -380,9 +371,9 @@ export default function AdminHomePageCMS() {
               <input
                 type="checkbox"
                 checked={sliderConfig.showDots}
-                onChange={(e) => setSliderConfig(prev => ({ 
-                  ...prev, 
-                  showDots: e.target.checked 
+                onChange={(e) => setSliderConfig(prev => ({
+                  ...prev,
+                  showDots: e.target.checked
                 }))}
                 className="rounded border-gray-300"
               />
@@ -418,14 +409,14 @@ export default function AdminHomePageCMS() {
                     fill
                     className="object-cover"
                   />
-                  <div 
+                  <div
                     className="absolute inset-0 opacity-70 mix-blend-multiply"
                     style={{
                       background: `linear-gradient(to right, ${slide.gradientFrom}, ${slide.gradientTo})`
                     }}
                   />
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between">
                     <div>
@@ -460,8 +451,8 @@ export default function AdminHomePageCMS() {
                       })()}
                       <div className="flex items-center gap-4 mt-2">
                         <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                          slide.active 
-                            ? 'bg-green-100 text-green-800' 
+                          slide.active
+                            ? 'bg-green-100 text-green-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}>
                           {slide.active ? 'Ativo' : 'Inativo'}
@@ -469,7 +460,7 @@ export default function AdminHomePageCMS() {
                         <span className="text-xs text-gray-500">Ordem: {slide.order}</span>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => moveSlide(slide.id, 'up')}
@@ -529,7 +520,7 @@ export default function AdminHomePageCMS() {
               </div>
             </div>
           ))}
-          
+
           {slides.length === 0 && (
             <div className="p-12 text-center text-gray-500">
               <svg viewBox="0 0 24 24" className="h-12 w-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" strokeWidth="2">
@@ -560,14 +551,14 @@ export default function AdminHomePageCMS() {
 }
 
 // Componente do formulário de slide
-function SlideForm({ 
-  slide, 
-  onSave, 
-  onCancel 
-}: { 
-  slide: HeroSlide | null; 
-  onSave: (slide: HeroSlide) => void; 
-  onCancel: () => void; 
+function SlideForm({
+  slide,
+  onSave,
+  onCancel
+}: {
+  slide: HeroSlide | null;
+  onSave: (slide: HeroSlide) => void;
+  onCancel: () => void;
 }) {
   const [formData, setFormData] = useState<HeroSlide>(
     slide || {
@@ -596,11 +587,11 @@ function SlideForm({
   const [dragOverMain, setDragOverMain] = useState<boolean>(false);
 
   const [uploadError, setUploadError] = useState<string | null>(null);
-  
+
   const doUpload = async (file: File) => {
     try {
       setUploadError(null);
-      
+
       // Validar tamanho do arquivo (máximo 4MB para Vercel)
       const maxSize = 4 * 1024 * 1024; // 4MB
       if (file.size > maxSize) {
@@ -608,30 +599,29 @@ function SlideForm({
         setUploadError(`Arquivo muito grande (${sizeMB}MB). Máximo permitido: 4MB. Reduza o tamanho da imagem.`);
         return;
       }
-      
+
       // Validar tipo de arquivo
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
       if (!allowedTypes.includes(file.type)) {
         setUploadError('Tipo de arquivo não suportado. Use JPG, PNG, WebP ou GIF.');
         return;
       }
-      
+
       setImgUploading(true);
       console.log('[SlideForm] Iniciando upload de arquivo:', file.name, file.type, file.size);
       const form = new FormData();
       form.append('file', file);
-      const res = await fetch('/api/upload', { 
-        method: 'POST', 
-        headers: { 'Authorization': 'Bearer admin-token' }, 
-        body: form 
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: form
       });
       console.log('[SlideForm] Upload response status:', res.status);
-      
+
       if (res.status === 403) {
         setUploadError('Erro de permissão. Tente reduzir o tamanho da imagem para menos de 4MB.');
         return;
       }
-      
+
       const j = await res.json();
       console.log('[SlideForm] Upload response body:', j);
       if (!res.ok || !j?.ok) {

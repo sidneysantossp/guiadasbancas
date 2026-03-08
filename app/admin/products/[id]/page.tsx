@@ -21,7 +21,7 @@ export default function AdminProductEditPage() {
   const router = useRouter();
   const params = useParams();
   const toast = useToast();
-  
+
   const [product, setProduct] = useState<any>(null);
   const [images, setImages] = useState<string[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
@@ -45,17 +45,15 @@ export default function AdminProductEditPage() {
         setError(null);
         const id = String(params?.id || "");
         if (!id) throw new Error("Produto inválido");
-        
+
         const res = await fetch(`/api/admin/products/${id}`, {
-          headers: {
-            'Authorization': 'Bearer admin-token'
-          }
+
         });
         if (!res.ok) throw new Error("Não foi possível carregar o produto.");
         const json = await res.json();
         if (!json.success) throw new Error(json.error || "Erro ao carregar produto");
         const productData = json.data;
-        
+
         setProduct(productData);
         setProductName(productData.name || "");
         setProductMiniDesc(productData.description || "");
@@ -69,7 +67,7 @@ export default function AdminProductEditPage() {
         setLoading(false);
       }
     };
-    
+
     const loadCategories = async () => {
       try {
         const res = await fetch("/api/categories", { cache: "no-store" });
@@ -81,7 +79,7 @@ export default function AdminProductEditPage() {
         toast.error(e?.message || "Não foi possível carregar categorias");
       }
     };
-    
+
     loadProduct();
     loadCategories();
   }, [params?.id, toast]);
@@ -93,7 +91,7 @@ export default function AdminProductEditPage() {
     try {
       const fd = new FormData(e.currentTarget);
       const uploadedUrls: string[] = [];
-      
+
       // Upload das imagens principais
       for (const src of images) {
         if (src.startsWith("data:")) {
@@ -102,7 +100,6 @@ export default function AdminProductEditPage() {
           form.append("file", blob, `img-${Date.now()}.png`);
           const up = await fetch("/api/upload", {
             method: "POST",
-            headers: { Authorization: "Bearer admin-token" },
             body: form,
           });
           const upJson = await up.json();
@@ -138,13 +135,11 @@ export default function AdminProductEditPage() {
       const vr = validateProductUpdate(body as any);
       if (!vr.ok) throw new Error(vr.error);
       const id = String(params?.id || "");
-      const res = await fetch(`/api/admin/products/${id}`, { 
-        method: 'PUT', 
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        }, 
-        body: JSON.stringify(vr.data) 
+      const res = await fetch(`/api/admin/products/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'},
+        body: JSON.stringify(vr.data)
       });
       if (!res.ok) throw new Error('Falha ao salvar produto.');
       toast.success('Produto atualizado com sucesso');
@@ -185,26 +180,26 @@ export default function AdminProductEditPage() {
         <div className="lg:col-span-2 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
           <div>
             <label className="text-sm font-medium">Nome do Produto</label>
-            <input 
-              name="name" 
-              required 
-              defaultValue={product?.name || ""} 
+            <input
+              name="name"
+              required
+              defaultValue={product?.name || ""}
               onChange={(e) => setProductName(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
           </div>
           <div>
             <label className="text-sm font-medium">Mini Descrição</label>
-            <textarea 
-              name="description" 
-              rows={3} 
-              placeholder="Descrição breve que aparece no card do produto" 
-              defaultValue={product?.description || ""} 
+            <textarea
+              name="description"
+              rows={3}
+              placeholder="Descrição breve que aparece no card do produto"
+              defaultValue={product?.description || ""}
               onChange={(e) => setProductMiniDesc(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
           </div>
-          
+
           <div>
             <RichTextEditor
               label="Descrição Completa"
@@ -217,7 +212,7 @@ export default function AdminProductEditPage() {
               }}
             />
           </div>
-          
+
           <div>
             <SpecificationsEditor
               value={specifications}
@@ -225,30 +220,30 @@ export default function AdminProductEditPage() {
             />
           </div>
           <div>
-            <ProductImageUploader 
-              images={images} 
+            <ProductImageUploader
+              images={images}
               onChange={setImages}
               maxImages={4}
             />
           </div>
-          
+
         </div>
 
         <div className="space-y-3">
           {/* Tutorial em vídeo */}
-          <VideoTutorial 
+          <VideoTutorial
             title="Como Editar um Produto"
             videoId="dQw4w9WgXcQ"
             description="Aprenda passo a passo como editar produtos da banca"
           />
-          
+
           <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
             {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
             <div>
               <label className="text-sm font-medium">Categoria (Opcional)</label>
-              <select 
-                name="category" 
-                defaultValue={product?.category_id || ""} 
+              <select
+                name="category"
+                defaultValue={product?.category_id || ""}
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 required={false}
                 aria-required="false"
@@ -263,109 +258,109 @@ export default function AdminProductEditPage() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-sm font-medium">Preço</label>
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  name="price" 
-                  required 
-                  defaultValue={product?.price || ""} 
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+                <input
+                  type="number"
+                  step="0.01"
+                  name="price"
+                  required
+                  defaultValue={product?.price || ""}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>
               <div>
                 <label className="text-sm font-medium">Preço original</label>
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  name="price_original" 
-                  defaultValue={product?.price_original || ""} 
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+                <input
+                  type="number"
+                  step="0.01"
+                  name="price_original"
+                  defaultValue={product?.price_original || ""}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-sm font-medium">Desconto (%)</label>
-                <input 
-                  type="number" 
-                  step="1" 
-                  min={0} 
-                  max={100} 
-                  name="discount_percent" 
-                  defaultValue={product?.discount_percent || ""} 
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+                <input
+                  type="number"
+                  step="1"
+                  min={0}
+                  max={100}
+                  name="discount_percent"
+                  defaultValue={product?.discount_percent || ""}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>
               <div>
                 <label className="text-sm font-medium">Cupom</label>
-                <input 
-                  name="coupon_code" 
-                  placeholder="EX: BANCAX10" 
-                  defaultValue={product?.coupon_code || ""} 
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+                <input
+                  name="coupon_code"
+                  placeholder="EX: BANCAX10"
+                  defaultValue={product?.coupon_code || ""}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-sm font-medium">Estoque</label>
-                <input 
-                  type="number" 
-                  name="stock" 
-                  defaultValue={product?.stock_qty || ""} 
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+                <input
+                  type="number"
+                  name="stock"
+                  defaultValue={product?.stock_qty || ""}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>
               <div className="flex items-end">
                 <label className="inline-flex items-center gap-2 text-sm">
-                  <input 
-                    name="track_stock" 
-                    type="checkbox" 
-                    defaultChecked={product?.track_stock || false} 
-                    className="rounded" 
+                  <input
+                    name="track_stock"
+                    type="checkbox"
+                    defaultChecked={product?.track_stock || false}
+                    className="rounded"
                   /> Controlar estoque
                 </label>
               </div>
             </div>
-            
+
             <div className="pt-2 border-t border-gray-200 space-y-3">
               <label className="inline-flex items-center gap-2 text-sm">
-                <input 
-                  name="active" 
-                  type="checkbox" 
-                  defaultChecked={product?.active !== false} 
-                  className="rounded" 
+                <input
+                  name="active"
+                  type="checkbox"
+                  defaultChecked={product?.active !== false}
+                  className="rounded"
                 /> Produto ativo
               </label>
-              
+
               <div>
                 <div className="text-sm font-medium text-gray-900 mb-2">📦 Disponibilidade</div>
                 <div className="space-y-2">
                   <label className="inline-flex items-center gap-2 text-sm">
-                    <input 
-                      name="pronta_entrega" 
-                      type="checkbox" 
-                      defaultChecked={product?.pronta_entrega || false} 
-                      className="rounded text-green-600" 
-                    /> 
+                    <input
+                      name="pronta_entrega"
+                      type="checkbox"
+                      defaultChecked={product?.pronta_entrega || false}
+                      className="rounded text-green-600"
+                    />
                     <span className="text-green-700">✅ Pronta Entrega</span>
                   </label>
                   <label className="inline-flex items-center gap-2 text-sm">
-                    <input 
-                      name="sob_encomenda" 
-                      type="checkbox" 
-                      defaultChecked={product?.sob_encomenda || false} 
-                      className="rounded text-blue-600" 
-                    /> 
+                    <input
+                      name="sob_encomenda"
+                      type="checkbox"
+                      defaultChecked={product?.sob_encomenda || false}
+                      className="rounded text-blue-600"
+                    />
                     <span className="text-blue-700">📋 Sob Encomenda</span>
                   </label>
                   <label className="inline-flex items-center gap-2 text-sm">
-                    <input 
-                      name="pre_venda" 
-                      type="checkbox" 
-                      defaultChecked={product?.pre_venda || false} 
-                      className="rounded text-purple-600" 
-                    /> 
+                    <input
+                      name="pre_venda"
+                      type="checkbox"
+                      defaultChecked={product?.pre_venda || false}
+                      className="rounded text-purple-600"
+                    />
                     <span className="text-purple-700">🔮 Pré-Venda</span>
                   </label>
                 </div>
@@ -376,11 +371,11 @@ export default function AdminProductEditPage() {
             </div>
             <div className="pt-2 border-t border-gray-200">
               <label className="inline-flex items-start gap-3 text-sm">
-                <input 
-                  name="featured" 
-                  type="checkbox" 
-                  defaultChecked={product?.featured || false} 
-                  className="rounded mt-0.5" 
+                <input
+                  name="featured"
+                  type="checkbox"
+                  defaultChecked={product?.featured || false}
+                  className="rounded mt-0.5"
                   disabled={!canFeature}
                 />
                 <div>
@@ -389,8 +384,8 @@ export default function AdminProductEditPage() {
                     Produto aparecerá na seção especial da vitrine da banca.
                     <br />
                     <span className={`font-medium ${canFeature ? 'text-green-600' : 'text-amber-600'}`}>
-                      {canFeature 
-                        ? `✅ ${8 - featuredCount} vagas disponíveis de 8` 
+                      {canFeature
+                        ? `✅ ${8 - featuredCount} vagas disponíveis de 8`
                         : '⚠️ Limite de 8 produtos atingido! Desative algum produto abaixo.'
                       }
                     </span>
@@ -398,7 +393,7 @@ export default function AdminProductEditPage() {
                 </div>
               </label>
             </div>
-            
+
             <div className="pt-2">
               <button
                 disabled={saving}
@@ -408,7 +403,7 @@ export default function AdminProductEditPage() {
               </button>
             </div>
           </div>
-          
+
           {/* Gestão de avaliações */}
           <ReviewsManager
             allowReviews={allowReviews}

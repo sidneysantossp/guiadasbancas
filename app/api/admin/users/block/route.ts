@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
-
-function verifyAdminAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get("Authorization");
-  return authHeader === "Bearer admin-token";
-}
 
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const { userId, reason } = await request.json();
 
@@ -73,9 +68,8 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");

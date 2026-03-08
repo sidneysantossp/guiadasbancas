@@ -37,7 +37,7 @@ export default function VendorBannerAdminPage() {
     text_position: "bottom-left",
     active: true
   });
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -57,9 +57,9 @@ export default function VendorBannerAdminPage() {
     try {
       setLoading(true);
       const response = await fetch('/api/admin/vendor-banner', {
-        headers: { 'Authorization': 'Bearer admin-token' }
+
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.data) {
@@ -75,42 +75,40 @@ export default function VendorBannerAdminPage() {
 
   const saveBanner = async () => {
     console.log('🚀 Iniciando saveBanner...');
-    
+
     try {
       setSaving(true);
       console.log('📝 Dados do banner:', JSON.stringify(banner, null, 2));
       console.log('🖼️ URL da imagem específica:', banner.image_url);
       console.log('📏 Tamanho da URL:', banner.image_url?.length);
       console.log('🔍 Tipo da URL:', typeof banner.image_url);
-      
+
       // Timeout de 5 segundos
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         console.log('⏰ TIMEOUT! Cancelando requisição...');
         controller.abort();
       }, 5000);
-      
+
       console.log('📡 Fazendo requisição com timeout de 5s...');
       const response = await fetch('/api/admin/vendor-banner', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify(banner),
         signal: controller.signal
       });
 
       clearTimeout(timeoutId);
       console.log('📨 Response recebida - Status:', response.status);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       const result = await response.json();
       console.log('📊 Result:', result);
-      
+
       if (result.success === true) {
         console.log('🎉 SUCESSO!');
         setMessage({ type: 'success', text: result.message || 'Banner salvo com sucesso!' });
@@ -120,7 +118,7 @@ export default function VendorBannerAdminPage() {
       }
     } catch (error: any) {
       console.error('💥 ERRO:', error);
-      
+
       if (error.name === 'AbortError') {
         setMessage({ type: 'error', text: 'Timeout: Operação cancelada (5s)' });
       } else {
@@ -137,13 +135,12 @@ export default function VendorBannerAdminPage() {
       setUploading(true);
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const response = await fetch('/api/upload', {
         method: 'POST',
-        headers: { 'Authorization': 'Bearer admin-token' },
         body: formData
       });
-      
+
       const result = await response.json();
       if (result.ok && result.url) {
         setBanner(prev => ({ ...prev, image_url: result.url }));
@@ -204,11 +201,11 @@ export default function VendorBannerAdminPage() {
             <div className="relative h-96 sm:h-64 md:h-72 w-full">
               {(() => {
                 // Verificar se é uma URL válida de imagem
-                const isValidImageUrl = banner.image_url && 
+                const isValidImageUrl = banner.image_url &&
                   banner.image_url.length > 15 &&
-                  (banner.image_url.includes('.jpg') || banner.image_url.includes('.jpeg') || 
+                  (banner.image_url.includes('.jpg') || banner.image_url.includes('.jpeg') ||
                    banner.image_url.includes('.png') || banner.image_url.includes('.webp'));
-                
+
                 if (isValidImageUrl) {
                   return (
                     <div className="relative w-full h-full">
@@ -228,7 +225,7 @@ export default function VendorBannerAdminPage() {
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                       <div className="text-center px-4">
                         <span className="text-gray-500 block mb-2">
-                          {banner.image_url && banner.image_url.length > 0 
+                          {banner.image_url && banner.image_url.length > 0
                             ? `Digitando... (${banner.image_url?.length || 0} chars)`
                             : 'Cole uma URL de imagem para preview'
                           }
@@ -267,7 +264,7 @@ export default function VendorBannerAdminPage() {
       {/* Formulário */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
         <h2 className="text-lg font-semibold mb-4">Configurações</h2>
-        
+
         <div className="space-y-4">
           {/* Status */}
           <div className="flex items-center gap-2">
@@ -364,7 +361,7 @@ export default function VendorBannerAdminPage() {
               onChange={(e) => setBanner(prev => ({ ...prev, image_url: e.target.value }))}
               className={`w-full rounded-md border px-3 py-2 text-sm mb-2 transition-colors ${
                 banner.image_url && banner.image_url.startsWith('http') && banner.image_url.length > 15
-                  ? 'border-green-300 bg-green-50' 
+                  ? 'border-green-300 bg-green-50'
                   : 'border-gray-300'
               }`}
               placeholder="Cole aqui a URL da sua imagem: https://exemplo.com/imagem.jpg"
@@ -376,14 +373,14 @@ export default function VendorBannerAdminPage() {
               {mounted && (
                 <span className={`${
                   banner.image_url && banner.image_url.startsWith('http') && banner.image_url.length > 15
-                    ? 'text-green-600' 
+                    ? 'text-green-600'
                     : 'text-gray-400'
                 }`}>
                   {banner.image_url?.length || 0} chars
                 </span>
               )}
             </div>
-            
+
             {/* URLs de exemplo */}
             <div className="mb-2">
               <p className="text-xs text-gray-500 mb-1">💡 Use suas próprias imagens hospedadas:</p>
@@ -404,7 +401,7 @@ export default function VendorBannerAdminPage() {
                 ))}
               </div>
             </div>
-            
+
             <div
               className={`border-2 border-dashed rounded-lg p-6 text-center ${
                 dragOver ? 'border-[#ff5c00] bg-orange-50' : 'border-gray-300 bg-gray-50'
@@ -447,7 +444,7 @@ export default function VendorBannerAdminPage() {
           {/* Customização Avançada */}
           <div className="pt-6 border-t border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">🎨 Customização Avançada</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Cores */}
               <div>
@@ -582,7 +579,7 @@ export default function VendorBannerAdminPage() {
                 {saving ? 'Salvando...' : 'Salvar Banner'}
               </button>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <a
                 href="/admin/cms/vendor-banner/analytics"

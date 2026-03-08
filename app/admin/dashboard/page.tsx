@@ -24,7 +24,7 @@ export default function AdminDashboardPage() {
         const [ordersRes, productsRes] = await Promise.all([
           fetch('/api/orders'),
           fetch('/api/admin/products', {
-            headers: { 'Authorization': 'Bearer admin-token' }
+
           }),
         ]);
         const ordersJson = await ordersRes.json();
@@ -120,7 +120,7 @@ export default function AdminDashboardPage() {
                 <div className="text-sm text-gray-600">Configure o slider principal e seções</div>
               </div>
             </Link>
-            
+
             <Link href="/admin/bancas" className="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
               <span className="text-2xl mr-3">🏪</span>
               <div>
@@ -175,7 +175,7 @@ export default function AdminDashboardPage() {
                 <div className="text-sm text-gray-600">{admin?.email || 'admin@guiadasbancas.com'}</div>
               </div>
             </div>
-            
+
             <div className="pt-4 border-t border-gray-200">
               <div className="text-sm text-gray-600">
                 <div className="flex justify-between py-1">

@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
-
-function verifyAdminAuth(request: NextRequest) {
-  const auth = request.headers.get("authorization");
-  return auth === "Bearer admin-token";
-}
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
     const id = params.id;
     const body = await request.json();
     const payload: any = {};
@@ -33,9 +28,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
     const id = params.id;
     const { error } = await supabaseAdmin
       .from("mini_banners")

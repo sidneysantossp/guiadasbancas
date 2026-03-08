@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from '@/lib/supabase';
-import { auth } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -9,19 +9,8 @@ export const maxDuration = 300;
 // Upload em massa de imagens com vinculação automática por código Mercos
 export async function POST(req: NextRequest) {
   try {
-    // Suporta dois modos de auth: NextAuth (session) ou header Bearer 'admin-token'
-    const bearer = req.headers.get('authorization');
-    const hasAdminToken = !!bearer && bearer.trim() === 'Bearer admin-token';
-    let isAdmin = hasAdminToken;
-
-    if (!isAdmin) {
-      const session = await auth();
-      isAdmin = !!(session?.user && (session.user as any).role === 'admin');
-    }
-
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
 
     const formData = await req.formData();
     const files = formData.getAll('images') as File[];

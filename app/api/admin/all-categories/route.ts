@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
-
-function verifyAdminAuth(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  return Boolean(authHeader && authHeader === "Bearer admin-token");
-}
 
 /**
  * GET - Retorna TODAS as categorias (bancas + distribuidores) para filtros
  */
 export async function GET(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     // Buscar categorias de bancas
     const { data: categoriesBancas } = await supabaseAdmin

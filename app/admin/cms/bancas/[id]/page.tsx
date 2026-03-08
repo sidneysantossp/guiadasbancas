@@ -15,13 +15,13 @@ export default function EditBancaPage() {
   const params = useParams();
   const bancaId = params.id as string;
   const { items: categories } = useCategories();
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
-  
+
   // Form fields
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
@@ -37,7 +37,7 @@ export default function EditBancaPage() {
   const [cover, setCover] = useState("");
   const [avatar, setAvatar] = useState("");
   const [gallery, setGallery] = useState<string[]>([]);
-  
+
   // Track changes in cover and avatar
   const handleCoverChange = (url: string) => {
     console.log('handleCoverChange called with URL:', url);
@@ -45,7 +45,7 @@ export default function EditBancaPage() {
     setHasChanges(true);
     console.log('hasChanges set to true');
   };
-  
+
   const handleAvatarChange = (url: string) => {
     console.log('handleAvatarChange called with URL:', url);
     setAvatar(url);
@@ -73,7 +73,7 @@ export default function EditBancaPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState<string>("");
-  
+
   // Estados para cotista
   const [isCotista, setIsCotista] = useState<boolean>(false);
   const [selectedCotista, setSelectedCotista] = useState<{
@@ -82,7 +82,7 @@ export default function EditBancaPage() {
     razao_social: string;
     cnpj_cpf: string;
   } | null>(null);
-  
+
   // Estados brasileiros
   const estados = [
     { sigla: 'AC', nome: 'Acre' },
@@ -113,7 +113,7 @@ export default function EditBancaPage() {
     { sigla: 'SE', nome: 'Sergipe' },
     { sigla: 'TO', nome: 'Tocantins' }
   ];
-  
+
   // Tabs configuration
   // Horários
   const [hours, setHours] = useState([
@@ -132,10 +132,10 @@ export default function EditBancaPage() {
       try {
         setLoading(true);
         const res = await fetch(`/api/admin/bancas?id=${bancaId}`, {
-          headers: { 'Authorization': 'Bearer admin-token' }
+
         });
         const json = await res.json();
-        
+
         if (json?.success && json.data) {
           const banca = json.data;
           setName(banca.name || "");
@@ -189,8 +189,8 @@ export default function EditBancaPage() {
   }, [bancaId]);
 
   const toggleCategory = (categoryId: string) => {
-    setSelectedCategories(prev => 
-      prev.includes(categoryId) 
+    setSelectedCategories(prev =>
+      prev.includes(categoryId)
         ? prev.filter(id => id !== categoryId)
         : [...prev, categoryId]
     );
@@ -199,7 +199,7 @@ export default function EditBancaPage() {
   const handleCepChange = async (value: string) => {
     const maskedCep = maskCEP(value);
     setCep(maskedCep);
-    
+
     if (maskedCep.length === 9) {
       setLoadingCep(true);
       try {
@@ -248,7 +248,7 @@ export default function EditBancaPage() {
     try {
       const res = await fetch('/api/admin/reset-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin-token' },
+        headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify({ email, password: resetPwd })
       });
       const j = await res.json().catch(()=>({}));
@@ -271,7 +271,7 @@ export default function EditBancaPage() {
 
 
   const updateHour = (index: number, field: string, value: any) => {
-    setHours(prev => prev.map((hour, i) => 
+    setHours(prev => prev.map((hour, i) =>
       i === index ? { ...hour, [field]: value } : hour
     ));
   };
@@ -287,10 +287,7 @@ export default function EditBancaPage() {
     try {
       const response = await fetch(`/api/admin/bancas?id=${bancaId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': 'Bearer admin-token',
-        },
-      });
+        });
 
       const result = await response.json();
 
@@ -343,14 +340,12 @@ export default function EditBancaPage() {
       const res = await fetch('/api/admin/bancas', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({ data })
       });
 
       const json = await res.json();
-      
+
       if (json?.success) {
         setSuccess('✅ Alterações realizadas com sucesso!');
         setHasChanges(false);
@@ -468,7 +463,7 @@ export default function EditBancaPage() {
                   E-mail utilizado pelo jornaleiro para acessar o painel.
                 </p>
               </div>
-              
+
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <h3 className="text-sm font-medium text-gray-900 mb-3">Redefinir Senha</h3>
                 <div className="space-y-3">
@@ -486,10 +481,10 @@ export default function EditBancaPage() {
                     onChange={(e) => setResetPwd2(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm"
                   />
-                  
+
                   {resetErr && <p className="text-red-600 text-xs font-medium">{resetErr}</p>}
                   {resetMsg && <p className="text-green-600 text-xs font-medium">{resetMsg}</p>}
-                  
+
                   <button
                     type="button"
                     onClick={onResetPassword}
@@ -647,7 +642,7 @@ export default function EditBancaPage() {
                 <span className="ml-3 text-sm font-medium text-gray-700">É Banca Cotista</span>
               </label>
             </div>
-            
+
             {isCotista && (
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-4">
                 <CotistaSearch
@@ -655,7 +650,7 @@ export default function EditBancaPage() {
                   initialValue={selectedCotista?.codigo}
                   disabled={false}
                 />
-                
+
                 {selectedCotista && (
                   <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                     <div className="flex items-center justify-between mb-2">
@@ -698,7 +693,7 @@ export default function EditBancaPage() {
                 <p className="text-sm text-gray-500">Defina os horários em que a banca está aberta.</p>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               {hours.map((day, index) => (
                 <div key={day.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -747,7 +742,7 @@ export default function EditBancaPage() {
                       className="px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:text-gray-400"
                     />
                   </div>
-                  
+
                   {!day.start && (
                     <span className="text-sm text-gray-500 italic ml-4">Fechado</span>
                   )}
@@ -759,7 +754,7 @@ export default function EditBancaPage() {
           {/* IMAGENS */}
           <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900 mb-6">Imagens da Banca</h2>
-            
+
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Foto Principal (Avatar)</label>
@@ -883,7 +878,7 @@ export default function EditBancaPage() {
           <div className="bg-red-50 border border-red-200 rounded-xl p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-red-800 mb-2">Zona de Perigo</h2>
             <p className="text-sm text-red-600 mb-6">Ações irreversíveis para esta banca.</p>
-            
+
             {!showDeleteConfirm ? (
               <button
                 type="button"

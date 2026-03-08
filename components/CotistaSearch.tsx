@@ -79,7 +79,7 @@ export default function CotistaSearch({
         try {
           setLoading(true);
           const res = await fetch(`/api/admin/cotistas?search=${encodeURIComponent(search)}&limit=10`, {
-            headers: { 'Authorization': 'Bearer admin-token' }
+
           });
           const json = await res.json();
           if (json.success) {

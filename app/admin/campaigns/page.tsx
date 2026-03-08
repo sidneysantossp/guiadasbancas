@@ -70,7 +70,7 @@ export default function AdminCampaignsPage() {
     try {
       const res = await fetch(`/api/admin/campaigns/${campaignId}/delete`, {
         method: 'DELETE',
-        headers: { 'Authorization': 'Bearer admin-token' }
+
       });
 
       if (res.ok) {
@@ -89,9 +89,7 @@ export default function AdminCampaignsPage() {
       const res = await fetch(`/api/admin/campaigns/${campaignId}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           status: 'cancelled',
           admin_message: 'Campanha arquivada pelo administrador'
@@ -114,12 +112,12 @@ export default function AdminCampaignsPage() {
       setLoading(true);
       const params = new URLSearchParams();
       if (selectedStatus) params.set('status', selectedStatus);
-      
+
       const res = await fetch(`/api/admin/campaigns?${params.toString()}`, {
-        headers: { 'Authorization': 'Bearer admin-token' }
+
       });
       const json = await res.json();
-      
+
       if (json.success) {
         setCampaigns(json.data);
       }
@@ -155,9 +153,7 @@ export default function AdminCampaignsPage() {
       const res = await fetch(`/api/admin/campaigns/${selectedCampaign.id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify(body)
       });
 
@@ -253,7 +249,7 @@ export default function AdminCampaignsPage() {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusLabels[campaign.status].color}`}>
                         {statusLabels[campaign.status].label}
@@ -364,7 +360,7 @@ export default function AdminCampaignsPage() {
                         </button>
                       </>
                     )}
-                    
+
                     {/* Ações gerais sempre disponíveis */}
                     <button
                       onClick={() =>
@@ -382,7 +378,7 @@ export default function AdminCampaignsPage() {
                     >
                       👁️ Ver
                     </button>
-                    
+
                     <button
                       onClick={() => window.open(`/admin/campaigns/${campaign.id}/edit`, '_blank')}
                       className="flex items-center gap-1 bg-yellow-500 text-white px-3 py-1.5 rounded-md text-xs hover:bg-yellow-600"
@@ -390,7 +386,7 @@ export default function AdminCampaignsPage() {
                     >
                       ✏️ Editar
                     </button>
-                    
+
                     {(campaign.status === 'expired' || campaign.status === 'rejected') && (
                       <button
                         onClick={() => handleArchive(campaign.id)}
@@ -400,7 +396,7 @@ export default function AdminCampaignsPage() {
                         📁 Arquivar
                       </button>
                     )}
-                    
+
                     <button
                       onClick={() => handleDelete(campaign.id)}
                       className="flex items-center gap-1 bg-red-600 text-white px-3 py-1.5 rounded-md text-xs hover:bg-red-700"
@@ -423,7 +419,7 @@ export default function AdminCampaignsPage() {
             <h3 className="text-lg font-semibold mb-4">
               {modalAction === 'approve' ? 'Aprovar Campanha' : 'Rejeitar Campanha'}
             </h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">

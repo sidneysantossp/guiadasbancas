@@ -55,11 +55,6 @@ export default function JornaleiroProdutosPage() {
   const [overdueInGracePeriod, setOverdueInGracePeriod] = useState(false);
   const [overdueGraceEndsAt, setOverdueGraceEndsAt] = useState<string | null>(null);
   const [contractedPlanName, setContractedPlanName] = useState<string | null>(null);
-  const authHeaders = useMemo(() => {
-    if (typeof window === "undefined") return {};
-    const token = window.localStorage.getItem("gb:sellerToken") || "seller-token";
-    return { Authorization: `Bearer ${token}` } as Record<string, string>;
-  }, []);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -91,7 +86,7 @@ export default function JornaleiroProdutosPage() {
       if (category) params.set("category", category);
       if (status) params.set("active", String(status === "ativo"));
       if (priceFilter) params.set("priceFilter", priceFilter);
-      const res = await fetch(`/api/jornaleiro/products?${params.toString()}`, { headers: authHeaders, cache: "no-store" });
+      const res = await fetch(`/api/jornaleiro/products?${params.toString()}`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok || json?.success === false) {
         throw new Error(json?.error || "Erro ao carregar produtos");
@@ -123,10 +118,7 @@ export default function JornaleiroProdutosPage() {
 
   const loadPlanUsage = async () => {
     try {
-      const res = await fetch("/api/jornaleiro/products?stats=true", {
-        headers: authHeaders,
-        cache: "no-store",
-      });
+      const res = await fetch("/api/jornaleiro/products?stats=true", { cache: "no-store" });
       const json = await res.json();
       if (!res.ok || json?.success === false) {
         throw new Error(json?.error || "Erro ao carregar limites do plano");
@@ -174,7 +166,7 @@ export default function JornaleiroProdutosPage() {
       setSavingId(row.id);
       const res = await fetch(`/api/jornaleiro/products/${row.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...authHeaders },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !row.active, updated_at: new Date().toISOString() }),
       });
       if (!res.ok) {

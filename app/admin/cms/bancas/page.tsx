@@ -41,7 +41,7 @@ export default function BancasPage() {
     try {
       setLoading(true);
       const res = await fetch('/api/admin/bancas?all=true', {
-        headers: { 'Authorization': 'Bearer admin-token' }
+
       });
       const json = await res.json();
       if (json?.success) {
@@ -72,9 +72,7 @@ export default function BancasPage() {
       const res = await fetch('/api/admin/bancas', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           data: {
             id: banca.id,
@@ -86,7 +84,7 @@ export default function BancasPage() {
 
       if (res.ok) {
         // Atualizar o estado local
-        setItems(items.map(item => 
+        setItems(items.map(item =>
           item.id === banca.id ? { ...item, active: newStatus } : item
         ));
         console.log(`Banca ${banca.name} ${newStatus ? 'ativada' : 'desativada'} com sucesso`);
@@ -102,9 +100,7 @@ export default function BancasPage() {
     try {
       const res = await fetch(`/api/admin/bancas?id=${banca.id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': 'Bearer admin-token'
-        }
+
       });
 
       const result = await res.json();
@@ -241,7 +237,7 @@ export default function BancasPage() {
                       {item.active ? 'Ativa' : 'Inativa'}
                     </span>
                   </label>
-                  
+
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => onEdit(item)}

@@ -71,9 +71,7 @@ export default function BrandingPage() {
       const response = await fetch('/api/admin/branding', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({ data: config })
       });
 
@@ -102,8 +100,7 @@ export default function BrandingPage() {
       const res = await fetch('/api/upload', {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer admin-token',
-        },
+          },
         body: fd,
       });
       const json = await res.json();
@@ -128,8 +125,7 @@ export default function BrandingPage() {
       const res = await fetch('/api/upload', {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer admin-token',
-        },
+          },
         body: fd,
       });
       const json = await res.json();

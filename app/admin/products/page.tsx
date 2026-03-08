@@ -38,14 +38,11 @@ export default function AdminProductsPage() {
       if (distParam) params.set('distribuidor', distParam);
 
       const res = await fetch(`/api/admin/products?${params.toString()}&_t=${Date.now()}`, {
-        headers: {
-          'Authorization': 'Bearer admin-token'
-        },
         cache: 'no-store'
       });
-      
+
       console.log('📡 Status da resposta:', res.status);
-      
+
       if (!res.ok) {
         console.error('❌ Erro na resposta:', res.status, res.statusText);
         const text = await res.text();
@@ -53,17 +50,17 @@ export default function AdminProductsPage() {
         setLoading(false);
         return;
       }
-      
+
       const json = await res.json();
       console.log('📦 JSON recebido:', json);
       console.log('📦 JSON.data:', json?.data);
       console.log('📦 É array?:', Array.isArray(json?.data));
-      
+
       const items = Array.isArray(json?.data) ? json.data : [];
       const totalFromServer = Number(json?.total || 0);
       console.log('📋 Total de produtos:', items.length);
       console.log('📋 Primeiros itens:', items.slice(0, 2));
-      
+
       // adaptar para colunas esperadas
       setRows(items.map((p: any) => ({
         id: p.id,
@@ -81,7 +78,7 @@ export default function AdminProductsPage() {
         distribuidor_id: p.distribuidor_id || null,
         distribuidor_nome: p.distribuidor_nome || "Guia das Bancas", // Nome do distribuidor ou padrão
       })));
-      
+
       setTotal(totalFromServer);
       setPage(pageParam);
       setPageSize(pageSizeParam);
@@ -103,7 +100,6 @@ export default function AdminProductsPage() {
       const res = await fetch('/api/admin/products/bulk-delete', {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer admin-token',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ ids: selectedIds })
@@ -132,20 +128,18 @@ export default function AdminProductsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este produto?')) return;
-    
+
     try {
       console.log('[DELETE] Excluindo produto ID:', id);
       const res = await fetch(`/api/admin/products/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': 'Bearer admin-token'
-        }
+
       });
-      
+
       console.log('[DELETE] Response status:', res.status);
       const data = await res.json().catch(() => null);
       console.log('[DELETE] Response data:', data);
-      
+
       if (res.ok && data?.success) {
         alert('✅ Produto excluído com sucesso!');
         // Recarregar a lista
@@ -180,7 +174,7 @@ export default function AdminProductsPage() {
   const fetchDistribuidores = async () => {
     try {
       const res = await fetch('/api/admin/distribuidores', {
-        headers: { 'Authorization': 'Bearer admin-token' }
+
       });
       const json = await res.json();
       if (json.success) {
@@ -194,7 +188,7 @@ export default function AdminProductsPage() {
   const fetchCategorias = async () => {
     try {
       const res = await fetch('/api/admin/all-categories', {
-        headers: { 'Authorization': 'Bearer admin-token' }
+
       });
       const json = await res.json();
       if (json.success) {
@@ -215,13 +209,13 @@ export default function AdminProductsPage() {
   }, [rows, category, status]);
 
   const columns: Column<any>[] = [
-    { 
-      key: "thumbnail", 
-      header: "Imagem", 
+    {
+      key: "thumbnail",
+      header: "Imagem",
       render: (r) => (
         <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 flex items-center justify-center">
-          <img 
-            src={r.thumbnail || '/images/no-image.svg'} 
+          <img
+            src={r.thumbnail || '/images/no-image.svg'}
             alt={r.name || 'Produto sem imagem'}
             className="w-full h-full object-cover"
             onError={(e) => {
@@ -232,9 +226,9 @@ export default function AdminProductsPage() {
         </div>
       )
     },
-    { 
-      key: "name", 
-      header: "Nome", 
+    {
+      key: "name",
+      header: "Nome",
       render: (r) => (
         <div>
           <span className="font-medium">{r.name}</span>
@@ -246,8 +240,8 @@ export default function AdminProductsPage() {
         </div>
       )
     },
-    { 
-      key: "category", 
+    {
+      key: "category",
       header: "Categoria",
       render: (r) => (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
@@ -255,9 +249,9 @@ export default function AdminProductsPage() {
         </span>
       )
     },
-    { 
-      key: "distribuidor", 
-      header: "Distribuidor", 
+    {
+      key: "distribuidor",
+      header: "Distribuidor",
       render: (r) => (
         <div className="text-sm">
           {r.distribuidor_id ? (

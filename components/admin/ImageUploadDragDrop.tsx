@@ -14,8 +14,8 @@ interface ImageUploadDragDropProps {
   className?: string;
 }
 
-export default function ImageUploadDragDrop({ 
-  label, 
+export default function ImageUploadDragDrop({
+  label,
   value,
   onChange,
   currentImage,
@@ -47,10 +47,10 @@ export default function ImageUploadDragDrop({
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    
+
     const files = Array.from(e.dataTransfer.files);
     const imageFile = files.find(file => file.type.startsWith('image/'));
-    
+
     if (imageFile) {
       await uploadFile(imageFile);
     }
@@ -66,20 +66,17 @@ export default function ImageUploadDragDrop({
   const uploadFile = async (file: File) => {
     try {
       setUploading(true);
-      
+
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const response = await fetch('/api/upload', {
         method: 'POST',
-        headers: {
-          'Authorization': 'Bearer admin-token'
-        },
         body: formData
       });
-      
+
       const result = await response.json();
-      
+
       if (result.ok && result.url) {
         console.log('ImageUpload: Calling onChange with URL:', result.url);
         await emitChange(result.url);
@@ -101,7 +98,7 @@ export default function ImageUploadDragDrop({
   return (
     <div className="space-y-3">
       <label className="text-sm font-medium">{label}</label>
-      
+
       {/* URL Input */}
       <input
         type="url"
@@ -110,7 +107,7 @@ export default function ImageUploadDragDrop({
         placeholder={placeholder}
         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
       />
-      
+
       {/* Drag & Drop Area */}
       <div
         onDragOver={handleDragOver}
@@ -125,9 +122,9 @@ export default function ImageUploadDragDrop({
       >
         {resolvedValue ? (
           <div className={`${className} relative overflow-hidden rounded-lg`}>
-            <img 
-              src={resolvedValue} 
-              alt="Preview" 
+            <img
+              src={resolvedValue}
+              alt="Preview"
               className="h-full w-full object-cover"
             />
             {uploading && (
@@ -158,7 +155,7 @@ export default function ImageUploadDragDrop({
           </div>
         )}
       </div>
-      
+
       {/* Hidden File Input */}
       <input
         ref={fileInputRef}
@@ -183,7 +180,7 @@ export default function ImageUploadDragDrop({
           Remover imagem
         </button>
       )}
-      
+
       {/* Helper Text */}
       <p className="text-xs text-gray-500">
         Formatos aceitos: JPG, PNG, GIF, WebP. Máximo 5MB.

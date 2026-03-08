@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabase } from "@/lib/supabase";
 
 type HeroSlide = {
@@ -214,15 +215,6 @@ const DEFAULT_CONFIG: SliderConfig = {
   heightMobile: 360
 };
 
-// Verificar autenticação admin
-function verifyAdminAuth(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader || authHeader !== "Bearer admin-token") {
-    return false;
-  }
-  return true;
-}
-
 // GET - Buscar slides
 export async function GET(request: NextRequest) {
   try {
@@ -250,6 +242,8 @@ export async function GET(request: NextRequest) {
 
     // Se for admin, retornar todos os slides
     if (admin === "true") {
+      const authError = await requireAdminAuth(request);
+      if (authError) return authError;
       console.log('[hero-slides GET] Retornando para admin:', slides.map(s => ({ id: s.id, title: s.title })));
       return NextResponse.json({ 
         success: true, 
@@ -285,12 +279,8 @@ export async function GET(request: NextRequest) {
 // POST - Criar novo slide
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json(
-        { success: false, error: "Não autorizado" },
-        { status: 401 }
-      );
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const body = await request.json();
     const { type, data } = body;
@@ -321,12 +311,10 @@ export async function POST(request: NextRequest) {
 // PUT - Atualizar slide
 export async function PUT(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
+    const authError = await requireAdminAuth(request);
+    if (authError) {
       console.error('[hero-slides PUT] Não autorizado');
-      return NextResponse.json(
-        { success: false, error: "Não autorizado" },
-        { status: 401 }
-      );
+      return authError;
     }
 
     const body = await request.json();
@@ -378,12 +366,8 @@ export async function PUT(request: NextRequest) {
 // DELETE - Excluir slide
 export async function DELETE(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json(
-        { success: false, error: "Não autorizado" },
-        { status: 401 }
-      );
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const { searchParams } = new URL(request.url);
     const slideId = searchParams.get("id");

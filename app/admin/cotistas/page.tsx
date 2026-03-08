@@ -49,11 +49,11 @@ export default function CotistasPage() {
       if (search) params.append('search', search);
       params.append('page', String(currentPage));
       params.append('limit', String(itemsPerPage));
-      
+
       const res = await fetch(`/api/admin/cotistas?${params}`, {
-        headers: { 'Authorization': 'Bearer admin-token' }
+
       });
-      
+
       const json = await res.json();
       if (json.success) {
         setCotistas(json.data || []);
@@ -158,8 +158,7 @@ export default function CotistasPage() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token',
-        },
+          },
         body: JSON.stringify(payload),
       });
       const json = await res.json();
@@ -178,7 +177,7 @@ export default function CotistasPage() {
     try {
       const res = await fetch(`/api/admin/cotistas/${c.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin-token' },
+        headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify({ ativo: !c.ativo }),
       });
       const json = await res.json();

@@ -78,7 +78,7 @@ export default function AdminProductCreatePage() {
     try {
       const fd = new FormData(e.currentTarget);
       const uploadedUrls: string[] = [];
-      
+
       // Processar URLs de imagens diretas (do campo de texto)
       if (imageUrls.trim()) {
         const urls = imageUrls
@@ -87,7 +87,7 @@ export default function AdminProductCreatePage() {
           .filter(url => url.length > 0);
         uploadedUrls.push(...urls);
       }
-      
+
       // Upload das imagens principais (uploader)
       for (const src of images) {
         if (src.startsWith("data:")) {
@@ -96,7 +96,6 @@ export default function AdminProductCreatePage() {
           form.append("file", blob, `img-${Date.now()}.png`);
           const up = await fetch("/api/upload", {
             method: "POST",
-            headers: { Authorization: "Bearer admin-token" },
             body: form,
           });
           const upJson = await up.json();
@@ -106,7 +105,7 @@ export default function AdminProductCreatePage() {
           uploadedUrls.push(src);
         }
       }
-      
+
 
       const body = {
         name: (fd.get("name") as string)?.trim(),
@@ -141,10 +140,8 @@ export default function AdminProductCreatePage() {
       if (!vr.ok) throw new Error(vr.error);
       const res = await fetch("/api/admin/products", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json", 
-          "Authorization": "Bearer admin-token" 
-        },
+        headers: {
+          "Content-Type": "application/json"},
         body: JSON.stringify(vr.data),
       });
       if (!res.ok) {
@@ -173,7 +170,7 @@ export default function AdminProductCreatePage() {
     <div className="space-y-4">
       {/* Header com botão voltar */}
       <div className="flex items-center gap-4">
-        <Link 
+        <Link
           href="/admin/products"
           className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#ff5c00] transition-colors"
         >
@@ -192,24 +189,24 @@ export default function AdminProductCreatePage() {
         <div className="lg:col-span-2 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
           <div>
             <label className="text-sm font-medium">Nome do Produto</label>
-            <input 
-              name="name" 
-              required 
+            <input
+              name="name"
+              required
               onChange={(e) => setProductName(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
           </div>
           <div>
             <label className="text-sm font-medium">Mini Descrição</label>
-            <textarea 
-              name="description" 
-              rows={3} 
+            <textarea
+              name="description"
+              rows={3}
               onChange={(e) => setProductMiniDesc(e.target.value)}
-              placeholder="Descrição breve que aparece no card do produto" 
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
+              placeholder="Descrição breve que aparece no card do produto"
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
           </div>
-          
+
           <div>
             <RichTextEditor
               label="Descrição Completa"
@@ -222,7 +219,7 @@ export default function AdminProductCreatePage() {
               }}
             />
           </div>
-          
+
           <div>
             <SpecificationsEditor
               value={specifications}
@@ -230,13 +227,13 @@ export default function AdminProductCreatePage() {
             />
           </div>
           <div>
-            <ProductImageUploader 
-              images={images} 
+            <ProductImageUploader
+              images={images}
               onChange={setImages}
               maxImages={4}
             />
           </div>
-          
+
           <div className="pt-3 border-t border-gray-200">
             <label className="text-sm font-medium text-gray-900">📎 URLs de Imagens (CSV/Import)</label>
             <textarea
@@ -250,17 +247,17 @@ export default function AdminProductCreatePage() {
               💡 Útil para importação via CSV. Separe múltiplas URLs por vírgula ou quebra de linha.
             </p>
           </div>
-          
+
         </div>
 
         <div className="space-y-3">
           {/* Tutorial em vídeo */}
-          <VideoTutorial 
+          <VideoTutorial
             title="Como Cadastrar um Produto"
             videoId="dQw4w9WgXcQ"
             description="Aprenda passo a passo como adicionar produtos à banca"
           />
-          
+
           <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
             {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
             <div>
@@ -280,8 +277,8 @@ export default function AdminProductCreatePage() {
               <div className="space-y-2">
                 <div>
                   <label className="text-sm font-medium text-gray-700">Código Mercos</label>
-                  <input 
-                    name="codigo_mercos" 
+                  <input
+                    name="codigo_mercos"
                     placeholder="Ex: AKOTO001"
                     className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm uppercase"
                     onChange={(e) => e.target.value = e.target.value.toUpperCase()}
@@ -301,10 +298,10 @@ export default function AdminProductCreatePage() {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-700">Múltiplos</label>
-                    <input 
-                      type="number" 
-                      step="0.01" 
-                      name="venda_multiplos" 
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="venda_multiplos"
                       defaultValue="1.00"
                       placeholder="1.00"
                       className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -313,8 +310,8 @@ export default function AdminProductCreatePage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Categoria Mercos</label>
-                  <input 
-                    name="categoria_mercos" 
+                  <input
+                    name="categoria_mercos"
                     placeholder="Ex: Planet Manga"
                     className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                   />
@@ -340,7 +337,7 @@ export default function AdminProductCreatePage() {
                     <div className="text-xs text-gray-500">Produto ficará disponível automaticamente para todas</div>
                   </div>
                 </label>
-                
+
                 <label className="flex items-start gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="radio"
@@ -353,7 +350,7 @@ export default function AdminProductCreatePage() {
                   <div className="flex-1">
                     <div className="text-sm font-medium mb-2">Banca Específica</div>
                     {disponibilidadeTipo === 'especifica' && (
-                      <select 
+                      <select
                         value={bancaSelecionada}
                         onChange={(e) => setBancaSelecionada(e.target.value)}
                         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -399,25 +396,25 @@ export default function AdminProductCreatePage() {
                 </label>
               </div>
             </div>
-            
+
             <div className="pt-2 border-t border-gray-200 space-y-3">
               <label className="inline-flex items-center gap-2 text-sm">
                 <input name="active" type="checkbox" defaultChecked className="rounded" /> Produto ativo
               </label>
-              
+
               <div>
                 <div className="text-sm font-medium text-gray-900 mb-2">📦 Disponibilidade</div>
                 <div className="space-y-2">
                   <label className="inline-flex items-center gap-2 text-sm">
-                    <input name="pronta_entrega" type="checkbox" className="rounded text-green-600" /> 
+                    <input name="pronta_entrega" type="checkbox" className="rounded text-green-600" />
                     <span className="text-green-700">✅ Pronta Entrega</span>
                   </label>
                   <label className="inline-flex items-center gap-2 text-sm">
-                    <input name="sob_encomenda" type="checkbox" className="rounded text-blue-600" /> 
+                    <input name="sob_encomenda" type="checkbox" className="rounded text-blue-600" />
                     <span className="text-blue-700">📋 Sob Encomenda</span>
                   </label>
                   <label className="inline-flex items-center gap-2 text-sm">
-                    <input name="pre_venda" type="checkbox" className="rounded text-purple-600" /> 
+                    <input name="pre_venda" type="checkbox" className="rounded text-purple-600" />
                     <span className="text-purple-700">🔮 Pré-Venda</span>
                   </label>
                 </div>
@@ -428,10 +425,10 @@ export default function AdminProductCreatePage() {
             </div>
             <div className="pt-2 border-t border-gray-200">
               <label className="inline-flex items-start gap-3 text-sm">
-                <input 
-                  name="featured" 
-                  type="checkbox" 
-                  className="rounded mt-0.5" 
+                <input
+                  name="featured"
+                  type="checkbox"
+                  className="rounded mt-0.5"
                   disabled={!canFeature}
                 />
                 <div>
@@ -440,8 +437,8 @@ export default function AdminProductCreatePage() {
                     Produto aparecerá na seção especial da vitrine da banca.
                     <br />
                     <span className={`font-medium ${canFeature ? 'text-green-600' : 'text-amber-600'}`}>
-                      {canFeature 
-                        ? `✅ ${8 - featuredCount} vagas disponíveis de 8` 
+                      {canFeature
+                        ? `✅ ${8 - featuredCount} vagas disponíveis de 8`
                         : '⚠️ Limite de 8 produtos atingido! Desative algum produto abaixo.'
                       }
                     </span>
@@ -449,7 +446,7 @@ export default function AdminProductCreatePage() {
                 </div>
               </label>
             </div>
-            
+
             <div className="pt-2">
               <button
                 disabled={saving}
@@ -459,7 +456,7 @@ export default function AdminProductCreatePage() {
               </button>
             </div>
           </div>
-          
+
           {/* Gestão de avaliações */}
           <ReviewsManager
             allowReviews={allowReviews}

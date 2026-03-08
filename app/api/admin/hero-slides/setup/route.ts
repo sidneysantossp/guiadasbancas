@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabase } from "@/lib/supabase";
 
 // API para criar as tabelas automaticamente
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticação
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || authHeader !== "Bearer admin-token") {
-      return NextResponse.json(
-        { success: false, error: "Não autorizado" },
-        { status: 401 }
-      );
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     console.log('[setup] Criando tabelas hero_slides e slider_config...');
 

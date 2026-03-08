@@ -53,9 +53,7 @@ export default function CreateCategoryPage() {
       const response = await fetch('/api/admin/categories', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({ data: categoryData })
       });
 

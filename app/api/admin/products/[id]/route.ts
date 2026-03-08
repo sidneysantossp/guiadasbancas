@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
 
-function verifyAdminAuth(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  return Boolean(authHeader && authHeader === "Bearer admin-token");
-}
-
 // GET - Buscar produto por ID
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const { data, error } = await supabaseAdmin
       .from('products')
@@ -36,10 +31,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   try {
     console.log('[DELETE PRODUCT] ID:', params.id);
     
-    if (!verifyAdminAuth(request)) {
-      console.log('[DELETE PRODUCT] Auth failed');
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const { data, error } = await supabaseAdmin
       .from('products')
@@ -71,9 +64,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 // PUT - Atualizar produto
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const body = await request.json();
     

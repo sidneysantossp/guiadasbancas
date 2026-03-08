@@ -53,19 +53,18 @@ export default function AdminCategoriesPage() {
     try {
       // Adicionar timestamp para evitar cache
       const timestamp = new Date().getTime();
-      const res = await fetch(`/api/admin/categories/visibility?_t=${timestamp}`, { 
-        headers: { 
-          'Authorization': 'Bearer admin-token',
+      const res = await fetch(`/api/admin/categories/visibility?_t=${timestamp}`, {
+        headers: {
           'Cache-Control': 'no-cache'
         },
         cache: 'no-store'
       });
       const j = await res.json();
       console.log('[fetchAll] Categorias carregadas:', j.data?.length);
-      console.log('[fetchAll] Dados completos:', j.data?.map((c: AdminCategory) => ({ 
-        name: c.name, 
+      console.log('[fetchAll] Dados completos:', j.data?.map((c: AdminCategory) => ({
+        name: c.name,
         visible: c.visible,
-        active: c.active 
+        active: c.active
       })));
       if (j?.success) {
         console.log('[fetchAll] Atualizando estado com:', j.data);
@@ -77,7 +76,7 @@ export default function AdminCategoriesPage() {
   const fetchDistribuidores = async () => {
     try {
       const res = await fetch('/api/admin/distribuidores', {
-        headers: { 'Authorization': 'Bearer admin-token', 'Cache-Control': 'no-cache' },
+        headers: { 'Cache-Control': 'no-cache' },
         cache: 'no-store'
       });
       const j = await res.json();
@@ -100,7 +99,7 @@ export default function AdminCategoriesPage() {
     setLoadingDistribuidorFilter(true);
     try {
       const res = await fetch(`/api/admin/distribuidores/${distribuidorId}/categorias`, {
-        headers: { 'Authorization': 'Bearer admin-token', 'Cache-Control': 'no-cache' },
+        headers: { 'Cache-Control': 'no-cache' },
         cache: 'no-store'
       });
       const j = await res.json();
@@ -142,18 +141,18 @@ export default function AdminCategoriesPage() {
     try {
       const res = await fetch('/api/admin/categories/sync-mercos', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin-token' },
+        headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify({})
       });
       const j = await res.json();
       if (j?.success) {
         setMessage({ type: 'success', text: `Sincronização Mercos concluída: ${j.distribuidores_sucesso} distribuidor(es) sincronizado(s)` });
         setSyncStatus({ distribuidores_sucesso: j.distribuidores_sucesso, distribuidores_erro: j.distribuidores_erro });
-        
+
         // Sincronizar global (distribuidor_categories → categories)
         const resGlobal = await fetch('/api/admin/categories/sync-global', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin-token' }
+          headers: { 'Content-Type': 'application/json'}
         });
         const jGlobal = await resGlobal.json();
         if (jGlobal?.success) {
@@ -188,7 +187,7 @@ export default function AdminCategoriesPage() {
     const fetchBancas = async () => {
       try {
         const res = await fetch('/api/admin/bancas?all=true', {
-          headers: { 'Authorization': 'Bearer admin-token', 'Cache-Control': 'no-cache' },
+          headers: { 'Cache-Control': 'no-cache' },
           cache: 'no-store'
         });
         const j = await res.json();
@@ -222,7 +221,7 @@ export default function AdminCategoriesPage() {
     if (!confirm('Excluir esta categoria?')) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/categories?id=${encodeURIComponent(id)}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer admin-token' } });
+      const res = await fetch(`/api/admin/categories?id=${encodeURIComponent(id)}`, { method: 'DELETE',  });
       const j = await res.json();
       if (j?.success) { setItems(j.data); }
       else setMessage({ type: 'error', text: j?.error || 'Erro ao excluir' });
@@ -233,7 +232,7 @@ export default function AdminCategoriesPage() {
     setSaving(true);
     try {
       const updated = items.map((c)=> c.id===id? { ...c, active: !c.active } : c);
-      const res = await fetch('/api/admin/categories', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin-token' }, body: JSON.stringify({ type: 'bulk', data: updated }) });
+      const res = await fetch('/api/admin/categories', { method: 'PUT', headers: { 'Content-Type': 'application/json'}, body: JSON.stringify({ type: 'bulk', data: updated }) });
       const j = await res.json();
       if (j?.success) setItems(updated);
     } finally { setSaving(false); }
@@ -248,19 +247,19 @@ export default function AdminCategoriesPage() {
         setSaving(false);
         return;
       }
-      
+
       const newVisible = !item.visible;
       console.log('Alterando visibilidade:', { id, currentVisible: item.visible, newVisible });
-      
-      const res = await fetch('/api/admin/categories/visibility', { 
-        method: 'PATCH', 
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin-token' }, 
-        body: JSON.stringify({ id, visible: newVisible }) 
+
+      const res = await fetch('/api/admin/categories/visibility', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json'},
+        body: JSON.stringify({ id, visible: newVisible })
       });
-      
+
       const j = await res.json();
       console.log('Resposta da API:', j);
-      
+
       if (j?.success && j?.data) {
         const updatedIds = Array.isArray(j.updated_ids) ? j.updated_ids : [id];
         const updatedVisible = typeof j.data.visible === 'boolean' ? j.data.visible : newVisible;
@@ -283,8 +282,8 @@ export default function AdminCategoriesPage() {
     } catch (error) {
       console.error('Erro ao alternar visibilidade:', error);
       setMessage({ type: 'error', text: 'Erro ao alternar visibilidade' });
-    } finally { 
-      setSaving(false); 
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -299,7 +298,7 @@ export default function AdminCategoriesPage() {
     copy.forEach((c,i)=> c.order = i+1);
     setSaving(true);
     try {
-      const res = await fetch('/api/admin/categories', { method: 'PUT', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer admin-token' }, body: JSON.stringify({ type: 'bulk', data: copy }) });
+      const res = await fetch('/api/admin/categories', { method: 'PUT', headers: { 'Content-Type':'application/json'}, body: JSON.stringify({ type: 'bulk', data: copy }) });
       const j = await res.json();
       if (j?.success) setItems(copy);
     } finally { setSaving(false); }
@@ -310,11 +309,11 @@ export default function AdminCategoriesPage() {
     try {
       if (data.id) {
         const updated = items.map((c)=> c.id===data.id ? { ...c, ...data } as AdminCategory : c);
-        const res = await fetch('/api/admin/categories', { method: 'PUT', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer admin-token' }, body: JSON.stringify({ data: updated.find(c=>c.id===data.id) }) });
+        const res = await fetch('/api/admin/categories', { method: 'PUT', headers: { 'Content-Type':'application/json'}, body: JSON.stringify({ data: updated.find(c=>c.id===data.id) }) });
         const j = await res.json();
         if (j?.success) setItems(updated);
       } else {
-        const res = await fetch('/api/admin/categories', { method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer admin-token' }, body: JSON.stringify({ data }) });
+        const res = await fetch('/api/admin/categories', { method: 'POST', headers: { 'Content-Type':'application/json'}, body: JSON.stringify({ data }) });
         const j = await res.json();
         if (j?.success) setItems((list)=> [...list, j.data]);
       }
@@ -337,8 +336,8 @@ export default function AdminCategoriesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button 
-            onClick={syncMercos} 
+          <button
+            onClick={syncMercos}
             disabled={syncing}
             className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
@@ -419,13 +418,13 @@ export default function AdminCategoriesPage() {
                         </div>
                       )}
                       <div className="mt-2 flex items-center gap-2">
-                        <span 
+                        <span
                           className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${c.active? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
                           title={c.active? 'Categoria ativa no sistema' : 'Categoria inativa'}
                         >
                           {c.active? 'Ativa' : 'Inativa'}
                         </span>
-                        <span 
+                        <span
                           className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${c.visible? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}`}
                           title={c.visible? 'Aparece na página /categorias' : 'Oculta da página /categorias'}
                         >
@@ -491,7 +490,7 @@ export default function AdminCategoriesPage() {
       </div>
 
       {showForm && (
-        <CategoryForm 
+        <CategoryForm
           item={editing}
           onCancel={()=>{ setShowForm(false); setEditing(null); }}
           onSubmit={onSubmit}
@@ -544,7 +543,7 @@ function CategoryForm({ item, onSubmit, onCancel, saving, bancas }: { item: Admi
       setError(null);
       const form = new FormData();
       form.append('file', f);
-      const res = await fetch('/api/upload', { method: 'POST', headers: { 'Authorization': 'Bearer admin-token' }, body: form });
+      const res = await fetch('/api/upload', { method: 'POST', body: form });
       const j = await res.json();
       if (!res.ok || !j?.ok) {
         setError(j?.error || 'Falha no upload');

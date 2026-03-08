@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-function verifyAdminAuth(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  return Boolean(authHeader && authHeader === "Bearer admin-token");
-}
-
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const id = context.params.id;
     const { data, error } = await supabaseAdmin
@@ -33,9 +28,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
 export async function PUT(request: NextRequest, context: { params: { id: string } }) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const id = context.params.id;
     const body = await request.json();
@@ -75,9 +69,8 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
 
 export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const id = context.params.id;
     const { error } = await supabaseAdmin

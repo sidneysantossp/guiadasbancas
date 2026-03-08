@@ -48,8 +48,7 @@ export default function AdminVitrinesPage() {
       setError(null);
       try {
         const res = await fetch(`/api/admin/featured-products?section=${encodeURIComponent(section)}`, {
-          headers: { Authorization: "Bearer admin-token" },
-        });
+          });
         const j = await res.json();
         if (!res.ok || !j?.success) throw new Error(j?.error || "Falha ao listar");
         setItems(Array.isArray(j.data) ? j.data : []);
@@ -69,8 +68,7 @@ export default function AdminVitrinesPage() {
       if (toFetch.length === 0) return;
       try {
         const res = await fetch(`/api/products?limit=100`, {
-          headers: { Authorization: "Bearer admin-token" },
-        });
+          });
         const j = await res.json();
         const list: any[] = Array.isArray(j?.items) ? j.items : [];
         const map = Object.fromEntries(
@@ -89,7 +87,7 @@ export default function AdminVitrinesPage() {
     try {
       const res = await fetch(`/api/admin/featured-products`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer admin-token" },
+        headers: { "Content-Type": "application/json"},
         body: JSON.stringify({ section_key: section, product_id: newProductId.trim(), label: newLabel || null }),
       });
       const j = await res.json();
@@ -109,7 +107,7 @@ export default function AdminVitrinesPage() {
     try {
       const res = await fetch(`/api/admin/featured-products`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer admin-token" },
+        headers: { "Content-Type": "application/json"},
         body: JSON.stringify({ id, ...patch }),
       });
       const j = await res.json();
@@ -128,8 +126,7 @@ export default function AdminVitrinesPage() {
     try {
       const res = await fetch(`/api/admin/featured-products?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
-        headers: { Authorization: "Bearer admin-token" },
-      });
+        });
       const j = await res.json();
       if (!res.ok || !j?.success) throw new Error(j?.error || "Falha ao remover");
       setItems((prev) => prev.filter((it) => it.id !== id));

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
@@ -69,11 +70,8 @@ async function geocodeByCep(cep: string): Promise<{ lat: number; lng: number } |
 
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticação admin
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || authHeader !== "Bearer admin-token") {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     // Buscar bancas com coordenadas padrão de São Paulo ou sem coordenadas
     const { data: bancas, error } = await supabaseAdmin
@@ -153,6 +151,8 @@ export async function POST(request: NextRequest) {
 // GET para verificar quais bancas precisam de geocodificação
 export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
     const { data: bancas, error } = await supabaseAdmin
       .from('bancas')
       .select('id, name, address, cep, lat, lng')
@@ -176,10 +176,8 @@ export async function GET(request: NextRequest) {
 // PATCH para atualizar coordenadas de uma banca específica
 export async function PATCH(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || authHeader !== "Bearer admin-token") {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const body = await request.json();
     const { id, lat, lng } = body;

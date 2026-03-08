@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
 
-function verifyAdminAuth(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  return Boolean(authHeader && authHeader === "Bearer admin-token");
-}
-
 // GET - Buscar campanha específica
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const { data, error } = await supabaseAdmin
       .from('campaigns')
@@ -55,9 +50,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 // PUT - Aprovar/Rejeitar campanha
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const body = await request.json();
     const { status, admin_message, rejection_reason } = body;
@@ -97,9 +91,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 // DELETE - Excluir campanha
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
 
     const { error } = await supabaseAdmin
       .from('campaigns')

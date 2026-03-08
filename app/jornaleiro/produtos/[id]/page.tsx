@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { validateProductUpdate } from "@/lib/validators/product";
 import ImageUploader from "@/components/admin/ImageUploader";
@@ -57,12 +57,6 @@ export default function SellerProductEditPage() {
   const params = useParams();
   const toast = useToast();
   
-  const authHeaders = useMemo(() => {
-    if (typeof window === "undefined") return {} as Record<string, string>;
-    const token = window.localStorage.getItem("gb:sellerToken") || "seller-token";
-    return { Authorization: `Bearer ${token}` } as Record<string, string>;
-  }, []);
-
   const [product, setProduct] = useState<any>(null);
   const [images, setImages] = useState<string[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
@@ -83,7 +77,7 @@ export default function SellerProductEditPage() {
   useEffect(() => {
     const loadBanca = async () => {
       try {
-        const res = await fetch("/api/jornaleiro/banca", { headers: authHeaders, cache: "no-store" });
+        const res = await fetch("/api/jornaleiro/banca", { cache: "no-store" });
         const json = await res.json();
         const banca = json?.data;
         setIsCotista(Boolean(banca?.is_cotista === true && banca?.cotista_id));
@@ -92,7 +86,7 @@ export default function SellerProductEditPage() {
       }
     };
     loadBanca();
-  }, [authHeaders]);
+  }, []);
 
   // Estados para contexto da IA
   const [productName, setProductName] = useState("");
@@ -120,8 +114,6 @@ export default function SellerProductEditPage() {
         if (!id) throw new Error("Produto inválido");
         
         console.log("Carregando produto ID:", id);
-        console.log("Headers:", authHeaders);
-        
         // Timeout de 10 segundos
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -129,7 +121,6 @@ export default function SellerProductEditPage() {
         // Adicionar timestamp para evitar cache
         const timestamp = Date.now();
         const res = await fetch(`/api/jornaleiro/products/${id}?t=${timestamp}`, { 
-          headers: authHeaders, 
           cache: "no-store",
           signal: controller.signal
         });
@@ -234,7 +225,7 @@ export default function SellerProductEditPage() {
 
   useEffect(() => {
     loadProduct();
-  }, [params?.id, toast, authHeaders]);
+  }, [params?.id, toast]);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -267,7 +258,6 @@ export default function SellerProductEditPage() {
           form.append("file", blob, `img-${Date.now()}.png`);
           const up = await fetch("/api/upload", {
             method: "POST",
-            headers: { Authorization: "Bearer admin-token" },
             body: form,
           });
           const upJson = await up.json();
@@ -330,7 +320,7 @@ export default function SellerProductEditPage() {
       
       const res = await fetch(`/api/jornaleiro/products/${params.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...authHeaders },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(vr.data),
       });
       

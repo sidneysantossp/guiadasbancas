@@ -45,7 +45,7 @@ export default function AdminWhatsAppConfigPage() {
   const loadConfig = async () => {
     try {
       const response = await fetch('/api/admin/whatsapp/config', {
-        headers: { 'Authorization': 'Bearer admin-token' }
+
       });
       if (response.ok) {
         const data = await response.json();
@@ -68,9 +68,7 @@ export default function AdminWhatsAppConfigPage() {
       const response = await fetch('/api/admin/whatsapp/config', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify(config)
       });
 
@@ -97,7 +95,7 @@ export default function AdminWhatsAppConfigPage() {
     try {
       setLoading(true);
       const response = await fetch('/api/admin/whatsapp/status', {
-        headers: { 'Authorization': 'Bearer admin-token' }
+
       });
       const data = await response.json();
       setStatus(data);
@@ -116,16 +114,14 @@ export default function AdminWhatsAppConfigPage() {
       const response = await fetch('/api/admin/whatsapp/create-instance', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           instanceName: config.instanceName
         })
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         toast.success('Instância criada com sucesso!');
         checkStatus();
@@ -152,9 +148,7 @@ export default function AdminWhatsAppConfigPage() {
       const response = await fetch('/api/admin/whatsapp/test', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-token'
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           phone: testPhone,
           message: testMessage
@@ -162,7 +156,7 @@ export default function AdminWhatsAppConfigPage() {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         toast.success('Mensagem de teste enviada com sucesso!');
         setTestPhone('');
@@ -194,7 +188,7 @@ export default function AdminWhatsAppConfigPage() {
       {/* Configurações da API */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Credenciais da Evolution API</h2>
-        
+
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -295,7 +289,7 @@ export default function AdminWhatsAppConfigPage() {
       {status && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Status da Instância</h2>
-          
+
           <div className="space-y-4">
             {/* Indicador Principal */}
             <div className="flex items-center gap-3">
@@ -388,7 +382,7 @@ export default function AdminWhatsAppConfigPage() {
       {status?.connected && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Teste de Envio</h2>
-          
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

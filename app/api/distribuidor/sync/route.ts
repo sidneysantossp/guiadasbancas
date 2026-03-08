@@ -99,6 +99,9 @@ export async function POST(request: NextRequest) {
     const full = searchParams.get('full') === 'true';
     const authError = await requireDistribuidorAccess(request, distribuidorId);
     if (authError) return authError;
+    if (!distribuidorId) {
+      return NextResponse.json({ success: false, error: 'Distribuidor não informado' }, { status: 400 });
+    }
 
     console.log(`[Sync] Iniciando sincronização para distribuidor ${distribuidorId} (full: ${full})`);
 
@@ -135,7 +138,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Preparar parâmetros da requisição usando base_url configurada
-    const baseUrl = distribuidor.base_url || 'https://app.mercos.com/api/v1';
+    const baseUrl = distribuidor.base_url?.trim() || 'https://app.mercos.com/api/v1';
     let categoriesSyncSummary: { synced: number; deactivated: number; total: number } | null = null;
     let categoriesSyncWarning: string | null = null;
 

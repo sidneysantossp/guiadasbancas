@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
-
-function verifyAdminAuth(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  return Boolean(authHeader && authHeader === "Bearer admin-token");
-}
 
 /**
  * Admin API: manage curated (featured) products for home sections
@@ -14,9 +10,8 @@ function verifyAdminAuth(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
     const { searchParams } = new URL(request.url);
     const section = (searchParams.get('section') || '').trim();
     const includeInactive = searchParams.get('all') === 'true';
@@ -44,9 +39,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
     const body = await request.json();
     const { section_key, product_id, label, order_index } = body || {};
     if (!section_key || !product_id) {
@@ -86,9 +80,8 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
     const body = await request.json();
     const { id, label, order_index, active } = body || {};
     if (!id) {
@@ -121,9 +114,8 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) {

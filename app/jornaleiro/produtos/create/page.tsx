@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { validateProductCreate } from "@/lib/validators/product";
@@ -75,12 +75,6 @@ export default function SellerProductCreatePage() {
   const [productName, setProductName] = useState("");
   const [productMiniDesc, setProductMiniDesc] = useState("");
 
-  const authHeaders = useMemo(() => {
-    if (typeof window === "undefined") return {} as Record<string, string>;
-    const token = window.localStorage.getItem("gb:sellerToken") || "seller-token";
-    return { Authorization: `Bearer ${token}` } as Record<string, string>;
-  }, []);
-
   useEffect(() => {
     const loadCategories = async () => {
       try {
@@ -99,7 +93,7 @@ export default function SellerProductCreatePage() {
   useEffect(() => {
     const loadBanca = async () => {
       try {
-        const res = await fetch("/api/jornaleiro/banca", { headers: authHeaders, cache: "no-store" });
+        const res = await fetch("/api/jornaleiro/banca", { cache: "no-store" });
         const json = await res.json();
         const banca = json?.data;
         const parsedLimit = Number(banca?.entitlements?.product_limit);
@@ -127,7 +121,7 @@ export default function SellerProductCreatePage() {
       }
     };
     loadBanca();
-  }, [authHeaders]);
+  }, []);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -145,7 +139,6 @@ export default function SellerProductCreatePage() {
           form.append("file", blob, `img-${Date.now()}.png`);
           const up = await fetch("/api/upload", {
             method: "POST",
-            headers: { Authorization: "Bearer admin-token" },
             body: form,
           });
           const upJson = await up.json();
@@ -222,7 +215,7 @@ export default function SellerProductCreatePage() {
       if (!vr.ok) throw new Error(vr.error);
       const res = await fetch("/api/jornaleiro/products", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(vr.data),
       });
       if (!res.ok) {
