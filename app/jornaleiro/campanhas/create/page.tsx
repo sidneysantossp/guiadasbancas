@@ -90,23 +90,23 @@ export default function CreateCampaignPage() {
       const res = await fetch('/api/jornaleiro/campaigns', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer seller-token'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           product_id: selectedProduct.id,
-          banca_id: 'temp-banca-id', // TODO: Pegar do contexto do jornaleiro
           duration_days: selectedDuration,
           title: `Campanha - ${selectedProduct.name}`,
           description: `Promoção especial do produto ${selectedProduct.name}`
         })
       });
 
-      if (res.ok) {
+      const json = await res.json().catch(() => ({}));
+
+      if (res.ok && json?.success) {
         toast.success('Campanha enviada para aprovação!');
         router.push('/jornaleiro/campanhas');
       } else {
-        toast.error('Erro ao criar campanha');
+        toast.error(json?.error || 'Erro ao criar campanha');
       }
     } catch (error) {
       toast.error('Erro ao criar campanha');

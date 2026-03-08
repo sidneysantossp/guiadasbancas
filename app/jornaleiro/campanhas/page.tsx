@@ -51,9 +51,7 @@ export default function JornaleiroCampaignsPage() {
   const fetchCampaigns = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/jornaleiro/campaigns', {
-        headers: { 'Authorization': 'Bearer seller-token' }
-      });
+      const res = await fetch('/api/jornaleiro/campaigns');
       const json = await res.json();
       
       if (json.success) {

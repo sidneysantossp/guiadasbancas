@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { markNotificationKeysAsRead } from '@/lib/jornaleiro-notifications';
 
 // PATCH /api/jornaleiro/notificacoes/:id
 // Marca uma notificação como lida
@@ -17,13 +18,8 @@ export async function PATCH(
       );
     }
 
-    const body = await req.json();
-    
-    // TODO: Implementar lógica de armazenamento de leitura
-    // Por enquanto, apenas retorna sucesso
-    // Quando implementar tabela de notificações:
-    // - Verificar se notificação pertence ao usuário
-    // - Atualizar campo 'read' no banco
+    await req.json().catch(() => null);
+    await markNotificationKeysAsRead(session.user.id, [params.id]);
 
     return NextResponse.json({
       success: true,

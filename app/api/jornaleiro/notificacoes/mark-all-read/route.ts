@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import {
+  buildJornaleiroNotifications,
+  markNotificationKeysAsRead,
+} from '@/lib/jornaleiro-notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,11 +20,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // TODO: Implementar lógica de armazenamento de leitura
-    // Por enquanto, apenas retorna sucesso
-    // Quando implementar tabela de notificações:
-    // - Buscar todas notificações não lidas do usuário
-    // - Atualizar todas para read = true
+    const { notifications } = await buildJornaleiroNotifications(session.user.id);
+    const unreadNotificationIds = notifications
+      .filter((notification) => !notification.read)
+      .map((notification) => notification.id);
+
+    await markNotificationKeysAsRead(session.user.id, unreadNotificationIds);
 
     return NextResponse.json({
       success: true,

@@ -99,19 +99,44 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { product_id, duration_days, title, description } = body;
 
+    if (!product_id) {
+      return NextResponse.json({ success: false, error: "Produto é obrigatório" }, { status: 400 });
+    }
+
+    const normalizedDuration = Number(duration_days || 0);
+    if (![7, 15, 30].includes(normalizedDuration)) {
+      return NextResponse.json({ success: false, error: "Duração de campanha inválida" }, { status: 400 });
+    }
+
+    const { data: ownedProduct, error: productError } = await supabaseAdmin
+      .from("products")
+      .select("id, banca_id, name")
+      .eq("id", product_id)
+      .eq("banca_id", banca.id)
+      .maybeSingle();
+
+    if (productError) {
+      console.error("Create campaign product validation error:", productError);
+      return NextResponse.json({ success: false, error: "Erro ao validar produto da campanha" }, { status: 500 });
+    }
+
+    if (!ownedProduct) {
+      return NextResponse.json({ success: false, error: "Produto não encontrado na sua banca" }, { status: 403 });
+    }
+
     // Calcular datas
     const startDate = new Date();
     const endDate = new Date();
-    endDate.setDate(startDate.getDate() + duration_days);
+    endDate.setDate(startDate.getDate() + normalizedDuration);
 
     const campaignData = {
-      product_id,
+      product_id: ownedProduct.id,
       banca_id: banca.id,
-      title: title || `Campanha para produto`,
+      title: title || `Campanha - ${ownedProduct.name}`,
       description: description || '',
       start_date: startDate.toISOString(),
       end_date: endDate.toISOString(),
-      duration_days,
+      duration_days: normalizedDuration,
       status: 'pending',
       plan_type: 'free'
     };
