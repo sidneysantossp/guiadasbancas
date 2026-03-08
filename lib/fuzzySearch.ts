@@ -215,10 +215,14 @@ export function filterProductsFuzzy<T extends { name: string; codigo_mercos?: st
     }
   }
   
+  if (exactMatches.length > 0) {
+    return exactMatches;
+  }
+
   // Usar Fuse.js para busca fuzzy nos restantes
   if (remainingProducts.length > 0) {
     const fuse = new Fuse(remainingProducts, {
-      threshold: 0.45, // Um pouco mais tolerante para busca local
+      threshold: 0.28,
       distance: 100,
       includeScore: true,
       ignoreLocation: true,
@@ -231,10 +235,12 @@ export function filterProductsFuzzy<T extends { name: string; codigo_mercos?: st
     });
     
     const fuzzyResults = fuse.search(term, { limit: 100 });
-    const fuzzyMatches = fuzzyResults.map(r => r.item);
-    
-    // Combinar: matches exatos primeiro, depois fuzzy
-    return [...exactMatches, ...fuzzyMatches];
+    const maxScore = normalizedTerm.length >= 6 ? 0.22 : 0.18;
+    const fuzzyMatches = fuzzyResults
+      .filter((result) => typeof result.score === 'number' && result.score <= maxScore)
+      .map((result) => result.item);
+
+    return fuzzyMatches;
   }
   
   return exactMatches;

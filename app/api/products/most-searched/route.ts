@@ -149,7 +149,7 @@ export async function GET(req: NextRequest) {
     
     // BUSCA FUZZY: Se SQL não encontrou muitos resultados, aplicar Fuse.js
     // Isso encontra produtos mesmo com erros de digitação (ex: "amisterdan" → "amsterdam")
-    if (search && (!items || items.length < 10)) {
+    if (search && (!items || items.length === 0)) {
       console.log('[SEARCH] Poucos resultados SQL, aplicando busca fuzzy...');
       
       // Buscar mais produtos para aplicar Fuse.js
@@ -166,10 +166,13 @@ export async function GET(req: NextRequest) {
       if (moreProducts && moreProducts.length > 0) {
         const fuse = new Fuse(moreProducts, FUSE_OPTIONS);
         const fuzzyResults = fuse.search(search, { limit: fetchLimit });
+        const normalizedSearch = normalizeSearchTerm(search);
+        const maxScore = normalizedSearch.length >= 6 ? 0.22 : 0.18;
         
         // Combinar resultados: SQL primeiro, depois fuzzy (sem duplicatas)
         const existingIds = new Set((items || []).map((p: any) => p.id));
         const fuzzyProducts = fuzzyResults
+          .filter((result: any) => typeof result.score === 'number' && result.score <= maxScore)
           .map(r => r.item)
           .filter((p: any) => !existingIds.has(p.id));
         

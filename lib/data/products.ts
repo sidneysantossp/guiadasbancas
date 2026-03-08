@@ -95,7 +95,7 @@ export async function getSearchProducts(query: string, limit = 20): Promise<any[
     
     // BUSCA FUZZY: Se SQL não encontrou muitos resultados, aplicar Fuse.js
     // Isso encontra produtos mesmo com erros de digitação (ex: "amisterdan" → "amsterdam")
-    if (!items || items.length < 10) {
+    if (!items || items.length === 0) {
       const { data: moreProducts } = await supabaseAdmin
         .from('products')
         .select(`
@@ -108,9 +108,11 @@ export async function getSearchProducts(query: string, limit = 20): Promise<any[
       if (moreProducts && moreProducts.length > 0) {
         const fuse = new Fuse(moreProducts, FUSE_OPTIONS);
         const fuzzyResults = fuse.search(term, { limit: limit * 3 });
+        const maxScore = normalized.length >= 6 ? 0.22 : 0.18;
         
         const existingIds = new Set((items || []).map((p: any) => p.id));
         const fuzzyProducts = fuzzyResults
+          .filter((result: any) => typeof result.score === 'number' && result.score <= maxScore)
           .map(r => r.item)
           .filter((p: any) => !existingIds.has(p.id));
         
