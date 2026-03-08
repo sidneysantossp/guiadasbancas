@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as bcrypt from 'bcryptjs';
-import { issueDistribuidorSessionToken } from '@/lib/security/distribuidor-session';
+import {
+  buildDistribuidorSessionCookie,
+  buildDistribuidorSessionCookieClear,
+  issueDistribuidorSessionToken,
+} from '@/lib/security/distribuidor-session';
 import { supabaseAdmin } from '@/lib/supabase';
 
 const allowLegacyDefaultPassword =
@@ -111,12 +115,20 @@ export async function POST(request: NextRequest) {
 
     console.log('[Auth] Login bem-sucedido para distribuidor:', distribuidorComEmail.nome, '- Email:', distribuidorComEmail.email);
 
-    return NextResponse.json({
-      success: true,
-      distribuidor: distribuidorComEmail,
-      session_token: session.token,
-      session_expires_at: session.expiresAt,
-    });
+    const response = NextResponse.json(
+      {
+        success: true,
+        distribuidor: distribuidorComEmail,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      }
+    );
+    response.cookies.set(buildDistribuidorSessionCookie(session.token));
+
+    return response;
   } catch (error: any) {
     console.error('Erro na autenticação do distribuidor:', error);
     return NextResponse.json(
@@ -124,6 +136,19 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function DELETE() {
+  const response = NextResponse.json(
+    { success: true },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    }
+  );
+  response.cookies.set(buildDistribuidorSessionCookieClear());
+  return response;
 }
 
 // GET para listar distribuidores disponíveis (debug)

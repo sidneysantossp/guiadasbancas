@@ -1,13 +1,11 @@
 export const DISTRIBUIDOR_AUTH_KEY = "gb:distribuidorAuth";
 export const DISTRIBUIDOR_DATA_KEY = "gb:distribuidor";
-export const DISTRIBUIDOR_SESSION_KEY = "gb:distribuidorSession";
-export const DISTRIBUIDOR_SESSION_EXPIRES_AT_KEY = "gb:distribuidorSessionExpiresAt";
 
-type DistribuidorClientSession = {
+type DistribuidorClientCache = {
   distribuidor: any | null;
-  sessionToken: string | null;
-  expiresAt: string | null;
 };
+
+let pendingHydration: Promise<any | null> | null = null;
 
 function safeLocalStorageGet(key: string): string | null {
   try {
@@ -21,48 +19,82 @@ export function clearDistribuidorClientAuth() {
   try {
     localStorage.removeItem(DISTRIBUIDOR_AUTH_KEY);
     localStorage.removeItem(DISTRIBUIDOR_DATA_KEY);
-    localStorage.removeItem(DISTRIBUIDOR_SESSION_KEY);
-    localStorage.removeItem(DISTRIBUIDOR_SESSION_EXPIRES_AT_KEY);
   } catch {}
 }
 
 export function persistDistribuidorClientAuth(params: {
   distribuidor: any;
-  sessionToken: string;
-  expiresAt: string;
 }) {
   try {
     localStorage.setItem(DISTRIBUIDOR_AUTH_KEY, "1");
     localStorage.setItem(DISTRIBUIDOR_DATA_KEY, JSON.stringify(params.distribuidor));
-    localStorage.setItem(DISTRIBUIDOR_SESSION_KEY, params.sessionToken);
-    localStorage.setItem(DISTRIBUIDOR_SESSION_EXPIRES_AT_KEY, params.expiresAt);
   } catch {}
 }
 
-export function readDistribuidorClientAuth(): DistribuidorClientSession {
+export function readDistribuidorClientAuth(): DistribuidorClientCache {
   const rawDistribuidor = safeLocalStorageGet(DISTRIBUIDOR_DATA_KEY);
-  const sessionToken = safeLocalStorageGet(DISTRIBUIDOR_SESSION_KEY);
-  const expiresAt = safeLocalStorageGet(DISTRIBUIDOR_SESSION_EXPIRES_AT_KEY);
 
-  if (!rawDistribuidor || !sessionToken || !expiresAt) {
-    return { distribuidor: null, sessionToken: null, expiresAt: null };
-  }
-
-  const expiry = new Date(expiresAt);
-  if (Number.isNaN(expiry.getTime()) || expiry.getTime() <= Date.now()) {
-    clearDistribuidorClientAuth();
-    return { distribuidor: null, sessionToken: null, expiresAt: null };
+  if (!rawDistribuidor) {
+    return { distribuidor: null };
   }
 
   try {
     return {
       distribuidor: JSON.parse(rawDistribuidor),
-      sessionToken,
-      expiresAt,
     };
   } catch {
     clearDistribuidorClientAuth();
-    return { distribuidor: null, sessionToken: null, expiresAt: null };
+    return { distribuidor: null };
+  }
+}
+
+export async function hydrateDistribuidorClientAuth(): Promise<any | null> {
+  const cached = readDistribuidorClientAuth().distribuidor;
+  if (pendingHydration) {
+    return pendingHydration;
+  }
+
+  pendingHydration = (async () => {
+    try {
+      const response = await fetch("/api/distribuidor/session", {
+        method: "GET",
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+
+      if (!response.ok) {
+        clearDistribuidorClientAuth();
+        return null;
+      }
+
+      const json = await response.json().catch(() => ({}));
+      if (!json?.success || !json?.distribuidor) {
+        clearDistribuidorClientAuth();
+        return null;
+      }
+
+      persistDistribuidorClientAuth({ distribuidor: json.distribuidor });
+      return json.distribuidor;
+    } catch {
+      return cached?.id ? cached : null;
+    } finally {
+      pendingHydration = null;
+    }
+  })();
+
+  return pendingHydration;
+}
+
+export async function destroyDistribuidorSession() {
+  try {
+    await fetch("/api/distribuidor/session", {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+  } catch {
+    // noop
+  } finally {
+    clearDistribuidorClientAuth();
   }
 }
 
@@ -76,15 +108,11 @@ export function getDistribuidorAuthHeaders(params?: {
     headers["Content-Type"] = "application/json";
   }
 
-  const { distribuidor, sessionToken } = readDistribuidorClientAuth();
+  const { distribuidor } = readDistribuidorClientAuth();
   const distribuidorId = params?.distribuidorId || distribuidor?.id;
 
   if (distribuidorId) {
     headers["x-distribuidor-id"] = distribuidorId;
-  }
-
-  if (sessionToken) {
-    headers.Authorization = `Bearer ${sessionToken}`;
   }
 
   return headers;

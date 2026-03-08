@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/admin/ToastProvider';
 import {
   getDistribuidorAuthHeaders,
-  readDistribuidorClientAuth,
+  hydrateDistribuidorClientAuth,
 } from '@/lib/distribuidor-client-auth';
 import { IconArrowLeft, IconCheck, IconLoader2, IconPhoto, IconPlugConnected } from '@tabler/icons-react';
 
@@ -40,12 +40,13 @@ export default function DistribuidorProdutoNovoPage() {
   });
 
   useEffect(() => {
-    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
-    if (!sessionDistribuidor) {
-      router.replace('/distribuidor/login');
-      return;
-    }
-    setDistribuidor(sessionDistribuidor);
+    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
+      if (!sessionDistribuidor) {
+        router.replace('/distribuidor/login');
+        return;
+      }
+      setDistribuidor(sessionDistribuidor);
+    });
   }, [router]);
 
   useEffect(() => {

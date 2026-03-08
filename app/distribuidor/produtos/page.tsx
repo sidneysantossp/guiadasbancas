@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   getDistribuidorAuthHeaders,
-  readDistribuidorClientAuth,
+  hydrateDistribuidorClientAuth,
 } from "@/lib/distribuidor-client-auth";
 import {
   IconSearch,
@@ -60,11 +60,12 @@ export default function DistribuidorProdutosPage() {
   const [markups, setMarkups] = useState<any>(null);
 
   useEffect(() => {
-    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
-    console.log('[Produtos] Distribuidor da sessão:', sessionDistribuidor?.id || null);
-    if (sessionDistribuidor) {
-      setDistribuidor(sessionDistribuidor);
-    }
+    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
+      console.log('[Produtos] Distribuidor da sessão:', sessionDistribuidor?.id || null);
+      if (sessionDistribuidor) {
+        setDistribuidor(sessionDistribuidor);
+      }
+    });
   }, []);
 
   // Buscar markups

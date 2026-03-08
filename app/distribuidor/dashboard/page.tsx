@@ -4,14 +4,18 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   getDistribuidorAuthHeaders,
-  readDistribuidorClientAuth,
+  hydrateDistribuidorClientAuth,
 } from "@/lib/distribuidor-client-auth";
 import {
   IconBox,
+  IconCheck,
   IconClipboardList,
   IconBuildingStore,
   IconTrendingUp,
   IconAlertCircle,
+  IconArrowRight,
+  IconPlugConnected,
+  IconPercentage,
 } from "@tabler/icons-react";
 
 interface DistribuidorStats {
@@ -21,6 +25,7 @@ interface DistribuidorStats {
   totalPedidos: number;
   totalBancas: number;
   faturamentoMes: number;
+  ultimaSincronizacao?: string | null;
 }
 
 export default function DistribuidorDashboardPage() {
@@ -40,7 +45,7 @@ export default function DistribuidorDashboardPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const { distribuidor: dist } = readDistribuidorClientAuth();
+        const dist = await hydrateDistribuidorClientAuth();
         setDistribuidor(dist);
 
         if (!dist?.id) {
@@ -89,6 +94,106 @@ export default function DistribuidorDashboardPage() {
     }).format(value);
   };
 
+  const formatDateTime = (value?: string | null) => {
+    if (!value) return "Ainda não sincronizado";
+
+    try {
+      return new Date(value).toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return value;
+    }
+  };
+
+  const orderStatusMeta: Record<string, string> = {
+    novo: "bg-amber-100 text-amber-700",
+    confirmado: "bg-blue-100 text-blue-700",
+    em_preparo: "bg-orange-100 text-orange-700",
+    saiu_para_entrega: "bg-purple-100 text-purple-700",
+    entregue: "bg-green-100 text-green-700",
+    cancelado: "bg-red-100 text-red-700",
+  };
+
+  const operationChecklist = [
+    {
+      title: "Integração Mercos",
+      done: Boolean(stats.ultimaSincronizacao),
+      description: stats.ultimaSincronizacao
+        ? `Última sincronização em ${formatDateTime(stats.ultimaSincronizacao)}`
+        : "Configure a integração e rode a primeira sincronização do catálogo.",
+      href: "/distribuidor/configuracoes/integracao",
+      action: stats.ultimaSincronizacao ? "Ver integração" : "Configurar",
+      icon: IconPlugConnected,
+      tone: "blue",
+    },
+    {
+      title: "Catálogo disponível",
+      done: stats.totalProdutos > 0,
+      description:
+        stats.totalProdutos > 0
+          ? `${stats.produtosAtivos} produto(s) ativo(s) no catálogo do distribuidor.`
+          : "Cadastre manualmente ou sincronize produtos para começar a vender.",
+      href: stats.totalProdutos > 0 ? "/distribuidor/produtos" : "/distribuidor/produtos/novo",
+      action: stats.totalProdutos > 0 ? "Gerenciar catálogo" : "Cadastrar produto",
+      icon: IconBox,
+      tone: "emerald",
+    },
+    {
+      title: "Bancas com acesso",
+      done: stats.totalBancas > 0,
+      description:
+        stats.totalBancas > 0
+          ? `${stats.totalBancas} banca(s) já podem operar com seu catálogo.`
+          : "Acompanhe as bancas liberadas para vender seus produtos na plataforma.",
+      href: "/distribuidor/bancas",
+      action: "Ver bancas",
+      icon: IconBuildingStore,
+      tone: "orange",
+    },
+  ];
+
+  const nextSteps = [
+    !stats.ultimaSincronizacao
+      ? {
+          title: "Conectar e testar a Mercos",
+          description: "Sem a primeira sincronização, o catálogo não entra automaticamente na plataforma.",
+          href: "/distribuidor/configuracoes/integracao",
+        }
+      : null,
+    stats.totalProdutos === 0
+      ? {
+          title: "Abastecer o catálogo",
+          description: "Sincronize produtos da Mercos ou faça um cadastro manual para ter itens disponíveis.",
+          href: "/distribuidor/produtos/novo",
+        }
+      : null,
+    stats.totalProdutos > 0 && stats.totalBancas === 0
+      ? {
+          title: "Ajustar preços e disponibilidade",
+          description: "Defina markup e valide quais bancas já podem trabalhar com o seu catálogo.",
+          href: "/distribuidor/configuracoes/markup",
+        }
+      : null,
+    stats.totalBancas > 0 && stats.totalPedidos === 0
+      ? {
+          title: "Acompanhar os primeiros pedidos",
+          description: "Seu catálogo já está acessível. Fique de olho na entrada dos primeiros pedidos.",
+          href: "/distribuidor/pedidos",
+        }
+      : null,
+  ].filter(Boolean) as Array<{ title: string; description: string; href: string }>;
+
+  const toneClasses: Record<string, string> = {
+    blue: "bg-blue-50 border-blue-200 text-blue-700",
+    emerald: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    orange: "bg-orange-50 border-orange-200 text-orange-700",
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -97,16 +202,108 @@ export default function DistribuidorDashboardPage() {
           <h1 className="text-2xl font-bold text-gray-900">
             Olá, {distribuidor?.nome || 'Distribuidor'}! 👋
           </h1>
-          <p className="text-gray-600">Acompanhe os resultados da sua operação</p>
+          <p className="text-gray-600">Acompanhe sua operação, cuide do catálogo e monitore os pedidos das bancas.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Link
-            href="/distribuidor/produtos"
+            href="/distribuidor/produtos/novo"
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
           >
             <IconBox size={18} />
-            Gerenciar Produtos
+            Novo Produto
           </Link>
+          <Link
+            href="/distribuidor/configuracoes/integracao"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+          >
+            <IconPlugConnected size={18} />
+            Sincronizar Mercos
+          </Link>
+          <Link
+            href="/distribuidor/configuracoes/markup"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+          >
+            <IconPercentage size={18} />
+            Ajustar Markup
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1.7fr_1fr] gap-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Saúde da operação</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Veja rapidamente o que já está pronto e o que ainda precisa de atenção.
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+              {operationChecklist.filter((item) => item.done).length}/{operationChecklist.length} concluído(s)
+            </span>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {operationChecklist.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.title} className={`rounded-xl border p-4 ${toneClasses[item.tone]}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white/80">
+                      <Icon size={20} />
+                    </span>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${item.done ? "bg-white text-gray-900" : "bg-white/70 text-gray-700"}`}>
+                      {item.done ? <IconCheck size={14} /> : <IconAlertCircle size={14} />}
+                      {item.done ? "OK" : "Pendente"}
+                    </span>
+                  </div>
+                  <h3 className="mt-4 font-semibold text-gray-900">{item.title}</h3>
+                  <p className="mt-2 text-sm text-gray-700">{item.description}</p>
+                  <Link
+                    href={item.href}
+                    className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-blue-700"
+                  >
+                    {item.action}
+                    <IconArrowRight size={16} />
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900">Próximos passos</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Ações recomendadas para destravar o próximo nível da operação.
+          </p>
+
+          {nextSteps.length === 0 ? (
+            <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+              <p className="font-medium text-emerald-800">Sua operação já está em andamento.</p>
+              <p className="mt-1 text-sm text-emerald-700">
+                Agora o foco é acompanhar pedidos, manter catálogo atualizado e revisar preços.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-5 space-y-3">
+              {nextSteps.map((step) => (
+                <Link
+                  key={step.title}
+                  href={step.href}
+                  className="block rounded-xl border border-gray-200 p-4 hover:border-blue-200 hover:bg-blue-50 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-gray-900">{step.title}</p>
+                      <p className="mt-1 text-sm text-gray-600">{step.description}</p>
+                    </div>
+                    <IconArrowRight size={18} className="text-gray-400 flex-shrink-0" />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -253,7 +450,9 @@ export default function DistribuidorDashboardPage() {
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-gray-900">{formatCurrency(Number(order.total || 0))}</p>
-                      <p className="text-xs text-gray-500 capitalize">{order.status || 'novo'}</p>
+                      <span className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-medium ${orderStatusMeta[order.status || 'novo'] || 'bg-gray-100 text-gray-700'}`}>
+                        {(order.status || 'novo').replace(/_/g, ' ')}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -288,7 +487,12 @@ export default function DistribuidorDashboardPage() {
                 <div key={product.id} className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 px-4 py-3">
                   <div className="min-w-0">
                     <p className="font-medium text-gray-900 truncate">{product.name}</p>
-                    <p className="text-sm text-gray-500">{product.category || 'Sem categoria'}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+                      <span>{product.category || 'Sem categoria'}</span>
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${product.origem === 'manual' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {product.origem === 'manual' ? 'Manual' : 'Mercos'}
+                      </span>
+                    </div>
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-gray-900">{formatCurrency(Number(product.distribuidor_price || product.price || 0))}</p>
@@ -320,12 +524,14 @@ export default function DistribuidorDashboardPage() {
                 <span className="text-green-600 font-medium">Ativo</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Plano:</span>
-                <span className="text-gray-900 font-medium">Premium</span>
+                <span className="text-gray-600">Modelo:</span>
+                <span className="text-gray-900 font-medium">Distribuidor parceiro</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Integração:</span>
-                <span className="text-gray-900 font-medium">Mercos API</span>
+                <span className="text-gray-900 font-medium">
+                  {stats.ultimaSincronizacao ? "Mercos sincronizada" : "Mercos pendente"}
+                </span>
               </div>
             </div>
 

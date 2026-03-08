@@ -9,6 +9,7 @@ export type DistribuidorSessionPayload = {
 };
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+export const DISTRIBUIDOR_SESSION_COOKIE = "gb_distribuidor_session";
 
 function resolveDistribuidorSessionSecret(): string {
   return (
@@ -94,4 +95,28 @@ export function verifyDistribuidorSessionToken(token: string | null | undefined)
   } catch {
     return null;
   }
+}
+
+export function buildDistribuidorSessionCookie(token: string) {
+  return {
+    name: DISTRIBUIDOR_SESSION_COOKIE,
+    value: token,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: SESSION_TTL_SECONDS,
+  };
+}
+
+export function buildDistribuidorSessionCookieClear() {
+  return {
+    name: DISTRIBUIDOR_SESSION_COOKIE,
+    value: "",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  };
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { readDistribuidorClientAuth } from "@/lib/distribuidor-client-auth";
+import { hydrateDistribuidorClientAuth } from "@/lib/distribuidor-client-auth";
 import {
   IconSettings,
   IconPlugConnected,
@@ -19,10 +19,11 @@ export default function ConfiguracoesPage() {
   const [distribuidor, setDistribuidor] = useState<any>(null);
 
   useEffect(() => {
-    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
-    if (sessionDistribuidor) {
-      setDistribuidor(sessionDistribuidor);
-    }
+    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
+      if (sessionDistribuidor) {
+        setDistribuidor(sessionDistribuidor);
+      }
+    });
   }, []);
 
   const menuItems = [

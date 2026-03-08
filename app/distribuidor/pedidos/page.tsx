@@ -19,7 +19,7 @@ import {
 } from "@tabler/icons-react";
 import {
   getDistribuidorAuthHeaders,
-  readDistribuidorClientAuth,
+  hydrateDistribuidorClientAuth,
 } from "@/lib/distribuidor-client-auth";
 
 type OrderItem = {
@@ -77,10 +77,11 @@ export default function DistribuidorPedidosPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
-    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
-    if (sessionDistribuidor) {
-      setDistribuidor(sessionDistribuidor);
-    }
+    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
+      if (sessionDistribuidor) {
+        setDistribuidor(sessionDistribuidor);
+      }
+    });
   }, []);
 
   const fetchOrders = async () => {

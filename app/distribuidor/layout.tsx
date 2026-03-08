@@ -7,8 +7,8 @@ import type { Route } from "next";
 import ToastProvider from "@/components/admin/ToastProvider";
 import DashboardOfficialLogo from "@/components/dashboard/DashboardOfficialLogo";
 import {
-  clearDistribuidorClientAuth,
-  readDistribuidorClientAuth,
+  destroyDistribuidorSession,
+  hydrateDistribuidorClientAuth,
 } from "@/lib/distribuidor-client-auth";
 import {
   IconLayoutDashboard,
@@ -99,24 +99,34 @@ export default function DistribuidorLayout({ children }: { children: React.React
       return;
     }
 
-    try {
-      const { distribuidor: sessionDistribuidor, sessionToken } = readDistribuidorClientAuth();
+    let cancelled = false;
 
-      if (!sessionDistribuidor?.id || !sessionToken) {
-        router.replace("/distribuidor/login");
-        return;
-      }
+    void hydrateDistribuidorClientAuth()
+      .then((sessionDistribuidor) => {
+        if (cancelled) return;
+        if (!sessionDistribuidor?.id) {
+          router.replace("/distribuidor/login");
+          return;
+        }
 
-      setDistribuidor(sessionDistribuidor);
-      setLoading(false);
-    } catch {
-      router.replace("/distribuidor/login");
-    }
+        setDistribuidor(sessionDistribuidor);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          router.replace("/distribuidor/login");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [router, pathname]);
 
   const logout = () => {
-    clearDistribuidorClientAuth();
-    router.replace("/distribuidor/login");
+    void destroyDistribuidorSession().finally(() => {
+      router.replace("/distribuidor/login");
+    });
   };
 
   // Se estiver na página de login, renderizar sem verificação

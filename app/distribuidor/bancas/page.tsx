@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   getDistribuidorAuthHeaders,
-  readDistribuidorClientAuth,
+  hydrateDistribuidorClientAuth,
 } from "@/lib/distribuidor-client-auth";
 import {
   IconSearch,
@@ -60,10 +60,11 @@ export default function DistribuidorBancasPage() {
   const [statusFilter, setStatusFilter] = useState("");
 
   useEffect(() => {
-    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
-    if (sessionDistribuidor) {
-      setDistribuidor(sessionDistribuidor);
-    }
+    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
+      if (sessionDistribuidor) {
+        setDistribuidor(sessionDistribuidor);
+      }
+    });
   }, []);
 
   const fetchBancas = async () => {

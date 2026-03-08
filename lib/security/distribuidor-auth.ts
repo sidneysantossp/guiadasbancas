@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthorized } from "@/lib/security/admin-auth";
-import { verifyDistribuidorSessionToken } from "@/lib/security/distribuidor-session";
+import {
+  DISTRIBUIDOR_SESSION_COOKIE,
+  verifyDistribuidorSessionToken,
+} from "@/lib/security/distribuidor-session";
 
 export const DISTRIBUIDOR_UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -29,9 +32,11 @@ export async function requireDistribuidorAccess(
   }
 
   const authHeader = request.headers.get("authorization");
-  const sessionToken = authHeader?.startsWith("Bearer ")
+  const sessionTokenFromHeader = authHeader?.startsWith("Bearer ")
     ? authHeader.slice("Bearer ".length).trim()
     : null;
+  const sessionTokenFromCookie = request.cookies.get(DISTRIBUIDOR_SESSION_COOKIE)?.value || null;
+  const sessionToken = sessionTokenFromHeader || sessionTokenFromCookie;
   const sessionPayload = verifyDistribuidorSessionToken(sessionToken);
 
   if (!sessionPayload) {

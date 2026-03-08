@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { useToast } from '@/components/admin/ToastProvider';
 import {
   getDistribuidorAuthHeaders,
-  readDistribuidorClientAuth,
+  hydrateDistribuidorClientAuth,
 } from '@/lib/distribuidor-client-auth';
 import { IconArrowLeft, IconLoader2, IconCheck, IconAlertTriangle, IconPhoto } from '@tabler/icons-react';
 
@@ -68,12 +68,13 @@ export default function DistribuidorProductEditPage() {
   });
 
   useEffect(() => {
-    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
-    if (!sessionDistribuidor) {
-      router.push('/distribuidor/login');
-      return;
-    }
-    setDistribuidor(sessionDistribuidor);
+    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
+      if (!sessionDistribuidor) {
+        router.push('/distribuidor/login');
+        return;
+      }
+      setDistribuidor(sessionDistribuidor);
+    });
   }, [router]);
 
   useEffect(() => {

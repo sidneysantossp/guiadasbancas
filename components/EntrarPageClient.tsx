@@ -7,8 +7,8 @@ import { useSession, signIn } from "next-auth/react";
 import type { Route } from "next";
 import {
   clearDistribuidorClientAuth,
+  hydrateDistribuidorClientAuth,
   persistDistribuidorClientAuth,
-  readDistribuidorClientAuth,
 } from "@/lib/distribuidor-client-auth";
 
 type EntrarPageClientProps = {
@@ -80,10 +80,11 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
 
     // Sessão local do distribuidor (não usa NextAuth)
     if (status === "unauthenticated") {
-      const { distribuidor, sessionToken } = readDistribuidorClientAuth();
-      if (distribuidor?.id && sessionToken) {
-        router.replace("/distribuidor/dashboard");
-      }
+      void hydrateDistribuidorClientAuth().then((distribuidor) => {
+        if (distribuidor?.id) {
+          router.replace("/distribuidor/dashboard");
+        }
+      });
     }
   }, [status, session, router, redirectTarget, fromCheckout]);
 
@@ -229,11 +230,9 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
 
       const distData = await distRes.json().catch(() => ({}));
 
-      if (distRes.ok && distData?.success && distData?.distribuidor && distData?.session_token && distData?.session_expires_at) {
+      if (distRes.ok && distData?.success && distData?.distribuidor) {
         persistDistribuidorClientAuth({
           distribuidor: distData.distribuidor,
-          sessionToken: distData.session_token,
-          expiresAt: distData.session_expires_at,
         });
         router.replace("/distribuidor/dashboard");
         return;

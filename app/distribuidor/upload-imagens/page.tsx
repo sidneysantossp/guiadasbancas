@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   getDistribuidorAuthHeaders,
-  readDistribuidorClientAuth,
+  hydrateDistribuidorClientAuth,
 } from '@/lib/distribuidor-client-auth';
 import {
   IconUpload,
@@ -25,10 +25,11 @@ export default function DistribuidorUploadImagensPage() {
   const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4 MB
 
   useEffect(() => {
-    const { distribuidor: sessionDistribuidor } = readDistribuidorClientAuth();
-    if (sessionDistribuidor) {
-      setDistribuidor(sessionDistribuidor);
-    }
+    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
+      if (sessionDistribuidor) {
+        setDistribuidor(sessionDistribuidor);
+      }
+    });
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

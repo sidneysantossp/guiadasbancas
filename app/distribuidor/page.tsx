@@ -2,19 +2,19 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { readDistribuidorClientAuth } from "@/lib/distribuidor-client-auth";
+import { hydrateDistribuidorClientAuth } from "@/lib/distribuidor-client-auth";
 
 export default function DistribuidorIndexPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const { distribuidor, sessionToken } = readDistribuidorClientAuth();
-
-    if (distribuidor?.id && sessionToken) {
-      router.replace("/distribuidor/dashboard");
-    } else {
-      router.replace("/distribuidor/login");
-    }
+    void hydrateDistribuidorClientAuth().then((distribuidor) => {
+      if (distribuidor?.id) {
+        router.replace("/distribuidor/dashboard");
+      } else {
+        router.replace("/distribuidor/login");
+      }
+    });
   }, [router]);
 
   return (
