@@ -3,6 +3,7 @@ import * as bcrypt from 'bcryptjs';
 import {
   buildDistribuidorSessionCookie,
   buildDistribuidorSessionCookieClear,
+  hasDistribuidorSessionSecret,
   issueDistribuidorSessionToken,
 } from '@/lib/security/distribuidor-session';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -10,6 +11,10 @@ import { supabaseAdmin } from '@/lib/supabase';
 const allowLegacyDefaultPassword =
   process.env.NODE_ENV !== 'production' &&
   process.env.ALLOW_LEGACY_DISTRIBUIDOR_PASSWORD === 'true';
+
+const allowLegacyIdentifierLogin =
+  process.env.NODE_ENV !== 'production' &&
+  process.env.ALLOW_LEGACY_DISTRIBUIDOR_IDENTIFIER_LOGIN === 'true';
 
 function normalizeIdentifier(value: string): string {
   return value
@@ -20,23 +25,55 @@ function normalizeIdentifier(value: string): string {
     .trim();
 }
 
-async function matchesPassword(inputPassword: string, storedPassword?: string | null) {
-  if (!storedPassword) return false;
-  if (storedPassword === inputPassword) return true;
+async function verifyStoredPassword(inputPassword: string, storedPassword?: string | null) {
+  if (!storedPassword) {
+    return { matched: false, shouldUpgrade: false };
+  }
+
+  if (storedPassword === inputPassword) {
+    return { matched: true, shouldUpgrade: true };
+  }
 
   if (/^\$2[aby]\$\d+\$/.test(storedPassword)) {
     try {
-      return await bcrypt.compare(inputPassword, storedPassword);
+      return {
+        matched: await bcrypt.compare(inputPassword, storedPassword),
+        shouldUpgrade: false,
+      };
     } catch {
-      return false;
+      return { matched: false, shouldUpgrade: false };
     }
   }
 
-  return false;
+  return { matched: false, shouldUpgrade: false };
+}
+
+async function hashDistribuidorPasswordIfNeeded(distribuidorId: string, password: string, fieldsToUpgrade: string[]) {
+  if (fieldsToUpgrade.length === 0) {
+    return;
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const payload = fieldsToUpgrade.reduce<Record<string, string>>((acc, fieldName) => {
+    acc[fieldName] = hashedPassword;
+    return acc;
+  }, {});
+
+  await supabaseAdmin
+    .from('distribuidores')
+    .update(payload)
+    .eq('id', distribuidorId);
 }
 
 export async function POST(request: NextRequest) {
   try {
+    if (process.env.NODE_ENV === 'production' && !hasDistribuidorSessionSecret()) {
+      return NextResponse.json(
+        { success: false, error: 'Sessão do distribuidor indisponível' },
+        { status: 500 }
+      );
+    }
+
     const body = await request.json();
     const { email, password } = body;
 
@@ -62,8 +99,8 @@ export async function POST(request: NextRequest) {
       distribuidor = distByEmail;
     }
 
-    // 2. Fallback controlado: permitir login por nome exato normalizado para bases antigas sem email cadastrado
-    if (!distribuidor) {
+    // 2. Fallback controlado apenas em desenvolvimento para bases antigas sem email confiável
+    if (!distribuidor && allowLegacyIdentifierLogin) {
       const { data: allDist } = await supabaseAdmin
         .from('distribuidores')
         .select('*')
@@ -87,9 +124,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar senha
+    const senhaMatch = await verifyStoredPassword(password, distribuidor.senha);
+    const passwordMatch = await verifyStoredPassword(password, distribuidor.password);
     const senhaValida =
-      (await matchesPassword(password, distribuidor.senha)) ||
-      (await matchesPassword(password, distribuidor.password)) ||
+      senhaMatch.matched ||
+      passwordMatch.matched ||
       (allowLegacyDefaultPassword && password === 'dist123');
 
     if (!senhaValida) {
@@ -97,6 +136,15 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Senha incorreta' },
         { status: 401 }
       );
+    }
+
+    const fieldsToUpgrade = [
+      ...(senhaMatch.shouldUpgrade ? ['senha'] : []),
+      ...(passwordMatch.shouldUpgrade ? ['password'] : []),
+    ];
+
+    if (fieldsToUpgrade.length > 0) {
+      await hashDistribuidorPasswordIfNeeded(distribuidor.id, password, fieldsToUpgrade);
     }
 
     // Retornar dados do distribuidor (sem a senha e tokens sensíveis)
@@ -151,34 +199,9 @@ export async function DELETE() {
   return response;
 }
 
-// GET para listar distribuidores disponíveis (debug)
 export async function GET() {
-  try {
-    if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json(
-        { success: false, error: 'Not found' },
-        { status: 404 }
-      );
-    }
-
-    const { data: distribuidores } = await supabaseAdmin
-      .from('distribuidores')
-      .select('id, nome, email, ativo')
-      .eq('ativo', true);
-
-    return NextResponse.json({
-      success: true,
-      distribuidores: distribuidores?.map((d: any) => ({
-        id: d.id,
-        nome: d.nome,
-        email: d.email || 'Sem email cadastrado',
-        ativo: d.ativo,
-      })) || [],
-    });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { success: false, error: 'Método não permitido' },
+    { status: 405 }
+  );
 }

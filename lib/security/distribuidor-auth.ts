@@ -31,13 +31,8 @@ export async function requireDistribuidorAccess(
     return null;
   }
 
-  const authHeader = request.headers.get("authorization");
-  const sessionTokenFromHeader = authHeader?.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length).trim()
-    : null;
   const sessionTokenFromCookie = request.cookies.get(DISTRIBUIDOR_SESSION_COOKIE)?.value || null;
-  const sessionToken = sessionTokenFromHeader || sessionTokenFromCookie;
-  const sessionPayload = verifyDistribuidorSessionToken(sessionToken);
+  const sessionPayload = verifyDistribuidorSessionToken(sessionTokenFromCookie);
 
   if (!sessionPayload) {
     return NextResponse.json(

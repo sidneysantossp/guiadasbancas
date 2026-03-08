@@ -7,12 +7,8 @@ import {
 import { supabaseAdmin } from "@/lib/supabase";
 
 function getSessionToken(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const tokenFromHeader = authHeader?.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length).trim()
-    : null;
   const tokenFromCookie = request.cookies.get(DISTRIBUIDOR_SESSION_COOKIE)?.value || null;
-  return tokenFromHeader || tokenFromCookie;
+  return tokenFromCookie;
 }
 
 function clearSessionResponse(status = 401) {
