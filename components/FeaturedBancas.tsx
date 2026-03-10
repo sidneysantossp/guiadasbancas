@@ -69,6 +69,16 @@ function BancaCard({
   profileImage?: string;
   priority?: boolean;
 }) {
+  const normalizedProfileImage = profileImage?.trim() || "";
+  const normalizedCoverImage = cover?.trim() || "";
+  const [avatarSrc, setAvatarSrc] = useState<string>(
+    normalizedProfileImage || normalizedCoverImage || "/placeholder/banca-avatar.svg"
+  );
+
+  useEffect(() => {
+    setAvatarSrc(normalizedProfileImage || normalizedCoverImage || "/placeholder/banca-avatar.svg");
+  }, [normalizedCoverImage, normalizedProfileImage]);
+
   // Formatar distância: arredondar para 1 casa decimal, vírgula como separador, "KM" maiúsculo
   // Ocultar distâncias > 100km (indica erro de localização)
   const distanceLabel = (distance == null || distance > 100) ? null : `${distance.toFixed(1).replace('.', ',')} KM`;
@@ -137,8 +147,22 @@ function BancaCard({
         {/* Avatar + nome */}
         <div className="mt-2 flex items-center gap-2 min-w-0">
           <div className="relative h-9 w-9 overflow-hidden rounded-full bg-white ring-2 ring-gray-200 shrink-0">
-            {profileImage ? (
-              <Image src={profileImage} alt={name} fill className="object-cover" sizes="36px" unoptimized />
+            {avatarSrc && avatarSrc !== "/placeholder/banca-avatar.svg" ? (
+              <Image
+                src={avatarSrc}
+                alt={name}
+                fill
+                className="object-cover"
+                sizes="36px"
+                unoptimized
+                onError={() => {
+                  if (avatarSrc !== normalizedCoverImage && normalizedCoverImage) {
+                    setAvatarSrc(normalizedCoverImage);
+                    return;
+                  }
+                  setAvatarSrc("/placeholder/banca-avatar.svg");
+                }}
+              />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-orange-100">
                 <svg viewBox="0 0 24 24" className="h-5 w-5 text-orange-400" fill="none" stroke="currentColor" strokeWidth="1.5">

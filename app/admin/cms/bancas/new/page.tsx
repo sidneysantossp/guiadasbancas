@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCategories } from "@/lib/useCategories";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
 import { maskCEP, maskPhoneBR } from "@/lib/masks";
 
@@ -50,7 +51,7 @@ export default function NewBancaPage() {
         active,
       };
 
-      const res = await fetch('/api/admin/bancas', {
+      const res = await fetchAdminWithDevFallback('/api/admin/bancas', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'},

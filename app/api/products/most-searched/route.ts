@@ -223,8 +223,7 @@ export async function GET(req: NextRequest) {
       sortedCotistaBancas = cotistaBancas.map((b: any) => ({ ...b, distance: null }));
     }
     
-    // Índice para distribuir produtos entre bancas de forma rotativa
-    let bancaRotationIndex = 0;
+    const bancaUsageMap = new Map<string, number>();
 
     const [bancasRes, distribRes] = await Promise.all([
       bancaIds.length
@@ -329,14 +328,40 @@ export async function GET(req: NextRequest) {
     // Incluir produtos de TODAS as bancas ativas (não apenas cotistas)
     const isActiveBanca = (b: any) => b?.active !== false;
 
+    const pickDisplayBancaForDistributorProduct = (productId: string, fallbackBanca: any) => {
+      if (sortedCotistaBancas.length === 0) return fallbackBanca;
+
+      const eligible = sortedCotistaBancas.filter((banca: any) => {
+        const custom = customMap.get(`${banca.id}:${productId}`);
+        return custom?.enabled !== false;
+      });
+
+      if (eligible.length === 0) return fallbackBanca;
+
+      let bestBanca = eligible[0];
+      let bestScore = Number.POSITIVE_INFINITY;
+
+      eligible.forEach((banca: any, index: number) => {
+        const usageCount = bancaUsageMap.get(banca.id) || 0;
+        const distancePenalty = userLat && userLng ? index : 0;
+        const score = distancePenalty + usageCount * 1.75;
+
+        if (score < bestScore) {
+          bestScore = score;
+          bestBanca = banca;
+        }
+      });
+
+      bancaUsageMap.set(bestBanca.id, (bancaUsageMap.get(bestBanca.id) || 0) + 1);
+      return bestBanca;
+    };
+
     const data = (items || []).map((p: any) => {
-      let bancaData = p?.banca_id ? bancaMap.get(p.banca_id) : null;
-      
-      // Para produtos de distribuidor sem banca_id, distribuir entre bancas cotistas de forma rotativa
-      if (!bancaData && p.distribuidor_id && sortedCotistaBancas.length > 0) {
-        // Usar rotação para variar as bancas exibidas
-        bancaData = sortedCotistaBancas[bancaRotationIndex % sortedCotistaBancas.length];
-        bancaRotationIndex++;
+      const fallbackBanca = p?.banca_id ? bancaMap.get(p.banca_id) : null;
+      let bancaData = fallbackBanca;
+
+      if (p.distribuidor_id) {
+        bancaData = pickDisplayBancaForDistributorProduct(p.id, fallbackBanca);
       }
       
       // Permitir produtos sem banca (produtos de distribuidor) ou de bancas ativas

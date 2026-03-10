@@ -35,14 +35,18 @@ export default function AlertModal({ isOpen, onClose, title, message, type = "wa
   // Bloquear scroll do body quando modal aberto
   useEffect(() => {
     if (!mounted) return;
-    
+
+    const clearOverflow = () => {
+      document.body.style.removeProperty("overflow");
+    };
+
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = "unset";
+      clearOverflow();
     }
     return () => {
-      document.body.style.overflow = "unset";
+      clearOverflow();
     };
   }, [isOpen, mounted]);
 

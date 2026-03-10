@@ -139,10 +139,6 @@ function FeaturedCard({ p }: { p: Product }) {
           {/* Badge "Entregue por" com nome da banca */}
           <div className="mb-1.5">
             <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 border border-orange-200 text-orange-700 px-2 py-1 text-[10px] font-medium">
-              <svg viewBox="0 0 24 24" className="h-3 w-3 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/>
-                <path d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1"/>
-              </svg>
               <span className="truncate">Entregue por: <strong>{bancaDisplay}</strong></span>
             </span>
           </div>
@@ -183,21 +179,17 @@ function SmallCard({ p }: { p: Product }) {
   const bancaDisplay = formatBancaDisplay(p.bancaName || p.vendorName);
 
   return (
-    <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex h-full w-full flex-col flex-1">
+    <div className="h-full rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">
       <div className="relative w-full group h-48 sm:h-56">
-        {/* Wrapper com padding para a imagem, mantendo cantos arredondados internos */}
         <div className="absolute inset-0 p-2">
           <div className="relative h-full w-full rounded-[14px] overflow-hidden">
             <ImagePlaceholder src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 25vw" className="object-contain bg-gray-50" />
-            {/* Link absoluto cobrindo a imagem para ir à página do produto */}
             <Link
               href={productHref}
               aria-label={`Ver detalhes de ${p.name}`}
               className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5c00]"
             />
-            {/* Efeito hover sutil sobre a imagem */}
             <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/5 transition" />
-            {/* Badge de desconto no canto superior esquerdo */}
             {(() => {
               const baseDiscount = typeof p.discountPercent === 'number' ? p.discountPercent : (p.priceOriginal && p.priceOriginal > (p.price || 0) ? Math.round((1 - (p.price || 0) / p.priceOriginal) * 100) : 0);
               const d = Math.max(0, Math.min(90, baseDiscount || 0));
@@ -208,7 +200,6 @@ function SmallCard({ p }: { p: Product }) {
                 </span>
               );
             })()}
-            {/* Esgotado badge */}
             {outOfStock && (
               <span className="absolute right-2 top-2 z-10 inline-flex items-center rounded-md bg-rose-600 text-white px-2 py-[2px] text-[11px] font-semibold shadow">
                 Esgotado
@@ -218,35 +209,19 @@ function SmallCard({ p }: { p: Product }) {
         </div>
       </div>
       <div className="p-2.5 flex flex-col flex-1">
-        <div className="flex flex-wrap gap-1">
-          {p.sobEncomenda && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-700 px-2 py-[2px] text-[10px] font-semibold">
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              Sob Encomenda
-            </span>
-          )}
-          {p.preVenda && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 text-purple-700 px-2 py-[2px] text-[10px] font-semibold">
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              Pré-Venda
-            </span>
-          )}
-        </div>
-        <Link href={productHref} className="mt-2 text-[13px] font-semibold hover:underline">{p.name}</Link>
+        <Link href={productHref} className="mt-1 text-[13px] font-semibold hover:underline line-clamp-2 min-h-[2.5rem]">
+          {p.name}
+        </Link>
         {p.codigoMercos && (
           <div className="text-[10px] text-gray-500 font-mono mt-0.5">Cód: {p.codigoMercos}</div>
         )}
-        <div className="mt-1 flex items-center gap-2">
+        <div className="text-[11px] text-gray-600 mt-0.5 line-clamp-1">
+          Entregue por: <span className="font-medium">{bancaDisplay}</span>
+        </div>
+        <div className="mt-1 flex items-center gap-2 text-[#f59e0b]">
           <Stars value={p.ratingAvg} count={p.reviewsCount} size="sm" />
         </div>
-        {/* Badge "Entregue por" abaixo das avaliações */}
-        <div className="mt-1 text-gray-600 text-[10px] font-medium">
-          🚚 Entregue por: {bancaDisplay}
-        </div>
-        
-        {/* Seção inferior com preços e botões sempre alinhados */}
-        <div className="mt-auto pt-2 flex flex-col gap-1.5">
-          {/* Preço com rótulos: 'De:' (antigo) e 'Por:' (atual) */}
+        <div className="mt-auto pt-2 flex flex-col gap-2">
           <div className="flex flex-col gap-0.5">
             {(() => {
               const hasDiscount = typeof p.discountPercent === 'number' && p.discountPercent > 0;
@@ -268,7 +243,6 @@ function SmallCard({ p }: { p: Product }) {
               }
             })()}
           </div>
-          
         </div>
       </div>
     </div>
@@ -303,9 +277,18 @@ export default function MostSearchedProducts() {
         setLoading(true);
         let list: any[] = [];
 
+        let fallbackUrl = '/api/products/most-searched?limit=96';
+        if (userLocation?.lat && userLocation?.lng) {
+          fallbackUrl += `&lat=${userLocation.lat}&lng=${userLocation.lng}`;
+        }
+
         // 1) Prioridade manual (vitrine curada pelo admin/importação)
         try {
-          const curatedResponse = await fetch(`/api/featured-products?section=${CURATED_SECTION_KEY}&limit=96`, {
+          let curatedUrl = `/api/featured-products?section=${CURATED_SECTION_KEY}&limit=96`;
+          if (userLocation?.lat && userLocation?.lng) {
+            curatedUrl += `&lat=${encodeURIComponent(String(userLocation.lat))}&lng=${encodeURIComponent(String(userLocation.lng))}`;
+          }
+          const curatedResponse = await fetch(curatedUrl, {
             cache: 'no-store',
           });
           const curated = await curatedResponse.json();
@@ -317,13 +300,25 @@ export default function MostSearchedProducts() {
           console.warn('[MostSearchedProducts] Falha ao carregar vitrine curada, usando fallback:', curatedError);
         }
 
-        // 2) Fallback: endpoint de mais buscados/proximidade
-        if (!list.length) {
-          let apiUrl = '/api/products/most-searched?limit=96';
-          if (userLocation?.lat && userLocation?.lng) {
-            apiUrl += `&lat=${userLocation.lat}&lng=${userLocation.lng}`;
+        // 2) Completar curadoria com fallback para garantir massa mínima na home
+        if (list.length < 5) {
+          const pResponse = await fetch(fallbackUrl, { cache: 'no-store' });
+          const pData = await pResponse.json();
+          if (pData?.data) {
+            const fallbackList = Array.isArray(pData.data) ? pData.data : [];
+            const seenIds = new Set(list.map((item: any) => item?.id).filter(Boolean));
+            const extras = fallbackList.filter((item: any) => {
+              if (!item?.id || seenIds.has(item.id)) return false;
+              seenIds.add(item.id);
+              return true;
+            });
+            list = [...list, ...extras];
           }
-          const pResponse = await fetch(apiUrl, { cache: 'no-store' });
+        }
+
+        // 3) Fallback total: endpoint de mais buscados/proximidade
+        if (!list.length) {
+          const pResponse = await fetch(fallbackUrl, { cache: 'no-store' });
           const pData = await pResponse.json();
           if (pData?.data) {
             list = Array.isArray(pData.data) ? pData.data : [];
@@ -448,7 +443,7 @@ export default function MostSearchedProducts() {
           isMobile ? (
             <div className="rounded-2xl bg-gray-100 h-[420px] animate-pulse" />
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-fr">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 auto-rows-fr">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="rounded-2xl bg-gray-100 animate-pulse h-80"></div>
               ))}
@@ -500,7 +495,7 @@ export default function MostSearchedProducts() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-fr">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 auto-rows-fr">
             {items.map((p) => (
               <SmallCard key={p.id} p={p} />
             ))}

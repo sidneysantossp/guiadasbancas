@@ -454,7 +454,7 @@ export default function BuscarPageClient({
   return (
     <section className="container-max pt-12 md:pt-8 lg:pt-10 pb-6">
       {/* Cabeçalho */}
-      <div className="mb-6">
+      <div className="mb-6 md:mt-10">
         <h1 className="text-2xl font-bold text-gray-900">Resultados da busca</h1>
         {q ? (
           <p className="text-gray-600 mt-1">Você pesquisou por: <span className="font-semibold text-gray-900">"{q}"</span></p>

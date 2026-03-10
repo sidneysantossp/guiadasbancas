@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 export type AdminBanca = {
   id: string;
@@ -38,14 +39,14 @@ export default function BancasPage() {
   const [featuredFirst, setFeaturedFirst] = useState(false);
 
   const fetchAll = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch('/api/admin/bancas?all=true', {
-
-      });
-      const json = await res.json();
-      if (json?.success) {
-        setItems(json.data || []);
+      try {
+        setLoading(true);
+        const res = await fetchAdminWithDevFallback('/api/admin/bancas?all=true', {
+          cache: 'no-store',
+        });
+        const json = await res.json();
+        if (json?.success) {
+          setItems(json.data || []);
       }
     } catch (error) {
       console.error('Erro ao carregar bancas:', error);
@@ -69,7 +70,7 @@ export default function BancasPage() {
   const toggleBancaStatus = async (banca: AdminBanca) => {
     try {
       const newStatus = !banca.active;
-      const res = await fetch('/api/admin/bancas', {
+      const res = await fetchAdminWithDevFallback('/api/admin/bancas', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'},
@@ -98,9 +99,8 @@ export default function BancasPage() {
 
   const deleteBanca = async (banca: AdminBanca) => {
     try {
-      const res = await fetch(`/api/admin/bancas?id=${banca.id}`, {
+      const res = await fetchAdminWithDevFallback(`/api/admin/bancas?id=${banca.id}`, {
         method: 'DELETE',
-
       });
 
       const result = await res.json();

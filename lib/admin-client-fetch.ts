@@ -2,39 +2,55 @@ export async function fetchAdminWithDevFallback(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
+  const requestInitWithDefaults: RequestInit = {
+    cache: init?.cache ?? 'no-store',
+    credentials: init?.credentials ?? 'include',
+    ...init,
+  };
+
   const alreadyHasAuthHeader = hasAuthorizationHeader(init?.headers);
   const devTokenWasAttached =
-    process.env.NODE_ENV !== 'production' &&
+    shouldAllowDevAdminFallback() &&
     !alreadyHasAuthHeader &&
     isAdminApiRequest(input);
 
   const firstRequestInit = devTokenWasAttached
     ? {
-        ...init,
-        headers: mergeHeaders(init?.headers, {
+        ...requestInitWithDefaults,
+        headers: mergeHeaders(requestInitWithDefaults.headers, {
           Authorization: 'Bearer admin-token',
         }),
       }
-    : init;
+    : requestInitWithDefaults;
 
   const firstResponse = await fetch(input, firstRequestInit);
 
   const shouldRetryWithDevToken =
     firstResponse.status === 401 &&
-    process.env.NODE_ENV !== 'production' &&
+    shouldAllowDevAdminFallback() &&
     !alreadyHasAuthHeader &&
     !devTokenWasAttached;
 
   if (!shouldRetryWithDevToken) return firstResponse;
 
-  const headers = mergeHeaders(init?.headers, {
+  const headers = mergeHeaders(requestInitWithDefaults.headers, {
     Authorization: 'Bearer admin-token',
   });
 
   return fetch(input, {
-    ...init,
+    ...requestInitWithDefaults,
     headers,
   });
+}
+
+function shouldAllowDevAdminFallback(): boolean {
+  if (process.env.NODE_ENV !== 'production') return true;
+
+  if (typeof window !== 'undefined') {
+    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  }
+
+  return false;
 }
 
 function isAdminApiRequest(input: RequestInfo | URL): boolean {

@@ -3,6 +3,15 @@ import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const NO_STORE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, private',
+  Pragma: 'no-cache',
+  Expires: '0',
+  'Surrogate-Control': 'no-store',
+  Vary: 'Cookie, Authorization',
+};
 
 export type AdminBanca = {
   id: string;
@@ -113,7 +122,7 @@ export async function GET(request: NextRequest) {
   if (id) {
     // Ao buscar por ID, considerar TODAS (inclusive inativas) para evitar 404 indevido
     const it = items.find((b) => b.id === id || b.id.endsWith(id));
-    if (!it) return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+    if (!it) return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404, headers: NO_STORE_HEADERS });
 
     // Enriquecer com email do jornaleiro (dono) quando possível
     let ownerEmail: string | null = null;
@@ -136,10 +145,10 @@ export async function GET(request: NextRequest) {
       }
     } catch {}
 
-    return NextResponse.json({ success: true, data: { ...it, ownerEmail } });
+    return NextResponse.json({ success: true, data: { ...it, ownerEmail } }, { headers: NO_STORE_HEADERS });
   }
 
-  return NextResponse.json({ success: true, data: list.sort((a,b)=>a.order-b.order) });
+  return NextResponse.json({ success: true, data: list.sort((a,b)=>a.order-b.order) }, { headers: NO_STORE_HEADERS });
 }
 
 export async function POST(request: NextRequest) {
@@ -151,7 +160,7 @@ export async function POST(request: NextRequest) {
     const { data } = body;
 
     if (!data || !data.name) {
-      return NextResponse.json({ success: false, error: "Nome da banca é obrigatório" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Nome da banca é obrigatório" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     // Preparar dados para inserção
@@ -177,13 +186,13 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Insert banca error:', error);
-      return NextResponse.json({ success: false, error: 'Erro ao criar banca' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Erro ao criar banca' }, { status: 500, headers: NO_STORE_HEADERS });
     }
 
-    return NextResponse.json({ success: true, data: insertedData });
+    return NextResponse.json({ success: true, data: insertedData }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error('Create banca API error:', error);
-    return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500, headers: NO_STORE_HEADERS });
   }
 }
 
@@ -196,7 +205,7 @@ export async function PUT(request: NextRequest) {
     const { data } = body;
 
     if (!data || !data.id) {
-      return NextResponse.json({ success: false, error: "Dados inválidos" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Dados inválidos" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     // Preparar dados para atualização
@@ -240,13 +249,13 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error('Update banca error:', error);
-      return NextResponse.json({ success: false, error: 'Erro ao atualizar banca' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Erro ao atualizar banca' }, { status: 500, headers: NO_STORE_HEADERS });
     }
 
-    return NextResponse.json({ success: true, data: updatedData });
+    return NextResponse.json({ success: true, data: updatedData }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error('Update banca API error:', error);
-    return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500, headers: NO_STORE_HEADERS });
   }
 }
 
@@ -259,7 +268,7 @@ export async function DELETE(request: NextRequest) {
     const bancaId = searchParams.get("id");
 
     if (!bancaId) {
-      return NextResponse.json({ success: false, error: "ID da banca é obrigatório" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "ID da banca é obrigatório" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     console.log('[DELETE] Iniciando exclusão da banca:', bancaId);
@@ -273,7 +282,7 @@ export async function DELETE(request: NextRequest) {
 
     if (fetchError || !existingBanca) {
       console.error('[DELETE] Banca não encontrada:', fetchError);
-      return NextResponse.json({ success: false, error: 'Banca não encontrada' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Banca não encontrada' }, { status: 404, headers: NO_STORE_HEADERS });
     }
 
     console.log('[DELETE] Banca encontrada para exclusão:', existingBanca.name);
@@ -286,7 +295,7 @@ export async function DELETE(request: NextRequest) {
 
     if (deleteError) {
       console.error('[DELETE] Erro ao excluir banca:', deleteError);
-      return NextResponse.json({ success: false, error: 'Erro ao excluir banca' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Erro ao excluir banca' }, { status: 500, headers: NO_STORE_HEADERS });
     }
 
     // Limpar banca_id do user_profiles e excluir o perfil se existir
@@ -318,10 +327,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     console.log('[DELETE] ✅ Banca e usuário excluídos com sucesso:', existingBanca.name);
-    return NextResponse.json({ success: true, message: 'Banca e usuário excluídos com sucesso' });
+    return NextResponse.json({ success: true, message: 'Banca e usuário excluídos com sucesso' }, { headers: NO_STORE_HEADERS });
 
   } catch (error) {
     console.error('Delete banca API error:', error);
-    return NextResponse.json({ success: false, error: 'Erro interno do servidor' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Erro interno do servidor' }, { status: 500, headers: NO_STORE_HEADERS });
   }
 }

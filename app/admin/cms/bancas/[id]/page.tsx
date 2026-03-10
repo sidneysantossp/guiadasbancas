@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useCategories } from "@/lib/useCategories";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 import { maskCEP, maskPhoneBR } from "@/lib/masks";
 import { fetchViaCEP } from "@/lib/viacep";
 import ImageUploadDragDrop from "@/components/admin/ImageUploadDragDrop";
@@ -131,8 +132,8 @@ export default function EditBancaPage() {
     const loadBanca = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/admin/bancas?id=${bancaId}`, {
-
+        const res = await fetchAdminWithDevFallback(`/api/admin/bancas?id=${bancaId}`, {
+          cache: 'no-store',
         });
         const json = await res.json();
 
@@ -246,7 +247,7 @@ export default function EditBancaPage() {
     }
     setResetLoading(true);
     try {
-      const res = await fetch('/api/admin/reset-password', {
+      const res = await fetchAdminWithDevFallback('/api/admin/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify({ email, password: resetPwd })
@@ -285,9 +286,9 @@ export default function EditBancaPage() {
 
     setDeleteLoading(true);
     try {
-      const response = await fetch(`/api/admin/bancas?id=${bancaId}`, {
+      const response = await fetchAdminWithDevFallback(`/api/admin/bancas?id=${bancaId}`, {
         method: 'DELETE',
-        });
+      });
 
       const result = await response.json();
 
@@ -337,7 +338,7 @@ export default function EditBancaPage() {
         cotista_cnpj_cpf: selectedCotista?.cnpj_cpf || null,
       };
 
-      const res = await fetch('/api/admin/bancas', {
+      const res = await fetchAdminWithDevFallback('/api/admin/bancas', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'},

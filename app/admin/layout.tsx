@@ -185,15 +185,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const validateAdminAccess = async () => {
       try {
-        const sessionRes = await fetch("/api/auth/validate-session", {
-          method: "GET",
-          cache: "no-store",
-          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-        });
-        const sessionData = await sessionRes.json().catch(() => null);
+        let sessionData: any = null;
+        let sessionResOk = false;
+
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          const sessionRes = await fetch("/api/auth/validate-session", {
+            method: "GET",
+            cache: "no-store",
+            headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+          });
+          sessionData = await sessionRes.json().catch(() => null);
+          sessionResOk = sessionRes.ok;
+
+          if (sessionRes.ok && sessionData?.authenticated === true) {
+            break;
+          }
+
+          if (attempt < 5) {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+          }
+        }
 
         if (
-          sessionRes.ok &&
+          sessionResOk &&
           sessionData?.authenticated === true &&
           sessionData?.profile?.role === "admin"
         ) {
@@ -208,17 +222,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           setUser(adminData);
           setLoading(false);
           return;
-        }
-
-        // Compatibilidade local para fluxo legado durante migração.
-        if (process.env.NODE_ENV !== "production") {
-          const auth = localStorage.getItem("gb:adminAuth");
-          const userData = localStorage.getItem("gb:admin");
-          if (auth === "1" && userData) {
-            setUser(JSON.parse(userData));
-            setLoading(false);
-            return;
-          }
         }
 
         localStorage.removeItem("gb:adminAuth");

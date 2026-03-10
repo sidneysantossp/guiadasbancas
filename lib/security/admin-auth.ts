@@ -51,6 +51,15 @@ export async function requireAdminAuth(request: NextRequest): Promise<NextRespon
 
   return NextResponse.json(
     { success: false, error: 'Não autorizado' },
-    { status: 401 }
+    {
+      status: 401,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, private',
+        Pragma: 'no-cache',
+        Expires: '0',
+        'Surrogate-Control': 'no-store',
+        Vary: 'Cookie, Authorization',
+      },
+    }
   );
 }

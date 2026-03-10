@@ -5,6 +5,35 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn, signOut } from "next-auth/react";
 
+type ValidatedAdminSession =
+  | { authenticated: true; profile?: { id?: string; full_name?: string | null; role?: string | null }; user?: { email?: string | null } }
+  | { authenticated: false };
+
+async function waitForValidatedAdminSession(attempts = 6, delayMs = 250): Promise<ValidatedAdminSession | null> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const sessionRes = await fetch("/api/auth/validate-session", {
+        method: "GET",
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+      });
+      const sessionData = await sessionRes.json().catch(() => null);
+
+      if (sessionRes.ok && sessionData?.authenticated === true) {
+        return sessionData as ValidatedAdminSession;
+      }
+    } catch {
+      // noop: retry abaixo
+    }
+
+    if (attempt < attempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  return null;
+}
+
 export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -35,15 +64,9 @@ export default function AdminLoginPage() {
       });
 
       if (!result?.error) {
-        const sessionRes = await fetch("/api/auth/validate-session", {
-          method: "GET",
-          cache: "no-store",
-          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-        });
-        const sessionData = await sessionRes.json().catch(() => null);
+        const sessionData = await waitForValidatedAdminSession();
 
         if (
-          sessionRes.ok &&
           sessionData?.authenticated === true &&
           sessionData?.profile?.role === "admin"
         ) {
@@ -61,26 +84,7 @@ export default function AdminLoginPage() {
         }
 
         await signOut({ redirect: false });
-        setError("Acesso negado. Sua conta não possui perfil de administrador.");
-        return;
-      }
-
-      // Compatibilidade temporária para ambiente local, sem impacto em produção.
-      if (
-        process.env.NODE_ENV !== "production" &&
-        normalizedEmail === "admin@guiadasbancas.com" &&
-        password === "admin123"
-      ) {
-        const adminData = {
-          id: "admin-legacy-local",
-          name: "Administrador",
-          email: "admin@guiadasbancas.com",
-          role: "admin",
-        };
-
-        localStorage.setItem("gb:adminAuth", "1");
-        localStorage.setItem("gb:admin", JSON.stringify(adminData));
-        router.replace("/admin/dashboard");
+        setError("Acesso negado. Sua conta não possui perfil de administrador ou a sessão não foi confirmada.");
         return;
       }
 

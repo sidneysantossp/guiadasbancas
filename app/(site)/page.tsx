@@ -8,7 +8,19 @@ import MiniCategoryBar from "@/components/MiniCategoryBar";
 import CategoryCarousel from "@/components/CategoryCarousel";
 import BancasSections from "@/components/BancasSections";
 import LazyViewportSection from "@/components/LazyViewportSection";
-import nextDynamic from "next/dynamic";
+import ReferralPlatformBannerWrapper from "@/components/ReferralPlatformBannerWrapper";
+import MostSearchedProducts from "@/components/MostSearchedProducts";
+import CampaignSection from "@/components/CampaignSection";
+import BrancaleoneProducts from "@/components/BrancaleoneProducts";
+import MiniBanners from "@/components/MiniBanners";
+import TopReviewed from "@/components/TopReviewed";
+import FavoritePicks from "@/components/FavoritePicks";
+import TrendingProducts from "@/components/TrendingProducts";
+import MarvelComicsProducts from "@/components/MarvelComicsProducts";
+import PlanetMangaProducts from "@/components/PlanetMangaProducts";
+import ReferralBanner from "@/components/ReferralBanner";
+import Newsletter from "@/components/Newsletter";
+import Testimonials from "@/components/Testimonials";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -276,47 +288,6 @@ async function getCategories(): Promise<HomeCategory[]> {
     }));
   }
 }
-
-const ReferralPlatformBannerWrapper = nextDynamic(
-  () => import("@/components/ReferralPlatformBannerWrapper"),
-  { ssr: false }
-);
-const MostSearchedProducts = nextDynamic(() => import("@/components/MostSearchedProducts"), { 
-  ssr: false
-});
-const CampaignSection = nextDynamic(() => import("@/components/CampaignSection"), { 
-  ssr: false
-});
-const BrancaleoneProducts = nextDynamic(() => import("@/components/BrancaleoneProducts"), { 
-  ssr: false
-});
-const MiniBanners = nextDynamic(() => import("@/components/MiniBanners"), { 
-  ssr: false
-});
-const TopReviewed = nextDynamic(() => import("@/components/TopReviewed"), {
-  ssr: false
-});
-const FavoritePicks = nextDynamic(() => import("@/components/FavoritePicks"), {
-  ssr: false
-});
-const TrendingProducts = nextDynamic(() => import("@/components/TrendingProducts"), {
-  ssr: false
-});
-const MarvelComicsProducts = nextDynamic(() => import("@/components/MarvelComicsProducts"), {
-  ssr: false
-});
-const PlanetMangaProducts = nextDynamic(() => import("@/components/PlanetMangaProducts"), {
-  ssr: false
-});
-const ReferralBanner = nextDynamic(() => import("@/components/ReferralBanner"), { 
-  ssr: false
-});
-const Newsletter = nextDynamic(() => import("@/components/Newsletter"), { 
-  ssr: false
-});
-const Testimonials = nextDynamic(() => import("@/components/Testimonials"), { 
-  ssr: false
-});
 
 export default async function HomePage() {
   const [hero, initialBancas, initialCategories] = await Promise.all([

@@ -201,8 +201,8 @@ function FavCard({ item }: { item: FavItem }) {
   };
 
   return (
-    <div className="group rounded-2xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-      <div className="p-2 flex items-center gap-3">
+    <div className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      <div className="flex items-center gap-3 p-3">
         {/* Imagem à esquerda com padding e badge - clicável */}
         <Link href={productHref} className="relative w-28 h-24 rounded-xl overflow-hidden shrink-0">
           <img src={image} alt={name} className="absolute inset-0 w-full h-full object-contain bg-gray-50" />
@@ -213,26 +213,28 @@ function FavCard({ item }: { item: FavItem }) {
           {/* Bloco de textos/preços - clicável */}
           <Link href={productHref} className="flex-1 min-w-0">
             <div className="min-w-0">
-              <div className="text-[13px] font-semibold leading-tight line-clamp-2 break-words hover:underline">{name}</div>
-              {codigo_mercos && <div className="text-[10px] text-gray-500 font-mono mt-0.5">Cód: {codigo_mercos}</div>}
-              <div className="text-[12px] text-gray-600 line-clamp-1">Entregue por: {bancaDisplay}</div>
-              <div className="mt-1"><Stars value={ratingAvg} count={reviewsCount} /></div>
+              <div className="text-[12px] font-semibold leading-[1.2] text-gray-900 line-clamp-2 break-words hover:underline sm:text-[13px] lg:text-[14px]">
+                {name}
+              </div>
+              {codigo_mercos && <div className="mt-0.5 text-[9px] font-mono text-gray-500 sm:text-[10px]">Cód: {codigo_mercos}</div>}
+              <div className="text-[11px] text-gray-600 line-clamp-1 sm:text-[12px]">Entregue por: {bancaDisplay}</div>
+              <div className="mt-1.5"><Stars value={ratingAvg} count={reviewsCount} /></div>
             </div>
 
             {typeof discountPercent === 'number' && discountPercent > 0 ? (
               <div className="mt-2">
-                <div className="text-[12px] text-gray-600">
+                <div className="text-[11px] text-gray-600 sm:text-[12px]">
                   De: <span className="text-gray-400 line-through">R$ {((price) / (1 - (discountPercent || 0) / 100)).toFixed(2)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[#ff5c00] font-extrabold">R$ {price.toFixed(2)}</span>
+                  <span className="text-[18px] font-extrabold text-[#ff5c00] sm:text-[20px]">R$ {price.toFixed(2)}</span>
                 </div>
               </div>
             ) : (
               <div className="mt-2 flex items-center gap-2">
-                <span className="text-[#ff5c00] font-extrabold">R$ {price.toFixed(2)}</span>
+                <span className="text-[18px] font-extrabold text-[#ff5c00] sm:text-[20px]">R$ {price.toFixed(2)}</span>
                 {typeof priceOriginal === 'number' && priceOriginal > price && (
-                  <span className="text-gray-400 line-through text-[12px]">R$ {Number(priceOriginal).toFixed(2)}</span>
+                  <span className="text-[11px] text-gray-400 line-through sm:text-[12px]">R$ {Number(priceOriginal).toFixed(2)}</span>
                 )}
               </div>
             )}

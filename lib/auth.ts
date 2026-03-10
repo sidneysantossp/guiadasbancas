@@ -2,6 +2,69 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { supabaseAdmin } from "@/lib/supabase";
 
+const LOCAL_DEV_ADMIN_EMAIL = "admin@guiadasbancas.com";
+const LOCAL_DEV_ADMIN_PASSWORD = "admin123";
+
+function getEmergencyAdminCredentials() {
+  const envEmail = process.env.ADMIN_LOGIN_EMAIL?.trim().toLowerCase();
+  const envPassword = process.env.ADMIN_LOGIN_PASSWORD;
+
+  if (envEmail && envPassword) {
+    return {
+      email: envEmail,
+      password: envPassword,
+      source: "env",
+    } as const;
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    return {
+      email: LOCAL_DEV_ADMIN_EMAIL,
+      password: LOCAL_DEV_ADMIN_PASSWORD,
+      source: "local-dev",
+    } as const;
+  }
+
+  return null;
+}
+
+async function authorizeEmergencyAdmin(rawEmail: string, rawPassword: string) {
+  const credentials = getEmergencyAdminCredentials();
+  const normalizedEmail = rawEmail.trim().toLowerCase();
+
+  if (!credentials) return null;
+  if (normalizedEmail !== credentials.email || rawPassword !== credentials.password) {
+    return null;
+  }
+
+  const { data: profiles, error } = await supabaseAdmin
+    .from("user_profiles")
+    .select("id, full_name, role, active, avatar_url, email")
+    .eq("role", "admin")
+    .eq("active", true)
+    .limit(10);
+
+  if (error || !profiles || profiles.length === 0) {
+    console.error("❌ [AUTHORIZE] Falha ao buscar perfil admin de emergência:", error?.message);
+    return null;
+  }
+
+  const matchedProfile =
+    profiles.find((profile) => profile.email?.trim().toLowerCase() === normalizedEmail) ??
+    profiles[0];
+
+  console.warn(`⚠️ [AUTHORIZE] Usando login admin de emergência (${credentials.source})`);
+
+  return {
+    id: matchedProfile.id,
+    email: normalizedEmail,
+    name: matchedProfile.full_name || "Administrador",
+    role: "admin",
+    banca_id: null,
+    avatar_url: matchedProfile.avatar_url || null,
+  };
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     CredentialsProvider({
@@ -28,11 +91,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           if (authError) {
             console.log("❌ [AUTHORIZE] Erro auth:", authError.message, authError);
+            const emergencyAdmin = await authorizeEmergencyAdmin(
+              credentials.email as string,
+              credentials.password as string,
+            );
+            if (emergencyAdmin) return emergencyAdmin;
             return null;
           }
 
           if (!authData.user) {
             console.log("❌ [AUTHORIZE] Auth OK mas sem user");
+            const emergencyAdmin = await authorizeEmergencyAdmin(
+              credentials.email as string,
+              credentials.password as string,
+            );
+            if (emergencyAdmin) return emergencyAdmin;
             return null;
           }
 

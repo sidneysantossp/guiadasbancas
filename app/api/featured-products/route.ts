@@ -21,6 +21,8 @@ export async function GET(req: NextRequest) {
     const section = (searchParams.get('section') || '').trim();
     const limit = Math.min(parseInt(searchParams.get('limit') || '12'), 50);
     const bancaId = (searchParams.get('banca_id') || '').trim();
+    const userLat = searchParams.get('lat') ? parseFloat(searchParams.get('lat') || '') : null;
+    const userLng = searchParams.get('lng') ? parseFloat(searchParams.get('lng') || '') : null;
 
     if (!section) {
       return NextResponse.json({ success: false, error: 'section param required', data: [] }, { status: 400, headers });
@@ -71,6 +73,30 @@ export async function GET(req: NextRequest) {
     const distribuidorIds = Array.from(new Set(distribuidorProducts.map((p: any) => p.distribuidor_id)));
     const categoryIds = Array.from(new Set(distribuidorProducts.map((p: any) => p.category_id).filter(Boolean)));
     const productIds = distribuidorProducts.map((p: any) => p.id);
+    const cotistaBancasRes = !bancaId && distribuidorIds.length > 0
+      ? await supabaseAdmin
+          .from('bancas')
+          .select('id, name, cover_image, whatsapp, lat, lng, is_cotista, cotista_id, active')
+          .eq('active', true)
+          .or('is_cotista.eq.true,cotista_id.not.is.null')
+          .not('lat', 'is', null)
+          .not('lng', 'is', null)
+          .limit(50)
+      : { data: [], error: null };
+
+    const cotistaBancas = (cotistaBancasRes?.data || []).filter((b: any) => b.lat != null && b.lng != null);
+    const sortedCotistaBancas = userLat && userLng
+      ? cotistaBancas
+          .map((b: any) => ({
+            ...b,
+            distance: calculateDistance(userLat, userLng, parseFloat(b.lat), parseFloat(b.lng)),
+          }))
+          .sort((a: any, b: any) => a.distance - b.distance)
+      : cotistaBancas.map((b: any) => ({ ...b, distance: null }));
+    const candidateBancaIds = Array.from(new Set([
+      ...bancaIds,
+      ...sortedCotistaBancas.map((b: any) => b.id).filter(Boolean),
+    ]));
 
     const [distRes, markupProdRes, markupCatRes, customRes] = await Promise.all([
       distribuidorIds.length > 0
@@ -93,11 +119,11 @@ export async function GET(req: NextRequest) {
             .in('distribuidor_id', distribuidorIds)
             .in('category_id', categoryIds)
         : Promise.resolve({ data: [] as any[] }),
-      bancaId && productIds.length > 0
+      productIds.length > 0 && (bancaId || candidateBancaIds.length > 0)
         ? supabaseAdmin
             .from('banca_produtos_distribuidor')
-            .select('product_id, enabled, custom_price')
-            .eq('banca_id', bancaId)
+            .select('product_id, banca_id, enabled, custom_price')
+            .in('banca_id', bancaId ? [bancaId] : candidateBancaIds)
             .in('product_id', productIds)
         : Promise.resolve({ data: [] as any[] }),
     ]);
@@ -105,7 +131,8 @@ export async function GET(req: NextRequest) {
     const distMap = new Map((distRes.data || []).map((d: any) => [d.id, d]));
     const markupProdMap = new Map((markupProdRes.data || []).map((m: any) => [`${m.distribuidor_id}:${m.product_id}`, m]));
     const markupCatMap = new Map((markupCatRes.data || []).map((m: any) => [`${m.distribuidor_id}:${m.category_id}`, m]));
-    const customMap = new Map((customRes.data || []).map((c: any) => [c.product_id, c]));
+    const customMap = new Map((customRes.data || []).map((c: any) => [`${c.banca_id}:${c.product_id}`, c]));
+    const bancaUsageMap = new Map<string, number>();
 
     const calcularPrecoVendaDistribuidor = (product: any): number => {
       const precoBase = Number(product.price || 0);
@@ -134,6 +161,36 @@ export async function GET(req: NextRequest) {
       return precoBase;
     };
 
+    const pickDisplayBancaForDistributorProduct = (product: any) => {
+      const fallbackBanca = product?.banca_id ? bancaMap.get(product.banca_id) : null;
+      if (bancaId) return fallbackBanca;
+      if (sortedCotistaBancas.length === 0) return fallbackBanca;
+
+      const eligible = sortedCotistaBancas.filter((banca: any) => {
+        const custom = customMap.get(`${banca.id}:${product.id}`);
+        return custom?.enabled !== false;
+      });
+
+      if (eligible.length === 0) return fallbackBanca;
+
+      let bestBanca = eligible[0];
+      let bestScore = Number.POSITIVE_INFINITY;
+
+      eligible.forEach((banca: any, index: number) => {
+        const usageCount = bancaUsageMap.get(banca.id) || 0;
+        const distancePenalty = userLat && userLng ? index : 0;
+        const score = distancePenalty + usageCount * 1.75;
+
+        if (score < bestScore) {
+          bestScore = score;
+          bestBanca = banca;
+        }
+      });
+
+      bancaUsageMap.set(bestBanca.id, (bancaUsageMap.get(bestBanca.id) || 0) + 1);
+      return bestBanca;
+    };
+
     const byId: Record<string, any> = Object.fromEntries(
       (prods || [])
         .filter((p: any) => {
@@ -151,12 +208,17 @@ export async function GET(req: NextRequest) {
       .map(f => byId[f.product_id])
       .filter(Boolean)
       .map((p: any) => {
+        const resolvedBanca = p.distribuidor_id
+          ? pickDisplayBancaForDistributorProduct(p)
+          : (p?.banca_id ? bancaMap.get(p.banca_id) : null);
+        const resolvedBancaId = resolvedBanca?.id || p.banca_id || null;
+
         if (p.distribuidor_id && bancaId) {
-          const custom = customMap.get(p.id);
+          const custom = customMap.get(`${resolvedBancaId}:${p.id}`);
           if (custom?.enabled === false) return null;
         }
 
-        const custom = p.distribuidor_id && bancaId ? customMap.get(p.id) : null;
+        const custom = p.distribuidor_id && resolvedBancaId ? customMap.get(`${resolvedBancaId}:${p.id}`) : null;
         const finalPrice = p.distribuidor_id
           ? (custom?.custom_price != null ? Number(custom.custom_price) : calcularPrecoVendaDistribuidor(p))
           : Number(p.price ?? 0);
@@ -173,16 +235,16 @@ export async function GET(req: NextRequest) {
         discount_percent: p.discount_percent ?? null,
         rating_avg: p.rating_avg ?? null,
         reviews_count: p.reviews_count ?? null,
-        banca_id: p.banca_id ?? null,
-        banca_name: bancaMap.get(p.banca_id)?.name || null,
-        banca: bancaMap.get(p.banca_id)
+        banca_id: resolvedBancaId,
+        banca_name: resolvedBanca?.name || null,
+        banca: resolvedBanca
           ? {
-              id: bancaMap.get(p.banca_id)?.id || null,
-              name: bancaMap.get(p.banca_id)?.name || null,
-              avatar: bancaMap.get(p.banca_id)?.cover_image || null,
-              phone: bancaMap.get(p.banca_id)?.whatsapp || null,
-              lat: bancaMap.get(p.banca_id)?.lat ?? null,
-              lng: bancaMap.get(p.banca_id)?.lng ?? null,
+              id: resolvedBanca?.id || null,
+              name: resolvedBanca?.name || null,
+              avatar: resolvedBanca?.cover_image || null,
+              phone: resolvedBanca?.whatsapp || null,
+              lat: resolvedBanca?.lat ?? null,
+              lng: resolvedBanca?.lng ?? null,
             }
           : null,
         description: p.description ?? null,
@@ -202,4 +264,16 @@ export async function GET(req: NextRequest) {
     console.error('[featured-products] GET error', e);
     return NextResponse.json({ success: false, error: 'Erro interno', data: [] }, { status: 500, headers });
   }
+}
+
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }

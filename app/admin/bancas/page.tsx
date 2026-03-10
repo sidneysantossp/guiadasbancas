@@ -6,6 +6,7 @@ import { useEffect, useState, useMemo } from "react";
 import FiltersBar from "@/components/admin/FiltersBar";
 import DataTable, { type Column } from "@/components/admin/DataTable";
 import StatusBadge from "@/components/admin/StatusBadge";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 import { IconExternalLink, IconEye, IconPencil } from "@tabler/icons-react";
 
 type TabKey = "overview" | "list" | "settings";
@@ -22,7 +23,9 @@ export default function AdminBancasPage() {
     const load = async () => {
       try {
         setLoading(true);
-        const res = await fetch('/api/admin/bancas?all=true');
+        const res = await fetchAdminWithDevFallback('/api/admin/bancas?all=true', {
+          cache: 'no-store',
+        });
         const json = await res.json();
         const items = json.success && Array.isArray(json.data) ? json.data : [];
         setRows(items.map((b: any) => ({ 
@@ -58,7 +61,7 @@ export default function AdminBancasPage() {
   const toggleStatus = async (row: any) => {
     try {
       const newStatus = row.status !== 'ativo';
-      const res = await fetch('/api/admin/bancas', {
+      const res = await fetchAdminWithDevFallback('/api/admin/bancas', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
