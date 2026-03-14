@@ -13,7 +13,6 @@ const allowLegacyDefaultPassword =
   process.env.ALLOW_LEGACY_DISTRIBUIDOR_PASSWORD !== 'false';
 
 const allowLegacyIdentifierLogin =
-  process.env.NODE_ENV !== 'production' &&
   process.env.ALLOW_LEGACY_DISTRIBUIDOR_IDENTIFIER_LOGIN !== 'false';
 
 function normalizeIdentifier(value: string): string {
