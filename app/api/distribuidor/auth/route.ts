@@ -10,11 +10,11 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 const allowLegacyDefaultPassword =
   process.env.NODE_ENV !== 'production' &&
-  process.env.ALLOW_LEGACY_DISTRIBUIDOR_PASSWORD === 'true';
+  process.env.ALLOW_LEGACY_DISTRIBUIDOR_PASSWORD !== 'false';
 
 const allowLegacyIdentifierLogin =
   process.env.NODE_ENV !== 'production' &&
-  process.env.ALLOW_LEGACY_DISTRIBUIDOR_IDENTIFIER_LOGIN === 'true';
+  process.env.ALLOW_LEGACY_DISTRIBUIDOR_IDENTIFIER_LOGIN !== 'false';
 
 function normalizeIdentifier(value: string): string {
   return value
@@ -23,6 +23,42 @@ function normalizeIdentifier(value: string): string {
     .toLowerCase()
     .replace(/\s+/g, '')
     .trim();
+}
+
+function extractEmailLocalPart(value: string | null | undefined): string {
+  if (!value) return "";
+  const normalized = value.trim().toLowerCase();
+  if (!normalized.includes("@")) return normalized;
+  return normalized.split("@")[0] || "";
+}
+
+function buildDistribuidorAliases(distribuidor: { nome?: string | null; email?: string | null }) {
+  const aliases = new Set<string>();
+  const normalizedName = normalizeIdentifier(distribuidor.nome || "");
+  const normalizedEmail = normalizeIdentifier(distribuidor.email || "");
+  const normalizedEmailLocalPart = normalizeIdentifier(extractEmailLocalPart(distribuidor.email));
+
+  if (normalizedName) {
+    aliases.add(normalizedName);
+
+    const nameWords = (distribuidor.nome || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => normalizeIdentifier(word));
+
+    for (const word of nameWords) {
+      if (word) aliases.add(word);
+    }
+  }
+
+  if (normalizedEmail) aliases.add(normalizedEmail);
+  if (normalizedEmailLocalPart) aliases.add(normalizedEmailLocalPart);
+
+  return aliases;
 }
 
 async function verifyStoredPassword(inputPassword: string, storedPassword?: string | null) {
@@ -79,12 +115,15 @@ export async function POST(request: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { success: false, error: 'E-mail e senha são obrigatórios' },
+        { success: false, error: 'Identificador e senha são obrigatórios' },
         { status: 400 }
       );
     }
 
     const emailLower = email.toLowerCase().trim();
+    const searchTerm = normalizeIdentifier(
+      emailLower.includes("@") ? extractEmailLocalPart(emailLower) : emailLower
+    );
     let distribuidor = null;
 
     // 1. Tentar buscar pelo email (se o campo existir)
@@ -107,11 +146,10 @@ export async function POST(request: NextRequest) {
         .eq('ativo', true);
 
       if (allDist) {
-        const searchTerm = normalizeIdentifier(emailLower.includes('@') ? emailLower.split('@')[0] : emailLower);
-        distribuidor = allDist.find((d: any) => 
-          normalizeIdentifier(d.email || '') === searchTerm ||
-          normalizeIdentifier(d.nome || '') === searchTerm
-        );
+        distribuidor = allDist.find((d: any) => {
+          const aliases = buildDistribuidorAliases(d);
+          return aliases.has(searchTerm);
+        });
       }
     }
 

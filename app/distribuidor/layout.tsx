@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
+import { Providers } from "@/components/Providers";
 import ToastProvider from "@/components/admin/ToastProvider";
 import DashboardOfficialLogo from "@/components/dashboard/DashboardOfficialLogo";
 import {
@@ -131,22 +132,25 @@ export default function DistribuidorLayout({ children }: { children: React.React
 
   // Se estiver na página de login, renderizar sem verificação
   if (pathname === "/distribuidor/login") {
-    return <>{children}</>;
+    return <Providers>{children}</Providers>;
   }
 
   // Se ainda estiver carregando, mostrar loading
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff5c00] mx-auto"></div>
-          <p className="mt-2 text-sm text-gray-600">Verificando acesso...</p>
+      <Providers>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff5c00] mx-auto"></div>
+            <p className="mt-2 text-sm text-gray-600">Verificando acesso...</p>
+          </div>
         </div>
-      </div>
+      </Providers>
     );
   }
 
   return (
+    <Providers>
     <ToastProvider>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -263,5 +267,6 @@ export default function DistribuidorLayout({ children }: { children: React.React
       </div>
     </div>
     </ToastProvider>
+    </Providers>
   );
 }

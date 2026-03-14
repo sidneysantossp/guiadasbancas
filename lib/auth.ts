@@ -33,7 +33,13 @@ async function authorizeEmergencyAdmin(rawEmail: string, rawPassword: string) {
   const normalizedEmail = rawEmail.trim().toLowerCase();
 
   if (!credentials) return null;
-  if (normalizedEmail !== credentials.email || rawPassword !== credentials.password) {
+
+  const canUseLocalDevBypass =
+    credentials.source === "local-dev" &&
+    process.env.NODE_ENV !== "production" &&
+    rawPassword === credentials.password;
+
+  if (!canUseLocalDevBypass && (normalizedEmail !== credentials.email || rawPassword !== credentials.password)) {
     return null;
   }
 
@@ -57,7 +63,7 @@ async function authorizeEmergencyAdmin(rawEmail: string, rawPassword: string) {
 
   return {
     id: matchedProfile.id,
-    email: normalizedEmail,
+    email: matchedProfile.email?.trim().toLowerCase() || credentials.email,
     name: matchedProfile.full_name || "Administrador",
     role: "admin",
     banca_id: null,

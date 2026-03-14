@@ -58,6 +58,10 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
     audience === "distribuidor"
       ? "Acesse seu portal para continuar operando."
       : "Acesse sua conta para continuar comprando";
+  const loginIdentifierLabel =
+    audience === "distribuidor" ? "E-mail ou identificador" : "E-mail";
+  const loginIdentifierPlaceholder =
+    audience === "distribuidor" ? "seu@email.com ou nome do distribuidor" : "seu@email.com";
 
   // Redirecionar se já está logado
   useEffect(() => {
@@ -189,12 +193,13 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
     setSuccessMessage(null);
     
     if (!email.trim()) {
-      setError("Informe seu e-mail");
+      setError(audience === "distribuidor" ? "Informe seu e-mail ou identificador" : "Informe seu e-mail");
       return;
     }
-    
+
+    const normalizedIdentifier = email.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
+    if (audience !== "distribuidor" && !emailRegex.test(normalizedIdentifier)) {
       setError("Informe um e-mail válido");
       return;
     }
@@ -210,11 +215,11 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
       // Primeiro tenta login unificado via NextAuth (cliente/jornaleiro/admin)
       const result = await signIn("credentials", {
         redirect: false,
-        email: email.trim().toLowerCase(),
+        email: normalizedIdentifier,
         password: password,
       });
 
-      if (result?.ok) {
+      if (result?.ok && audience !== "distribuidor") {
         return; // useEffect cuidará do redirecionamento
       }
 
@@ -223,7 +228,7 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: email.trim().toLowerCase(),
+          email: normalizedIdentifier,
           password,
         }),
       });
@@ -343,16 +348,16 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
             {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                E-mail
+                {loginIdentifierLabel}
               </label>
               <input
                 id="email"
-                type="email"
+                type={audience === "distribuidor" ? "text" : "email"}
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-lg border-0 bg-[#E8F0FE] px-4 py-3.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#ff7a1f]/50"
-                placeholder="seu@email.com"
+                placeholder={loginIdentifierPlaceholder}
                 disabled={loading}
               />
             </div>

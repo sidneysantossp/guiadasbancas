@@ -135,11 +135,11 @@ export default function AdminLoginPage() {
               </label>
               <input
                 id="email"
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00]"
-                placeholder="Seu email"
+                placeholder="Seu email ou identificador"
               />
             </div>
 
