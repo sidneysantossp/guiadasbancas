@@ -16,11 +16,19 @@ function resolveDistribuidorSessionSecret(): string | null {
     return process.env.DISTRIBUIDOR_AUTH_SECRET;
   }
 
+  if (process.env.NEXTAUTH_SECRET) {
+    return process.env.NEXTAUTH_SECRET;
+  }
+
+  if (process.env.AUTH_SECRET) {
+    return process.env.AUTH_SECRET;
+  }
+
   if (process.env.NODE_ENV === "production") {
     return null;
   }
 
-  return process.env.NEXTAUTH_SECRET || "gb-distribuidor-dev-secret";
+  return "gb-distribuidor-dev-secret";
 }
 
 export function hasDistribuidorSessionSecret(): boolean {
