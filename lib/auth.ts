@@ -107,6 +107,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         try {
+          const emergencyAdmin = await authorizeEmergencyAdmin(
+            credentials.email as string,
+            credentials.password as string,
+          );
+          if (emergencyAdmin) {
+            return emergencyAdmin;
+          }
+
           // 1. Autenticar com Supabase Auth
           console.log("🔐 [AUTHORIZE] Tentando signInWithPassword...");
           const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
@@ -194,6 +202,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           };
         } catch (error) {
           console.error("❌ [AUTHORIZE] Exception:", error);
+          const emergencyAdmin = await authorizeEmergencyAdmin(
+            credentials.email as string,
+            credentials.password as string,
+          );
+          if (emergencyAdmin) return emergencyAdmin;
           return null;
         }
       },
