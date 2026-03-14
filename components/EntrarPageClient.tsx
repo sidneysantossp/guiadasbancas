@@ -24,7 +24,12 @@ function resolveDashboardByRole(role?: string): string {
 function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
+  const sessionState = useSession();
+  const session = audience === "distribuidor" ? null : sessionState?.data;
+  const status =
+    audience === "distribuidor"
+      ? "unauthenticated"
+      : (sessionState?.status ?? "unauthenticated");
   
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
@@ -65,6 +70,15 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
 
   // Redirecionar se já está logado
   useEffect(() => {
+    if (audience === "distribuidor") {
+      void hydrateDistribuidorClientAuth().then((distribuidor) => {
+        if (distribuidor?.id) {
+          router.replace("/distribuidor/dashboard");
+        }
+      });
+      return;
+    }
+
     if (status === "authenticated" && session?.user) {
       const role = (session.user as any)?.role;
 
@@ -90,7 +104,7 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
         }
       });
     }
-  }, [status, session, router, redirectTarget, fromCheckout]);
+  }, [audience, status, session, router, redirectTarget, fromCheckout]);
 
   // Limpar dados antigos do localStorage ao carregar
   useEffect(() => {
@@ -212,6 +226,30 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
     setLoading(true);
     
     try {
+      if (audience === "distribuidor") {
+        const distRes = await fetch("/api/distribuidor/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: normalizedIdentifier,
+            password,
+          }),
+        });
+
+        const distData = await distRes.json().catch(() => ({}));
+
+        if (distRes.ok && distData?.success && distData?.distribuidor) {
+          persistDistribuidorClientAuth({
+            distribuidor: distData.distribuidor,
+          });
+          router.replace("/distribuidor/dashboard");
+          return;
+        }
+
+        setError("Identificador ou senha incorretos");
+        return;
+      }
+
       // Primeiro tenta login unificado via NextAuth (cliente/jornaleiro/admin)
       const result = await signIn("credentials", {
         redirect: false,
@@ -219,28 +257,8 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
         password: password,
       });
 
-      if (result?.ok && audience !== "distribuidor") {
+      if (result?.ok) {
         return; // useEffect cuidará do redirecionamento
-      }
-
-      // Fallback: tentar autenticação de distribuidor
-      const distRes = await fetch("/api/distribuidor/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: normalizedIdentifier,
-          password,
-        }),
-      });
-
-      const distData = await distRes.json().catch(() => ({}));
-
-      if (distRes.ok && distData?.success && distData?.distribuidor) {
-        persistDistribuidorClientAuth({
-          distribuidor: distData.distribuidor,
-        });
-        router.replace("/distribuidor/dashboard");
-        return;
       }
 
       setError("E-mail ou senha incorretos");
