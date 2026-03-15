@@ -124,6 +124,11 @@ export default function MeuPlanoPage() {
 
   const formatCurrency = (value: number) =>
     `R$ ${value.toFixed(2).replace(".", ",")}`;
+  const currentPlan = effectivePlan || subscription?.plan || null;
+  const contractedPlan = subscription?.plan || null;
+  const currentStatusMeta = subscription?.status ? STATUS_LABELS[subscription.status] : null;
+  const pendingPayments = payments.filter((payment) => ["pending", "overdue"].includes(payment.status)).length;
+  const confirmedPayments = payments.filter((payment) => ["confirmed", "received"].includes(payment.status)).length;
 
   const loadData = async () => {
     try {
@@ -236,8 +241,42 @@ export default function MeuPlanoPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Meu Plano</h1>
-      <p className="text-gray-600 mb-6">Gerencie sua assinatura e pagamentos</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
+        Plano e aprendizado
+      </p>
+      <h1 className="mt-1 text-2xl font-bold text-gray-900">Plano e evolução da banca</h1>
+      <p className="mb-6 mt-2 text-gray-600">
+        Esta área não é só cobrança. Ela mostra em que estágio a banca está, quais acessos estão liberados e quando vale subir de plano para destravar operação.
+      </p>
+
+      <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Plano liberado</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{currentPlan?.name || "Free"}</div>
+          <p className="mt-1 text-sm text-gray-500">Plano que hoje governa os acessos da banca.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Plano contratado</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{contractedPlan?.name || currentPlan?.name || "Free"}</div>
+          <p className="mt-1 text-sm text-gray-500">Plano comercial atualmente vinculado à assinatura.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Status da assinatura</div>
+          <div className="mt-3">
+            <span className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${currentStatusMeta?.color || "bg-gray-100 text-gray-700"}`}>
+              {currentStatusMeta?.label || "Sem assinatura"}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-gray-500">Situação atual de cobrança e ativação do plano.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Cobranças</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{pendingPayments}</div>
+          <p className="mt-1 text-sm text-gray-500">
+            {confirmedPayments > 0 ? `${confirmedPayments} já confirmada(s) neste histórico.` : "Nenhuma cobrança confirmada ainda."}
+          </p>
+        </div>
+      </div>
 
       {billingEntitlements?.paid_features_locked_until_payment && requestedPlan ? (
         <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">

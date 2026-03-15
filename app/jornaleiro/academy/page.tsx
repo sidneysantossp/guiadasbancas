@@ -49,6 +49,7 @@ export default function AcademyPage() {
   const filteredVideos = selectedCategory === "all" 
     ? videos 
     : videos.filter(v => v.category === selectedCategory);
+  const totalCategories = categories.length;
 
   if (loading) {
     return (
@@ -74,15 +75,35 @@ export default function AcademyPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">🎓 Academy</h1>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
+          Plano e aprendizado
+        </p>
+        <h1 className="mt-1 text-2xl font-bold text-gray-900">Academy da banca</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Aprenda a usar a plataforma com nossos vídeos tutoriais
+          Conteúdo prático para acelerar o uso da plataforma, melhorar a operação e subir o nível da banca sem depender só de tentativa e erro.
         </p>
       </div>
 
-      {/* Filtro por categoria */}
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Vídeos disponíveis</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{videos.length}</div>
+          <p className="mt-1 text-sm text-gray-500">Conteúdos hoje liberados para a banca.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Categorias</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{totalCategories}</div>
+          <p className="mt-1 text-sm text-gray-500">Temas de operação, crescimento e uso da plataforma.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Foco atual</div>
+          <div className="mt-3 text-sm font-semibold leading-6 text-gray-900">
+            {selectedVideo ? selectedVideo.title : "Escolha um vídeo para começar"}
+          </div>
+        </div>
+      </div>
+
       {categories.length > 0 && (
         <div className="flex gap-2 flex-wrap">
           <button
@@ -112,7 +133,6 @@ export default function AcademyPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Player de vídeo */}
         <div className="lg:col-span-2">
           {selectedVideo ? (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -146,7 +166,6 @@ export default function AcademyPage() {
           )}
         </div>
 
-        {/* Lista de vídeos */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
             <h3 className="font-semibold text-gray-900 mb-4">
