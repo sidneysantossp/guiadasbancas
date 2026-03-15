@@ -152,6 +152,10 @@ export default function JornaleiroProdutosPage() {
   const usagePercent = productLimit && productLimit > 0 ? Math.min((ownProductsCount / productLimit) * 100, 100) : null;
   const shouldSuggestUpgrade = Boolean(productLimit && usagePercent && usagePercent >= 80);
   const limitReached = Boolean(productLimit && ownProductsCount >= productLimit);
+  const activeProducts = useMemo(() => rows.filter((row) => row.active).length, [rows]);
+  const inactiveProducts = useMemo(() => rows.filter((row) => !row.active).length, [rows]);
+  const productsWithoutImage = useMemo(() => rows.filter((row) => !row.image).length, [rows]);
+  const outOfStockProducts = useMemo(() => rows.filter((row) => Number(row.stock_qty || 0) <= 0).length, [rows]);
   const productUpgradeHint = getPlanUpgradeHint({
     currentPlanType: planType,
     currentPlanName: planName,
@@ -273,8 +277,14 @@ export default function JornaleiroProdutosPage() {
     <div className="space-y-4 overflow-x-hidden px-3 pb-24 sm:px-0 sm:pb-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Produtos</h1>
-          <p className="text-sm text-gray-600">Gerencie os itens disponíveis na sua banca.</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
+            Operação do catálogo
+          </p>
+          <h1 className="mt-1 text-xl font-semibold text-gray-900">Catálogo da banca</h1>
+          <p className="mt-1 max-w-3xl text-sm text-gray-600">
+            Aqui você organiza o que está disponível para venda, acompanha a saúde do catálogo e evita que a banca
+            fique com produto invisível, sem estoque ou travada pelo limite do plano.
+          </p>
         </div>
         <div>
           {paidFeaturesLockedUntilPayment || overdueFeaturesLocked ? (
@@ -303,6 +313,39 @@ export default function JornaleiroProdutosPage() {
         </div>
       </div>
 
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Produtos ativos</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{activeProducts}</div>
+          <p className="mt-1 text-sm text-gray-500">
+            {activeProducts > 0 ? "Itens já prontos para venda no site." : "Nenhum item ativo ainda."}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Sem imagem</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{productsWithoutImage}</div>
+          <p className="mt-1 text-sm text-gray-500">
+            {productsWithoutImage > 0 ? "Produtos que perdem conversão por falta de foto." : "Seu catálogo visível está completo."}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Estoque zerado</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{outOfStockProducts}</div>
+          <p className="mt-1 text-sm text-gray-500">
+            {outOfStockProducts > 0 ? "Itens que pedem reposição ou pausa imediata." : "Nenhum item zerado agora."}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Capacidade do plano</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">
+            {productLimit ? `${ownProductsCount}/${productLimit}` : ownProductsCount}
+          </div>
+          <p className="mt-1 text-sm text-gray-500">
+            {productLimit ? "Uso atual do espaço do seu catálogo próprio." : "Seu plano atual não informou limite numérico."}
+          </p>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
@@ -314,10 +357,25 @@ export default function JornaleiroProdutosPage() {
                 {planName}
               </span>
             </div>
-            <h2 className="mt-3 text-lg font-semibold text-gray-900">Seu catálogo próprio está em construção</h2>
+            <h2 className="mt-3 text-lg font-semibold text-gray-900">Saúde do catálogo próprio</h2>
             <p className="mt-1 text-sm text-gray-600">
-              Cadastre seus produtos com calma. O painel avisa quando seu plano estiver perto do limite, para você não travar a operação sem perceber.
+              Use este bloco para manter o catálogo publicável: produtos ativos, imagem, estoque e espaço disponível no
+              plano. O objetivo aqui não é só cadastrar item, é garantir que a banca consiga vender sem ruído.
             </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                href={"/jornaleiro/inteligencia" as Route}
+                className="inline-flex items-center justify-center rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                Abrir inteligência
+              </Link>
+              <Link
+                href={"/jornaleiro/catalogo-distribuidor" as Route}
+                className="inline-flex items-center justify-center rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                Ver catálogo parceiro
+              </Link>
+            </div>
           </div>
           {productLimit ? (
             <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-gray-50 p-4">
@@ -367,6 +425,17 @@ export default function JornaleiroProdutosPage() {
           onPrimaryAction={canInlineUpgrade ? () => setUpgradeModalOpen(true) : undefined}
         />
       ) : null}
+
+      {(productsWithoutImage > 0 || outOfStockProducts > 0 || inactiveProducts > 0) && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="font-semibold">Pontos que merecem revisão no catálogo</div>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-amber-800">
+            {productsWithoutImage > 0 ? <span>{productsWithoutImage} produto(s) sem imagem</span> : null}
+            {outOfStockProducts > 0 ? <span>{outOfStockProducts} produto(s) com estoque zerado</span> : null}
+            {inactiveProducts > 0 ? <span>{inactiveProducts} produto(s) inativos</span> : null}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-lg border border-gray-200 bg-white p-3 sm:p-4">
         <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center">

@@ -82,15 +82,45 @@ export default function DistribuidoresPage() {
     context: "partner-network",
   });
   const canInlineUpgrade = Boolean(partnerUpgradeHint.targetPlanType);
+  const availablePartners = DISTRIBUIDORES.length;
+  const currentAccessLabel = hasPartnerAccess ? "Liberado" : paidFeaturesLockedUntilPayment ? "Aguardando pagamento" : "Bloqueado pelo plano";
+  const nextOperationalStep = hasPartnerAccess
+    ? "Abrir um parceiro e começar a montar a reposição da banca."
+    : "Ativar o acesso parceiro para incluir distribuidores na rotina da banca.";
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Distribuidores</h1>
-        <p className="text-gray-600 mt-1">
-          Acesse os catálogos dos distribuidores para fazer seus pedidos e orçamentos
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
+          Abastecimento e crescimento
         </p>
+        <h1 className="mt-1 text-2xl font-bold text-gray-900">Rede de distribuidores</h1>
+        <p className="mt-1 max-w-3xl text-gray-600">
+          Esta área organiza a reposição da banca. O objetivo aqui é ampliar sortimento, encontrar parceiros certos e
+          reduzir ruptura de estoque conforme o momento do seu negócio.
+        </p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Parceiros disponíveis</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{availablePartners}</div>
+          <p className="mt-1 text-sm text-gray-500">Distribuidores já preparados para atender a banca.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Acesso do plano</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{currentAccessLabel}</div>
+          <p className="mt-1 text-sm text-gray-500">Situação atual da sua rede parceira dentro do plano.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Plano atual</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{planName}</div>
+          <p className="mt-1 text-sm text-gray-500">Base que define o alcance da banca na rede de supply.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Próximo passo</div>
+          <div className="mt-3 text-sm font-semibold leading-6 text-gray-900">{nextOperationalStep}</div>
+        </div>
       </div>
 
       {loadingAccess ? (
@@ -123,7 +153,6 @@ export default function DistribuidoresPage() {
         </div>
       )}
 
-      {/* Cards dos Distribuidores */}
       <div className={`grid grid-cols-1 gap-6 md:grid-cols-2 ${!loadingAccess && !hasPartnerAccess ? "opacity-60" : ""}`}>
         {DISTRIBUIDORES.map((distribuidor) => (
           <div
@@ -207,7 +236,6 @@ export default function DistribuidoresPage() {
         ))}
       </div>
 
-      {/* Informações Adicionais */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
           <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -215,30 +243,14 @@ export default function DistribuidoresPage() {
           </svg>
           <div>
             <h4 className="text-sm font-medium text-blue-900 mb-1">
-              Como fazer pedidos
+              Como usar a rede parceira
             </h4>
             <p className="text-sm text-blue-700">
               {hasPartnerAccess
-                ? 'Clique em "Acessar Catálogo" para navegar no site do distribuidor integrado à plataforma, ou use o botão de link externo para abrir em uma nova aba. Seus pedidos serão processados diretamente com o distribuidor selecionado.'
-                : 'A rede parceira é liberada conforme o plano da banca. Assim que o acesso for ativado, esta área passa a funcionar normalmente para os distribuidores disponíveis na sua região.'}
+                ? 'Abra o parceiro, avalie o sortimento que falta na sua banca e use a rede como ferramenta de abastecimento, não só como navegação. O ideal é revisar mix, ruptura e oportunidade antes de cada pedido.'
+                : 'A rede parceira é liberada conforme o plano da banca. Assim que o acesso for ativado, esta área vira uma central de abastecimento para ampliar mix e reduzir falta de produto.'}
             </p>
           </div>
-        </div>
-      </div>
-
-      {/* Estatísticas (placeholder para futuras implementações) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="text-2xl font-bold text-gray-900">2</div>
-          <div className="text-sm text-gray-600">Distribuidores Ativos</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="text-2xl font-bold text-gray-900">-</div>
-          <div className="text-sm text-gray-600">Pedidos Este Mês</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="text-2xl font-bold text-gray-900">-</div>
-          <div className="text-sm text-gray-600">Valor Total Pedidos</div>
         </div>
       </div>
 

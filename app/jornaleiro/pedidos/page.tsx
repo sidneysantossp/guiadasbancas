@@ -196,6 +196,23 @@ export default function JornaleiroPedidosPage() {
   }, [toast, bancaId]);
 
   const filtered = useMemo(() => rows, [rows]);
+  const queueOrders = useMemo(
+    () => rows.filter((row) => !["entregue", "cancelado"].includes(row.status)).length,
+    [rows]
+  );
+  const newOrders = useMemo(() => rows.filter((row) => row.status === "novo").length, [rows]);
+  const preparingOrders = useMemo(
+    () => rows.filter((row) => ["confirmado", "em_preparo", "saiu_para_entrega"].includes(row.status)).length,
+    [rows]
+  );
+  const ordersRevenue = useMemo(
+    () => rows.reduce((sum, row) => sum + Number(row.total || 0), 0),
+    [rows]
+  );
+  const pendingWhatsappContacts = useMemo(
+    () => rows.filter((row) => ["novo", "confirmado"].includes(row.status) && !row.customer_phone).length,
+    [rows]
+  );
 
   const advanceStatus = async (id: string) => {
     try {
@@ -432,14 +449,56 @@ export default function JornaleiroPedidosPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Pedidos</h1>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
+          Operação da banca
+        </p>
+        <h1 className="mt-1 text-xl font-semibold text-gray-900">Fila de pedidos</h1>
         <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-gray-600">Gerencie os pedidos recebidos pela sua banca.</p>
+          <p className="text-sm text-gray-600">
+            Acompanhe a fila operacional da banca, responda rápido ao cliente e avance os pedidos sem perder contexto.
+          </p>
           <div className="text-sm text-gray-500">
             Total: {pagination.total} pedidos
           </div>
         </div>
       </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Fila aberta</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{queueOrders}</div>
+          <p className="mt-1 text-sm text-gray-500">Pedidos que ainda exigem ação da banca.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Novos pedidos</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{newOrders}</div>
+          <p className="mt-1 text-sm text-gray-500">
+            {newOrders > 0 ? "Pedidos aguardando primeira resposta." : "Nenhum pedido novo agora."}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Em andamento</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{preparingOrders}</div>
+          <p className="mt-1 text-sm text-gray-500">Pedidos em confirmação, preparo ou entrega.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Volume carregado</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">
+            R$ {ordersRevenue.toFixed(2)}
+          </div>
+          <p className="mt-1 text-sm text-gray-500">Soma dos pedidos carregados nesta visão.</p>
+        </div>
+      </div>
+
+      {(newOrders > 0 || pendingWhatsappContacts > 0) && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="font-semibold">Próxima ação recomendada na fila</div>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-amber-800">
+            {newOrders > 0 ? <span>{newOrders} pedido(s) novo(s) aguardando confirmação</span> : null}
+            {pendingWhatsappContacts > 0 ? <span>{pendingWhatsappContacts} pedido(s) sem telefone para contato</span> : null}
+          </div>
+        </div>
+      )}
 
       <FiltersBar
         onReset={() => {

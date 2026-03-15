@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/admin/ToastProvider";
 
@@ -98,12 +98,24 @@ export default function JornaleiroCampaignsPage() {
     return 'text-gray-600';
   };
 
+  const activeCampaigns = useMemo(() => campaigns.filter((campaign) => campaign.status === "active").length, [campaigns]);
+  const pendingCampaigns = useMemo(() => campaigns.filter((campaign) => campaign.status === "pending").length, [campaigns]);
+  const totalImpressions = useMemo(() => campaigns.reduce((sum, campaign) => sum + Number(campaign.impressions || 0), 0), [campaigns]);
+  const totalClicks = useMemo(() => campaigns.reduce((sum, campaign) => sum + Number(campaign.clicks || 0), 0), [campaigns]);
+  const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Minhas Campanhas</h1>
-          <p className="text-gray-600">Gerencie suas campanhas publicitárias</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
+            Abastecimento e crescimento
+          </p>
+          <h1 className="mt-1 text-2xl font-bold text-gray-900">Campanhas e visibilidade</h1>
+          <p className="mt-1 max-w-3xl text-gray-600">
+            Use campanhas para empurrar produto com mais margem, acelerar giro e manter a banca visível dentro da
+            plataforma. O foco aqui é crescimento com intenção, não anúncio por impulso.
+          </p>
         </div>
         <Link
           href="/jornaleiro/campanhas/create"
@@ -113,7 +125,29 @@ export default function JornaleiroCampaignsPage() {
         </Link>
       </div>
 
-      {/* Notificações de expiração */}
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Campanhas ativas</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{activeCampaigns}</div>
+          <p className="mt-1 text-sm text-gray-500">Produtos hoje recebendo destaque dentro da plataforma.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Aguardando aprovação</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{pendingCampaigns}</div>
+          <p className="mt-1 text-sm text-gray-500">Campanhas ainda em análise antes de publicar.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Impressões</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{totalImpressions.toLocaleString("pt-BR")}</div>
+          <p className="mt-1 text-sm text-gray-500">Volume total de exposição gerado pelas campanhas.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">CTR agregado</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{ctr.toFixed(1)}%</div>
+          <p className="mt-1 text-sm text-gray-500">Clique sobre visualização nas campanhas carregadas.</p>
+        </div>
+      </div>
+
       {notifications.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
@@ -142,7 +176,17 @@ export default function JornaleiroCampaignsPage() {
         </div>
       )}
 
-      {/* Lista de campanhas */}
+      {(pendingCampaigns > 0 || activeCampaigns === 0) && (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <div className="font-semibold">Próxima ação recomendada em crescimento</div>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-blue-800">
+            {pendingCampaigns > 0 ? <span>{pendingCampaigns} campanha(s) aguardando aprovação</span> : null}
+            {activeCampaigns === 0 ? <span>Nenhuma campanha ativa neste momento</span> : null}
+            <span>Priorize produtos com estoque, margem e boa imagem antes de anunciar.</span>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-8">Carregando campanhas...</div>
       ) : campaigns.length === 0 ? (
@@ -302,19 +346,18 @@ export default function JornaleiroCampaignsPage() {
         </div>
       )}
 
-      {/* Informações sobre campanhas */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-3">📢 Como funcionam as campanhas</h3>
+        <h3 className="text-lg font-semibold text-blue-900 mb-3">📢 Regras de operação das campanhas</h3>
         <div className="grid md:grid-cols-2 gap-4 text-sm text-blue-800">
           <div className="space-y-2">
             <p>• <strong>Gratuito:</strong> Crie campanhas sem custo inicial</p>
             <p>• <strong>Aprovação:</strong> Todas as campanhas passam por análise</p>
-            <p>• <strong>Destaque:</strong> Produtos aparecem na seção "Ofertas Relâmpago"</p>
+            <p>• <strong>Destaque:</strong> Produtos aparecem nas áreas de visibilidade da plataforma</p>
           </div>
           <div className="space-y-2">
             <p>• <strong>Duração:</strong> Escolha entre 7, 15 ou 30 dias</p>
-            <p>• <strong>Métricas:</strong> Acompanhe visualizações em tempo real</p>
-            <p>• <strong>Renovação:</strong> Renove campanhas que estão expirando</p>
+            <p>• <strong>Métricas:</strong> Use visualizações e cliques para decidir renovação</p>
+            <p>• <strong>Renovação:</strong> Renove só o que realmente está puxando demanda</p>
           </div>
         </div>
       </div>
