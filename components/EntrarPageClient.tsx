@@ -230,6 +230,8 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
         const distRes = await fetch("/api/distribuidor/auth", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          credentials: "same-origin",
           body: JSON.stringify({
             email: normalizedIdentifier,
             password,
@@ -246,7 +248,7 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
           return;
         }
 
-        setError("Identificador ou senha incorretos");
+        setError(distData?.error || "Não foi possível autenticar o distribuidor");
         return;
       }
 

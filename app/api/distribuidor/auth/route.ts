@@ -15,6 +15,21 @@ const allowLegacyDefaultPassword =
 const allowLegacyIdentifierLogin =
   process.env.ALLOW_LEGACY_DISTRIBUIDOR_IDENTIFIER_LOGIN !== 'false';
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+function jsonNoStore(body: Record<string, any>, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store',
+    },
+  });
+}
+
 function normalizeIdentifier(value: string): string {
   return value
     .normalize('NFD')
@@ -103,9 +118,9 @@ async function hashDistribuidorPasswordIfNeeded(distribuidorId: string, password
 export async function POST(request: NextRequest) {
   try {
     if (process.env.NODE_ENV === 'production' && !hasDistribuidorSessionSecret()) {
-      return NextResponse.json(
+      return jsonNoStore(
         { success: false, error: 'Sessão do distribuidor indisponível' },
-        { status: 500 }
+        500
       );
     }
 
@@ -113,9 +128,9 @@ export async function POST(request: NextRequest) {
     const { email, password } = body;
 
     if (!email || !password) {
-      return NextResponse.json(
+      return jsonNoStore(
         { success: false, error: 'Identificador e senha são obrigatórios' },
-        { status: 400 }
+        400
       );
     }
 
@@ -154,9 +169,9 @@ export async function POST(request: NextRequest) {
 
     if (!distribuidor) {
       console.log('[Auth] Distribuidor não encontrado para:', emailLower);
-      return NextResponse.json(
+      return jsonNoStore(
         { success: false, error: 'Distribuidor não encontrado ou inativo' },
-        { status: 401 }
+        401
       );
     }
 
@@ -169,9 +184,9 @@ export async function POST(request: NextRequest) {
       (allowLegacyDefaultPassword && password === 'dist123');
 
     if (!senhaValida) {
-      return NextResponse.json(
+      return jsonNoStore(
         { success: false, error: 'Senha incorreta' },
-        { status: 401 }
+        401
       );
     }
 
@@ -200,15 +215,10 @@ export async function POST(request: NextRequest) {
 
     console.log('[Auth] Login bem-sucedido para distribuidor:', distribuidorComEmail.nome, '- Email:', distribuidorComEmail.email);
 
-    const response = NextResponse.json(
+    const response = jsonNoStore(
       {
         success: true,
         distribuidor: distribuidorComEmail,
-      },
-      {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-        },
       }
     );
     response.cookies.set(buildDistribuidorSessionCookie(session.token));
@@ -216,29 +226,22 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error: any) {
     console.error('Erro na autenticação do distribuidor:', error);
-    return NextResponse.json(
+    return jsonNoStore(
       { success: false, error: 'Erro interno do servidor' },
-      { status: 500 }
+      500
     );
   }
 }
 
 export async function DELETE() {
-  const response = NextResponse.json(
-    { success: true },
-    {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-      },
-    }
-  );
+  const response = jsonNoStore({ success: true });
   response.cookies.set(buildDistribuidorSessionCookieClear());
   return response;
 }
 
 export async function GET() {
-  return NextResponse.json(
+  return jsonNoStore(
     { success: false, error: 'Método não permitido' },
-    { status: 405 }
+    405
   );
 }

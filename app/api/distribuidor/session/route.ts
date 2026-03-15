@@ -6,18 +6,36 @@ import {
 } from "@/lib/security/distribuidor-session";
 import { supabaseAdmin } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function getSessionToken(request: NextRequest) {
   const tokenFromCookie = request.cookies.get(DISTRIBUIDOR_SESSION_COOKIE)?.value || null;
   return tokenFromCookie;
 }
 
-function clearSessionResponse(status = 401) {
+function jsonNoStore(body: Record<string, any>, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, private",
+      "Pragma": "no-cache",
+      "Expires": "0",
+      "Surrogate-Control": "no-store",
+    },
+  });
+}
+
+function clearSessionResponse(status = 200) {
   const response = NextResponse.json(
     { success: false, error: "Sessão do distribuidor inválida ou expirada" },
     {
       status,
       headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, private",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "Surrogate-Control": "no-store",
       },
     }
   );
@@ -56,21 +74,17 @@ export async function GET(request: NextRequest) {
     },
     {
       headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, private",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "Surrogate-Control": "no-store",
       },
     }
   );
 }
 
 export async function DELETE() {
-  const response = NextResponse.json(
-    { success: true },
-    {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      },
-    }
-  );
+  const response = jsonNoStore({ success: true });
   response.cookies.set(buildDistribuidorSessionCookieClear());
   return response;
 }
