@@ -7,30 +7,21 @@ import type { Route } from "next";
 import { signOut as nextAuthSignOut } from "next-auth/react";
 import ToastProvider from "@/components/admin/ToastProvider";
 import DashboardOfficialLogo from "@/components/dashboard/DashboardOfficialLogo";
+import { ADMIN_MENU, type AdminIconKey } from "@/lib/admin-navigation";
 import {
   IconLayoutDashboard,
   IconHome,
   IconStars,
-  IconSearch,
-  IconPalette,
-  IconLayoutNavbar,
-  IconBorderBottom,
-  IconFolders,
   IconBuildingStore,
-  IconUsers,
-  IconUser,
   IconClipboardList,
   IconBox,
   IconTags,
   IconTruck,
   IconSpeakerphone,
-  IconTicket,
   IconPhoto,
   IconLayoutGrid,
   IconNews,
   IconGift,
-  IconMail,
-  IconCoins,
   IconChartLine,
   IconClipboardCheck,
   IconSchool,
@@ -39,32 +30,24 @@ import {
   IconUserCheck,
   IconArticle,
   IconCreditCard,
+  IconPalette,
+  IconBorderBottom,
 } from "@tabler/icons-react";
 
 const iconComponents = {
   dashboard: IconLayoutDashboard,
   home: IconHome,
   sparkles: IconStars,
-  seo: IconSearch,
-  palette: IconPalette,
-  header: IconLayoutNavbar,
-  footer: IconBorderBottom,
-  folders: IconFolders,
   store: IconBuildingStore,
-  users: IconUsers,
-  user: IconUser,
   orders: IconClipboardList,
   box: IconBox,
   tags: IconTags,
   truck: IconTruck,
   megaphone: IconSpeakerphone,
-  ticket: IconTicket,
   image: IconPhoto,
   grid: IconLayoutGrid,
   newspaper: IconNews,
   gift: IconGift,
-  mail: IconMail,
-  coins: IconCoins,
   chart: IconChartLine,
   clipboard: IconClipboardCheck,
   school: IconSchool,
@@ -73,101 +56,9 @@ const iconComponents = {
   userCheck: IconUserCheck,
   article: IconArticle,
   creditCard: IconCreditCard,
+  palette: IconPalette,
+  footer: IconBorderBottom,
 } as const;
-
-type IconKey = keyof typeof iconComponents;
-
-const ADMIN_MENU = [
-  {
-    section: "CMS",
-    items: [
-      { label: "Dashboard", href: "/admin/dashboard", icon: "dashboard" as IconKey },
-      { label: "Home Page", href: "/admin/cms/home", icon: "home" as IconKey },
-      { label: "Vitrines", href: "/admin/cms/vitrines", icon: "sparkles" as IconKey },
-      { label: "SEO", href: "/admin/cms/seo", icon: "seo" as IconKey },
-      { label: "Branding", href: "/admin/cms/branding", icon: "palette" as IconKey },
-      { label: "Header", href: "/admin/cms/header", icon: "header" as IconKey },
-      { label: "Footer", href: "/admin/cms/footer", icon: "footer" as IconKey },
-      { label: "Blog", href: "/admin/blog", icon: "article" as IconKey },
-    ]
-  },
-  {
-    section: "Gestão das Bancas",
-    items: [
-      { label: "Cadastros", href: "/admin/gestao/bancas/cadastros", icon: "folders" as IconKey },
-    ]
-  },
-  {
-    section: "Negócio",
-    items: [
-      { label: "Bancas", href: "/admin/gestao/bancas/cadastros", icon: "store" as IconKey },
-      { label: "Jornaleiros", href: "/admin/jornaleiros", icon: "users" as IconKey },
-      { label: "Usuários", href: "/admin/users", icon: "user" as IconKey },
-      { label: "Pedidos", href: "/admin/orders", icon: "orders" as IconKey },
-    ]
-  },
-  {
-    section: "Planejamento Comercial",
-    items: [
-      { label: "Planejamento Comercial", href: "/admin/planejamento-comercial", icon: "clipboard" as IconKey },
-    ]
-  },
-  {
-    section: "Catálogo",
-    items: [
-      { label: "Produtos", href: "/admin/products", icon: "box" as IconKey },
-      { label: "Importar Fotos", href: "/admin/produtos/upload-imagens", icon: "image" as IconKey },
-      { label: "Categorias", href: "/admin/cms/categories", icon: "tags" as IconKey },
-      { label: "Distribuidores", href: "/admin/distribuidores", icon: "truck" as IconKey },
-      { label: "Cota Ativa", href: "/admin/cotistas", icon: "userCheck" as IconKey },
-    ]
-  },
-  {
-    section: "Marketing",
-    items: [
-      { label: "Campanhas", href: "/admin/campaigns", icon: "megaphone" as IconKey },
-      { label: "Cupons", href: "/admin/coupons", icon: "ticket" as IconKey },
-      { label: "Banners", href: "/admin/banners", icon: "image" as IconKey },
-      { label: "Vitrines", href: "/admin/cms/vitrines", icon: "store" as IconKey },
-      { label: "Mini Banners", href: "/admin/cms/mini-banners", icon: "grid" as IconKey },
-      { label: "Banner Jornaleiro", href: "/admin/cms/vendor-banner", icon: "newspaper" as IconKey },
-      { label: "Banner Indicação", href: "/admin/cms/referral-banner", icon: "gift" as IconKey },
-      { label: "Newsletter", href: "/admin/newsletter", icon: "mail" as IconKey },
-    ]
-  },
-  {
-    section: "Assinaturas",
-    items: [
-      { label: "Planos", href: "/admin/planos", icon: "creditCard" as IconKey },
-      { label: "Assinaturas", href: "/admin/assinaturas", icon: "clipboard" as IconKey },
-      { label: "Cobrança e Asaas", href: "/admin/configuracoes", icon: "settings" as IconKey },
-    ]
-  },
-  {
-    section: "Relatórios",
-    items: [
-      { label: "Financeiro", href: "/admin/financial", icon: "coins" as IconKey },
-      { label: "Analytics", href: "/admin/analytics", icon: "chart" as IconKey },
-      { label: "Auditoria", href: "/admin/audit", icon: "clipboard" as IconKey },
-    ]
-  },
-  {
-    section: "Conteúdo",
-    items: [
-      { label: "Academy", href: "/admin/academy", icon: "school" as IconKey },
-    ]
-  },
-  {
-    section: "Configurações",
-    items: [
-      { label: "Plataforma", href: "/admin/settings", icon: "settings" as IconKey },
-      { label: "Chaves API", href: "/admin/configuracoes/chaves-api", icon: "settings" as IconKey },
-      { label: "WhatsApp", href: "/admin/configuracoes/whatsapp", icon: "brandWhatsapp" as IconKey },
-      { label: "Sync Mercos", href: "/admin/configuracoes/sync-mercos", icon: "truck" as IconKey },
-      { label: "Homologação Mercos", href: "/admin/configuracoes/homologacao-mercos", icon: "clipboard" as IconKey },
-    ]
-  }
-];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -324,37 +215,70 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <div className="flex">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#334257] border-r border-gray-200 transition-transform duration-300 ease-in-out`}>
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 w-80 bg-[#334257] border-r border-gray-200 transition-transform duration-300 ease-in-out`}>
           <div className="h-full overflow-y-auto">
-            <nav className="p-4 space-y-6">
+            <div className="border-b border-white/10 px-4 py-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-200">
+                  Admin do Marketplace
+                </div>
+                <div className="mt-2 text-sm font-medium text-white">
+                  Centro de controle do ecossistema Guia das Bancas
+                </div>
+                <div className="mt-2 text-xs leading-5 text-gray-300">
+                  Operacao, growth, catalogo, monetizacao e inteligencia em uma navegação unica.
+                </div>
+              </div>
+            </div>
+
+            <nav className="space-y-5 p-4">
               {ADMIN_MENU.map((section) => (
-                <div key={section.section}>
-                  <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
-                    {section.section}
-                  </h3>
+                <section key={section.section} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <div className="mb-3 px-1">
+                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-200">
+                      {section.section}
+                    </h3>
+                    <p className="mt-2 text-xs leading-5 text-gray-300">
+                      {section.description}
+                    </p>
+                  </div>
+
                   <div className="space-y-1">
                     {section.items.map((item) => {
-                      const IconComponent = iconComponents[item.icon];
-                      const isActive = pathname === item.href;
+                      const IconComponent = iconComponents[item.icon as AdminIconKey];
+                      const isActive =
+                        pathname === item.href ||
+                        (item.href !== "/admin/dashboard" && pathname.startsWith(`${item.href}/`));
 
                       return (
                         <Link
                           key={item.href}
                           href={item.href as Route}
                           onClick={() => setSidebarOpen(false)}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          className={`group flex items-start gap-3 rounded-xl px-3 py-3 text-sm transition-colors ${
                             isActive
-                              ? 'bg-[#fff7f2] text-[#ff5c00] border-r-2 border-[#ff5c00]'
+                              ? 'bg-[#fff7f2] text-[#ff5c00] shadow-sm'
                               : 'text-gray-100 hover:bg-white/10 hover:text-white'
                           }`}
                         >
-                          <IconComponent size={20} stroke={1.7} />
-                          {item.label}
+                          <div
+                            className={`mt-0.5 rounded-lg p-2 ${
+                              isActive ? "bg-[#fff1e8] text-[#ff5c00]" : "bg-white/5 text-gray-200 group-hover:bg-white/10"
+                            }`}
+                          >
+                            <IconComponent size={18} stroke={1.8} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-medium">{item.label}</div>
+                            <div className={`mt-1 text-xs leading-5 ${isActive ? "text-[#c85a16]" : "text-gray-300"}`}>
+                              {item.description}
+                            </div>
+                          </div>
                         </Link>
                       );
                     })}
                   </div>
-                </div>
+                </section>
               ))}
             </nav>
           </div>
