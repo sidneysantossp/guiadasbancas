@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 // Tipos básicos
 type Featured = {
@@ -16,6 +17,8 @@ type ProductLite = {
   id: string;
   name: string;
   images?: string[];
+  price?: number;
+  banca_name?: string | null;
 };
 
 type SectionDef = {
@@ -30,6 +33,24 @@ const SECTIONS: SectionDef[] = [
   // Você pode adicionar outras seções depois (ex.: trending, favoritos, etc.)
 ];
 
+function SummaryCard({
+  title,
+  value,
+  helper,
+}: {
+  title: string;
+  value: string | number;
+  helper: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{title}</div>
+      <div className="mt-2 text-2xl font-semibold text-gray-900">{value}</div>
+      <div className="mt-1 text-sm text-gray-500">{helper}</div>
+    </div>
+  );
+}
+
 export default function AdminVitrinesPage() {
   const [section, setSection] = useState<string>(SECTIONS[0].key);
   const [items, setItems] = useState<Featured[]>([]);
@@ -38,6 +59,9 @@ export default function AdminVitrinesPage() {
   const [saving, setSaving] = useState<boolean>(false);
   const [newProductId, setNewProductId] = useState<string>("");
   const [newLabel, setNewLabel] = useState<string>("");
+  const [productSearch, setProductSearch] = useState<string>("");
+  const [productResults, setProductResults] = useState<ProductLite[]>([]);
+  const [searchingProducts, setSearchingProducts] = useState(false);
 
   // Opcional: cache simples de nomes/imagens para preview
   const [prodMap, setProdMap] = useState<Record<string, ProductLite>>({});
@@ -47,8 +71,7 @@ export default function AdminVitrinesPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/admin/featured-products?section=${encodeURIComponent(section)}`, {
-          });
+        const res = await fetchAdminWithDevFallback(`/api/admin/featured-products?section=${encodeURIComponent(section)}`);
         const j = await res.json();
         if (!res.ok || !j?.success) throw new Error(j?.error || "Falha ao listar");
         setItems(Array.isArray(j.data) ? j.data : []);
@@ -67,25 +90,59 @@ export default function AdminVitrinesPage() {
       const toFetch = ids.filter((id) => !prodMap[id]);
       if (toFetch.length === 0) return;
       try {
-        const res = await fetch(`/api/products?limit=100`, {
-          });
+        const res = await fetchAdminWithDevFallback(`/api/admin/products?page=1&pageSize=100`);
         const j = await res.json();
-        const list: any[] = Array.isArray(j?.items) ? j.items : [];
+        const list: any[] = Array.isArray(j?.data) ? j.data : [];
         const map = Object.fromEntries(
           list
             .filter((p) => ids.includes(p.id))
-            .map((p) => [p.id, { id: p.id, name: p.name, images: p.images }])
+            .map((p) => [p.id, { id: p.id, name: p.name, images: p.images, price: p.price, banca_name: p.banca_name }])
         );
         setProdMap((prev) => ({ ...prev, ...map }));
       } catch {}
     })();
   }, [items]);
 
+  useEffect(() => {
+    const query = productSearch.trim();
+    if (query.length < 2) {
+      setProductResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        setSearchingProducts(true);
+        const res = await fetchAdminWithDevFallback(
+          `/api/admin/products?page=1&pageSize=8&q=${encodeURIComponent(query)}`
+        );
+        const j = await res.json();
+        setProductResults(
+          Array.isArray(j?.data)
+            ? j.data.map((item: any) => ({
+                id: item.id,
+                name: item.name,
+                images: item.images,
+                price: item.price,
+                banca_name: item.banca_name,
+              }))
+            : []
+        );
+      } catch {
+        setProductResults([]);
+      } finally {
+        setSearchingProducts(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [productSearch]);
+
   const addItem = async () => {
     if (!newProductId.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/featured-products`, {
+      const res = await fetchAdminWithDevFallback(`/api/admin/featured-products`, {
         method: "POST",
         headers: { "Content-Type": "application/json"},
         body: JSON.stringify({ section_key: section, product_id: newProductId.trim(), label: newLabel || null }),
@@ -95,6 +152,8 @@ export default function AdminVitrinesPage() {
       setItems((prev) => [...prev, j.data]);
       setNewProductId("");
       setNewLabel("");
+      setProductSearch("");
+      setProductResults([]);
     } catch (e: any) {
       alert(e?.message || "Erro ao adicionar produto");
     } finally {
@@ -105,7 +164,7 @@ export default function AdminVitrinesPage() {
   const updateItem = async (id: string, patch: Partial<Pick<Featured, "label" | "order_index" | "active">>) => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/featured-products`, {
+      const res = await fetchAdminWithDevFallback(`/api/admin/featured-products`, {
         method: "PUT",
         headers: { "Content-Type": "application/json"},
         body: JSON.stringify({ id, ...patch }),
@@ -124,9 +183,9 @@ export default function AdminVitrinesPage() {
     if (!confirm("Remover item desta vitrine?")) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/featured-products?id=${encodeURIComponent(id)}`, {
+      const res = await fetchAdminWithDevFallback(`/api/admin/featured-products?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
-        });
+      });
       const j = await res.json();
       if (!res.ok || !j?.success) throw new Error(j?.error || "Falha ao remover");
       setItems((prev) => prev.filter((it) => it.id !== id));
@@ -153,8 +212,10 @@ export default function AdminVitrinesPage() {
     updateItem(b.id, { order_index: swapped[target].order_index });
   };
 
-  const productName = (pid: string) => prodMap[pid]?.name || pid;
-  const productImage = (pid: string) => (prodMap[pid]?.images?.[0]) || "https://placehold.co/80x80/e5e7eb/666666?text=IMG";
+  const productName = (pid: string) => prodMap[pid]?.name || productResults.find((item) => item.id === pid)?.name || pid;
+  const productImage = (pid: string) => (prodMap[pid]?.images?.[0]) || productResults.find((item) => item.id === pid)?.images?.[0] || "https://placehold.co/80x80/e5e7eb/666666?text=IMG";
+  const activeItems = items.filter((item) => item.active).length;
+  const labelsInUse = items.filter((item) => item.label).length;
 
   return (
     <div className="space-y-6">
@@ -163,6 +224,17 @@ export default function AdminVitrinesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Vitrines da Home</h1>
           <p className="text-gray-600">Gerencie os produtos curados exibidos em seções específicas</p>
         </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard title="Itens na seção" value={items.length} helper="Curadoria total para a vitrine atual." />
+        <SummaryCard title="Itens ativos" value={activeItems} helper="Produtos efetivamente exibidos." />
+        <SummaryCard title="Com label" value={labelsInUse} helper="Itens com selo ou mensagem adicional." />
+        <SummaryCard
+          title="Seção atual"
+          value={SECTIONS.find((item) => item.key === section)?.title || section}
+          helper="Recorte comercial em edição."
+        />
       </div>
 
       {/* Seletor de seção */}
@@ -189,13 +261,6 @@ export default function AdminVitrinesPage() {
           <div className="flex items-center gap-2">
             <input
               type="text"
-              placeholder="ID do produto (UUID)"
-              value={newProductId}
-              onChange={(e) => setNewProductId(e.target.value)}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm w-64"
-            />
-            <input
-              type="text"
               placeholder="Rótulo opcional (ex.: -20%)"
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
@@ -208,6 +273,72 @@ export default function AdminVitrinesPage() {
             >
               Adicionar
             </button>
+          </div>
+        </div>
+        <div className="border-b border-gray-100 px-6 py-4">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Buscar produto no catálogo</label>
+              <input
+                type="text"
+                placeholder="Digite nome ou código do produto..."
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+              <div className="max-h-56 overflow-y-auto rounded-lg border border-gray-200">
+                {searchingProducts ? (
+                  <div className="p-3 text-sm text-gray-500">Buscando produtos...</div>
+                ) : productResults.length === 0 ? (
+                  <div className="p-3 text-sm text-gray-500">
+                    Digite ao menos 2 caracteres para buscar no catálogo.
+                  </div>
+                ) : (
+                  productResults.map((product) => (
+                    <button
+                      key={product.id}
+                      type="button"
+                      onClick={() => {
+                        setNewProductId(product.id);
+                        setProductSearch(product.name);
+                        setProdMap((prev) => ({ ...prev, [product.id]: product }));
+                      }}
+                      className={`flex w-full items-center gap-3 border-b border-gray-100 p-3 text-left hover:bg-gray-50 ${
+                        newProductId === product.id ? "bg-orange-50" : "bg-white"
+                      }`}
+                    >
+                      <div className="h-12 w-12 overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={product.images?.[0] || "https://placehold.co/80x80/e5e7eb/666666?text=IMG"}
+                          alt={product.name}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-gray-900">{product.name}</div>
+                        <div className="truncate text-xs text-gray-500">
+                          {product.banca_name || "Sem banca vinculada"} • {product.id}
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="text-sm font-medium text-gray-700">Produto selecionado</div>
+              <div className="rounded-md border border-gray-200 bg-white p-3 text-sm text-gray-600">
+                {newProductId ? (
+                  <>
+                    <div className="font-medium text-gray-900">{productName(newProductId)}</div>
+                    <div className="mt-1 break-all text-xs text-gray-500">{newProductId}</div>
+                  </>
+                ) : (
+                  "Selecione um item da busca para adicionar nesta vitrine."
+                )}
+              </div>
+            </div>
           </div>
         </div>
         {loading ? (

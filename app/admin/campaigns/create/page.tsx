@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/admin/ToastProvider";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 interface Product {
   id: string;
@@ -72,17 +73,13 @@ export default function AdminCreateCampaignPage() {
 
       // Buscar produtos
       console.log('Buscando produtos...');
-      const productsRes = await fetch('/api/admin/products', {
-
-      });
+      const productsRes = await fetchAdminWithDevFallback('/api/admin/products?page=1&pageSize=200');
       const productsJson = await productsRes.json();
       console.log('Produtos response:', productsJson);
 
       // Buscar bancas
       console.log('Buscando bancas...');
-      const bancasRes = await fetch('/api/admin/bancas', {
-
-      });
+      const bancasRes = await fetchAdminWithDevFallback('/api/admin/bancas?all=true');
       const bancasJson = await bancasRes.json();
       console.log('Bancas response:', bancasJson);
 
@@ -153,7 +150,7 @@ export default function AdminCreateCampaignPage() {
 
     setSubmitting(true);
     try {
-      const res = await fetch('/api/admin/campaigns', {
+      const res = await fetchAdminWithDevFallback('/api/admin/campaigns', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'},

@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const { data, error } = await supabaseAdmin
       .from("mini_banners")
       .select("*")

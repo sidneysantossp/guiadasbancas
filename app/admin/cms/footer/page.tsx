@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 type FooterLink = {
   id: string;
@@ -31,6 +32,24 @@ const SECTION_LABELS = {
   atalhos: 'Atalhos'
 };
 
+function SummaryCard({
+  title,
+  value,
+  helper,
+}: {
+  title: string;
+  value: string | number;
+  helper: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{title}</div>
+      <div className="mt-2 text-2xl font-semibold text-gray-900">{value}</div>
+      <div className="mt-1 text-sm text-gray-500">{helper}</div>
+    </div>
+  );
+}
+
 export default function FooterManagement() {
   const [footerData, setFooterData] = useState<FooterData>({
     title: 'Guia das Bancas',
@@ -53,7 +72,7 @@ export default function FooterManagement() {
   const loadFooterData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/footer');
+      const response = await fetchAdminWithDevFallback('/api/admin/footer');
       if (response.ok) {
         const data = await response.json();
         setFooterData(data);
@@ -69,7 +88,7 @@ export default function FooterManagement() {
   const saveFooterData = async () => {
     try {
       setSaving(true);
-      const response = await fetch('/api/admin/footer', {
+      const response = await fetchAdminWithDevFallback('/api/admin/footer', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(footerData)
@@ -233,11 +252,20 @@ export default function FooterManagement() {
     );
   }
 
+  const activeLinks = footerData.links.filter((link) => link.active).length;
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Gestão do Footer</h1>
         <p className="text-gray-600">Configure o conteúdo do rodapé do site</p>
+      </div>
+
+      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard title="Links" value={footerData.links.length} helper="Inventário total do rodapé." />
+        <SummaryCard title="Ativos" value={activeLinks} helper="Links atualmente expostos ao usuário." />
+        <SummaryCard title="Seções" value={Object.keys(SECTION_LABELS).length} helper="Blocos editoriais suportados." />
+        <SummaryCard title="Marca" value={footerData.title} helper="Assinatura institucional no footer." />
       </div>
 
       {/* Tabs */}

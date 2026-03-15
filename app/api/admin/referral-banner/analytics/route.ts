@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 // Configuração do Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,7 +16,10 @@ if (supabaseUrl && supabaseServiceKey) {
 // POST - Registrar clique no banner
 export async function POST(request: NextRequest) {
   try {
-    console.log('📊 POST /api/admin/vendor-banner/analytics - Registrando clique');
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
+    console.log('📊 POST /api/admin/referral-banner/analytics - Registrando clique');
     
     const body = await request.json();
     const { banner_id, user_agent, referrer } = body;
@@ -32,7 +36,7 @@ export async function POST(request: NextRequest) {
       try {
       // Primeiro, buscar o valor atual
       const { data: currentBanner } = await supabase
-        .from('vendor_banners')
+        .from('referral_banners')
         .select('click_count')
         .eq('id', banner_id)
         .single();
@@ -41,7 +45,7 @@ export async function POST(request: NextRequest) {
 
       // Atualizar com o novo valor
       const { error } = await supabase
-        .from('vendor_banners')
+        .from('referral_banners')
         .update({ 
           click_count: currentCount + 1
         })
@@ -107,7 +111,10 @@ export async function POST(request: NextRequest) {
 // GET - Obter estatísticas do banner
 export async function GET(request: NextRequest) {
   try {
-    console.log('📊 GET /api/admin/vendor-banner/analytics - Obtendo estatísticas');
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
+    console.log('📊 GET /api/admin/referral-banner/analytics - Obtendo estatísticas');
     
     const { searchParams } = new URL(request.url);
     const banner_id = searchParams.get('banner_id');
@@ -123,7 +130,7 @@ export async function GET(request: NextRequest) {
     if (supabase) {
       try {
       const { data: banner, error } = await supabase
-        .from('vendor_banners')
+        .from('referral_banners')
         .select('id, title, click_count, created_at, updated_at')
         .eq('id', banner_id)
         .single();

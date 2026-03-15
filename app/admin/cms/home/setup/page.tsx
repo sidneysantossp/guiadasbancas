@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 export default function SetupHeroSlides() {
   const [loading, setLoading] = useState(false);
@@ -13,7 +14,7 @@ export default function SetupHeroSlides() {
     setResult(null);
 
     try {
-      const response = await fetch('/api/admin/hero-slides/setup', {
+      const response = await fetchAdminWithDevFallback('/api/admin/hero-slides/setup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'}

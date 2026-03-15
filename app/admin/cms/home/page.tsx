@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 type HeroSlide = {
   id: string;
@@ -75,6 +76,24 @@ const DEFAULT_SLIDES: HeroSlide[] = [
   }
 ];
 
+function SummaryCard({
+  title,
+  value,
+  helper,
+}: {
+  title: string;
+  value: string | number;
+  helper: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{title}</div>
+      <div className="mt-2 text-2xl font-semibold text-gray-900">{value}</div>
+      <div className="mt-1 text-sm text-gray-500">{helper}</div>
+    </div>
+  );
+}
+
 export default function AdminHomePageCMS() {
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [editingSlide, setEditingSlide] = useState<HeroSlide | null>(null);
@@ -102,9 +121,7 @@ export default function AdminHomePageCMS() {
       // Cache-busting para forçar reload
       const timestamp = Date.now();
       console.log('[CMS Home] loadSlides chamado - timestamp:', timestamp);
-      const response = await fetch(`/api/admin/hero-slides?admin=true&_t=${timestamp}`, {
-        cache: 'no-store'
-      });
+      const response = await fetchAdminWithDevFallback(`/api/admin/hero-slides?admin=true&_t=${timestamp}`);
 
       console.log('[CMS Home] loadSlides response status:', response.status);
       if (response.ok) {
@@ -129,9 +146,7 @@ export default function AdminHomePageCMS() {
 
   const loadSliderConfig = async () => {
     try {
-      const response = await fetch('/api/admin/hero-slides?type=config', {
-
-      });
+      const response = await fetchAdminWithDevFallback('/api/admin/hero-slides?type=config');
 
       if (response.ok) {
         const result = await response.json();
@@ -146,7 +161,7 @@ export default function AdminHomePageCMS() {
     setSaving(true);
     console.log('[CMS Home] Salvando slides:', newSlides);
     try {
-      const response = await fetch('/api/admin/hero-slides', {
+      const response = await fetchAdminWithDevFallback('/api/admin/hero-slides', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'},
@@ -181,7 +196,7 @@ export default function AdminHomePageCMS() {
   const saveSliderConfig = async () => {
     setSaving(true);
     try {
-      const response = await fetch('/api/admin/hero-slides', {
+      const response = await fetchAdminWithDevFallback('/api/admin/hero-slides', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'},
@@ -254,6 +269,13 @@ export default function AdminHomePageCMS() {
     saveSlides(newSlides);
   };
 
+  const summary = {
+    total: slides.length,
+    active: slides.filter((slide) => slide.active).length,
+    primaryCtas: slides.filter((slide) => slide.cta1Text || slide.cta2Text).length,
+    autoplay: `${sliderConfig.autoPlayTime / 1000}s`,
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -274,6 +296,13 @@ export default function AdminHomePageCMS() {
           </svg>
           Novo Slide
         </button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard title="Slides" value={summary.total} helper="Narrativas disponíveis no hero." />
+        <SummaryCard title="Ativos" value={summary.active} helper="Slides atualmente elegíveis para exibição." />
+        <SummaryCard title="Com CTA" value={summary.primaryCtas} helper="Peças com caminho comercial configurado." />
+        <SummaryCard title="Autoplay" value={summary.autoplay} helper="Cadência atual da home principal." />
       </div>
 
       {/* Mensagem */}

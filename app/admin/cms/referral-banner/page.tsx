@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 type ReferralBanner = {
   id?: string;
@@ -56,9 +57,7 @@ export default function ReferralBannerAdminPage() {
   const loadBanner = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/referral-banner', {
-
-      });
+      const response = await fetchAdminWithDevFallback('/api/admin/referral-banner');
 
       if (response.ok) {
         const result = await response.json();
@@ -91,7 +90,7 @@ export default function ReferralBannerAdminPage() {
       }, 5000);
 
       console.log('📡 Fazendo requisição com timeout de 5s...');
-      const response = await fetch('/api/admin/referral-banner', {
+      const response = await fetchAdminWithDevFallback('/api/admin/referral-banner', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'},
@@ -582,7 +581,7 @@ export default function ReferralBannerAdminPage() {
 
             <div className="flex items-center gap-3">
               <a
-                href="/admin/cms/vendor-banner/analytics"
+                href="/admin/cms/referral-banner/analytics"
                 className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
               >
                 📊 Ver Analytics

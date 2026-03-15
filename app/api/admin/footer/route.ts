@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 type FooterLink = {
   id: string;
@@ -96,6 +97,9 @@ function saveFooterData(footerData: FooterData): void {
 
 export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     console.log('GET /api/admin/footer - Iniciando...');
     
     // Carregar dados (cache ou padrão)
@@ -115,6 +119,9 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     console.log('PUT /api/admin/footer - Iniciando...');
     
     const footerData: FooterData = await request.json();

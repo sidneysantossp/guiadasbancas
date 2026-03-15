@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 type VendorBanner = {
   id?: string;
@@ -56,9 +57,7 @@ export default function VendorBannerAdminPage() {
   const loadBanner = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/vendor-banner', {
-
-      });
+      const response = await fetchAdminWithDevFallback('/api/admin/vendor-banner');
 
       if (response.ok) {
         const result = await response.json();
@@ -91,7 +90,7 @@ export default function VendorBannerAdminPage() {
       }, 5000);
 
       console.log('📡 Fazendo requisição com timeout de 5s...');
-      const response = await fetch('/api/admin/vendor-banner', {
+      const response = await fetchAdminWithDevFallback('/api/admin/vendor-banner', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'},

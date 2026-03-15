@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 // Configuração do Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,6 +16,9 @@ if (supabaseUrl && supabaseServiceKey) {
 // POST - Registrar clique no banner
 export async function POST(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     console.log('📊 POST /api/admin/vendor-banner/analytics - Registrando clique');
     
     const body = await request.json();
@@ -107,6 +111,9 @@ export async function POST(request: NextRequest) {
 // GET - Obter estatísticas do banner
 export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     console.log('📊 GET /api/admin/vendor-banner/analytics - Obtendo estatísticas');
     
     const { searchParams } = new URL(request.url);

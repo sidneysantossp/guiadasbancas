@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 import { useToast } from "@/components/admin/ToastProvider";
 import { buildPublicProductPath } from "@/lib/product-url";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 interface Campaign {
   id: string;
@@ -51,6 +53,24 @@ const statusLabels = {
   cancelled: { label: 'Cancelado', color: 'bg-gray-100 text-gray-800' }
 };
 
+function SummaryCard({
+  title,
+  value,
+  helper,
+}: {
+  title: string;
+  value: string | number;
+  helper: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{title}</div>
+      <div className="mt-2 text-2xl font-semibold text-gray-900">{value}</div>
+      <div className="mt-1 text-sm text-gray-500">{helper}</div>
+    </div>
+  );
+}
+
 export default function AdminCampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,9 +88,8 @@ export default function AdminCampaignsPage() {
     }
 
     try {
-      const res = await fetch(`/api/admin/campaigns/${campaignId}/delete`, {
+      const res = await fetchAdminWithDevFallback(`/api/admin/campaigns/${campaignId}/delete`, {
         method: 'DELETE',
-
       });
 
       if (res.ok) {
@@ -86,7 +105,7 @@ export default function AdminCampaignsPage() {
 
   const handleArchive = async (campaignId: string) => {
     try {
-      const res = await fetch(`/api/admin/campaigns/${campaignId}`, {
+      const res = await fetchAdminWithDevFallback(`/api/admin/campaigns/${campaignId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'},
@@ -113,9 +132,7 @@ export default function AdminCampaignsPage() {
       const params = new URLSearchParams();
       if (selectedStatus) params.set('status', selectedStatus);
 
-      const res = await fetch(`/api/admin/campaigns?${params.toString()}`, {
-
-      });
+      const res = await fetchAdminWithDevFallback(`/api/admin/campaigns?${params.toString()}`);
       const json = await res.json();
 
       if (json.success) {
@@ -150,7 +167,7 @@ export default function AdminCampaignsPage() {
         rejection_reason: modalAction === 'reject' ? rejectionReason : undefined
       };
 
-      const res = await fetch(`/api/admin/campaigns/${selectedCampaign.id}`, {
+      const res = await fetchAdminWithDevFallback(`/api/admin/campaigns/${selectedCampaign.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'},
@@ -181,6 +198,13 @@ export default function AdminCampaignsPage() {
     return diffDays;
   };
 
+  const summary = {
+    total: campaigns.length,
+    pending: campaigns.filter((campaign) => campaign.status === 'pending').length,
+    active: campaigns.filter((campaign) => campaign.status === 'active').length,
+    impressions: campaigns.reduce((acc, campaign) => acc + Number(campaign.impressions || 0), 0),
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -194,6 +218,13 @@ export default function AdminCampaignsPage() {
         >
           Nova Campanha
         </Link>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard title="Campanhas" value={summary.total} helper="Base total no recorte atual." />
+        <SummaryCard title="Aguardando" value={summary.pending} helper="Itens pendentes de decisão administrativa." />
+        <SummaryCard title="Ativas" value={summary.active} helper="Campanhas com mídia já em circulação." />
+        <SummaryCard title="Impressões" value={summary.impressions} helper="Soma do impacto registrado." />
       </div>
 
       {/* Filtros */}
@@ -379,13 +410,13 @@ export default function AdminCampaignsPage() {
                       👁️ Ver
                     </button>
 
-                    <button
-                      onClick={() => window.open(`/admin/campaigns/${campaign.id}/edit`, '_blank')}
+                    <Link
+                      href={`/admin/campaigns/${campaign.id}` as Route}
                       className="flex items-center gap-1 bg-yellow-500 text-white px-3 py-1.5 rounded-md text-xs hover:bg-yellow-600"
-                      title="Editar campanha"
+                      title="Ver detalhes da campanha"
                     >
-                      ✏️ Editar
-                    </button>
+                      ✏️ Detalhes
+                    </Link>
 
                     {(campaign.status === 'expired' || campaign.status === 'rejected') && (
                       <button

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 interface BannerStats {
   banner_id: string;
@@ -15,7 +16,7 @@ interface BannerStats {
   }>;
 }
 
-export default function VendorBannerAnalyticsPage() {
+export default function ReferralBannerAnalyticsPage() {
   const [stats, setStats] = useState<BannerStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +29,7 @@ export default function VendorBannerAnalyticsPage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/admin/vendor-banner/analytics?banner_id=${id}`);
+      const response = await fetchAdminWithDevFallback(`/api/admin/referral-banner/analytics?banner_id=${id}`);
       const result = await response.json();
       
       if (result.success) {
@@ -45,7 +46,7 @@ export default function VendorBannerAnalyticsPage() {
 
   const loadActiveBanner = async () => {
     try {
-      const response = await fetch('/api/admin/vendor-banner');
+      const response = await fetchAdminWithDevFallback('/api/admin/referral-banner');
       const result = await response.json();
       
       if (result.success && result.data?.id) {
@@ -84,16 +85,16 @@ export default function VendorBannerAnalyticsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">📊 Analytics do Banner</h1>
+          <h1 className="text-3xl font-bold text-gray-900">📊 Analytics do Banner de Indicação</h1>
           <p className="mt-2 text-gray-600">
-            Estatísticas de desempenho do banner do jornaleiro
+            Estatísticas de desempenho do banner de indicação da plataforma
           </p>
         </div>
 
         {/* Navigation */}
         <div className="mb-6">
           <a 
-            href="/admin/cms/vendor-banner"
+            href="/admin/cms/referral-banner"
             className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
           >
             ← Voltar para Configuração do Banner
@@ -223,7 +224,7 @@ export default function VendorBannerAnalyticsPage() {
                       🔄 Atualizar
                     </button>
                     <a
-                      href="/admin/cms/vendor-banner"
+                      href="/admin/cms/referral-banner"
                       className="inline-flex items-center gap-2 rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-500"
                     >
                       ⚙️ Configurar Banner

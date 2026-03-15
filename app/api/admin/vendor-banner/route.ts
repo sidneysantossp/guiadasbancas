@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 // Configuração do Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -101,8 +102,11 @@ function debugMemoryState() {
 }
 // Supabase já configurado acima
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     console.log('📖 GET /api/admin/vendor-banner - CHAMADA RECEBIDA');
     console.log('🗄️ Cache stats:', bannerCache.getStats());
     
@@ -164,6 +168,9 @@ export async function PUT(request: NextRequest) {
   console.log('🔄 PUT /api/admin/vendor-banner iniciado');
   
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const body = await request.json();
     console.log('📝 Dados recebidos COMPLETOS:', JSON.stringify(body, null, 2));
     

@@ -50,7 +50,7 @@ export default function ReferralPlatformBannerWrapper() {
     if (!banner) return;
     
     try {
-      await fetch('/api/admin/referral-banner/analytics', {
+      await fetch('/api/referral-banner/analytics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

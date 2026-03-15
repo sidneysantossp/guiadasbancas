@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ImageUploadDragDrop from "@/components/admin/ImageUploadDragDrop";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 type MiniBanner = {
   id: string;
@@ -9,6 +10,24 @@ type MiniBanner = {
   display_order: number;
   active: boolean;
 };
+
+function SummaryCard({
+  title,
+  value,
+  helper,
+}: {
+  title: string;
+  value: string | number;
+  helper: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{title}</div>
+      <div className="mt-2 text-2xl font-semibold text-gray-900">{value}</div>
+      <div className="mt-1 text-sm text-gray-500">{helper}</div>
+    </div>
+  );
+}
 
 export default function MiniBannersAdminPage() {
   const [items, setItems] = useState<MiniBanner[]>([]);
@@ -23,9 +42,7 @@ export default function MiniBannersAdminPage() {
   const load = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/mini-banners", {
-        cache: "no-store",
-      });
+      const res = await fetchAdminWithDevFallback("/api/admin/mini-banners");
       const j = await res.json();
       if (j?.success) setItems(j.data || []);
     } catch (e) {
@@ -41,7 +58,7 @@ export default function MiniBannersAdminPage() {
     try {
       setSaving(true);
       setError(null);
-      const res = await fetch("/api/admin/mini-banners", {
+      const res = await fetchAdminWithDevFallback("/api/admin/mini-banners", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -61,7 +78,7 @@ export default function MiniBannersAdminPage() {
   };
 
   const updateItem = async (id: string, patch: Partial<MiniBanner>) => {
-    const res = await fetch(`/api/admin/mini-banners/${id}`, {
+    const res = await fetchAdminWithDevFallback(`/api/admin/mini-banners/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json"},
       body: JSON.stringify(patch),
@@ -72,9 +89,9 @@ export default function MiniBannersAdminPage() {
 
   const removeItem = async (id: string) => {
     if (!confirm("Excluir este mini banner?")) return;
-    const res = await fetch(`/api/admin/mini-banners/${id}`, {
+    const res = await fetchAdminWithDevFallback(`/api/admin/mini-banners/${id}`, {
       method: "DELETE",
-      });
+    });
     const j = await res.json();
     if (j?.success) await load();
   };
@@ -84,6 +101,17 @@ export default function MiniBannersAdminPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Mini Banners</h1>
         <p className="text-gray-600">Gerencie os mini banners rotativos exibidos abaixo de "Ofertas para você".</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard title="Banners" value={items.length} helper="Inventário atual do bloco rotativo." />
+        <SummaryCard title="Ativos" value={items.filter((item) => item.active).length} helper="Peças visíveis para o usuário final." />
+        <SummaryCard
+          title="Primeira ordem"
+          value={items.length > 0 ? String(Math.min(...items.map((item) => item.display_order))) : "—"}
+          helper="Ponto inicial da fila visual."
+        />
+        <SummaryCard title="Status" value={saving ? "Editando" : "Estável"} helper="Saúde operacional do bloco." />
       </div>
 
       {/* Create form */}

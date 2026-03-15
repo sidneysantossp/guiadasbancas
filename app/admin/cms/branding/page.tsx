@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/admin/ToastProvider";
 import ImageUploader from "@/components/admin/ImageUploader";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 interface BrandingConfig {
   logoUrl: string;
@@ -15,6 +16,24 @@ interface BrandingConfig {
   socialFacebook: string;
   socialYoutube: string;
   socialLinkedin: string;
+}
+
+function SummaryCard({
+  title,
+  value,
+  helper,
+}: {
+  title: string;
+  value: string;
+  helper: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{title}</div>
+      <div className="mt-2 text-lg font-semibold text-gray-900">{value}</div>
+      <div className="mt-1 text-sm text-gray-500">{helper}</div>
+    </div>
+  );
 }
 
 export default function BrandingPage() {
@@ -41,7 +60,7 @@ export default function BrandingPage() {
   const loadConfig = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/branding');
+      const response = await fetchAdminWithDevFallback('/api/admin/branding');
       const result = await response.json();
       
       if (result.success) {
@@ -68,7 +87,7 @@ export default function BrandingPage() {
     try {
       setSaving(true);
       
-      const response = await fetch('/api/admin/branding', {
+      const response = await fetchAdminWithDevFallback('/api/admin/branding', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'},
@@ -159,6 +178,13 @@ export default function BrandingPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Identidade Visual</h1>
         <p className="text-gray-600 mt-1">Configure a logo, cores e identidade visual do site</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard title="Marca" value={config.siteName || "Guia das Bancas"} helper="Nome exibido em títulos e metadados." />
+        <SummaryCard title="Logo" value={config.logoUrl ? "Configurada" : "Padrão"} helper="Estado do principal ativo visual." />
+        <SummaryCard title="Primária" value={config.primaryColor} helper="Cor central de CTA e destaque." />
+        <SummaryCard title="Favicon" value={config.favicon || "Padrão"} helper="Ícone de aba e navegador." />
       </div>
 
       {/* Form */}

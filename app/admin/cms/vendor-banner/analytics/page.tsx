@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 interface BannerStats {
   banner_id: string;
@@ -28,7 +29,7 @@ export default function VendorBannerAnalyticsPage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/admin/vendor-banner/analytics?banner_id=${id}`);
+      const response = await fetchAdminWithDevFallback(`/api/admin/vendor-banner/analytics?banner_id=${id}`);
       const result = await response.json();
       
       if (result.success) {
@@ -45,7 +46,7 @@ export default function VendorBannerAnalyticsPage() {
 
   const loadActiveBanner = async () => {
     try {
-      const response = await fetch('/api/admin/vendor-banner');
+      const response = await fetchAdminWithDevFallback('/api/admin/vendor-banner');
       const result = await response.json();
       
       if (result.success && result.data?.id) {
