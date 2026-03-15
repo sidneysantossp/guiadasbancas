@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 
 type OrderItem = {
   id: string;
@@ -150,6 +152,17 @@ export async function GET(
 ) {
   try {
     const { id } = params;
+    const session = await auth();
+    const userRole = (session?.user as any)?.role as string | undefined;
+    const userId = (session?.user as any)?.id as string | undefined;
+
+    if (!session?.user || !userRole || !userId) {
+      return NextResponse.json({ ok: false, error: "Não autorizado" }, { status: 401 });
+    }
+
+    if (!["admin", "jornaleiro", "seller", "cliente"].includes(userRole)) {
+      return NextResponse.json({ ok: false, error: "Acesso negado" }, { status: 403 });
+    }
     
     console.log('[API/ORDERS/[ID]/GET] Buscando pedido:', id);
     
@@ -181,6 +194,17 @@ export async function GET(
         { ok: false, error: "Pedido não encontrado" }, 
         { status: 404 }
       );
+    }
+
+    if (userRole === "cliente" && order.user_id !== userId) {
+      return NextResponse.json({ ok: false, error: "Acesso negado" }, { status: 403 });
+    }
+
+    if (userRole === "jornaleiro" || userRole === "seller") {
+      const banca = await getActiveBancaRowForUser(userId, "id");
+      if (!banca || order.banca_id !== banca.id) {
+        return NextResponse.json({ ok: false, error: "Acesso negado" }, { status: 403 });
+      }
     }
     
     // Formatar resposta

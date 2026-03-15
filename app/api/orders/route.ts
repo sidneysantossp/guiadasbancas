@@ -502,6 +502,14 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const session = await auth();
+    const userRole = (session?.user as any)?.role as string | undefined;
+    const userId = (session?.user as any)?.id as string | undefined;
+
+    if (!session?.user || !userRole || !userId) {
+      return NextResponse.json({ ok: false, error: "Não autorizado" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { id, status, notes, estimated_delivery, items } = body || {};
     
@@ -517,6 +525,29 @@ export async function PATCH(req: NextRequest) {
     }
     
     const oldStatus = currentOrder.status;
+
+    if (userRole === "cliente") {
+      const nextStatus = String(status || "").toLowerCase();
+      const allowedCustomerStatuses = ["cancelado", "cancelled", "canceled"];
+
+      if (currentOrder.user_id !== userId) {
+        return NextResponse.json({ ok: false, error: "Acesso negado" }, { status: 403 });
+      }
+
+      if (!allowedCustomerStatuses.includes(nextStatus) || notes !== undefined || estimated_delivery || items) {
+        return NextResponse.json(
+          { ok: false, error: "Cliente só pode cancelar o próprio pedido" },
+          { status: 403 },
+        );
+      }
+    }
+
+    if (userRole === "jornaleiro" || userRole === "seller") {
+      const banca = await getActiveBancaRowForUser(userId, "id");
+      if (!banca || currentOrder.banca_id !== banca.id) {
+        return NextResponse.json({ ok: false, error: "Acesso negado" }, { status: 403 });
+      }
+    }
     
     // Atualizar pedido no Supabase
     const updateData: any = {};

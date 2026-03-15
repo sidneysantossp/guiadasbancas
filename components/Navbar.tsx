@@ -864,9 +864,9 @@ useEffect(() => {
                     {accountOpen && (
                       <div className="absolute right-0 top-full z-40 mt-3 w-56 rounded-2xl border border-gray-200 bg-white shadow-xl">
                         <div className="py-1 text-sm">
-                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','perfil'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meu Perfil</button>
-                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','favoritos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Meus Favoritos</button>
-                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ try { localStorage.setItem('gb:dashboardActiveMenu','pedidos'); } catch {}; router.push('/minha-conta'); setAccountOpen(false); }}>Minhas compras</button>
+                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ router.push('/minha-conta'); setAccountOpen(false); }}>Meu Perfil</button>
+                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ router.push('/minha-conta?menu=favoritos'); setAccountOpen(false); }}>Meus Favoritos</button>
+                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ router.push('/minha-conta?menu=pedidos'); setAccountOpen(false); }}>Minhas compras</button>
                           <JornaleiroAdminLinks onClose={() => setAccountOpen(false)} />
                           <div className="h-px bg-gray-100 my-1" />
                           <button className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50" onClick={()=>{ setAccountOpen(false); logout(); }}>Sair</button>
@@ -1043,7 +1043,7 @@ useEffect(() => {
             <div className="px-4 py-3 border-b border-gray-200">
               <button
                 className="w-full flex items-center gap-3 text-left"
-                onClick={() => { try { localStorage.setItem('gb:dashboardActiveMenu','perfil'); } catch {}; router.push('/minha-conta'); setMobileOpen(false); }}
+                onClick={() => { router.push('/minha-conta?menu=perfil'); setMobileOpen(false); }}
               >
                 <span className="relative inline-block h-10 w-10 rounded-full overflow-hidden bg-orange-100 ring-1 ring-black/5">
                   {profileAvatar ? (

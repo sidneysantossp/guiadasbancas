@@ -234,12 +234,41 @@ export default function CheckoutPageClient() {
       // Preencher dados do usuário logado automaticamente
       if (user.name) setName(user.name);
       if (user.email) setEmail(user.email);
-      
-      // Buscar dados adicionais do perfil (telefone, etc) via API
-      fetch('/api/auth/me')
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
-          if (data?.profile?.phone) setPhone(data.profile.phone);
+
+      Promise.all([
+        fetch('/api/minha-conta/profile', {
+          cache: 'no-store',
+          credentials: 'include',
+        }),
+        fetch('/api/minha-conta/addresses', {
+          cache: 'no-store',
+          credentials: 'include',
+        }),
+      ])
+        .then(async ([profileRes, addressRes]) => {
+          const profileData = profileRes.ok ? await profileRes.json().catch(() => null) : null;
+          const addressData = addressRes.ok ? await addressRes.json().catch(() => null) : null;
+
+          if (profileData?.success) {
+            if (profileData.data?.profile?.full_name) setName(profileData.data.profile.full_name);
+            if (profileData.data?.profile?.email) setEmail(profileData.data.profile.email);
+            if (profileData.data?.profile?.phone) setPhone(profileData.data.profile.phone);
+          }
+
+          if (addressData?.success && Array.isArray(addressData.data)) {
+            const backendAddresses = addressData.data.map((address: any) => ({
+              id: address.id,
+              cep: address.cep,
+              street: address.street,
+              number: address.number || "",
+              neighborhood: address.neighborhood || "",
+              city: address.city,
+              uf: address.uf,
+              complement: address.complement || "",
+              isPrimary: Boolean(address.is_default),
+            }));
+            setAddresses(backendAddresses);
+          }
         })
         .catch(() => {});
     }
@@ -407,11 +436,62 @@ export default function CheckoutPageClient() {
     }
   }, [isValidCEP, items, destCEP]);
 
-  const saveNewAddressAsPrimary = () => {
+  const saveNewAddressAsPrimary = async () => {
     if (!isValidCEP || !street || !neighborhood || !city || !uf || !houseNumber) {
       show("Preencha CEP e número para salvar o endereço");
       return;
     }
+
+    if (isLogged) {
+      try {
+        const response = await fetch('/api/minha-conta/addresses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            label: 'Casa',
+            recipient_name: name || userObj?.name || '',
+            street,
+            number: houseNumber,
+            neighborhood,
+            city,
+            uf,
+            cep: destCEP,
+            complement,
+            phone,
+            is_default: true,
+          }),
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok || !data?.success) {
+          throw new Error(data?.error || 'Falha ao salvar endereço');
+        }
+
+        const updated = (data.addresses || []).map((address: any) => ({
+          id: address.id,
+          cep: address.cep,
+          street: address.street,
+          number: address.number || '',
+          neighborhood: address.neighborhood || '',
+          city: address.city,
+          uf: address.uf,
+          complement: address.complement || '',
+          isPrimary: Boolean(address.is_default),
+        }));
+        setAddresses(updated);
+        const primary = updated.find((address: SavedAddress) => address.isPrimary) || updated[0];
+        if (primary) {
+          setSelectedAddressId(primary.id);
+        }
+        setAddressMode("primary");
+        show("Endereço salvo como principal e selecionado");
+        return;
+      } catch (error: any) {
+        show(error?.message || "Não foi possível salvar o endereço");
+        return;
+      }
+    }
+
     const id = `addr_${Date.now()}`;
     const newAddr: SavedAddress = {
       id,
@@ -427,7 +507,7 @@ export default function CheckoutPageClient() {
     const updated = [newAddr, ...addresses.map(a => ({ ...a, isPrimary: false }))];
     setAddresses(updated);
     setSelectedAddressId(id);
-    setAddressMode("primary"); // Muda para modo primary automaticamente
+    setAddressMode("primary");
     show("Endereço salvo como principal e selecionado");
   };
 
@@ -444,9 +524,59 @@ export default function CheckoutPageClient() {
     setComplement(a.complement || "");
   };
 
-  const setPrimaryAddress = (addrId: string) => {
+  const setPrimaryAddress = async (addrId: string) => {
     const exists = addresses.some(a => a.id === addrId);
     if (!exists) return;
+
+    if (isLogged) {
+      try {
+        const selected = addresses.find(address => address.id === addrId);
+        const response = await fetch('/api/minha-conta/addresses', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            id: addrId,
+            label: 'Casa',
+            recipient_name: name || userObj?.name || '',
+            street: selected?.street,
+            number: selected?.number,
+            neighborhood: selected?.neighborhood,
+            city: selected?.city,
+            uf: selected?.uf,
+            cep: selected?.cep,
+            complement: selected?.complement,
+            phone,
+            is_default: true,
+          }),
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok || !data?.success) {
+          throw new Error(data?.error || 'Falha ao atualizar endereço principal');
+        }
+
+        const updated = (data.addresses || []).map((address: any) => ({
+          id: address.id,
+          cep: address.cep,
+          street: address.street,
+          number: address.number || '',
+          neighborhood: address.neighborhood || '',
+          city: address.city,
+          uf: address.uf,
+          complement: address.complement || '',
+          isPrimary: Boolean(address.is_default),
+        }));
+        setAddresses(updated);
+        onSelectSavedAddress(addrId);
+        setAddressMode('primary');
+        show('Endereço definido como principal e selecionado');
+        return;
+      } catch (error: any) {
+        show(error?.message || 'Não foi possível atualizar o endereço principal');
+        return;
+      }
+    }
+
     const updated = addresses.map(a => ({ ...a, isPrimary: a.id === addrId }));
     setAddresses(updated);
     onSelectSavedAddress(addrId);
@@ -454,7 +584,46 @@ export default function CheckoutPageClient() {
     show('Endereço definido como principal e selecionado');
   };
 
-  const deleteAddress = (addrId: string) => {
+  const deleteAddress = async (addrId: string) => {
+    if (isLogged) {
+      try {
+        const response = await fetch(`/api/minha-conta/addresses?id=${encodeURIComponent(addrId)}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok || !data?.success) {
+          throw new Error(data?.error || 'Falha ao remover endereço');
+        }
+
+        const adjusted = (data.addresses || []).map((address: any) => ({
+          id: address.id,
+          cep: address.cep,
+          street: address.street,
+          number: address.number || '',
+          neighborhood: address.neighborhood || '',
+          city: address.city,
+          uf: address.uf,
+          complement: address.complement || '',
+          isPrimary: Boolean(address.is_default),
+        }));
+        setAddresses(adjusted);
+        if (adjusted.length === 0) {
+          setSelectedAddressId(null);
+          setAddressMode('new');
+        } else {
+          const primary = adjusted.find((address: SavedAddress) => address.isPrimary) || adjusted[0];
+          setSelectedAddressId(primary.id);
+          onSelectSavedAddress(primary.id);
+        }
+        show('Endereço removido');
+        return;
+      } catch (error: any) {
+        show(error?.message || 'Não foi possível remover o endereço');
+        return;
+      }
+    }
+
     const remaining = addresses.filter(a => a.id !== addrId);
     // Se removeu o principal, promove o primeiro dos restantes a principal
     let adjusted = remaining;
@@ -649,7 +818,37 @@ export default function CheckoutPageClient() {
                         ) : (
                           <div className="flex items-center gap-2">
                             <input className="input h-8" value={phoneDraft} onChange={(e)=> setPhoneDraft(formatPhone(e.target.value))} placeholder="(XX) XXXXX-XXXX" autoFocus />
-                            <button type="button" className="rounded-md bg-[#ff5c00] px-2 py-1 text-white text-[12px]" onClick={()=>{ setPhone(phoneDraft); setEditingPhone(false); show('Telefone atualizado'); }}>Salvar</button>
+                            <button
+                              type="button"
+                              className="rounded-md bg-[#ff5c00] px-2 py-1 text-white text-[12px]"
+                              onClick={async () => {
+                                if (isLogged) {
+                                  try {
+                                    const response = await fetch('/api/minha-conta/profile', {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      credentials: 'include',
+                                      body: JSON.stringify({
+                                        full_name: userObj?.name || name || session?.user?.name || 'Cliente',
+                                        phone: phoneDraft,
+                                      }),
+                                    });
+                                    const data = await response.json().catch(() => null);
+                                    if (!response.ok || !data?.success) {
+                                      throw new Error(data?.error || 'Falha ao atualizar telefone');
+                                    }
+                                  } catch (error: any) {
+                                    show(error?.message || 'Não foi possível atualizar o telefone');
+                                    return;
+                                  }
+                                }
+                                setPhone(phoneDraft);
+                                setEditingPhone(false);
+                                show('Telefone atualizado');
+                              }}
+                            >
+                              Salvar
+                            </button>
                             <button type="button" className="rounded-md border px-2 py-1 text-[12px]" onClick={()=>{ setEditingPhone(false); setPhoneDraft(""); }}>Cancelar</button>
                           </div>
                         )}

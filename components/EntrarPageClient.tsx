@@ -18,7 +18,7 @@ type EntrarPageClientProps = {
 function resolveDashboardByRole(role?: string): string {
   if (role === "jornaleiro" || role === "seller") return "/jornaleiro/dashboard";
   if (role === "admin") return "/admin/dashboard";
-  return "/minha-conta";
+  return "/minha-conta/inteligencia";
 }
 
 function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
