@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 export default function ImportCotistasPage() {
   const router = useRouter();
@@ -49,7 +50,7 @@ export default function ImportCotistasPage() {
       console.log('[IMPORT] Endpoint:', endpoint);
       console.log('[IMPORT] Arquivo:', file.name, file.type, file.size);
 
-      const response = await fetch(endpoint, {
+      const response = await fetchAdminWithDevFallback(endpoint, {
         method: 'POST',
         body: formData
       }).catch(fetchError => {

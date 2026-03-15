@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAdminAuth } from '@/lib/security/admin-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -8,10 +9,12 @@ export const maxDuration = 60;
  * POST /api/admin/produtos/upload-imagem-manual
  * Upload manual de imagem para um produto específico (por ID)
  * 
- * NOTA: Sem autenticação de API - proteção é feita no client-side (páginas admin)
  */
 export async function POST(req: NextRequest) {
   try {
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
+
     const supabase = supabaseAdmin;
 
     const formData = await req.formData();

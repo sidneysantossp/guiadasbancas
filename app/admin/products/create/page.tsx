@@ -48,7 +48,7 @@ export default function AdminProductCreatePage() {
   useEffect(() => {
     const loadCategories = async () => {
       try {
-        const res = await fetch("/api/categories", { cache: "no-store" });
+        const res = await fetchAdminWithDevFallback("/api/admin/categories?all=true", { cache: "no-store" });
         const json = await res.json();
         if (json?.success) {
           setCategories((json.data as any[])?.map((c) => ({ id: c.id, name: c.name })) || []);

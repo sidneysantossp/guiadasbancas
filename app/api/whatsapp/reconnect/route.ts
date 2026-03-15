@@ -1,11 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 /**
  * API para tentar reconectar WhatsApp
  * Acesse: /api/whatsapp/reconnect
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const baseUrl = process.env.EVOLUTION_API_URL || 'https://api.guiadasbancas.com.br';
     const apiKey = process.env.EVOLUTION_API_KEY || '';
     const instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas-central';
@@ -72,8 +76,11 @@ export async function POST() {
 /**
  * Verificar status da conexão
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const baseUrl = process.env.EVOLUTION_API_URL || 'https://api.guiadasbancas.com.br';
     const apiKey = process.env.EVOLUTION_API_KEY || '';
     const instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas-central';

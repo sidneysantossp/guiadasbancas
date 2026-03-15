@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { fetchAdminWithDevFallback } from '@/lib/admin-client-fetch';
 
 export default function UploadImagensMassaPage() {
   const router = useRouter();
@@ -56,7 +57,7 @@ export default function UploadImagensMassaPage() {
         const formData = new FormData();
         slice.forEach(file => formData.append('images', file));
 
-        const response = await fetch('/api/admin/produtos/upload-imagens-massa', {
+        const response = await fetchAdminWithDevFallback('/api/admin/produtos/upload-imagens-massa', {
           method: 'POST',
           body: formData,
         });
@@ -72,7 +73,7 @@ export default function UploadImagensMassaPage() {
             for (const file of slice) {
               const singleFD = new FormData();
               singleFD.append('images', file);
-              const r = await fetch('/api/admin/produtos/upload-imagens-massa', {
+              const r = await fetchAdminWithDevFallback('/api/admin/produtos/upload-imagens-massa', {
                 method: 'POST',
                 body: singleFD,
               });

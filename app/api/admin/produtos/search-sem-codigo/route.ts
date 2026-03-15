@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAdminAuth } from '@/lib/security/admin-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,10 +9,12 @@ export const dynamic = 'force-dynamic';
  * Busca produtos por nome, mercos_id ou codigo_mercos
  * Útil para encontrar produtos que não têm codigo_mercos para upload manual
  * 
- * NOTA: Sem autenticação de API - proteção é feita no client-side (páginas admin)
  */
 export async function GET(req: NextRequest) {
   try {
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
+
     const supabase = supabaseAdmin;
 
     const url = new URL(req.url);

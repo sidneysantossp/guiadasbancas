@@ -111,7 +111,7 @@ export default function AdminProductEditPage() {
         setBancaSelecionada(productData.banca_id || "");
 
         // Carregar categorias
-        const resCategories = await fetch("/api/categories", { cache: "no-store" });
+        const resCategories = await fetchAdminWithDevFallback("/api/admin/categories?all=true", { cache: "no-store" });
         const jsonCategories = await resCategories.json();
         if (jsonCategories?.success) {
           setCategories((jsonCategories.data as any[])?.map((c) => ({ id: c.id, name: c.name })) || []);

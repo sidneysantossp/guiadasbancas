@@ -103,12 +103,10 @@ export default function CategoriasPage() {
     setSyncResult(null);
     
     try {
-      const response = await fetch('/api/mercos/sync-sandbox-categories', {
+      const response = await fetchAdminWithDevFallback(`/api/admin/distribuidores/${params.id}/categorias/sync-sandbox`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          companyToken: '4b866744-a086-11f0-ada6-5e65486a6283',
-          distribuidorId: params.id,
           alteradoApos: timestamp,
         })
       });

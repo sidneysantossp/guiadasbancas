@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 interface Produto {
   id: string;
@@ -30,7 +31,7 @@ export default function UploadImagensManualPage() {
       const url = `/api/admin/produtos/search-sem-codigo?q=${encodeURIComponent(
         searchTerm
       )}${distribuidorId ? `&distribuidor_id=${distribuidorId}` : ""}`;
-      const res = await fetch(url);
+      const res = await fetchAdminWithDevFallback(url);
       const data = await res.json();
 
       if (data.success) {
@@ -52,7 +53,7 @@ export default function UploadImagensManualPage() {
       formData.append("image", file);
       formData.append("produto_id", produtoId);
 
-      const res = await fetch("/api/admin/produtos/upload-imagem-manual", {
+      const res = await fetchAdminWithDevFallback("/api/admin/produtos/upload-imagem-manual", {
         method: "POST",
         body: formData,
       });

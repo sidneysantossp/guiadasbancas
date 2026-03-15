@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 export default function DebugMercosPage() {
   const params = useParams();
@@ -22,7 +23,7 @@ export default function DebugMercosPage() {
       const url = `/api/admin/distribuidores/${distribuidorId}/mercos-raw-debug?limit=${limit}${
         searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ""
       }`;
-      const res = await fetch(url);
+      const res = await fetchAdminWithDevFallback(url);
       const data = await res.json();
 
       if (!res.ok || !data.success) {

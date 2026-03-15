@@ -1,16 +1,20 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
+import { requireAdminAuth } from '@/lib/security/admin-auth';
 
 /**
  * Endpoint para visualizar dados BRUTOS da API Mercos
  * Útil para diagnosticar problemas com campos faltando (ex: codigo_mercos)
  */
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const supabase = supabaseAdmin;
     const distribuidorId = params.id;
     const url = new URL(request.url);

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { fetchAdminWithDevFallback } from '@/lib/admin-client-fetch';
 
 type Produto = {
   id: string;
@@ -35,7 +36,7 @@ export default function ProdutosSemImagensPage() {
   useEffect(() => {
     const fetchDistribuidores = async () => {
       try {
-        const res = await fetch('/api/admin/distribuidores');
+        const res = await fetchAdminWithDevFallback('/api/admin/distribuidores');
         const json = await res.json();
         if (json.data) {
           setDistribuidores(json.data);
@@ -60,7 +61,7 @@ export default function ProdutosSemImagensPage() {
           params.set('distribuidor_id', selectedDistribuidor);
         }
 
-        const res = await fetch(`/api/admin/produtos/sem-imagens?${params.toString()}`);
+        const res = await fetchAdminWithDevFallback(`/api/admin/produtos/sem-imagens?${params.toString()}`);
         const json = await res.json();
 
         if (json.success) {
@@ -92,7 +93,29 @@ export default function ProdutosSemImagensPage() {
     if (selectedDistribuidor) {
       params.set('distribuidor_id', selectedDistribuidor);
     }
-    window.open(`/api/admin/produtos/sem-imagens?${params.toString()}`, '_blank');
+    const exportUrl = `/api/admin/produtos/sem-imagens?${params.toString()}`;
+
+    void fetchAdminWithDevFallback(exportUrl)
+      .then(async (response) => {
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || 'Erro ao exportar CSV');
+        }
+
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = `produtos-sem-imagens-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(objectUrl);
+      })
+      .catch((error) => {
+        console.error('Erro ao exportar CSV:', error);
+        alert(error.message || 'Erro ao exportar CSV');
+      });
   };
 
   const copyAllCodigos = () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 export default function WhatsAppConnectPage() {
   const [status, setStatus] = useState<any>(null);
@@ -8,9 +9,9 @@ export default function WhatsAppConnectPage() {
   const [qrCode, setQrCode] = useState<string | null>(null);
 
   const checkStatus = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/whatsapp/reconnect');
+      try {
+        setLoading(true);
+      const response = await fetchAdminWithDevFallback('/api/whatsapp/reconnect');
       const data = await response.json();
       setStatus(data);
       console.log('Status:', data);
@@ -22,10 +23,10 @@ export default function WhatsAppConnectPage() {
   };
 
   const reconnect = async () => {
-    try {
-      setLoading(true);
-      setQrCode(null);
-      const response = await fetch('/api/whatsapp/reconnect', {
+      try {
+        setLoading(true);
+        setQrCode(null);
+      const response = await fetchAdminWithDevFallback('/api/whatsapp/reconnect', {
         method: 'POST'
       });
       const data = await response.json();
