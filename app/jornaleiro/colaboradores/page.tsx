@@ -29,6 +29,9 @@ export default function ColaboradoresPage() {
     ],
     []
   );
+  const activeCollaborators = colaboradores.filter((colaborador) => colaborador.active).length;
+  const adminCollaborators = colaboradores.filter((colaborador) => colaborador.access_level === "admin").length;
+  const linkedBancas = new Set(colaboradores.flatMap((colaborador) => colaborador.bancas.map((banca) => banca.id))).size;
 
   const load = async () => {
     try {
@@ -136,9 +139,12 @@ export default function ColaboradoresPage() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Colaboradores</h1>
-          <p className="text-sm text-gray-600">
-            Gerencie os colaboradores que têm acesso às suas bancas.
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
+            Equipe e estrutura
+          </p>
+          <h1 className="mt-1 text-xl font-semibold text-gray-900">Equipe da banca</h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Defina quem pode operar a banca, com qual nível de acesso e em quais unidades cada colaborador atua.
           </p>
         </div>
         <Link
@@ -148,6 +154,29 @@ export default function ColaboradoresPage() {
           <IconPlus size={18} />
           Novo Colaborador
         </Link>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Colaboradores</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{colaboradores.length}</div>
+          <p className="mt-1 text-sm text-gray-500">Pessoas com acesso às bancas desta conta.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Ativos</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{activeCollaborators}</div>
+          <p className="mt-1 text-sm text-gray-500">Equipe hoje liberada para operar no painel.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Administradores</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{adminCollaborators}</div>
+          <p className="mt-1 text-sm text-gray-500">Perfis com controle mais amplo sobre a operação.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Bancas cobertas</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{linkedBancas}</div>
+          <p className="mt-1 text-sm text-gray-500">Unidades com equipe atribuída dentro do painel.</p>
+        </div>
       </div>
 
       <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
@@ -167,6 +196,15 @@ export default function ColaboradoresPage() {
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {!loading && colaboradores.length > 0 && (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <div className="font-semibold">Regra operacional da equipe</div>
+          <p className="mt-2 text-blue-800">
+            Use administradores para gestão completa e colaboradores para operação assistida. O ideal é abrir só o acesso necessário para pedido, catálogo e atendimento.
+          </p>
         </div>
       )}
 
@@ -192,7 +230,7 @@ export default function ColaboradoresPage() {
           </Link>
         </div>
       ) : (
-        <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>

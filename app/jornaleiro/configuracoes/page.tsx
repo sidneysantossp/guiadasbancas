@@ -284,10 +284,10 @@ export default function ConfiguracoesPage() {
   };
 
   const tabs = [
-    { id: "general" as ConfigTab, label: "Geral", icon: "fa-regular fa-circle-dot" },
+    { id: "general" as ConfigTab, label: "Base da banca", icon: "fa-regular fa-circle-dot" },
     { id: "delivery" as ConfigTab, label: "Entrega", icon: "fa-regular fa-paper-plane" },
     { id: "payment" as ConfigTab, label: "Pagamento", icon: "fa-regular fa-credit-card" },
-    { id: "notifications" as ConfigTab, label: "Notificações", icon: "fa-regular fa-bell" },
+    { id: "notifications" as ConfigTab, label: "Alertas", icon: "fa-regular fa-bell" },
     // { id: "whatsapp" as ConfigTab, label: "WhatsApp", icon: "fa-brands fa-whatsapp" }, // Oculto temporariamente
   ];
 
@@ -605,10 +605,36 @@ export default function ConfiguracoesPage() {
   return (
     <div className="space-y-6 overflow-x-hidden">
       <div>
-        <h1 className="text-xl font-semibold">Configurações</h1>
-        <p className="text-sm text-gray-600">
-          Gerencie as configurações da sua banca e preferências do sistema.
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
+          Equipe e estrutura
         </p>
+        <h1 className="mt-1 text-xl font-semibold text-gray-900">Configurações da operação</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          Ajuste a base da banca: contato principal, entrega, pagamento e alertas. Esta área define como a operação funciona no dia a dia.
+        </p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Banca</div>
+          <div className="mt-3 text-lg font-semibold text-gray-900">{generalConfig.name || "Sem nome definido"}</div>
+          <p className="mt-1 text-sm text-gray-500">Identidade principal usada no contato com o cliente.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">WhatsApp operacional</div>
+          <div className="mt-3 text-lg font-semibold text-gray-900">{generalConfig.whatsapp ? formatPhone(generalConfig.whatsapp) : "Não configurado"}</div>
+          <p className="mt-1 text-sm text-gray-500">Canal principal para pedido, dúvida e atendimento.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Entrega</div>
+          <div className="mt-3 text-lg font-semibold text-gray-900">{generalConfig.delivery_enabled ? "Habilitada" : "Só retirada"}</div>
+          <p className="mt-1 text-sm text-gray-500">Modo atual de atendimento logístico da banca.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Pagamentos ativos</div>
+          <div className="mt-3 text-lg font-semibold text-gray-900">{paymentMethods.length}</div>
+          <p className="mt-1 text-sm text-gray-500">Formas de pagamento hoje liberadas para o cliente.</p>
+        </div>
       </div>
 
       {/* Mobile: Cards clicáveis */}
@@ -628,7 +654,7 @@ export default function ConfiguracoesPage() {
               <div>
                 <div className="font-medium text-sm">{tab.label}</div>
                 <div className="text-xs text-gray-500 mt-1">
-                  {tab.id === "general" && "Dados básicos"}
+                  {tab.id === "general" && "Base operacional"}
                   {tab.id === "delivery" && "Frete e entrega"}
                   {tab.id === "payment" && "Formas de pagamento"}
                   {tab.id === "notifications" && "Alertas e horários"}

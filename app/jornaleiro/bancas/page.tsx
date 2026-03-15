@@ -36,6 +36,9 @@ export default function JornaleiroBancasPage() {
   const [error, setError] = useState<string | null>(null);
 
   const canManageBancas = accountAccessLevel !== "collaborator";
+  const activeCount = items.filter((item) => item.active).length;
+  const pendingCount = items.filter((item) => !item.active && !item.approved).length;
+  const cotistaCount = items.filter((item) => item.is_cotista).length;
 
   const tabs = useMemo(
     () => [
@@ -104,8 +107,13 @@ export default function JornaleiroBancasPage() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Minhas Bancas</h1>
-          <p className="text-sm text-gray-600">Gerencie e cadastre novas bancas vinculadas ao seu CPF/CNPJ.</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
+            Equipe e estrutura
+          </p>
+          <h1 className="mt-1 text-xl font-semibold text-gray-900">Estrutura das bancas</h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Gerencie quais bancas esta conta controla, qual delas está ativa no painel e como a operação está distribuída.
+          </p>
         </div>
         {canManageBancas && (
           <Link
@@ -115,6 +123,29 @@ export default function JornaleiroBancasPage() {
             + Nova banca
           </Link>
         )}
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Bancas vinculadas</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{items.length}</div>
+          <p className="mt-1 text-sm text-gray-500">Unidades sob gestão desta conta.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Ativas</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{activeCount}</div>
+          <p className="mt-1 text-sm text-gray-500">Bancas já ativas dentro da plataforma.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Em aprovação</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{pendingCount}</div>
+          <p className="mt-1 text-sm text-gray-500">Bancas ainda em transição para operação plena.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Com cota vinculada</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{cotistaCount}</div>
+          <p className="mt-1 text-sm text-gray-500">Bancas já ligadas a relacionamento comercial.</p>
+        </div>
       </div>
 
       <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
@@ -133,6 +164,15 @@ export default function JornaleiroBancasPage() {
 
       {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
+      {!loading && items.length > 0 && (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <div className="font-semibold">Como usar esta área</div>
+          <p className="mt-2 text-blue-800">
+            Se você opera mais de uma banca, escolha aqui qual unidade fica ativa no painel. Isso evita editar catálogo, pedidos e configurações na banca errada.
+          </p>
+        </div>
+      )}
+
       {loading ? (
         <div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-600">Carregando...</div>
       ) : items.length === 0 ? (
@@ -150,11 +190,7 @@ export default function JornaleiroBancasPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <div className="text-base font-semibold truncate">{b.name || "Banca"}</div>
-                      {isSelected && (
-                        <span className="rounded-full bg-[#ff5c00]/10 text-[#ff5c00] text-[11px] font-semibold px-2 py-0.5">
-                          Banca ativa no painel
-                        </span>
-                      )}
+                      {isSelected && <span className="rounded-full bg-[#ff5c00]/10 px-2 py-0.5 text-[11px] font-semibold text-[#ff5c00]">Banca ativa no painel</span>}
                     </div>
                     <div className="mt-1 text-sm text-gray-600 line-clamp-2">{address}</div>
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-600">

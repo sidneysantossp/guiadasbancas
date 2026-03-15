@@ -88,6 +88,9 @@ export default function NotificacoesPage() {
     : notifications;
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  const orderNotifications = notifications.filter((n) => n.type === "pedido").length;
+  const stockNotifications = notifications.filter((n) => n.type === "estoque_baixo").length;
+  const adminNotifications = notifications.filter((n) => n.type === "admin_message").length;
 
   const getIcon = (type: Notification['type']) => {
     switch (type) {
@@ -119,11 +122,13 @@ export default function NotificacoesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Notificações</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
+            Operação da banca
+          </p>
+          <h1 className="mt-1 text-2xl font-bold text-gray-900">Central de notificações</h1>
+          <p className="mt-1 text-sm text-gray-600">
             {unreadCount > 0 ? `Você tem ${unreadCount} notificação${unreadCount > 1 ? 'ões' : ''} não lida${unreadCount > 1 ? 's' : ''}` : 'Você está em dia!'}
           </p>
         </div>
@@ -137,7 +142,38 @@ export default function NotificacoesPage() {
         )}
       </div>
 
-      {/* Filters */}
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Não lidas</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{unreadCount}</div>
+          <p className="mt-1 text-sm text-gray-500">Itens que ainda pedem leitura ou ação.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Pedidos</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{orderNotifications}</div>
+          <p className="mt-1 text-sm text-gray-500">Eventos ligados à fila operacional da banca.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Estoque e catálogo</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{stockNotifications}</div>
+          <p className="mt-1 text-sm text-gray-500">Alertas que impactam venda, ruptura ou visibilidade.</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Mensagens da plataforma</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{adminNotifications}</div>
+          <p className="mt-1 text-sm text-gray-500">Comunicados e orientações operacionais do Guia das Bancas.</p>
+        </div>
+      </div>
+
+      {unreadCount > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="font-semibold">Próxima ação recomendada</div>
+          <p className="mt-2 text-amber-800">
+            Priorize primeiro notificações de pedido e de estoque. Depois disso, limpe comunicados e mensagens da plataforma para a banca não operar no escuro.
+          </p>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <button
           onClick={() => setFilter('all')}
@@ -161,7 +197,6 @@ export default function NotificacoesPage() {
         </button>
       </div>
 
-      {/* Notifications List */}
       {loading ? (
         <div className="text-center py-12 text-gray-500">Carregando notificações...</div>
       ) : filteredNotifications.length === 0 ? (
