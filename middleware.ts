@@ -8,6 +8,12 @@ const PROD_BLOCKED_EXACT = new Set([
   '/api/admin/test-reset',
   '/api/admin/test-codigo-mercos',
 ]);
+const ADMIN_SESSION_COOKIE_CANDIDATES = [
+  '__Secure-authjs.session-token',
+  'authjs.session-token',
+  '__Secure-next-auth.session-token',
+  'next-auth.session-token',
+];
 
 function extractBearerToken(request: NextRequest): string | null {
   const authHeader = request.headers.get('authorization');
@@ -33,6 +39,10 @@ async function hasAdminSession(request: NextRequest): Promise<boolean> {
   return (token as any)?.role === 'admin';
 }
 
+function hasPotentialAdminSessionCookie(request: NextRequest): boolean {
+  return ADMIN_SESSION_COOKIE_CANDIDATES.some((cookieName) => Boolean(request.cookies.get(cookieName)?.value));
+}
+
 function isLegacyAdminTokenAllowed() {
   return process.env.NODE_ENV !== 'production' || process.env.ALLOW_LEGACY_ADMIN_TOKEN === 'true';
 }
@@ -50,7 +60,9 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith('/api/admin')) {
     const sessionAllowed = await hasAdminSession(request).catch(() => false);
-    if (!sessionAllowed) {
+    const hasSessionCookie = hasPotentialAdminSessionCookie(request);
+
+    if (!sessionAllowed && !hasSessionCookie) {
       const bearerToken = extractBearerToken(request);
       const configuredAdminTokens = adminApiTokensFromEnv();
       const hasConfiguredToken = !!bearerToken && configuredAdminTokens.has(bearerToken);
