@@ -31,6 +31,7 @@ export default function AdminBancasPage() {
         setRows(items.map((b: any) => ({ 
           id: b.id,
           name: b.name,
+          user_id: b.user_id || null,
           cover: b.cover || b.avatar || "",
           city: b.address?.split(',').pop()?.trim() || b.addressObj?.city || '—', 
           status: b.active ? 'ativo' : 'pausado', 
@@ -155,6 +156,15 @@ export default function AdminBancasPage() {
           >
             <IconPencil size={16} />
           </Link>
+          {r.user_id ? (
+            <Link
+              href={`/admin/jornaleiros/${r.user_id}` as Route}
+              className="inline-flex items-center justify-center rounded-md bg-slate-600 p-1.5 text-white hover:bg-slate-700"
+              title="Ver jornaleiro da banca"
+            >
+              <IconExternalLink size={16} />
+            </Link>
+          ) : null}
           <Link
             href={`/banca/${r.id}` as Route}
             target="_blank"

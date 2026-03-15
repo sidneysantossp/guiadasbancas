@@ -189,7 +189,9 @@ export default function AdminJornaleirosPage() {
       header: "Jornaleiro",
       render: (row) => (
         <div>
-          <div className="font-medium text-gray-900">{row.full_name || "Sem nome"}</div>
+          <Link href={`/admin/jornaleiros/${row.id}` as Route} className="font-medium text-gray-900 hover:text-[#ff5c00]">
+            {row.full_name || "Sem nome"}
+          </Link>
           <div className="text-xs text-gray-500">{row.email || "Sem e-mail"}</div>
         </div>
       ),
@@ -300,9 +302,15 @@ export default function AdminJornaleirosPage() {
             pageSizeOptions={[20, 50, 100]}
             renderActions={(row) => (
               <div className="flex items-center justify-end gap-2">
+                <Link
+                  href={`/admin/jornaleiros/${row.id}` as Route}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-[#ff5c00] hover:text-[#ff5c00]"
+                >
+                  Detalhes
+                </Link>
                 {row.banca?.id ? (
                   <Link
-                    href={`/admin/gestao/bancas/cadastros` as Route}
+                    href={`/admin/cms/bancas/${row.banca.id}` as Route}
                     className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-[#ff5c00] hover:text-[#ff5c00]"
                   >
                     Ver banca

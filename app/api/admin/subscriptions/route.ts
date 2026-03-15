@@ -20,6 +20,7 @@ type SubscriptionRow = {
   } | null;
   banca: {
     id: string;
+    user_id: string | null;
     name: string | null;
     email: string | null;
     whatsapp: string | null;
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest) {
         ),
         banca:bancas (
           id,
+          user_id,
           name,
           email,
           whatsapp,

@@ -33,6 +33,7 @@ type SubscriptionRow = {
   } | null;
   banca: {
     id: string;
+    user_id: string | null;
     name: string | null;
     email: string | null;
     whatsapp: string | null;
@@ -335,12 +336,30 @@ export default function AdminAssinaturasPage() {
             data={filteredRows}
             getId={(row) => row.id}
             renderActions={(row) => (
-              <Link
-                href={"/admin/planos" as Route}
-                className="text-sm font-medium text-[#ff5c00] hover:underline"
-              >
-                Ver planos
-              </Link>
+              <div className="flex items-center justify-end gap-2">
+                {row.banca?.user_id ? (
+                  <Link
+                    href={`/admin/jornaleiros/${row.banca.user_id}` as Route}
+                    className="text-sm font-medium text-[#ff5c00] hover:underline"
+                  >
+                    Jornaleiro
+                  </Link>
+                ) : null}
+                {row.banca?.id ? (
+                  <Link
+                    href={`/admin/cms/bancas/${row.banca.id}` as Route}
+                    className="text-sm font-medium text-[#ff5c00] hover:underline"
+                  >
+                    Banca
+                  </Link>
+                ) : null}
+                <Link
+                  href={"/admin/planos" as Route}
+                  className="text-sm font-medium text-[#ff5c00] hover:underline"
+                >
+                  Planos
+                </Link>
+              </div>
             )}
           />
         )}
