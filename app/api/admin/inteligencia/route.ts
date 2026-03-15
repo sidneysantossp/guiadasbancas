@@ -30,6 +30,7 @@ type PaymentRecord = {
 
 type AlertTone = "critical" | "warning" | "info";
 type OperationSignalTone = "critical" | "warning" | "info";
+type TimelineGranularity = "day" | "month";
 
 export const dynamic = "force-dynamic";
 
@@ -152,6 +153,58 @@ function buildOperationSignal(
   tone: OperationSignalTone
 ) {
   return { id, title, value, description, href, tone };
+}
+
+function getTimelineGranularity(period: string): TimelineGranularity {
+  return period === "all" ? "month" : "day";
+}
+
+function getTimelineBucketKey(value: string | Date, granularity: TimelineGranularity) {
+  const date = value instanceof Date ? value : new Date(value);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+
+  if (granularity === "month") {
+    return `${year}-${month}`;
+  }
+
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getTimelineLabel(value: string | Date, granularity: TimelineGranularity) {
+  const date = value instanceof Date ? value : new Date(value);
+  return new Intl.DateTimeFormat("pt-BR", {
+    month: "2-digit",
+    day: granularity === "day" ? "2-digit" : undefined,
+    year: granularity === "month" ? "2-digit" : undefined,
+  }).format(date);
+}
+
+function buildTimelineSeed(startDate: Date, granularity: TimelineGranularity) {
+  const seed: Array<{ key: string; label: string }> = [];
+  const cursor = new Date(startDate);
+  const now = new Date();
+
+  if (granularity === "month") {
+    cursor.setDate(1);
+    now.setDate(1);
+  }
+
+  while (cursor <= now) {
+    seed.push({
+      key: getTimelineBucketKey(cursor, granularity),
+      label: getTimelineLabel(cursor, granularity),
+    });
+
+    if (granularity === "month") {
+      cursor.setMonth(cursor.getMonth() + 1);
+    } else {
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
+  return seed;
 }
 
 export async function GET(request: NextRequest) {
@@ -360,6 +413,32 @@ export async function GET(request: NextRequest) {
       uniqueSessions: new Set(analyticsEvents.map((event) => event.session_id).filter(Boolean)).size,
     };
 
+    const timelineGranularity = getTimelineGranularity(period);
+    const demandTimelineMap = new Map<
+      string,
+      {
+        key: string;
+        label: string;
+        searches: number;
+        product_views: number;
+        checkout_completes: number;
+        orders: number;
+        revenue: number;
+      }
+    >();
+
+    for (const bucket of buildTimelineSeed(startDate, timelineGranularity)) {
+      demandTimelineMap.set(bucket.key, {
+        key: bucket.key,
+        label: bucket.label,
+        searches: 0,
+        product_views: 0,
+        checkout_completes: 0,
+        orders: 0,
+        revenue: 0,
+      });
+    }
+
     const topSearchTerms = new Map<string, number>();
     const topProductsMap = new Map<
       string,
@@ -367,6 +446,13 @@ export async function GET(request: NextRequest) {
     >();
 
     for (const event of analyticsEvents) {
+      const eventBucket = demandTimelineMap.get(getTimelineBucketKey(event.created_at, timelineGranularity));
+      if (eventBucket) {
+        if (event.event_type === "search") eventBucket.searches += 1;
+        if (event.event_type === "product_view") eventBucket.product_views += 1;
+        if (event.event_type === "checkout_complete") eventBucket.checkout_completes += 1;
+      }
+
       if (event.event_type === "search") {
         const term = event.metadata?.search_term?.toString().trim().toLowerCase();
         if (term) {
@@ -389,6 +475,14 @@ export async function GET(request: NextRequest) {
       if (!current.bancaId && event.banca_id) current.bancaId = event.banca_id;
 
       topProductsMap.set(event.product_id, current);
+    }
+
+    for (const order of orders) {
+      const orderBucket = demandTimelineMap.get(getTimelineBucketKey(order.created_at, timelineGranularity));
+      if (orderBucket) {
+        orderBucket.orders += 1;
+        orderBucket.revenue += Number(order.total || 0);
+      }
     }
 
     const planCounts = { free: 0, start: 0, premium: 0 };
@@ -710,6 +804,12 @@ export async function GET(request: NextRequest) {
           value: count,
         }))
         .sort((left, right) => right.value - left.value),
+      subscriptionStatusDistribution: [
+        { key: "active", name: "Ativas", value: subscriptionStatusCounts.active },
+        { key: "trial", name: "Degustacao", value: subscriptionStatusCounts.trial },
+        { key: "pending", name: "Aguardando", value: subscriptionStatusCounts.pending },
+        { key: "overdue", name: "Em atraso", value: subscriptionStatusCounts.overdue },
+      ],
       funnel: [
         { stage: "Sessoes", value: analyticsStats.uniqueSessions },
         { stage: "Buscas", value: analyticsStats.searches },
@@ -726,6 +826,14 @@ export async function GET(request: NextRequest) {
         { stage: "Com catalogo", value: publishedWithCatalog },
         { stage: "Com pedidos", value: publishedWithOrders },
       ],
+      supplyFunnel: [
+        { stage: "Distrib. ativos", value: activeDistribuidores },
+        { stage: "Com catalogo", value: Math.max(0, activeDistribuidores - activeDistribuidoresWithoutProducts) },
+        { stage: "Sync saudavel", value: Math.max(0, activeDistribuidores - staleDistribuidores.length) },
+        { stage: "Produtos ativos", value: activeProducts },
+        { stage: "Com imagem", value: Math.max(0, activeProducts - productsWithoutImage) },
+      ],
+      demandTimeline: Array.from(demandTimelineMap.values()),
       topSearches,
       topBancas,
       topProducts,

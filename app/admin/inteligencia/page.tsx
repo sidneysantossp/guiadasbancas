@@ -11,10 +11,13 @@ import {
   Cell,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
 } from "recharts";
 
 type Summary = {
@@ -88,8 +91,19 @@ type IntelligencePayload = {
   actorDistribution: DistributionItem[];
   planDistribution: DistributionItem[];
   orderStatusDistribution: DistributionItem[];
+  subscriptionStatusDistribution: DistributionItem[];
   funnel: Array<{ stage: string; value: number }>;
   activationFunnel: Array<{ stage: string; value: number }>;
+  supplyFunnel: Array<{ stage: string; value: number }>;
+  demandTimeline: Array<{
+    key: string;
+    label: string;
+    searches: number;
+    product_views: number;
+    checkout_completes: number;
+    orders: number;
+    revenue: number;
+  }>;
   topSearches: Array<{ term: string; count: number }>;
   topBancas: Array<{ id: string; name: string; orders: number; revenue: number }>;
   topProducts: Array<{ id: string; name: string; banca_name: string; views: number; clicks: number; cart: number; total: number }>;
@@ -409,6 +423,63 @@ export default function AdminInteligenciaPage() {
       <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="mb-5">
+            <h2 className="text-xl font-semibold text-gray-900">Demanda e receita ao longo do tempo</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Conecta busca, checkout, pedidos e faturamento em uma leitura temporal unica.
+            </p>
+          </div>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={payload.demandTimeline}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="searches" name="Buscas" stroke="#2563eb" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="orders" name="Pedidos" stroke="#f97316" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="checkout_completes" name="Checkout" stroke="#16a34a" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold text-gray-900">Saude das assinaturas</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Distribuicao atual da base paga entre ativacao, degustacao, pendencia e inadimplencia.
+            </p>
+          </div>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={payload.subscriptionStatusDistribution} dataKey="value" nameKey="name" innerRadius={65} outerRadius={95}>
+                  {payload.subscriptionStatusDistribution.map((item) => (
+                    <Cell
+                      key={item.name}
+                      fill={
+                        item.name === "Ativas"
+                          ? "#16a34a"
+                          : item.name === "Degustacao"
+                            ? "#2563eb"
+                            : item.name === "Aguardando"
+                              ? "#f59e0b"
+                              : "#dc2626"
+                      }
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-5">
             <h2 className="text-xl font-semibold text-gray-900">Funil de demanda</h2>
             <p className="mt-2 text-sm text-gray-600">
               Demanda do frontend ate a conclusao do pedido, para orientar conteudo, oferta e operacao.
@@ -429,6 +500,28 @@ export default function AdminInteligenciaPage() {
 
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="mb-5">
+            <h2 className="text-xl font-semibold text-gray-900">Funil de supply</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Mostra quanto da base de distribuidores realmente se transforma em oferta pronta para vender.
+            </p>
+          </div>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={payload.supplyFunnel}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="stage" tickLine={false} axisLine={false} />
+                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                <Tooltip />
+                <Bar dataKey="value" fill="#7c3aed" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-5">
             <h2 className="text-xl font-semibold text-gray-900">Funil de ativacao da rede</h2>
             <p className="mt-2 text-sm text-gray-600">
               Mede a progressao do jornaleiro ate a banca publicada com catalogo e pedidos.
@@ -442,6 +535,26 @@ export default function AdminInteligenciaPage() {
                 <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
                 <Tooltip />
                 <Bar dataKey="value" fill="#2563eb" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold text-gray-900">Distribuicao dos pedidos</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Status operacionais que mais impactam atendimento, entrega e experiencia do cliente.
+            </p>
+          </div>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={payload.orderStatusDistribution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                <Tooltip />
+                <Bar dataKey="value" fill="#0f172a" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
