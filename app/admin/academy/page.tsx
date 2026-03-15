@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 type AcademyVideo = {
   id: string;
@@ -36,7 +37,7 @@ export default function AdminAcademyPage() {
   const fetchVideos = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/academy/videos?all=true');
+      const res = await fetchAdminWithDevFallback('/api/academy/videos?all=true');
       const json = await res.json();
 
       if (json.success) {
@@ -89,7 +90,7 @@ export default function AdminAcademyPage() {
       
       const method = editingVideo ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
+      const res = await fetchAdminWithDevFallback(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -114,7 +115,7 @@ export default function AdminAcademyPage() {
     if (!confirm('Tem certeza que deseja deletar este vídeo?')) return;
 
     try {
-      const res = await fetch(`/api/academy/videos/${id}`, {
+      const res = await fetchAdminWithDevFallback(`/api/academy/videos/${id}`, {
         method: 'DELETE'
       });
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 /**
  * GET /api/academy/videos
@@ -9,6 +10,11 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const includeInactive = searchParams.get('all') === 'true';
+
+    if (includeInactive) {
+      const authError = await requireAdminAuth(req);
+      if (authError) return authError;
+    }
 
     let query = supabase
       .from('academy_videos')
@@ -48,6 +54,9 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
+
     const body = await req.json();
     const { title, description, youtube_url, category, order_index } = body;
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 const AUDIT_PATH = path.join(process.cwd(), "data", "audit.log.json");
 
@@ -26,13 +27,19 @@ async function writeAudit(items: AuditEntry[]) {
   await fs.writeFile(AUDIT_PATH, JSON.stringify(items, null, 2), "utf-8");
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authError = await requireAdminAuth(req);
+  if (authError) return authError;
+
   const items = await readAudit();
   return NextResponse.json({ ok: true, data: items.slice(-200) });
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
+
     const body = await req.json();
     const entry: AuditEntry = {
       id: `audit-${Date.now()}`,

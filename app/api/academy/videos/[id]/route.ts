@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 /**
  * GET /api/academy/videos/[id]
@@ -46,6 +47,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
+
     const body = await req.json();
     const { title, description, youtube_url, category, order_index, is_active } = body;
 
@@ -106,6 +110,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
+
     const { error } = await supabase
       .from('academy_videos')
       .delete()

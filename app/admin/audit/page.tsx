@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 type AuditEntry = {
   id: string;
@@ -30,7 +31,7 @@ export default function AdminAuditPage() {
   const fetchAll = async () => {
     setLoading(true); setError(null);
     try {
-      const res = await fetch('/api/admin/audit', { cache: 'no-store' });
+      const res = await fetchAdminWithDevFallback('/api/admin/audit', { cache: 'no-store' });
       const j = await res.json();
       if (!res.ok || !j?.ok) throw new Error(j?.error || 'Falha ao carregar');
       setItems(Array.isArray(j.data) ? j.data : []);
