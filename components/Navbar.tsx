@@ -725,7 +725,7 @@ useEffect(() => {
               </>
             ) : mounted && user ? (
               <Link
-                href="/minha-conta"
+                href="/minha-conta/inteligencia"
                 className="inline-flex items-center justify-center h-12 w-12 text-[#2f2f2f] hover:text-[#ff5c00]"
                 aria-label="Minha conta"
               >
@@ -864,9 +864,9 @@ useEffect(() => {
                     {accountOpen && (
                       <div className="absolute right-0 top-full z-40 mt-3 w-56 rounded-2xl border border-gray-200 bg-white shadow-xl">
                         <div className="py-1 text-sm">
-                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ router.push('/minha-conta'); setAccountOpen(false); }}>Meu Perfil</button>
+                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ router.push('/minha-conta/perfil'); setAccountOpen(false); }}>Meu Perfil</button>
                           <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ router.push('/minha-conta/favoritos'); setAccountOpen(false); }}>Meus Favoritos</button>
-                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ router.push('/minha-conta?menu=pedidos'); setAccountOpen(false); }}>Minhas compras</button>
+                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ router.push('/minha-conta/pedidos'); setAccountOpen(false); }}>Minhas compras</button>
                           <JornaleiroAdminLinks onClose={() => setAccountOpen(false)} />
                           <div className="h-px bg-gray-100 my-1" />
                           <button className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50" onClick={()=>{ setAccountOpen(false); logout(); }}>Sair</button>
@@ -1043,7 +1043,7 @@ useEffect(() => {
             <div className="px-4 py-3 border-b border-gray-200">
               <button
                 className="w-full flex items-center gap-3 text-left"
-                onClick={() => { router.push('/minha-conta?menu=perfil'); setMobileOpen(false); }}
+                onClick={() => { router.push('/minha-conta/perfil'); setMobileOpen(false); }}
               >
                 <span className="relative inline-block h-10 w-10 rounded-full overflow-hidden bg-orange-100 ring-1 ring-black/5">
                   {profileAvatar ? (
@@ -1178,7 +1178,7 @@ useEffect(() => {
             <span>Home</span>
           </Link>
           {/* Favoritos */}
-          <Link href={("/minha-conta" as any)} className={`py-2 flex flex-col items-center justify-center text-[11px] ${(pathname?.startsWith('/minha-conta') || pathname?.startsWith('/favoritos')) ? 'text-[#ff5c00] font-semibold' : 'text-gray-700 hover:text-black'}`}>
+          <Link href={("/minha-conta/inteligencia" as any)} className={`py-2 flex flex-col items-center justify-center text-[11px] ${(pathname?.startsWith('/minha-conta') || pathname?.startsWith('/favoritos')) ? 'text-[#ff5c00] font-semibold' : 'text-gray-700 hover:text-black'}`}>
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
               <path d="M12 21s-6.7-4.4-9.2-7.7A5.6 5.6 0 0112 6.3a5.6 5.6 0 019.2 7C18.7 16.6 12 21 12 21z" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>

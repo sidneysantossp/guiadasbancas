@@ -1,7 +1,7 @@
-import MinhaContaPageClient from "@/components/MinhaContaPageClient";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default function MinhaContaPage() {
-  return <MinhaContaPageClient />;
+  redirect("/minha-conta/inteligencia");
 }

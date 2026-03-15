@@ -29,7 +29,7 @@ const DEFAULT_FOOTER_DATA: FooterData = {
     ],
     para_voce: [
       { id: "5", text: "Minha conta", url: "/minha-conta/inteligencia", section: "para_voce", order: 1 },
-      { id: "6", text: "Pedidos", url: "/minha-conta?menu=pedidos", section: "para_voce", order: 2 },
+      { id: "6", text: "Pedidos", url: "/minha-conta/pedidos", section: "para_voce", order: 2 },
       { id: "7", text: "Favoritos", url: "/minha-conta/favoritos", section: "para_voce", order: 3 },
       { id: "8", text: "Suporte", url: "/suporte", section: "para_voce", order: 4 },
     ],
