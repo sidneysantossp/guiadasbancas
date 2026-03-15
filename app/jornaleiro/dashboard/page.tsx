@@ -197,6 +197,71 @@ export default function JornaleiroDashboardPage() {
   }, [banca?.cover_image, banca?.hours, banca?.profile_image, banca?.whatsapp, memoizedMetrics.produtosAtivos, sellerEmail, sellerPhone]);
   const completedChecklistCount = checklistItems.filter((item) => item.done).length;
   const isPublished = Boolean(banca?.active && banca?.approved);
+  const nextObjective = useMemo(() => {
+    if (!checklistItems.find((item) => !item.done)) {
+      if (!isPublished) {
+        return {
+          eyebrow: "Publicação da banca",
+          title: "Feche a publicação da sua banca",
+          description: "O básico já foi concluído. Agora revise cadastro, aprovação e visibilidade para colocar a banca em produção.",
+          href: "/jornaleiro/banca-v2" as Route,
+          actionLabel: "Revisar publicação",
+        };
+      }
+
+      if (memoizedMetrics.pedidosPendentes > 0) {
+        return {
+          eyebrow: "Operação do dia",
+          title: "Existem pedidos aguardando andamento",
+          description: "Priorize a fila operacional para manter atendimento rápido e a experiência do cliente saudável.",
+          href: "/jornaleiro/pedidos" as Route,
+          actionLabel: "Abrir pedidos",
+        };
+      }
+
+      return {
+        eyebrow: "Crescimento da banca",
+        title: "Sua base está pronta para crescer",
+        description: "Agora vale acompanhar a inteligência da banca e decidir as próximas melhorias com base em demanda e catálogo.",
+        href: "/jornaleiro/inteligencia" as Route,
+        actionLabel: "Abrir inteligência",
+      };
+    }
+
+    const firstPendingItem = checklistItems.find((item) => !item.done)!;
+    return {
+      eyebrow: "Próximo melhor passo",
+      title: firstPendingItem.title,
+      description: firstPendingItem.description,
+      href: firstPendingItem.href,
+      actionLabel: firstPendingItem.actionLabel,
+    };
+  }, [checklistItems, isPublished, memoizedMetrics.pedidosPendentes]);
+  const quickActions = useMemo(
+    () => [
+      {
+        label: "Perfil e publicação",
+        description: "Revise dados, identidade e horário da banca.",
+        href: "/jornaleiro/banca-v2" as Route,
+      },
+      {
+        label: "Produtos",
+        description: "Organize catálogo, preço e estoque.",
+        href: "/jornaleiro/produtos" as Route,
+      },
+      {
+        label: "Pedidos",
+        description: "Veja a fila operacional do dia.",
+        href: "/jornaleiro/pedidos" as Route,
+      },
+      {
+        label: "Central de inteligência",
+        description: "Leia demanda, alertas e próximos passos.",
+        href: "/jornaleiro/inteligencia" as Route,
+      },
+    ],
+    []
+  );
 
   // Se não tem banca, mostrar CTA para cadastrar
   if (!loadingBanca && !banca) {
@@ -249,24 +314,42 @@ export default function JornaleiroDashboardPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#ff5c00] shadow-sm">
-              {currentPlanType === "free" ? "Plano inicial liberado" : `Plano ${currentPlanName} em uso`}
+              {isPublished ? "Banca em operação" : "Banca em preparação"}
             </div>
             <h1 className="mt-3 text-2xl font-semibold text-gray-900">Olá, {sellerName}</h1>
             <p className="mt-2 max-w-2xl text-sm text-gray-600 sm:text-base">
-              {currentPlanType === "free"
-                ? "Seu painel já está pronto para uso no plano Free. Complete os passos abaixo para organizar sua banca e preparar a publicação."
-                : `Seu painel já está configurado no plano ${currentPlanName}. Complete os passos abaixo para publicar melhor sua banca e extrair mais valor do plano.`}
+              {isPublished
+                ? "Sua banca já está publicada. Agora o foco é manter catálogo, pedidos e demanda sob controle."
+                : "Seu painel já está pronto para organizar a banca, fechar o cadastro e preparar a publicação com menos atrito."}
             </p>
           </div>
           <div className="flex w-full flex-col gap-2 rounded-2xl border border-orange-100 bg-white/90 p-4 text-sm shadow-sm lg:max-w-xs">
-            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Progresso inicial</span>
-            <span className="text-3xl font-semibold text-gray-900">{completedChecklistCount}/{checklistItems.length}</span>
-            <span className="text-sm text-gray-600">
-              {completedChecklistCount === checklistItems.length
-                ? "Tudo configurado. Sua banca já está pronta para os próximos ajustes."
-                : "Finalize estes itens para começar a vender com menos atrito."}
-            </span>
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{nextObjective.eyebrow}</span>
+            <span className="text-xl font-semibold text-gray-900">{nextObjective.title}</span>
+            <span className="text-sm text-gray-600">{nextObjective.description}</span>
+            <Link
+              href={nextObjective.href}
+              className="inline-flex items-center font-semibold text-[#ff5c00] hover:opacity-80"
+            >
+              {nextObjective.actionLabel}
+              <svg className="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
           </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {quickActions.map((action) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50"
+            >
+              <div className="text-sm font-semibold text-gray-900">{action.label}</div>
+              <p className="mt-1 text-sm text-gray-600">{action.description}</p>
+            </Link>
+          ))}
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -346,50 +429,50 @@ export default function JornaleiroDashboardPage() {
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-700">
-                  Seu plano atual
-                </span>
-                <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#ff5c00]">
-                  {currentPlanName}
-                </span>
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${currentSubscriptionMeta.className}`}>
-                  {currentSubscriptionMeta.label}
-                </span>
-              </div>
-              <div className="mt-3 flex flex-wrap items-end gap-2">
-                <h2 className="text-2xl font-semibold text-gray-900">{currentPlanName}</h2>
-                <span className="pb-1 text-sm text-gray-500">{currentPlanPriceLabel}</span>
-              </div>
-              <p className="mt-2 text-sm text-gray-600">
-                O painel já está liberado para você operar com segurança. A ideia agora é completar o básico da banca e fazer upgrade só quando o negócio realmente pedir.
-              </p>
-              {currentSubscriptionStatus === "pending" && requestedPlanName ? (
-                <div className="mt-3">
-                  <PlanPendingActivationCard requestedPlanName={requestedPlanName} />
-                </div>
-              ) : currentSubscriptionStatus === "overdue" ? (
-                <div className="mt-3">
-                  <PlanOverdueCard
-                    planName={banca?.subscription?.plan?.name || currentPlanName}
-                    graceEndsAt={overdueGraceEndsAt}
-                    accessSuspended={overdueFeaturesLocked}
-                    showSupportAction
-                  />
-                </div>
-              ) : (
-                <div className={`mt-3 rounded-2xl border px-4 py-3 text-sm ${
-                  currentSubscriptionStatus === "overdue"
-                    ? "border-red-200 bg-red-50 text-red-900"
-                    : currentSubscriptionStatus === "trial"
-                      ? "border-blue-200 bg-blue-50 text-blue-900"
-                      : "border-green-200 bg-green-50 text-green-900"
-                }`}>
-                  {currentSubscriptionMeta.message}
-                </div>
-              )}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-700">
+              Plano e acessos
+            </span>
+            <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#ff5c00]">
+              {currentPlanName}
+            </span>
+            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${currentSubscriptionMeta.className}`}>
+              {currentSubscriptionMeta.label}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <h2 className="text-2xl font-semibold text-gray-900">{currentPlanName}</h2>
+            <span className="pb-1 text-sm text-gray-500">{currentPlanPriceLabel}</span>
+          </div>
+          <p className="mt-2 text-sm text-gray-600">
+            O plano sustenta os recursos da banca, mas a prioridade continua sendo operação, catálogo e publicação. O upgrade entra quando resolver uma necessidade concreta.
+          </p>
+          {currentSubscriptionStatus === "pending" && requestedPlanName ? (
+            <div className="mt-3">
+              <PlanPendingActivationCard requestedPlanName={requestedPlanName} />
+            </div>
+          ) : currentSubscriptionStatus === "overdue" ? (
+            <div className="mt-3">
+              <PlanOverdueCard
+                planName={banca?.subscription?.plan?.name || currentPlanName}
+                graceEndsAt={overdueGraceEndsAt}
+                accessSuspended={overdueFeaturesLocked}
+                showSupportAction
+              />
+            </div>
+          ) : (
+            <div className={`mt-3 rounded-2xl border px-4 py-3 text-sm ${
+              currentSubscriptionStatus === "overdue"
+                ? "border-red-200 bg-red-50 text-red-900"
+                : currentSubscriptionStatus === "trial"
+                  ? "border-blue-200 bg-blue-50 text-blue-900"
+                  : "border-green-200 bg-green-50 text-green-900"
+            }`}>
+              {currentSubscriptionMeta.message}
+            </div>
+          )}
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
               <div className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Capacidade do catálogo</div>
               <div className="mt-2 text-lg font-semibold text-gray-900">
@@ -414,10 +497,10 @@ export default function JornaleiroDashboardPage() {
 
           <div className="mt-4 flex flex-wrap gap-3">
             <Link
-              href={("/jornaleiro/produtos" as Route)}
+              href={("/jornaleiro/inteligencia" as Route)}
               className="inline-flex items-center justify-center rounded-xl bg-[#ff5c00] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90"
             >
-              Continuar configurando a banca
+              Abrir central de inteligência
             </Link>
             <Link
               href={("/jornaleiro/meu-plano" as Route)}
@@ -450,14 +533,14 @@ export default function JornaleiroDashboardPage() {
         ) : (
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-700">
-              Plano atual
+              Evolução da banca
             </div>
             <h3 className="mt-3 text-lg font-semibold text-gray-900">{currentPlanName}</h3>
             <p className="mt-2 text-sm leading-6 text-gray-600">
-              Sua banca já está acima do plano inicial. Continue usando o painel normalmente e só revise upgrade quando surgir uma necessidade real de operação.
+              Sua banca já está acima do plano inicial. Continue usando o painel normalmente e só revise upgrade quando surgir uma necessidade real da operação.
             </p>
             <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-              Produtos, distribuidores e limites mais avançados continuam sendo liberados por contexto, sem forçar uma decisão comercial antes da hora.
+              Produtos, distribuidores e limites mais avançados continuam sendo liberados por contexto, sem transformar o painel numa vitrine de planos logo de saída.
             </div>
           </div>
         )}

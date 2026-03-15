@@ -4,13 +4,16 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import type { Route } from "next";
 import ToastProvider from "@/components/admin/ToastProvider";
 import NotificationCenter from "@/components/admin/NotificationCenter";
 import DashboardOfficialLogo from "@/components/dashboard/DashboardOfficialLogo";
 import { useAuth } from "@/lib/auth/AuthContext";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { QueryProvider } from "@/app/providers/QueryProvider";
+import {
+  JOURNALEIRO_MOBILE_QUICK_LINKS,
+  buildJornaleiroMenuSections,
+  type JornaleiroMenuItem,
+} from "@/lib/jornaleiro-navigation";
 import { buildBancaHref } from "@/lib/slug";
 import {
   IconLayoutDashboard,
@@ -24,14 +27,13 @@ import {
   IconChartBar,
   IconSchool,
   IconSettings,
-  IconHome,
   IconBell,
   IconCreditCard,
 } from "@tabler/icons-react";
 
 const journaleiroIconComponents = {
   dashboard: IconLayoutDashboard,
-  home: IconHome,
+  intelligence: IconChartBar,
   banca: IconBuilding,
   orders: IconClipboardList,
   products: IconPackage,
@@ -47,85 +49,10 @@ const journaleiroIconComponents = {
   plan: IconCreditCard,
 } as const;
 
-type JournaleiroIconKey = keyof typeof journaleiroIconComponents;
-
-type JournaleiroMenuItem =
-  | { label: string; href: Route; icon: JournaleiroIconKey; disabled?: boolean }
-  | { label: string; icon: JournaleiroIconKey; disabled?: boolean; children: { label: string; href: Route }[] };
-
-// Mapeamento de permissões para itens do menu
-const PERMISSION_MAP: Record<string, string> = {
-  "Dashboard": "dashboard",
-  "Minhas Bancas": "bancas",
-  "Colaboradores": "colaboradores",
-  "Notificações": "notificacoes",
-  "Pedidos": "pedidos",
-  "Produtos": "produtos",
-  "Catálogo Distribuidor": "catalogo",
-  "Campanhas": "campanhas",
-  "Distribuidores": "distribuidores",
-  "Cupons": "cupons",
-  "Relatórios": "relatorios",
-  "Academy": "academy",
-  "Configurações": "configuracoes",
-  "Meu Plano": "plano",
-};
-
-const JOURNALEIRO_MENU: JournaleiroMenuItem[] = [
-  { label: "Dashboard", href: "/jornaleiro/dashboard" as Route, icon: "dashboard" },
-  {
-    label: "Minhas Bancas",
-    icon: "banca",
-    children: [
-      { label: "Ver todas", href: "/jornaleiro/bancas" as Route },
-      { label: "Cadastrar", href: "/jornaleiro/bancas/nova" as Route },
-    ],
-  },
-  {
-    label: "Colaboradores",
-    icon: "users",
-    children: [
-      { label: "Ver todos", href: "/jornaleiro/colaboradores" as Route },
-      { label: "Cadastrar", href: "/jornaleiro/colaboradores/novo" as Route },
-    ],
-  },
-  { label: "Notificações", href: "/jornaleiro/notificacoes" as Route, icon: "notifications" },
-  { label: "Pedidos", href: "/jornaleiro/pedidos" as Route, icon: "orders" },
-  { label: "Produtos", href: "/jornaleiro/produtos" as Route, icon: "products" },
-  { label: "Catálogo Distribuidor", href: "/jornaleiro/catalogo-distribuidor/gerenciar" as Route, icon: "catalog" },
-  { label: "Campanhas", href: "/jornaleiro/campanhas" as Route, icon: "campaigns" },
-  { label: "Distribuidores", href: "/jornaleiro/distribuidores" as Route, icon: "distributors" },
-  { label: "Cupons", href: "/jornaleiro/coupons" as Route, icon: "coupons" },
-  { label: "Relatórios", href: "/jornaleiro/relatorios" as Route, icon: "reports" },
-  { label: "Academy", href: "/jornaleiro/academy" as Route, icon: "academy" },
-  { label: "Meu Plano", href: "/jornaleiro/meu-plano" as Route, icon: "plan" },
-  { label: "Configurações", href: "/jornaleiro/configuracoes" as Route, icon: "settings" },
-];
-
-const MOBILE_QUICK_LINKS = [
-  { key: "home", label: "Home", menuLabel: "Dashboard", href: "/jornaleiro/dashboard" as Route, icon: "home" as JournaleiroIconKey },
-  { key: "products", label: "Produtos", menuLabel: "Produtos", href: "/jornaleiro/produtos" as Route, icon: "products" as JournaleiroIconKey },
-  { key: "orders", label: "Pedidos", menuLabel: "Pedidos", href: "/jornaleiro/pedidos" as Route, icon: "orders" as JournaleiroIconKey },
-  { key: "distributors", label: "Distrib.", menuLabel: "Distribuidores", href: "/jornaleiro/distribuidores" as Route, icon: "distributors" as JournaleiroIconKey },
-] as const;
-
-interface SellerSession {
-  seller?: {
-    id?: string;
-    name?: string;
-    email?: string;
-  };
-  banks?: any[];
-  [key: string]: any;
-}
-
 export default function JornaleiroLayoutClient({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarSections, setSidebarSections] = useState<Record<string, boolean>>({});
-  const [session, setSession] = useState<SellerSession | null>(null);
-  const [loading, setLoading] = useState(true);
   const [banca, setBanca] = useState<any>(null);
   const [bancaValidated, setBancaValidated] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -263,92 +190,49 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     };
   }, [user?.id, isAuthRoute, banca?.id]);
 
-  // Menu filtrado baseado em permissões e status de cotista
-  const filteredMenu = useMemo(() => {
-    console.log("[FilteredMenu] Calculando menu filtrado...");
-    console.log("[FilteredMenu] permissionsLoaded:", permissionsLoaded);
-    console.log("[FilteredMenu] isOwner:", isOwner);
-    console.log("[FilteredMenu] userPermissions:", userPermissions);
-    console.log("[FilteredMenu] banca.is_cotista:", banca?.is_cotista);
-    console.log("[FilteredMenu] banca.entitlements:", banca?.entitlements);
-    
-    let menu = JOURNALEIRO_MENU;
-    const hasCatalogAccess = Boolean(
-      banca?.entitlements?.can_access_distributor_catalog ?? banca?.is_cotista
-    );
-    const hasPartnerDirectoryAccess = Boolean(
-      banca?.entitlements?.can_access_partner_directory ?? banca?.is_cotista
-    );
-    
-    if (!hasCatalogAccess) {
-      console.log("[FilteredMenu] Sem acesso ao catálogo parceiro, removendo 'Catálogo Distribuidor'");
-      menu = menu.filter(item => item.label !== "Catálogo Distribuidor");
-    }
+  const hasCatalogAccess = Boolean(
+    banca?.entitlements?.can_access_distributor_catalog ?? banca?.is_cotista
+  );
+  const hasPartnerDirectoryAccess = Boolean(
+    banca?.entitlements?.can_access_partner_directory ?? banca?.is_cotista
+  );
 
-    if (!hasPartnerDirectoryAccess) {
-      console.log("[FilteredMenu] Sem acesso à rede parceira, removendo 'Distribuidores'");
-      menu = menu.filter(item => item.label !== "Distribuidores");
-    }
+  const menuSections = useMemo(() => {
+    console.log("[JornaleiroMenu] Calculando secoes da navegacao...");
+    console.log("[JornaleiroMenu] permissionsLoaded:", permissionsLoaded);
+    console.log("[JornaleiroMenu] isOwner:", isOwner);
+    console.log("[JornaleiroMenu] userPermissions:", userPermissions);
+    console.log("[JornaleiroMenu] hasCatalogAccess:", hasCatalogAccess);
+    console.log("[JornaleiroMenu] hasPartnerDirectoryAccess:", hasPartnerDirectoryAccess);
 
-    // Filtrar "Meu Plano" se desabilitado pelo admin
-    if (!plansMenuEnabled) {
-      console.log("[FilteredMenu] Menu de planos desabilitado pelo admin");
-      menu = menu.filter(item => item.label !== "Meu Plano");
-    }
-    
-    if (!permissionsLoaded) {
-      // Enquanto permissões não carregam, mostrar apenas Dashboard
-      // Isso evita que colaboradores vejam menu completo temporariamente
-      console.log("[FilteredMenu] Permissões não carregadas, mostrando apenas Dashboard");
-      return menu.filter(item => item.label === "Dashboard");
-    }
-    
-    if (isOwner === true) {
-      console.log("[FilteredMenu] É dono/admin, mostrando menu completo");
-      return menu;
-    }
-    
-    const filtered = menu.filter((item) => {
-      const permKey = PERMISSION_MAP[item.label];
-      if (!permKey) {
-        console.log(`[FilteredMenu] ${item.label}: SEM MAPEAMENTO - mostrando`);
-        return true;
-      }
-      
-      const hasPermission = userPermissions.includes(permKey);
-      console.log(`[FilteredMenu] ${item.label} (${permKey}): ${hasPermission ? '✅' : '❌'}`);
-      return hasPermission;
+    return buildJornaleiroMenuSections({
+      hasCatalogAccess,
+      hasPartnerDirectoryAccess,
+      plansMenuEnabled,
+      permissionsLoaded,
+      isOwner,
+      userPermissions,
     });
-    
-    console.log("[FilteredMenu] Menu filtrado:", filtered.map(i => i.label));
-    return filtered;
   }, [
     permissionsLoaded,
     isOwner,
     userPermissions,
-    banca?.is_cotista,
-    banca?.entitlements?.can_access_distributor_catalog,
-    banca?.entitlements?.can_access_partner_directory,
+    hasCatalogAccess,
+    hasPartnerDirectoryAccess,
     plansMenuEnabled,
   ]);
 
+  const menuItems = useMemo(() => menuSections.flatMap((section) => section.items), [menuSections]);
+
   const mobileQuickLinks = useMemo(() => {
-    return MOBILE_QUICK_LINKS.flatMap((shortcut) => {
-      const menuItem = filteredMenu.find((item) => item.label === shortcut.menuLabel);
-
-      if (!menuItem || menuItem.disabled) {
+    return JOURNALEIRO_MOBILE_QUICK_LINKS.flatMap((shortcut) => {
+      const menuItem = menuItems.find((item) => item.href === shortcut.href);
+      if (!menuItem) {
         return [];
       }
-
-      const href = "children" in menuItem ? menuItem.children[0]?.href : menuItem.href;
-
-      if (!href) {
-        return [];
-      }
-
-      return [{ ...shortcut, href }];
+      return [shortcut];
     });
-  }, [filteredMenu]);
+  }, [menuItems]);
 
   // IMPORTANTE: TODOS os hooks devem vir ANTES de qualquer return condicional!
   // Isso evita o erro React #310 "Rendered fewer hooks than during the previous render"
@@ -661,6 +545,11 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
 
   // Removido - banca já é carregada na validação de segurança
 
+  const isMenuItemActive = (item: JornaleiroMenuItem) => {
+    const targets = [item.href, ...(item.aliases || [])];
+    return targets.some((target) => pathname === target || pathname?.startsWith(`${target}/`));
+  };
+
   // TODOS os hooks foram declarados acima. Agora podemos fazer returns condicionais.
   
   // Evitar erros de hydration: enquanto ainda não montou no client,
@@ -853,98 +742,53 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
                 </div>
               </div>
 
-              <nav className="flex-1 p-4 space-y-4 text-gray-100">
-                {filteredMenu.map((item) => {
-                  const IconComponent = journaleiroIconComponents[item.icon];
-                  const icon = <IconComponent size={20} stroke={1.7} />;
-
-                  const isGroup = "children" in item;
-
-                  if (isGroup) {
-                    const isCollaborator = (profile as any)?.jornaleiro_access_level === "collaborator";
-                    const children = isCollaborator
-                      ? item.children.filter((c) => c.href !== ("/jornaleiro/bancas/nova" as Route))
-                      : item.children;
-
-                    const childActive = children.some((c) => pathname === c.href || pathname?.startsWith(`${c.href}/`));
-                    const open = sidebarSections[item.label] ?? childActive;
-                    const groupClasses = item.disabled
-                      ? "flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-300 bg-white/5 cursor-not-allowed"
-                      : `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                          childActive ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm" : "text-gray-100 hover:bg-white/10 hover:text-white"
-                        }`;
-
-                    return (
-                      <div key={item.label} className="space-y-1">
-                        <button
-                          type="button"
-                          disabled={item.disabled}
-                          onClick={() => setSidebarSections((prev) => ({ ...prev, [item.label]: !(prev[item.label] ?? childActive) }))}
-                          className={`${groupClasses} w-full`}
-                        >
-                          {icon}
-                          {item.label}
-                          <span className="ml-auto inline-flex items-center">
-                            <svg
-                              viewBox="0 0 24 24"
-                              className={`h-4 w-4 transition-transform ${open ? "rotate-180" : "rotate-0"}`}
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              aria-hidden
-                            >
-                              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </span>
-                        </button>
-
-                        {open && !item.disabled && (
-                          <div className="pl-9 space-y-1">
-                            {children.map((c) => {
-                              const isActive = pathname === c.href || pathname?.startsWith(`${c.href}/`);
-                              return (
-                                <Link
-                                  key={c.href}
-                                  href={c.href}
-                                  onClick={() => setSidebarOpen(false)}
-                                  className={`block rounded-md px-3 py-2 text-sm transition-colors ${
-                                    isActive ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/10 hover:text-white"
-                                  }`}
-                                >
-                                  {c.label}
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        )}
+              <nav className="flex-1 space-y-6 overflow-y-auto p-4 text-gray-100">
+                {menuSections.map((section) => (
+                  <div key={section.section} className="space-y-2">
+                    <div className="px-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
+                        {section.section}
                       </div>
-                    );
-                  }
+                      <p className="mt-1 text-xs leading-5 text-white/60">
+                        {section.description}
+                      </p>
+                    </div>
 
-                  const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
-                  const classes = item.disabled
-                    ? "flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-300 bg-white/5 cursor-not-allowed"
-                    : `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        isActive ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm" : "text-gray-100 hover:bg-white/10 hover:text-white"
-                      }`;
+                    <div className="space-y-1">
+                      {section.items.map((item) => {
+                        const IconComponent = journaleiroIconComponents[item.icon];
+                        const isActive = isMenuItemActive(item);
 
-                  if (item.disabled) {
-                    return (
-                      <span key={item.href} className={classes}>
-                        {icon}
-                        {item.label}
-                        <span className="ml-auto text-xs text-gray-400">Em breve</span>
-                      </span>
-                    );
-                  }
-
-                  return (
-                    <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)} className={classes}>
-                      {icon}
-                      {item.label}
-                    </Link>
-                  );
-                })}
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={() => setSidebarOpen(false)}
+                            className={`group flex items-start gap-3 rounded-xl px-3 py-3 text-sm transition-colors ${
+                              isActive
+                                ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm"
+                                : "text-gray-100 hover:bg-white/10 hover:text-white"
+                            }`}
+                          >
+                            <span
+                              className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                                isActive ? "bg-[#ff5c00]/10 text-[#ff5c00]" : "bg-white/5 text-white/80 group-hover:bg-white/10"
+                              }`}
+                            >
+                              <IconComponent size={20} stroke={1.7} />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block font-medium">{item.label}</span>
+                              <span className={`mt-1 block text-xs leading-5 ${isActive ? "text-[#b8581d]" : "text-white/60 group-hover:text-white/75"}`}>
+                                {item.description}
+                              </span>
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </nav>
 
               <div className="border-t border-white/10 p-4">
