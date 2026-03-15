@@ -21,7 +21,9 @@ export type AdminIconKey =
   | "settings"
   | "brandWhatsapp"
   | "palette"
-  | "footer";
+  | "footer"
+  | "users"
+  | "user";
 
 export type AdminMenuItem = {
   label: string;
@@ -70,6 +72,18 @@ export const ADMIN_MENU: AdminMenuSection[] = [
         href: "/admin/gestao/bancas/cadastros",
         icon: "store",
         description: "Cadastro, aprovacao, ativacao e tratamento operacional das bancas.",
+      },
+      {
+        label: "Jornaleiros",
+        href: "/admin/jornaleiros",
+        icon: "users",
+        description: "Contas operacionais ligadas as bancas, seus planos, pedidos e bloqueios.",
+      },
+      {
+        label: "Usuarios",
+        href: "/admin/users",
+        icon: "user",
+        description: "Base de contas da plataforma, incluindo clientes e usuarios vinculados a bancas.",
       },
       {
         label: "Pedidos",
