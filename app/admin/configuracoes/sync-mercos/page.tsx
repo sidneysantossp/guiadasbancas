@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 type HealthResult = {
   distribuidor: string;
@@ -34,7 +35,7 @@ export default function SyncMercosPage() {
   const loadHealth = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/mercos/health');
+      const res = await fetchAdminWithDevFallback('/api/admin/mercos/health');
       const json = await res.json();
       setHealth(json);
     } catch (err) {
@@ -48,8 +49,12 @@ export default function SyncMercosPage() {
     setSyncLoading(true);
     setSyncResult(null);
     try {
-      const res = await fetch(`/api/cron/sync-mercos${full ? '?full=true' : ''}`, {
+      const res = await fetchAdminWithDevFallback('/api/admin/mercos/run-sync', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ full }),
       });
       const json = await res.json();
       setSyncResult(json);

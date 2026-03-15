@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
 import { callEvolutionApi, getEvolutionErrorMessage } from "@/lib/evolution-api";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 // GET - Verificar status da instância Evolution API
 export async function GET(req: NextRequest) {
   try {
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
+
     const config = getWhatsAppConfig();
     
     console.log('[ADMIN] Verificando status com configurações:', {

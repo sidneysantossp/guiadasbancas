@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAdminAuth } from '@/lib/security/admin-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -7,8 +8,11 @@ export const maxDuration = 60;
 /**
  * API para estatísticas de sincronização
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     // Buscar todos os distribuidores
     const { data: distribuidores, error: distError } = await supabaseAdmin
       .from('distribuidores')

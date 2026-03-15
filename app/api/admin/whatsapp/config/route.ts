@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig, setWhatsAppConfig, validateWhatsAppConfig } from "@/lib/whatsapp-config";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 // GET - Buscar configurações salvas
 export async function GET(req: NextRequest) {
   try {
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
+
     const config = getWhatsAppConfig();
     console.log('[ADMIN] Configurações WhatsApp solicitadas:', config);
     return NextResponse.json(config);
@@ -18,6 +22,9 @@ export async function GET(req: NextRequest) {
 // POST - Salvar configurações
 export async function POST(req: NextRequest) {
   try {
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
+
     const body = await req.json();
     const { baseUrl, apiKey, instanceName, isActive } = body;
 

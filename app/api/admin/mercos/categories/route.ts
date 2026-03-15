@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
+import { requireAdminAuth } from '@/lib/security/admin-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -80,8 +81,11 @@ const buildLog = (params: {
   pageData: params.paginadas,
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const body = (await request.json()) as Body;
     const prefix = (body.prefix || '').trim();
     const distribuidorId = body.distribuidorId;
@@ -227,6 +231,9 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = await requireAdminAuth(request);
+  if (authError) return authError;
+
   return NextResponse.json({ success: false, error: 'Use POST' }, { status: 405 });
 }

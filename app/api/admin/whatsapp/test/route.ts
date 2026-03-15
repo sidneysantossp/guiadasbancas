@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
 import { callEvolutionApi, getEvolutionErrorMessage } from "@/lib/evolution-api";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 function extractMessageId(payload: any): string | null {
   return (
@@ -15,6 +16,9 @@ function extractMessageId(payload: any): string | null {
 // POST - Enviar mensagem de teste
 export async function POST(req: NextRequest) {
   try {
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
+
     const body = await req.json();
     const { phone, message } = body;
 

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAdminAuth } from '@/lib/security/admin-auth';
 
 export const runtime = 'nodejs';
 
@@ -8,8 +9,11 @@ export const runtime = 'nodejs';
  * Retorna todos os registros salvos na tabela mercos_homologacao_registros
  * para o companyToken informado, ordenados por mercos_id.
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const companyToken = (searchParams.get('companyToken') || '').trim();
 
@@ -41,8 +45,11 @@ export async function GET(request: Request) {
  * DELETE /api/admin/mercos/homologacao-registros?companyToken=xxx
  * Limpa todos os registros salvos para o companyToken (para reiniciar homologação).
  */
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const companyToken = (searchParams.get('companyToken') || '').trim();
 

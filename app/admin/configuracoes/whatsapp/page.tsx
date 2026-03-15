@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/admin/ToastProvider";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 interface EvolutionConfig {
   baseUrl: string;
@@ -44,9 +45,7 @@ export default function AdminWhatsAppConfigPage() {
   // Carregar configurações salvas
   const loadConfig = async () => {
     try {
-      const response = await fetch('/api/admin/whatsapp/config', {
-
-      });
+      const response = await fetchAdminWithDevFallback('/api/admin/whatsapp/config');
       if (response.ok) {
         const data = await response.json();
         console.log('Configurações carregadas:', data);
@@ -65,7 +64,7 @@ export default function AdminWhatsAppConfigPage() {
   const saveConfig = async () => {
     try {
       setSaving(true);
-      const response = await fetch('/api/admin/whatsapp/config', {
+      const response = await fetchAdminWithDevFallback('/api/admin/whatsapp/config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'},
@@ -94,9 +93,7 @@ export default function AdminWhatsAppConfigPage() {
   const checkStatus = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/whatsapp/status', {
-
-      });
+      const response = await fetchAdminWithDevFallback('/api/admin/whatsapp/status');
       const data = await response.json();
       setStatus(data);
     } catch (error) {
@@ -111,7 +108,7 @@ export default function AdminWhatsAppConfigPage() {
   const createInstance = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/whatsapp/create-instance', {
+      const response = await fetchAdminWithDevFallback('/api/admin/whatsapp/create-instance', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'},
@@ -145,7 +142,7 @@ export default function AdminWhatsAppConfigPage() {
 
     try {
       setSendingTest(true);
-      const response = await fetch('/api/admin/whatsapp/test', {
+      const response = await fetchAdminWithDevFallback('/api/admin/whatsapp/test', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'},

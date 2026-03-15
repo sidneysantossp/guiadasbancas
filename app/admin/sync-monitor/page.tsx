@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 type DistribuidorStats = {
   id: string;
@@ -34,7 +35,7 @@ export default function SyncMonitorPage() {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/sync/stats', { cache: 'no-store' });
+      const res = await fetchAdminWithDevFallback('/api/admin/sync/stats', { cache: 'no-store' });
       const data = await res.json();
       setStats(data);
     } catch (error) {
@@ -56,7 +57,13 @@ export default function SyncMonitorPage() {
     
     try {
       setSyncing(true);
-      const res = await fetch('/api/cron/sync-mercos', { method: 'POST' });
+      const res = await fetchAdminWithDevFallback('/api/admin/mercos/run-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ full: false }),
+      });
       const data = await res.json();
       
       if (data.success) {

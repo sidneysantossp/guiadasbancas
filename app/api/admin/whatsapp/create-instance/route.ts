@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
 import { callEvolutionApi, getEvolutionErrorMessage } from "@/lib/evolution-api";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 // POST - Criar nova instância na Evolution API
 export async function POST(req: NextRequest) {
   try {
+    const authError = await requireAdminAuth(req);
+    if (authError) return authError;
+
     const body = await req.json();
     const { instanceName } = body;
 

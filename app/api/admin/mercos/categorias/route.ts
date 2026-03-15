@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAdminAuth } from '@/lib/security/admin-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -169,8 +170,11 @@ async function scanFrom(
  * Paginate with id_maior_que until MEUSPEDIDOS_LIMITOU_REGISTROS != "1".
  * This is the correct approach per Mercos support.
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const prefix = (searchParams.get('prefix') || '').trim();
     const alteradoApos = (searchParams.get('alterado_apos') || '').trim();
@@ -281,8 +285,11 @@ export async function GET(request: Request) {
  * Cria uma nova categoria no Mercos Sandbox (Etapa 2 - POST)
  * Body: { nome: string, categoria_pai_id?: number, useSandbox?: boolean, companyToken?: string }
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const body = await request.json();
     const { nome, categoria_pai_id, useSandbox = true, companyToken: customCompanyToken } = body;
 
@@ -358,8 +365,11 @@ export async function POST(request: Request) {
  * Edita uma categoria existente no Mercos Sandbox (Etapa 3 - PUT)
  * Body: { id: number, nome: string, useSandbox?: boolean, companyToken?: string }
  */
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const body = await request.json();
     const { id, nome, useSandbox = true, companyToken: customCompanyToken } = body;
 

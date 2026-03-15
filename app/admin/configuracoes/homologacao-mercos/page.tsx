@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 type Categoria = {
   id: number;
@@ -149,7 +150,7 @@ export default function HomologacaoMercosPage() {
     if (!t) return;
     setSavedLoading(true);
     try {
-      const res = await fetch(`/api/admin/mercos/homologacao-registros?companyToken=${encodeURIComponent(t)}`);
+      const res = await fetchAdminWithDevFallback(`/api/admin/mercos/homologacao-registros?companyToken=${encodeURIComponent(t)}`);
       const json = await res.json();
       if (json.success) setSavedRegistros(json.registros ?? []);
     } catch {}
@@ -158,7 +159,7 @@ export default function HomologacaoMercosPage() {
 
   async function clearSavedRegistros() {
     if (!companyToken) return;
-    await fetch(`/api/admin/mercos/homologacao-registros?companyToken=${encodeURIComponent(companyToken)}`, { method: 'DELETE' });
+    await fetchAdminWithDevFallback(`/api/admin/mercos/homologacao-registros?companyToken=${encodeURIComponent(companyToken)}`, { method: 'DELETE' });
     setSavedRegistros([]);
   }
 
@@ -214,7 +215,7 @@ export default function HomologacaoMercosPage() {
         useSandbox: String(useSandbox),
         companyToken,
       });
-      const res = await fetch(`/api/admin/mercos/categorias?${params}`);
+      const res = await fetchAdminWithDevFallback(`/api/admin/mercos/categorias?${params}`);
       const text = await res.text();
       let json: any;
       try { json = JSON.parse(text); } catch {
@@ -237,7 +238,7 @@ export default function HomologacaoMercosPage() {
     try {
       const body: any = { nome: step2Nome.trim(), useSandbox, companyToken };
       if (step2PaiId.trim()) body.categoria_pai_id = Number(step2PaiId.trim());
-      const res = await fetch("/api/admin/mercos/categorias", {
+      const res = await fetchAdminWithDevFallback("/api/admin/mercos/categorias", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -264,7 +265,7 @@ export default function HomologacaoMercosPage() {
     setStep3Loading(true);
     setStep3Result(null);
     try {
-      const res = await fetch("/api/admin/mercos/categorias", {
+      const res = await fetchAdminWithDevFallback("/api/admin/mercos/categorias", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

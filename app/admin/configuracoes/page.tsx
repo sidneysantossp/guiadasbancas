@@ -219,7 +219,7 @@ export default function AdminConfiguracoesPage() {
   const testAsaasConnection = async () => {
     setSaving("test");
     try {
-      const res = await fetch("/api/asaas/test-connection", { method: "POST" });
+      const res = await fetchAdminWithDevFallback("/api/admin/asaas/test-connection", { method: "POST" });
       const data = await res.json();
       if (data.success) {
         alert(`✅ Conexão OK!\n\nAmbiente: ${data.environment}\nWallet ID: ${data.walletId}`);
