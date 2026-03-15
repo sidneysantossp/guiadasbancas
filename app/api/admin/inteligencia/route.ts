@@ -34,6 +34,10 @@ type TimelineGranularity = "day" | "month";
 
 export const dynamic = "force-dynamic";
 
+function logDatasetError(scope: string, error: unknown) {
+  console.error(`[API/ADMIN/INTELIGENCIA] Dataset ${scope}:`, error);
+}
+
 function getStartDate(period: string) {
   const startDate = new Date();
 
@@ -292,39 +296,31 @@ export async function GET(request: NextRequest) {
         .select("id, status, created_at, start_date, end_date"),
     ]);
 
-    const responses = [
-      userProfilesResponse,
-      bancasResponse,
-      distribuidoresResponse,
-      productsResponse,
-      ordersResponse,
-      openOrdersResponse,
-      ordersTodayResponse,
-      analyticsResponse,
-      categoriesResponse,
-      distributorCategoriesResponse,
-      currentSubscriptionsResponse,
-      latestPaymentsResponse,
-      periodPaymentsResponse,
-      campaignsResponse,
-    ];
+    if (userProfilesResponse.error) logDatasetError("user_profiles", userProfilesResponse.error);
+    if (bancasResponse.error) logDatasetError("bancas", bancasResponse.error);
+    if (distribuidoresResponse.error) logDatasetError("distribuidores", distribuidoresResponse.error);
+    if (productsResponse.error) logDatasetError("products", productsResponse.error);
+    if (ordersResponse.error) logDatasetError("orders_period", ordersResponse.error);
+    if (openOrdersResponse.error) logDatasetError("orders_open", openOrdersResponse.error);
+    if (ordersTodayResponse.error) logDatasetError("orders_today", ordersTodayResponse.error);
+    if (analyticsResponse.error) logDatasetError("analytics_events", analyticsResponse.error);
+    if (categoriesResponse.error) logDatasetError("categories", categoriesResponse.error);
+    if (distributorCategoriesResponse.error) logDatasetError("distribuidor_categories", distributorCategoriesResponse.error);
+    if (currentSubscriptionsResponse.error) logDatasetError("subscriptions_current", currentSubscriptionsResponse.error);
+    if (latestPaymentsResponse.error) logDatasetError("payments_latest", latestPaymentsResponse.error);
+    if (periodPaymentsResponse.error) logDatasetError("payments_period", periodPaymentsResponse.error);
+    if (campaignsResponse.error) logDatasetError("campaigns", campaignsResponse.error);
 
-    for (const response of responses) {
-      if (response.error) {
-        throw response.error;
-      }
-    }
-
-    const userProfiles = (userProfilesResponse.data || []) as any[];
-    const bancas = (bancasResponse.data || []) as any[];
-    const distribuidores = (distribuidoresResponse.data || []) as any[];
-    const products = (productsResponse.data || []) as any[];
-    const orders = (ordersResponse.data || []) as any[];
-    const analyticsEvents = (analyticsResponse.data || []) as any[];
-    const campaigns = (campaignsResponse.data || []) as any[];
+    const userProfiles = (userProfilesResponse.error ? [] : userProfilesResponse.data || []) as any[];
+    const bancas = (bancasResponse.error ? [] : bancasResponse.data || []) as any[];
+    const distribuidores = (distribuidoresResponse.error ? [] : distribuidoresResponse.data || []) as any[];
+    const products = (productsResponse.error ? [] : productsResponse.data || []) as any[];
+    const orders = (ordersResponse.error ? [] : ordersResponse.data || []) as any[];
+    const analyticsEvents = (analyticsResponse.error ? [] : analyticsResponse.data || []) as any[];
+    const campaigns = (campaignsResponse.error ? [] : campaignsResponse.data || []) as any[];
 
     const currentSubscriptionsMap = new Map<string, SubscriptionRecord>();
-    for (const item of ((currentSubscriptionsResponse.data as any[]) || [])) {
+    for (const item of (((currentSubscriptionsResponse.error ? [] : currentSubscriptionsResponse.data) as any[]) || [])) {
       if (!item?.banca_id || currentSubscriptionsMap.has(item.banca_id)) {
         continue;
       }
@@ -337,7 +333,7 @@ export async function GET(request: NextRequest) {
 
     const currentSubscriptions = Array.from(currentSubscriptionsMap.values());
     const latestPaymentBySubscription = new Map<string, PaymentRecord>();
-    for (const payment of ((latestPaymentsResponse.data || []) as PaymentRecord[])) {
+    for (const payment of (((latestPaymentsResponse.error ? [] : latestPaymentsResponse.data) || []) as PaymentRecord[])) {
       if (!payment.subscription_id || latestPaymentBySubscription.has(payment.subscription_id)) {
         continue;
       }
@@ -385,8 +381,8 @@ export async function GET(request: NextRequest) {
     );
 
     const gmvPeriod = orders.reduce((sum, item) => sum + Number(item.total || 0), 0);
-    const ordersToday = Number(ordersTodayResponse.count || 0);
-    const openOrders = Number(openOrdersResponse.count || 0);
+    const ordersToday = Number(ordersTodayResponse.error ? 0 : ordersTodayResponse.count || 0);
+    const openOrders = Number(openOrdersResponse.error ? 0 : openOrdersResponse.count || 0);
     const averageTicket = orders.length > 0 ? gmvPeriod / orders.length : 0;
 
     const orderStatusMap = new Map<string, number>();
@@ -533,7 +529,7 @@ export async function GET(request: NextRequest) {
 
     const paidBancas = planCounts.start + planCounts.premium;
     const paidConversionRate = totalBancas > 0 ? (paidBancas / totalBancas) * 100 : 0;
-    const periodReceivedRevenue = ((periodPaymentsResponse.data || []) as PaymentRecord[]).reduce((sum, payment) => {
+    const periodReceivedRevenue = ((((periodPaymentsResponse.error ? [] : periodPaymentsResponse.data) || []) as PaymentRecord[])).reduce((sum, payment) => {
       if (payment.status === "confirmed" || payment.status === "received") {
         return sum + Number(payment.amount || 0);
       }
@@ -759,8 +755,8 @@ export async function GET(request: NextRequest) {
         banca_products: bancaProducts,
         distributor_products: distributorProducts,
         products_without_image: productsWithoutImage,
-        total_categories: Number(categoriesResponse.count || 0),
-        total_distributor_categories: Number(distributorCategoriesResponse.count || 0),
+        total_categories: Number(categoriesResponse.error ? 0 : categoriesResponse.count || 0),
+        total_distributor_categories: Number(distributorCategoriesResponse.error ? 0 : distributorCategoriesResponse.count || 0),
         total_orders_period: orders.length,
         orders_today: ordersToday,
         open_orders: openOrders,

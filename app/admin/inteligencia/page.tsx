@@ -232,18 +232,26 @@ export default function AdminInteligenciaPage() {
   const [period, setPeriod] = useState("30d");
   const [loading, setLoading] = useState(true);
   const [payload, setPayload] = useState<IntelligencePayload | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setErrorMessage(null);
       try {
         const response = await fetchAdminWithDevFallback(`/api/admin/inteligencia?period=${period}`);
-        const json = await response.json();
+        const json = await response.json().catch(() => null);
         if (json.success) {
           setPayload(json);
+          setErrorMessage(null);
+        } else {
+          setPayload(null);
+          setErrorMessage(json?.error || "Não foi possível carregar a central de inteligência.");
         }
       } catch (error) {
         console.error("Erro ao carregar inteligencia:", error);
+        setPayload(null);
+        setErrorMessage("Não foi possível carregar a central de inteligência.");
       } finally {
         setLoading(false);
       }
@@ -308,7 +316,7 @@ export default function AdminInteligenciaPage() {
   if (!payload || !summary) {
     return (
       <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">
-        Nao foi possivel carregar a central de inteligencia.
+        {errorMessage || "Nao foi possivel carregar a central de inteligencia."}
       </div>
     );
   }
