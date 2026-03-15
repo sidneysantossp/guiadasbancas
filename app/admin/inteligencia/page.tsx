@@ -115,7 +115,7 @@ const ARCHITECTURE_BLOCKS: Array<{
     title: "Rede de bancas",
     description: "Orquestra cadastro, aprovacao, operacao e monetizacao das bancas e dos jornaleiros.",
     routes: [
-      { label: "Bancas", href: "/admin/gestao/bancas/cadastros" },
+      { label: "Bancas", href: "/admin/bancas" },
       { label: "Assinaturas", href: "/admin/assinaturas" },
       { label: "Planos", href: "/admin/planos" },
     ],

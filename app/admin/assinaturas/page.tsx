@@ -347,7 +347,7 @@ export default function AdminAssinaturasPage() {
                 ) : null}
                 {row.banca?.id ? (
                   <Link
-                    href={`/admin/cms/bancas/${row.banca.id}` as Route}
+                    href={`/admin/bancas/${row.banca.id}` as Route}
                     className="text-sm font-medium text-[#ff5c00] hover:underline"
                   >
                     Banca

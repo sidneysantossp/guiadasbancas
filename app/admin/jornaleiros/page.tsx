@@ -253,7 +253,7 @@ export default function AdminJornaleirosPage() {
           </p>
         </div>
         <Link
-          href="/admin/gestao/bancas/cadastros"
+          href="/admin/bancas"
           className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 hover:border-[#ff5c00] hover:text-[#ff5c00]"
         >
           Operar bancas
@@ -310,7 +310,7 @@ export default function AdminJornaleirosPage() {
                 </Link>
                 {row.banca?.id ? (
                   <Link
-                    href={`/admin/cms/bancas/${row.banca.id}` as Route}
+                    href={`/admin/bancas/${row.banca.id}` as Route}
                     className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-[#ff5c00] hover:text-[#ff5c00]"
                   >
                     Ver banca

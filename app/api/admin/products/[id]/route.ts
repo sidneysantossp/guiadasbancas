@@ -20,7 +20,51 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ success: false, error: "Produto não encontrado" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data });
+    const [bancaResponse, distribuidorResponse, categoryResponse, distribuidorCategoryResponse] = await Promise.all([
+      data.banca_id
+        ? supabaseAdmin
+            .from('bancas')
+            .select('id, user_id, name, address, whatsapp, active, approved')
+            .eq('id', data.banca_id)
+            .single()
+        : Promise.resolve({ data: null, error: null }),
+      data.distribuidor_id
+        ? supabaseAdmin
+            .from('distribuidores')
+            .select('id, nome, ativo, ultima_sincronizacao')
+            .eq('id', data.distribuidor_id)
+            .single()
+        : Promise.resolve({ data: null, error: null }),
+      data.category_id
+        ? supabaseAdmin
+            .from('categories')
+            .select('id, name')
+            .eq('id', data.category_id)
+            .single()
+        : Promise.resolve({ data: null, error: null }),
+      data.category_id
+        ? supabaseAdmin
+            .from('distribuidor_categories')
+            .select('id, nome')
+            .eq('id', data.category_id)
+            .single()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+
+    const relatedCategoryName =
+      categoryResponse.data?.name ||
+      distribuidorCategoryResponse.data?.nome ||
+      null;
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...data,
+        category_name: relatedCategoryName,
+        banca: bancaResponse.data || null,
+        distribuidor: distribuidorResponse.data || null,
+      },
+    });
   } catch (error) {
     return NextResponse.json({ success: false, error: "Erro interno" }, { status: 500 });
   }

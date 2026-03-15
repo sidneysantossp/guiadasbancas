@@ -12,6 +12,7 @@ import RichTextEditor from "@/components/admin/RichTextEditor";
 import SpecificationsEditor from "@/components/admin/SpecificationsEditor";
 import ReviewsManager from "@/components/admin/ReviewsManager";
 import { useToast } from "@/components/admin/ToastProvider";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 interface CategoryOption {
   id: string;
@@ -58,7 +59,7 @@ export default function AdminProductCreatePage() {
     };
     const loadBancas = async () => {
       try {
-        const res = await fetch("/api/admin/bancas", { cache: "no-store" });
+        const res = await fetchAdminWithDevFallback("/api/admin/bancas", { cache: "no-store" });
         const json = await res.json();
         if (json?.success) {
           setBancas((json.data as any[])?.map((b) => ({ id: b.id, name: b.name })) || []);
@@ -138,7 +139,7 @@ export default function AdminProductCreatePage() {
 
       const vr = validateProductCreate(body as any);
       if (!vr.ok) throw new Error(vr.error);
-      const res = await fetch("/api/admin/products", {
+      const res = await fetchAdminWithDevFallback("/api/admin/products", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"},

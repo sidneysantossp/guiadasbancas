@@ -1,8 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminAuth } from '@/lib/security/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     // Total de produtos de distribuidores (ativos)
     const { count: totalDistribuidores } = await supabaseAdmin
       .from('products')
@@ -35,8 +39,7 @@ export async function GET() {
         distribuidores_inativos: totalInativos || 0,
         proprios: totalProprios || 0,
         total_geral: totalGeral || 0,
-      },
-      message: `Cotistas têm acesso a ${totalDistribuidores || 0} produtos de distribuidores`
+      }
     });
     
   } catch (error: any) {

@@ -40,7 +40,7 @@ const QUICK_ACTIONS: Array<{ title: string; description: string; href: Route }> 
   {
     title: "Operar bancas e aprovacoes",
     description: "Entrada de novas bancas, ajustes cadastrais e validacao operacional da rede.",
-    href: "/admin/gestao/bancas/cadastros",
+    href: "/admin/bancas",
   },
   {
     title: "Controlar oferta e abastecimento",

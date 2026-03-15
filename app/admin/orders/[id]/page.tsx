@@ -179,10 +179,10 @@ export default function AdminOrderDetailPage() {
           ) : null}
           {data.banca?.id ? (
             <Link
-              href={`/admin/cms/bancas/${data.banca.id}` as Route}
+              href={`/admin/bancas/${data.banca.id}` as Route}
               className="rounded-xl bg-[#ff5c00] px-4 py-2 text-sm font-medium text-white hover:bg-[#e65300]"
             >
-              Abrir banca
+              Abrir operação da banca
             </Link>
           ) : null}
           <button

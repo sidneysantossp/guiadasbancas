@@ -69,7 +69,7 @@ export const ADMIN_MENU: AdminMenuSection[] = [
     items: [
       {
         label: "Bancas",
-        href: "/admin/gestao/bancas/cadastros",
+        href: "/admin/bancas",
         icon: "store",
         description: "Cadastro, aprovacao, ativacao e tratamento operacional das bancas.",
       },
@@ -117,7 +117,7 @@ export const ADMIN_MENU: AdminMenuSection[] = [
       },
       {
         label: "Categorias",
-        href: "/admin/cms/categories",
+        href: "/admin/categories",
         icon: "tags",
         description: "Taxonomia do marketplace e visibilidade por contexto de negocio.",
       },

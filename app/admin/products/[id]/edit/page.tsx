@@ -10,6 +10,7 @@ import RichTextEditor from "@/components/admin/RichTextEditor";
 import SpecificationsEditor from "@/components/admin/SpecificationsEditor";
 import ReviewsManager from "@/components/admin/ReviewsManager";
 import { useToast } from "@/components/admin/ToastProvider";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 interface CategoryOption {
   id: string;
@@ -91,9 +92,7 @@ export default function AdminProductEditPage() {
     const loadData = async () => {
       try {
         // Carregar produto
-        const resProduct = await fetch(`/api/admin/products/${productId}`, {
-
-        });
+        const resProduct = await fetchAdminWithDevFallback(`/api/admin/products/${productId}`);
 
         if (!resProduct.ok) throw new Error('Produto não encontrado');
 
@@ -119,7 +118,7 @@ export default function AdminProductEditPage() {
         }
 
         // Carregar bancas
-        const resBancas = await fetch("/api/admin/bancas", { cache: "no-store" });
+        const resBancas = await fetchAdminWithDevFallback("/api/admin/bancas", { cache: "no-store" });
         const jsonBancas = await resBancas.json();
         if (jsonBancas?.success) {
           setBancas((jsonBancas.data as any[])?.map((b) => ({ id: b.id, name: b.name })) || []);
@@ -207,7 +206,7 @@ export default function AdminProductEditPage() {
       console.log('🚀 Updating product at:', apiUrl);
       console.log('📦 Body:', body);
 
-      const res = await fetch(apiUrl, {
+      const res = await fetchAdminWithDevFallback(apiUrl, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json"},

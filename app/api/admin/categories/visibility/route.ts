@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
+import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -14,8 +15,11 @@ function normalizeCategoryName(value: string): string {
     .trim();
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const { data, error } = await supabaseAdmin
       .from('categories')
       .select('id, name, image, link, order, active, visible, jornaleiro_status, jornaleiro_bancas, mercos_id, parent_category_id, ultima_sincronizacao')
@@ -39,6 +43,9 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const body = await request.json();
     const { id, visible, jornaleiroStatus, jornaleiroBancas } = body;
 

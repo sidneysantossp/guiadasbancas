@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/admin/ToastProvider";
 import ImageUploader from "@/components/admin/ImageUploader";
+import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 interface CategoryForm {
   name: string;
@@ -35,8 +36,7 @@ export default function CreateCategoryPage() {
     try {
       setSaving(true);
       
-      // Gerar slug automaticamente se link não foi preenchido
-      const slug = form.link || form.name.toLowerCase()
+      const generatedSlug = form.name.toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9\s-]/g, '')
@@ -44,13 +44,19 @@ export default function CreateCategoryPage() {
         .replace(/-+/g, '-')
         .trim();
 
+      const normalizedLink = form.link?.trim()
+        ? form.link.trim().startsWith("/categorias/")
+          ? form.link.trim()
+          : `/categorias/${form.link.trim().replace(/^\/+/, "").replace(/^categorias\//, "")}`
+        : `/categorias/${generatedSlug}`;
+
       const categoryData = {
         ...form,
-        link: `/categorias/${slug}`,
+        link: normalizedLink,
         name: form.name.trim()
       };
 
-      const response = await fetch('/api/admin/categories', {
+      const response = await fetchAdminWithDevFallback('/api/admin/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'},

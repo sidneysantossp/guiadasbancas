@@ -485,7 +485,7 @@ export async function GET(request: NextRequest) {
             "pending-bancas",
             `${pendingBancas} bancas aguardando tratamento`,
             "Existem bancas ainda nao aprovadas ou em rascunho, o que trava a expansao da rede.",
-            "/admin/gestao/bancas/cadastros",
+            "/admin/bancas",
             "warning"
           )
         : null,

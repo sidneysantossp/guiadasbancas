@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
+    const status = searchParams.get('status') || '';
     const searchDigits = (search || '').replace(/[^0-9]/g, '');
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const pageSizeParam = searchParams.get('pageSize') || searchParams.get('limit') || '50';
@@ -45,6 +46,11 @@ export async function GET(request: NextRequest) {
         }
         query = query.or(ors.join(','));
       }
+    }
+    if (status === 'ativo') {
+      query = query.eq('ativo', true);
+    } else if (status === 'inativo') {
+      query = query.eq('ativo', false);
     }
 
     const { data, error, count } = await query;

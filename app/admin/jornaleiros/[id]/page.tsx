@@ -213,10 +213,10 @@ export default function AdminJornaleiroDetailPage() {
           {data.banca?.id ? (
             <>
               <Link
-                href={`/admin/cms/bancas/${data.banca.id}` as Route}
+                href={`/admin/bancas/${data.banca.id}` as Route}
                 className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-[#ff5c00] hover:text-[#ff5c00]"
               >
-                Editar banca
+                Ver operação da banca
               </Link>
               <Link
                 href={`/banca/${data.banca.id}` as Route}
@@ -391,8 +391,8 @@ export default function AdminJornaleiroDetailPage() {
                     </div>
                   </div>
                   <div className="mt-3">
-                    <Link href={`/admin/products/${product.id}/edit` as Route} className="text-sm font-medium text-[#ff5c00] hover:underline">
-                      Editar produto
+                    <Link href={`/admin/products/${product.id}` as Route} className="text-sm font-medium text-[#ff5c00] hover:underline">
+                      Abrir produto
                     </Link>
                   </div>
                 </div>

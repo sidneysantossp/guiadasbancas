@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminAuth } from '@/lib/security/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 /**
@@ -10,6 +11,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     const supabase = supabaseAdmin;
 
     // Buscar dados do distribuidor

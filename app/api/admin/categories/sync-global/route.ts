@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAdminAuth } from '@/lib/security/admin-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -49,6 +50,9 @@ function buildCategoryLink(name: string, existingLink?: string | null): string {
  */
 export async function POST(request: NextRequest) {
   try {
+    const authError = await requireAdminAuth(request);
+    if (authError) return authError;
+
     // Buscar todas as categorias ativas de todos os distribuidores
     const { data: distCategorias, error: fetchError } = await supabaseAdmin
       .from('distribuidor_categories')

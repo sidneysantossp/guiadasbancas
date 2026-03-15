@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.max(1, Math.min(100, parseInt(url.searchParams.get('pageSize') || '50')));
     const q = (url.searchParams.get('q') || '').trim();
     const distribuidor = (url.searchParams.get('distribuidor') || '').trim();
+    const category = (url.searchParams.get('category') || '').trim();
+    const status = (url.searchParams.get('status') || '').trim();
 
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
@@ -34,6 +36,12 @@ export async function GET(request: NextRequest) {
       } else {
         query = query.eq('distribuidor_id', distribuidor);
       }
+    }
+    if (category) {
+      query = query.eq('category_id', category);
+    }
+    if (status) {
+      query = query.eq('active', status === 'ativo');
     }
 
     const { data: products, error: productsError, count } = await query.range(from, to);
@@ -58,6 +66,14 @@ export async function GET(request: NextRequest) {
       .from('distribuidor_categories')
       .select('id, nome');
 
+    const bancaIds = Array.from(new Set((products || []).map((p: any) => p.banca_id).filter(Boolean)));
+    const bancasResponse = bancaIds.length > 0
+      ? await supabaseAdmin
+          .from('bancas')
+          .select('id, name')
+          .in('id', bancaIds)
+      : { data: [] as Array<{ id: string; name: string | null }> };
+
     // Mapear markups
     const productIds = (products || []).map((p: any) => p.id);
     const distribuidorIds = (products || []).map((p: any) => p.distribuidor_id).filter(Boolean);
@@ -78,6 +94,7 @@ export async function GET(request: NextRequest) {
     const distribuidoresMap = new Map((distribuidores || []).map(d => [d.id, d]));
     const categoriasBancasMap = new Map((categoriesBancas || []).map(c => [c.id, c.name]));
     const categoriasDistribuidoresMap = new Map((categoriesDistribuidores || []).map(c => [c.id, c.nome]));
+    const bancasMap = new Map((bancasResponse.data || []).map((b: any) => [b.id, b.name]));
     
     const markupProdMap = new Map();
     (markupProdutos || []).forEach((m: any) => markupProdMap.set(m.product_id, m));
@@ -149,6 +166,7 @@ export async function GET(request: NextRequest) {
         ...product,
         price_final: precoFinal,
         distribuidor_nome: product.distribuidor_id ? (distribuidoresMap.get(product.distribuidor_id) as any)?.nome || null : null,
+        banca_nome: product.banca_id ? bancasMap.get(product.banca_id) || null : null,
         categoria_nome: categoriaNome,
       };
     });
