@@ -26,9 +26,15 @@ type Summary = {
   active_bancas: number;
   approved_bancas: number;
   pending_bancas: number;
+  published_bancas: number;
+  bancas_with_catalog: number;
+  bancas_with_orders: number;
+  published_without_catalog: number;
+  catalog_without_orders: number;
   total_distribuidores: number;
   active_distribuidores: number;
   stale_distribuidores: number;
+  active_distribuidores_without_products: number;
   total_products: number;
   active_products: number;
   banca_products: number;
@@ -83,10 +89,19 @@ type IntelligencePayload = {
   planDistribution: DistributionItem[];
   orderStatusDistribution: DistributionItem[];
   funnel: Array<{ stage: string; value: number }>;
+  activationFunnel: Array<{ stage: string; value: number }>;
   topSearches: Array<{ term: string; count: number }>;
   topBancas: Array<{ id: string; name: string; orders: number; revenue: number }>;
   topProducts: Array<{ id: string; name: string; banca_name: string; views: number; clicks: number; cart: number; total: number }>;
   distributorHealth: Array<{ id: string; name: string; products: number; last_sync: string | null; status: string }>;
+  operationSignals: Array<{
+    id: string;
+    title: string;
+    value: number;
+    description: string;
+    href: string;
+    tone: "critical" | "warning" | "info";
+  }>;
   alerts: AlertItem[];
 };
 
@@ -183,6 +198,12 @@ function getAlertClasses(tone: AlertItem["tone"]) {
   return "border-blue-200 bg-blue-50 text-blue-800";
 }
 
+function getSignalClasses(tone: "critical" | "warning" | "info") {
+  if (tone === "critical") return "border-red-200 bg-red-50";
+  if (tone === "warning") return "border-amber-200 bg-amber-50";
+  return "border-gray-200 bg-gray-50";
+}
+
 function getDistributorStatusMeta(status: string) {
   if (status === "stale") {
     return { label: "Sync atrasado", className: "bg-amber-100 text-amber-700" };
@@ -240,8 +261,8 @@ export default function AdminInteligenciaPage() {
       },
       {
         title: "Bancas operando",
-        value: `${summary.active_bancas}/${summary.total_bancas}`,
-        helper: `${summary.approved_bancas} aprovadas e ${summary.pending_bancas} precisando tratamento`,
+        value: `${summary.published_bancas}/${summary.total_bancas}`,
+        helper: `${summary.approved_bancas} aprovadas, ${summary.bancas_with_catalog} com catalogo e ${summary.pending_bancas} pendentes`,
       },
       {
         title: "Oferta ativa",
@@ -403,6 +424,50 @@ export default function AdminInteligenciaPage() {
                 <Bar dataKey="value" fill="#f97316" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold text-gray-900">Funil de ativacao da rede</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Mede a progressao do jornaleiro ate a banca publicada com catalogo e pedidos.
+            </p>
+          </div>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={payload.activationFunnel}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="stage" tickLine={false} axisLine={false} />
+                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                <Tooltip />
+                <Bar dataKey="value" fill="#2563eb" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold text-gray-900">Alavancas operacionais</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Leitura direta dos gargalos que travam ativacao, abastecimento e conversao do marketplace.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {payload.operationSignals.map((signal) => (
+              <Link
+                key={signal.id}
+                href={signal.href as Route}
+                className={`rounded-2xl border p-4 transition hover:shadow-sm ${getSignalClasses(signal.tone)}`}
+              >
+                <div className="text-sm font-medium text-gray-600">{signal.title}</div>
+                <div className="mt-2 text-3xl font-semibold text-gray-900">{signal.value}</div>
+                <div className="mt-2 text-sm leading-6 text-gray-600">{signal.description}</div>
+              </Link>
+            ))}
           </div>
         </div>
 

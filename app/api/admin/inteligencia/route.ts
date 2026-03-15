@@ -29,6 +29,7 @@ type PaymentRecord = {
 };
 
 type AlertTone = "critical" | "warning" | "info";
+type OperationSignalTone = "critical" | "warning" | "info";
 
 export const dynamic = "force-dynamic";
 
@@ -140,6 +141,17 @@ function normalizeStatusLabel(value?: string | null) {
 
 function buildAlert(id: string, title: string, description: string, href: string, tone: AlertTone) {
   return { id, title, description, href, tone };
+}
+
+function buildOperationSignal(
+  id: string,
+  title: string,
+  value: number,
+  description: string,
+  href: string,
+  tone: OperationSignalTone
+) {
+  return { id, title, value, description, href, tone };
 }
 
 export async function GET(request: NextRequest) {
@@ -289,6 +301,12 @@ export async function GET(request: NextRequest) {
     const activeBancas = bancas.filter((item) => item.active === true).length;
     const approvedBancas = bancas.filter((item) => item.approved === true).length;
     const pendingBancas = bancas.filter((item) => item.approved !== true).length;
+    const publishedBancaIds = new Set(
+      bancas
+        .filter((item) => item.active === true && item.approved === true)
+        .map((item) => item.id)
+        .filter(Boolean)
+    );
 
     const totalDistribuidores = distribuidores.length;
     const activeDistribuidores = distribuidores.filter((item) => item.ativo !== false).length;
@@ -297,12 +315,21 @@ export async function GET(request: NextRequest) {
         item.ativo !== false &&
         (!item.ultima_sincronizacao || item.ultima_sincronizacao < staleSyncCutoff)
     );
+    const activeDistribuidoresWithoutProducts = distribuidores.filter(
+      (item) => item.ativo !== false && Number(item.total_produtos || 0) <= 0
+    ).length;
 
     const totalProducts = products.length;
     const activeProducts = products.filter((item) => item.active !== false).length;
     const distributorProducts = products.filter((item) => Boolean(item.distribuidor_id)).length;
     const bancaProducts = products.filter((item) => Boolean(item.banca_id) && !item.distribuidor_id).length;
     const productsWithoutImage = products.filter((item) => !hasProductImage(item)).length;
+    const bancasWithCatalogIds = new Set(
+      products
+        .filter((item) => Boolean(item.banca_id) && !item.distribuidor_id)
+        .map((item) => item.banca_id)
+        .filter(Boolean)
+    );
 
     const gmvPeriod = orders.reduce((sum, item) => sum + Number(item.total || 0), 0);
     const ordersToday = Number(ordersTodayResponse.count || 0);
@@ -423,6 +450,12 @@ export async function GET(request: NextRequest) {
 
     const bancaMap = new Map(bancas.map((item) => [item.id, item]));
     const productMap = new Map(products.map((item) => [item.id, item]));
+    const orderBancaIds = new Set(orders.map((item) => item.banca_id).filter(Boolean));
+    const publishedBancas = publishedBancaIds.size;
+    const publishedWithCatalog = Array.from(publishedBancaIds).filter((id) => bancasWithCatalogIds.has(id)).length;
+    const publishedWithOrders = Array.from(publishedBancaIds).filter((id) => orderBancaIds.has(id)).length;
+    const publishedWithoutCatalog = Math.max(0, publishedBancas - publishedWithCatalog);
+    const catalogWithoutOrders = Math.max(0, publishedWithCatalog - publishedWithOrders);
 
     const topBancas = Array.from(topBancasMap.entries())
       .map(([bancaId, value]) => ({
@@ -489,6 +522,24 @@ export async function GET(request: NextRequest) {
             "warning"
           )
         : null,
+      publishedWithoutCatalog > 0
+        ? buildAlert(
+            "published-without-catalog",
+            `${publishedWithoutCatalog} bancas publicadas sem catalogo proprio`,
+            "A banca ja esta visivel, mas ainda nao transformou a operacao em oferta consistente dentro do marketplace.",
+            "/admin/bancas",
+            "warning"
+          )
+        : null,
+      catalogWithoutOrders > 0
+        ? buildAlert(
+            "catalog-without-orders",
+            `${catalogWithoutOrders} bancas com catalogo e sem pedidos no periodo`,
+            "Existe oferta publicada que ainda nao converteu em operacao. Vale cruzar demanda, precificacao e visibilidade.",
+            "/admin/orders",
+            "info"
+          )
+        : null,
       overduePaidBancas > 0
         ? buildAlert(
             "overdue-subscriptions",
@@ -504,6 +555,15 @@ export async function GET(request: NextRequest) {
             `${staleDistribuidores.length} distribuidores com sync atrasado`,
             "A oferta pode ficar desatualizada e afetar o painel do distribuidor e o catalogo do jornaleiro.",
             "/admin/configuracoes/sync-mercos",
+            "warning"
+          )
+        : null,
+      activeDistribuidoresWithoutProducts > 0
+        ? buildAlert(
+            "empty-distributors",
+            `${activeDistribuidoresWithoutProducts} distribuidores ativos sem catalogo`,
+            "Ha parceiros ativos sem oferta conectada ao marketplace, o que reduz cobertura e profundidade de abastecimento.",
+            "/admin/distribuidores",
             "warning"
           )
         : null,
@@ -527,6 +587,57 @@ export async function GET(request: NextRequest) {
         : null,
     ].filter(Boolean);
 
+    const operationSignals = [
+      buildOperationSignal(
+        "published-bancas",
+        "Bancas publicadas",
+        publishedBancas,
+        "Base aprovada e ativa para operar no marketplace.",
+        "/admin/bancas",
+        "info"
+      ),
+      buildOperationSignal(
+        "published-with-catalog",
+        "Publicadas com catalogo",
+        publishedWithCatalog,
+        "Bancas que ja converteram ativacao em oferta propria.",
+        "/admin/products",
+        "info"
+      ),
+      buildOperationSignal(
+        "catalog-without-orders",
+        "Catalogo sem pedidos",
+        catalogWithoutOrders,
+        "Bancas com oferta publicada que ainda nao geraram pedidos no periodo.",
+        "/admin/orders",
+        catalogWithoutOrders > 0 ? "warning" : "info"
+      ),
+      buildOperationSignal(
+        "distributors-without-products",
+        "Distribuidores sem catalogo",
+        activeDistribuidoresWithoutProducts,
+        "Parceiros ativos que ainda nao abastecem a plataforma com produtos.",
+        "/admin/distribuidores",
+        activeDistribuidoresWithoutProducts > 0 ? "warning" : "info"
+      ),
+      buildOperationSignal(
+        "products-without-image",
+        "Produtos sem imagem",
+        productsWithoutImage,
+        "Risco direto de queda de qualidade e conversao na vitrine.",
+        "/admin/produtos/sem-imagens",
+        productsWithoutImage > 0 ? "warning" : "info"
+      ),
+      buildOperationSignal(
+        "stale-distributors",
+        "Syncs atrasados",
+        staleDistribuidores.length,
+        "Distribuidores com ultima sincronizacao fora da janela esperada.",
+        "/admin/configuracoes/sync-mercos",
+        staleDistribuidores.length > 0 ? "critical" : "info"
+      ),
+    ];
+
     return NextResponse.json({
       success: true,
       period,
@@ -540,9 +651,15 @@ export async function GET(request: NextRequest) {
         active_bancas: activeBancas,
         approved_bancas: approvedBancas,
         pending_bancas: pendingBancas,
+        published_bancas: publishedBancas,
+        bancas_with_catalog: publishedWithCatalog,
+        bancas_with_orders: publishedWithOrders,
+        published_without_catalog: publishedWithoutCatalog,
+        catalog_without_orders: catalogWithoutOrders,
         total_distribuidores: totalDistribuidores,
         active_distribuidores: activeDistribuidores,
         stale_distribuidores: staleDistribuidores.length,
+        active_distribuidores_without_products: activeDistribuidoresWithoutProducts,
         total_products: totalProducts,
         active_products: activeProducts,
         banca_products: bancaProducts,
@@ -601,10 +718,19 @@ export async function GET(request: NextRequest) {
         { stage: "Checkout", value: analyticsStats.checkoutStarts },
         { stage: "Pedidos", value: analyticsStats.checkoutCompletes },
       ],
+      activationFunnel: [
+        { stage: "Jornaleiros", value: totalJornaleiros },
+        { stage: "Bancas criadas", value: totalBancas },
+        { stage: "Aprovadas", value: approvedBancas },
+        { stage: "Publicadas", value: publishedBancas },
+        { stage: "Com catalogo", value: publishedWithCatalog },
+        { stage: "Com pedidos", value: publishedWithOrders },
+      ],
       topSearches,
       topBancas,
       topProducts,
       distributorHealth,
+      operationSignals,
       alerts,
     });
   } catch (error: any) {

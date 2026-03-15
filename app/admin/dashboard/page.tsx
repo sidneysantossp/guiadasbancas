@@ -9,6 +9,9 @@ type DashboardSummary = {
   total_bancas: number;
   active_bancas: number;
   pending_bancas: number;
+  published_bancas: number;
+  bancas_with_catalog: number;
+  catalog_without_orders: number;
   total_orders_period: number;
   orders_today: number;
   open_orders: number;
@@ -121,13 +124,13 @@ export default function AdminDashboardPage() {
     return [
       {
         title: "Rede de bancas",
-        value: `${summary.active_bancas}/${summary.total_bancas}`,
-        helper: `${summary.pending_bancas} aguardando tratamento no onboarding ou aprovacao`,
+        value: `${summary.published_bancas}/${summary.total_bancas}`,
+        helper: `${summary.bancas_with_catalog} com catalogo e ${summary.pending_bancas} aguardando tratamento`,
       },
       {
         title: "Pedidos e operacao",
         value: `${summary.orders_today}`,
-        helper: `${summary.open_orders} em aberto e ${summary.total_orders_period} no recorte de 30 dias`,
+        helper: `${summary.open_orders} em aberto e ${summary.catalog_without_orders} bancas com catalogo sem pedido`,
       },
       {
         title: "Oferta ativa",
