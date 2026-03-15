@@ -24,7 +24,7 @@ export async function GET() {
     ] = await Promise.all([
       supabaseAdmin
         .from("orders")
-        .select("id, total, status, created_at, banca_id, bancas:banca_id(name)")
+        .select("id, total, status, created_at, banca_id, items, bancas:banca_id(name)")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(100),
@@ -75,6 +75,57 @@ export async function GET() {
       .sort((left, right) => right.orders - left.orders || right.total - left.total)
       .slice(0, 5);
 
+    const reorderMap = new Map<
+      string,
+      {
+        product_id: string;
+        product_name: string;
+        banca_name: string;
+        purchases: number;
+        quantity: number;
+        last_purchased_at: string;
+      }
+    >();
+
+    safeOrders
+      .filter((order: any) => ["completed", "entregue"].includes(String(order.status || "").toLowerCase()))
+      .forEach((order: any) => {
+        const bancaName = order?.bancas?.name || "Banca";
+        const createdAt = order?.created_at || null;
+        const items = Array.isArray(order?.items) ? order.items : [];
+
+        items.forEach((item: any) => {
+          const productId = String(item?.product_id || item?.id || item?.product_name || "").trim();
+          const productName = String(item?.product_name || item?.name || "Produto").trim();
+          if (!productId && !productName) return;
+
+          const key = productId || productName.toLowerCase();
+          const current = reorderMap.get(key) || {
+            product_id: productId || key,
+            product_name: productName,
+            banca_name: bancaName,
+            purchases: 0,
+            quantity: 0,
+            last_purchased_at: createdAt,
+          };
+
+          current.purchases += 1;
+          current.quantity += Number(item?.quantity || 0);
+          if (createdAt && (!current.last_purchased_at || Date.parse(createdAt) > Date.parse(current.last_purchased_at))) {
+            current.last_purchased_at = createdAt;
+          }
+
+          reorderMap.set(key, current);
+        });
+      });
+
+    const reorderCandidates = Array.from(reorderMap.values())
+      .sort((left, right) => {
+        if (right.purchases !== left.purchases) return right.purchases - left.purchases;
+        return Date.parse(right.last_purchased_at || "") - Date.parse(left.last_purchased_at || "");
+      })
+      .slice(0, 6);
+
     const recommendations = [
       totalOrders === 0
         ? {
@@ -100,6 +151,12 @@ export async function GET() {
             description: `Sua conta tem ${availableCoupons} cupom(ns) disponivel(is) para bancas com historico ou relevancia para voce.`,
           }
         : null,
+      reorderCandidates.length > 0
+        ? {
+            title: "Revisite itens com recompra potencial",
+            description: `Sua conta ja mostra ${reorderCandidates.length} produto(s) com historico de recompra ou recorrencia.`,
+          }
+        : null,
     ].filter(Boolean);
 
     return NextResponse.json({
@@ -122,6 +179,7 @@ export async function GET() {
           banca_name: order?.bancas?.name || "Banca",
         })),
         top_bancas: topBancas,
+        reorder_candidates: reorderCandidates,
         coupons: couponsData.items,
         recommendations,
       },

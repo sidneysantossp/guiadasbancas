@@ -28,6 +28,14 @@ type IntelligenceResponse = {
     orders: number;
     total: number;
   }>;
+  reorder_candidates: Array<{
+    product_id: string;
+    product_name: string;
+    banca_name: string;
+    purchases: number;
+    quantity: number;
+    last_purchased_at: string;
+  }>;
   recommendations: Array<{
     title: string;
     description: string;
@@ -260,6 +268,43 @@ function IntelligenceContent() {
                           {coupon.code}
                         </div>
                         <div className="mt-2 text-sm text-gray-600">{coupon.discount_text}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-base font-semibold text-gray-900">Oportunidades de recompra</h2>
+                  <Link href="/minha-conta/pedidos" className="text-sm font-semibold text-[#ff5c00] hover:opacity-80">
+                    Ver historico
+                  </Link>
+                </div>
+                <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {data.reorder_candidates.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-gray-300 px-4 py-5 text-sm text-gray-500 md:col-span-2 xl:col-span-3">
+                      Ainda nao ha itens suficientes para leitura de recompra.
+                    </div>
+                  ) : (
+                    data.reorder_candidates.map((candidate) => (
+                      <div key={`${candidate.product_id}:${candidate.last_purchased_at}`} className="rounded-xl border border-gray-200 p-3">
+                        <div className="text-sm font-semibold text-gray-900">{candidate.product_name}</div>
+                        <div className="mt-1 text-xs text-gray-500">{candidate.banca_name}</div>
+                        <div className="mt-3 grid gap-2 text-sm text-gray-600">
+                          <div className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
+                            <span>Compras</span>
+                            <span className="font-medium text-gray-800">{candidate.purchases}</span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
+                            <span>Qtd total</span>
+                            <span className="font-medium text-gray-800">{candidate.quantity}</span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
+                            <span>Ultima compra</span>
+                            <span className="font-medium text-gray-800">{new Date(candidate.last_purchased_at).toLocaleDateString("pt-BR")}</span>
+                          </div>
+                        </div>
                       </div>
                     ))
                   )}
