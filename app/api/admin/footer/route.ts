@@ -50,7 +50,7 @@ const getDefaultFooterData = (): FooterData => ({
     // Para você
     { id: '5', text: 'Minha conta', url: '/minha-conta/inteligencia', section: 'para_voce', order: 1, active: true },
     { id: '6', text: 'Pedidos', url: '/minha-conta?menu=pedidos', section: 'para_voce', order: 2, active: true },
-    { id: '7', text: 'Favoritos', url: '/minha-conta?menu=favoritos', section: 'para_voce', order: 3, active: true },
+    { id: '7', text: 'Favoritos', url: '/minha-conta/favoritos', section: 'para_voce', order: 3, active: true },
     { id: '8', text: 'Suporte', url: '/suporte', section: 'para_voce', order: 4, active: true },
     
     // Para o Jornaleiro

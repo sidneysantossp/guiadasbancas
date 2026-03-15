@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut as nextAuthSignOut } from "next-auth/react";
@@ -13,6 +14,7 @@ type IntelligenceResponse = {
     total_spent: number;
     average_ticket: number;
     favorites_count: number;
+    available_coupons: number;
   };
   recent_orders: Array<{
     id: string;
@@ -29,6 +31,14 @@ type IntelligenceResponse = {
   recommendations: Array<{
     title: string;
     description: string;
+  }>;
+  coupons: Array<{
+    id: string;
+    code: string;
+    title: string;
+    discount_text: string;
+    banca_name: string;
+    source_label: string;
   }>;
 };
 
@@ -132,7 +142,7 @@ function IntelligenceContent() {
             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-6 text-sm text-red-700">{error}</div>
           ) : data ? (
             <>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                 <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                   <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Pedidos</div>
                   <div className="mt-3 text-2xl font-semibold text-gray-900">{data.summary.total_orders}</div>
@@ -154,6 +164,11 @@ function IntelligenceContent() {
                   <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Favoritos</div>
                   <div className="mt-3 text-2xl font-semibold text-gray-900">{data.summary.favorites_count}</div>
                   <p className="mt-1 text-sm text-gray-500">Produtos salvos para comparar ou comprar depois.</p>
+                </div>
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Cupons ativos</div>
+                  <div className="mt-3 text-2xl font-semibold text-gray-900">{data.summary.available_coupons}</div>
+                  <p className="mt-1 text-sm text-gray-500">Beneficios com aderencia a sua conta.</p>
                 </div>
               </div>
 
@@ -220,6 +235,36 @@ function IntelligenceContent() {
                   </div>
                 </section>
               </div>
+
+              <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-base font-semibold text-gray-900">Cupons prontos para compra</h2>
+                  <Link href="/minha-conta/cupons" className="text-sm font-semibold text-[#ff5c00] hover:opacity-80">
+                    Ver cupons
+                  </Link>
+                </div>
+                <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {data.coupons.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-gray-300 px-4 py-5 text-sm text-gray-500 md:col-span-2 xl:col-span-3">
+                      Sua conta ainda nao tem cupons priorizados.
+                    </div>
+                  ) : (
+                    data.coupons.map((coupon) => (
+                      <div key={`${coupon.id}:${coupon.code}`} className="rounded-xl border border-gray-200 p-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ff5c00]">
+                          {coupon.source_label}
+                        </div>
+                        <div className="mt-2 text-sm font-semibold text-gray-900">{coupon.title}</div>
+                        <div className="mt-1 text-xs text-gray-500">{coupon.banca_name}</div>
+                        <div className="mt-3 inline-flex rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-extrabold tracking-[0.12em] text-[#ff5c00]">
+                          {coupon.code}
+                        </div>
+                        <div className="mt-2 text-sm text-gray-600">{coupon.discount_text}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
             </>
           ) : null}
         </main>

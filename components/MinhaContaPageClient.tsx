@@ -9,17 +9,6 @@ import { signOut as nextAuthSignOut, useSession } from "next-auth/react";
 import MinhaContaSidebar from "@/components/minha-conta/MinhaContaSidebar";
 import type { MinhaContaMenuKey } from "@/lib/minha-conta-navigation";
 
-type Coupon = {
-  id: string;
-  code: string;
-  label: string;
-  type: "percent" | "free_shipping";
-  value: number;
-  min: number;
-  start: string;
-  end: string;
-};
-
 type AccountOrder = {
   id: string;
   total: number;
@@ -32,18 +21,6 @@ type AccountOrder = {
     product_image?: string;
     quantity?: number;
   }>;
-};
-
-type FavoriteItem = {
-  id: string;
-  product_id: string;
-  created_at: string;
-  products?: {
-    id: string;
-    name: string;
-    price: number;
-    images?: string[];
-  };
 };
 
 type AccountAddress = {
@@ -74,7 +51,7 @@ type AccountProfile = {
   email_editable: boolean;
 };
 
-const ROOT_ACCOUNT_MENUS: MinhaContaMenuKey[] = ["perfil", "pedidos", "favoritos", "cupons"];
+const ROOT_ACCOUNT_MENUS: MinhaContaMenuKey[] = ["perfil", "pedidos"];
 
 function resolveRootMenu(value: string | null | undefined): MinhaContaMenuKey | null {
   if (!value) return null;
@@ -82,14 +59,6 @@ function resolveRootMenu(value: string | null | undefined): MinhaContaMenuKey | 
     return value as MinhaContaMenuKey;
   }
   return null;
-}
-
-function getSeedCoupons() {
-  return [
-    { id: "c10", code: "OFF10", label: "10% OFF", type: "percent", value: 10, min: 50, start: "2023-02-07", end: "2025-12-01" },
-    { id: "c20", code: "OFF20", label: "20% OFF", type: "percent", value: 20, min: 300, start: "2023-02-07", end: "2025-12-01" },
-    { id: "cfd", code: "FRETEGRATIS", label: "Frete Grátis", type: "free_shipping", value: 0, min: 150, start: "2023-02-07", end: "2025-12-01" },
-  ] as Coupon[];
 }
 
 function MinhaContaPageContent() {
@@ -108,12 +77,8 @@ function MinhaContaPageContent() {
   const [ordersTab, setOrdersTab] = useState<"andamento" | "concluidos" | "cancelados">("andamento");
   const [orders, setOrders] = useState<AccountOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
-  const [wishlistItems, setWishlistItems] = useState<FavoriteItem[]>([]);
-  const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [addresses, setAddresses] = useState<AccountAddress[]>([]);
   const [addressesLoading, setAddressesLoading] = useState(false);
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [userCreatedAt, setUserCreatedAt] = useState<string | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -208,7 +173,17 @@ function MinhaContaPageContent() {
   useEffect(() => {
     if (status !== "authenticated") return;
 
-    const queryMenu = resolveRootMenu(searchParams?.get("menu") || searchParams?.get("tab"));
+    const rawMenu = searchParams?.get("menu") || searchParams?.get("tab");
+    if (rawMenu === "favoritos") {
+      router.replace("/minha-conta/favoritos");
+      return;
+    }
+    if (rawMenu === "cupons") {
+      router.replace("/minha-conta/cupons");
+      return;
+    }
+
+    const queryMenu = resolveRootMenu(rawMenu);
 
     try {
       const storedMenu = resolveRootMenu(localStorage.getItem("gb:dashboardActiveMenu"));
@@ -227,26 +202,7 @@ function MinhaContaPageContent() {
     } else {
       setEditingProfile(false);
     }
-  }, [searchParams, status]);
-
-  useEffect(() => {
-    try {
-      const couponsRaw = localStorage.getItem("gb:coupons");
-      if (couponsRaw) {
-        const parsedCoupons = JSON.parse(couponsRaw);
-        if (Array.isArray(parsedCoupons)) {
-          setCoupons(parsedCoupons);
-          return;
-        }
-      }
-
-      const seed = getSeedCoupons();
-      setCoupons(seed);
-      localStorage.setItem("gb:coupons", JSON.stringify(seed));
-    } catch {
-      setCoupons(getSeedCoupons());
-    }
-  }, []);
+  }, [router, searchParams, status]);
 
   useEffect(() => {
     if (status !== "authenticated" || !session?.user) return;
@@ -256,7 +212,6 @@ function MinhaContaPageContent() {
     const loadAccountData = async () => {
       setProfileLoading(true);
       setOrdersLoading(true);
-      setFavoritesLoading(true);
       setAddressesLoading(true);
 
       let localProfileFallback: any = null;
@@ -273,7 +228,7 @@ function MinhaContaPageContent() {
       } catch {}
 
       try {
-        const [profileResponse, addressesResponse, ordersResponse, favoritesResponse] = await Promise.all([
+        const [profileResponse, addressesResponse, ordersResponse] = await Promise.all([
           fetch("/api/minha-conta/profile", {
             credentials: "include",
             cache: "no-store",
@@ -286,17 +241,12 @@ function MinhaContaPageContent() {
             credentials: "include",
             cache: "no-store",
           }),
-          fetch("/api/favorites", {
-            credentials: "include",
-            cache: "no-store",
-          }),
         ]);
 
-        const [profileJson, addressesJson, ordersJson, favoritesJson] = await Promise.all([
+        const [profileJson, addressesJson, ordersJson] = await Promise.all([
           profileResponse.json().catch(() => null),
           addressesResponse.json().catch(() => null),
           ordersResponse.json().catch(() => null),
-          favoritesResponse.json().catch(() => null),
         ]);
 
         if (active) {
@@ -327,18 +277,11 @@ function MinhaContaPageContent() {
           } else {
             setOrders([]);
           }
-
-          if (favoritesResponse.ok && favoritesJson?.success) {
-            setWishlistItems(favoritesJson.data || []);
-          } else {
-            setWishlistItems([]);
-          }
         }
       } finally {
         if (active) {
           setProfileLoading(false);
           setOrdersLoading(false);
-          setFavoritesLoading(false);
           setAddressesLoading(false);
         }
       }
@@ -464,7 +407,7 @@ function MinhaContaPageContent() {
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard label="Pedidos" value={orders.length} description="Compras registradas na plataforma." />
             <MetricCard label="Em andamento" value={inProgressOrders.length} description="Pedidos que ainda exigem acompanhamento." />
-            <MetricCard label="Favoritos" value={wishlistItems.length} description="Produtos salvos para comparar ou comprar." />
+            <MetricCard label="Enderecos" value={addresses.length} description="Bases salvas para checkout e entrega." />
             <MetricCard
               label="Total gasto"
               value={new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalSpent)}
@@ -703,112 +646,6 @@ function MinhaContaPageContent() {
             </div>
           ) : null}
 
-          {activeMenu === "favoritos" ? (
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                <div className="font-semibold">Objetivo desta area</div>
-                <p className="mt-2 text-blue-800">
-                  Guardar produtos e interesses para decidir melhor depois, sem perder o que voce ja pesquisou.
-                </p>
-              </div>
-
-              {favoritesLoading ? (
-                <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
-                  Carregando favoritos...
-                </div>
-              ) : wishlistItems.length === 0 ? (
-                <div className="grid place-items-center rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-600">
-                  <div className="font-semibold">Voce ainda nao tem favoritos</div>
-                  <div className="mt-1 text-gray-500">Salve produtos para consultar depois ou comprar com menos atrito.</div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {wishlistItems.map((favorite) => {
-                    const product = favorite.products;
-                    if (!product) return null;
-
-                    return (
-                      <div key={favorite.id} className="rounded-xl border border-gray-200 bg-white p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="relative h-16 w-16 overflow-hidden rounded-md border border-gray-200 bg-gray-50">
-                            {product.images?.[0] ? (
-                              <Image src={product.images[0]} alt={product.name} fill sizes="64px" className="object-cover" />
-                            ) : null}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-semibold text-gray-900">{product.name}</div>
-                            <div className="text-xs text-gray-500">
-                              {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(product.price || 0))}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-3 flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold hover:bg-gray-50"
-                            onClick={async () => {
-                              await fetch(`/api/favorites?product_id=${encodeURIComponent(product.id)}`, {
-                                method: "DELETE",
-                                credentials: "include",
-                              });
-                              setWishlistItems((current) => current.filter((item) => item.product_id !== product.id));
-                            }}
-                          >
-                            Remover
-                          </button>
-                          <Link href={`/produto/${product.id}` as Route} className="rounded-md bg-[#ff5c00] px-3 py-1.5 text-sm font-semibold text-white hover:opacity-95">
-                            Ver produto
-                          </Link>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          {activeMenu === "cupons" ? (
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                <div className="font-semibold">Objetivo desta area</div>
-                <p className="mt-2 text-blue-800">
-                  Organizar incentivos de compra e facilitar o uso dos beneficios no checkout sem depender de busca manual por codigo.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                {coupons.map((coupon) => (
-                  <div key={coupon.id} className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-sm font-extrabold text-gray-900">{coupon.label}</div>
-                        <div className="text-[12px] text-gray-600">{formatRange(coupon.start, coupon.end)}</div>
-                        <div className="text-[12px] text-gray-500">Compra minima R$ {coupon.min.toFixed(2)}</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(coupon.code);
-                            setCopiedCode(coupon.code);
-                            setTimeout(() => setCopiedCode(null), 1500);
-                          } catch {}
-                          try {
-                            localStorage.setItem("gb:checkout:coupon", coupon.code);
-                          } catch {}
-                          router.push("/checkout");
-                        }}
-                        className="shrink-0 rounded-md border border-orange-300 px-3 py-1.5 text-sm font-semibold text-orange-600 hover:bg-orange-50"
-                      >
-                        {copiedCode === coupon.code ? "Copiado!" : "Usar cupom"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
         </main>
       </div>
     </section>
@@ -890,15 +727,6 @@ function formatJoined(dateStr: string) {
     const date = new Date(dateStr);
     const formatted = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
     return `Entrou em ${formatted.replace(/\./g, "")}`;
-  } catch {
-    return "";
-  }
-}
-
-function formatRange(start: string, end: string) {
-  try {
-    const formatter = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
-    return `${formatter.format(new Date(start)).replace(/\./g, "")} a ${formatter.format(new Date(end)).replace(/\./g, "")}`;
   } catch {
     return "";
   }

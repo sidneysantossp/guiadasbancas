@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getPersonalizedCouponsForUser } from "@/lib/minha-conta-coupons";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const FINAL_ORDER_STATUSES = ["completed", "entregue", "cancelled", "cancelado", "canceled"];
@@ -16,7 +17,11 @@ export async function GET() {
       return NextResponse.json({ error: "Usuário inválido" }, { status: 401 });
     }
 
-    const [{ data: orders, error: ordersError }, { count: favoritesCount, error: favoritesError }] = await Promise.all([
+    const [
+      { data: orders, error: ordersError },
+      { count: favoritesCount, error: favoritesError },
+      couponsData,
+    ] = await Promise.all([
       supabaseAdmin
         .from("orders")
         .select("id, total, status, created_at, banca_id, bancas:banca_id(name)")
@@ -27,6 +32,17 @@ export async function GET() {
         .from("user_favorites")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId),
+      getPersonalizedCouponsForUser(userId, 6).catch((couponError) => {
+        console.warn("[API Minha Conta Inteligencia] Falha ao carregar cupons:", couponError);
+        return {
+          summary: {
+            available_count: 0,
+            expiring_soon_count: 0,
+            recent_bancas_count: 0,
+          },
+          items: [],
+        };
+      }),
     ]);
 
     if (ordersError) {
@@ -44,6 +60,7 @@ export async function GET() {
       .filter((order) => !["cancelled", "cancelado", "canceled"].includes(String(order.status || "").toLowerCase()))
       .reduce((sum, order) => sum + Number(order.total || 0), 0);
     const averageTicket = totalOrders > 0 ? totalSpent / Math.max(totalOrders, 1) : 0;
+    const availableCoupons = couponsData.summary.available_count;
 
     const topBancasMap = new Map<string, { bancaName: string; orders: number; total: number }>();
     safeOrders.forEach((order: any) => {
@@ -77,6 +94,12 @@ export async function GET() {
             description: "Salve produtos e bancas de interesse para comprar com menos atrito depois.",
           }
         : null,
+      availableCoupons > 0
+        ? {
+            title: "Aproveite seus cupons ativos",
+            description: `Sua conta tem ${availableCoupons} cupom(ns) disponivel(is) para bancas com historico ou relevancia para voce.`,
+          }
+        : null,
     ].filter(Boolean);
 
     return NextResponse.json({
@@ -89,6 +112,7 @@ export async function GET() {
           total_spent: totalSpent,
           average_ticket: averageTicket,
           favorites_count: favoritesCount || 0,
+          available_coupons: availableCoupons,
         },
         recent_orders: safeOrders.slice(0, 5).map((order: any) => ({
           id: order.id,
@@ -98,6 +122,7 @@ export async function GET() {
           banca_name: order?.bancas?.name || "Banca",
         })),
         top_bancas: topBancas,
+        coupons: couponsData.items,
         recommendations,
       },
     });

@@ -24,6 +24,7 @@ export async function GET(req: Request) {
           id,
           name,
           price,
+          banca_id,
           images,
           rating_avg,
           reviews_count

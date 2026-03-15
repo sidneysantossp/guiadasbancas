@@ -865,7 +865,7 @@ useEffect(() => {
                       <div className="absolute right-0 top-full z-40 mt-3 w-56 rounded-2xl border border-gray-200 bg-white shadow-xl">
                         <div className="py-1 text-sm">
                           <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ router.push('/minha-conta'); setAccountOpen(false); }}>Meu Perfil</button>
-                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ router.push('/minha-conta?menu=favoritos'); setAccountOpen(false); }}>Meus Favoritos</button>
+                          <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ router.push('/minha-conta/favoritos'); setAccountOpen(false); }}>Meus Favoritos</button>
                           <button className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={()=>{ router.push('/minha-conta?menu=pedidos'); setAccountOpen(false); }}>Minhas compras</button>
                           <JornaleiroAdminLinks onClose={() => setAccountOpen(false)} />
                           <div className="h-px bg-gray-100 my-1" />

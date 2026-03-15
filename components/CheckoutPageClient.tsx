@@ -2,17 +2,31 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCart } from "@/components/CartContext";
 import { useSession } from "next-auth/react";
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { shippingConfig } from "@/components/shippingConfig";
 import FreeShippingProgress from "@/components/FreeShippingProgress";
+import { computeCouponDiscount } from "@/lib/coupon-engine";
+
+type AppliedCoupon = {
+  code: string;
+  title: string;
+  discountText: string;
+  benefitType: "percent" | "fixed" | "free_shipping" | "unknown";
+  benefitValue: number | null;
+  scope: "items" | "shipping";
+  discountAmount: number;
+  sellerId: string;
+  expiresAt: string | null;
+};
 
 
 export default function CheckoutPageClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { items, totalCount, addToCart, removeFromCart, clearCart } = useCart();
   const { data: session, status: sessionStatus } = useSession();
   const { show } = useToast();
@@ -22,7 +36,8 @@ export default function CheckoutPageClient() {
   
   // Cupom e frete
   const [coupon, setCoupon] = useState("");
-  const [couponApplied, setCouponApplied] = useState<string | null>(null);
+  const [couponApplied, setCouponApplied] = useState<AppliedCoupon | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
   // Dados simples do formulário
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -67,6 +82,7 @@ export default function CheckoutPageClient() {
   // CEP e estimativa Correios
   const [destCEP, setDestCEP] = useState("");
   const [cepTouched, setCepTouched] = useState(false);
+  const firstBancaId = useMemo(() => items.find((item) => (item as any).banca_id)?.banca_id || "", [items]);
   // CEP helpers
   const onlyDigits = useCallback((s: string) => s.replace(/\D/g, ""), []);
   const formatCEP = useCallback((digits: string) => {
@@ -142,7 +158,7 @@ export default function CheckoutPageClient() {
         if (p.uf) setUf((v)=> v || p.uf!);
         if (p.complement) setComplement((v)=> v || p.complement!);
         if ((p as any).coupon) setCoupon((p as any).coupon as string);
-        if ((p as any).couponApplied) setCouponApplied((p as any).couponApplied as string);
+        if ((p as any).couponApplied) setCoupon((v)=> v || ((p as any).couponApplied as string));
         if ((p as any).payment) setPayment((p as any).payment as string);
         if ((p as any).paymentChange) setPaymentChange((p as any).paymentChange as string);
       }
@@ -154,12 +170,31 @@ export default function CheckoutPageClient() {
     try {
       const payload = {
         name, email, phone, destCEP, street, houseNumber, neighborhood, city, uf, complement,
-        coupon, couponApplied,
+        coupon, couponApplied: couponApplied?.code || null,
         payment, paymentChange,
       };
       localStorage.setItem("gb:checkout:profile", JSON.stringify(payload));
     } catch {}
-  }, [name, email, phone, destCEP, street, houseNumber, neighborhood, city, uf, complement, coupon, couponApplied, payment, paymentChange]);
+  }, [city, complement, coupon, couponApplied?.code, destCEP, email, houseNumber, name, neighborhood, payment, paymentChange, phone, street, uf]);
+
+  useEffect(() => {
+    const queryCoupon = String(searchParams?.get("coupon") || "").trim().toUpperCase();
+    let presetCoupon = queryCoupon;
+
+    if (!presetCoupon) {
+      try {
+        const storedCoupon = String(localStorage.getItem("gb:checkout:coupon") || "").trim().toUpperCase();
+        if (storedCoupon) presetCoupon = storedCoupon;
+      } catch {}
+    }
+
+    if (!presetCoupon) return;
+
+    setCoupon((current) => current || presetCoupon);
+    try {
+      localStorage.removeItem("gb:checkout:coupon");
+    } catch {}
+  }, [searchParams]);
 
   // Buscar configuração de entrega da banca
   useEffect(() => {
@@ -188,12 +223,6 @@ export default function CheckoutPageClient() {
   const [shipError, setShipError] = useState<string | null>(null);
   const [shipping, setShipping] = useState<"retirada" | "SEDEX" | "MOTOBOY">("retirada");
 
-  const discount = useMemo(() => {
-    if (!couponApplied) return 0;
-    if (couponApplied === "DESCONTO10") return subtotal * 0.1;
-    return 0;
-  }, [couponApplied, subtotal]);
-
   // Máscara BRL para "Troco para"
   const maskBRL = useCallback((v: string) => {
     const digits = (v || "").replace(/\D+/g, "");
@@ -218,7 +247,83 @@ export default function CheckoutPageClient() {
 
   const shippingCost = freeShippingActive ? 0 : selectedCarrierPrice;
 
-  const total = Math.max(0, subtotal - discount) + shippingCost;
+  const couponPricing = useMemo(() => {
+    if (!couponApplied) {
+      return {
+        amount: 0,
+        scope: "items" as const,
+      };
+    }
+
+    return computeCouponDiscount({
+      discountText: couponApplied.discountText,
+      subtotal,
+      shippingFee: shippingCost,
+    });
+  }, [couponApplied, shippingCost, subtotal]);
+
+  const itemsCouponDiscount = couponPricing.scope === "items" ? couponPricing.amount : 0;
+  const shippingCouponDiscount = couponPricing.scope === "shipping" ? couponPricing.amount : 0;
+  const effectiveShippingCost = Math.max(0, shippingCost - shippingCouponDiscount);
+  const total = Math.max(0, subtotal - itemsCouponDiscount) + effectiveShippingCost;
+
+  const applyCoupon = useCallback(async () => {
+    const code = coupon.trim().toUpperCase();
+    if (!code) {
+      show("Digite um cupom");
+      return;
+    }
+    if (!firstBancaId) {
+      show("Adicione um produto ao carrinho para aplicar cupom");
+      return;
+    }
+
+    try {
+      setCouponLoading(true);
+      const params = new URLSearchParams({
+        code,
+        sellerId: firstBancaId,
+        subtotal: String(subtotal),
+        shipping: String(shippingCost),
+      });
+
+      const response = await fetch(`/api/coupons/validate?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const json = await response.json().catch(() => null);
+
+      if (!response.ok || !json?.ok) {
+        setCouponApplied(null);
+        show(json?.error || "Cupom invalido");
+        return;
+      }
+
+      setCouponApplied({
+        code: json.data.code,
+        title: json.data.title,
+        discountText: json.data.discountText,
+        benefitType: json.data.benefitType,
+        benefitValue: json.data.benefitValue,
+        scope: json.data.scope,
+        discountAmount: Number(json.data.discountAmount || 0),
+        sellerId: json.data.sellerId,
+        expiresAt: json.data.expiresAt || null,
+      });
+      setCoupon(code);
+      show(`Cupom aplicado: ${json.data.discountText}`);
+    } catch {
+      setCouponApplied(null);
+      show("Nao foi possivel validar o cupom");
+    } finally {
+      setCouponLoading(false);
+    }
+  }, [coupon, firstBancaId, shippingCost, show, subtotal]);
+
+  useEffect(() => {
+    if (!couponApplied) return;
+    if (!firstBancaId || couponApplied.sellerId === firstBancaId) return;
+    setCouponApplied(null);
+  }, [couponApplied, firstBancaId]);
 
   // Usar NextAuth session para verificar se usuário está logado
   useEffect(() => {
@@ -715,7 +820,6 @@ export default function CheckoutPageClient() {
     // Enviar pedido ao endpoint mock
     try {
       const genTxn = () => `TXN-${Date.now()}`;
-      const firstBancaId = items.find(it => (it as any).banca_id)?.banca_id || undefined;
       const payload = {
         customer: { name, email, phone },
         // Endereço só é enviado se NÃO for retirada
@@ -723,18 +827,18 @@ export default function CheckoutPageClient() {
           ? { street: "", houseNumber: "", neighborhood: "", city: "", uf: "", complement: "", cep: "" }
           : { street, houseNumber, neighborhood, city, uf, complement, cep: destCEP },
         items: items.map(it => ({ id: it.id, name: it.name, qty: it.qty, price: it.price, image: it.image, banca_id: (it as any).banca_id })),
-        banca_id: firstBancaId,
+        banca_id: firstBancaId || undefined,
         pricing: { 
           subtotal, 
           discount: 0, // desconto geral (não cupom)
-          couponDiscount: discount, // desconto do cupom
+          couponDiscount: couponPricing.amount, // desconto do cupom
           tax: 0, 
           addons: 0, // adicionais (se houver no futuro)
           shipping: shippingCost, 
           total 
         },
         shippingMethod: shipping,
-        coupon: couponApplied,
+        coupon: couponApplied?.code || null,
         payment,
         paymentChange: payment === 'cash' ? parseBRL(paymentChange || '') : undefined,
         paymentTxnId: payment === 'pix' || payment === 'card' ? genTxn() : undefined,
@@ -1024,7 +1128,10 @@ export default function CheckoutPageClient() {
                   />
                   {couponApplied ? (
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[12px] font-semibold">Aplicado: {couponApplied}</span>
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[12px] font-semibold">
+                        Aplicado: {couponApplied.code}
+                      </span>
+                      <span className="text-[12px] text-emerald-700">{couponApplied.discountText}</span>
                       <button
                         type="button"
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold hover:bg-gray-50"
@@ -1037,19 +1144,16 @@ export default function CheckoutPageClient() {
                     <button
                       type="button"
                       className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-60"
-                      onClick={()=> {
-                        const code = coupon.trim().toUpperCase();
-                        if (!code) { show('Digite um cupom'); return; }
-                        if (code === 'DESCONTO10') { setCouponApplied(code); show('Cupom aplicado: 10% OFF'); }
-                        else { show('Cupom inválido'); }
-                      }}
-                      disabled={!coupon}
+                      onClick={applyCoupon}
+                      disabled={!coupon || couponLoading}
                     >
-                      Aplicar
+                      {couponLoading ? "Validando..." : "Aplicar"}
                     </button>
                   )}
                 </div>
-                <div className="mt-1 text-[12px] text-gray-600">Use o cupom DESCONTO10 para 10% OFF nos itens.</div>
+                <div className="mt-1 text-[12px] text-gray-600">
+                  Use um cupom ativo da banca atual. Se vier da sua conta, ele sera pre-preenchido aqui.
+                </div>
               </div>
             </div>
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
@@ -1204,11 +1308,11 @@ export default function CheckoutPageClient() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-600">Desconto do Cupom</span>
-              <span className="text-emerald-700">(-) R$ {discount.toFixed(2)}</span>
+              <span className="text-emerald-700">(-) R$ {couponPricing.amount.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-600">Taxa de Entrega</span>
-              <span className="font-semibold">R$ {shippingCost.toFixed(2)}</span>
+              <span className="font-semibold">R$ {effectiveShippingCost.toFixed(2)}</span>
             </div>
             <div className="h-px bg-gray-200 my-1" />
             <div className="flex items-center justify-between text-base">

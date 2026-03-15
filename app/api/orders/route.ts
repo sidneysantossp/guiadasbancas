@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendOrderWhatsAppNotification, sendStatusWhatsAppUpdate, type OrderWhatsAppData } from "@/lib/whatsapp";
 import { auth } from "@/lib/auth";
+import { computeCouponDiscount, isCouponActive } from "@/lib/coupon-engine";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
 import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
@@ -250,6 +251,48 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Banca não encontrada" }, { status: 404 });
     }
 
+    const normalizedSubtotal = Number(pricing.subtotal || 0);
+    const normalizedBaseDiscount = Number(pricing.discount || 0);
+    const normalizedShippingFee = Number(pricing.shipping || 0);
+    const normalizedTax = Number(pricing.tax || 0);
+    const normalizedAddons = Number(pricing.addons || 0);
+
+    let validatedCouponCode: string | null = body.coupon ? String(body.coupon).trim().toUpperCase() : null;
+    let validatedCouponDiscount = 0;
+
+    if (validatedCouponCode) {
+      const { data: couponRows, error: couponError } = await supabaseAdmin
+        .from("coupons")
+        .select("id, seller_id, code, discount_text, active, expires_at")
+        .eq("code", validatedCouponCode)
+        .eq("seller_id", inferredBancaId)
+        .eq("active", true)
+        .limit(5);
+
+      if (couponError) {
+        console.warn("[API/ORDERS/POST] Falha ao validar cupom:", couponError);
+      } else {
+        const validCoupon = (couponRows || []).find((coupon: any) =>
+          isCouponActive(Boolean(coupon.active), coupon.expires_at || null),
+        );
+
+        if (validCoupon) {
+          validatedCouponDiscount = computeCouponDiscount({
+            discountText: validCoupon.discount_text || "",
+            subtotal: normalizedSubtotal,
+            shippingFee: normalizedShippingFee,
+          }).amount;
+        } else {
+          validatedCouponCode = null;
+        }
+      }
+    }
+
+    const normalizedTotal = Math.max(
+      0,
+      normalizedSubtotal - normalizedBaseDiscount - validatedCouponDiscount + normalizedShippingFee + normalizedTax + normalizedAddons,
+    );
+
     // Gerar número do pedido no formato: BAN-AAAA-TIMESTAMP (ex: BAN-2025-1735000000)
     // BAN = primeiras 3 letras do nome da banca (maiúsculas, sem acentos)
     // AAAA = ano atual
@@ -281,17 +324,17 @@ export async function POST(req: NextRequest) {
         customer_address: fullAddress,
         banca_id: inferredBancaId,
         items: orderItems,
-        subtotal: pricing.subtotal || 0,
-        shipping_fee: pricing.shipping || 0,
-        total: pricing.total || 0,
+        subtotal: normalizedSubtotal,
+        shipping_fee: normalizedShippingFee,
+        total: normalizedTotal,
         status: "novo",
         payment_method: body.payment || "pix",
         notes: body.shippingMethod ? `Entrega: ${body.shippingMethod}` : "",
-        discount: pricing.discount || 0,
-        coupon_code: body.coupon || null,
-        coupon_discount: pricing.couponDiscount || 0,
-        tax: pricing.tax || 0,
-        addons_total: pricing.addons || 0
+        discount: normalizedBaseDiscount,
+        coupon_code: validatedCouponCode,
+        coupon_discount: validatedCouponDiscount,
+        tax: normalizedTax,
+        addons_total: normalizedAddons
       })
       .select()
       .single();
@@ -307,6 +350,7 @@ export async function POST(req: NextRequest) {
       orderNumber, 
       customer: customer.name, 
       total: pricing.total, 
+      totalCalculado: normalizedTotal,
       banca: banca.name 
     });
     
@@ -350,7 +394,7 @@ export async function POST(req: NextRequest) {
             orderItems.map((item, i) =>
               `${i + 1}. ${item.product_name}\n   Qtd: ${item.quantity}x | Valor: R$ ${item.unit_price.toFixed(2)}`
             ).join('\n') +
-            `\n\n💰 *Total:* R$ ${(pricing.total || 0).toFixed(2)}\n` +
+            `\n\n💰 *Total:* R$ ${normalizedTotal.toFixed(2)}\n` +
             `🚚 *Entrega:* ${body.shippingMethod || 'Não especificado'}\n` +
             `💳 *Pagamento:* ${body.payment || 'pix'}\n` +
             (fullAddress ? `📍 *Endereço:* ${fullAddress}\n` : '') +
