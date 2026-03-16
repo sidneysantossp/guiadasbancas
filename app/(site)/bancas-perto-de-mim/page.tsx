@@ -1,4 +1,5 @@
 import BancasPertoDeMimPageClient from "@/components/BancasPertoDeMimPageClient";
+import WorldCupClusterLinks from "@/components/seo/WorldCupClusterLinks";
 import { getMergedCategories } from "@/lib/data/categories";
 import { getAdminBancas } from "@/lib/data/bancas";
 
@@ -23,9 +24,18 @@ export default async function BancasPertoDeMimPage() {
   }));
 
   return (
-    <BancasPertoDeMimPageClient
-      initialBancas={initialBancas ?? undefined}
-      initialCategories={initialCategories}
-    />
+    <>
+      <div className="container-max pt-10 md:pt-12">
+        <WorldCupClusterLinks
+          variant="compact"
+          title="Use a busca local para encontrar bancas com potencial para a Copa 2026"
+          description="Esta é uma das URLs mais fortes para intenção geográfica. Ela conecta descoberta por proximidade com álbum, figurinhas, troca e recompra da coleção."
+        />
+      </div>
+      <BancasPertoDeMimPageClient
+        initialBancas={initialBancas ?? undefined}
+        initialCategories={initialCategories}
+      />
+    </>
   );
 }

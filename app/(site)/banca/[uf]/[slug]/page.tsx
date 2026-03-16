@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import BancaPageClient from "@/components/BancaPageClient";
+import WorldCupClusterLinks from "@/components/seo/WorldCupClusterLinks";
 import { toBancaSlug } from "@/lib/slug";
 import { getAdminBancaById, getAdminBancasAll } from "@/lib/data/bancas";
+import { findWorldCupCityByAddress, isWorldCupRelevantText } from "@/lib/seo/world-cup-2026";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -98,10 +100,16 @@ export default async function BancaSlugPage({ params }: { params: { uf: string; 
 
   // Tenta buscar dados reais da banca para JSON-LD
   let ld: any = null;
+  let bancaSeoContext: { name: string; address: string; categoriesText: string } | null = null;
   try {
     const targetId = resolvedId || heuristicId || slug;
     const b = await getAdminBancaById(targetId);
     if (b) {
+      bancaSeoContext = {
+        name: String(b.name || name),
+        address: String(b.address || [b.addressObj?.street, b.addressObj?.city, b.addressObj?.uf].filter(Boolean).join(", ")),
+        categoriesText: Array.isArray(b.categories) ? b.categories.join(" ") : "",
+      };
       const sameAs: string[] = [];
       if (b.socials?.facebook) sameAs.push(b.socials.facebook);
       if (b.socials?.instagram) sameAs.push(b.socials.instagram);
@@ -168,6 +176,13 @@ export default async function BancaSlugPage({ params }: { params: { uf: string; 
       { "@type": "ListItem", position: 4, name: name, item: url },
     ],
   };
+  const matchedCity = findWorldCupCityByAddress(bancaSeoContext?.address);
+  const showWorldCupCluster = Boolean(
+    matchedCity ||
+      isWorldCupRelevantText(
+        `${bancaSeoContext?.name || name} ${bancaSeoContext?.categoriesText || ""} ${bancaSeoContext?.address || ""}`
+      )
+  );
   // Por hora usamos o slug como identificador mock da banca.
   // Quando integrarmos com o backend, buscaremos por (uf, slug) -> bancaId e preencheremos JSON-LD real.
   return (
@@ -175,6 +190,45 @@ export default async function BancaSlugPage({ params }: { params: { uf: string; 
       <script suppressHydrationWarning type="application/ld+json" dangerouslySetInnerHTML={{ __html: toSafeJsonLd(ld) }} />
       <script suppressHydrationWarning type="application/ld+json" dangerouslySetInnerHTML={{ __html: toSafeJsonLd(breadcrumbLd) }} />
       <BancaPageClient bancaId={resolvedId || heuristicId || slug} />
+      {showWorldCupCluster ? (
+        <div className="container-max pb-16">
+          <WorldCupClusterLinks
+            variant="compact"
+            title={
+              matchedCity
+                ? `Coleciona em ${matchedCity.city}? Explore o especial da Copa 2026`
+                : "Explore o cluster da Copa 2026 dentro do marketplace"
+            }
+            description={
+              matchedCity
+                ? "Use esta banca como ponto de apoio local e continue a jornada em páginas de compra, preço e troca de figurinhas da Copa 2026."
+                : "Este bloco liga a banca pública às páginas mais fortes do cluster da Copa 2026, com foco em compra local, preço e recorrência."
+            }
+            links={[
+              {
+                href: "/copa-2026/onde-comprar",
+                title: "Onde comprar figurinhas da Copa 2026",
+                description: "Página transacional principal com cidades, bancas e categorias ligadas à coleção.",
+              },
+              {
+                href: "/copa-2026/figurinhas-da-copa-2026",
+                title: "Figurinhas da Copa 2026",
+                description: "Entrada comercial para pacotes, cromos, kits e produtos com intenção forte de compra.",
+              },
+              {
+                href: "/copa-2026/troca-de-figurinhas",
+                title: "Troca de figurinhas da Copa 2026",
+                description: "Conteúdo utilitário para repetidas, faltantes e fechamento do álbum com menor custo.",
+              },
+            ]}
+            cityLinks={
+              matchedCity
+                ? [{ href: `/copa-2026/onde-comprar/${matchedCity.slug}`, label: `${matchedCity.label}` }]
+                : undefined
+            }
+          />
+        </div>
+      ) : null}
     </>
   );
 }

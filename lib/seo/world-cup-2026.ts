@@ -54,6 +54,7 @@ type ProductRow = {
 
 const SITE_URL = "https://www.guiadasbancas.com.br";
 const WORLD_CUP_CATEGORY_TERMS = ["figur", "album", "card", "panini", "adesiv", "colecion"];
+const WORLD_CUP_CONTEXT_TERMS = [...WORLD_CUP_CATEGORY_TERMS, "fifa", "futebol", "copa", "selecao"];
 const WORLD_CUP_PRODUCT_OR_TERMS = [
   "fifa",
   "world class",
@@ -243,6 +244,12 @@ function normalizeText(value: string) {
     .trim();
 }
 
+export function isWorldCupRelevantText(value?: string | null) {
+  const normalized = normalizeText(String(value || ""));
+  if (!normalized) return false;
+  return WORLD_CUP_CONTEXT_TERMS.some((term) => normalized.includes(term));
+}
+
 function slugifySegment(value: string) {
   return normalizeText(value).replace(/\s+/g, "-");
 }
@@ -356,6 +363,19 @@ export function buildWorldCupMetadata({
 
 export function getWorldCupCityBySlug(slug: string) {
   return WORLD_CUP_CITY_PAGES.find((city) => city.slug === slug) || null;
+}
+
+export function findWorldCupCityByAddress(address?: string | null) {
+  const normalizedAddress = normalizeText(String(address || ""));
+  if (!normalizedAddress) return null;
+
+  return (
+    WORLD_CUP_CITY_PAGES.find((city) => {
+      const cityMatch = city.aliases.some((alias) => normalizedAddress.includes(normalizeText(alias)));
+      if (!cityMatch) return false;
+      return normalizedAddress.includes(normalizeText(city.state));
+    }) || null
+  );
 }
 
 async function readPublicBancas(limit = 200): Promise<Array<{ id: string; name: string; address: string }>> {
