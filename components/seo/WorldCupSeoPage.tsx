@@ -35,6 +35,14 @@ type BancaCard = {
   address: string;
 };
 
+type ProductCard = {
+  href: string;
+  name: string;
+  image: string | null;
+  price: number | null;
+  context: string;
+};
+
 function toSafeJsonLd(value: unknown) {
   return JSON.stringify(value)
     .replace(/</g, "\\u003c")
@@ -42,6 +50,15 @@ function toSafeJsonLd(value: unknown) {
     .replace(/&/g, "\\u0026")
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
+}
+
+function formatCurrency(value: number | null) {
+  if (typeof value !== "number") return null;
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 export default function WorldCupSeoPage({
@@ -56,6 +73,7 @@ export default function WorldCupSeoPage({
   relatedLinks = [],
   cityLinks = [],
   bancas = [],
+  products = [],
   faqs = [],
   extraSchemas = [],
 }: {
@@ -70,6 +88,7 @@ export default function WorldCupSeoPage({
   relatedLinks?: LinkCard[];
   cityLinks?: LinkCard[];
   bancas?: BancaCard[];
+  products?: ProductCard[];
   faqs?: FaqItem[];
   extraSchemas?: unknown[];
 }) {
@@ -266,6 +285,54 @@ export default function WorldCupSeoPage({
             </aside>
           </div>
         </section>
+
+        {products.length > 0 ? (
+          <section className="container-max pb-8">
+            <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+              <div className="max-w-3xl">
+                <h2 className="text-2xl font-bold text-slate-900">Coleções e ofertas esportivas já publicadas</h2>
+                <p className="mt-3 text-base leading-8 text-slate-700">
+                  Esta camada aproxima o cluster da oferta real do marketplace. Em vez de depender só de páginas conceituais, ela passa a apontar para produtos e coleções esportivas que já ajudam a capturar a intenção do colecionador.
+                </p>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {products.map((product) => {
+                  const price = formatCurrency(product.price);
+                  return (
+                    <Link
+                      key={product.href}
+                      href={product.href}
+                      className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 transition-colors hover:border-[#ff5c00] hover:bg-orange-50"
+                    >
+                      <div className="aspect-[4/3] bg-slate-100">
+                        {product.image ? (
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center px-6 text-center text-sm font-medium text-slate-500">
+                            Colecionável esportivo publicado no marketplace
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-3 p-5">
+                        <div className="space-y-2">
+                          <h3 className="text-lg font-semibold leading-7 text-slate-900">{product.name}</h3>
+                          <p className="text-sm leading-6 text-slate-600">{product.context}</p>
+                        </div>
+                        {price ? <div className="text-xl font-bold text-[#ff5c00]">{price}</div> : null}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {faqs.length > 0 ? (
           <section className="container-max pb-8">

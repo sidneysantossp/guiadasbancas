@@ -14,7 +14,11 @@ export const metadata = buildWorldCupMetadata({
   keywords: ["figurinhas raras copa 2026", "figurinhas especiais copa 2026", "figurinhas valiosas copa 2026"],
 });
 
-export default function FigurinhasRarasPage() {
+export const revalidate = 3600;
+
+export default async function FigurinhasRarasPage() {
+  const categoryLinks = await getWorldCupCategoryLinks();
+
   return (
     <WorldCupSeoPage
       title="Figurinhas raras da Copa 2026"
@@ -38,7 +42,7 @@ export default function FigurinhasRarasPage() {
       ]}
       relatedLinks={[
         ...WORLD_CUP_SUBHUBS.filter((item) => item.href !== "/copa-2026/figurinhas-raras"),
-        ...getWorldCupCategoryLinks(),
+        ...categoryLinks,
       ]}
       faqs={[
         {

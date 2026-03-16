@@ -3,9 +3,11 @@ import {
   WORLD_CUP_CITY_PAGES,
   WORLD_CUP_SUBHUBS,
   buildAbsoluteSiteUrl,
+  buildWorldCupProductsItemListSchema,
   buildWorldCupMetadata,
   getFeaturedWorldCupBancas,
   getWorldCupCategoryLinks,
+  getWorldCupRelevantProducts,
 } from "@/lib/seo/world-cup-2026";
 
 export const metadata = buildWorldCupMetadata({
@@ -25,10 +27,15 @@ export const metadata = buildWorldCupMetadata({
 export const revalidate = 3600;
 
 export default async function Copa2026HubPage() {
-  const [bancas, categoryLinks] = await Promise.all([
+  const [bancas, categoryLinks, products] = await Promise.all([
     getFeaturedWorldCupBancas(6),
-    Promise.resolve(getWorldCupCategoryLinks()),
+    getWorldCupCategoryLinks(),
+    getWorldCupRelevantProducts(6),
   ]);
+  const productsSchema = buildWorldCupProductsItemListSchema(
+    "Coleções esportivas e álbuns relacionados à jornada da Copa 2026",
+    products
+  );
 
   return (
     <WorldCupSeoPage
@@ -88,6 +95,8 @@ export default async function Copa2026HubPage() {
         description: `Landing page local para intenção transacional de ${city.label}.`,
       }))}
       bancas={bancas}
+      products={products}
+      extraSchemas={productsSchema ? [productsSchema] : []}
       faqs={[
         {
           question: "Qual é a função da página Copa 2026 dentro do site?",

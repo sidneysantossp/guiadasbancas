@@ -2,8 +2,10 @@ import WorldCupSeoPage from "@/components/seo/WorldCupSeoPage";
 import {
   WORLD_CUP_SUBHUBS,
   buildAbsoluteSiteUrl,
+  buildWorldCupProductsItemListSchema,
   buildWorldCupMetadata,
   getWorldCupCategoryLinks,
+  getWorldCupRelevantProducts,
 } from "@/lib/seo/world-cup-2026";
 
 export const metadata = buildWorldCupMetadata({
@@ -14,7 +16,18 @@ export const metadata = buildWorldCupMetadata({
   keywords: ["figurinhas da copa 2026", "pacotes copa 2026", "onde comprar figurinhas da copa"],
 });
 
-export default function FigurinhasDaCopa2026Page() {
+export const revalidate = 3600;
+
+export default async function FigurinhasDaCopa2026Page() {
+  const [categoryLinks, products] = await Promise.all([
+    getWorldCupCategoryLinks(),
+    getWorldCupRelevantProducts(6),
+  ]);
+  const productsSchema = buildWorldCupProductsItemListSchema(
+    "Produtos esportivos e coleções relacionados à busca por figurinhas da Copa 2026",
+    products
+  );
+
   return (
     <WorldCupSeoPage
       title="Figurinhas da Copa 2026: intenção comercial e recorrência"
@@ -55,8 +68,10 @@ export default function FigurinhasDaCopa2026Page() {
       ]}
       relatedLinks={[
         ...WORLD_CUP_SUBHUBS.filter((item) => item.href !== "/copa-2026/figurinhas-da-copa-2026"),
-        ...getWorldCupCategoryLinks(),
+        ...categoryLinks,
       ]}
+      products={products}
+      extraSchemas={productsSchema ? [productsSchema] : []}
       faqs={[
         {
           question: "É melhor usar a categoria Panini ou uma página nova de figurinhas?",

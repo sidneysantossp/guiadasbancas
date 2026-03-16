@@ -14,7 +14,11 @@ export const metadata = buildWorldCupMetadata({
   keywords: ["como completar album da copa 2026", "completar figurinhas copa 2026", "faltantes copa 2026"],
 });
 
-export default function ComoCompletarAlbumPage() {
+export const revalidate = 3600;
+
+export default async function ComoCompletarAlbumPage() {
+  const categoryLinks = await getWorldCupCategoryLinks();
+
   return (
     <WorldCupSeoPage
       title="Como completar o álbum da Copa 2026"
@@ -43,7 +47,7 @@ export default function ComoCompletarAlbumPage() {
       ]}
       relatedLinks={[
         ...WORLD_CUP_SUBHUBS.filter((item) => item.href !== "/copa-2026/como-completar-album"),
-        ...getWorldCupCategoryLinks(),
+        ...categoryLinks,
       ]}
       faqs={[
         {

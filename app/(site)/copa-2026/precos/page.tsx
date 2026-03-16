@@ -2,8 +2,10 @@ import WorldCupSeoPage from "@/components/seo/WorldCupSeoPage";
 import {
   WORLD_CUP_SUBHUBS,
   buildAbsoluteSiteUrl,
+  buildWorldCupProductsItemListSchema,
   buildWorldCupMetadata,
   getWorldCupCategoryLinks,
+  getWorldCupRelevantProducts,
 } from "@/lib/seo/world-cup-2026";
 
 export const metadata = buildWorldCupMetadata({
@@ -14,7 +16,18 @@ export const metadata = buildWorldCupMetadata({
   keywords: ["preço album copa 2026", "preço figurinhas copa 2026", "quanto custa album da copa 2026"],
 });
 
-export default function PrecosCopa2026Page() {
+export const revalidate = 3600;
+
+export default async function PrecosCopa2026Page() {
+  const [categoryLinks, products] = await Promise.all([
+    getWorldCupCategoryLinks(),
+    getWorldCupRelevantProducts(6),
+  ]);
+  const productsSchema = buildWorldCupProductsItemListSchema(
+    "Produtos esportivos usados como referência de preço para a jornada da Copa 2026",
+    products
+  );
+
   return (
     <WorldCupSeoPage
       title="Preços do álbum e das figurinhas da Copa 2026"
@@ -43,8 +56,10 @@ export default function PrecosCopa2026Page() {
       ]}
       relatedLinks={[
         ...WORLD_CUP_SUBHUBS.filter((item) => item.href !== "/copa-2026/precos"),
-        ...getWorldCupCategoryLinks(),
+        ...categoryLinks,
       ]}
+      products={products}
+      extraSchemas={productsSchema ? [productsSchema] : []}
       faqs={[
         {
           question: "Preciso publicar números exatos nesta página?",

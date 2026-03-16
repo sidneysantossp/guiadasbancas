@@ -2,9 +2,19 @@ import type { Metadata } from "next";
 import CategoryResultsClient from "@/components/CategoryResultsClient";
 import { getPublicCategories } from "@/lib/data/categories";
 
+function matchesCategorySlug(link?: string | null, slug?: string) {
+  const safeLink = String(link || "");
+  const safeSlug = String(slug || "");
+  return (
+    safeLink.endsWith(`/categorias/${safeSlug}`) ||
+    safeLink.endsWith(`/categoria/${safeSlug}`) ||
+    safeLink.includes(`cat=${safeSlug}`)
+  );
+}
+
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const cats = await getPublicCategories();
-  const match = cats.find((c) => c.link?.endsWith(`/categorias/${params.slug}`) || c.link?.includes(`cat=${params.slug}`));
+  const match = cats.find((c) => matchesCategorySlug(c.link, params.slug));
   const titleText = match?.name || params.slug;
   const title = `${titleText} | Guia das Bancas`;
   const description = `Veja produtos e bancas da categoria ${titleText}.`;
@@ -19,7 +29,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
 export default async function CategoriaSelecionadaPage({ params, searchParams }: { params: { slug: string }; searchParams: { sub?: string } }) {
   const cats = await getPublicCategories();
-  const match = cats.find((c) => c.link?.endsWith(`/categorias/${params.slug}`) || c.link?.includes(`cat=${params.slug}`));
+  const match = cats.find((c) => matchesCategorySlug(c.link, params.slug));
   const title = match?.name ?? params.slug;
   const sub = searchParams?.sub || '';
   return (

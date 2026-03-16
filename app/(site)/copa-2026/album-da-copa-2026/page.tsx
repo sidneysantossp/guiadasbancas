@@ -14,7 +14,11 @@ export const metadata = buildWorldCupMetadata({
   keywords: ["album da copa 2026", "album panini copa 2026", "onde comprar album da copa 2026"],
 });
 
-export default function AlbumDaCopa2026Page() {
+export const revalidate = 3600;
+
+export default async function AlbumDaCopa2026Page() {
+  const categoryLinks = await getWorldCupCategoryLinks();
+
   return (
     <WorldCupSeoPage
       title="Álbum da Copa 2026: como transformar essa busca em aquisição"
@@ -55,7 +59,7 @@ export default function AlbumDaCopa2026Page() {
       ]}
       relatedLinks={[
         ...WORLD_CUP_SUBHUBS.filter((item) => item.href !== "/copa-2026/album-da-copa-2026"),
-        ...getWorldCupCategoryLinks(),
+        ...categoryLinks,
       ]}
       faqs={[
         {

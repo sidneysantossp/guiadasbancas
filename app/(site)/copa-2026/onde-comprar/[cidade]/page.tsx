@@ -48,7 +48,10 @@ export default async function OndeComprarCopaCidadePage({ params }: { params: { 
   const city = getWorldCupCityBySlug(params.cidade);
   if (!city) notFound();
 
-  const bancas = await getWorldCupCityBancas(city.slug, 8);
+  const [bancas, categoryLinks] = await Promise.all([
+    getWorldCupCityBancas(city.slug, 8),
+    getWorldCupCategoryLinks(),
+  ]);
   const itemListSchema =
     bancas.length > 0
       ? {
@@ -114,7 +117,7 @@ export default async function OndeComprarCopaCidadePage({ params }: { params: { 
       ]}
       relatedLinks={[
         ...WORLD_CUP_SUBHUBS.filter((item) => item.href !== "/copa-2026/onde-comprar"),
-        ...getWorldCupCategoryLinks(),
+        ...categoryLinks,
       ]}
       bancas={bancas}
       extraSchemas={[placeSchema, ...(itemListSchema ? [itemListSchema] : [])]}

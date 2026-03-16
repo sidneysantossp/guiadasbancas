@@ -3,9 +3,11 @@ import {
   WORLD_CUP_CITY_PAGES,
   WORLD_CUP_SUBHUBS,
   buildAbsoluteSiteUrl,
+  buildWorldCupProductsItemListSchema,
   buildWorldCupMetadata,
   getFeaturedWorldCupBancas,
   getWorldCupCategoryLinks,
+  getWorldCupRelevantProducts,
 } from "@/lib/seo/world-cup-2026";
 
 export const metadata = buildWorldCupMetadata({
@@ -19,7 +21,15 @@ export const metadata = buildWorldCupMetadata({
 export const revalidate = 3600;
 
 export default async function OndeComprarCopa2026Page() {
-  const bancas = await getFeaturedWorldCupBancas(8);
+  const [bancas, categoryLinks, products] = await Promise.all([
+    getFeaturedWorldCupBancas(8),
+    getWorldCupCategoryLinks(),
+    getWorldCupRelevantProducts(6),
+  ]);
+  const productsSchema = buildWorldCupProductsItemListSchema(
+    "Produtos esportivos e coleções relacionados à intenção de compra local da Copa 2026",
+    products
+  );
 
   return (
     <WorldCupSeoPage
@@ -56,7 +66,7 @@ export default async function OndeComprarCopa2026Page() {
       ]}
       relatedLinks={[
         ...WORLD_CUP_SUBHUBS.filter((item) => item.href !== "/copa-2026/onde-comprar"),
-        ...getWorldCupCategoryLinks(),
+        ...categoryLinks,
       ]}
       cityLinks={WORLD_CUP_CITY_PAGES.map((city) => ({
         href: `/copa-2026/onde-comprar/${city.slug}`,
@@ -64,6 +74,8 @@ export default async function OndeComprarCopa2026Page() {
         description: `Página local para quem busca álbum e figurinhas da Copa 2026 em ${city.label}.`,
       }))}
       bancas={bancas}
+      products={products}
+      extraSchemas={productsSchema ? [productsSchema] : []}
       faqs={[
         {
           question: "Qual é a melhor estrutura para rankear 'onde comprar figurinhas da Copa 2026'?",

@@ -25,7 +25,107 @@ export type WorldCupBancaLink = {
   href: string;
 };
 
+export type WorldCupProductLink = {
+  id: string;
+  name: string;
+  href: string;
+  image: string | null;
+  price: number | null;
+  context: string;
+};
+
+type CategoryRow = {
+  id: string;
+  name: string;
+  link?: string | null;
+};
+
+type ProductRow = {
+  id: string;
+  name: string;
+  description?: string | null;
+  images?: string[] | null;
+  price?: number | null;
+  codigo_mercos?: string | null;
+  category_id?: string | null;
+  banca_id?: string | null;
+  distribuidor_id?: string | null;
+};
+
 const SITE_URL = "https://www.guiadasbancas.com.br";
+const WORLD_CUP_CATEGORY_TERMS = ["figur", "album", "card", "panini", "adesiv", "colecion"];
+const WORLD_CUP_PRODUCT_OR_TERMS = [
+  "fifa",
+  "world class",
+  "brasileir",
+  "libertadores",
+  "futsal",
+  "corinthians",
+  "palmeiras",
+  "athletico",
+  "album",
+  "cromos",
+  "figurinhas",
+  "cards",
+  "deck",
+  "blister",
+  "env",
+];
+const WORLD_CUP_PRODUCT_SPORT_TERMS = [
+  "fifa",
+  "world class",
+  "brasileir",
+  "libertadores",
+  "futsal",
+  "corinthians",
+  "palmeiras",
+  "athletico",
+  "futebol",
+  "conmebol",
+  "torcedor",
+  "campeao",
+  "selecao",
+  "copa do mundo",
+];
+const WORLD_CUP_PRODUCT_COLLECTIBLE_TERMS = [
+  "album",
+  "liv.ilust",
+  "liv. ilust",
+  "blister",
+  "env",
+  "cromos",
+  "figurinh",
+  "cards",
+  "deck",
+  "poster",
+];
+const WORLD_CUP_FALLBACK_CATEGORY_LINKS: WorldCupHubLink[] = [
+  {
+    href: "/categorias/panini",
+    title: "Categoria Panini",
+    description: "Coleções, livros ilustrados e linhas editoriais da Panini já publicadas no marketplace.",
+  },
+  {
+    href: "/categorias/figurinhas",
+    title: "Figurinhas",
+    description: "Recorte para pacotes, cromos e buscas ligadas ao hábito de completar coleções.",
+  },
+  {
+    href: "/categorias/albuns-de-figurinhas",
+    title: "Álbuns de Figurinhas",
+    description: "Entrada transacional para o usuário que procura o álbum e produtos centrais da coleção.",
+  },
+  {
+    href: "/categorias/cards",
+    title: "Cards",
+    description: "Cobertura complementar para colecionáveis esportivos, sets e produtos próximos da intenção da Copa.",
+  },
+  {
+    href: "/bancas-perto-de-mim",
+    title: "Bancas perto de mim",
+    description: "Entrada local para busca por bancas, distância, disponibilidade e contato direto.",
+  },
+];
 
 export const WORLD_CUP_SUBHUBS: WorldCupHubLink[] = [
   {
@@ -118,6 +218,77 @@ function normalizeText(value: string) {
     .replace(/[^a-z0-9\s-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function slugifySegment(value: string) {
+  return normalizeText(value).replace(/\s+/g, "-");
+}
+
+function dedupeLinks(links: WorldCupHubLink[]) {
+  const seen = new Set<string>();
+  return links.filter((item) => {
+    const key = item.href.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeCategoryHref(link?: string | null, name?: string | null) {
+  const raw = String(link || "").trim();
+  const fallback = `/categorias/${slugifySegment(String(name || "categoria"))}`;
+
+  if (!raw) return fallback;
+
+  const trimmed = raw.startsWith("http") ? new URL(raw).pathname : raw;
+  return trimmed
+    .replace(/^\/categoria\//, "/categorias/")
+    .replace(/\s+/g, "-");
+}
+
+function describeWorldCupCategory(name: string) {
+  const normalized = normalizeText(name);
+  if (normalized.includes("album")) {
+    return "Página comercial para intenção de compra do álbum e das linhas principais de cromos.";
+  }
+  if (normalized.includes("figur")) {
+    return "Camada transacional para busca por figurinhas, cromos e reposição de pacotes.";
+  }
+  if (normalized.includes("card")) {
+    return "Cobertura complementar para cards e colecionáveis ligados ao universo esportivo.";
+  }
+  if (normalized.includes("adesiv")) {
+    return "Categoria útil para capturar buscas por itens de torcida e colecionáveis ligados ao futebol.";
+  }
+  return "Categoria real do marketplace ligada ao universo de colecionáveis e compra recorrente.";
+}
+
+function countMatches(haystack: string, terms: string[]) {
+  return terms.reduce((score, term) => score + (haystack.includes(term) ? 1 : 0), 0);
+}
+
+function scoreWorldCupProduct(product: ProductRow, categoryName: string) {
+  const haystack = normalizeText(`${product.name} ${product.description || ""} ${categoryName}`);
+  const sportsScore = countMatches(haystack, WORLD_CUP_PRODUCT_SPORT_TERMS);
+  if (sportsScore === 0) return 0;
+
+  const collectibleScore = countMatches(haystack, WORLD_CUP_PRODUCT_COLLECTIBLE_TERMS);
+  const categoryBoost = countMatches(normalizeText(categoryName), WORLD_CUP_CATEGORY_TERMS);
+  const imageBoost = Array.isArray(product.images) && product.images.length > 0 ? 1 : 0;
+  return sportsScore * 4 + collectibleScore * 2 + categoryBoost + imageBoost;
+}
+
+function buildWorldCupProductContext(product: ProductRow, categoryName: string, bancaName?: string | null) {
+  if (bancaName) return `${categoryName || "Colecionável"} em ${bancaName}`;
+  if (categoryName) return `Categoria ${categoryName}`;
+  if (product.distribuidor_id) return "Disponível no catálogo parceiro";
+  return "Oferta publicada no marketplace";
+}
+
+function buildWorldCupProductOrClause() {
+  return WORLD_CUP_PRODUCT_OR_TERMS.map((term) => `name.ilike.%${term}%`).concat(
+    WORLD_CUP_PRODUCT_OR_TERMS.map((term) => `description.ilike.%${term}%`)
+  ).join(",");
 }
 
 export function buildAbsoluteSiteUrl(path: string) {
@@ -215,27 +386,97 @@ export async function getWorldCupCityBancas(citySlug: string, limit = 8): Promis
   return matched.slice(0, limit).map((item) => toWorldCupBancaLink(item, city.state));
 }
 
-export function getWorldCupCategoryLinks(): WorldCupHubLink[] {
-  return [
-    {
-      href: "/categorias/panini",
-      title: "Categoria Panini",
-      description: "Veja lançamentos, coleções e produtos ligados ao universo Panini já publicados no marketplace.",
-    },
-    {
-      href: "/categorias/panini?sub=figurinhas",
-      title: "Figurinhas",
-      description: "Recorte transacional para pacotes, kits e produtos ligados à busca por figurinhas.",
-    },
-    {
-      href: "/categorias/panini?sub=albuns",
-      title: "Álbuns",
-      description: "Páginas para intenção de compra do álbum e complementos do colecionador.",
-    },
-    {
-      href: "/bancas-perto-de-mim",
-      title: "Bancas perto de mim",
-      description: "Entrada local para busca por bancas, distância, disponibilidade e contato direto.",
-    },
-  ];
+export async function getWorldCupCategoryLinks(limit = 6): Promise<WorldCupHubLink[]> {
+  const { data, error } = await supabaseAdmin
+    .from("categories")
+    .select("id,name,link,active")
+    .eq("active", true)
+    .or(
+      WORLD_CUP_CATEGORY_TERMS.map((term) => `name.ilike.%${term}%`).join(",")
+    )
+    .limit(Math.max(limit * 2, 12));
+
+  if (error || !Array.isArray(data)) {
+    return WORLD_CUP_FALLBACK_CATEGORY_LINKS.slice(0, limit);
+  }
+
+  const links = (data as CategoryRow[]).map((category) => ({
+    href: normalizeCategoryHref(category.link, category.name),
+    title: category.name,
+    description: describeWorldCupCategory(category.name),
+  }));
+
+  return dedupeLinks([...links, ...WORLD_CUP_FALLBACK_CATEGORY_LINKS]).slice(0, limit);
+}
+
+export async function getWorldCupRelevantProducts(limit = 6): Promise<WorldCupProductLink[]> {
+  const { data, error } = await supabaseAdmin
+    .from("products")
+    .select("id,name,description,images,price,codigo_mercos,category_id,banca_id,distribuidor_id")
+    .eq("active", true)
+    .or(buildWorldCupProductOrClause())
+    .limit(Math.max(limit * 10, 40));
+
+  if (error || !Array.isArray(data) || data.length === 0) return [];
+
+  const products = data as ProductRow[];
+  const categoryIds = Array.from(new Set(products.map((item) => item.category_id).filter(Boolean)));
+  const bancaIds = Array.from(new Set(products.map((item) => item.banca_id).filter(Boolean)));
+
+  const [categoriesRes, bancas] = await Promise.all([
+    categoryIds.length
+      ? supabaseAdmin.from("categories").select("id,name,link").in("id", categoryIds)
+      : Promise.resolve({ data: [] }),
+    bancaIds.length ? readPublicBancas(400) : Promise.resolve([]),
+  ]);
+
+  const categoryMap = new Map(
+    Array.isArray(categoriesRes.data)
+      ? (categoriesRes.data as CategoryRow[]).map((category) => [category.id, category])
+      : []
+  );
+  const bancaMap = new Map(bancas.map((banca) => [banca.id, banca]));
+
+  return products
+    .map((product) => {
+      const category = product.category_id ? categoryMap.get(product.category_id) : null;
+      const categoryName = String(category?.name || "");
+      const score = scoreWorldCupProduct(product, categoryName);
+      if (score <= 0) return null;
+
+      const banca = product.banca_id ? bancaMap.get(product.banca_id) : null;
+      const identifier = String(product.codigo_mercos || product.id);
+
+      return {
+        score,
+        item: {
+          id: product.id,
+          name: product.name,
+          href: `/produto/${identifier}`,
+          image: product.images?.[0] || null,
+          price: typeof product.price === "number" ? product.price : null,
+          context: buildWorldCupProductContext(product, categoryName, banca?.name || null),
+        } satisfies WorldCupProductLink,
+      };
+    })
+    .filter((entry): entry is { score: number; item: WorldCupProductLink } => Boolean(entry))
+    .sort((left, right) => right.score - left.score || left.item.name.localeCompare(right.item.name, "pt-BR"))
+    .slice(0, limit)
+    .map((entry) => entry.item);
+}
+
+export function buildWorldCupProductsItemListSchema(name: string, products: WorldCupProductLink[]) {
+  if (products.length === 0) return null;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name,
+    itemListElement: products.map((product, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: buildAbsoluteSiteUrl(product.href),
+      name: product.name,
+    })),
+  };
 }
