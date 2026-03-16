@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from '@/lib/supabase';
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 export const runtime = 'nodejs';
 
 // Helper para verificar se produto tem imagens

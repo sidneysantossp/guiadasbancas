@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { getPersonalizedCouponsForUser } from "@/lib/minha-conta-coupons";
 import { supabaseAdmin } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const FINAL_ORDER_STATUSES = ["completed", "entregue", "cancelled", "cancelado", "canceled"];
 
 export async function GET() {

@@ -3,6 +3,9 @@ import { getWhatsAppConfig } from "@/lib/whatsapp-config";
 import { callEvolutionApi, getEvolutionErrorMessage } from "@/lib/evolution-api";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 // GET - Verificar status da instância Evolution API
 export async function GET(req: NextRequest) {
   try {
