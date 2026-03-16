@@ -44,6 +44,7 @@ const DEFAULT_FOOTER_DATA: FooterData = {
       { id: "14", text: "Buscar produtos", url: "/buscar", section: "atalhos", order: 2 },
       { id: "15", text: "Ofertas relampago", url: "/promocoes", section: "atalhos", order: 3 },
       { id: "16", text: "Categorias", url: "/categorias", section: "atalhos", order: 4 },
+      { id: "17", text: "Figurinhas da Copa 2026", url: "/copa-2026", section: "atalhos", order: 5 },
     ],
   },
 };

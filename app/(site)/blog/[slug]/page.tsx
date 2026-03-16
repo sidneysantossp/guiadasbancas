@@ -4,6 +4,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getPostBySlug, getRelatedPosts, getAllPosts, BlogPost } from "../posts";
 import ShareButtons from "@/components/blog/ShareButtons";
+import WorldCupClusterLinks from "@/components/seo/WorldCupClusterLinks";
 import { marked } from "marked";
 
 // Função para detectar se o conteúdo é HTML ou Markdown
@@ -132,6 +133,10 @@ export default function BlogPostPage({ params }: Props) {
   }
   
   const relatedPosts = getRelatedPosts(params.slug, 3);
+  const isWorldCupPost =
+    post.slug.includes("copa-2026") ||
+    post.focusKeyword.toLowerCase().includes("copa 2026") ||
+    post.tags.some((tag) => tag.toLowerCase().includes("copa 2026"));
 
   // Schema.org Article completo para SEO
   const jsonLd = {
@@ -324,6 +329,12 @@ export default function BlogPostPage({ params }: Props) {
             "
             dangerouslySetInnerHTML={{ __html: renderContent(post.content) }}
           />
+
+          {isWorldCupPost ? (
+            <div className="mt-10">
+              <WorldCupClusterLinks variant="compact" />
+            </div>
+          ) : null}
           
           {/* Palavras-chave e Tags para SEO */}
           <div className="mt-10 pt-6 border-t border-gray-200">

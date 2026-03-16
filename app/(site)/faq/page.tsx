@@ -113,6 +113,32 @@ export default function FAQPage() {
             ))}
           </div>
 
+          <div className="mt-10 rounded-2xl border border-emerald-200 bg-emerald-50 p-8">
+            <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+              Especial Copa 2026
+            </span>
+            <h2 className="mt-3 text-2xl font-bold text-gray-900">
+              Procurando álbum e figurinhas da Copa 2026?
+            </h2>
+            <p className="mt-3 text-gray-700 leading-relaxed">
+              Criamos um cluster dedicado para ajudar você a encontrar bancas, entender preços, acompanhar a jornada do álbum e navegar pelas principais páginas relacionadas à Copa 2026.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link
+                href="/copa-2026"
+                className="inline-flex items-center gap-2 rounded-full bg-[#ff5c00] px-6 py-3 font-semibold text-white hover:bg-orange-600 transition-colors"
+              >
+                Ir para o hub da Copa 2026
+              </Link>
+              <Link
+                href="/copa-2026/onde-comprar"
+                className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+              >
+                Ver onde comprar
+              </Link>
+            </div>
+          </div>
+
           {/* CTA Section */}
           <div className="mt-12 text-center bg-white rounded-2xl shadow-sm p-8">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">

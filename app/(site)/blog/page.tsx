@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { getAllPosts, getAllCategories, BlogPost } from "./posts";
+import WorldCupClusterLinks from "@/components/seo/WorldCupClusterLinks";
 
 // Metadata SEO otimizado para a página do Blog
 export const metadata: Metadata = {
@@ -274,6 +275,12 @@ export default function BlogPage({
         <section className="container mx-auto px-4 max-w-6xl py-12">
           {/* Filtro de Categorias */}
           <CategoryFilter categories={categories} selected={selectedCategory} />
+
+          {(!selectedCategory || selectedCategory === "Coleções") && (
+            <div className="mb-10">
+              <WorldCupClusterLinks />
+            </div>
+          )}
 
           {posts.length === 0 ? (
             <div className="text-center py-16">
