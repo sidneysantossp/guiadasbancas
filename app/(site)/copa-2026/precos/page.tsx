@@ -1,5 +1,6 @@
 import WorldCupSeoPage from "@/components/seo/WorldCupSeoPage";
 import {
+  WORLD_CUP_EDITORIAL_LINKS,
   WORLD_CUP_SUBHUBS,
   buildAbsoluteSiteUrl,
   buildWorldCupProductsItemListSchema,
@@ -58,6 +59,11 @@ export default async function PrecosCopa2026Page() {
         ...WORLD_CUP_SUBHUBS.filter((item) => item.href !== "/copa-2026/precos"),
         ...categoryLinks,
       ]}
+      editorialLinks={[
+        WORLD_CUP_EDITORIAL_LINKS[1],
+        WORLD_CUP_EDITORIAL_LINKS[0],
+        WORLD_CUP_EDITORIAL_LINKS[3],
+      ].filter(Boolean)}
       products={products}
       extraSchemas={productsSchema ? [productsSchema] : []}
       faqs={[

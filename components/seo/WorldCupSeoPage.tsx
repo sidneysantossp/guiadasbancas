@@ -71,6 +71,7 @@ export default function WorldCupSeoPage({
   secondaryCta,
   sectionBlocks,
   relatedLinks = [],
+  editorialLinks = [],
   cityLinks = [],
   bancas = [],
   products = [],
@@ -86,6 +87,7 @@ export default function WorldCupSeoPage({
   secondaryCta?: { href: string; label: string };
   sectionBlocks: SectionBlock[];
   relatedLinks?: LinkCard[];
+  editorialLinks?: LinkCard[];
   cityLinks?: LinkCard[];
   bancas?: BancaCard[];
   products?: ProductCard[];
@@ -329,6 +331,32 @@ export default function WorldCupSeoPage({
                     </Link>
                   );
                 })}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {editorialLinks.length > 0 ? (
+          <section className="container-max pb-8">
+            <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+              <div className="max-w-3xl">
+                <h2 className="text-2xl font-bold text-slate-900">Conteúdo editorial que sustenta o cluster</h2>
+                <p className="mt-3 text-base leading-8 text-slate-700">
+                  Estes artigos aumentam a profundidade temática da Copa 2026 e ajudam a distribuir autoridade entre intenção informacional, local e transacional.
+                </p>
+              </div>
+
+              <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                {editorialLinks.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="rounded-2xl border border-slate-200 p-5 transition-colors hover:border-emerald-500 hover:bg-emerald-50"
+                  >
+                    <div className="text-lg font-semibold text-slate-900">{item.title}</div>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
+                  </Link>
+                ))}
               </div>
             </div>
           </section>

@@ -1,6 +1,7 @@
 import WorldCupSeoPage from "@/components/seo/WorldCupSeoPage";
 import {
   WORLD_CUP_CITY_PAGES,
+  WORLD_CUP_EDITORIAL_LINKS,
   WORLD_CUP_SUBHUBS,
   buildAbsoluteSiteUrl,
   buildWorldCupProductsItemListSchema,
@@ -89,6 +90,7 @@ export default async function Copa2026HubPage() {
         },
       ]}
       relatedLinks={[...WORLD_CUP_SUBHUBS, ...categoryLinks]}
+      editorialLinks={WORLD_CUP_EDITORIAL_LINKS}
       cityLinks={WORLD_CUP_CITY_PAGES.map((city) => ({
         href: `/copa-2026/onde-comprar/${city.slug}`,
         title: `Onde comprar em ${city.label}`,

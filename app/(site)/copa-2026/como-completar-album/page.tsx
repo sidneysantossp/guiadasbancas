@@ -1,5 +1,6 @@
 import WorldCupSeoPage from "@/components/seo/WorldCupSeoPage";
 import {
+  WORLD_CUP_EDITORIAL_LINKS,
   WORLD_CUP_SUBHUBS,
   buildAbsoluteSiteUrl,
   buildWorldCupMetadata,
@@ -49,6 +50,11 @@ export default async function ComoCompletarAlbumPage() {
         ...WORLD_CUP_SUBHUBS.filter((item) => item.href !== "/copa-2026/como-completar-album"),
         ...categoryLinks,
       ]}
+      editorialLinks={[
+        WORLD_CUP_EDITORIAL_LINKS[1],
+        WORLD_CUP_EDITORIAL_LINKS[3],
+        WORLD_CUP_EDITORIAL_LINKS[0],
+      ].filter(Boolean)}
       faqs={[
         {
           question: "Esta página deve focar em compra ou em troca?",

@@ -165,6 +165,29 @@ export const WORLD_CUP_SUBHUBS: WorldCupHubLink[] = [
   },
 ];
 
+export const WORLD_CUP_EDITORIAL_LINKS: WorldCupHubLink[] = [
+  {
+    href: "/blog/colecionar-figurinhas-copa-2026-guia-completo",
+    title: "Guia completo das figurinhas da Copa 2026",
+    description: "Post central do tema, cobrindo compra, preços, trocas e dinâmica da coleção.",
+  },
+  {
+    href: "/blog/quanto-custa-completar-album-copa-2026",
+    title: "Quanto custa completar o álbum da Copa 2026",
+    description: "Conteúdo para intenção de preço, orçamento e economia ao longo da coleção.",
+  },
+  {
+    href: "/blog/onde-comprar-figurinhas-copa-2026-em-sao-paulo",
+    title: "Onde comprar figurinhas da Copa 2026 em São Paulo",
+    description: "Apoio editorial para buscas locais e ligação com páginas geo-transacionais.",
+  },
+  {
+    href: "/blog/troca-de-figurinhas-copa-2026-como-organizar-repetidas",
+    title: "Troca de figurinhas da Copa 2026: como organizar repetidas",
+    description: "Conteúdo utilitário para repetição, troca e redução do custo total da coleção.",
+  },
+];
+
 export const WORLD_CUP_CITY_PAGES: WorldCupCityPage[] = [
   {
     slug: "sao-paulo-sp",

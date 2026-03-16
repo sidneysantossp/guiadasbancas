@@ -1,5 +1,6 @@
 import WorldCupSeoPage from "@/components/seo/WorldCupSeoPage";
 import {
+  WORLD_CUP_EDITORIAL_LINKS,
   WORLD_CUP_SUBHUBS,
   buildAbsoluteSiteUrl,
   buildWorldCupProductsItemListSchema,
@@ -70,6 +71,7 @@ export default async function FigurinhasDaCopa2026Page() {
         ...WORLD_CUP_SUBHUBS.filter((item) => item.href !== "/copa-2026/figurinhas-da-copa-2026"),
         ...categoryLinks,
       ]}
+      editorialLinks={WORLD_CUP_EDITORIAL_LINKS.slice(0, 3)}
       products={products}
       extraSchemas={productsSchema ? [productsSchema] : []}
       faqs={[

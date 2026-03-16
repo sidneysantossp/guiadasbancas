@@ -1,6 +1,7 @@
 import WorldCupSeoPage from "@/components/seo/WorldCupSeoPage";
 import {
   WORLD_CUP_CITY_PAGES,
+  WORLD_CUP_EDITORIAL_LINKS,
   WORLD_CUP_SUBHUBS,
   buildAbsoluteSiteUrl,
   buildWorldCupProductsItemListSchema,
@@ -68,6 +69,11 @@ export default async function OndeComprarCopa2026Page() {
         ...WORLD_CUP_SUBHUBS.filter((item) => item.href !== "/copa-2026/onde-comprar"),
         ...categoryLinks,
       ]}
+      editorialLinks={[
+        WORLD_CUP_EDITORIAL_LINKS[2],
+        WORLD_CUP_EDITORIAL_LINKS[0],
+        WORLD_CUP_EDITORIAL_LINKS[1],
+      ].filter(Boolean)}
       cityLinks={WORLD_CUP_CITY_PAGES.map((city) => ({
         href: `/copa-2026/onde-comprar/${city.slug}`,
         title: city.label,
