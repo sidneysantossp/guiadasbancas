@@ -34,7 +34,6 @@ function getStartDate(period: string) {
 
 function hasProductImage(product: any) {
   if (Array.isArray(product?.images) && product.images.some(Boolean)) return true;
-  if (typeof product?.image === "string" && product.image.trim()) return true;
   return false;
 }
 
@@ -95,7 +94,7 @@ export async function GET(request: NextRequest) {
     ] = await Promise.all([
       supabaseAdmin
         .from("products")
-        .select("id, name, price, stock_qty, active, images, image, updated_at, created_at")
+        .select("id, name, price, stock_qty, active, images, updated_at, created_at")
         .eq("banca_id", banca.id),
       entitlements.canAccessDistributorCatalog
         ? supabaseAdmin
