@@ -3,6 +3,7 @@ import { getAllPosts } from "../(site)/blog/posts";
 import { buildBancaHref } from "@/lib/slug";
 import {
   WORLD_CUP_CITY_PAGES,
+  getWorldCupNeighborhoodsByCity,
   WORLD_CUP_SUBHUBS,
   buildAbsoluteSiteUrl,
 } from "@/lib/seo/world-cup-2026";
@@ -115,6 +116,14 @@ export async function GET() {
       changefreq: "daily",
       priority: 0.85,
     })),
+    ...WORLD_CUP_CITY_PAGES.flatMap((city) =>
+      getWorldCupNeighborhoodsByCity(city.slug).map((neighborhood) => ({
+        url: buildAbsoluteSiteUrl(`/copa-2026/onde-comprar/${city.slug}/${neighborhood.slug}`),
+        lastmod: new Date().toISOString(),
+        changefreq: "daily",
+        priority: 0.8,
+      }))
+    ),
   ];
 
   const [categoriesResult, bancasResult] = await Promise.all([

@@ -7,6 +7,7 @@ import {
   getWorldCupCityBancas,
   getWorldCupCityBySlug,
   getWorldCupCategoryLinks,
+  getWorldCupNeighborhoodsByCity,
 } from "@/lib/seo/world-cup-2026";
 
 export const revalidate = 3600;
@@ -52,6 +53,11 @@ export default async function OndeComprarCopaCidadePage({ params }: { params: { 
     getWorldCupCityBancas(city.slug, 8),
     getWorldCupCategoryLinks(),
   ]);
+  const neighborhoodLinks = getWorldCupNeighborhoodsByCity(city.slug).map((item) => ({
+    href: `/copa-2026/onde-comprar/${city.slug}/${item.slug}`,
+    title: `Figurinhas da Copa 2026 em ${item.label}`,
+    description: `Long-tail local para busca por álbum, figurinhas e bancas em ${item.label}, ${city.city}.`,
+  }));
   const itemListSchema =
     bancas.length > 0
       ? {
@@ -119,6 +125,11 @@ export default async function OndeComprarCopaCidadePage({ params }: { params: { 
         ...WORLD_CUP_SUBHUBS.filter((item) => item.href !== "/copa-2026/onde-comprar"),
         ...categoryLinks,
       ]}
+      cityLinks={neighborhoodLinks.map((item) => ({
+        href: item.href,
+        title: item.title,
+        description: item.description,
+      }))}
       bancas={bancas}
       extraSchemas={[placeSchema, ...(itemListSchema ? [itemListSchema] : [])]}
       faqs={[

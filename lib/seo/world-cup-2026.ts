@@ -18,6 +18,16 @@ export type WorldCupCityPage = {
   aliases: string[];
 };
 
+export type WorldCupNeighborhoodPage = {
+  slug: string;
+  label: string;
+  aliases: string[];
+  citySlug: string;
+  city: string;
+  state: string;
+  cityLabel: string;
+};
+
 export type WorldCupBancaLink = {
   id: string;
   name: string;
@@ -234,6 +244,28 @@ export const WORLD_CUP_CITY_PAGES: WorldCupCityPage[] = [
   },
 ];
 
+export const WORLD_CUP_NEIGHBORHOODS_BY_CITY: Record<string, WorldCupNeighborhoodPage[]> = {
+  "sao-paulo-sp": [
+    { slug: "moema", label: "Moema", aliases: ["moema"], citySlug: "sao-paulo-sp", city: "São Paulo", state: "SP", cityLabel: "São Paulo, SP" },
+    { slug: "vila-mariana", label: "Vila Mariana", aliases: ["vila mariana"], citySlug: "sao-paulo-sp", city: "São Paulo", state: "SP", cityLabel: "São Paulo, SP" },
+    { slug: "pinheiros", label: "Pinheiros", aliases: ["pinheiros"], citySlug: "sao-paulo-sp", city: "São Paulo", state: "SP", cityLabel: "São Paulo, SP" },
+    { slug: "perdizes", label: "Perdizes", aliases: ["perdizes"], citySlug: "sao-paulo-sp", city: "São Paulo", state: "SP", cityLabel: "São Paulo, SP" },
+    { slug: "santana", label: "Santana", aliases: ["santana"], citySlug: "sao-paulo-sp", city: "São Paulo", state: "SP", cityLabel: "São Paulo, SP" },
+    { slug: "itaim-bibi", label: "Itaim Bibi", aliases: ["itaim bibi", "itaim"], citySlug: "sao-paulo-sp", city: "São Paulo", state: "SP", cityLabel: "São Paulo, SP" },
+  ],
+  "rio-de-janeiro-rj": [
+    { slug: "copacabana", label: "Copacabana", aliases: ["copacabana"], citySlug: "rio-de-janeiro-rj", city: "Rio de Janeiro", state: "RJ", cityLabel: "Rio de Janeiro, RJ" },
+    { slug: "barra-da-tijuca", label: "Barra da Tijuca", aliases: ["barra da tijuca", "barra"], citySlug: "rio-de-janeiro-rj", city: "Rio de Janeiro", state: "RJ", cityLabel: "Rio de Janeiro, RJ" },
+    { slug: "tijuca", label: "Tijuca", aliases: ["tijuca"], citySlug: "rio-de-janeiro-rj", city: "Rio de Janeiro", state: "RJ", cityLabel: "Rio de Janeiro, RJ" },
+    { slug: "botafogo", label: "Botafogo", aliases: ["botafogo"], citySlug: "rio-de-janeiro-rj", city: "Rio de Janeiro", state: "RJ", cityLabel: "Rio de Janeiro, RJ" },
+  ],
+  "curitiba-pr": [
+    { slug: "batel", label: "Batel", aliases: ["batel"], citySlug: "curitiba-pr", city: "Curitiba", state: "PR", cityLabel: "Curitiba, PR" },
+    { slug: "agua-verde", label: "Água Verde", aliases: ["agua verde", "água verde"], citySlug: "curitiba-pr", city: "Curitiba", state: "PR", cityLabel: "Curitiba, PR" },
+    { slug: "centro", label: "Centro", aliases: ["centro"], citySlug: "curitiba-pr", city: "Curitiba", state: "PR", cityLabel: "Curitiba, PR" },
+  ],
+};
+
 function normalizeText(value: string) {
   return String(value || "")
     .toLowerCase()
@@ -365,6 +397,14 @@ export function getWorldCupCityBySlug(slug: string) {
   return WORLD_CUP_CITY_PAGES.find((city) => city.slug === slug) || null;
 }
 
+export function getWorldCupNeighborhoodsByCity(citySlug: string) {
+  return WORLD_CUP_NEIGHBORHOODS_BY_CITY[citySlug] || [];
+}
+
+export function getWorldCupNeighborhoodBySlug(citySlug: string, neighborhoodSlug: string) {
+  return getWorldCupNeighborhoodsByCity(citySlug).find((item) => item.slug === neighborhoodSlug) || null;
+}
+
 export function findWorldCupCityByAddress(address?: string | null) {
   const normalizedAddress = normalizeText(String(address || ""));
   if (!normalizedAddress) return null;
@@ -423,6 +463,29 @@ export async function getWorldCupCityBancas(citySlug: string, limit = 8): Promis
     if (!address) return false;
     const cityMatch = city.aliases.some((alias) => address.includes(normalizeText(alias)));
     if (!cityMatch) return false;
+    return address.includes(normalizeText(city.state));
+  });
+
+  return matched.slice(0, limit).map((item) => toWorldCupBancaLink(item, city.state));
+}
+
+export async function getWorldCupNeighborhoodBancas(
+  citySlug: string,
+  neighborhoodSlug: string,
+  limit = 8
+): Promise<WorldCupBancaLink[]> {
+  const city = getWorldCupCityBySlug(citySlug);
+  const neighborhood = getWorldCupNeighborhoodBySlug(citySlug, neighborhoodSlug);
+  if (!city || !neighborhood) return [];
+
+  const bancas = await readPublicBancas(300);
+  const matched = bancas.filter((banca) => {
+    const address = normalizeText(banca.address);
+    if (!address) return false;
+    const cityMatch = city.aliases.some((alias) => address.includes(normalizeText(alias)));
+    if (!cityMatch) return false;
+    const neighborhoodMatch = neighborhood.aliases.some((alias) => address.includes(normalizeText(alias)));
+    if (!neighborhoodMatch) return false;
     return address.includes(normalizeText(city.state));
   });
 
