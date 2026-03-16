@@ -6,6 +6,7 @@ import Link from "next/link";
 import WhatsAppTemplates from "@/components/admin/WhatsAppTemplates";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useToast } from "@/components/admin/ToastProvider";
+import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 
 type ConfigTab = "whatsapp" | "notifications" | "general" | "delivery" | "payment";
 
@@ -604,15 +605,7 @@ export default function ConfiguracoesPage() {
 
   return (
     <div className="space-y-6 overflow-x-hidden">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
-          Equipe e estrutura
-        </p>
-        <h1 className="mt-1 text-xl font-semibold text-gray-900">Configurações da operação</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Ajuste a base da banca: contato principal, entrega, pagamento e alertas. Esta área define como a operação funciona no dia a dia.
-        </p>
-      </div>
+      <JornaleiroPageHeading title="Configurações" />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">

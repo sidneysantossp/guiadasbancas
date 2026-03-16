@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 
 type AcademyVideo = {
   id: string;
@@ -75,15 +76,7 @@ export default function AcademyPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
-          Plano e aprendizado
-        </p>
-        <h1 className="mt-1 text-2xl font-bold text-gray-900">Academy da banca</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Conteúdo prático para acelerar o uso da plataforma, melhorar a operação e subir o nível da banca sem depender só de tentativa e erro.
-        </p>
-      </div>
+      <JornaleiroPageHeading title="Academy" />
 
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">

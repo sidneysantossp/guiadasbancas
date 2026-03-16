@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useState, useMemo } from "react";
 import { IconPlus, IconEdit, IconTrash, IconCheck, IconX } from "@tabler/icons-react";
+import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 
 type Colaborador = {
   id: string;
@@ -137,24 +138,18 @@ export default function ColaboradoresPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
-            Equipe e estrutura
-          </p>
-          <h1 className="mt-1 text-xl font-semibold text-gray-900">Equipe da banca</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Defina quem pode operar a banca, com qual nível de acesso e em quais unidades cada colaborador atua.
-          </p>
-        </div>
-        <Link
-          href={"/jornaleiro/colaboradores/novo" as Route}
-          className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
-        >
-          <IconPlus size={18} />
-          Novo Colaborador
-        </Link>
-      </div>
+      <JornaleiroPageHeading
+        title="Colaboradores"
+        actions={
+          <Link
+            href={"/jornaleiro/colaboradores/novo" as Route}
+            className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+          >
+            <IconPlus size={18} />
+            Novo colaborador
+          </Link>
+        }
+      />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">

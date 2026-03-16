@@ -11,6 +11,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import ImageUploader from '@/components/admin/ImageUploader';
 import FileUploadDragDrop from '@/components/common/FileUploadDragDrop';
+import JornaleiroPageHeading from '@/components/jornaleiro/JornaleiroPageHeading';
 import { IconUser, IconBuildingStore, IconClock, IconBrandWhatsapp, IconBuilding, IconLink } from '@tabler/icons-react';
 import CotistaSearch from '@/components/CotistaSearch';
 
@@ -884,17 +885,16 @@ export default function BancaV2Page() {
 
   return (
     <div className="space-y-6 overflow-x-hidden">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Informações da Banca</h1>
-          <p className="text-sm text-gray-600">Gerencie os dados do jornaleiro, da banca, horários e redes sociais.</p>
-        </div>
-        {(isDirty || imagesChanged) && (
-          <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
-            ⚠️ Alterações não salvas
-          </span>
-        )}
-      </div>
+      <JornaleiroPageHeading
+        title="Perfil e publicação"
+        actions={
+          (isDirty || imagesChanged) ? (
+            <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
+              ⚠️ Alterações não salvas
+            </span>
+          ) : null
+        }
+      />
 
       <div className="rounded-xl border border-gray-200 bg-white p-4 overflow-hidden relative z-30">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center max-w-full min-w-0 overflow-hidden items-stretch">

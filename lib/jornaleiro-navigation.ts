@@ -50,6 +50,11 @@ export type JornaleiroMenuSection = {
   items: JornaleiroMenuItem[];
 };
 
+export type JornaleiroResolvedMenuContext = {
+  section: JornaleiroMenuSection;
+  item: JornaleiroMenuItem;
+};
+
 export type JornaleiroMenuContext = {
   hasCatalogAccess: boolean;
   hasPartnerDirectoryAccess: boolean;
@@ -61,35 +66,35 @@ export type JornaleiroMenuContext = {
 
 const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
   {
-    section: "Visao da Banca",
-    description: "Leitura do momento da banca, prioridades e inteligencia para decidir o proximo passo.",
+    section: "Visão da Banca",
+    description: "Leitura do momento da banca, prioridades e inteligência para decidir o próximo passo.",
     items: [
       {
         label: "Dashboard",
         href: "/jornaleiro/dashboard" as Route,
         icon: "dashboard",
-        description: "Centro de comando da operacao diaria com prioridade, status e atalhos.",
+        description: "Centro de comando da operação diária com prioridade, status e atalhos.",
         permissionKey: "dashboard",
       },
       {
-        label: "Central de Inteligencia",
+        label: "Central de Inteligência",
         href: "/jornaleiro/inteligencia" as Route,
         icon: "intelligence",
-        description: "Cruza pedidos, catalogo, demanda e vitrine para orientar as decisoes da banca.",
+        description: "Cruza pedidos, catálogo, demanda e vitrine para orientar as decisões da banca.",
         permissionKey: "relatorios",
         aliases: ["/jornaleiro/relatorios", "/jornaleiro/relatorios/analytics", "/jornaleiro/relatorios/cotista"],
       },
     ],
   },
   {
-    section: "Operacao da Banca",
+    section: "Operação da Banca",
     description: "Tudo que o jornaleiro precisa para manter a banca publicada, organizada e vendendo.",
     items: [
       {
-        label: "Perfil e Publicacao",
+        label: "Perfil e Publicação",
         href: "/jornaleiro/banca-v2" as Route,
         icon: "banca",
-        description: "Dados da banca, identidade visual, horarios, contato e publicacao.",
+        description: "Dados da banca, identidade visual, horários, contato e publicação.",
         permissionKey: "bancas",
         aliases: ["/jornaleiro/banca", "/jornaleiro/banca-v2"],
       },
@@ -97,61 +102,61 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         label: "Pedidos",
         href: "/jornaleiro/pedidos" as Route,
         icon: "orders",
-        description: "Acompanhe pedidos, priorize atendimento e avance os status da operacao.",
+        description: "Acompanhe pedidos, priorize atendimento e avance os status da operação.",
         permissionKey: "pedidos",
       },
       {
         label: "Produtos",
         href: "/jornaleiro/produtos" as Route,
         icon: "products",
-        description: "Catalogo proprio da banca com controle de oferta, estoque e qualidade.",
+        description: "Catálogo próprio da banca com controle de oferta, estoque e qualidade.",
         permissionKey: "produtos",
       },
       {
-        label: "Notificacoes",
+        label: "Notificações",
         href: "/jornaleiro/notificacoes" as Route,
         icon: "notifications",
-        description: "Avisos operacionais, atualizacoes de pedidos e comunicacoes da plataforma.",
+        description: "Avisos operacionais, atualizações de pedidos e comunicações da plataforma.",
         permissionKey: "notificacoes",
       },
     ],
   },
   {
     section: "Equipe e Estrutura",
-    description: "Gestao de bancas vinculadas, equipe operacional e ajustes estruturais da conta.",
+    description: "Gestão de bancas vinculadas, equipe operacional e ajustes estruturais da conta.",
     items: [
       {
         label: "Minhas Bancas",
         href: "/jornaleiro/bancas" as Route,
         icon: "banca",
-        description: "Troque de banca, acompanhe o portfolio vinculado e acesse o cadastro.",
+        description: "Troque de banca, acompanhe o portfólio vinculado e acesse o cadastro.",
         permissionKey: "bancas",
       },
       {
         label: "Colaboradores",
         href: "/jornaleiro/colaboradores" as Route,
         icon: "users",
-        description: "Permissoes e acessos da equipe que opera a banca no dia a dia.",
+        description: "Permissões e acessos da equipe que opera a banca no dia a dia.",
         permissionKey: "colaboradores",
       },
       {
-        label: "Configuracoes",
+        label: "Configurações",
         href: "/jornaleiro/configuracoes" as Route,
         icon: "settings",
-        description: "Entrega, pagamento, canais de contato e parametros gerais da banca.",
+        description: "Entrega, pagamento, canais de contato e parâmetros gerais da banca.",
         permissionKey: "configuracoes",
       },
     ],
   },
   {
     section: "Abastecimento e Crescimento",
-    description: "Oferta complementar, relacao com distribuidores e alavancas para vender mais.",
+    description: "Oferta complementar, relação com distribuidores e alavancas para vender mais.",
     items: [
       {
-        label: "Catalogo Parceiro",
+        label: "Catálogo Parceiro",
         href: "/jornaleiro/catalogo-distribuidor/gerenciar" as Route,
         icon: "catalog",
-        description: "Gestao dos produtos parceiros liberados para complementar o catalogo da banca.",
+        description: "Gestão dos produtos parceiros liberados para complementar o catálogo da banca.",
         permissionKey: "catalogo",
         aliases: ["/jornaleiro/catalogo-distribuidor"],
         requiresCatalogAccess: true,
@@ -168,27 +173,27 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         label: "Campanhas",
         href: "/jornaleiro/campanhas" as Route,
         icon: "campaigns",
-        description: "Promocoes patrocinadas e visibilidade extra para os produtos da banca.",
+        description: "Promoções patrocinadas e visibilidade extra para os produtos da banca.",
         permissionKey: "campanhas",
       },
       {
         label: "Cupons",
         href: "/jornaleiro/coupons" as Route,
         icon: "coupons",
-        description: "Mecanica promocional para ativar demanda e recompras da base de clientes.",
+        description: "Mecânica promocional para ativar demanda e recompras da base de clientes.",
         permissionKey: "cupons",
       },
     ],
   },
   {
     section: "Plano e Aprendizado",
-    description: "Evolucao comercial da banca, treinamento e configuracao do plano contratado.",
+    description: "Evolução comercial da banca, treinamento e configuração do plano contratado.",
     items: [
       {
         label: "Meu Plano",
         href: "/jornaleiro/meu-plano" as Route,
         icon: "plan",
-        description: "Status do plano, cobrancas, limites e acessos da banca.",
+        description: "Status do plano, cobranças, limites e acessos da banca.",
         permissionKey: "plano",
         hideWhenPlansDisabled: true,
       },
@@ -196,7 +201,7 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         label: "Academy",
         href: "/jornaleiro/academy" as Route,
         icon: "academy",
-        description: "Conteudos para ajudar o jornaleiro a usar melhor a plataforma.",
+        description: "Conteúdos para ajudar o jornaleiro a usar melhor a plataforma.",
         permissionKey: "academy",
       },
     ],
@@ -231,4 +236,19 @@ export function buildJornaleiroMenuSections(context: JornaleiroMenuContext): Jor
     ...section,
     items: section.items.filter((item) => itemVisible(item, context)),
   })).filter((section) => section.items.length > 0);
+}
+
+export function findJornaleiroMenuContextByPathname(pathname?: string | null): JornaleiroResolvedMenuContext | null {
+  if (!pathname) return null;
+
+  for (const section of JOURNALEIRO_MENU) {
+    for (const item of section.items) {
+      const targets = [item.href, ...(item.aliases || [])];
+      if (targets.some((target) => pathname === target || pathname.startsWith(`${target}/`))) {
+        return { section, item };
+      }
+    }
+  }
+
+  return null;
 }

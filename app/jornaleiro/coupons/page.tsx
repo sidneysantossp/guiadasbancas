@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 
 type Coupon = {
   id: string;
@@ -100,18 +101,15 @@ export default function SellerCouponsPage() {
 
   return (
     <section className="container-max py-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
-            Abastecimento e crescimento
-          </p>
-          <h1 className="mt-1 text-xl font-semibold text-gray-900">Cupons e incentivo de compra</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Use cupons para acelerar giro, recompra e campanhas táticas sem depender só de desconto manual no atendimento.
-          </p>
-        </div>
-        <Link href="/jornaleiro/coupons/new" className="rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white hover:opacity-90">Novo cupom</Link>
-      </div>
+      <JornaleiroPageHeading
+        title="Cupons"
+        className="mb-4"
+        actions={
+          <Link href="/jornaleiro/coupons/new" className="rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+            Novo cupom
+          </Link>
+        }
+      />
 
       <div className="mb-4 grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/admin/ToastProvider";
+import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 
 type Notification = {
   id: string;
@@ -122,25 +123,24 @@ export default function NotificacoesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
-            Operação da banca
-          </p>
-          <h1 className="mt-1 text-2xl font-bold text-gray-900">Central de notificações</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            {unreadCount > 0 ? `Você tem ${unreadCount} notificação${unreadCount > 1 ? 'ões' : ''} não lida${unreadCount > 1 ? 's' : ''}` : 'Você está em dia!'}
-          </p>
-        </div>
-        {unreadCount > 0 && (
-          <button
-            onClick={markAllAsRead}
-            className="text-sm font-medium text-orange-600 hover:text-orange-700"
-          >
-            Marcar todas como lidas
-          </button>
-        )}
-      </div>
+      <JornaleiroPageHeading
+        title="Notificações"
+        note={
+          unreadCount > 0
+            ? `Você tem ${unreadCount} notificação${unreadCount > 1 ? "ões" : ""} não lida${unreadCount > 1 ? "s" : ""}.`
+            : "Você está em dia."
+        }
+        actions={
+          unreadCount > 0 ? (
+            <button
+              onClick={markAllAsRead}
+              className="text-sm font-medium text-orange-600 hover:text-orange-700"
+            >
+              Marcar todas como lidas
+            </button>
+          ) : null
+        }
+      />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">

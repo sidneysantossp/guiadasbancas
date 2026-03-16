@@ -742,16 +742,13 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
                 </div>
               </div>
 
-              <nav className="flex-1 space-y-6 overflow-y-auto p-4 text-gray-100">
+              <nav className="flex-1 space-y-4 overflow-y-auto p-4 text-gray-100">
                 {menuSections.map((section) => (
                   <div key={section.section} className="space-y-2">
                     <div className="px-3">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
                         {section.section}
                       </div>
-                      <p className="mt-1 text-xs leading-5 text-white/60">
-                        {section.description}
-                      </p>
                     </div>
 
                     <div className="space-y-1">
@@ -764,7 +761,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
                             key={item.href}
                             href={item.href}
                             onClick={() => setSidebarOpen(false)}
-                            className={`group flex items-start gap-3 rounded-xl px-3 py-3 text-sm transition-colors ${
+                            className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
                               isActive
                                 ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm"
                                 : "text-gray-100 hover:bg-white/10 hover:text-white"
@@ -777,12 +774,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
                             >
                               <IconComponent size={20} stroke={1.7} />
                             </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block font-medium">{item.label}</span>
-                              <span className={`mt-1 block text-xs leading-5 ${isActive ? "text-[#b8581d]" : "text-white/60 group-hover:text-white/75"}`}>
-                                {item.description}
-                              </span>
-                            </span>
+                            <span className="min-w-0 flex-1 font-medium">{item.label}</span>
                           </Link>
                         );
                       })}

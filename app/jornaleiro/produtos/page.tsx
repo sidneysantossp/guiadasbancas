@@ -12,6 +12,7 @@ import PlanCheckoutModal from "@/components/jornaleiro/PlanCheckoutModal";
 import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
 import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
 import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
+import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 import { getPlanUpgradeHint } from "@/lib/plan-messaging";
 
 type ProdutoListItem = {
@@ -275,19 +276,10 @@ export default function JornaleiroProdutosPage() {
 
   return (
     <div className="space-y-4 overflow-x-hidden px-3 pb-24 sm:px-0 sm:pb-0">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
-            Operação do catálogo
-          </p>
-          <h1 className="mt-1 text-xl font-semibold text-gray-900">Catálogo da banca</h1>
-          <p className="mt-1 max-w-3xl text-sm text-gray-600">
-            Aqui você organiza o que está disponível para venda, acompanha a saúde do catálogo e evita que a banca
-            fique com produto invisível, sem estoque ou travada pelo limite do plano.
-          </p>
-        </div>
-        <div>
-          {paidFeaturesLockedUntilPayment || overdueFeaturesLocked ? (
+      <JornaleiroPageHeading
+        title="Produtos"
+        actions={
+          paidFeaturesLockedUntilPayment || overdueFeaturesLocked ? (
             <Link
               href={"/jornaleiro/meu-plano" as Route}
               className="inline-flex w-full items-center justify-center rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 sm:w-auto"
@@ -305,13 +297,13 @@ export default function JornaleiroProdutosPage() {
           ) : (
             <Link
               href={(limitReached ? "/jornaleiro/meu-plano" : "/jornaleiro/produtos/create") as Route}
-              className="inline-flex items-center justify-center rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 w-full sm:w-auto"
+              className="inline-flex w-full items-center justify-center rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 sm:w-auto"
             >
               {limitReached ? "Ver meu plano" : "Novo produto"}
             </Link>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">

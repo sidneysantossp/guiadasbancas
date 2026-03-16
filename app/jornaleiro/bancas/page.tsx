@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
+import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 
 type BancaListItem = {
   id: string;
@@ -105,25 +106,19 @@ export default function JornaleiroBancasPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
-            Equipe e estrutura
-          </p>
-          <h1 className="mt-1 text-xl font-semibold text-gray-900">Estrutura das bancas</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Gerencie quais bancas esta conta controla, qual delas está ativa no painel e como a operação está distribuída.
-          </p>
-        </div>
-        {canManageBancas && (
-          <Link
-            href={("/jornaleiro/bancas/nova" as Route)}
-            className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
-          >
-            + Nova banca
-          </Link>
-        )}
-      </div>
+      <JornaleiroPageHeading
+        title="Minhas bancas"
+        actions={
+          canManageBancas ? (
+            <Link
+              href={("/jornaleiro/bancas/nova" as Route)}
+              className="inline-flex rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+            >
+              + Nova banca
+            </Link>
+          ) : null
+        }
+      />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">

@@ -8,6 +8,7 @@ import DataTable, { type Column } from "@/components/admin/DataTable";
 import StatusBadge from "@/components/admin/StatusBadge";
 import { useToast } from "@/components/admin/ToastProvider";
 import { useAuth } from "@/lib/auth/AuthContext";
+import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 
 const STATUS_FLOW = ["novo","confirmado","em_preparo","saiu_para_entrega","parcialmente_retirado","entregue"] as const;
 
@@ -448,20 +449,10 @@ export default function JornaleiroPedidosPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
-          Operação da banca
-        </p>
-        <h1 className="mt-1 text-xl font-semibold text-gray-900">Fila de pedidos</h1>
-        <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-gray-600">
-            Acompanhe a fila operacional da banca, responda rápido ao cliente e avance os pedidos sem perder contexto.
-          </p>
-          <div className="text-sm text-gray-500">
-            Total: {pagination.total} pedidos
-          </div>
-        </div>
-      </div>
+      <JornaleiroPageHeading
+        title="Pedidos"
+        actions={<div className="text-sm text-gray-500">Total: {pagination.total} pedidos</div>}
+      />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">

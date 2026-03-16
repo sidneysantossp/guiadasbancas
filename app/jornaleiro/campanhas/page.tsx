@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/admin/ToastProvider";
+import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 
 interface Campaign {
   id: string;
@@ -106,24 +107,17 @@ export default function JornaleiroCampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
-            Abastecimento e crescimento
-          </p>
-          <h1 className="mt-1 text-2xl font-bold text-gray-900">Campanhas e visibilidade</h1>
-          <p className="mt-1 max-w-3xl text-gray-600">
-            Use campanhas para empurrar produto com mais margem, acelerar giro e manter a banca visível dentro da
-            plataforma. O foco aqui é crescimento com intenção, não anúncio por impulso.
-          </p>
-        </div>
-        <Link
-          href="/jornaleiro/campanhas/create"
-          className="bg-[#ff5c00] text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-95"
-        >
-          Nova Campanha
-        </Link>
-      </div>
+      <JornaleiroPageHeading
+        title="Campanhas"
+        actions={
+          <Link
+            href="/jornaleiro/campanhas/create"
+            className="rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-medium text-white hover:opacity-95"
+          >
+            Nova campanha
+          </Link>
+        }
+      />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">

@@ -6,6 +6,7 @@ import PlanCheckoutModal from "@/components/jornaleiro/PlanCheckoutModal";
 import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
 import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
 import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
+import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 import { getPlanUpgradeHint } from "@/lib/plan-messaging";
 
 type Distribuidor = {
@@ -90,16 +91,7 @@ export default function DistribuidoresPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
-          Abastecimento e crescimento
-        </p>
-        <h1 className="mt-1 text-2xl font-bold text-gray-900">Rede de distribuidores</h1>
-        <p className="mt-1 max-w-3xl text-gray-600">
-          Esta área organiza a reposição da banca. O objetivo aqui é ampliar sortimento, encontrar parceiros certos e
-          reduzir ruptura de estoque conforme o momento do seu negócio.
-        </p>
-      </div>
+      <JornaleiroPageHeading title="Rede de distribuidores" />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">

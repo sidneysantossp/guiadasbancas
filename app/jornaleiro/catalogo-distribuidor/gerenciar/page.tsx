@@ -8,6 +8,7 @@ import PlanCheckoutModal from "@/components/jornaleiro/PlanCheckoutModal";
 import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
 import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
 import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
+import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 import { getPlanUpgradeHint } from "@/lib/plan-messaging";
 
 type Product = {
@@ -187,13 +188,7 @@ export default function GerenciarCatalogoPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Gerenciar Catálogo de Distribuidores</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Customize preços, estoque e disponibilidade dos produtos de distribuidores na sua banca
-        </p>
-      </div>
+      <JornaleiroPageHeading title="Catálogo parceiro" />
 
       {/* Search and Filters */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 
 type PlanType = "free" | "start" | "premium";
 
@@ -241,13 +242,7 @@ export default function MeuPlanoPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
-        Plano e aprendizado
-      </p>
-      <h1 className="mt-1 text-2xl font-bold text-gray-900">Plano e evolução da banca</h1>
-      <p className="mb-6 mt-2 text-gray-600">
-        Esta área não é só cobrança. Ela mostra em que estágio a banca está, quais acessos estão liberados e quando vale subir de plano para destravar operação.
-      </p>
+      <JornaleiroPageHeading title="Meu plano" className="mb-6" />
 
       <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
