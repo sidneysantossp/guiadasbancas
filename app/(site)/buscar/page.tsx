@@ -1,4 +1,5 @@
 import BuscarPageClient from "@/components/BuscarPageClient";
+import type { Metadata } from "next";
 import type { UICategory } from "@/lib/useCategories";
 import { getPublicCategories } from "@/lib/data/categories";
 import { getPublicBancas } from "@/lib/data/bancas";
@@ -6,6 +7,22 @@ import { getSearchProducts } from "@/lib/data/products";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: "Buscar produtos | Guia das Bancas",
+  description: "Use a busca para encontrar produtos, bancas e categorias no Guia das Bancas.",
+  robots: {
+    index: false,
+    follow: true,
+    googleBot: {
+      index: false,
+      follow: true,
+    },
+  },
+  alternates: {
+    canonical: "https://www.guiadasbancas.com.br/buscar",
+  },
+};
 
 type SearchParams = {
   q?: string;

@@ -57,6 +57,7 @@ export default function WorldCupSeoPage({
   cityLinks = [],
   bancas = [],
   faqs = [],
+  extraSchemas = [],
 }: {
   title: string;
   description: string;
@@ -70,6 +71,7 @@ export default function WorldCupSeoPage({
   cityLinks?: LinkCard[];
   bancas?: BancaCard[];
   faqs?: FaqItem[];
+  extraSchemas?: unknown[];
 }) {
   const breadcrumbSchema = {
     "@context": "https://schema.org",
@@ -129,6 +131,14 @@ export default function WorldCupSeoPage({
           dangerouslySetInnerHTML={{ __html: toSafeJsonLd(faqSchema) }}
         />
       ) : null}
+      {extraSchemas.map((schema, index) => (
+        <script
+          key={index}
+          suppressHydrationWarning
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: toSafeJsonLd(schema) }}
+        />
+      ))}
 
       <main className="min-h-screen bg-slate-50">
         <section className="bg-[#0f172a] text-white">

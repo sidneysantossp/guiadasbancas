@@ -49,6 +49,31 @@ export default async function OndeComprarCopaCidadePage({ params }: { params: { 
   if (!city) notFound();
 
   const bancas = await getWorldCupCityBancas(city.slug, 8);
+  const itemListSchema =
+    bancas.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: `Bancas com potencial para figurinhas da Copa 2026 em ${city.label}`,
+          itemListElement: bancas.map((banca, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            url: buildAbsoluteSiteUrl(banca.href),
+            name: banca.name,
+          })),
+        }
+      : null;
+  const placeSchema = {
+    "@context": "https://schema.org",
+    "@type": "Place",
+    name: city.label,
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: city.city,
+      addressRegion: city.state,
+      addressCountry: "BR",
+    },
+  };
 
   return (
     <WorldCupSeoPage
@@ -92,6 +117,7 @@ export default async function OndeComprarCopaCidadePage({ params }: { params: { 
         ...getWorldCupCategoryLinks(),
       ]}
       bancas={bancas}
+      extraSchemas={[placeSchema, ...(itemListSchema ? [itemListSchema] : [])]}
       faqs={[
         {
           question: `Por que criar uma página para ${city.label}?`,

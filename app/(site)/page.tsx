@@ -21,6 +21,7 @@ import PlanetMangaProducts from "@/components/PlanetMangaProducts";
 import ReferralBanner from "@/components/ReferralBanner";
 import Newsletter from "@/components/Newsletter";
 import Testimonials from "@/components/Testimonials";
+import WorldCupHomeSpotlight from "@/components/seo/WorldCupHomeSpotlight";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -318,6 +319,8 @@ export default async function HomePage() {
       <Suspense fallback={null}>
         <BancasSections initialBancas={initialBancas} />
       </Suspense>
+
+      <WorldCupHomeSpotlight />
 
       {/* Abaixo da dobra: monta sob demanda para evitar tempestade de requests no primeiro paint */}
       <LazyViewportSection minHeight={240}>
