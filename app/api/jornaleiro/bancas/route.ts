@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { normalizePlatformRole } from "@/lib/modules/auth/session";
+import { loadUserProfileById } from "@/lib/modules/auth/user-profiles";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -14,26 +16,14 @@ export async function GET() {
 
   const userId = session.user.id;
 
-  // Backward-compatible: alguns ambientes podem não ter a coluna `jornaleiro_access_level` ainda.
-  let profile: any = null;
-  let profileError: any = null;
-  const primaryProfile = await supabaseAdmin
-    .from("user_profiles")
-    .select("banca_id, jornaleiro_access_level")
-    .eq("id", userId)
-    .maybeSingle();
-
-  profile = primaryProfile.data;
-  profileError = primaryProfile.error;
-
-  if (
-    profileError &&
-    (profileError.code === "42703" || /jornaleiro_access_level/i.test(profileError.message || ""))
-  ) {
-    const fallbackProfile = await supabaseAdmin.from("user_profiles").select("banca_id").eq("id", userId).maybeSingle();
-    profile = fallbackProfile.data;
-    profileError = fallbackProfile.error;
-  }
+  const { data: profile, error: profileError } = await loadUserProfileById<{
+    banca_id?: string | null;
+    jornaleiro_access_level?: string | null;
+    cpf?: string | null;
+  }>({
+    userId,
+    select: "banca_id, cpf",
+  });
 
   if (profileError) {
     console.error("[API/JORNALEIRO/BANCAS] Erro ao buscar profile:", profileError);
@@ -182,28 +172,16 @@ export async function POST(request: NextRequest) {
 
   const userId = session.user.id;
 
-  // Permissão: somente jornaleiro admin pode cadastrar novas bancas
-  // Backward-compatible: `jornaleiro_access_level` pode não existir em alguns ambientes.
-  let requesterProfile: any = null;
-  const requesterPrimary = await supabaseAdmin
-    .from("user_profiles")
-    .select("role, jornaleiro_access_level")
-    .eq("id", userId)
-    .maybeSingle();
-
-  requesterProfile = requesterPrimary.data;
-
-  if (
-    requesterPrimary.error &&
-    (requesterPrimary.error.code === "42703" ||
-      /jornaleiro_access_level/i.test(requesterPrimary.error.message || ""))
-  ) {
-    const requesterFallback = await supabaseAdmin.from("user_profiles").select("role").eq("id", userId).maybeSingle();
-    requesterProfile = requesterFallback.data;
-  }
+  const { data: requesterProfile } = await loadUserProfileById<{
+    role?: string | null;
+    jornaleiro_access_level?: string | null;
+  }>({
+    userId,
+    select: "role",
+  });
 
   const requesterRole = (requesterProfile as any)?.role as string | undefined;
-  const isJornaleiroRole = requesterRole === "jornaleiro" || requesterRole === "seller";
+  const isJornaleiroRole = normalizePlatformRole(requesterRole) === "jornaleiro";
   const requesterAccess = ((requesterProfile as any)?.jornaleiro_access_level as string | null) || "admin";
 
   if (!isJornaleiroRole) {

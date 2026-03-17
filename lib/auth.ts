@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { resolveAppAuthSecret } from "@/lib/modules/auth/secrets";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const LOCAL_DEV_ADMIN_EMAIL = "admin@guiadasbancas.com";
@@ -250,5 +251,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: resolveAppAuthSecret() ?? undefined,
 });

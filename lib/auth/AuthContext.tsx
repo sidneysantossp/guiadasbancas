@@ -3,8 +3,10 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn as nextSignIn, signOut as nextSignOut, useSession } from "next-auth/react";
+import type { JornaleiroAccessLevel, PlatformUserRole } from "@/lib/contracts/auth";
+import { normalizePlatformRole } from "@/lib/modules/auth/session";
 
-export type UserRole = "admin" | "jornaleiro" | "cliente";
+export type UserRole = PlatformUserRole;
 
 export interface UserProfile {
   id: string;
@@ -13,7 +15,7 @@ export interface UserProfile {
   phone: string | null;
   avatar_url: string | null;
   banca_id: string | null;
-  jornaleiro_access_level?: "admin" | "collaborator" | null;
+  jornaleiro_access_level?: JornaleiroAccessLevel;
   active: boolean;
   email_verified: boolean;
   blocked?: boolean;
@@ -53,10 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(status === "loading");
     if (status === "authenticated" && session?.user) {
       const u = session.user as any;
-      const rawRole = (u.role as string) || "cliente";
-      const normalizedRole: UserRole = (rawRole === "jornaleiro" || rawRole === "seller")
-        ? "jornaleiro"
-        : (rawRole === "admin" ? "admin" : "cliente");
+      const normalizedRole = normalizePlatformRole((u.role as string) || "cliente");
 
       setUser({ id: u.id, email: u.email, name: u.name });
       setProfile({
@@ -104,10 +103,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
 
           if (data.profile) {
+            const normalizedProfileRole = normalizePlatformRole(
+              (data.profile.role as string | undefined) ?? normalizedRole
+            );
+
             setProfile({
               ...data.profile,
               id: data.profile.id ?? u.id,
-              role: (data.profile.role as UserRole) ?? normalizedRole,
+              role: normalizedProfileRole,
               created_at: data.profile.created_at ?? new Date().toISOString(),
               updated_at: data.profile.updated_at ?? new Date().toISOString(),
               email_verified: data.profile.email_verified ?? true,
@@ -231,11 +234,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin: profile?.role === "admin" || (session?.user as any)?.role === "admin",
     isJornaleiro:
       profile?.role === "jornaleiro" ||
-      (session?.user as any)?.role === "jornaleiro" ||
-      (session?.user as any)?.role === "seller",
+      normalizePlatformRole((session?.user as any)?.role as string) === "jornaleiro",
     isCliente:
       profile?.role === "cliente" ||
-      (!profile && (session?.user as any)?.role === "cliente"),
+      (!profile && normalizePlatformRole((session?.user as any)?.role as string) === "cliente"),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -252,13 +254,13 @@ export function useAuth() {
 // Hook para proteger rotas
 export function useRequireAuth(requiredRole?: UserRole) {
   const { data: session, status } = useSession();
-  const role = (session?.user as any)?.role as UserRole | undefined;
+  const role = normalizePlatformRole((session?.user as any)?.role as string | undefined);
   const loading = status === "loading";
   const user = session?.user ? { id: (session.user as any).id, email: session.user.email! } : null;
   const profile: UserProfile | null = session?.user
     ? {
         id: (session.user as any).id,
-        role: (role as UserRole) || "cliente",
+        role,
         full_name: (session.user as any).name ?? null,
         phone: null,
         avatar_url: (session.user as any).avatar_url ?? null,

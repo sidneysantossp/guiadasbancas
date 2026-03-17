@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import { isAdminAuthorized } from "@/lib/security/admin-auth";
 import {
   DISTRIBUIDOR_SESSION_COOKIE,
@@ -15,14 +16,14 @@ export async function requireDistribuidorAccess(
   if (!distribuidorId) {
     return NextResponse.json(
       { success: false, error: "ID do distribuidor é obrigatório" },
-      { status: 400 }
+      { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 
   if (!DISTRIBUIDOR_UUID_REGEX.test(distribuidorId)) {
     return NextResponse.json(
       { success: false, error: "ID do distribuidor inválido" },
-      { status: 400 }
+      { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 
@@ -37,14 +38,14 @@ export async function requireDistribuidorAccess(
   if (!sessionPayload) {
     return NextResponse.json(
       { success: false, error: "Sessão do distribuidor inválida ou expirada" },
-      { status: 401 }
+      { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 
   if (sessionPayload.sub !== distribuidorId) {
     return NextResponse.json(
       { success: false, error: "Sessão não corresponde ao distribuidor informado" },
-      { status: 403 }
+      { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 
@@ -52,7 +53,7 @@ export async function requireDistribuidorAccess(
   if (headerDistribuidorId && headerDistribuidorId !== distribuidorId) {
     return NextResponse.json(
       { success: false, error: "Não autorizado para este distribuidor" },
-      { status: 403 }
+      { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 

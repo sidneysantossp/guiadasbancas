@@ -1,3 +1,5 @@
+import { LEGACY_ADMIN_AUTHORIZATION_HEADER } from "@/lib/policies/legacy-tokens";
+
 export async function fetchAdminWithDevFallback(
   input: RequestInfo | URL,
   init?: RequestInit
@@ -18,7 +20,7 @@ export async function fetchAdminWithDevFallback(
     ? {
         ...requestInitWithDefaults,
         headers: mergeHeaders(requestInitWithDefaults.headers, {
-          Authorization: 'Bearer admin-token',
+          Authorization: LEGACY_ADMIN_AUTHORIZATION_HEADER,
         }),
       }
     : requestInitWithDefaults;
@@ -34,7 +36,7 @@ export async function fetchAdminWithDevFallback(
   if (!shouldRetryWithDevToken) return firstResponse;
 
   const headers = mergeHeaders(requestInitWithDefaults.headers, {
-    Authorization: 'Bearer admin-token',
+    Authorization: LEGACY_ADMIN_AUTHORIZATION_HEADER,
   });
 
   return fetch(input, {

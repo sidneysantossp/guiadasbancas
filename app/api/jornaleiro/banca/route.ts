@@ -4,6 +4,7 @@ export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
+import { loadUserProfileById } from "@/lib/modules/auth/user-profiles";
 import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import type { AdminBanca } from "@/app/api/admin/bancas/route";
@@ -122,32 +123,18 @@ async function loadBancaForUser(userId: string): Promise<any> {
   try {
     console.log('[loadBancaForUser] Buscando banca ativa para user_id:', userId);
 
-    // Buscar profile (inclui banca_id ativa). Backward-compatible: alguns ambientes podem não ter
-    // a coluna `jornaleiro_access_level` ainda.
-    let profile: any = null;
-    let profileErr: any = null;
-    const primaryProfile = await supabaseAdmin
-      .from("user_profiles")
-      .select("banca_id, jornaleiro_access_level, full_name, phone, cpf, avatar_url, updated_at")
-      .eq("id", userId)
-      .maybeSingle();
-
-    profile = primaryProfile.data;
-    profileErr = primaryProfile.error;
-
-    if (
-      profileErr &&
-      (profileErr.code === "42703" || /jornaleiro_access_level/i.test(profileErr.message || ""))
-    ) {
-      const fallbackProfile = await supabaseAdmin
-        .from("user_profiles")
-        .select("banca_id, full_name, phone, cpf, avatar_url, updated_at")
-        .eq("id", userId)
-        .maybeSingle();
-
-      profile = fallbackProfile.data;
-      profileErr = fallbackProfile.error;
-    }
+    const { data: profile, error: profileErr } = await loadUserProfileById<{
+      banca_id?: string | null;
+      jornaleiro_access_level?: string | null;
+      full_name?: string | null;
+      phone?: string | null;
+      cpf?: string | null;
+      avatar_url?: string | null;
+      updated_at?: string | null;
+    }>({
+      userId,
+      select: "banca_id, full_name, phone, cpf, avatar_url, updated_at",
+    });
 
     if (profileErr) {
       console.warn('[loadBancaForUser] ⚠️ Não foi possível carregar profile:', profileErr.message);

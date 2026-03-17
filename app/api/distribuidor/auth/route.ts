@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as bcrypt from 'bcryptjs';
+import { buildNoStoreHeaders } from '@/lib/modules/http/no-store';
 import {
   buildDistribuidorSessionCookie,
   buildDistribuidorSessionCookieClear,
@@ -21,12 +22,7 @@ export const revalidate = 0;
 function jsonNoStore(body: Record<string, any>, status = 200) {
   return NextResponse.json(body, {
     status,
-    headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, private',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      'Surrogate-Control': 'no-store',
-    },
+    headers: buildNoStoreHeaders({ isPrivate: true }),
   });
 }
 

@@ -1,38 +1,12 @@
 import { createHmac, timingSafeEqual } from "crypto";
-
-export type DistribuidorSessionPayload = {
-  sub: string;
-  email: string | null;
-  nome: string | null;
-  iat: number;
-  exp: number;
-};
+import type { DistribuidorSessionPayload } from "@/lib/contracts/auth";
+import { resolveDistribuidorAuthSecret } from "@/lib/modules/auth/secrets";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 export const DISTRIBUIDOR_SESSION_COOKIE = "gb_distribuidor_session";
 
-function resolveDistribuidorSessionSecret(): string | null {
-  if (process.env.DISTRIBUIDOR_AUTH_SECRET) {
-    return process.env.DISTRIBUIDOR_AUTH_SECRET;
-  }
-
-  if (process.env.NEXTAUTH_SECRET) {
-    return process.env.NEXTAUTH_SECRET;
-  }
-
-  if (process.env.AUTH_SECRET) {
-    return process.env.AUTH_SECRET;
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    return null;
-  }
-
-  return "gb-distribuidor-dev-secret";
-}
-
 export function hasDistribuidorSessionSecret(): boolean {
-  return Boolean(resolveDistribuidorSessionSecret());
+  return Boolean(resolveDistribuidorAuthSecret());
 }
 
 function encodeBase64Url(input: string): string {
@@ -50,7 +24,7 @@ function decodeBase64Url(input: string): string {
 }
 
 function signPayload(encodedPayload: string): string {
-  const secret = resolveDistribuidorSessionSecret();
+  const secret = resolveDistribuidorAuthSecret();
 
   if (!secret) {
     throw new Error("DISTRIBUIDOR_AUTH_SECRET não configurado");
@@ -90,7 +64,7 @@ export function issueDistribuidorSessionToken(input: {
 
 export function verifyDistribuidorSessionToken(token: string | null | undefined): DistribuidorSessionPayload | null {
   if (!token) return null;
-  if (!resolveDistribuidorSessionSecret()) return null;
+  if (!resolveDistribuidorAuthSecret()) return null;
 
   const [encodedPayload, signature] = token.split(".");
   if (!encodedPayload || !signature) return null;

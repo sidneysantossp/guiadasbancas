@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import {
   buildDistribuidorSessionCookieClear,
   DISTRIBUIDOR_SESSION_COOKIE,
@@ -17,12 +18,7 @@ function getSessionToken(request: NextRequest) {
 function jsonNoStore(body: Record<string, any>, status = 200) {
   return NextResponse.json(body, {
     status,
-    headers: {
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, private",
-      "Pragma": "no-cache",
-      "Expires": "0",
-      "Surrogate-Control": "no-store",
-    },
+    headers: buildNoStoreHeaders({ isPrivate: true }),
   });
 }
 
@@ -31,12 +27,7 @@ function clearSessionResponse(status = 200) {
     { success: false, error: "Sessão do distribuidor inválida ou expirada" },
     {
       status,
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, private",
-        "Pragma": "no-cache",
-        "Expires": "0",
-        "Surrogate-Control": "no-store",
-      },
+      headers: buildNoStoreHeaders({ isPrivate: true }),
     }
   );
   response.cookies.set(buildDistribuidorSessionCookieClear());
@@ -73,12 +64,7 @@ export async function GET(request: NextRequest) {
       },
     },
     {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, private",
-        "Pragma": "no-cache",
-        "Expires": "0",
-        "Surrogate-Control": "no-store",
-      },
+      headers: buildNoStoreHeaders({ isPrivate: true }),
     }
   );
 }

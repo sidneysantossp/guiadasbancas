@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readAuthenticatedUserClaims } from "@/lib/modules/auth/session";
+import { hasLegacyUploadAuthorizationHeader } from "@/lib/policies/legacy-tokens";
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 
@@ -8,24 +10,15 @@ export const dynamic = 'force-dynamic';
 // Configuração para Vercel - aumentar limite de tempo e tamanho
 export const maxDuration = 60; // 60 segundos
 
-const LEGACY_ALLOWED_TOKENS = new Set([
-  "Bearer admin-token",
-  "Bearer jornaleiro-token",
-]);
-
 function hasLegacyUploadToken(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const tokenAllowed = Boolean(authHeader && LEGACY_ALLOWED_TOKENS.has(authHeader));
-  if (!tokenAllowed) return false;
-
-  return process.env.NODE_ENV !== "production" || process.env.ALLOW_LEGACY_UPLOAD_TOKEN === "true";
+  return hasLegacyUploadAuthorizationHeader(request.headers.get("authorization"));
 }
 
 async function verifyUploadAuth(request: NextRequest) {
   try {
     const session = await auth();
-    const role = (session?.user as any)?.role as string | undefined;
-    if (role === "admin" || role === "jornaleiro" || role === "seller") {
+    const claims = readAuthenticatedUserClaims(session);
+    if (claims?.role === "admin" || claims?.role === "jornaleiro") {
       return true;
     }
   } catch {
