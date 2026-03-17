@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { loadAdminProductDetail } from "@/lib/modules/products/service";
 
 export const dynamic = 'force-dynamic';
 
@@ -10,63 +12,24 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const authError = await requireAdminAuth(request);
     if (authError) return authError;
 
-    const { data, error } = await supabaseAdmin
-      .from('products')
-      .select('*')
-      .eq('id', params.id)
-      .single();
+    const data = await loadAdminProductDetail(params.id);
 
-    if (error || !data) {
-      return NextResponse.json({ success: false, error: "Produto não encontrado" }, { status: 404 });
+    if (!data) {
+      return NextResponse.json(
+        { success: false, error: "Produto não encontrado" },
+        { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
-
-    const [bancaResponse, distribuidorResponse, categoryResponse, distribuidorCategoryResponse] = await Promise.all([
-      data.banca_id
-        ? supabaseAdmin
-            .from('bancas')
-            .select('id, user_id, name, address, whatsapp, active, approved')
-            .eq('id', data.banca_id)
-            .single()
-        : Promise.resolve({ data: null, error: null }),
-      data.distribuidor_id
-        ? supabaseAdmin
-            .from('distribuidores')
-            .select('id, nome, ativo, ultima_sincronizacao')
-            .eq('id', data.distribuidor_id)
-            .single()
-        : Promise.resolve({ data: null, error: null }),
-      data.category_id
-        ? supabaseAdmin
-            .from('categories')
-            .select('id, name')
-            .eq('id', data.category_id)
-            .single()
-        : Promise.resolve({ data: null, error: null }),
-      data.category_id
-        ? supabaseAdmin
-            .from('distribuidor_categories')
-            .select('id, nome')
-            .eq('id', data.category_id)
-            .single()
-        : Promise.resolve({ data: null, error: null }),
-    ]);
-
-    const relatedCategoryName =
-      categoryResponse.data?.name ||
-      distribuidorCategoryResponse.data?.nome ||
-      null;
 
     return NextResponse.json({
       success: true,
-      data: {
-        ...data,
-        category_name: relatedCategoryName,
-        banca: bancaResponse.data || null,
-        distribuidor: distribuidorResponse.data || null,
-      },
-    });
+      data,
+    }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
   } catch (error) {
-    return NextResponse.json({ success: false, error: "Erro interno" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Erro interno" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }
 

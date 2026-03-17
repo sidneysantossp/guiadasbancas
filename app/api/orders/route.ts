@@ -1,58 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendOrderWhatsAppNotification, sendStatusWhatsAppUpdate, type OrderWhatsAppData } from "@/lib/whatsapp";
 import { auth } from "@/lib/auth";
-import { computeCouponDiscount, isCouponActive } from "@/lib/coupon-engine";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { validateCouponSelection } from "@/lib/modules/coupons/service";
+import {
+  buildOrderListMeta,
+  canActorAccessOrder,
+  formatOrderRecord,
+  formatOrderRecords,
+  generateOrderNumber,
+  normalizeCheckoutPayload,
+  readOrderActor,
+  resolveOrderActorBancaId,
+} from "@/lib/modules/orders/service";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
-import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 
-type OrderItem = {
-  id: string;
-  product_id: string;
-  product_name: string;
-  product_image?: string;
-  quantity: number;
-  unit_price: number;
-  total_price: number;
-};
-
-type Order = {
-  id: string;
-  customer_name: string;
-  customer_phone: string;
-  customer_email?: string;
-  customer_address?: string;
-  banca_id: string;
-  banca_name: string;
-  items: OrderItem[];
-  subtotal: number;
-  shipping_fee: number;
-  total: number;
-  status: string;
-  payment_method: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-  estimated_delivery?: string;
-};
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
-    // SEGURANÇA: Verificar autenticação
-    if (!session?.user) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
+    const actor = readOrderActor(session);
 
-    const userRole = (session?.user as any)?.role as string | undefined;
-    const userId = (session?.user as any)?.id as string | undefined;
-    
-    // SEGURANÇA: Verificar role válido (cliente pode ver próprios pedidos)
-    if (!userRole || !['admin', 'jornaleiro', 'cliente'].includes(userRole)) {
-      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
-    }
-    if (!userId) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    if (!actor) {
+      return NextResponse.json(
+        { error: "Não autorizado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     const { searchParams } = new URL(req.url);
@@ -75,47 +50,50 @@ export async function GET(req: NextRequest) {
         .single();
 
       if (singleError || !singleOrder) {
-        return NextResponse.json({ success: false, error: "Pedido não encontrado" }, { status: 404 });
+        return NextResponse.json(
+          { success: false, error: "Pedido não encontrado" },
+          { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+        );
       }
 
-      // Verificar permissão: cliente só vê próprio pedido, jornaleiro só da própria banca
-      if (userRole === 'cliente' && singleOrder.user_id !== userId) {
-        return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
+      const actorBancaId = await resolveOrderActorBancaId(actor);
+      if (!canActorAccessOrder({ actor, order: singleOrder, actorBancaId })) {
+        return NextResponse.json(
+          { success: false, error: "Acesso negado" },
+          { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+        );
       }
 
-      if (userRole === 'jornaleiro') {
-        const bancaData = await getActiveBancaRowForUser(userId, 'id, user_id');
-        
-        if (!bancaData || singleOrder.banca_id !== bancaData.id) {
-          return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
-        }
-      }
-
-      return NextResponse.json({ success: true, data: singleOrder });
+      return NextResponse.json(
+        { success: true, data: formatOrderRecord(singleOrder) },
+        { headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
-    // SEGURANÇA: Para jornaleiros, buscar banca_id do usuário
     let userBancaId: string | undefined;
-    if (userRole === 'jornaleiro') {
-      const bancaData = await getActiveBancaRowForUser(userId, 'id, user_id');
-      
-      if (!bancaData) {
-        console.error('[API/ORDERS/GET] Banca não encontrada para jornaleiro:', userId);
-        return NextResponse.json({ error: "Banca não encontrada" }, { status: 404 });
+    if (actor.role === 'jornaleiro') {
+      const bancaId = await resolveOrderActorBancaId(actor);
+
+      if (!bancaId) {
+        console.error('[API/ORDERS/GET] Banca não encontrada para jornaleiro:', actor.userId);
+        return NextResponse.json(
+          { error: "Banca não encontrada" },
+          { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+        );
       }
-      userBancaId = bancaData.id;
-      console.log('[API/ORDERS/GET] Jornaleiro:', userId, '-> Banca:', userBancaId);
+      userBancaId = bancaId;
+      console.log('[API/ORDERS/GET] Jornaleiro:', actor.userId, '-> Banca:', userBancaId);
     }
     
     // Log para debug
-    console.log('[API/ORDERS/GET] Role:', userRole, '| UserId:', userId, '| BancaId filtro:', userBancaId || 'N/A');
+    console.log('[API/ORDERS/GET] Role:', actor.role, '| UserId:', actor.userId, '| BancaId filtro:', userBancaId || 'N/A');
     
     // Buscar pedidos do Supabase (evitar join pesado para jornaleiro)
     const selectForAdmin = `*, bancas:banca_id ( id, name, address, whatsapp )`;
     const selectForJornaleiro = `*`;
     let query = supabaseAdmin
       .from('orders')
-      .select(userRole === 'admin' ? selectForAdmin : selectForJornaleiro, { count: countPref });
+      .select(actor.role === 'admin' ? selectForAdmin : selectForJornaleiro, { count: countPref });
 
     // Filtrar por status (suporta múltiplos status separados por vírgula)
     if (status) {
@@ -128,11 +106,11 @@ export async function GET(req: NextRequest) {
     }
 
     // Filtrar por banca (jornaleiro só vê pedidos da própria banca)
-    if (userRole === 'jornaleiro' && userBancaId) {
+    if (actor.role === 'jornaleiro' && userBancaId) {
       query = query.eq('banca_id', userBancaId);
-    } else if (userRole === 'cliente' && userId) {
+    } else if (actor.role === 'cliente') {
       // Cliente só vê próprios pedidos
-      query = query.eq('user_id', userId);
+      query = query.eq('user_id', actor.userId);
     } else if (bancaIdFilter) {
       query = query.eq('banca_id', bancaIdFilter);
     }
@@ -153,50 +131,28 @@ export async function GET(req: NextRequest) {
 
     if (error) {
       console.error('[API/ORDERS/GET] Erro ao buscar pedidos:', error);
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: error.message },
+        { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
-    // Formatar dados para o formato esperado pelo frontend
-    const items = (data || []).map((order: any) => ({
-      id: order.id,
-      customer_name: order.customer_name,
-      customer_phone: order.customer_phone,
-      customer_email: order.customer_email,
-      customer_address: order.customer_address,
-      banca_id: order.banca_id,
-      banca_name: order.bancas?.name || 'Banca',
-      banca_address: order.bancas?.address || '',
-      banca_whatsapp: order.bancas?.whatsapp || '',
-      items: order.items,
-      subtotal: Number(order.subtotal),
-      shipping_fee: Number(order.shipping_fee),
-      total: Number(order.total),
-      status: order.status,
-      payment_method: order.payment_method,
-      notes: order.notes,
-      created_at: order.created_at,
-      updated_at: order.updated_at,
-      estimated_delivery: order.estimated_delivery,
-      discount: order.discount ? Number(order.discount) : 0,
-      coupon_code: order.coupon_code || null,
-      coupon_discount: order.coupon_discount ? Number(order.coupon_discount) : 0,
-      tax: order.tax ? Number(order.tax) : 0,
-      addons_total: order.addons_total ? Number(order.addons_total) : 0
-    }));
+    const items = formatOrderRecords(data || []);
+    const pagination = buildOrderListMeta({ count, page, limit });
   
     return NextResponse.json(
-      { 
-        items, 
-        total: count || 0, 
-        page, 
-        limit,
-        pages: Math.ceil((count || 0) / limit)
+      {
+        items,
+        ...pagination,
       },
-      { headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' } }
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   } catch (e: any) {
     console.error('[API/ORDERS/GET] Erro:', e);
-    return NextResponse.json({ ok: false, error: e?.message || "Erro ao buscar pedidos" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: e?.message || "Erro ao buscar pedidos" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }
 
@@ -204,39 +160,20 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     const body = await req.json();
-    
-    // Extrair dados do payload do checkout
-    const customer = body.customer || {};
-    const address = body.address || {};
-    const pricing = body.pricing || {};
-    const items = body.items || [];
-    
-    // Criar endereço formatado
-    const fullAddress = [
-      address.street,
-      address.houseNumber,
-      address.neighborhood,
-      address.city && address.uf ? `${address.city} - ${address.uf}` : '',
-      address.cep ? `CEP: ${address.cep}` : ''
-    ].filter(Boolean).join(', ');
-    
-    // Mapear itens para o formato correto
-    const orderItems: OrderItem[] = items.map((item: any, index: number) => ({
-      id: `item-${index + 1}`,
-      product_id: item.id || `prod-${index + 1}`,
-      product_name: item.name || 'Produto',
-      product_image: item.image || '',
-      quantity: item.qty || 1,
-      unit_price: item.price || 0,
-      total_price: (item.price || 0) * (item.qty || 1)
-    }));
+    const actor = readOrderActor(session);
+    const checkout = normalizeCheckoutPayload(body, actor?.bancaId);
+    const customer = checkout.customer;
+    const orderItems = checkout.orderItems;
+    const fullAddress = checkout.fullAddress;
     
     // Determinar banca_id
-    const sessionBancaId = (session?.user as any)?.banca_id as string | undefined;
-    const inferredBancaId = body.banca_id || items[0]?.banca_id || sessionBancaId;
+    const inferredBancaId = checkout.inferredBancaId;
 
     if (!inferredBancaId) {
-      return NextResponse.json({ ok: false, error: "Banca não identificada" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "Banca não identificada" },
+        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     // Buscar dados da banca no Supabase
@@ -248,43 +185,37 @@ export async function POST(req: NextRequest) {
 
     if (bancaError || !banca) {
       console.error('[API/ORDERS/POST] Erro ao buscar banca:', bancaError);
-      return NextResponse.json({ ok: false, error: "Banca não encontrada" }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: "Banca não encontrada" },
+        { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
-    const normalizedSubtotal = Number(pricing.subtotal || 0);
-    const normalizedBaseDiscount = Number(pricing.discount || 0);
-    const normalizedShippingFee = Number(pricing.shipping || 0);
-    const normalizedTax = Number(pricing.tax || 0);
-    const normalizedAddons = Number(pricing.addons || 0);
+    const normalizedSubtotal = checkout.normalizedSubtotal;
+    const normalizedBaseDiscount = checkout.normalizedBaseDiscount;
+    const normalizedShippingFee = checkout.normalizedShippingFee;
+    const normalizedTax = checkout.normalizedTax;
+    const normalizedAddons = checkout.normalizedAddons;
 
-    let validatedCouponCode: string | null = body.coupon ? String(body.coupon).trim().toUpperCase() : null;
+    let validatedCouponCode = checkout.couponCode;
     let validatedCouponDiscount = 0;
 
     if (validatedCouponCode) {
-      const { data: couponRows, error: couponError } = await supabaseAdmin
-        .from("coupons")
-        .select("id, seller_id, code, discount_text, active, expires_at")
-        .eq("code", validatedCouponCode)
-        .eq("seller_id", inferredBancaId)
-        .eq("active", true)
-        .limit(5);
+      const couponValidation = await validateCouponSelection({
+        code: validatedCouponCode,
+        sellerId: inferredBancaId,
+        subtotal: normalizedSubtotal,
+        shippingFee: normalizedShippingFee,
+      });
 
-      if (couponError) {
-        console.warn("[API/ORDERS/POST] Falha ao validar cupom:", couponError);
-      } else {
-        const validCoupon = (couponRows || []).find((coupon: any) =>
-          isCouponActive(Boolean(coupon.active), coupon.expires_at || null),
-        );
-
-        if (validCoupon) {
-          validatedCouponDiscount = computeCouponDiscount({
-            discountText: validCoupon.discount_text || "",
-            subtotal: normalizedSubtotal,
-            shippingFee: normalizedShippingFee,
-          }).amount;
+      if (!couponValidation.ok || !couponValidation.result) {
+        if (couponValidation.status >= 500) {
+          console.warn("[API/ORDERS/POST] Falha ao validar cupom:", couponValidation.error);
         } else {
           validatedCouponCode = null;
         }
+      } else {
+        validatedCouponDiscount = couponValidation.result.discount.amount;
       }
     }
 
@@ -297,20 +228,11 @@ export async function POST(req: NextRequest) {
     // BAN = primeiras 3 letras do nome da banca (maiúsculas, sem acentos)
     // AAAA = ano atual
     // TIMESTAMP = timestamp em milissegundos (garante unicidade)
-    const bancaPrefix = (banca.name || 'BAN')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
-      .replace(/[^a-zA-Z]/g, '') // Remove caracteres especiais
-      .substring(0, 3)
-      .toUpperCase()
-      .padEnd(3, 'X'); // Garante 3 caracteres
-    
-    const currentYear = new Date().getFullYear();
     const timestamp = Date.now();
-    const orderNumber = `${bancaPrefix}-${currentYear}-${timestamp}`;
+    const orderNumber = generateOrderNumber(banca.name || "BAN", timestamp);
 
     // Obter user_id da sessão (para associar pedido ao cliente)
-    const userId = session?.user?.id || (session?.user as any)?.id || null;
+    const userId = actor?.userId || null;
     
     // Criar pedido no Supabase (id será UUID gerado automaticamente)
     const { data: newOrder, error: orderError } = await supabaseAdmin
@@ -328,8 +250,8 @@ export async function POST(req: NextRequest) {
         shipping_fee: normalizedShippingFee,
         total: normalizedTotal,
         status: "novo",
-        payment_method: body.payment || "pix",
-        notes: body.shippingMethod ? `Entrega: ${body.shippingMethod}` : "",
+        payment_method: checkout.paymentMethod,
+        notes: checkout.shippingMethod ? `Entrega: ${checkout.shippingMethod}` : "",
         discount: normalizedBaseDiscount,
         coupon_code: validatedCouponCode,
         coupon_discount: validatedCouponDiscount,
@@ -341,7 +263,10 @@ export async function POST(req: NextRequest) {
 
     if (orderError || !newOrder) {
       console.error('[API/ORDERS/POST] Erro ao criar pedido:', orderError);
-      return NextResponse.json({ ok: false, error: orderError?.message || "Erro ao criar pedido" }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: orderError?.message || "Erro ao criar pedido" },
+        { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
     
     // Log em server para inspeção
@@ -349,7 +274,7 @@ export async function POST(req: NextRequest) {
       id: newOrder.id, 
       orderNumber, 
       customer: customer.name, 
-      total: pricing.total, 
+      total: checkout.pricing?.total ?? normalizedTotal,
       totalCalculado: normalizedTotal,
       banca: banca.name 
     });
@@ -395,8 +320,8 @@ export async function POST(req: NextRequest) {
               `${i + 1}. ${item.product_name}\n   Qtd: ${item.quantity}x | Valor: R$ ${item.unit_price.toFixed(2)}`
             ).join('\n') +
             `\n\n💰 *Total:* R$ ${normalizedTotal.toFixed(2)}\n` +
-            `🚚 *Entrega:* ${body.shippingMethod || 'Não especificado'}\n` +
-            `💳 *Pagamento:* ${body.payment || 'pix'}\n` +
+            `🚚 *Entrega:* ${checkout.shippingMethod || 'Não especificado'}\n` +
+            `💳 *Pagamento:* ${checkout.paymentMethod}\n` +
             (fullAddress ? `📍 *Endereço:* ${fullAddress}\n` : '') +
             `\n⏰ *Recebido em:* ${new Date().toLocaleString('pt-BR')}\n\n` +
             `━━━━━━━━━━━━━━━━━━━━\n\n` +
@@ -538,20 +463,25 @@ export async function POST(req: NextRequest) {
         banca_address: banca.address,
         banca_whatsapp: banca.whatsapp
       }
-    }, { status: 200 });
+    }, { status: 200, headers: buildNoStoreHeaders({ isPrivate: true }) });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Erro ao criar pedido" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: e?.message || "Erro ao criar pedido" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }
 
 export async function PATCH(req: NextRequest) {
   try {
     const session = await auth();
-    const userRole = (session?.user as any)?.role as string | undefined;
-    const userId = (session?.user as any)?.id as string | undefined;
+    const actor = readOrderActor(session);
 
-    if (!session?.user || !userRole || !userId) {
-      return NextResponse.json({ ok: false, error: "Não autorizado" }, { status: 401 });
+    if (!actor) {
+      return NextResponse.json(
+        { ok: false, error: "Não autorizado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     const body = await req.json();
@@ -565,31 +495,38 @@ export async function PATCH(req: NextRequest) {
       .single();
 
     if (fetchError || !currentOrder) {
-      return NextResponse.json({ ok: false, error: "Pedido não encontrado" }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: "Pedido não encontrado" },
+        { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
     
-    const oldStatus = currentOrder.status;
-
-    if (userRole === "cliente") {
+    if (actor.role === "cliente") {
       const nextStatus = String(status || "").toLowerCase();
       const allowedCustomerStatuses = ["cancelado", "cancelled", "canceled"];
 
-      if (currentOrder.user_id !== userId) {
-        return NextResponse.json({ ok: false, error: "Acesso negado" }, { status: 403 });
+      if (currentOrder.user_id !== actor.userId) {
+        return NextResponse.json(
+          { ok: false, error: "Acesso negado" },
+          { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+        );
       }
 
       if (!allowedCustomerStatuses.includes(nextStatus) || notes !== undefined || estimated_delivery || items) {
         return NextResponse.json(
           { ok: false, error: "Cliente só pode cancelar o próprio pedido" },
-          { status: 403 },
+          { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) },
         );
       }
     }
 
-    if (userRole === "jornaleiro" || userRole === "seller") {
-      const banca = await getActiveBancaRowForUser(userId, "id");
-      if (!banca || currentOrder.banca_id !== banca.id) {
-        return NextResponse.json({ ok: false, error: "Acesso negado" }, { status: 403 });
+    if (actor.role === "jornaleiro") {
+      const actorBancaId = await resolveOrderActorBancaId(actor);
+      if (!canActorAccessOrder({ actor, order: currentOrder, actorBancaId })) {
+        return NextResponse.json(
+          { ok: false, error: "Acesso negado" },
+          { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+        );
       }
     }
     
@@ -609,15 +546,24 @@ export async function PATCH(req: NextRequest) {
 
     if (updateError || !updatedOrder) {
       console.error('[API/ORDERS/PATCH] Erro ao atualizar pedido:', updateError);
-      return NextResponse.json({ ok: false, error: updateError?.message || "Erro ao atualizar pedido" }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: updateError?.message || "Erro ao atualizar pedido" },
+        { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
     
     // NOTA: WhatsApp é enviado pelo frontend via /api/whatsapp/status-update
     // (inclui resumo dos produtos com status individual)
     
-    return NextResponse.json({ ok: true, data: updatedOrder });
+    return NextResponse.json(
+      { ok: true, data: formatOrderRecord(updatedOrder) },
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   } catch (e: any) {
     console.error('[API/ORDERS/PATCH] Erro:', e);
-    return NextResponse.json({ ok: false, error: e?.message || "Erro ao atualizar pedido" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: e?.message || "Erro ao atualizar pedido" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }

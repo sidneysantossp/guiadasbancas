@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { listAdminProductsPage } from "@/lib/modules/products/service";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -19,162 +21,25 @@ export async function GET(request: NextRequest) {
     const category = (url.searchParams.get('category') || '').trim();
     const status = (url.searchParams.get('status') || '').trim();
 
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-
-    let query = supabaseAdmin
-      .from('products')
-      .select('*', { count: 'exact' })
-      .order('name');
-
-    if (q) {
-      query = query.or(`name.ilike.%${q}%,codigo_mercos.ilike.%${q}%`);
-    }
-    if (distribuidor) {
-      if (distribuidor === 'admin') {
-        query = query.is('distribuidor_id', null);
-      } else {
-        query = query.eq('distribuidor_id', distribuidor);
-      }
-    }
-    if (category) {
-      query = query.eq('category_id', category);
-    }
-    if (status) {
-      query = query.eq('active', status === 'ativo');
-    }
-
-    const { data: products, error: productsError, count } = await query.range(from, to);
-
-    if (productsError) {
-      console.error('Admin products error:', productsError);
-      return NextResponse.json({ success: false, error: 'Erro ao buscar produtos', details: productsError }, { status: 500 });
-    }
-
-    // Buscar distribuidores com markup global
-    const { data: distribuidores } = await supabaseAdmin
-      .from('distribuidores')
-      .select('id, nome, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor, tipo_calculo');
-
-    // Buscar categorias de bancas
-    const { data: categoriesBancas } = await supabaseAdmin
-      .from('categories')
-      .select('id, name');
-
-    // Buscar categorias de distribuidores
-    const { data: categoriesDistribuidores } = await supabaseAdmin
-      .from('distribuidor_categories')
-      .select('id, nome');
-
-    const bancaIds = Array.from(new Set((products || []).map((p: any) => p.banca_id).filter(Boolean)));
-    const bancasResponse = bancaIds.length > 0
-      ? await supabaseAdmin
-          .from('bancas')
-          .select('id, name')
-          .in('id', bancaIds)
-      : { data: [] as Array<{ id: string; name: string | null }> };
-
-    // Mapear markups
-    const productIds = (products || []).map((p: any) => p.id);
-    const distribuidorIds = (products || []).map((p: any) => p.distribuidor_id).filter(Boolean);
-
-    // Buscar markups por produto
-    const { data: markupProdutos } = await supabaseAdmin
-      .from('distribuidor_markup_produtos')
-      .select('distribuidor_id, product_id, markup_percentual, markup_fixo')
-      .in('product_id', productIds);
-
-    // Buscar markups por categoria
-    const { data: markupCategorias } = await supabaseAdmin
-      .from('distribuidor_markup_categorias')
-      .select('distribuidor_id, category_id, markup_percentual, markup_fixo')
-      .in('distribuidor_id', distribuidorIds);
-
-    // Criar mapas
-    const distribuidoresMap = new Map((distribuidores || []).map(d => [d.id, d]));
-    const categoriasBancasMap = new Map((categoriesBancas || []).map(c => [c.id, c.name]));
-    const categoriasDistribuidoresMap = new Map((categoriesDistribuidores || []).map(c => [c.id, c.nome]));
-    const bancasMap = new Map((bancasResponse.data || []).map((b: any) => [b.id, b.name]));
-    
-    const markupProdMap = new Map();
-    (markupProdutos || []).forEach((m: any) => markupProdMap.set(m.product_id, m));
-
-    const markupCatMap = new Map();
-    (markupCategorias || []).forEach((m: any) => markupCatMap.set(`${m.distribuidor_id}:${m.category_id}`, m));
-    
-    // Função auxiliar de cálculo
-    const calcularPreco = (precoBase: number, p: any) => {
-      if (!p.distribuidor_id) return precoBase;
-
-      // 1. Produto
-      const mp = markupProdMap.get(p.id);
-      if (mp) {
-        const mpPerc = Number(mp.markup_percentual || 0);
-        const mpFixo = Number(mp.markup_fixo || 0);
-        if (mpPerc > 0 || mpFixo > 0) {
-          return precoBase * (1 + mpPerc / 100) + mpFixo;
-        }
-      }
-
-      // 2. Categoria
-      const mc = markupCatMap.get(`${p.distribuidor_id}:${p.category_id}`);
-      if (mc) {
-        const mcPerc = Number(mc.markup_percentual || 0);
-        const mcFixo = Number(mc.markup_fixo || 0);
-        if (mcPerc > 0 || mcFixo > 0) {
-          return precoBase * (1 + mcPerc / 100) + mcFixo;
-        }
-      }
-
-      // 3. Global
-      const dist = distribuidoresMap.get(p.distribuidor_id);
-      if (dist) {
-        const tipoCalculo = dist.tipo_calculo || 'markup';
-        
-        if (tipoCalculo === 'margem') {
-          const margemDivisor = Number(dist.margem_divisor || 1);
-          if (margemDivisor > 0 && margemDivisor < 1) {
-            return precoBase / margemDivisor;
-          }
-        }
-        
-        const perc = Number(dist.markup_global_percentual || 0);
-        const fixo = Number(dist.markup_global_fixo || 0);
-        
-        if (perc > 0 || fixo > 0) {
-          return precoBase * (1 + perc / 100) + fixo;
-        }
-      }
-      return precoBase;
-    };
-
-    const mappedData = (products || []).map((product: any) => {
-      let categoriaNome = 'Sem Categoria';
-      
-      // Tentar buscar da categoria de bancas primeiro
-      if (product.category_id && categoriasBancasMap.has(product.category_id)) {
-        categoriaNome = categoriasBancasMap.get(product.category_id)!;
-      } 
-      // Senão, tentar buscar da categoria de distribuidores
-      else if (product.category_id && categoriasDistribuidoresMap.has(product.category_id)) {
-        categoriaNome = categoriasDistribuidoresMap.get(product.category_id)!;
-      }
-
-      const precoFinal = calcularPreco(product.price || 0, product);
-      
-      return {
-        ...product,
-        price_final: precoFinal,
-        distribuidor_nome: product.distribuidor_id ? (distribuidoresMap.get(product.distribuidor_id) as any)?.nome || null : null,
-        banca_nome: product.banca_id ? bancasMap.get(product.banca_id) || null : null,
-        categoria_nome: categoriaNome,
-      };
+    const result = await listAdminProductsPage({
+      page,
+      pageSize,
+      q,
+      distribuidor,
+      category,
+      status,
     });
 
-    return NextResponse.json({ success: true, data: mappedData, total: count || 0, page, pageSize });
+    return NextResponse.json(
+      { success: true, data: result.items, total: result.total, page: result.page, pageSize: result.pageSize },
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   } catch (error) {
     console.error('Admin products API error:', error);
-    return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: 'Erro interno' },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }
 

@@ -4,26 +4,43 @@ import { v4 as uuid } from "uuid";
 import type { Produto } from "@/types/admin";
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
-import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
+import { readAuthenticatedUserClaims } from "@/lib/modules/auth/session";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import {
+  bancaHasLegacyDistributorCatalogAccess,
+  DEFAULT_PRODUCT_IMAGE,
+  DISTRIBUIDOR_PRODUCTS_CATEGORY_ID,
+  formatLegacyProductListItems,
+  listDistributorCatalogForBanca,
+  listOwnedCatalogProducts,
+} from "@/lib/modules/products/service";
+import { loadPrimaryOwnedBanca } from "@/lib/modules/jornaleiro/access";
 
-const CATEGORIA_DISTRIBUIDORES_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
-const DEFAULT_PRODUCT_IMAGE = 'https://cdn1.staticpanvel.com.br/produtos/15/produto-sem-imagem.jpg';
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
+    const claims = readAuthenticatedUserClaims(session);
     
     // SEGURANÇA: Verificar autenticação
-    if (!session?.user) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    if (!claims?.id) {
+      return NextResponse.json(
+        { error: "Não autorizado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
-    const userRole = (session?.user as any)?.role as string | undefined;
-    const userId = (session?.user as any)?.id as string | undefined;
+    const userRole = claims.role;
+    const userId = claims.id;
     
     // SEGURANÇA: Verificar role válido
-    if (!userRole || !['admin', 'jornaleiro'].includes(userRole)) {
-      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    if (!['admin', 'jornaleiro'].includes(userRole)) {
+      return NextResponse.json(
+        { error: "Acesso negado" },
+        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     const { searchParams } = new URL(req.url);
@@ -32,163 +49,68 @@ export async function GET(req: NextRequest) {
     const active = searchParams.get("active");
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100); // Máximo 100
     let bancaId = searchParams.get("banca_id") || "";
+    const activeFilter =
+      active === "true" ? true : active === "false" ? false : null;
 
     // SEGURANÇA: Para jornaleiros, forçar filtro pela própria banca
     if (userRole === 'jornaleiro') {
-      if (!userId) {
-        return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-      }
-
-      const bancaData = await getActiveBancaRowForUser(userId, 'id');
+      const { data: bancaData } = await loadPrimaryOwnedBanca<{ id: string }>({
+        userId,
+        select: "id",
+      });
       
       if (!bancaData) {
-        return NextResponse.json({ error: "Banca não encontrada" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Banca não encontrada" },
+          { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+        );
       }
       bancaId = bancaData.id;
     }
 
-    let query = supabaseAdmin
-      .from('products')
-      .select(`
-        *,
-        bancas(name)
-      `);
+    const ownProducts = await listOwnedCatalogProducts({
+      bancaId: bancaId || null,
+      filters: {
+        q,
+        category,
+        active: activeFilter,
+        limit,
+      },
+    });
 
-    // Aplicar filtros
-    if (q) {
-      query = query.ilike('name', `%${q}%`);
-    }
-    if (category) {
-      query = query.eq('category_id', category);
-    }
-    if (bancaId) {
-      query = query.eq('banca_id', bancaId);
-    }
-    if (active !== null) {
-      if (active === "true") {
-        query = query.eq('active', true);
-      } else if (active === "false") {
-        query = query.eq('active', false);
-      }
-    }
+    const distributorCatalog = bancaId
+      ? await listDistributorCatalogForBanca({
+          bancaId,
+          filters: {
+            q,
+            category,
+            limit,
+          },
+          canAccessCatalog: await bancaHasLegacyDistributorCatalogAccess(bancaId),
+          fallbackImageUrl: DEFAULT_PRODUCT_IMAGE,
+          distributorCategoryId: DISTRIBUIDOR_PRODUCTS_CATEGORY_ID,
+        })
+      : { items: [], totalAvailable: 0 };
 
-    // Aplicar limite
-    query = query.limit(limit);
-    
-    const { data, error } = await query.order('created_at', { ascending: false});
-    
-    let allData = data || [];
-    
-    // Se filtrar por banca_id, incluir produtos de distribuidor APENAS SE FOR COTISTA
-    if (bancaId && !error) {
-      // Verificar se a banca é cotista antes de incluir produtos do distribuidor
-      const { data: bancaInfo } = await supabaseAdmin
-        .from('bancas')
-        .select('is_cotista')
-        .eq('id', bancaId)
-        .single();
-      
-      // APENAS cotistas podem ver produtos do distribuidor
-      if (bancaInfo?.is_cotista) {
-        // Buscar TODOS os produtos de distribuidor
-        const { data: todosProdutosDistribuidor } = await supabaseAdmin
-          .from('products')
-          .select(`
-            *,
-            bancas(name)
-          `)
-          .not('distribuidor_id', 'is', null);
-
-        if (todosProdutosDistribuidor && todosProdutosDistribuidor.length > 0) {
-          // Buscar customizações desta banca (se houver)
-          const { data: customizacoes } = await supabaseAdmin
-            .from('banca_produtos_distribuidor')
-            .select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda')
-            .eq('banca_id', bancaId);
-
-          // Mapear customizações por product_id
-          const customMap = new Map(
-            (customizacoes || []).map(c => [c.product_id, c])
-          );
-
-          // Aplicar customizações e filtrar desabilitados
-          const produtosCustomizados = todosProdutosDistribuidor
-            .filter(produto => {
-              const custom = customMap.get(produto.id);
-              return !custom || custom.enabled !== false;
-            })
-            .map(produto => {
-              const custom = customMap.get(produto.id);
-              
-              // Garantir que há uma imagem
-              let images = produto.images || [];
-              if (!Array.isArray(images) || images.length === 0) {
-                images = [DEFAULT_PRODUCT_IMAGE];
-              }
-              
-              return {
-                ...produto,
-                images,
-                price: custom?.custom_price || produto.price,
-                description: produto.description + (custom?.custom_description ? `\n\n${custom.custom_description}` : ''),
-                pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,
-                sob_encomenda: custom?.custom_sob_encomenda ?? produto.sob_encomenda,
-                pre_venda: custom?.custom_pre_venda ?? produto.pre_venda,
-                category_id: CATEGORIA_DISTRIBUIDORES_ID,
-                is_distribuidor: true,
-              };
-            });
-
-          allData = [...allData, ...produtosCustomizados];
-        }
-      }
-    }
-
-    if (error) {
-      console.error('Erro ao buscar produtos:', error);
-      return NextResponse.json({ items: [], total: 0 });
-    }
-
-    // Transformar dados para o formato esperado
-    const items = allData?.map(product => ({
-      id: product.id,
-      banca_id: product.banca_id,
-      category_id: product.category_id,
-      name: product.name,
-      slug: product.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, ""),
-      description: product.description,
-      description_full: product.description_full,
-      price: product.price,
-      price_original: product.price_original,
-      discount_percent: product.discount_percent,
-      images: product.images || [],
-      gallery_images: product.gallery_images || [],
-      specifications: product.specifications,
-      rating_avg: product.rating_avg,
-      reviews_count: product.reviews_count || 0,
-      stock_qty: product.stock_qty,
-      track_stock: product.track_stock,
-      sob_encomenda: product.sob_encomenda,
-      pre_venda: product.pre_venda,
-      pronta_entrega: product.pronta_entrega,
-      // Preferir flag 'active' do banco; fallback para heurística antiga apenas se null/undefined
-      active: (product as any).active ?? (product.track_stock ? (product.stock_qty || 0) > 0 : true),
-      created_at: product.created_at,
-      updated_at: product.updated_at
-    })) || [];
+    const items = formatLegacyProductListItems([...ownProducts, ...distributorCatalog.items]);
 
     return NextResponse.json(
       { items, total: items.length },
       {
-        headers: {
-          'Cache-Control': 'private, max-age=300, stale-while-revalidate=600', // 5 minutos cache
-          'CDN-Cache-Control': 'max-age=180', // CDN cache menor
-        }
+        headers: buildNoStoreHeaders({
+          isPrivate: true,
+          extra: {
+            'CDN-Cache-Control': 'max-age=180',
+          },
+        }),
       }
     );
   } catch (error) {
     console.error('Erro na API de produtos:', error);
-    return NextResponse.json({ items: [], total: 0 }, { status: 500 });
+    return NextResponse.json(
+      { items: [], total: 0 },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }
 

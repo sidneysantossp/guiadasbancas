@@ -3,6 +3,11 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
+import {
+  applyDistributorProductCustomization,
+  calculateDistributorProductMarkup,
+  loadDistributorProductCustomization,
+} from "@/lib/modules/products/service";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -34,81 +39,12 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     // Se o produto tem distribuidor_id, buscar customizações da banca e aplicar Markup
     if (product.distribuidor_id) {
       console.log(`[PRODUCT_GET] Produto ${id} é de distribuidor (${product.distribuidor_id})`);
-      
-      // 1. Calcular preço com Markup
-      let precoComMarkup = product.price;
-
-      // Buscar regras de markup
-      const [
-        { data: dist },
-        { data: markupCat },
-        { data: markupProd }
-      ] = await Promise.all([
-        supabaseAdmin
-          .from('distribuidores')
-          .select('markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor, tipo_calculo')
-          .eq('id', product.distribuidor_id)
-          .single(),
-        product.category_id ? supabaseAdmin
-          .from('distribuidor_markup_categorias')
-          .select('markup_percentual, markup_fixo')
-          .eq('distribuidor_id', product.distribuidor_id)
-          .eq('category_id', product.category_id)
-          .single() : { data: null },
-        supabaseAdmin
-          .from('distribuidor_markup_produtos')
-          .select('markup_percentual, markup_fixo')
-          .eq('distribuidor_id', product.distribuidor_id)
-          .eq('product_id', id)
-          .single()
-      ]);
-
-      console.log('[PRODUCT_GET] Regras de Markup encontradas:', {
-        dist: dist ? 'Sim' : 'Não',
-        markupCat: markupCat ? `Sim (${markupCat.markup_percentual}%)` : 'Não',
-        markupProd: markupProd ? `Sim (${markupProd.markup_percentual}%)` : 'Não',
-        precoBase: product.price
+      const precoComMarkup = await calculateDistributorProductMarkup({
+        productId: id,
+        distribuidorId: product.distribuidor_id,
+        categoryId: product.category_id,
+        basePrice: Number(product.price || 0),
       });
-
-      // Aplicar regras de prioridade: Produto > Categoria > Global
-      if (markupProd) {
-        const mpPerc = Number(markupProd.markup_percentual || 0);
-        const mpFixo = Number(markupProd.markup_fixo || 0);
-        if (mpPerc > 0 || mpFixo > 0) {
-          precoComMarkup = product.price * (1 + mpPerc / 100) + mpFixo;
-          console.log(`[PRODUCT_GET] Aplicado Markup Produto: ${precoComMarkup}`);
-        }
-      } 
-      
-      // Se não aplicou markup de produto, tenta categoria
-      if (precoComMarkup === product.price && markupCat) {
-        const mcPerc = Number(markupCat.markup_percentual || 0);
-        const mcFixo = Number(markupCat.markup_fixo || 0);
-        if (mcPerc > 0 || mcFixo > 0) {
-          precoComMarkup = product.price * (1 + mcPerc / 100) + mcFixo;
-          console.log(`[PRODUCT_GET] Aplicado Markup Categoria: ${precoComMarkup}`);
-        }
-      }
-      
-      // Se não aplicou produto nem categoria, tenta global
-      if (precoComMarkup === product.price && dist) {
-        const margemDivisor = Number(dist.margem_divisor || 1);
-        
-        if (dist.tipo_calculo === 'margem' && margemDivisor > 0 && margemDivisor < 1) {
-          precoComMarkup = product.price / margemDivisor;
-          console.log(`[PRODUCT_GET] Aplicado Margem Global: ${precoComMarkup}`);
-        } else {
-          const perc = Number(dist.markup_global_percentual || 0);
-          const fixo = Number(dist.markup_global_fixo || 0);
-          
-          if (perc > 0 || fixo > 0) {
-            precoComMarkup = product.price * (1 + perc / 100) + fixo;
-            console.log(`[PRODUCT_GET] Aplicado Markup Global (${perc}% + ${fixo}): ${precoComMarkup}`);
-          } else {
-            console.log('[PRODUCT_GET] Distribuidor sem markup global configurado');
-          }
-        }
-      }
 
       // Buscar banca do usuário para pegar customizações
       const banca = await getActiveBancaRowForUser(session.user.id, 'id, user_id');
@@ -123,41 +59,18 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         }
 
         // Buscar customizações específicas da banca
-        const { data: customization } = await supabaseAdmin
-          .from('banca_produtos_distribuidor')
-          .select('*')
-          .eq('banca_id', banca.id)
-          .eq('product_id', id)
-          .single();
+        const customization = await loadDistributorProductCustomization({
+          bancaId: banca.id,
+          productId: id,
+        });
 
         if (customization) {
           console.log('[PRODUCT_GET] Customização encontrada:', customization);
-          const finalPrice = customization.custom_price || precoComMarkup;
-          const originalPrice = precoComMarkup;
-          
-          // Calcular desconto dinamicamente pois não salvamos na tabela de customização
-          let computedDiscount = 0;
-          if (originalPrice > finalPrice && originalPrice > 0) {
-             computedDiscount = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
-          }
-
-          const responseData = {
-            ...product,
-            // Se tem preço customizado, usa ele como price.
-            // O preço "original" (base de cálculo para visualização) será o precoComMarkup
-            price: finalPrice, 
-            price_original: originalPrice,
-            cost_price: product.price, // Adicionar explicitamente o custo base
-            discount_percent: computedDiscount,
-            
-            // Outros campos customizados
-            description: product.description + (customization.custom_description ? `\n\n${customization.custom_description}` : ''),
-            pronta_entrega: customization.custom_pronta_entrega ?? product.pronta_entrega,
-            sob_encomenda: customization.custom_sob_encomenda ?? product.sob_encomenda,
-            pre_venda: customization.custom_pre_venda ?? product.pre_venda,
-            active: customization.enabled !== false,
-            featured: customization.custom_featured ?? product.featured,
-          };
+          const responseData = applyDistributorProductCustomization({
+            product,
+            markupPrice: precoComMarkup,
+            customization,
+          });
           
           return NextResponse.json({ success: true, data: responseData });
         }
