@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { createClient } from "@supabase/supabase-js";
 import {
   cancelSubscription,
   createSubscription,
@@ -26,11 +24,12 @@ import {
   saveBancaPricingOverride,
   saveSubscriptionBinding,
 } from "@/lib/subscription-billing";
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { loadPrimaryOwnedBanca } from "@/lib/modules/jornaleiro/access";
+import { supabaseAdmin } from "@/lib/supabase";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -64,20 +63,32 @@ async function waitForFirstSubscriptionPayment(asaasSubscriptionId: string) {
 // GET - Obter assinatura atual do jornaleiro
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, error: "Não autenticado" }, { status: 401 });
+    const user = await getAuthenticatedRequestUser(request);
+    if (!user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Não autenticado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
-    // Buscar banca do usuário
-    const { data: banca } = await supabaseAdmin
-      .from("bancas")
-      .select("id, name, email")
-      .eq("user_id", session.user.id)
-      .single();
+    const { data: banca, error: bancaError } = await loadPrimaryOwnedBanca<{
+      id: string;
+      name: string;
+      email: string | null;
+    }>({
+      userId: user.id,
+      select: "id, name, email",
+    });
 
     if (!banca) {
-      return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+      if (bancaError) {
+        console.error("[API/JORNALEIRO/SUBSCRIPTION] GET banca error:", bancaError);
+      }
+
+      return NextResponse.json(
+        { success: false, error: "Banca não encontrada" },
+        { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     // Buscar assinatura ativa
@@ -132,40 +143,52 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(10);
 
-    return NextResponse.json({
-      success: true,
-      subscription,
-      effective_plan: entitlements.plan,
-      requested_plan: entitlements.requestedPlan,
-      entitlements: {
-        plan_type: entitlements.planType,
-        paid_features_locked_until_payment: entitlements.paidFeaturesLockedUntilPayment,
-        overdue_features_locked: entitlements.overdueFeaturesLocked,
-        overdue_in_grace_period: entitlements.overdueInGracePeriod,
-        overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
+    return NextResponse.json(
+      {
+        success: true,
+        subscription,
+        effective_plan: entitlements.plan,
+        requested_plan: entitlements.requestedPlan,
+        entitlements: {
+          plan_type: entitlements.planType,
+          paid_features_locked_until_payment: entitlements.paidFeaturesLockedUntilPayment,
+          overdue_features_locked: entitlements.overdueFeaturesLocked,
+          overdue_in_grace_period: entitlements.overdueInGracePeriod,
+          overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
+        },
+        payments: payments || [],
+        banca: { id: banca.id, name: banca.name, email: banca.email },
       },
-      payments: payments || [],
-      banca: { id: banca.id, name: banca.name, email: banca.email },
-    });
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   } catch (error: any) {
     console.error("[API/JORNALEIRO/SUBSCRIPTION] GET Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }
 
 // POST - Criar/atualizar assinatura (checkout)
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, error: "Não autenticado" }, { status: 401 });
+    const user = await getAuthenticatedRequestUser(request);
+    if (!user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Não autenticado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     const body = await request.json();
     const { plan_id, billing_type = "PIX" } = body;
 
     if (!plan_id) {
-      return NextResponse.json({ success: false, error: "Plano não informado" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Plano não informado" },
+        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     // Buscar plano
@@ -177,18 +200,33 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (!plan) {
-      return NextResponse.json({ success: false, error: "Plano não encontrado" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Plano não encontrado" },
+        { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
-    // Buscar banca
-    const { data: banca } = await supabaseAdmin
-      .from("bancas")
-      .select("id, name, email, whatsapp, cnpj, cpf")
-      .eq("user_id", session.user.id)
-      .single();
+    const { data: banca, error: bancaError } = await loadPrimaryOwnedBanca<{
+      id: string;
+      name: string;
+      email: string | null;
+      whatsapp: string | null;
+      cnpj: string | null;
+      cpf: string | null;
+    }>({
+      userId: user.id,
+      select: "id, name, email, whatsapp, cnpj, cpf",
+    });
 
     if (!banca) {
-      return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+      if (bancaError) {
+        console.error("[API/JORNALEIRO/SUBSCRIPTION] POST banca error:", bancaError);
+      }
+
+      return NextResponse.json(
+        { success: false, error: "Banca não encontrada" },
+        { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     // Se for plano gratuito, ativar diretamente
@@ -207,11 +245,14 @@ export async function POST(request: NextRequest) {
       await clearBancaPricingOverride(banca.id);
       const subscription = await ensureBancaHasOnboardingPlan(banca.id, { preferredPlanId: plan.id });
 
-      return NextResponse.json({
-        success: true,
-        subscription,
-        message: "Plano gratuito ativado com sucesso! Seu painel já está liberado.",
-      });
+      return NextResponse.json(
+        {
+          success: true,
+          subscription,
+          message: "Plano gratuito ativado com sucesso! Seu painel já está liberado.",
+        },
+        { headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     const [pricingPreview, paidPlanTrialDays, paidPlanTrialAlreadyUsed] = await Promise.all([
@@ -249,11 +290,19 @@ export async function POST(request: NextRequest) {
 
     // Para planos pagos, criar assinatura recorrente no Asaas
     const cpfCnpj = banca.cnpj || banca.cpf;
+    const billingEmail = banca.email || user.email;
+
+    if (!billingEmail) {
+      return NextResponse.json(
+        { success: false, error: "Defina um email da banca antes de contratar um plano." },
+        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
     
     // Criar ou buscar cliente no Asaas
     const customer = await findOrCreateCustomer({
       name: banca.name,
-      email: banca.email,
+      email: billingEmail,
       cpfCnpj: cpfCnpj || undefined,
       phone: banca.whatsapp || undefined,
       externalReference: banca.id,
@@ -387,32 +436,38 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      subscription,
-      payment: {
-        id: paymentRecord?.id,
-        asaas_id: firstPayment?.id || null,
-        asaas_subscription_id: asaasSubscription?.id || null,
-        invoice_url: firstPayment?.invoiceUrl || null,
-        bank_slip_url: firstPayment?.bankSlipUrl || null,
-        pix_qrcode: pixData?.encodedImage,
-        pix_code: pixData?.payload,
-        due_date: firstPayment?.dueDate || dueDate,
-        amount: pricing.effectivePrice,
-        recurring: true,
-        original_amount: pricing.originalPrice,
-        promotion_label: pricing.promotionLabel,
-        trial_days_applied: trialDaysApplied,
-        trial_ends_at: trialEndsAt,
+    return NextResponse.json(
+      {
+        success: true,
+        subscription,
+        payment: {
+          id: paymentRecord?.id,
+          asaas_id: firstPayment?.id || null,
+          asaas_subscription_id: asaasSubscription?.id || null,
+          invoice_url: firstPayment?.invoiceUrl || null,
+          bank_slip_url: firstPayment?.bankSlipUrl || null,
+          pix_qrcode: pixData?.encodedImage,
+          pix_code: pixData?.payload,
+          due_date: firstPayment?.dueDate || dueDate,
+          amount: pricing.effectivePrice,
+          recurring: true,
+          original_amount: pricing.originalPrice,
+          promotion_label: pricing.promotionLabel,
+          trial_days_applied: trialDaysApplied,
+          trial_ends_at: trialEndsAt,
+        },
+        message:
+          trialDaysApplied > 0
+            ? `Período de degustação de ${trialDaysApplied} dias ativado com sucesso.`
+            : "Assinatura criada com sucesso! A primeira cobrança foi gerada.",
       },
-      message:
-        trialDaysApplied > 0
-          ? `Período de degustação de ${trialDaysApplied} dias ativado com sucesso.`
-          : "Assinatura criada com sucesso! A primeira cobrança foi gerada.",
-    });
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   } catch (error: any) {
     console.error("[API/JORNALEIRO/SUBSCRIPTION] POST Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }

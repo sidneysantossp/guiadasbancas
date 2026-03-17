@@ -1,27 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { auth } from "@/lib/auth";
+import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { loadPrimaryOwnedBanca } from "@/lib/modules/jornaleiro/access";
 import {
   hasBancaUsedPaidPlanTrial,
   readPaidPlanTrialDays,
   resolvePlanPricing,
 } from "@/lib/subscription-billing";
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
+    const user = await getAuthenticatedRequestUser(request);
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, error: "Não autenticado" },
-        { status: 401 }
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
       );
     }
 
@@ -33,11 +30,14 @@ export async function GET(_request: NextRequest) {
 
     if (error) throw error;
 
-    const { data: banca } = await supabaseAdmin
-      .from("bancas")
-      .select("id")
-      .eq("user_id", session.user.id)
-      .maybeSingle();
+    const { data: banca, error: bancaError } = await loadPrimaryOwnedBanca<{ id: string }>({
+      userId: user.id,
+      select: "id",
+    });
+
+    if (bancaError) {
+      console.error("[API/JORNALEIRO/PLANS] Erro ao buscar banca:", bancaError);
+    }
 
     const [paidPlanTrialDays, paidPlanTrialAlreadyUsed] = banca?.id
       ? await Promise.all([
@@ -80,12 +80,15 @@ export async function GET(_request: NextRequest) {
       })
     );
 
-    return NextResponse.json({ success: true, data: plansWithPricing });
+    return NextResponse.json(
+      { success: true, data: plansWithPricing },
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   } catch (error: any) {
     console.error("[API/JORNALEIRO/PLANS] Erro ao listar planos:", error);
     return NextResponse.json(
       { success: false, error: error?.message || "Erro ao listar planos" },
-      { status: 500 }
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 }

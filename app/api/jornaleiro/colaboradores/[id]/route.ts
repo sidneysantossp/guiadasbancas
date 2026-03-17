@@ -1,33 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { createClient } from "@supabase/supabase-js";
+import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { listOwnedBancas, loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
+import { supabaseAdmin } from "@/lib/supabase";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, error: "Não autenticado" }, { status: 401 });
+    const user = await getAuthenticatedRequestUser(req);
+    if (!user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Não autenticado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     const colaboradorId = params.id;
-    const userId = session.user.id;
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
+    const { actor, error: actorError } = await loadJornaleiroActor(user.id);
+    const { data: userBancas, error: userBancasError } = await listOwnedBancas({
+      userId: user.id,
+      select: "id, name",
     });
 
-    // Buscar bancas do usuário atual (dono logado)
-    const { data: userBancas } = await supabaseAdmin
-      .from("bancas")
-      .select("id, name")
-      .eq("user_id", userId);
+    if (actorError) {
+      console.error("[Colaborador GET] Erro ao carregar ator:", actorError);
+    }
 
-    const bancaIds = userBancas?.map((b) => b.id) || [];
+    if (!actor.isJornaleiro) {
+      return NextResponse.json(
+        { success: false, error: "Acesso negado" },
+        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
+    if (userBancasError) {
+      return NextResponse.json(
+        { success: false, error: "Erro ao buscar bancas" },
+        { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
+    const bancaIds = actor.ownedBancaIds;
     
-    console.log("[Colaborador GET] userId (dono logado):", userId);
+    console.log("[Colaborador GET] userId (dono logado):", user.id);
     console.log("[Colaborador GET] Bancas do dono:", userBancas);
     console.log("[Colaborador GET] bancaIds:", bancaIds);
 
@@ -48,7 +65,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     console.log("[Colaborador GET] Erro:", membershipsError);
 
     if (membershipsError || !memberships || memberships.length === 0) {
-      return NextResponse.json({ success: false, error: "Colaborador não encontrado" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Colaborador não encontrado" },
+        { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     // Buscar dados do usuário
@@ -98,55 +118,59 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       permissions: firstPermissions, // Mantém para compatibilidade
     };
 
-    return NextResponse.json({ success: true, colaborador });
+    return NextResponse.json(
+      { success: true, colaborador },
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   } catch (e: any) {
     console.error("[Colaborador GET] Erro:", e);
-    return NextResponse.json({ success: false, error: e?.message || "Erro interno" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: e?.message || "Erro interno" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, error: "Não autenticado" }, { status: 401 });
+    const user = await getAuthenticatedRequestUser(req);
+    if (!user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Não autenticado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     const colaboradorId = params.id;
-    const userId = session.user.id;
     const body = await req.json();
     const { full_name, access_level, banca_ids, permissions } = body;
+    const { actor, error: actorError } = await loadJornaleiroActor(user.id);
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    // Verificar o nível de acesso do usuário atual
-    const { data: currentUserProfile } = await supabaseAdmin
-      .from("user_profiles")
-      .select("jornaleiro_access_level")
-      .eq("id", userId)
-      .single();
-
-    const currentAccessLevel = currentUserProfile?.jornaleiro_access_level || "collaborator";
-
-    // REGRA: Apenas ADMIN pode promover outros para ADMIN
-    if (access_level === "admin" && currentAccessLevel !== "admin") {
-      return NextResponse.json({ 
-        success: false, 
-        error: "Apenas jornaleiros com perfil Administrador podem promover outros para administrador." 
-      }, { status: 403 });
+    if (actorError) {
+      console.error("[Colaborador PUT] Erro ao carregar ator:", actorError);
     }
 
-    // Buscar bancas que o usuário atual é DONO
-    const { data: ownedBancas } = await supabaseAdmin
-      .from("bancas")
-      .select("id")
-      .eq("user_id", userId);
+    if (!actor.isJornaleiro) {
+      return NextResponse.json(
+        { success: false, error: "Acesso negado" },
+        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
 
-    const ownedBancaIds = ownedBancas?.map((b) => b.id) || [];
+    // REGRA: Apenas ADMIN pode promover outros para ADMIN
+    if (access_level === "admin" && actor.accessLevel !== "admin") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Apenas jornaleiros com perfil Administrador podem promover outros para administrador.",
+        },
+        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
+    const ownedBancaIds = actor.ownedBancaIds;
     
-    console.log("[Colaborador PUT] userId (logado):", userId);
+    console.log("[Colaborador PUT] userId (logado):", user.id);
     console.log("[Colaborador PUT] Bancas que o usuário é dono:", ownedBancaIds);
     console.log("[Colaborador PUT] banca_ids recebidos do form:", banca_ids);
 
@@ -160,7 +184,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     console.log("[Colaborador PUT] Memberships existentes do colaborador:", existingMemberships);
 
     if (!existingMemberships || existingMemberships.length === 0) {
-      return NextResponse.json({ success: false, error: "Colaborador não encontrado nas suas bancas" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Colaborador não encontrado nas suas bancas" },
+        { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     // Atualizar perfil
@@ -235,34 +262,44 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     
     console.log("[Colaborador PUT] Permissões salvas:", verifyData);
 
-    return NextResponse.json({ success: true, debug: { savedPermissions: verifyData } });
+    return NextResponse.json(
+      { success: true, debug: { savedPermissions: verifyData } },
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   } catch (e: any) {
     console.error("[Colaborador PUT] Erro:", e);
-    return NextResponse.json({ success: false, error: e?.message || "Erro interno" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: e?.message || "Erro interno" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, error: "Não autenticado" }, { status: 401 });
+    const user = await getAuthenticatedRequestUser(req);
+    if (!user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Não autenticado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     const colaboradorId = params.id;
-    const userId = session.user.id;
+    const { actor, error: actorError } = await loadJornaleiroActor(user.id);
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    if (actorError) {
+      console.error("[Colaborador DELETE] Erro ao carregar ator:", actorError);
+    }
 
-    // Buscar bancas do usuário atual
-    const { data: userBancas } = await supabaseAdmin
-      .from("bancas")
-      .select("id")
-      .eq("user_id", userId);
+    if (!actor.isJornaleiro) {
+      return NextResponse.json(
+        { success: false, error: "Acesso negado" },
+        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
 
-    const bancaIds = userBancas?.map((b) => b.id) || [];
+    const bancaIds = actor.ownedBancaIds;
 
     // Verificar se o colaborador tem acesso a alguma banca do usuário
     const { data: memberships } = await supabaseAdmin
@@ -272,7 +309,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       .in("banca_id", bancaIds);
 
     if (!memberships || memberships.length === 0) {
-      return NextResponse.json({ success: false, error: "Colaborador não encontrado" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Colaborador não encontrado" },
+        { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     // Remover apenas as memberships das bancas do usuário atual
@@ -284,7 +324,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
     if (deleteError) {
       console.error("[Colaborador DELETE] Erro ao remover memberships:", deleteError);
-      return NextResponse.json({ success: false, error: "Erro ao remover colaborador" }, { status: 500 });
+      return NextResponse.json(
+        { success: false, error: "Erro ao remover colaborador" },
+        { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     // Verificar se o colaborador ainda tem acesso a outras bancas
@@ -301,9 +344,15 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
         .eq("id", colaboradorId);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(
+      { success: true },
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   } catch (e: any) {
     console.error("[Colaborador DELETE] Erro:", e);
-    return NextResponse.json({ success: false, error: e?.message || "Erro interno" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: e?.message || "Erro interno" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }
