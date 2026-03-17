@@ -1,29 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { createClient } from "@supabase/supabase-js";
+import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, error: "Não autenticado" }, { status: 401 });
+    const user = await getAuthenticatedRequestUser(req);
+    if (!user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Não autenticado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
     
     console.log("[MyPermissions] ========== INICIANDO ==========");
     console.log("[MyPermissions] userId da sessão:", userId);
-    console.log("[MyPermissions] email da sessão:", session.user.email);
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    console.log("[MyPermissions] email da sessão:", user.email);
 
     // Buscar banca_id do cookie ou header (se o usuário selecionou uma banca específica)
     const currentBancaId = req.headers.get("x-banca-id") || req.cookies.get("current_banca_id")?.value;
@@ -57,7 +54,7 @@ export async function GET(req: NextRequest) {
         isOwner: true,
         accessLevel: "admin",
         permissions: ["dashboard", "pedidos", "produtos", "catalogo", "campanhas", "distribuidores", "cupons", "relatorios", "configuracoes", "notificacoes", "colaboradores", "bancas", "academy"],
-      });
+      }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
     }
     
     // Se não tem banca específica E é dono de alguma banca, dar acesso total
@@ -68,7 +65,7 @@ export async function GET(req: NextRequest) {
         isOwner: true,
         accessLevel: "admin",
         permissions: ["dashboard", "pedidos", "produtos", "catalogo", "campanhas", "distribuidores", "cupons", "relatorios", "configuracoes", "notificacoes", "colaboradores", "bancas", "academy"],
-      });
+      }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
     }
     
     console.log("[MyPermissions] ⚠️ Usuário NÃO é dono da banca atual, verificando memberships...");
@@ -92,7 +89,7 @@ export async function GET(req: NextRequest) {
         isOwner: false,
         accessLevel: "none",
         permissions: [],
-      });
+      }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
     }
 
     // Encontrar membership da banca atual (se especificada) ou usar a primeira
@@ -130,7 +127,7 @@ export async function GET(req: NextRequest) {
         isOwner: false,
         accessLevel: "admin",
         permissions: ["dashboard", "pedidos", "produtos", "catalogo", "campanhas", "distribuidores", "cupons", "relatorios", "configuracoes", "notificacoes"],
-      });
+      }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
     }
 
     // Colaborador - usa permissões específicas do banco
@@ -155,9 +152,12 @@ export async function GET(req: NextRequest) {
       isOwner: false,
       accessLevel: "collaborator",
       permissions,
-    });
+    }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
   } catch (e: any) {
     console.error("[MyPermissions] Erro:", e);
-    return NextResponse.json({ success: false, error: e?.message || "Erro interno" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: e?.message || "Erro interno" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }

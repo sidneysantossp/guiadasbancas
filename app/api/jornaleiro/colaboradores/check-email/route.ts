@@ -1,36 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { createClient } from "@supabase/supabase-js";
+import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Usar service role key para ter acesso admin
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, error: "Não autenticado" }, { status: 401 });
+    const user = await getAuthenticatedRequestUser(req);
+    if (!user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Não autenticado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     const email = req.nextUrl.searchParams.get("email");
     
     if (!email) {
-      return NextResponse.json({ success: false, error: "Email não informado" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Email não informado" },
+        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-
-    // Criar cliente admin diretamente
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
 
     // Método 1: Tentar buscar usuários e filtrar
     let emailExists = false;
@@ -88,9 +83,12 @@ export async function GET(req: NextRequest) {
       success: true, 
       exists: emailExists,
       message: emailExists ? "Este email já está cadastrado na plataforma" : null
-    });
+    }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
   } catch (e: any) {
     console.error("[Check Email] Erro:", e);
-    return NextResponse.json({ success: false, error: e?.message || "Erro interno" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: e?.message || "Erro interno" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }

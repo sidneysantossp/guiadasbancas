@@ -1,54 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
+import { normalizePlatformRole } from "@/lib/modules/auth/session";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import { supabaseAdmin } from "@/lib/supabase";
-import { auth } from "@/lib/auth";
 import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
 
 export const dynamic = 'force-dynamic';
 
-// Helper para identificar o usuário autenticado
-async function getUserFromRequest(request: NextRequest) {
-  console.log('🔐 [getUserFromRequest] Iniciando autenticação...');
-  
-  // 1) Tentar via Bearer token (Supabase)
-  const authHeader = request.headers.get("authorization");
-  console.log('🔐 [getUserFromRequest] Auth header:', authHeader ? 'Presente' : 'Ausente');
-  
-  if (authHeader?.startsWith("Bearer ") && supabaseAdmin) {
-    try {
-      const token = authHeader.substring(7);
-      const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-      if (!error && user) {
-        console.log('✅ [getUserFromRequest] Autenticado via Bearer token:', user.id);
-        return user as any;
-      }
-      console.log('❌ [getUserFromRequest] Erro no Bearer token:', error);
-    } catch (err) {
-      console.error('❌ [getUserFromRequest] Exceção no Bearer token:', err);
-    }
-  }
-
-  // 2) Fallback: sessão padrão do app (NextAuth/Auth.js)
-  try {
-    console.log('🔐 [getUserFromRequest] Tentando NextAuth session...');
-    const session = await auth();
-    console.log('🔐 [getUserFromRequest] Session:', session ? 'Presente' : 'Ausente');
-    
-    if ((session as any)?.user?.id) {
-      console.log('✅ [getUserFromRequest] Autenticado via NextAuth:', (session as any).user.id);
-      return { id: (session as any).user.id, email: (session as any).user.email } as any;
-    }
-  } catch (err) {
-    console.error('❌ [getUserFromRequest] Erro no NextAuth:', err);
-  }
-
-  console.error('❌ [getUserFromRequest] Nenhum método de autenticação funcionou');
-  return null;
-}
-
 // GET - Buscar perfil e banca do jornaleiro
 export async function GET(request: NextRequest) {
   try {
-    const user = await getUserFromRequest(request);
+    const user = await getAuthenticatedRequestUser(request);
     
     if (!user) {
       return NextResponse.json(
@@ -77,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     // Verificar se é jornaleiro (aceitando roles legadas como 'seller')
     const role = (profile as any).role;
-    const isJornaleiroRole = role === 'jornaleiro' || role === 'seller';
+    const isJornaleiroRole = normalizePlatformRole(role) === 'jornaleiro';
     if (typeof role !== 'undefined' && !isJornaleiroRole) {
       return NextResponse.json(
         { error: "Acesso negado" },
@@ -97,12 +59,7 @@ export async function GET(request: NextRequest) {
       profile,
       banca: banca || null,
     }, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'Surrogate-Control': 'no-store',
-      },
+      headers: buildNoStoreHeaders(),
     });
   } catch (error) {
     console.error("Erro ao buscar perfil:", error);
@@ -116,7 +73,7 @@ export async function GET(request: NextRequest) {
 // PUT - Atualizar perfil e banca do jornaleiro
 export async function PUT(request: NextRequest) {
   try {
-    const user = await getUserFromRequest(request);
+    const user = await getAuthenticatedRequestUser(request);
     
     if (!user || !supabaseAdmin) {
       return NextResponse.json(
@@ -143,7 +100,7 @@ export async function PUT(request: NextRequest) {
 
     // Verificar se é jornaleiro (aceitando roles legadas como 'seller')
     const role = (currentProfile as any)?.role;
-    const isJornaleiroRole = role === 'jornaleiro' || role === 'seller';
+    const isJornaleiroRole = normalizePlatformRole(role) === 'jornaleiro';
     
     if (!currentProfile || !isJornaleiroRole) {
       console.error('❌ [API Profile PUT] Acesso negado - role:', role, '- não é jornaleiro/seller');
@@ -322,12 +279,7 @@ export async function PUT(request: NextRequest) {
       profile: updatedProfile,
       banca: updatedBanca,
     }, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'Surrogate-Control': 'no-store',
-      },
+      headers: buildNoStoreHeaders(),
     });
   } catch (error) {
     console.error("Erro ao atualizar perfil:", error);
