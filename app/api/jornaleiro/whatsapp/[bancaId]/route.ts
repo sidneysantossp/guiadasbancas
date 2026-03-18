@@ -1,142 +1,151 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import {
+  loadManagedJornaleiroWhatsApp,
+  removeManagedJornaleiroWhatsApp,
+  saveManagedJornaleiroWhatsApp,
+} from "@/lib/modules/jornaleiro/whatsapp";
 
-// Simulação de banco de dados dos jornaleiros
-let JORNALEIROS_WHATSAPP: Record<string, {
-  jornaleiroId: string;
-  whatsappNumber: string;
-  bancaName: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}> = {};
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+function mapWhatsAppError(error: any) {
+  const message = error?.message || "";
+
+  if (message === "FORBIDDEN_JORNALEIRO") {
+    return NextResponse.json(
+      { success: false, error: "Acesso negado" },
+      { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  if (message === "BANCA_NOT_FOUND") {
+    return NextResponse.json(
+      { success: false, error: "Banca não encontrada" },
+      { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  if (message === "UNAUTHORIZED_BANCA_ACCESS" || message === "FORBIDDEN_BANCA_ADMIN") {
+    return NextResponse.json(
+      { success: false, error: "Acesso negado" },
+      { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  if (message === "INVALID_WHATSAPP_REQUIRED") {
+    return NextResponse.json(
+      { success: false, error: "Número do WhatsApp é obrigatório" },
+      { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  if (message === "INVALID_WHATSAPP_NUMBER") {
+    return NextResponse.json(
+      { success: false, error: "Número de WhatsApp inválido. Use formato: 11999999999" },
+      { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  return null;
+}
 
 // GET - Buscar WhatsApp do jornaleiro
 export async function GET(req: NextRequest, { params }: { params: { bancaId: string } }) {
   try {
-    const { bancaId } = params;
-    
-    // Em produção, buscar do banco de dados
-    // const jornaleiro = await db.jornaleiroWhatsApp.findUnique({
-    //   where: { bancaId }
-    // });
-    
-    const jornaleiro = JORNALEIROS_WHATSAPP[bancaId];
-    
-    if (!jornaleiro) {
-      return NextResponse.json({
-        jornaleiroId: bancaId,
-        whatsappNumber: '',
-        bancaName: '',
-        isActive: false
-      });
+    const user = await getAuthenticatedRequestUser(req);
+
+    if (!user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Não autenticado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
-    return NextResponse.json(jornaleiro);
+    const response = await loadManagedJornaleiroWhatsApp({
+      userId: user.id,
+      bancaId: params.bancaId,
+    });
+
+    return NextResponse.json(response, {
+      headers: buildNoStoreHeaders({ isPrivate: true }),
+    });
   } catch (error: any) {
-    return NextResponse.json({
-      error: error.message || 'Erro ao buscar dados do jornaleiro'
-    }, { status: 500 });
+    const mapped = mapWhatsAppError(error);
+    if (mapped) return mapped;
+
+    return NextResponse.json(
+      { success: false, error: error.message || "Erro ao buscar dados do jornaleiro" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }
 
 // POST - Salvar/Atualizar WhatsApp do jornaleiro
 export async function POST(req: NextRequest, { params }: { params: { bancaId: string } }) {
   try {
-    const { bancaId } = params;
+    const user = await getAuthenticatedRequestUser(req);
+
+    if (!user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Não autenticado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
     const body = await req.json();
-    const { whatsappNumber, bancaName, isActive } = body;
-
-    // Validações
-    if (!whatsappNumber) {
-      return NextResponse.json({
-        error: 'Número do WhatsApp é obrigatório'
-      }, { status: 400 });
-    }
-
-    // Validar formato do número (apenas números, 10-11 dígitos)
-    const cleanNumber = whatsappNumber.replace(/\D/g, '');
-    if (cleanNumber.length < 10 || cleanNumber.length > 11) {
-      return NextResponse.json({
-        error: 'Número de WhatsApp inválido. Use formato: 11999999999'
-      }, { status: 400 });
-    }
-
-    const now = new Date().toISOString();
-    const existingJornaleiro = JORNALEIROS_WHATSAPP[bancaId];
-
-    // Atualizar ou criar registro
-    JORNALEIROS_WHATSAPP[bancaId] = {
-      jornaleiroId: bancaId,
-      whatsappNumber: cleanNumber,
-      bancaName: bancaName || existingJornaleiro?.bancaName || 'Banca',
-      isActive: Boolean(isActive),
-      createdAt: existingJornaleiro?.createdAt || now,
-      updatedAt: now
-    };
-
-    // Em produção, salvar no banco de dados
-    // await db.jornaleiroWhatsApp.upsert({
-    //   where: { bancaId },
-    //   update: {
-    //     whatsappNumber: cleanNumber,
-    //     bancaName,
-    //     isActive: Boolean(isActive),
-    //     updatedAt: now
-    //   },
-    //   create: {
-    //     bancaId,
-    //     whatsappNumber: cleanNumber,
-    //     bancaName,
-    //     isActive: Boolean(isActive),
-    //     createdAt: now,
-    //     updatedAt: now
-    //   }
-    // });
-
-    console.log('[JORNALEIRO] WhatsApp configurado:', {
-      bancaId,
-      whatsappNumber: cleanNumber,
-      isActive: Boolean(isActive)
+    const response = await saveManagedJornaleiroWhatsApp({
+      userId: user.id,
+      bancaId: params.bancaId,
+      whatsappNumber: body?.whatsappNumber,
+      bancaName: body?.bancaName,
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'WhatsApp configurado com sucesso',
-      data: JORNALEIROS_WHATSAPP[bancaId]
+    return NextResponse.json(response, {
+      headers: buildNoStoreHeaders({ isPrivate: true }),
     });
-
   } catch (error: any) {
-    console.error('[JORNALEIRO] Erro ao configurar WhatsApp:', error);
-    return NextResponse.json({
-      error: error.message || 'Erro ao salvar configurações'
-    }, { status: 500 });
+    const mapped = mapWhatsAppError(error);
+    if (mapped) return mapped;
+
+    console.error("[JORNALEIRO] Erro ao configurar WhatsApp:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Erro ao salvar configurações" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }
 
 // DELETE - Remover configuração do WhatsApp
 export async function DELETE(req: NextRequest, { params }: { params: { bancaId: string } }) {
   try {
-    const { bancaId } = params;
-    
-    // Remover da "base de dados"
-    delete JORNALEIROS_WHATSAPP[bancaId];
-    
-    // Em produção, remover do banco de dados
-    // await db.jornaleiroWhatsApp.delete({
-    //   where: { bancaId }
-    // });
+    const user = await getAuthenticatedRequestUser(req);
 
-    console.log('[JORNALEIRO] WhatsApp removido:', { bancaId });
+    if (!user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Não autenticado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Configuração removida com sucesso'
+    const response = await removeManagedJornaleiroWhatsApp({
+      userId: user.id,
+      bancaId: params.bancaId,
+    });
+
+    return NextResponse.json(response, {
+      headers: buildNoStoreHeaders({ isPrivate: true }),
     });
 
   } catch (error: any) {
-    console.error('[JORNALEIRO] Erro ao remover WhatsApp:', error);
-    return NextResponse.json({
-      error: error.message || 'Erro ao remover configuração'
-    }, { status: 500 });
+    const mapped = mapWhatsAppError(error);
+    if (mapped) return mapped;
+
+    console.error("[JORNALEIRO] Erro ao remover WhatsApp:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Erro ao remover configuração" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }

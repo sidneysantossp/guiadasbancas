@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
-import { supabaseAdmin } from "@/lib/supabase";
+import { resolveJornaleiroPermissions } from "@/lib/modules/jornaleiro/permissions";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -16,144 +16,23 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const userId = user.id;
-    
-    console.log("[MyPermissions] ========== INICIANDO ==========");
-    console.log("[MyPermissions] userId da sessão:", userId);
-    console.log("[MyPermissions] email da sessão:", user.email);
-
-    // Buscar banca_id do cookie ou header (se o usuário selecionou uma banca específica)
     const currentBancaId = req.headers.get("x-banca-id") || req.cookies.get("current_banca_id")?.value;
-    
-    console.log("[MyPermissions] userId:", userId);
-    console.log("[MyPermissions] currentBancaId:", currentBancaId);
+    const response = await resolveJornaleiroPermissions({
+      userId: user.id,
+      currentBancaId,
+    });
 
-    // Verificar se o usuário é dono de alguma banca
-    const { data: ownedBancas, error: ownedError } = await supabaseAdmin
-      .from("bancas")
-      .select("id, name, user_id")
-      .eq("user_id", userId);
-
-    console.log("[MyPermissions] Bancas do usuário (como dono):", ownedBancas?.length || 0);
-    console.log("[MyPermissions] Erro ao buscar bancas:", ownedError);
-
-    // Verificar se é dono da banca ATUAL (não de qualquer banca)
-    let isOwnerOfCurrentBanca = false;
-    
-    if (currentBancaId && ownedBancas && ownedBancas.length > 0) {
-      isOwnerOfCurrentBanca = ownedBancas.some(b => b.id === currentBancaId);
-      console.log("[MyPermissions] Usuário é dono de", ownedBancas.length, "banca(s)");
-      console.log("[MyPermissions] É dono da banca atual (", currentBancaId, ")?", isOwnerOfCurrentBanca);
-    }
-    
-    // Se é dono da banca ATUAL, dar acesso total
-    if (isOwnerOfCurrentBanca) {
-      console.log("[MyPermissions] ✅ USUÁRIO É DONO DA BANCA ATUAL - Acesso total");
-      return NextResponse.json({
-        success: true,
-        isOwner: true,
-        accessLevel: "admin",
-        permissions: ["dashboard", "pedidos", "produtos", "catalogo", "campanhas", "distribuidores", "cupons", "relatorios", "configuracoes", "notificacoes", "colaboradores", "bancas", "academy"],
-      }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
-    }
-    
-    // Se não tem banca específica E é dono de alguma banca, dar acesso total
-    if (!currentBancaId && ownedBancas && ownedBancas.length > 0) {
-      console.log("[MyPermissions] ✅ USUÁRIO É DONO DE BANCA (sem banca específica) - Acesso total");
-      return NextResponse.json({
-        success: true,
-        isOwner: true,
-        accessLevel: "admin",
-        permissions: ["dashboard", "pedidos", "produtos", "catalogo", "campanhas", "distribuidores", "cupons", "relatorios", "configuracoes", "notificacoes", "colaboradores", "bancas", "academy"],
-      }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
-    }
-    
-    console.log("[MyPermissions] ⚠️ Usuário NÃO é dono da banca atual, verificando memberships...");
-
-    // Se não é dono, buscar permissões como colaborador
-    console.log("[MyPermissions] Buscando memberships para userId:", userId);
-    
-    const { data: memberships, error: membershipsError } = await supabaseAdmin
-      .from("banca_members")
-      .select("access_level, permissions, banca_id")
-      .eq("user_id", userId);
-
-    console.log("[MyPermissions] memberships encontradas:", memberships?.length || 0);
-    console.log("[MyPermissions] memberships detalhes:", JSON.stringify(memberships, null, 2));
-    console.log("[MyPermissions] membershipsError:", membershipsError);
-
-    if (!memberships || memberships.length === 0) {
-      console.log("[MyPermissions] Nenhum membership encontrado");
-      return NextResponse.json({
-        success: true,
-        isOwner: false,
-        accessLevel: "none",
-        permissions: [],
-      }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
-    }
-
-    // Encontrar membership da banca atual (se especificada) ou usar a primeira
-    let targetMembership = memberships[0];
-    
-    console.log("[MyPermissions] currentBancaId recebido:", currentBancaId);
-    console.log("[MyPermissions] Memberships disponíveis:", memberships.map(m => ({ banca_id: m.banca_id, permissions: m.permissions })));
-    
-    if (currentBancaId) {
-      const found = memberships.find(m => m.banca_id === currentBancaId);
-      if (found) {
-        targetMembership = found;
-        console.log("[MyPermissions] ✅ Encontrada membership da banca atual:", currentBancaId);
-        console.log("[MyPermissions] Permissões dessa membership:", found.permissions);
-      } else {
-        console.log("[MyPermissions] ⚠️ Não encontrada membership para banca:", currentBancaId);
-      }
-    }
-    
-    // Se usuário tem várias memberships, combinar permissões de todas OU usar apenas da banca atual
-    // Por enquanto, usar apenas da banca atual/primeira
-    const firstMembership = targetMembership;
-    const accessLevel = firstMembership.access_level;
-    const bancaId = firstMembership.banca_id;
-    
-    console.log("[MyPermissions] Banca selecionada:", bancaId);
-
-    console.log("[MyPermissions] accessLevel:", accessLevel);
-    console.log("[MyPermissions] permissions do banco:", firstMembership.permissions);
-
-    // Se é admin da banca, tem todas as permissões
-    if (accessLevel === "admin") {
-      return NextResponse.json({
-        success: true,
-        isOwner: false,
-        accessLevel: "admin",
-        permissions: ["dashboard", "pedidos", "produtos", "catalogo", "campanhas", "distribuidores", "cupons", "relatorios", "configuracoes", "notificacoes"],
-      }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
-    }
-
-    // Colaborador - usa permissões específicas do banco
-    // Se permissions for array de strings, usar diretamente
-    // Se for JSONB com estrutura diferente, extrair corretamente
-    let permissions: string[] = [];
-    
-    if (Array.isArray(firstMembership.permissions)) {
-      permissions = firstMembership.permissions;
-    } else if (typeof firstMembership.permissions === 'string') {
-      try {
-        permissions = JSON.parse(firstMembership.permissions);
-      } catch {
-        permissions = [];
-      }
-    }
-
-    console.log("[MyPermissions] Permissões finais:", permissions);
-
-    return NextResponse.json({
-      success: true,
-      isOwner: false,
-      accessLevel: "collaborator",
-      permissions,
-    }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
+    return NextResponse.json(response, {
+      headers: buildNoStoreHeaders({ isPrivate: true }),
+    });
   } catch (e: any) {
+    if (e?.message === "FORBIDDEN_JORNALEIRO") {
+      return NextResponse.json(
+        { success: false, error: "Acesso negado" },
+        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
     console.error("[MyPermissions] Erro:", e);
     return NextResponse.json(
       { success: false, error: e?.message || "Erro interno" },

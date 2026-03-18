@@ -1,11 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
-import { listOwnedBancas, loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
-import { supabaseAdmin } from "@/lib/supabase";
+import {
+  createManagedCollaborator,
+  listManagedCollaborators,
+} from "@/lib/modules/jornaleiro/collaborators";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+function mapCollaboratorError(error: any) {
+  const message = error?.message || "";
+
+  if (message === "FORBIDDEN_JORNALEIRO") {
+    return NextResponse.json(
+      { success: false, error: "Acesso negado" },
+      { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  if (message === "FORBIDDEN_PROMOTE_ADMIN") {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Apenas jornaleiros com perfil Administrador podem criar outros administradores.",
+      },
+      { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  if (message === "INVALID_EMAIL_PASSWORD_REQUIRED") {
+    return NextResponse.json(
+      { success: false, error: "Email e senha são obrigatórios" },
+      { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  if (message === "INVALID_BANCA_SELECTION") {
+    return NextResponse.json(
+      { success: false, error: "Selecione pelo menos uma banca" },
+      { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  if (message === "FORBIDDEN_BANCA_SCOPE") {
+    return NextResponse.json(
+      { success: false, error: "Você não tem permissão para essas bancas" },
+      { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  if (message === "EMAIL_ALREADY_EXISTS") {
+    return NextResponse.json(
+      { success: false, error: "Este email já está cadastrado" },
+      { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  return null;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,118 +70,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const { actor, error: actorError } = await loadJornaleiroActor(user.id);
-    const { data: userBancas, error: bancasError } = await listOwnedBancas({
-      userId: user.id,
-      select: "id, name",
+    const response = await listManagedCollaborators(user.id);
+    return NextResponse.json(response, {
+      headers: buildNoStoreHeaders({ isPrivate: true }),
     });
+  } catch (error: any) {
+    const mapped = mapCollaboratorError(error);
+    if (mapped) return mapped;
 
-    if (actorError) {
-      console.error("[Colaboradores GET] Erro ao carregar ator:", actorError);
-    }
-
-    if (!actor.isJornaleiro) {
-      return NextResponse.json(
-        { success: false, error: "Acesso negado" },
-        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
-      );
-    }
-
-    if (bancasError) {
-      console.error("[Colaboradores GET] Erro ao buscar bancas:", bancasError);
-      return NextResponse.json(
-        { success: false, error: "Erro ao buscar bancas" },
-        { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
-      );
-    }
-
-    const bancaIds = actor.ownedBancaIds;
-
-    if (bancaIds.length === 0) {
-      return NextResponse.json(
-        { success: true, colaboradores: [] },
-        { headers: buildNoStoreHeaders({ isPrivate: true }) }
-      );
-    }
-
-    console.log("[Colaboradores GET] Buscando memberships para bancas:", bancaIds);
-    console.log("[Colaboradores GET] Excluindo user_id:", user.id);
-
-    // Tentar buscar da tabela banca_members (pode não existir ainda)
-    const { data: memberships, error: membershipsError } = await supabaseAdmin
-      .from("banca_members")
-      .select("user_id, banca_id, access_level, permissions")
-      .in("banca_id", bancaIds)
-      .neq("user_id", user.id);
-
-    console.log("[Colaboradores GET] Memberships encontrados:", memberships?.length || 0);
-    console.log("[Colaboradores GET] Memberships data:", JSON.stringify(memberships));
-
-    // Se a tabela não existe, retornar lista vazia
-    if (membershipsError) {
-      console.error("[Colaboradores GET] Erro ao buscar memberships:", membershipsError);
-      return NextResponse.json(
-        {
-          success: true,
-          colaboradores: [],
-          message: "Nenhum colaborador cadastrado ainda",
-          debug: { error: membershipsError.message, code: membershipsError.code },
-        },
-        { headers: buildNoStoreHeaders({ isPrivate: true }) }
-      );
-    }
-
-    // Agrupar por user_id
-    const userIds = [...new Set(memberships?.map((m) => m.user_id) || [])];
-
-    if (userIds.length === 0) {
-      return NextResponse.json(
-        { success: true, colaboradores: [] },
-        { headers: buildNoStoreHeaders({ isPrivate: true }) }
-      );
-    }
-
-    // Buscar dados dos usuários
-    const { data: users } = await supabaseAdmin
-      .from("user_profiles")
-      .select("id, full_name, active, email")
-      .in("id", userIds);
-
-    // Montar lista de colaboradores
-    const colaboradores = userIds.map((uid) => {
-      const userProfile = users?.find((u) => u.id === uid);
-      const userMemberships = memberships?.filter((m) => m.user_id === uid) || [];
-      const firstMembership = userMemberships[0];
-
-      // Mapear banca_ids para nomes
-      const userBancasList = userMemberships.map((m) => {
-        const banca = userBancas?.find((b) => b.id === m.banca_id);
-        return {
-          id: m.banca_id,
-          name: banca?.name || "Sem nome",
-        };
-      });
-
-      return {
-        id: uid,
-        email: userProfile?.email || "Email não disponível",
-        full_name: userProfile?.full_name || null,
-        access_level: firstMembership?.access_level || "collaborator",
-        active: userProfile?.active ?? true,
-        created_at: null,
-        bancas: userBancasList,
-        permissions: firstMembership?.permissions || [],
-      };
-    });
-
+    console.error("[Colaboradores GET] Erro:", error);
     return NextResponse.json(
-      { success: true, colaboradores },
-      { headers: buildNoStoreHeaders({ isPrivate: true }) }
-    );
-  } catch (e: any) {
-    console.error("[Colaboradores GET] Erro:", e);
-    return NextResponse.json(
-      { success: false, error: e?.message || "Erro interno" },
+      { success: false, error: error?.message || "Erro interno" },
       { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
@@ -145,165 +97,21 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { full_name, email, whatsapp, password, access_level, banca_ids, permissions } = body;
-    const { actor, error: actorError } = await loadJornaleiroActor(user.id);
-
-    if (actorError) {
-      console.error("[Colaboradores POST] Erro ao carregar ator:", actorError);
-    }
-
-    if (!actor.isJornaleiro) {
-      return NextResponse.json(
-        { success: false, error: "Acesso negado" },
-        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
-      );
-    }
-
-    // REGRA: Apenas ADMIN pode criar outros ADMIN
-    if (access_level === "admin" && actor.accessLevel !== "admin") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Apenas jornaleiros com perfil Administrador podem criar outros administradores.",
-        },
-        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
-      );
-    }
-
-    if (!email || !password) {
-      return NextResponse.json(
-        { success: false, error: "Email e senha são obrigatórios" },
-        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
-      );
-    }
-
-    if (!banca_ids || banca_ids.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Selecione pelo menos uma banca" },
-        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
-      );
-    }
-
-    const allowedBancaIds = new Set(actor.ownedBancaIds);
-    const requestedBancaIds = Array.isArray(banca_ids) ? banca_ids.filter((id: unknown) => typeof id === "string") : [];
-    if (requestedBancaIds.length !== banca_ids.length || requestedBancaIds.some((id) => !allowedBancaIds.has(id))) {
-      return NextResponse.json(
-        { success: false, error: "Você não tem permissão para essas bancas" },
-        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
-      );
-    }
-
-    // Verificar se email já existe
-    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    const emailExists = existingUser?.users?.some((u) => u.email?.toLowerCase() === email.toLowerCase());
-
-    if (emailExists) {
-      return NextResponse.json(
-        { success: false, error: "Este email já está cadastrado" },
-        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
-      );
-    }
-
-    // Criar usuário no Supabase Auth
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email: email.toLowerCase(),
-      password,
-      email_confirm: true,
-      user_metadata: {
-        full_name,
-        role: "jornaleiro",
-      },
+    const response = await createManagedCollaborator({
+      userId: user.id,
+      input: body,
     });
 
-    if (createError || !newUser?.user) {
-      console.error("[Colaboradores POST] Erro ao criar usuário:", createError);
-      
-      // Traduzir mensagens de erro do Supabase
-      let errorMessage = createError?.message || "Erro ao criar usuário";
-      if (errorMessage.includes("already been registered") || errorMessage.includes("already exists")) {
-        errorMessage = "Este email já está cadastrado na plataforma.";
-      } else if (errorMessage.includes("invalid email")) {
-        errorMessage = "Email inválido.";
-      } else if (errorMessage.includes("password")) {
-        errorMessage = "Senha inválida. Deve ter no mínimo 6 caracteres.";
-      }
-      
-      return NextResponse.json(
-        { success: false, error: errorMessage },
-        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
-      );
-    }
+    return NextResponse.json(response, {
+      headers: buildNoStoreHeaders({ isPrivate: true }),
+    });
+  } catch (error: any) {
+    const mapped = mapCollaboratorError(error);
+    if (mapped) return mapped;
 
-    const newUserId = newUser.user.id;
-
-    // Criar perfil do usuário
-    // IMPORTANTE: Definir banca_id para que o colaborador seja associado à banca correta
-    const { error: profileError } = await supabaseAdmin
-      .from("user_profiles")
-      .upsert({
-        id: newUserId,
-        full_name: full_name || null,
-        email: email.toLowerCase(),
-        whatsapp: whatsapp || null,
-        role: "jornaleiro",
-        jornaleiro_access_level: access_level || "collaborator",
-        banca_id: requestedBancaIds[0], // Associar à primeira banca selecionada
-        active: true,
-        email_verified: true,
-      });
-
-    if (profileError) {
-      console.error("[Colaboradores POST] Erro ao criar perfil:", profileError);
-    }
-
-    // Criar memberships para cada banca
-    const membershipErrors: string[] = [];
-    for (const bancaId of requestedBancaIds) {
-      console.log(`[Colaboradores POST] Criando membership: user_id=${newUserId}, banca_id=${bancaId}`);
-      
-      const { data: memberData, error: memberError } = await supabaseAdmin
-        .from("banca_members")
-        .upsert({
-          user_id: newUserId,
-          banca_id: bancaId,
-          access_level: access_level || "collaborator",
-          permissions: permissions || [],
-        })
-        .select();
-
-      if (memberError) {
-        console.error("[Colaboradores POST] Erro ao criar membership:", memberError);
-        membershipErrors.push(`${bancaId}: ${memberError.message}`);
-      } else {
-        console.log("[Colaboradores POST] Membership criado com sucesso:", memberData);
-      }
-    }
-
-    // Verificar se o membership foi criado
-    const { data: verifyMembership } = await supabaseAdmin
-      .from("banca_members")
-      .select("*")
-      .eq("user_id", newUserId);
-    
-    console.log("[Colaboradores POST] Verificação de memberships criados:", verifyMembership);
-
-    return NextResponse.json({
-      success: true,
-      colaborador: {
-        id: newUserId,
-        email: email.toLowerCase(),
-        full_name,
-        access_level,
-      },
-      debug: {
-        membershipErrors: membershipErrors.length > 0 ? membershipErrors : null,
-        membershipsCreated: verifyMembership?.length || 0,
-      }
-    }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
-  } catch (e: any) {
-    console.error("[Colaboradores POST] Erro:", e);
+    console.error("[Colaboradores POST] Erro:", error);
     return NextResponse.json(
-      { success: false, error: e?.message || "Erro interno" },
+      { success: false, error: error?.message || "Erro interno" },
       { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }

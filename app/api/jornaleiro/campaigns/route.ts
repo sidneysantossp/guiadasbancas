@@ -1,160 +1,116 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { auth } from "@/lib/auth";
-import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
+import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import {
+  createJornaleiroCampaign,
+  listJornaleiroCampaigns,
+} from "@/lib/modules/jornaleiro/campaigns";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+function mapCampaignError(error: any) {
+  const message = error?.message || "";
+
+  if (message === "FORBIDDEN_JORNALEIRO") {
+    return NextResponse.json(
+      { success: false, error: "Acesso negado" },
+      { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  if (message === "BANCA_NOT_FOUND") {
+    return NextResponse.json(
+      { success: false, error: "Banca não encontrada" },
+      { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  if (message === "INVALID_PRODUCT_REQUIRED") {
+    return NextResponse.json(
+      { success: false, error: "Produto é obrigatório" },
+      { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  if (message === "INVALID_CAMPAIGN_DURATION") {
+    return NextResponse.json(
+      { success: false, error: "Duração de campanha inválida" },
+      { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  if (message === "PRODUCT_NOT_FOUND_IN_BANCA") {
+    return NextResponse.json(
+      { success: false, error: "Produto não encontrado na sua banca" },
+      { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
+  return null;
+}
 
 // GET - Listar campanhas do jornaleiro
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+    const user = await getAuthenticatedRequestUser(request);
+
+    if (!user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Não autorizado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
-    // Buscar banca_id do usuário
-    const banca = await getActiveBancaRowForUser(session.user.id, 'id, user_id');
-
-    if (!banca) {
-      return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-
-    let query = supabaseAdmin
-      .from('campaigns')
-      .select(`
-        id,
-        title,
-        description,
-        start_date,
-        end_date,
-        duration_days,
-        status,
-        admin_message,
-        rejection_reason,
-        impressions,
-        clicks,
-        created_at,
-        updated_at,
-        products (
-          id,
-          name,
-          description,
-          price,
-          price_original,
-          discount_percent,
-          images,
-          rating_avg,
-          reviews_count,
-          pronta_entrega,
-          sob_encomenda,
-          pre_venda
-        )
-      `)
-      .eq('banca_id', banca.id) // FILTRAR APENAS DA BANCA DO USUÁRIO
-      .order('created_at', { ascending: false });
-
-    if (status) {
-      query = query.eq('status', status);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Seller campaigns error:', error);
-      return NextResponse.json({ success: false, error: 'Erro ao buscar campanhas' }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: data || [],
-      total: data?.length || 0
+    const response = await listJornaleiroCampaigns({
+      userId: user.id,
+      status: new URL(request.url).searchParams.get("status"),
     });
-  } catch (error) {
-    console.error('Seller campaigns API error:', error);
-    return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500 });
+
+    return NextResponse.json(response, {
+      headers: buildNoStoreHeaders({ isPrivate: true }),
+    });
+  } catch (error: any) {
+    const mapped = mapCampaignError(error);
+    if (mapped) return mapped;
+
+    console.error("Seller campaigns API error:", error);
+    return NextResponse.json(
+      { success: false, error: error?.message || "Erro interno" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }
 
 // POST - Criar nova campanha
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
-    }
+    const user = await getAuthenticatedRequestUser(request);
 
-    // Buscar banca_id do usuário
-    const banca = await getActiveBancaRowForUser(session.user.id, 'id, user_id');
-
-    if (!banca) {
-      return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+    if (!user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Não autorizado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     const body = await request.json();
-    const { product_id, duration_days, title, description } = body;
+    const response = await createJornaleiroCampaign({
+      userId: user.id,
+      input: body,
+    });
 
-    if (!product_id) {
-      return NextResponse.json({ success: false, error: "Produto é obrigatório" }, { status: 400 });
-    }
+    return NextResponse.json(response, {
+      headers: buildNoStoreHeaders({ isPrivate: true }),
+    });
+  } catch (error: any) {
+    const mapped = mapCampaignError(error);
+    if (mapped) return mapped;
 
-    const normalizedDuration = Number(duration_days || 0);
-    if (![7, 15, 30].includes(normalizedDuration)) {
-      return NextResponse.json({ success: false, error: "Duração de campanha inválida" }, { status: 400 });
-    }
-
-    const { data: ownedProduct, error: productError } = await supabaseAdmin
-      .from("products")
-      .select("id, banca_id, name")
-      .eq("id", product_id)
-      .eq("banca_id", banca.id)
-      .maybeSingle();
-
-    if (productError) {
-      console.error("Create campaign product validation error:", productError);
-      return NextResponse.json({ success: false, error: "Erro ao validar produto da campanha" }, { status: 500 });
-    }
-
-    if (!ownedProduct) {
-      return NextResponse.json({ success: false, error: "Produto não encontrado na sua banca" }, { status: 403 });
-    }
-
-    // Calcular datas
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(startDate.getDate() + normalizedDuration);
-
-    const campaignData = {
-      product_id: ownedProduct.id,
-      banca_id: banca.id,
-      title: title || `Campanha - ${ownedProduct.name}`,
-      description: description || '',
-      start_date: startDate.toISOString(),
-      end_date: endDate.toISOString(),
-      duration_days: normalizedDuration,
-      status: 'pending',
-      plan_type: 'free'
-    };
-
-    const { data, error } = await supabaseAdmin
-      .from('campaigns')
-      .insert(campaignData)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Create campaign error:', error);
-      return NextResponse.json({ success: false, error: 'Erro ao criar campanha' }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    console.error('Create campaign API error:', error);
-    return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500 });
+    console.error("Create campaign API error:", error);
+    return NextResponse.json(
+      { success: false, error: error?.message || "Erro interno" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }

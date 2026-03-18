@@ -1,35 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { markNotificationKeysAsRead } from '@/lib/jornaleiro-notifications';
+import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { markJornaleiroNotificationRead } from "@/lib/modules/jornaleiro/notifications";
 
-// PATCH /api/jornaleiro/notificacoes/:id
-// Marca uma notificação como lida
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await auth();
-    
-    if (!session?.user?.id) {
+    const user = await getAuthenticatedRequestUser(req);
+
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, error: 'Não autenticado' },
-        { status: 401 }
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
       );
     }
 
     await req.json().catch(() => null);
-    await markNotificationKeysAsRead(session.user.id, [params.id]);
+    const response = await markJornaleiroNotificationRead({
+      userId: user.id,
+      notificationId: params.id,
+    });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Notificação marcada como lida',
+    return NextResponse.json(response, {
+      headers: buildNoStoreHeaders({ isPrivate: true }),
     });
   } catch (error: any) {
     console.error('[API] Erro ao marcar notificação:', error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 }

@@ -1,4 +1,6 @@
 // Configuração da Evolution API para WhatsApp (Centralizada)
+import { loadJornaleiroWhatsAppByBancaId } from "@/lib/modules/jornaleiro/whatsapp";
+
 export interface WhatsAppConfig {
   baseUrl: string;
   apiKey: string;
@@ -73,9 +75,7 @@ class WhatsAppService {
   // Buscar dados do jornaleiro
   async getJornaleiroWhatsApp(bancaId: string): Promise<JornaleiroWhatsApp | null> {
     try {
-      const response = await fetch(`/api/jornaleiro/whatsapp/${bancaId}`);
-      if (!response.ok) return null;
-      return await response.json();
+      return await loadJornaleiroWhatsAppByBancaId(bancaId);
     } catch (error) {
       console.error('Erro ao buscar WhatsApp do jornaleiro:', error);
       return null;

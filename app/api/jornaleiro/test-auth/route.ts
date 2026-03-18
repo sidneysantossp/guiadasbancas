@@ -1,17 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 
 export async function GET(req: NextRequest) {
-  console.log('[TEST-AUTH] === TESTE DE AUTENTICAÇÃO ===');
-  
-  const session = await auth();
-  
-  console.log('[TEST-AUTH] Session exists:', !!session);
-  console.log('[TEST-AUTH] User:', session?.user);
-  
+  const user = await getAuthenticatedRequestUser(req);
+
   return NextResponse.json({
-    authenticated: !!session,
-    user: session?.user || null,
+    authenticated: Boolean(user?.id),
+    user: user || null,
     timestamp: new Date().toISOString(),
+  }, {
+    headers: buildNoStoreHeaders({ isPrivate: true }),
   });
 }

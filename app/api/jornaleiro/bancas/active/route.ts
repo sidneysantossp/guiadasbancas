@@ -1,23 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
+import { setActiveJornaleiroBanca } from "@/lib/modules/jornaleiro/bancas";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-export async function PATCH(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+function mapActiveBancaError(error: any) {
+  const message = error?.message || "";
+
+  if (message === "FORBIDDEN_JORNALEIRO") {
+    return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
   }
 
-  const userId = session.user.id;
+  if (message === "BANCA_NOT_FOUND") {
+    return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+  }
+
+  if (message === "UNAUTHORIZED_BANCA_ACCESS") {
+    return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
+  }
+
+  return null;
+}
+
+export async function PATCH(request: NextRequest) {
+  const user = await getAuthenticatedRequestUser(request);
+  if (!user?.id) {
+    return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+  }
 
   let body: any;
   try {
     body = await request.json();
-  } catch (e) {
+  } catch {
     return NextResponse.json({ success: false, error: "JSON inválido" }, { status: 400 });
   }
 
@@ -26,40 +42,24 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: false, error: "banca_id é obrigatório" }, { status: 400 });
   }
 
-  // Verificar se o usuário tem acesso à banca (dono ou membro)
-  const { data: banca, error: bancaError } = await supabaseAdmin
-    .from("bancas")
-    .select("id, user_id, active")
-    .eq("id", bancaId)
-    .single();
+  try {
+    const response = await setActiveJornaleiroBanca({
+      userId: user.id,
+      bancaId,
+    });
 
-  if (bancaError || !banca) {
-    return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+    return NextResponse.json(
+      { success: response.success, banca_id: response.banca_id },
+      { headers: response.headers }
+    );
+  } catch (error: any) {
+    const mapped = mapActiveBancaError(error);
+    if (mapped) return mapped;
+
+    console.error("[API/JORNALEIRO/BANCAS/ACTIVE] Erro ao definir banca ativa:", error);
+    return NextResponse.json(
+      { success: false, error: error?.message || "Erro ao definir banca ativa" },
+      { status: 500 }
+    );
   }
-
-  const isOwner = (banca as any).user_id === userId;
-  if (!isOwner) {
-    const { data: membership } = await supabaseAdmin
-      .from("banca_members")
-      .select("access_level")
-      .eq("banca_id", bancaId)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (!membership) {
-      return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
-    }
-  }
-
-  const { error: profileError } = await supabaseAdmin
-    .from("user_profiles")
-    .update({ banca_id: bancaId })
-    .eq("id", userId);
-
-  if (profileError) {
-    console.error("[API/JORNALEIRO/BANCAS/ACTIVE] Erro ao atualizar profile:", profileError);
-    return NextResponse.json({ success: false, error: profileError.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true, banca_id: bancaId });
 }

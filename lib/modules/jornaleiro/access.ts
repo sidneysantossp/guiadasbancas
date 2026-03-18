@@ -65,7 +65,7 @@ export async function loadJornaleiroActor(userId: string): Promise<{
         jornaleiro_access_level?: string | null;
       }>({
         userId,
-        select: "role",
+        select: "role, jornaleiro_access_level",
       }),
       listOwnedBancas({ userId, select: "id" }),
     ]);
@@ -90,5 +90,65 @@ export async function loadJornaleiroActor(userId: string): Promise<{
       ownedBancaIds,
     },
     error: profileError || ownedBancasError,
+  };
+}
+
+export async function loadAccessibleBancaForJornaleiro<T = Record<string, unknown>>(params: {
+  userId: string;
+  bancaId: string;
+  select?: string;
+}) {
+  const { actor, error } = await loadJornaleiroActor(params.userId);
+
+  if (error) {
+    throw new Error(error.message || "Erro ao validar acesso do jornaleiro");
+  }
+
+  if (!actor.isJornaleiro) {
+    throw new Error("FORBIDDEN_JORNALEIRO");
+  }
+
+  const { data: banca, error: bancaError } = await supabaseAdmin
+    .from("bancas")
+    .select(params.select || "*")
+    .eq("id", params.bancaId)
+    .maybeSingle();
+
+  if (bancaError) {
+    throw new Error(bancaError.message || "Erro ao carregar banca");
+  }
+
+  if (!banca) {
+    throw new Error("BANCA_NOT_FOUND");
+  }
+
+  const bancaRecord = banca as unknown as { user_id?: string | null };
+  const isOwner = bancaRecord.user_id === params.userId;
+  let memberAccessLevel: string | null = null;
+
+  if (!isOwner) {
+    const { data: membership, error: membershipError } = await supabaseAdmin
+      .from("banca_members")
+      .select("access_level")
+      .eq("banca_id", params.bancaId)
+      .eq("user_id", params.userId)
+      .maybeSingle();
+
+    if (membershipError) {
+      throw new Error(membershipError.message || "Erro ao validar vínculo da banca");
+    }
+
+    memberAccessLevel = (membership?.access_level as string | null | undefined) || null;
+
+    if (!memberAccessLevel) {
+      throw new Error("UNAUTHORIZED_BANCA_ACCESS");
+    }
+  }
+
+  return {
+    actor,
+    banca: banca as T,
+    isOwner,
+    memberAccessLevel,
   };
 }
