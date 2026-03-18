@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
     const brancaleoneId = '1511df09-1f4a-4e68-9f8c-05cd06be6269';
-    
-    console.log('[DEBUG-CATEGORIAS] 🔍 Verificando status das categorias...');
-    
+
     // 1. Contar total de categorias
     const { count: totalCount } = await supabaseAdmin
       .from('distribuidor_categories')
@@ -62,13 +61,7 @@ export async function GET(request: NextRequest) {
         supabase_conectado: true
       }
     };
-    
-    console.log('[DEBUG-CATEGORIAS] 📊 Status:', {
-      total: totalCount,
-      primeiras10: primeiras10?.length,
-      homologacao: homologacaoCategories?.length
-    });
-    
+
     return NextResponse.json(response, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate',
@@ -78,7 +71,7 @@ export async function GET(request: NextRequest) {
     });
     
   } catch (error: any) {
-    console.error('[DEBUG-CATEGORIAS] ❌ Erro:', error);
+    logger.error('[DEBUG-CATEGORIAS] Erro:', error);
     return NextResponse.json({
       error: true,
       message: error.message,

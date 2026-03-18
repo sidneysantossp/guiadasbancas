@@ -5,8 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   getDistribuidorAuthHeaders,
-  hydrateDistribuidorClientAuth,
 } from "@/lib/distribuidor-client-auth";
+import { useDistribuidorSession } from "@/lib/distribuidor-client-session";
 import {
   IconSearch,
   IconTags,
@@ -42,22 +42,14 @@ type Stats = {
 };
 
 export default function DistribuidorCategoriasPage() {
+  const { distribuidor } = useDistribuidorSession();
   const [categories, setCategories] = useState<Category[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"all" | "with_products" | "empty">("all");
-  const [distribuidor, setDistribuidor] = useState<any>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<{type: 'success' | 'error'; text: string} | null>(null);
-
-  useEffect(() => {
-    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
-      if (sessionDistribuidor) {
-        setDistribuidor(sessionDistribuidor);
-      }
-    });
-  }, []);
 
   const fetchCategories = async () => {
     if (!distribuidor?.id) return;

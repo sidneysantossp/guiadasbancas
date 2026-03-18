@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import {
+  findActiveDistribuidorById,
+  sanitizeDistribuidorSessionData,
+} from "@/lib/modules/distribuidor/session";
+import {
   buildDistribuidorSessionCookieClear,
   DISTRIBUIDOR_SESSION_COOKIE,
   verifyDistribuidorSessionToken,
 } from "@/lib/security/distribuidor-session";
-import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -42,26 +45,15 @@ export async function GET(request: NextRequest) {
     return clearSessionResponse();
   }
 
-  const { data: distribuidor, error } = await supabaseAdmin
-    .from("distribuidores")
-    .select("*")
-    .eq("id", sessionPayload.sub)
-    .eq("ativo", true)
-    .maybeSingle();
-
-  if (error || !distribuidor) {
+  const distribuidor = await findActiveDistribuidorById(sessionPayload.sub).catch(() => null);
+  if (!distribuidor) {
     return clearSessionResponse();
   }
-
-  const { senha, password, application_token, company_token, ...distribuidorSeguro } = distribuidor;
 
   return NextResponse.json(
     {
       success: true,
-      distribuidor: {
-        ...distribuidorSeguro,
-        email: distribuidor.email || sessionPayload.email || null,
-      },
+      distribuidor: sanitizeDistribuidorSessionData(distribuidor, sessionPayload.email),
     },
     {
       headers: buildNoStoreHeaders({ isPrivate: true }),

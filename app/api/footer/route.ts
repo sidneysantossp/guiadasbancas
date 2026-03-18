@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 
 type FooterLink = {
   id: string;
@@ -73,18 +74,14 @@ const getDefaultFooterData = (): FooterData => ({
 
 // Função simples para carregar dados (apenas padrão)
 function loadFooterData(): FooterData {
-  console.log('API pública: carregando dados padrão');
   return getDefaultFooterData();
 }
 
 export async function GET() {
   try {
-    console.log('GET /api/footer - Iniciando...');
-    
     // Verificar cache
     const now = Date.now();
     if (publicFooterCache.data && (now - publicFooterCache.timestamp) < PUBLIC_CACHE_TTL) {
-      console.log('GET /api/footer - Cache HIT');
       return NextResponse.json(publicFooterCache.data, {
         headers: {
           'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=300',
@@ -100,7 +97,6 @@ export async function GET() {
     publicFooterCache.data = footerData;
     publicFooterCache.timestamp = now;
 
-    console.log('GET /api/footer - Sucesso');
     return NextResponse.json(footerData, {
       headers: {
         'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=300',
@@ -108,7 +104,7 @@ export async function GET() {
       }
     });
   } catch (error) {
-    console.error('Erro na API pública footer:', error);
+    logger.error('Erro na API pública footer:', error);
     
     // Retornar dados padrão em caso de erro
     return NextResponse.json(getDefaultFooterData(), {

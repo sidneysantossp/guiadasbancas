@@ -1,16 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
 import { Providers } from "@/components/Providers";
 import ToastProvider from "@/components/admin/ToastProvider";
 import DashboardOfficialLogo from "@/components/dashboard/DashboardOfficialLogo";
-import {
-  destroyDistribuidorSession,
-  hydrateDistribuidorClientAuth,
-} from "@/lib/distribuidor-client-auth";
+import { destroyDistribuidorSession } from "@/lib/distribuidor-client-auth";
+import { useDistribuidorSession } from "@/lib/distribuidor-client-session";
 import {
   IconLayoutDashboard,
   IconBox,
@@ -89,40 +87,12 @@ const DISTRIBUIDOR_MENU = [
 export default function DistribuidorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [distribuidor, setDistribuidor] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    // Verificar autenticação do distribuidor apenas se não estiver na página de login
-    if (pathname === "/distribuidor/login") {
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    void hydrateDistribuidorClientAuth()
-      .then((sessionDistribuidor) => {
-        if (cancelled) return;
-        if (!sessionDistribuidor?.id) {
-          router.replace("/distribuidor/login");
-          return;
-        }
-
-        setDistribuidor(sessionDistribuidor);
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          router.replace("/distribuidor/login");
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [router, pathname]);
+  const isLoginRoute = pathname === "/distribuidor/login";
+  const { distribuidor, loading } = useDistribuidorSession({
+    enabled: !isLoginRoute,
+    redirectToLogin: !isLoginRoute,
+  });
 
   const logout = () => {
     void destroyDistribuidorSession().finally(() => {
@@ -131,7 +101,7 @@ export default function DistribuidorLayout({ children }: { children: React.React
   };
 
   // Se estiver na página de login, renderizar sem verificação
-  if (pathname === "/distribuidor/login") {
+  if (isLoginRoute) {
     return <Providers>{children}</Providers>;
   }
 

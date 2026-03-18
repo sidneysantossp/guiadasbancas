@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { hydrateDistribuidorClientAuth } from "@/lib/distribuidor-client-auth";
+import { useDistribuidorSession } from "@/lib/distribuidor-client-session";
 import {
   IconSettings,
   IconPlugConnected,
@@ -16,15 +15,7 @@ import {
 } from "@tabler/icons-react";
 
 export default function ConfiguracoesPage() {
-  const [distribuidor, setDistribuidor] = useState<any>(null);
-
-  useEffect(() => {
-    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
-      if (sessionDistribuidor) {
-        setDistribuidor(sessionDistribuidor);
-      }
-    });
-  }, []);
+  const { distribuidor } = useDistribuidorSession();
 
   const menuItems = [
     {

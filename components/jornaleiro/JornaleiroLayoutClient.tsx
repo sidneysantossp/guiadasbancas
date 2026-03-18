@@ -9,6 +9,7 @@ import NotificationCenter from "@/components/admin/NotificationCenter";
 import DashboardOfficialLogo from "@/components/dashboard/DashboardOfficialLogo";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { QueryProvider } from "@/app/providers/QueryProvider";
+import logger from "@/lib/logger";
 import {
   JOURNALEIRO_MOBILE_QUICK_LINKS,
   buildJornaleiroMenuSections,
@@ -72,16 +73,12 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   const allowedWithoutBanca = false; // SEMPRE false para segurança
 
   const logout = async () => {
-    console.log('[Logout] 🚪 Iniciando logout e limpeza completa...');
     if (user?.id) {
-      console.log('[Logout] Removendo cache da banca:', user.id);
       sessionStorage.removeItem(`gb:banca:${user.id}`);
     }
     // 🚨 SEGURANÇA: Limpar TODO o sessionStorage no logout para prevenir vazamento
-    console.log('[Logout] Limpando TODO o sessionStorage...');
     sessionStorage.clear();
     localStorage.clear();
-    console.log('[Logout] Logout completo, redirecionando...');
     await signOut();
   };
 
@@ -103,7 +100,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
           setPlansMenuEnabled(data.enabled);
         }
       } catch (error) {
-        console.error("Erro ao carregar config de planos:", error);
+        logger.error("Erro ao carregar config de planos:", error);
       }
     };
     loadPlansMenuSetting();
@@ -117,17 +114,10 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
       // IMPORTANTE: Só busca permissões quando a banca já foi carregada
       // Isso garante que o banca_id correto seja enviado para a API
       if (!banca?.id) {
-        console.log("[Permissions] Aguardando banca ser carregada...");
         return;
       }
       
       try {
-        console.log("[Permissions] ========== CARREGANDO PERMISSÕES ==========");
-        console.log("[Permissions] banca.id:", banca.id);
-        console.log("[Permissions] banca.name:", banca.name);
-        console.log("[Permissions] banca.user_id:", banca.user_id);
-        console.log("[Permissions] user.id (logado):", user?.id);
-        
         const res = await fetch("/api/jornaleiro/my-permissions", { 
           credentials: "include",
           cache: "no-store",
@@ -136,24 +126,15 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
           },
         });
         const json = await res.json();
-        
-        console.log("[Permissions] Resposta da API:", JSON.stringify(json));
-        
+
         if (json?.success) {
           const ownerOrAdmin = json.isOwner === true || json.accessLevel === "admin";
-          console.log("[Permissions] ========== RESULTADO ==========");
-          console.log("[Permissions] json.isOwner:", json.isOwner);
-          console.log("[Permissions] json.accessLevel:", json.accessLevel);
-          console.log("[Permissions] json.permissions:", json.permissions);
-          console.log("[Permissions] ownerOrAdmin calculado:", ownerOrAdmin);
-          
           setIsOwner(ownerOrAdmin);
           setUserPermissions(json.permissions || []);
           setPermissionsLoaded(true);
-          console.log("[Permissions] Estados atualizados: isOwner=", ownerOrAdmin, "permissions=", json.permissions?.length || 0, "itens");
         }
       } catch (e) {
-        console.error("[Permissions] Erro ao carregar:", e);
+        logger.error("[Permissions] Erro ao carregar:", e);
       }
     };
 
@@ -161,20 +142,17 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     
     // Recarregar permissões quando a janela receber foco (colaborador pode ter tido permissões alteradas)
     const handleFocus = () => {
-      console.log("[Permissions] Janela recebeu foco, recarregando permissões...");
       loadPermissions();
     };
     
     // Listener para evento de atualização de permissões (disparado pelo dono ao editar colaborador)
     const handlePermissionsUpdate = () => {
-      console.log("[Permissions] Evento de atualização recebido, recarregando...");
       loadPermissions();
     };
     
     // Listener para storage event (sincronização entre abas)
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === 'gb:permissions:updated') {
-        console.log("[Permissions] Storage event recebido, recarregando...");
         loadPermissions();
       }
     };
@@ -198,13 +176,6 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   );
 
   const menuSections = useMemo(() => {
-    console.log("[JornaleiroMenu] Calculando secoes da navegacao...");
-    console.log("[JornaleiroMenu] permissionsLoaded:", permissionsLoaded);
-    console.log("[JornaleiroMenu] isOwner:", isOwner);
-    console.log("[JornaleiroMenu] userPermissions:", userPermissions);
-    console.log("[JornaleiroMenu] hasCatalogAccess:", hasCatalogAccess);
-    console.log("[JornaleiroMenu] hasPartnerDirectoryAccess:", hasPartnerDirectoryAccess);
-
     return buildJornaleiroMenuSections({
       hasCatalogAccess,
       hasPartnerDirectoryAccess,
@@ -246,28 +217,29 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
         
         // 🚨 SEGURANÇA CRÍTICA: Validar que os dados pertencem ao usuário atual
         if (!user?.id) {
-          console.error('[Event] ❌ SEGURANÇA: Tentativa de atualizar banca sem usuário autenticado');
+          logger.error('[Event] SEGURANÇA: Tentativa de atualizar banca sem usuário autenticado');
           return;
         }
         
         // Dono da banca pode ter user_id diferente do usuário logado (caso colaborador).
         // Para admin, manter validação estrita.
         if (!isCollaborator && detail.user_id && detail.user_id !== user.id) {
-          console.error('[Event] 🚨 ALERTA DE SEGURANÇA: Tentativa de atualizar com dados de outro usuário!');
-          console.error('[Event] user_id esperado:', user.id);
-          console.error('[Event] user_id recebido:', detail.user_id);
+          logger.error('[Event] ALERTA DE SEGURANÇA: Tentativa de atualizar com dados de outro usuário!', {
+            expectedUserId: user.id,
+            receivedUserId: detail.user_id,
+          });
           return;
         }
         
         // Validação adicional: se já temos banca carregada, verificar se o ID bate
         if (banca?.id && detail.id && detail.id !== banca.id) {
-          console.error('[Event] 🚨 ALERTA: Tentativa de atualizar com banca diferente!');
-          console.error('[Event] banca_id atual:', banca.id);
-          console.error('[Event] banca_id recebido:', detail.id);
+          logger.error('[Event] ALERTA: Tentativa de atualizar com banca diferente!', {
+            currentBancaId: banca.id,
+            receivedBancaId: detail.id,
+          });
           return;
         }
-        
-        console.log('[Event] ✅ Atualização válida recebida, atualizando header');
+
         const updatedBanca = { ...(banca || {}), ...detail };
         setBanca(updatedBanca);
         
@@ -275,13 +247,12 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
         if (user?.id) {
           try {
             sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(updatedBanca));
-            console.log('[Event] 📦 Cache atualizado com novos dados');
           } catch (e) {
-            console.error('[Event] Erro ao atualizar cache:', e);
+            logger.error('[Event] Erro ao atualizar cache:', e);
           }
         }
       } catch (err) {
-        console.error('[Event] Erro ao processar atualização:', err);
+        logger.error('[Event] Erro ao processar atualização:', err);
       }
     };
     if (typeof window !== 'undefined') {
@@ -312,7 +283,6 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     }
     
     keysToRemove.forEach(key => {
-      console.log('[Cache] Removendo cache antigo:', key);
       sessionStorage.removeItem(key);
     });
   }, [user?.id]);
@@ -346,7 +316,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
       const role = (profile as any)?.role;
       const isJornaleiroRole = role === 'jornaleiro' || role === 'seller';
       if (profile && !isJornaleiroRole) {
-        console.error('[Security] Usuário não é jornaleiro');
+        logger.error('[Security] Usuário não é jornaleiro');
         sessionStorage.clear();
         await signOut();
         router.push('/jornaleiro');
@@ -356,8 +326,9 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
 
       // Verificar se usuário está bloqueado
       if (profile && profile.blocked) {
-        console.error('[Security] Usuário bloqueado pelo administrador');
-        console.error('[Security] Motivo:', profile.blocked_reason);
+        logger.error('[Security] Usuário bloqueado pelo administrador', {
+          reason: profile.blocked_reason,
+        });
         alert(`Sua conta foi bloqueada pelo administrador.\nMotivo: ${profile.blocked_reason || 'Não especificado'}`);
         sessionStorage.clear();
         await signOut();
@@ -376,13 +347,6 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
             const bancaData = JSON.parse(cachedBanca);
             const isCollaborator = (profile as any)?.jornaleiro_access_level === "collaborator";
             const expectedBancaId = (profile as any)?.banca_id as string | null | undefined;
-            console.log('[Cache] 📦 Cache encontrado:', {
-              cache_key: cacheKey,
-              banca_name: bancaData.name,
-              banca_user_id: bancaData.user_id,
-              user_autenticado: user.id,
-              MATCH: isCollaborator ? bancaData.id === expectedBancaId : bancaData.user_id === user.id
-            });
             
             // Validar se o cache é mesmo deste usuário
             const cacheValido = isCollaborator
@@ -390,33 +354,25 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
               : bancaData.user_id === user.id;
 
             if (cacheValido) {
-              console.log('[Cache] ✅ Cache válido, usando banca do cache');
               setBanca(bancaData);
               setBancaValidated(true);
               return;
             } else {
               // Cache inválido, remover
-              console.error('[Cache] ❌ Cache INVÁLIDO detectado!');
-              console.error('[Cache] Esperado:', isCollaborator ? { banca_id: expectedBancaId } : { user_id: user.id });
-              console.error('[Cache] Cache tinha:', { user_id: bancaData.user_id, banca_id: bancaData.id });
-              console.error('[Cache] Limpando cache inválido...');
+              logger.error('[Cache] Cache inválido detectado', {
+                expected: isCollaborator ? { banca_id: expectedBancaId } : { user_id: user.id },
+                received: { user_id: bancaData.user_id, banca_id: bancaData.id },
+              });
               sessionStorage.removeItem(cacheKey);
             }
           } catch (e) {
-            console.error('[Cache] Erro ao parsear cache:', e);
+            logger.error('[Cache] Erro ao parsear cache:', e);
           }
         }
       }
 
       // Verificar se tem banca (apenas se não tiver cache)
       try {
-        console.log('\n========== [Layout] Carregando banca ==========');
-        console.log('[Layout] 👤 Usuário autenticado:', {
-          user_id: user.id,
-          user_email: (user as any)?.email
-        });
-        console.log('[Layout] 🔍 Buscando banca para user_id via API (avoid RLS issues):', user.id);
-        
         const response = await fetch('/api/jornaleiro/banca', {
           method: 'GET',
           cache: 'no-store',
@@ -427,13 +383,12 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
         try {
           parsed = JSON.parse(responseText);
         } catch (parseErr) {
-          console.error('[Layout] ❌ Resposta inválida da API /jornaleiro/banca:', responseText);
+          logger.error('[Layout] Resposta inválida da API /jornaleiro/banca:', responseText);
         }
 
         if (!response.ok || !parsed?.success || !parsed?.data) {
           const apiError = parsed?.error || `HTTP ${response.status}`;
-          console.error('[Layout] ❌ Usuário sem banca ou erro na API!', apiError);
-          console.log('[Layout] Usuário sem banca associada. Redirecionando para fluxo de cadastro, NÃO para onboarding.');
+          logger.error('[Layout] Usuário sem banca ou erro na API!', apiError);
           setBanca(null);
           setBancaValidated(true);
           
@@ -445,13 +400,6 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
           }
           return;
         }
-
-        console.log('[Layout] ✅ Banca encontrada:', {
-          banca_id: parsed.data.id,
-          banca_name: parsed.data.name,
-          banca_user_id: parsed.data.user_id,
-          banca_email: parsed.data.email
-        });
         
         // SEGURANÇA: Para colaboradores e admins de banca (não donos), o user_id da banca pode ser diferente.
         // Confiar na API (que valida vínculo via banca_members) e evitar logout indevido.
@@ -460,21 +408,13 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
         // collaborator ou admin que não é dono da banca - ambos acessam via banca_members
         const isNotOwner = resolvedAccessLevel === "collaborator" || resolvedAccessLevel === "admin";
         const isActualOwner = parsed.data.user_id === user.id;
-        
-        console.log('[Security] Verificação de acesso:', {
-          resolvedAccessLevel,
-          isNotOwner,
-          isActualOwner,
-          banca_user_id: parsed.data.user_id,
-          logged_user_id: user.id
-        });
-        
+
         // Só faz logout se NÃO é collaborator/admin E user_id não bate
         if (!isNotOwner && !isActualOwner) {
-          console.error('🚨🚨🚨 ALERTA DE SEGURANÇA: user_id NÃO BATE! 🚨🚨🚨');
-          console.error('[SECURITY] user_id esperado:', user.id);
-          console.error('[SECURITY] user_id da banca:', parsed.data.user_id);
-          console.error('[SECURITY] Forçando logout por segurança!');
+          logger.error('[Security] ALERTA DE SEGURANÇA: user_id não bate', {
+            expectedUserId: user.id,
+            bancaUserId: parsed.data.user_id,
+          });
           sessionStorage.clear();
           await signOut();
           return;
@@ -487,7 +427,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
         setBanca(parsed.data);
         setBancaValidated(true);
       } catch (error) {
-        console.error('[Security] Erro ao validar banca:', error);
+        logger.error('[Security] Erro ao validar banca:', error);
         setBanca(null);
         setBancaValidated(true);
         // Não faz redirect aqui - deixa a validação na renderização decidir
@@ -502,7 +442,6 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     if (!useBancaCache) return;
 
     const handleBancaUpdate = () => {
-      console.log('[Layout] 🔄 Evento de atualização de banca recebido');
       // Limpar cache e recarregar
       if (user?.id) {
         sessionStorage.removeItem(`gb:banca:${user.id}`);
@@ -516,12 +455,11 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
             const text = await res.text();
             const json = JSON.parse(text);
             if (res.ok && json?.success && json?.data) {
-              console.log('[Layout] ✅ Banca recarregada:', json.data);
               setBanca(json.data);
               sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(json.data));
             }
           } catch (e) {
-            console.error('[Layout] ❌ Falha ao recarregar banca:', e);
+            logger.error('[Layout] Falha ao recarregar banca:', e);
           }
         };
         reloadBanca();
@@ -536,7 +474,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (!bancaValidated) {
-        console.warn('[Security] Timeout na validação, liberando acesso');
+        logger.warn('[Security] Timeout na validação, liberando acesso');
         setBancaValidated(true);
       }
     }, 2000);
@@ -585,17 +523,6 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     );
   }
 
-  // SEGURANÇA: Se não tiver banca, mostrar mensagem de erro em vez de tela branca
-  // Debug: verificar se a validação está correta
-  if (typeof window !== 'undefined') {
-    console.log('[Layout] Validação banca:', { 
-      hasBanca: !!banca, 
-      allowedWithoutBanca, 
-      pathname,
-      willBlock: !banca && !allowedWithoutBanca
-    });
-  }
-  
   // IMPORTANTE: Não redirecionar aqui!
   // A lógica de redirecionamento está no useEffect (linhas 293-305)
   // Este bloco causava redirecionamentos indesejados para usuários não autenticados

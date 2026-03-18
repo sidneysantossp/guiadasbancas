@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,8 +9,6 @@ const supabase = createClient(
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔧 Tentando corrigir perfil do usuário...');
-    
     // Primeiro, buscar o user_id correto na tabela bancas
     const { data: bancas, error: bancaError } = await supabase
       .from('bancas')
@@ -27,7 +26,6 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = bancas[0].user_id;
-    console.log('🔍 user_id encontrado na banca:', userId);
     
     // Primeiro, verificar se o perfil existe (sem .single() para ver todos)
     const { data: allProfiles, error: checkError } = await supabase
@@ -36,15 +34,13 @@ export async function GET(request: NextRequest) {
       .eq('id', userId);
 
     if (checkError) {
-      console.error('❌ Erro ao verificar perfil:', checkError);
+      logger.error('Erro ao verificar perfil no debug fix-profile:', checkError);
       return NextResponse.json({ 
         success: false, 
         error: 'Erro na consulta',
         details: checkError.message
       });
     }
-
-    console.log('📋 Perfis encontrados:', allProfiles);
 
     if (!allProfiles || allProfiles.length === 0) {
       // Perfil não existe, vamos verificar se existe na tabela users (auth)
@@ -89,7 +85,6 @@ export async function GET(request: NextRequest) {
     }
 
     const existingProfile = allProfiles[0];
-    console.log('📋 Perfil encontrado:', existingProfile);
 
     // Atualizar o perfil com os dados
     const { data: updatedProfile, error: updateError } = await supabase
@@ -103,15 +98,13 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (updateError) {
-      console.error('❌ Erro ao atualizar perfil:', updateError);
+      logger.error('Erro ao atualizar perfil no debug fix-profile:', updateError);
       return NextResponse.json({ 
         success: false, 
         error: 'Erro ao atualizar perfil',
         details: updateError.message
       });
     }
-
-    console.log('✅ Perfil atualizado com sucesso:', updatedProfile);
 
     return NextResponse.json({
       success: true,
@@ -121,7 +114,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ Erro geral:', error);
+    logger.error('Erro geral no debug fix-profile:', error);
     return NextResponse.json({ 
       success: false, 
       error: 'Erro interno do servidor',

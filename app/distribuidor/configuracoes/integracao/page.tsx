@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { IconRefresh, IconCheck, IconX, IconClock, IconPlugConnected, IconAlertCircle, IconMail } from "@tabler/icons-react";
 import {
   getDistribuidorAuthHeaders,
-  hydrateDistribuidorClientAuth,
 } from "@/lib/distribuidor-client-auth";
+import { useDistribuidorSession } from "@/lib/distribuidor-client-session";
 
 type HealthResult = {
   distribuidor: string;
@@ -25,19 +25,11 @@ type HealthResult = {
 };
 
 export default function IntegracaoMercosPage() {
-  const [distribuidor, setDistribuidor] = useState<any>(null);
+  const { distribuidor } = useDistribuidorSession();
   const [loading, setLoading] = useState(false);
   const [health, setHealth] = useState<HealthResult | null>(null);
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
-
-  useEffect(() => {
-    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
-      if (sessionDistribuidor) {
-        setDistribuidor(sessionDistribuidor);
-      }
-    });
-  }, []);
 
   const loadHealth = async () => {
     if (!distribuidor?.id) return;

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
 
@@ -11,8 +12,6 @@ export const maxDuration = 300;
  */
 export async function GET() {
   try {
-    console.log('[DIAGNOSTICO] Iniciando análise...');
-    
     // Buscar todos os distribuidores ativos
     const { data: distribuidores, error: distError } = await supabaseAdmin
       .from('distribuidores')
@@ -27,8 +26,6 @@ export async function GET() {
 
     for (const distribuidor of distribuidores) {
       try {
-        console.log(`[DIAGNOSTICO] Analisando: ${distribuidor.nome}`);
-
         const mercosApi = new MercosAPI({
           applicationToken: distribuidor.application_token,
           companyToken: distribuidor.company_token,
@@ -48,7 +45,6 @@ export async function GET() {
         }
 
         // Buscar TODOS os produtos da Mercos (com paginação)
-        console.log(`[DIAGNOSTICO] Buscando produtos da Mercos...`);
         const produtosMercos = [];
         let hasMore = true;
         let alteradoApos = null;
@@ -70,12 +66,10 @@ export async function GET() {
 
           // Limite de segurança
           if (produtosMercos.length > 10000) {
-            console.warn(`[DIAGNOSTICO] Limite de 10k produtos atingido`);
+            logger.warn(`[DIAGNOSTICO] Limite de 10k produtos atingido para ${distribuidor.nome}`);
             break;
           }
         }
-
-        console.log(`[DIAGNOSTICO] Total Mercos: ${produtosMercos.length}`);
 
         // Buscar produtos no banco
         const { data: produtosBanco, error: bancoError } = await supabaseAdmin
@@ -86,8 +80,6 @@ export async function GET() {
         if (bancoError) {
           throw bancoError;
         }
-
-        console.log(`[DIAGNOSTICO] Total Banco: ${produtosBanco?.length || 0}`);
 
         // Criar mapas para comparação
         const mercosMap = new Map(produtosMercos.map(p => [p.id, p]));
@@ -159,10 +151,8 @@ export async function GET() {
 
         resultados.push(resultado);
 
-        console.log(`[DIAGNOSTICO] ✓ ${distribuidor.nome}: ${faltandoNoBanco.length} faltando, ${desatualizados.length} desatualizados`);
-
       } catch (error: any) {
-        console.error(`[DIAGNOSTICO] Erro em ${distribuidor.nome}:`, error);
+        logger.error(`[DIAGNOSTICO] Erro em ${distribuidor.nome}:`, error);
         resultados.push({
           distribuidor: distribuidor.nome,
           distribuidor_id: distribuidor.id,
@@ -200,7 +190,7 @@ export async function GET() {
     });
 
   } catch (error: any) {
-    console.error('[DIAGNOSTICO] Erro geral:', error);
+    logger.error('[DIAGNOSTICO] Erro geral:', error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }

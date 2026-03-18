@@ -5,8 +5,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   getDistribuidorAuthHeaders,
-  hydrateDistribuidorClientAuth,
 } from "@/lib/distribuidor-client-auth";
+import { useDistribuidorSession } from "@/lib/distribuidor-client-session";
 import {
   IconSearch,
   IconFilter,
@@ -48,6 +48,7 @@ type Category = {
 };
 
 export default function DistribuidorProdutosPage() {
+  const { distribuidor } = useDistribuidorSession();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,17 +57,7 @@ export default function DistribuidorProdutosPage() {
   const [pageSize, setPageSize] = useState(25);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [filterActive, setFilterActive] = useState<string>("all"); // all, active, inactive
-  const [distribuidor, setDistribuidor] = useState<any>(null);
   const [markups, setMarkups] = useState<any>(null);
-
-  useEffect(() => {
-    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
-      console.log('[Produtos] Distribuidor da sessão:', sessionDistribuidor?.id || null);
-      if (sessionDistribuidor) {
-        setDistribuidor(sessionDistribuidor);
-      }
-    });
-  }, []);
 
   // Buscar markups
   useEffect(() => {

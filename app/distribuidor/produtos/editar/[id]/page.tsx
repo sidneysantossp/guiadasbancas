@@ -7,8 +7,8 @@ import Image from 'next/image';
 import { useToast } from '@/components/admin/ToastProvider';
 import {
   getDistribuidorAuthHeaders,
-  hydrateDistribuidorClientAuth,
 } from '@/lib/distribuidor-client-auth';
+import { useDistribuidorSession } from '@/lib/distribuidor-client-session';
 import { IconArrowLeft, IconLoader2, IconCheck, IconAlertTriangle, IconPhoto } from '@tabler/icons-react';
 
 interface Product {
@@ -48,11 +48,11 @@ export default function DistribuidorProductEditPage() {
   const params = useParams();
   const router = useRouter();
   const toast = useToast();
+  const { distribuidor } = useDistribuidorSession({ redirectToLogin: true });
   
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [distribuidor, setDistribuidor] = useState<any>(null);
   
   const [formData, setFormData] = useState({
     custom_price: '',
@@ -66,16 +66,6 @@ export default function DistribuidorProductEditPage() {
     custom_featured: false,
     selected_bancas: [] as string[]
   });
-
-  useEffect(() => {
-    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
-      if (!sessionDistribuidor) {
-        router.push('/distribuidor/login');
-        return;
-      }
-      setDistribuidor(sessionDistribuidor);
-    });
-  }, [router]);
 
   useEffect(() => {
     const productId = params.id as string;

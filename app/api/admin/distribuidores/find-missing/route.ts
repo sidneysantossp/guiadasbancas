@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
 
@@ -10,8 +11,6 @@ export const maxDuration = 300;
  */
 export async function GET() {
   try {
-    console.log('[FIND-MISSING] Iniciando busca...');
-    
     // Buscar Brancaleone
     const { data: distribuidor } = await supabaseAdmin
       .from('distribuidores')
@@ -30,7 +29,6 @@ export async function GET() {
     });
 
     // Buscar TODOS os produtos ATIVOS da Mercos
-    console.log('[FIND-MISSING] Buscando produtos da Mercos...');
     const produtosMercos: any[] = [];
     let totalLotes = 0;
     
@@ -39,29 +37,24 @@ export async function GET() {
         totalLotes++;
         const ativos = lote.filter(p => p.ativo && !p.excluido);
         produtosMercos.push(...ativos);
-        console.log(`[FIND-MISSING] Lote ${totalLotes}: ${lote.length} produtos, ${ativos.length} ativos, total: ${produtosMercos.length}`);
         
         // Limite de segurança para não travar
         if (totalLotes >= 20) {
-          console.log('[FIND-MISSING] Limite de lotes atingido');
+          logger.warn('[FIND-MISSING] Limite de lotes atingido');
           break;
         }
       }
     } catch (error) {
-      console.error('[FIND-MISSING] Erro ao buscar da Mercos:', error);
+      logger.error('[FIND-MISSING] Erro ao buscar da Mercos:', error);
     }
 
-    console.log(`[FIND-MISSING] Total Mercos ATIVOS: ${produtosMercos.length} (${totalLotes} lotes)`);
-
     // Buscar todos os produtos do banco
-    console.log('[FIND-MISSING] Buscando produtos do banco...');
     const { data: produtosBanco } = await supabaseAdmin
       .from('products')
       .select('id, mercos_id, name, active')
       .eq('distribuidor_id', distribuidor.id);
 
     const produtosBancoAtivos = (produtosBanco || []).filter(p => p.active);
-    console.log(`[FIND-MISSING] Total Banco ATIVOS: ${produtosBancoAtivos.length}`);
 
     // Criar mapa de produtos do banco
     const bancoMap = new Map(produtosBancoAtivos.map(p => [p.mercos_id, p]));
@@ -69,13 +62,9 @@ export async function GET() {
     // Encontrar produtos que estão na Mercos mas não no banco
     const faltando = produtosMercos.filter(p => !bancoMap.has(p.id));
 
-    console.log(`[FIND-MISSING] Produtos faltando: ${faltando.length}`);
-
     // Encontrar produtos que estão no banco mas não na Mercos (inativos que deveriam ser removidos)
     const mercosMap = new Map(produtosMercos.map(p => [p.id, p]));
     const sobrando = produtosBancoAtivos.filter(p => !mercosMap.has(p.mercos_id));
-
-    console.log(`[FIND-MISSING] Produtos sobrando no banco: ${sobrando.length}`);
 
     return NextResponse.json({
       success: true,
@@ -101,7 +90,7 @@ export async function GET() {
     });
 
   } catch (error: any) {
-    console.error('[FIND-MISSING] Erro:', error);
+    logger.error('[FIND-MISSING] Erro:', error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }

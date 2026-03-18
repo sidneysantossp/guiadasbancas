@@ -19,8 +19,8 @@ import {
 } from "@tabler/icons-react";
 import {
   getDistribuidorAuthHeaders,
-  hydrateDistribuidorClientAuth,
 } from "@/lib/distribuidor-client-auth";
+import { useDistribuidorSession } from "@/lib/distribuidor-client-session";
 
 type OrderItem = {
   id: string;
@@ -66,7 +66,7 @@ type Stats = {
 };
 
 export default function DistribuidorPedidosPage() {
-  const [distribuidor, setDistribuidor] = useState<any>(null);
+  const { distribuidor } = useDistribuidorSession();
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,14 +75,6 @@ export default function DistribuidorPedidosPage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, pages: 0 });
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-
-  useEffect(() => {
-    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
-      if (sessionDistribuidor) {
-        setDistribuidor(sessionDistribuidor);
-      }
-    });
-  }, []);
 
   const fetchOrders = async () => {
     if (!distribuidor?.id) return;

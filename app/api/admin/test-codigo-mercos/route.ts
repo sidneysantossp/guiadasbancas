@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase';
 
 /**
@@ -10,8 +11,6 @@ export async function GET() {
     const supabase = supabaseAdmin;
     
     // Teste 1: Tentar buscar um produto qualquer com codigo_mercos
-    console.log('[TEST] Tentando buscar produtos com codigo_mercos...');
-    
     const { data: produtos, error } = await supabase
       .from('products')
       .select('id, name, codigo_mercos, mercos_id, distribuidor_id')
@@ -109,6 +108,7 @@ export async function GET() {
     });
 
   } catch (error: any) {
+    logger.error('[TEST-CODIGO-MERCOS] Erro:', error);
     return NextResponse.json({
       sucesso: false,
       erro: error.message,

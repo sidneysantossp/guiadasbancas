@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import {
   getDistribuidorAuthHeaders,
-  hydrateDistribuidorClientAuth,
 } from "@/lib/distribuidor-client-auth";
+import { useDistribuidorSession } from "@/lib/distribuidor-client-session";
 import {
   IconPercentage,
   IconCurrencyReal,
@@ -45,7 +45,7 @@ type CategoriaDisponivel = {
 };
 
 export default function MarkupConfigPage() {
-  const [distribuidor, setDistribuidor] = useState<any>(null);
+  const { distribuidor } = useDistribuidorSession();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -75,14 +75,6 @@ export default function MarkupConfigPage() {
   // Aplicação em massa
   const [applyingBulk, setApplyingBulk] = useState(false);
   const [totalProdutos, setTotalProdutos] = useState(0);
-
-  useEffect(() => {
-    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
-      if (sessionDistribuidor) {
-        setDistribuidor(sessionDistribuidor);
-      }
-    });
-  }, []);
 
   useEffect(() => {
     if (distribuidor?.id) {

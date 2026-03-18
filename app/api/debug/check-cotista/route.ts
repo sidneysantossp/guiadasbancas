@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,8 +9,6 @@ const supabase = createClient(
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 Verificando campos do cotista na tabela bancas...');
-    
     // Tentar buscar uma banca e ver quais campos retornam
     const { data: bancas, error } = await supabase
       .from('bancas')
@@ -17,15 +16,13 @@ export async function GET(request: NextRequest) {
       .limit(5);
 
     if (error) {
-      console.error('❌ Erro ao buscar bancas:', error);
+      logger.error('Erro ao buscar bancas no debug de cotista:', error);
       return NextResponse.json({ 
         success: false, 
         error: error.message,
         details: 'Erro ao consultar tabela bancas'
       });
     }
-
-    console.log('✅ Bancas encontradas:', bancas);
 
     // Verificar se os campos existem
     const camposExistentes = bancas && bancas.length > 0 ? Object.keys(bancas[0]) : [];
@@ -46,13 +43,11 @@ export async function GET(request: NextRequest) {
         cotista_razao_social: b.cotista_razao_social || null
       }) : null).filter(Boolean) || []
     };
-
-    console.log('📤 Resposta do debug:', JSON.stringify(response, null, 2));
     
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('❌ Erro geral:', error);
+    logger.error('Erro geral no debug de cotista:', error);
     return NextResponse.json({ 
       success: false, 
       error: 'Erro interno do servidor',

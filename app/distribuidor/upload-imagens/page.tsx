@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   getDistribuidorAuthHeaders,
-  hydrateDistribuidorClientAuth,
 } from '@/lib/distribuidor-client-auth';
+import { useDistribuidorSession } from '@/lib/distribuidor-client-session';
 import {
   IconUpload,
   IconPhoto,
@@ -16,21 +16,13 @@ import {
 } from '@tabler/icons-react';
 
 export default function DistribuidorUploadImagensPage() {
-  const [distribuidor, setDistribuidor] = useState<any>(null);
+  const { distribuidor } = useDistribuidorSession();
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; batch: number; batches: number } | null>(null);
   const BATCH_SIZE = 5; // Reduzido de 8 para 5 para evitar rate limiting
   const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4 MB
-
-  useEffect(() => {
-    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
-      if (sessionDistribuidor) {
-        setDistribuidor(sessionDistribuidor);
-      }
-    });
-  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {

@@ -5,8 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   getDistribuidorAuthHeaders,
-  hydrateDistribuidorClientAuth,
 } from "@/lib/distribuidor-client-auth";
+import { useDistribuidorSession } from "@/lib/distribuidor-client-session";
 import {
   IconSearch,
   IconBuildingStore,
@@ -52,20 +52,12 @@ type Stats = {
 };
 
 export default function DistribuidorBancasPage() {
-  const [distribuidor, setDistribuidor] = useState<any>(null);
+  const { distribuidor } = useDistribuidorSession();
   const [bancas, setBancas] = useState<Banca[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-
-  useEffect(() => {
-    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
-      if (sessionDistribuidor) {
-        setDistribuidor(sessionDistribuidor);
-      }
-    });
-  }, []);
 
   const fetchBancas = async () => {
     if (!distribuidor?.id) return;

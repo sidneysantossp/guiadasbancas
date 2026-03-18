@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as bcrypt from 'bcryptjs';
+import logger from '@/lib/logger';
 import { buildNoStoreHeaders } from '@/lib/modules/http/no-store';
+import {
+  findActiveDistribuidorForLogin,
+  sanitizeDistribuidorSessionData,
+} from '@/lib/modules/distribuidor/session';
 import {
   buildDistribuidorSessionCookie,
   buildDistribuidorSessionCookieClear,
@@ -24,51 +29,6 @@ function jsonNoStore(body: Record<string, any>, status = 200) {
     status,
     headers: buildNoStoreHeaders({ isPrivate: true }),
   });
-}
-
-function normalizeIdentifier(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/\s+/g, '')
-    .trim();
-}
-
-function extractEmailLocalPart(value: string | null | undefined): string {
-  if (!value) return "";
-  const normalized = value.trim().toLowerCase();
-  if (!normalized.includes("@")) return normalized;
-  return normalized.split("@")[0] || "";
-}
-
-function buildDistribuidorAliases(distribuidor: { nome?: string | null; email?: string | null }) {
-  const aliases = new Set<string>();
-  const normalizedName = normalizeIdentifier(distribuidor.nome || "");
-  const normalizedEmail = normalizeIdentifier(distribuidor.email || "");
-  const normalizedEmailLocalPart = normalizeIdentifier(extractEmailLocalPart(distribuidor.email));
-
-  if (normalizedName) {
-    aliases.add(normalizedName);
-
-    const nameWords = (distribuidor.nome || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((word) => normalizeIdentifier(word));
-
-    for (const word of nameWords) {
-      if (word) aliases.add(word);
-    }
-  }
-
-  if (normalizedEmail) aliases.add(normalizedEmail);
-  if (normalizedEmailLocalPart) aliases.add(normalizedEmailLocalPart);
-
-  return aliases;
 }
 
 async function verifyStoredPassword(inputPassword: string, storedPassword?: string | null) {
@@ -131,40 +91,11 @@ export async function POST(request: NextRequest) {
     }
 
     const emailLower = email.toLowerCase().trim();
-    const searchTerm = normalizeIdentifier(
-      emailLower.includes("@") ? extractEmailLocalPart(emailLower) : emailLower
-    );
-    let distribuidor = null;
-
-    // 1. Tentar buscar pelo email (se o campo existir)
-    const { data: distByEmail } = await supabaseAdmin
-      .from('distribuidores')
-      .select('*')
-      .eq('email', emailLower)
-      .eq('ativo', true)
-      .maybeSingle();
-
-    if (distByEmail) {
-      distribuidor = distByEmail;
-    }
-
-    // 2. Fallback controlado apenas em desenvolvimento para bases antigas sem email confiável
-    if (!distribuidor && allowLegacyIdentifierLogin) {
-      const { data: allDist } = await supabaseAdmin
-        .from('distribuidores')
-        .select('*')
-        .eq('ativo', true);
-
-      if (allDist) {
-        distribuidor = allDist.find((d: any) => {
-          const aliases = buildDistribuidorAliases(d);
-          return aliases.has(searchTerm);
-        });
-      }
-    }
+    const distribuidor = await findActiveDistribuidorForLogin(emailLower, {
+      allowLegacyIdentifierLogin,
+    });
 
     if (!distribuidor) {
-      console.log('[Auth] Distribuidor não encontrado para:', emailLower);
       return jsonNoStore(
         { success: false, error: 'Distribuidor não encontrado ou inativo' },
         401
@@ -195,21 +126,12 @@ export async function POST(request: NextRequest) {
       await hashDistribuidorPasswordIfNeeded(distribuidor.id, password, fieldsToUpgrade);
     }
 
-    // Retornar dados do distribuidor (sem a senha e tokens sensíveis)
-    const { senha, password: pwd, application_token, company_token, ...distribuidorSeguro } = distribuidor;
-
-    // Garantir que o email está presente no objeto retornado
-    const distribuidorComEmail = {
-      ...distribuidorSeguro,
-      email: distribuidor.email || emailLower, // Usar o email do banco ou o email usado no login
-    };
+    const distribuidorComEmail = sanitizeDistribuidorSessionData(distribuidor, emailLower);
     const session = issueDistribuidorSessionToken({
       id: distribuidorComEmail.id,
       email: distribuidorComEmail.email,
       nome: distribuidorComEmail.nome,
     });
-
-    console.log('[Auth] Login bem-sucedido para distribuidor:', distribuidorComEmail.nome, '- Email:', distribuidorComEmail.email);
 
     const response = jsonNoStore(
       {
@@ -221,7 +143,7 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error: any) {
-    console.error('Erro na autenticação do distribuidor:', error);
+    logger.error('Erro na autenticação do distribuidor:', error);
     return jsonNoStore(
       { success: false, error: 'Erro interno do servidor' },
       500

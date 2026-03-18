@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   getDistribuidorAuthHeaders,
-  hydrateDistribuidorClientAuth,
 } from "@/lib/distribuidor-client-auth";
+import { useDistribuidorSession } from "@/lib/distribuidor-client-session";
 import {
   IconBox,
   IconCheck,
@@ -29,7 +29,7 @@ interface DistribuidorStats {
 }
 
 export default function DistribuidorDashboardPage() {
-  const [distribuidor, setDistribuidor] = useState<any>(null);
+  const { distribuidor } = useDistribuidorSession();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DistribuidorStats>({
     totalProdutos: 0,
@@ -45,8 +45,7 @@ export default function DistribuidorDashboardPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const dist = await hydrateDistribuidorClientAuth();
-        setDistribuidor(dist);
+        const dist = distribuidor;
 
         if (!dist?.id) {
           setLoading(false);
@@ -85,7 +84,7 @@ export default function DistribuidorDashboardPage() {
       }
     };
     load();
-  }, []);
+  }, [distribuidor]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {

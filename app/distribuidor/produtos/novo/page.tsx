@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/admin/ToastProvider';
 import {
   getDistribuidorAuthHeaders,
-  hydrateDistribuidorClientAuth,
 } from '@/lib/distribuidor-client-auth';
+import { useDistribuidorSession } from '@/lib/distribuidor-client-session';
 import { IconArrowLeft, IconCheck, IconLoader2, IconPhoto, IconPlugConnected } from '@tabler/icons-react';
 
 type CategoryOption = {
@@ -20,7 +20,7 @@ type CategoryOption = {
 export default function DistribuidorProdutoNovoPage() {
   const router = useRouter();
   const toast = useToast();
-  const [distribuidor, setDistribuidor] = useState<any>(null);
+  const { distribuidor } = useDistribuidorSession({ redirectToLogin: true });
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,16 +38,6 @@ export default function DistribuidorProdutoNovoPage() {
     sob_encomenda: false,
     pre_venda: false,
   });
-
-  useEffect(() => {
-    void hydrateDistribuidorClientAuth().then((sessionDistribuidor) => {
-      if (!sessionDistribuidor) {
-        router.replace('/distribuidor/login');
-        return;
-      }
-      setDistribuidor(sessionDistribuidor);
-    });
-  }, [router]);
 
   useEffect(() => {
     const loadCategories = async () => {

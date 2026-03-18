@@ -2,20 +2,17 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { hydrateDistribuidorClientAuth } from "@/lib/distribuidor-client-auth";
+import { useDistribuidorSession } from "@/lib/distribuidor-client-session";
 
 export default function DistribuidorIndexPage() {
   const router = useRouter();
+  const { distribuidor, loading } = useDistribuidorSession();
 
   useEffect(() => {
-    void hydrateDistribuidorClientAuth().then((distribuidor) => {
-      if (distribuidor?.id) {
-        router.replace("/distribuidor/dashboard");
-      } else {
-        router.replace("/distribuidor/login");
-      }
-    });
-  }, [router]);
+    if (loading) return;
+
+    router.replace(distribuidor?.id ? "/distribuidor/dashboard" : "/distribuidor/login");
+  }, [distribuidor?.id, loading, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">
