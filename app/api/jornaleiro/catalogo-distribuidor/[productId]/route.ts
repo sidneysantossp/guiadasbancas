@@ -3,6 +3,10 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { auth } from '@/lib/auth';
 import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
+import {
+  buildDistributorProductCustomizationInput,
+  saveDistributorProductCustomization,
+} from "@/lib/modules/products/service";
 
 // PUT /api/jornaleiro/catalogo-distribuidor/:productId
 // Atualiza customizações de um produto (mesma lógica do PATCH)
@@ -94,58 +98,12 @@ export async function PATCH(
       );
     }
 
-    // Verificar se já existe customização
-    const { data: existing } = await supabase
-      .from('banca_produtos_distribuidor')
-      .select('id')
-      .eq('banca_id', bancaId)
-      .eq('product_id', params.productId)
-      .single();
-
-    const updateData: any = {};
-
-    // Apenas campos permitidos para customização
-    if (body.enabled !== undefined) updateData.enabled = body.enabled;
-    if (body.custom_price !== undefined) updateData.custom_price = body.custom_price;
-    if (body.custom_description !== undefined) updateData.custom_description = body.custom_description;
-    if (body.custom_status !== undefined) updateData.custom_status = body.custom_status;
-    if (body.custom_pronta_entrega !== undefined) updateData.custom_pronta_entrega = body.custom_pronta_entrega;
-    if (body.custom_sob_encomenda !== undefined) updateData.custom_sob_encomenda = body.custom_sob_encomenda;
-    if (body.custom_pre_venda !== undefined) updateData.custom_pre_venda = body.custom_pre_venda;
-    if (body.custom_stock_enabled !== undefined) updateData.custom_stock_enabled = body.custom_stock_enabled;
-    if (body.custom_stock_qty !== undefined) updateData.custom_stock_qty = body.custom_stock_qty;
-    if (body.custom_featured !== undefined) updateData.custom_featured = body.custom_featured;
-
-    if (existing) {
-      // Atualizar customização existente
-      const { error } = await supabase
-        .from('banca_produtos_distribuidor')
-        .update(updateData)
-        .eq('id', existing.id);
-
-      if (error) {
-        return NextResponse.json(
-          { success: false, error: error.message },
-          { status: 500 }
-        );
-      }
-    } else {
-      // Criar nova customização
-      const { error } = await supabase
-        .from('banca_produtos_distribuidor')
-        .insert([{
-          banca_id: bancaId,
-          product_id: params.productId,
-          ...updateData,
-        }]);
-
-      if (error) {
-        return NextResponse.json(
-          { success: false, error: error.message },
-          { status: 500 }
-        );
-      }
-    }
+    const customizationInput = buildDistributorProductCustomizationInput(body);
+    await saveDistributorProductCustomization({
+      bancaId,
+      productId: params.productId,
+      input: customizationInput,
+    });
 
     return NextResponse.json({
       success: true,

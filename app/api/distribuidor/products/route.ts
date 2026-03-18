@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateProductCreate } from '@/lib/validators/product';
 import { requireDistribuidorAccess } from '@/lib/security/distribuidor-auth';
 import { loadDistributorPricingContext } from '@/lib/modules/products/service';
+import { syncDistribuidorProductCustomPriceMarkup } from '@/lib/modules/distribuidor/markup';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -428,44 +429,11 @@ export async function PUT(request: NextRequest) {
     }
 
     if (hasCustomPriceKey) {
-      if (typeof customPrice === 'number') {
-        const { data: produtoBase, error: loadError } = await supabaseAdmin
-          .from('products')
-          .select('price')
-          .eq('id', productId)
-          .single();
-
-        if (loadError) {
-          throw loadError;
-        }
-
-        const precoBase = Number(produtoBase?.price) || 0;
-        const markupPercentual = precoBase > 0 ? ((customPrice - precoBase) / precoBase) * 100 : 0;
-
-        const { error: markupError } = await supabaseAdmin
-          .from('distribuidor_markup_produtos')
-          .upsert(
-            {
-              distribuidor_id: distribuidorId,
-              product_id: productId,
-              markup_percentual: markupPercentual,
-              markup_fixo: 0,
-            },
-            {
-              onConflict: 'distribuidor_id,product_id',
-            }
-          );
-
-        if (markupError) {
-          throw markupError;
-        }
-      } else {
-        await supabaseAdmin
-          .from('distribuidor_markup_produtos')
-          .delete()
-          .eq('distribuidor_id', distribuidorId)
-          .eq('product_id', productId);
-      }
+      await syncDistribuidorProductCustomPriceMarkup({
+        distribuidorId,
+        productId,
+        customPrice: typeof customPrice === 'number' ? customPrice : null,
+      });
     }
 
     return NextResponse.json({

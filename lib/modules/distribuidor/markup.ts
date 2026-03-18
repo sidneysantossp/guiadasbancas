@@ -290,3 +290,52 @@ export async function deleteAllDistribuidorProductMarkups(distribuidorId: string
     deleted: count || 0,
   };
 }
+
+export async function syncDistribuidorProductCustomPriceMarkup(params: {
+  distribuidorId: string;
+  productId: string;
+  customPrice: number | null;
+}) {
+  if (typeof params.customPrice === "number" && Number.isFinite(params.customPrice)) {
+    const { data: product, error: productError } = await supabaseAdmin
+      .from("products")
+      .select("price")
+      .eq("id", params.productId)
+      .eq("distribuidor_id", params.distribuidorId)
+      .single();
+
+    if (productError) throw productError;
+
+    const basePrice = normalizeNumber(product?.price, 0);
+    const markupPercentual =
+      basePrice > 0 ? ((params.customPrice - basePrice) / basePrice) * 100 : 0;
+
+    await saveDistribuidorMarkup({
+      distribuidorId: params.distribuidorId,
+      tipo: "produto",
+      dados: {
+        product_id: params.productId,
+        markup_percentual: markupPercentual,
+        markup_fixo: 0,
+      },
+    });
+
+    return {
+      hasCustomMarkup: true,
+      markupPercentual,
+    };
+  }
+
+  const { error } = await supabaseAdmin
+    .from("distribuidor_markup_produtos")
+    .delete()
+    .eq("distribuidor_id", params.distribuidorId)
+    .eq("product_id", params.productId);
+
+  if (error) throw error;
+
+  return {
+    hasCustomMarkup: false,
+    markupPercentual: null,
+  };
+}

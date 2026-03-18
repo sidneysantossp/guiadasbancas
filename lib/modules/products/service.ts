@@ -30,10 +30,58 @@ export interface DistributorProductCustomization {
   enabled?: boolean | null;
   custom_price?: number | null;
   custom_description?: string | null;
+  custom_status?: string | null;
   custom_pronta_entrega?: boolean | null;
   custom_sob_encomenda?: boolean | null;
   custom_pre_venda?: boolean | null;
+  custom_stock_enabled?: boolean | null;
+  custom_stock_qty?: number | null;
   custom_featured?: boolean | null;
+}
+
+export interface DistributorProductCustomizationInput extends DistributorProductCustomization {}
+
+const DISTRIBUTOR_PRODUCT_CUSTOMIZATION_SELECT =
+  "id, banca_id, product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty, custom_featured, modificado_em";
+
+function hasOwnValue(input: Record<string, unknown>, key: string) {
+  return Object.prototype.hasOwnProperty.call(input, key);
+}
+
+export function buildDistributorProductCustomizationInput(
+  input: Record<string, unknown>,
+  options?: {
+    defaultEnabled?: boolean;
+    useProductEditorAliases?: boolean;
+  }
+): DistributorProductCustomizationInput {
+  const customization: DistributorProductCustomizationInput = {};
+
+  if (typeof options?.defaultEnabled === "boolean") {
+    customization.enabled = options.defaultEnabled;
+  }
+
+  if (hasOwnValue(input, "enabled")) customization.enabled = input.enabled as boolean | null;
+  if (hasOwnValue(input, "custom_price")) customization.custom_price = input.custom_price as number | null;
+  if (hasOwnValue(input, "custom_description")) customization.custom_description = input.custom_description as string | null;
+  if (hasOwnValue(input, "custom_status")) customization.custom_status = input.custom_status as string | null;
+  if (hasOwnValue(input, "custom_pronta_entrega")) customization.custom_pronta_entrega = input.custom_pronta_entrega as boolean | null;
+  if (hasOwnValue(input, "custom_sob_encomenda")) customization.custom_sob_encomenda = input.custom_sob_encomenda as boolean | null;
+  if (hasOwnValue(input, "custom_pre_venda")) customization.custom_pre_venda = input.custom_pre_venda as boolean | null;
+  if (hasOwnValue(input, "custom_stock_enabled")) customization.custom_stock_enabled = input.custom_stock_enabled as boolean | null;
+  if (hasOwnValue(input, "custom_stock_qty")) customization.custom_stock_qty = input.custom_stock_qty as number | null;
+  if (hasOwnValue(input, "custom_featured")) customization.custom_featured = input.custom_featured as boolean | null;
+
+  if (options?.useProductEditorAliases) {
+    if (hasOwnValue(input, "price")) customization.custom_price = input.price as number | null;
+    if (hasOwnValue(input, "description")) customization.custom_description = input.description as string | null;
+    if (hasOwnValue(input, "pronta_entrega")) customization.custom_pronta_entrega = input.pronta_entrega as boolean | null;
+    if (hasOwnValue(input, "sob_encomenda")) customization.custom_sob_encomenda = input.sob_encomenda as boolean | null;
+    if (hasOwnValue(input, "pre_venda")) customization.custom_pre_venda = input.pre_venda as boolean | null;
+    if (hasOwnValue(input, "featured")) customization.custom_featured = input.featured as boolean | null;
+  }
+
+  return customization;
 }
 
 function readOptionalCount(result: unknown): number {
@@ -337,15 +385,51 @@ export async function loadDistributorProductCustomization(params: {
 }): Promise<DistributorProductCustomization | null> {
   const { data, error } = await supabaseAdmin
     .from("banca_produtos_distribuidor")
-    .select(
-      "enabled, custom_price, custom_description, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_featured"
-    )
+    .select(DISTRIBUTOR_PRODUCT_CUSTOMIZATION_SELECT)
     .eq("banca_id", params.bancaId)
     .eq("product_id", params.productId)
     .maybeSingle();
 
   if (error) {
     throw new Error(error.message || "Erro ao buscar customização do produto");
+  }
+
+  return (data as DistributorProductCustomization | null) || null;
+}
+
+export async function saveDistributorProductCustomization(params: {
+  bancaId: string;
+  productId: string;
+  input: DistributorProductCustomizationInput;
+}): Promise<DistributorProductCustomization | null> {
+  const payload = Object.fromEntries(
+    Object.entries(params.input || {}).filter(([, value]) => value !== undefined)
+  ) as DistributorProductCustomizationInput;
+
+  if (Object.keys(payload).length === 0) {
+    return loadDistributorProductCustomization({
+      bancaId: params.bancaId,
+      productId: params.productId,
+    });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("banca_produtos_distribuidor")
+    .upsert(
+      {
+        banca_id: params.bancaId,
+        product_id: params.productId,
+        ...payload,
+      },
+      {
+        onConflict: "banca_id,product_id",
+      }
+    )
+    .select(DISTRIBUTOR_PRODUCT_CUSTOMIZATION_SELECT)
+    .single();
+
+  if (error) {
+    throw new Error(error.message || "Erro ao salvar customização do produto");
   }
 
   return (data as DistributorProductCustomization | null) || null;
