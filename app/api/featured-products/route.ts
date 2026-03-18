@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { loadDistributorPricingContext } from "@/lib/modules/products/service";
+import { sortItemsByDistance } from "@/lib/modules/products/public-catalog";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -70,10 +72,7 @@ export async function GET(req: NextRequest) {
     }
 
     const distribuidorProducts = (prods || []).filter((p: any) => p.distribuidor_id);
-    const distribuidorIds = Array.from(new Set(distribuidorProducts.map((p: any) => p.distribuidor_id)));
-    const categoryIds = Array.from(new Set(distribuidorProducts.map((p: any) => p.category_id).filter(Boolean)));
-    const productIds = distribuidorProducts.map((p: any) => p.id);
-    const cotistaBancasRes = !bancaId && distribuidorIds.length > 0
+    const cotistaBancasRes = !bancaId && distribuidorProducts.length > 0
       ? await supabaseAdmin
           .from('bancas')
           .select('id, name, cover_image, whatsapp, lat, lng, is_cotista, cotista_id, active')
@@ -85,81 +84,28 @@ export async function GET(req: NextRequest) {
       : { data: [], error: null };
 
     const cotistaBancas = (cotistaBancasRes?.data || []).filter((b: any) => b.lat != null && b.lng != null);
-    const sortedCotistaBancas = userLat && userLng
-      ? cotistaBancas
-          .map((b: any) => ({
-            ...b,
-            distance: calculateDistance(userLat, userLng, parseFloat(b.lat), parseFloat(b.lng)),
-          }))
-          .sort((a: any, b: any) => a.distance - b.distance)
-      : cotistaBancas.map((b: any) => ({ ...b, distance: null }));
+    const sortedCotistaBancas = sortItemsByDistance({
+      items: cotistaBancas,
+      userLat,
+      userLng,
+    });
     const candidateBancaIds = Array.from(new Set([
       ...bancaIds,
       ...sortedCotistaBancas.map((b: any) => b.id).filter(Boolean),
     ]));
 
-    const [distRes, markupProdRes, markupCatRes, customRes] = await Promise.all([
-      distribuidorIds.length > 0
-        ? supabaseAdmin
-            .from('distribuidores')
-            .select('id, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_divisor')
-            .in('id', distribuidorIds)
-        : Promise.resolve({ data: [] as any[] }),
-      distribuidorIds.length > 0 && productIds.length > 0
-        ? supabaseAdmin
-            .from('distribuidor_markup_produtos')
-            .select('distribuidor_id, product_id, markup_percentual, markup_fixo')
-            .in('distribuidor_id', distribuidorIds)
-            .in('product_id', productIds)
-        : Promise.resolve({ data: [] as any[] }),
-      distribuidorIds.length > 0 && categoryIds.length > 0
-        ? supabaseAdmin
-            .from('distribuidor_markup_categorias')
-            .select('distribuidor_id, category_id, markup_percentual, markup_fixo')
-            .in('distribuidor_id', distribuidorIds)
-            .in('category_id', categoryIds)
-        : Promise.resolve({ data: [] as any[] }),
-      productIds.length > 0 && (bancaId || candidateBancaIds.length > 0)
-        ? supabaseAdmin
-            .from('banca_produtos_distribuidor')
-            .select('product_id, banca_id, enabled, custom_price')
-            .in('banca_id', bancaId ? [bancaId] : candidateBancaIds)
-            .in('product_id', productIds)
-        : Promise.resolve({ data: [] as any[] }),
-    ]);
-
-    const distMap = new Map((distRes.data || []).map((d: any) => [d.id, d]));
-    const markupProdMap = new Map((markupProdRes.data || []).map((m: any) => [`${m.distribuidor_id}:${m.product_id}`, m]));
-    const markupCatMap = new Map((markupCatRes.data || []).map((m: any) => [`${m.distribuidor_id}:${m.category_id}`, m]));
-    const customMap = new Map((customRes.data || []).map((c: any) => [`${c.banca_id}:${c.product_id}`, c]));
+    const { customMap, calculateDistributorPrice } = await loadDistributorPricingContext<{
+      product_id: string;
+      banca_id: string;
+      enabled: boolean | null;
+      custom_price: number | null;
+    }>({
+      products: distribuidorProducts,
+      customFields: 'product_id, banca_id, enabled, custom_price',
+      customBancaIds: bancaId ? [bancaId] : candidateBancaIds,
+      buildCustomizationKey: (customization) => `${customization.banca_id}:${customization.product_id}`,
+    });
     const bancaUsageMap = new Map<string, number>();
-
-    const calcularPrecoVendaDistribuidor = (product: any): number => {
-      const precoBase = Number(product.price || 0);
-      const dist = distMap.get(product.distribuidor_id);
-      if (!dist) return precoBase;
-
-      const mp = markupProdMap.get(`${product.distribuidor_id}:${product.id}`);
-      if (mp && (Number(mp.markup_percentual || 0) > 0 || Number(mp.markup_fixo || 0) > 0)) {
-        return Math.round((precoBase * (1 + Number(mp.markup_percentual || 0) / 100) + Number(mp.markup_fixo || 0)) * 100) / 100;
-      }
-      const mc = markupCatMap.get(`${product.distribuidor_id}:${product.category_id}`);
-      if (mc && (Number(mc.markup_percentual || 0) > 0 || Number(mc.markup_fixo || 0) > 0)) {
-        return Math.round((precoBase * (1 + Number(mc.markup_percentual || 0) / 100) + Number(mc.markup_fixo || 0)) * 100) / 100;
-      }
-
-      if (dist.tipo_calculo === 'margem') {
-        const divisor = Number(dist.margem_divisor || 1);
-        if (divisor > 0 && divisor < 1) return Math.round((precoBase / divisor) * 100) / 100;
-      }
-
-      const perc = Number(dist.markup_global_percentual || 0);
-      const fixo = Number(dist.markup_global_fixo || 0);
-      if (perc > 0 || fixo > 0) {
-        return Math.round((precoBase * (1 + perc / 100) + fixo) * 100) / 100;
-      }
-      return precoBase;
-    };
 
     const pickDisplayBancaForDistributorProduct = (product: any) => {
       const fallbackBanca = product?.banca_id ? bancaMap.get(product.banca_id) : null;
@@ -220,7 +166,7 @@ export async function GET(req: NextRequest) {
 
         const custom = p.distribuidor_id && resolvedBancaId ? customMap.get(`${resolvedBancaId}:${p.id}`) : null;
         const finalPrice = p.distribuidor_id
-          ? (custom?.custom_price != null ? Number(custom.custom_price) : calcularPrecoVendaDistribuidor(p))
+          ? (custom?.custom_price != null ? Number(custom.custom_price) : calculateDistributorPrice(p))
           : Number(p.price ?? 0);
 
         return {
@@ -264,16 +210,4 @@ export async function GET(req: NextRequest) {
     console.error('[featured-products] GET error', e);
     return NextResponse.json({ success: false, error: 'Erro interno', data: [] }, { status: 500, headers });
   }
-}
-
-function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
 }

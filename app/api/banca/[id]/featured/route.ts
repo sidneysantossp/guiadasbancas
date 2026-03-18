@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { loadDistributorPricingContext } from "@/lib/modules/products/service";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -26,37 +27,6 @@ const FEATURED_PRODUCT_FIELDS = `
   reviews_count,
   codigo_mercos
 `;
-
-function calcularPrecoComMarkup(
-  precoBase: number,
-  distribuidor: any,
-  markupProduto?: { markup_percentual?: number; markup_fixo?: number } | null,
-  markupCategoria?: { markup_percentual?: number; markup_fixo?: number } | null
-): number {
-  if (!distribuidor) return precoBase;
-
-  const mpPerc = Number(markupProduto?.markup_percentual || 0);
-  const mpFixo = Number(markupProduto?.markup_fixo || 0);
-  if (mpPerc > 0 || mpFixo > 0) {
-    return precoBase * (1 + mpPerc / 100) + mpFixo;
-  }
-
-  const mcPerc = Number(markupCategoria?.markup_percentual || 0);
-  const mcFixo = Number(markupCategoria?.markup_fixo || 0);
-  if (mcPerc > 0 || mcFixo > 0) {
-    return precoBase * (1 + mcPerc / 100) + mcFixo;
-  }
-
-  const tipoCalculo = distribuidor.tipo_calculo || 'markup';
-  if (tipoCalculo === 'margem') {
-    const divisor = distribuidor.margem_divisor || 1;
-    if (divisor <= 0 || divisor >= 1) return precoBase;
-    return precoBase / divisor;
-  }
-  const percentual = distribuidor.markup_global_percentual || 0;
-  const fixo = distribuidor.markup_global_fixo || 0;
-  return precoBase * (1 + percentual / 100) + fixo;
-}
 
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
@@ -126,7 +96,9 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       }
 
       if (customizacoesFeatured && customizacoesFeatured.length > 0) {
-        const productIds = customizacoesFeatured.map(c => c.product_id);
+        const productIds = customizacoesFeatured
+          .map((customizacao) => customizacao.product_id)
+          .filter(Boolean);
         
         // Buscar os produtos
         const { data: produtos, error: produtosDistError } = await supabase
@@ -140,9 +112,6 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         }
 
         const customMap = new Map(customizacoesFeatured.map(c => [c.product_id, c]));
-
-        // Buscar dados dos distribuidores incluindo markup
-        const distribuidorIds = [...new Set((produtos || []).map(p => p.distribuidor_id).filter(Boolean))];
         
         // Coletar category_ids dos produtos de distribuidores para buscar nomes
         const distribuidorCategoryIds = [...new Set(
@@ -151,60 +120,25 @@ export async function GET(request: NextRequest, context: { params: { id: string 
             .map(p => p.category_id)
         )];
         
-        const [distribuidoresRes, distribuidorCategoriesRes] = await Promise.all([
-          distribuidorIds.length > 0
-            ? supabase.from('distribuidores').select('id, nome, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor').in('id', distribuidorIds)
-            : Promise.resolve({ data: [], error: null } as any),
+        const [{ calculateDistributorPrice }, distribuidorCategoriesRes] = await Promise.all([
+          loadDistributorPricingContext({
+            products: (produtos || []) as any[],
+            customFields: null,
+          }),
           distribuidorCategoryIds.length > 0
             ? supabase.from('distribuidor_categories').select('id, nome').in('id', distribuidorCategoryIds)
             : Promise.resolve({ data: [], error: null } as any)
         ]);
-
-        const [markupProdutosRes, markupCategoriasRes] = await Promise.all([
-          distribuidorIds.length > 0
-            ? supabase
-                .from('distribuidor_markup_produtos')
-                .select('distribuidor_id, product_id, markup_percentual, markup_fixo')
-                .in('distribuidor_id', distribuidorIds)
-                .in('product_id', productIds)
-            : Promise.resolve({ data: [], error: null } as any),
-          distribuidorIds.length > 0 && distribuidorCategoryIds.length > 0
-            ? supabase
-                .from('distribuidor_markup_categorias')
-                .select('distribuidor_id, category_id, markup_percentual, markup_fixo')
-                .in('distribuidor_id', distribuidorIds)
-                .in('category_id', distribuidorCategoryIds)
-            : Promise.resolve({ data: [], error: null } as any),
-        ]);
-
-        if (distribuidoresRes.error) {
-          throw distribuidoresRes.error;
-        }
         if (distribuidorCategoriesRes.error) {
           throw distribuidorCategoriesRes.error;
         }
-        if (markupProdutosRes.error) {
-          throw markupProdutosRes.error;
-        }
-        if (markupCategoriasRes.error) {
-          throw markupCategoriasRes.error;
-        }
-
-        const distribuidorMap = new Map<string, any>((distribuidoresRes.data || []).map((d: any) => [String(d.id), d]));
         const distribuidorCategoryMap = new Map<string, string>(
           (distribuidorCategoriesRes.data || []).map((c: any) => [String(c.id), String(c.nome || "")])
-        );
-        const markupProdutoMap = new Map<string, any>(
-          (markupProdutosRes.data || []).map((m: any) => [`${m.distribuidor_id}:${m.product_id}`, m])
-        );
-        const markupCategoriaMap = new Map<string, any>(
-          (markupCategoriasRes.data || []).map((m: any) => [`${m.distribuidor_id}:${m.category_id}`, m])
         );
 
         produtosDistribuidor = (produtos || [])
           .map(produto => {
             const custom = customMap.get(produto.id);
-            const distribuidor = distribuidorMap.get(produto.distribuidor_id);
             
             // Calcular estoque efetivo
             const effectiveStock = custom?.custom_stock_enabled 
@@ -228,15 +162,10 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
             // Calcular preço: prioridade é custom_price do jornaleiro, depois markup do distribuidor
             let price = produto.price;
-            if (custom?.custom_price) {
+            if (custom?.custom_price != null) {
               price = custom.custom_price;
-            } else if (distribuidor) {
-              price = calcularPrecoComMarkup(
-                produto.price,
-                distribuidor,
-                markupProdutoMap.get(`${produto.distribuidor_id}:${produto.id}`),
-                markupCategoriaMap.get(`${produto.distribuidor_id}:${produto.category_id}`)
-              );
+            } else if (produto.distribuidor_id) {
+              price = calculateDistributorPrice(produto);
             }
             const priceOriginal = produto.price_original || produto.price;
             const discountPercent = produto.discount_percent || 

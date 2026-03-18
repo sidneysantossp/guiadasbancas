@@ -140,6 +140,156 @@ function buildDistributorPricingContext(params: {
   return { calculate };
 }
 
+export function createDistributorPricingResolver(params: {
+  distribuidores: any[];
+  markupCategorias: any[];
+  markupProdutos: any[];
+}) {
+  const pricingContext = buildDistributorPricingContext(params);
+
+  return (product: { id: string; price?: number | null; distribuidor_id?: string | null; category_id?: string | null }) => {
+    const price = pricingContext.calculate(Number(product.price || 0), product);
+    return Math.round(price * 100) / 100;
+  };
+}
+
+export interface DistributorPricingContextResult<TCustomization = any> {
+  customMap: Map<string, TCustomization>;
+  distribuidorMap: Map<string, any>;
+  calculateDistributorPrice: (product: {
+    id: string;
+    price?: number | null;
+    distribuidor_id?: string | null;
+    category_id?: string | null;
+  }) => number;
+}
+
+export async function loadDistributorPricingContext<TCustomization extends { product_id?: string | null } = any>(params: {
+  products: Array<{
+    id: string;
+    price?: number | null;
+    distribuidor_id?: string | null;
+    category_id?: string | null;
+  }>;
+  customFields?: string | null;
+  customBancaId?: string | null;
+  customBancaIds?: string[];
+  includeAllBancaCustomizationsWhenLarge?: boolean;
+  buildCustomizationKey?: (customization: TCustomization) => string;
+}): Promise<DistributorPricingContextResult<TCustomization>> {
+  const productRows = params.products || [];
+  const distribuidorIds = Array.from(
+    new Set(productRows.map((product) => product.distribuidor_id).filter(Boolean))
+  );
+
+  if (distribuidorIds.length === 0) {
+    return {
+      customMap: new Map<string, TCustomization>(),
+      distribuidorMap: new Map<string, any>(),
+      calculateDistributorPrice: createDistributorPricingResolver({
+        distribuidores: [],
+        markupCategorias: [],
+        markupProdutos: [],
+      }),
+    };
+  }
+
+  const productIds = Array.from(new Set(productRows.map((product) => product.id).filter(Boolean)));
+  const categoryIds = Array.from(
+    new Set(productRows.map((product) => product.category_id).filter(Boolean))
+  );
+  const buildCustomizationKey =
+    params.buildCustomizationKey ||
+    ((customization: TCustomization) => String(customization.product_id || ""));
+
+  const customQuery = (() => {
+    const normalizedCustomFields = String(params.customFields || "").trim();
+    if (!normalizedCustomFields) {
+      return Promise.resolve({ data: [] as TCustomization[], error: null });
+    }
+
+    const bancaIds = Array.from(new Set((params.customBancaIds || []).filter(Boolean)));
+    const bancaId = params.customBancaId || null;
+    const shouldSkipProductFilter =
+      params.includeAllBancaCustomizationsWhenLarge === true &&
+      !!bancaId &&
+      productIds.length > 500;
+
+    let query = supabaseAdmin
+      .from("banca_produtos_distribuidor")
+      .select(normalizedCustomFields);
+
+    if (bancaId) {
+      query = query.eq("banca_id", bancaId);
+    } else if (bancaIds.length > 0) {
+      query = query.in("banca_id", bancaIds);
+    } else {
+      return Promise.resolve({ data: [] as TCustomization[], error: null });
+    }
+
+    if (!shouldSkipProductFilter && productIds.length > 0) {
+      query = query.in("product_id", productIds);
+    }
+
+    return query;
+  })();
+
+  const [{ data: distribuidores, error: distribuidoresError }, { data: markupProdutos, error: markupProdutosError }, { data: markupCategorias, error: markupCategoriasError }, { data: customizations, error: customizationsError }] = await Promise.all([
+    supabaseAdmin
+      .from("distribuidores")
+      .select("id, nome, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor, tipo_calculo")
+      .in("id", distribuidorIds),
+    productIds.length > 0
+      ? supabaseAdmin
+          .from("distribuidor_markup_produtos")
+          .select("distribuidor_id, product_id, markup_percentual, markup_fixo")
+          .in("distribuidor_id", distribuidorIds)
+          .in("product_id", productIds)
+      : Promise.resolve({ data: [] as any[], error: null }),
+    categoryIds.length > 0
+      ? supabaseAdmin
+          .from("distribuidor_markup_categorias")
+          .select("distribuidor_id, category_id, markup_percentual, markup_fixo")
+          .in("distribuidor_id", distribuidorIds)
+          .in("category_id", categoryIds)
+      : Promise.resolve({ data: [] as any[], error: null }),
+    customQuery,
+  ]);
+
+  if (distribuidoresError || markupProdutosError || markupCategoriasError || customizationsError) {
+    throw new Error(
+      distribuidoresError?.message ||
+      markupProdutosError?.message ||
+      markupCategoriasError?.message ||
+      customizationsError?.message ||
+      "Erro ao carregar contexto de pricing dos distribuidores"
+    );
+  }
+
+  const customMap = new Map<string, TCustomization>();
+  for (const customization of (customizations || []) as TCustomization[]) {
+    const key = buildCustomizationKey(customization);
+    if (key) {
+      customMap.set(key, customization);
+    }
+  }
+
+  const distribuidorMap = new Map<string, any>();
+  for (const distribuidor of distribuidores || []) {
+    distribuidorMap.set(distribuidor.id, distribuidor);
+  }
+
+  return {
+    customMap,
+    distribuidorMap,
+    calculateDistributorPrice: createDistributorPricingResolver({
+      distribuidores: distribuidores || [],
+      markupCategorias: markupCategorias || [],
+      markupProdutos: markupProdutos || [],
+    }),
+  };
+}
+
 export async function calculateDistributorProductMarkup(params: {
   productId: string;
   distribuidorId: string;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auth } from '@/lib/auth';
 import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
+import { loadDistributorPricingContext } from "@/lib/modules/products/service";
 
 export const dynamic = 'force-dynamic';
 
@@ -53,20 +54,23 @@ export async function GET(req: NextRequest) {
     // 2. Buscar TODOS os produtos de distribuidor
     const { data: produtosDistribuidor } = await supabase
       .from('products')
-      .select('id, price')
+      .select('id, price, distribuidor_id, category_id')
       .not('distribuidor_id', 'is', null)
       .eq('active', true);
 
-    // 3. Buscar customizações desta banca
-    const { data: customizacoes } = await supabase
-      .from('banca_produtos_distribuidor')
-      .select('product_id, enabled, custom_price, custom_stock_enabled')
-      .eq('banca_id', bancaId);
+    const customizacoesFields = 'product_id, enabled, custom_price, custom_stock_enabled';
+    const { customMap, calculateDistributorPrice } = await loadDistributorPricingContext<{
+      product_id: string;
+      enabled: boolean | null;
+      custom_price: number | null;
+      custom_stock_enabled: boolean | null;
+    }>({
+      products: (produtosDistribuidor || []) as any[],
+      customFields: customizacoesFields,
+      customBancaId: bancaId,
+    });
 
-    // Mapear customizações
-    const customMap = new Map(
-      (customizacoes || []).map(c => [c.product_id, c])
-    );
+    const customizacoes = Array.from(customMap.values());
 
     // Calcular estatísticas
     const produtosHabilitados = (produtosDistribuidor || []).filter(p => {
@@ -93,8 +97,10 @@ export async function GET(req: NextRequest) {
 
     produtosHabilitados.forEach(produto => {
       const custom = customMap.get(produto.id);
-      const precoOriginal = Number(produto.price) || 0;
-      const precoCustom = custom?.custom_price ? Number(custom.custom_price) : precoOriginal;
+      const precoOriginal = calculateDistributorPrice(produto);
+      const precoCustom = custom?.custom_price != null
+        ? Number(custom.custom_price)
+        : precoOriginal;
       
       valorOriginal += precoOriginal;
       valorCustomizado += precoCustom;

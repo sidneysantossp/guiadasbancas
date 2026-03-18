@@ -1,29 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { loadDistributorPricingContext } from "@/lib/modules/products/service";
+import { calculateDistance } from "@/lib/modules/products/public-catalog";
 import Fuse, { IFuseOptions } from 'fuse.js';
 import { normalizeForSearch } from "@/lib/fuzzySearch";
 
 export const dynamic = 'force-dynamic';
-
-// Função para calcular distância entre duas coordenadas (Haversine)
-function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371; // Raio da Terra em km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-function normalizeKeyName(value: string): string {
-  return String(value || '')
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, ' ');
-}
 
 function normalizeSearchTerm(value: string): string {
   return String(value || '')
@@ -249,88 +231,6 @@ export async function GET(req: NextRequest) {
       }
     }
     
-    // Buscar markups completos de distribuidores para aplicar nos preços
-    const distribuidorIds = Array.from(new Set(
-      (productsData || []).filter((p: any) => p.distribuidor_id).map((p: any) => p.distribuidor_id)
-    ));
-    const distMap = new Map<string, any>();
-    const markupProdutosMap = new Map<string, any>();
-    const markupCategoriasMap = new Map<string, any>();
-    
-    if (distribuidorIds.length > 0) {
-      // Buscar configuração completa do distribuidor
-      const [distribuidoresRes, markupProdutosRes, markupCategoriasRes] = await Promise.all([
-        supabase
-          .from('distribuidores')
-          .select('id, markup_global_percentual, markup_global_fixo, margem_divisor, tipo_calculo')
-          .in('id', distribuidorIds),
-        supabase
-          .from('distribuidor_markup_produtos')
-          .select('distribuidor_id, product_id, markup_percentual, markup_fixo')
-          .in('distribuidor_id', distribuidorIds),
-        supabase
-          .from('distribuidor_markup_categorias')
-          .select('distribuidor_id, category_id, markup_percentual, markup_fixo')
-          .in('distribuidor_id', distribuidorIds)
-      ]);
-      
-      (distribuidoresRes.data || []).forEach((d: any) => {
-        distMap.set(d.id, d);
-      });
-      
-      (markupProdutosRes.data || []).forEach((m: any) => {
-        markupProdutosMap.set(`${m.distribuidor_id}:${m.product_id}`, m);
-      });
-      
-      (markupCategoriasRes.data || []).forEach((m: any) => {
-        markupCategoriasMap.set(`${m.distribuidor_id}:${m.category_id}`, m);
-      });
-    }
-    
-    // Função para calcular preço final com markup completo
-    const calcularPrecoFinal = (produto: any): number => {
-      const precoBase = produto.price || 0;
-      if (!produto.distribuidor_id) return precoBase;
-      
-      const dist = distMap.get(produto.distribuidor_id);
-      if (!dist) return precoBase;
-      
-      // 1. Prioridade: Markup por Produto
-      const markupProduto = markupProdutosMap.get(`${produto.distribuidor_id}:${produto.id}`);
-      if (markupProduto) {
-        const perc = Number(markupProduto.markup_percentual || 0);
-        const fixo = Number(markupProduto.markup_fixo || 0);
-        return Math.round((precoBase * (1 + perc / 100) + fixo) * 100) / 100;
-      }
-      
-      // 2. Prioridade: Markup por Categoria
-      if (produto.category_id) {
-        const markupCategoria = markupCategoriasMap.get(`${produto.distribuidor_id}:${produto.category_id}`);
-        if (markupCategoria) {
-          const perc = Number(markupCategoria.markup_percentual || 0);
-          const fixo = Number(markupCategoria.markup_fixo || 0);
-          return Math.round((precoBase * (1 + perc / 100) + fixo) * 100) / 100;
-        }
-      }
-      
-      // 3. Prioridade: Markup Global (com suporte a margem/divisor)
-      const tipoCalculo = dist.tipo_calculo || 'markup';
-      if (tipoCalculo === 'margem') {
-        const divisor = Number(dist.margem_divisor || 1);
-        if (divisor > 0 && divisor < 1) {
-          return Math.round((precoBase / divisor) * 100) / 100;
-        }
-      } else {
-        const perc = Number(dist.markup_global_percentual || 0);
-        const fixo = Number(dist.markup_global_fixo || 0);
-        if (perc > 0 || fixo > 0) {
-          return Math.round((precoBase * (1 + perc / 100) + fixo) * 100) / 100;
-        }
-      }
-      
-      return precoBase;
-    };
-
     if (productsError) {
       if (process.env.NODE_ENV === 'development') {
         console.error('[Search API] Erro na busca de produtos:', productsError);
@@ -365,7 +265,8 @@ export async function GET(req: NextRequest) {
 
     // Para produtos de distribuidores, buscar TODAS as bancas cotistas ativas
     let bancasCotistas: any[] = [];
-    const customMap = new Map<string, { enabled: boolean | null; custom_price: number | null }>(); // banca_id:product_id -> custom
+    let calculateDistributorPrice = (product: any) => Number(product?.price || 0);
+    let customMap = new Map<string, { enabled: boolean | null; custom_price: number | null }>(); // banca_id:product_id -> custom
     
     if (produtosDistribuidor.length > 0) {
       // Buscar todas as bancas cotistas ativas
@@ -383,22 +284,23 @@ export async function GET(req: NextRequest) {
       
       bancasCotistas = bancas || [];
       
-      // Buscar customizações por banca+produto (enabled/custom_price)
       const productIds = produtosDistribuidor.map((p: any) => p.id);
       const bancaIds = bancasCotistas.map((b: any) => b.id);
       if (productIds.length > 0 && bancaIds.length > 0) {
-        const { data: customRows } = await supabase
-          .from('banca_produtos_distribuidor')
-          .select('banca_id, product_id, enabled, custom_price')
-          .in('product_id', productIds)
-          .in('banca_id', bancaIds);
-
-        (customRows || []).forEach((row: any) => {
-          customMap.set(`${row.banca_id}:${row.product_id}`, {
-            enabled: row.enabled,
-            custom_price: row.custom_price,
-          });
+        const pricingContext = await loadDistributorPricingContext<{
+          banca_id: string;
+          product_id: string;
+          enabled: boolean | null;
+          custom_price: number | null;
+        }>({
+          products: produtosDistribuidor as any[],
+          customFields: 'banca_id, product_id, enabled, custom_price',
+          customBancaIds: bancaIds,
+          buildCustomizationKey: (customization) => `${customization.banca_id}:${customization.product_id}`,
         });
+
+        calculateDistributorPrice = pricingContext.calculateDistributorPrice;
+        customMap = pricingContext.customMap;
       }
     }
 
@@ -412,7 +314,9 @@ export async function GET(req: NextRequest) {
         distance = calculateDistance(userLat, userLng, parseFloat(banca.lat), parseFloat(banca.lng));
       }
 
-      const finalPrice = calcularPrecoFinal(p);
+      const finalPrice = p.distribuidor_id
+        ? calculateDistributorPrice(p)
+        : Number(p.price || 0);
       const category = Array.isArray(p.categories) ? p.categories[0] : p.categories;
       
       results.push({
@@ -434,7 +338,7 @@ export async function GET(req: NextRequest) {
 
     // Processar produtos de distribuidores - criar entrada para CADA banca cotista
     for (const p of produtosDistribuidor) {
-      const baseSellingPrice = calcularPrecoFinal(p);
+      const baseSellingPrice = calculateDistributorPrice(p);
       const category = Array.isArray(p.categories) ? p.categories[0] : p.categories;
       
       for (const banca of bancasCotistas) {

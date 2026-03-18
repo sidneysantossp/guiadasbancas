@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { loadDistributorPricingContext } from "@/lib/modules/products/service";
 
 // Sem cache para garantir dados atualizados
 export const revalidate = 0;
@@ -153,8 +154,6 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     // 5. Modo completo: buscar customizações e markup
     const produtosCarregados = produtos || [];
-    const distribuidorIds = [...new Set(produtosCarregados.map(p => p.distribuidor_id).filter(Boolean))];
-    const productIds = produtosCarregados.map(p => p.id);
 
     // Coletar category_ids dos produtos de distribuidores para buscar nomes
     const distribuidorCategoryIds = [...new Set(
@@ -169,72 +168,34 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     )];
 
     // Buscar markups por distribuidor (não por product_id para evitar limite de query)
-    const [distribuidoresResult, customizacoesResult, distribuidorCategoriesResult, bancaCategoriesResult, markupProdutosResult, markupCategoriasResult] = await Promise.all([
-      // Dados dos distribuidores incluindo markup
-      distribuidorIds.length > 0 ? supabase.from('distribuidores').select('id, nome, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor').in('id', distribuidorIds) : { data: [] },
-      // Customizações para esses produtos (buscar em lotes se necessário)
-      productIds.length > 0 && productIds.length <= 500 
-        ? supabase.from('banca_produtos_distribuidor').select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty').eq('banca_id', bancaId).in('product_id', productIds) 
-        : supabase.from('banca_produtos_distribuidor').select('product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty').eq('banca_id', bancaId),
+    const [{ customMap, calculateDistributorPrice }, distribuidorCategoriesResult, bancaCategoriesResult] = await Promise.all([
+      loadDistributorPricingContext<{
+        product_id: string;
+        enabled?: boolean | null;
+        custom_price?: number | null;
+        custom_description?: string | null;
+        custom_status?: string | null;
+        custom_pronta_entrega?: boolean | null;
+        custom_sob_encomenda?: boolean | null;
+        custom_pre_venda?: boolean | null;
+        custom_stock_enabled?: boolean | null;
+        custom_stock_qty?: number | null;
+      }>({
+        products: produtosCarregados,
+        customFields: 'product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty',
+        customBancaId: bancaId,
+        includeAllBancaCustomizationsWhenLarge: true,
+      }),
       // Categorias de distribuidores (para produtos de distribuidores)
       distribuidorCategoryIds.length > 0 ? supabase.from('distribuidor_categories').select('id, nome').in('id', distribuidorCategoryIds) : { data: [] },
       // Categorias padrão da plataforma (para produtos próprios da banca)
       bancaCategoryIds.length > 0 ? supabase.from('categories').select('id, name').in('id', bancaCategoryIds) : { data: [] },
-      // Markup por produto do distribuidor - buscar por distribuidor_id (menos registros)
-      distribuidorIds.length > 0 ? supabase.from('distribuidor_markup_produtos').select('product_id, markup_percentual, markup_fixo, distribuidor_id').in('distribuidor_id', distribuidorIds) : { data: [] },
-      // Markup por categoria do distribuidor
-      distribuidorIds.length > 0 ? supabase.from('distribuidor_markup_categorias').select('distribuidor_id, category_id, markup_percentual, markup_fixo').in('distribuidor_id', distribuidorIds) : { data: [] }
     ]);
 
-    // Mapa de distribuidores com dados de markup
-    const distribuidorMap = new Map((distribuidoresResult.data || []).map((d: any) => [d.id, d]));
-    const customMap = new Map((customizacoesResult.data || []).map((c: any) => [c.product_id, c]));
     // Mapa de categorias de distribuidores (id -> nome)
     const distribuidorCategoryMap = new Map((distribuidorCategoriesResult.data || []).map((c: any) => [c.id, c.nome]));
     // Mapa de categorias padrão da plataforma (id -> nome)
     const bancaCategoryMap = new Map((bancaCategoriesResult.data || []).map((c: any) => [c.id, c.name]));
-    // Mapa de markup por produto (product_id -> {percentual, fixo})
-    const markupProdutoMap = new Map((markupProdutosResult.data || []).map((m: any) => [m.product_id, { percentual: m.markup_percentual || 0, fixo: m.markup_fixo || 0 }]));
-    // Mapa de markup por categoria (distribuidor_id:category_id -> {percentual, fixo})
-    const markupCategoriaMap = new Map((markupCategoriasResult.data || []).map((m: any) => [`${m.distribuidor_id}:${m.category_id}`, { percentual: m.markup_percentual || 0, fixo: m.markup_fixo || 0 }]));
-
-    // Função para calcular preço com markup do distribuidor
-    // Prioridade: Produto > Categoria > Global
-    function calcularPrecoComMarkup(precoBase: number, produtoId: string, distribuidorId: string, categoryId: string, distribuidor: any): number {
-      if (!distribuidor) return precoBase;
-      
-      // 1. Verificar markup específico do produto (maior prioridade)
-      const markupProd = markupProdutoMap.get(produtoId);
-      if (markupProd && (markupProd.percentual > 0 || markupProd.fixo > 0)) {
-        return precoBase * (1 + markupProd.percentual / 100) + markupProd.fixo;
-      }
-
-      // 2. Verificar markup da categoria
-      const markupCat = markupCategoriaMap.get(`${distribuidorId}:${categoryId}`);
-      if (markupCat && (markupCat.percentual > 0 || markupCat.fixo > 0)) {
-        return precoBase * (1 + markupCat.percentual / 100) + markupCat.fixo;
-      }
-
-      // 3. Usar configuração global do distribuidor
-      const tipoCalculo = distribuidor.tipo_calculo || 'markup';
-      
-      if (tipoCalculo === 'margem') {
-        // Margem sobre Venda (Divisor): Preço Final = Preço Base / Divisor
-        const divisor = distribuidor.margem_divisor || 1;
-        if (divisor <= 0 || divisor >= 1) return precoBase;
-        return precoBase / divisor;
-      } else {
-        // Markup Simples (Adição): Preço Final = Preço Base × (1 + %) + Fixo
-        const percentual = distribuidor.markup_global_percentual || 0;
-        const fixo = distribuidor.markup_global_fixo || 0;
-        if (percentual > 0 || fixo > 0) {
-          return precoBase * (1 + percentual / 100) + fixo;
-        }
-      }
-
-      // 4. Sem configuração, retornar preço base
-      return precoBase;
-    }
 
     // 4. Processar e Mapear
     const mappedProducts = produtosCarregados.map(produto => {
@@ -258,8 +219,6 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       }
 
       const customStatus = custom?.custom_status || 'available';
-      const distribuidor = distribuidorMap.get(produto.distribuidor_id);
-      const distribuidorNome = distribuidor?.nome || '';
       
       // Determinar nome da categoria:
       // 1. Se produto de banca, usar join com categories
@@ -292,18 +251,12 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
       // Calcular preço: prioridade é custom_price do jornaleiro, depois markup do distribuidor
       let precoFinal = produto.price;
-      if (custom?.custom_price) {
+      if (custom?.custom_price != null) {
         // Jornaleiro definiu preço customizado - usar esse
         precoFinal = custom.custom_price;
-      } else if (produto.distribuidor_id && distribuidor) {
+      } else if (produto.distribuidor_id) {
         // Aplicar markup do distribuidor (prioridade: produto > categoria > global)
-        precoFinal = calcularPrecoComMarkup(
-          produto.price,
-          produto.id,
-          produto.distribuidor_id,
-          produto.category_id,
-          distribuidor
-        );
+        precoFinal = calculateDistributorPrice(produto);
       }
 
       // Retornar apenas campos necessários para o frontend (otimizado)

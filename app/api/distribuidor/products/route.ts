@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateProductCreate } from '@/lib/validators/product';
 import { requireDistribuidorAccess } from '@/lib/security/distribuidor-auth';
+import { loadDistributorPricingContext } from '@/lib/modules/products/service';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -164,72 +165,23 @@ export async function GET(request: NextRequest) {
     const products = allProducts;
     console.log(`[API Distribuidor] Total final: ${products.length} produtos`);
 
-    // Buscar regras de markup do distribuidor
-    const [{ data: distConfig }, { data: markupCategorias }, { data: markupProdutos }] = await Promise.all([
-      supabaseAdmin
-        .from('distribuidores')
-        .select('id, markup_global_percentual, markup_global_fixo, margem_divisor, tipo_calculo')
-        .eq('id', distribuidorId)
-        .single(),
-      supabaseAdmin
-        .from('distribuidor_markup_categorias')
-        .select('category_id, markup_percentual, markup_fixo')
-        .eq('distribuidor_id', distribuidorId),
+    const [{ calculateDistributorPrice }, { data: markupProdutos }] = await Promise.all([
+      loadDistributorPricingContext({
+        products: (products || []) as any[],
+        customFields: null,
+      }),
       products.length
         ? supabaseAdmin
             .from('distribuidor_markup_produtos')
-            .select('product_id, markup_percentual, markup_fixo')
+            .select('product_id')
+            .eq('distribuidor_id', distribuidorId)
             .in('product_id', products.map((p: any) => p.id))
         : Promise.resolve({ data: [] as any[] }),
     ]);
 
-    const markupCatMap = new Map<string, { percentual: number; fixo: number }>();
-    (markupCategorias || []).forEach((mc: any) => {
-      markupCatMap.set(mc.category_id, {
-        percentual: mc.markup_percentual || 0,
-        fixo: mc.markup_fixo || 0,
-      });
-    });
-
-    const markupProdMap = new Map<string, { percentual: number; fixo: number }>();
-    (markupProdutos || []).forEach((mp: any) => {
-      markupProdMap.set(mp.product_id, {
-        percentual: mp.markup_percentual || 0,
-        fixo: mp.markup_fixo || 0,
-      });
-    });
-
-    const calcularPrecoComMarkup = (precoBase: number, produtoId: string, categoryId?: string | null) => {
-      // Prioridade: Produto > Categoria > Global
-      const markupProd = markupProdMap.get(produtoId);
-      if (markupProd && (markupProd.percentual > 0 || markupProd.fixo > 0)) {
-        return precoBase * (1 + markupProd.percentual / 100) + markupProd.fixo;
-      }
-
-      if (categoryId) {
-        const markupCat = markupCatMap.get(categoryId);
-        if (markupCat && (markupCat.percentual > 0 || markupCat.fixo > 0)) {
-          return precoBase * (1 + markupCat.percentual / 100) + markupCat.fixo;
-        }
-      }
-
-      if (distConfig) {
-        const tipoCalculo = distConfig.tipo_calculo || 'markup';
-        if (tipoCalculo === 'margem') {
-          const divisor = distConfig.margem_divisor || 1;
-          if (divisor > 0 && divisor < 1) {
-            return precoBase / divisor;
-          }
-        }
-        const globalPerc = distConfig.markup_global_percentual || 0;
-        const globalFixo = distConfig.markup_global_fixo || 0;
-        if (globalPerc > 0 || globalFixo > 0) {
-          return precoBase * (1 + globalPerc / 100) + globalFixo;
-        }
-      }
-
-      return precoBase;
-    };
+    const productMarkupIds = new Set(
+      (markupProdutos || []).map((markupProduto: any) => markupProduto.product_id)
+    );
 
     // Formatar produtos para o frontend
     const formattedProducts = (products || []).map((product: any) => {
@@ -240,8 +192,8 @@ export async function GET(request: NextRequest) {
       }
 
       const precoBase = product.price || 0;
-      const precoComMarkup = calcularPrecoComMarkup(precoBase, product.id, product.category_id);
-      const hasProductMarkup = markupProdMap.has(product.id);
+      const precoComMarkup = calculateDistributorPrice(product);
+      const hasProductMarkup = productMarkupIds.has(product.id);
 
       // Resolver nome da categoria via mapa (sem FK join)
       const categoryName = product.category_id ? (categoryNameMap.get(product.category_id) || 'Sem Categoria') : 'Sem Categoria';

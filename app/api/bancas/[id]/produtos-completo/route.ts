@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { loadDistributorPricingContext } from '@/lib/modules/products/service';
 
 const CATEGORIA_DISTRIBUIDORES_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
 
@@ -68,14 +69,31 @@ export async function GET(
         .in('id', productIds)
         .eq('active', true);
 
+      const { customMap, calculateDistributorPrice } = await loadDistributorPricingContext<{
+        product_id: string;
+        custom_price: number | null;
+        custom_description: string | null;
+        custom_status: string | null;
+        custom_pronta_entrega: boolean | null;
+        custom_sob_encomenda: boolean | null;
+        custom_pre_venda: boolean | null;
+      }>({
+        products: (produtosBase || []) as any[],
+        customFields: 'product_id, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda',
+        customBancaId: bancaId,
+      });
+
       // Combinar dados base com customizações
       produtosDistribuidor = (produtosBase || []).map(produto => {
-        const custom = produtosHabilitados.find(c => c.product_id === produto.id);
+        const custom = customMap.get(produto.id);
+        const effectivePrice = custom?.custom_price != null
+          ? Number(custom.custom_price)
+          : calculateDistributorPrice(produto);
         
         return {
           ...produto,
           // Aplicar customizações
-          price: custom?.custom_price || produto.price,
+          price: effectivePrice,
           description: produto.description + (custom?.custom_description ? `\n\n${custom.custom_description}` : ''),
           status: custom?.custom_status || 'available',
           pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,

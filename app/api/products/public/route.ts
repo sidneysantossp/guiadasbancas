@@ -1,141 +1,19 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { loadDistributorPricingContext } from "@/lib/modules/products/service";
+import {
+  calculateDistance,
+  interleaveItemsByGroup,
+  resolvePublicCatalogCategoryFilters,
+  sortItemsByDistance,
+} from "@/lib/modules/products/public-catalog";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0; // Sem cache - garantir dados frescos
 export const fetchCache = 'force-no-store';
 
 const API_VERSION = '2026-02-10-v3';
-
-type CategoryLookupCache = {
-  allDistCats: Array<{ id: string; nome: string }>;
-  allBancaCats: Array<{ id: string; name: string }>;
-  expiresAt: number;
-};
-
-const CATEGORY_LOOKUP_TTL_MS = 5 * 60 * 1000;
-let categoryLookupCache: CategoryLookupCache | null = null;
-let categoryLookupPromise: Promise<{
-  allDistCats: Array<{ id: string; nome: string }>;
-  allBancaCats: Array<{ id: string; name: string }>;
-}> | null = null;
-
-function normalizeText(value: string): string {
-  return String(value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function normalizeSlug(value: string): string {
-  return normalizeText(value).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
-}
-
-function slugBase(value: string): string {
-  const slug = normalizeSlug(value);
-  return slug.endsWith("s") && slug.length > 1 ? slug.slice(0, -1) : slug;
-}
-
-function slugMatches(a: string, b: string): boolean {
-  const sa = slugBase(a);
-  const sb = slugBase(b);
-  return !!sa && !!sb && sa === sb;
-}
-
-function uniqueStrings(values: string[]): string[] {
-  return Array.from(new Set(values.filter(Boolean)));
-}
-
-function buildSlugCandidates(raw: string): string[] {
-  const normalized = normalizeSlug(raw);
-  if (!normalized) return [];
-  const variants = [normalized];
-  if (normalized.endsWith("s")) variants.push(normalized.slice(0, -1));
-  else variants.push(`${normalized}s`);
-  return uniqueStrings(variants);
-}
-
-function resolveSubcategoryNamesBySlug(
-  opts: {
-    requestedSubSlug: string;
-    fallbackSlug: string;
-    parentKey: string;
-    parentMap: Record<string, string[]>;
-    slugMap: Record<string, string[]>;
-  }
-): string[] | null {
-  const { requestedSubSlug, fallbackSlug, parentKey, parentMap, slugMap } = opts;
-  const candidateKeys = uniqueStrings([
-    ...buildSlugCandidates(requestedSubSlug),
-    ...buildSlugCandidates(fallbackSlug),
-  ]);
-
-  if (candidateKeys.length === 0) return null;
-
-  for (const key of candidateKeys) {
-    const mapped = slugMap[key];
-    if (mapped && mapped.length > 0) {
-      return uniqueStrings(mapped);
-    }
-  }
-
-  const parentSubs = parentMap[parentKey] || [];
-  if (parentSubs.length > 0) {
-    const matchedParentSubs = parentSubs.filter((name) => {
-      const nameSlug = normalizeSlug(name);
-      return candidateKeys.some((candidate) => slugMatches(nameSlug, candidate));
-    });
-    if (matchedParentSubs.length > 0) return uniqueStrings(matchedParentSubs);
-  }
-
-  if (requestedSubSlug) {
-    const allKnownSubs = uniqueStrings(Object.values(parentMap).flat());
-    const matchedGlobal = allKnownSubs.filter((name) => {
-      const nameSlug = normalizeSlug(name);
-      return candidateKeys.some((candidate) => slugMatches(nameSlug, candidate));
-    });
-    if (matchedGlobal.length > 0) return matchedGlobal;
-  }
-
-  return null;
-}
-
-async function getCategoryLookups() {
-  const now = Date.now();
-  if (categoryLookupCache && categoryLookupCache.expiresAt > now) {
-    return {
-      allDistCats: categoryLookupCache.allDistCats,
-      allBancaCats: categoryLookupCache.allBancaCats,
-    };
-  }
-
-  if (!categoryLookupPromise) {
-    categoryLookupPromise = (async () => {
-      const [distRes, bancaRes] = await Promise.all([
-        supabaseAdmin.from('distribuidor_categories').select('id, nome'),
-        supabaseAdmin.from('categories').select('id, name'),
-      ]);
-
-      const allDistCats = Array.isArray(distRes.data) ? (distRes.data as Array<{ id: string; nome: string }>) : [];
-      const allBancaCats = Array.isArray(bancaRes.data) ? (bancaRes.data as Array<{ id: string; name: string }>) : [];
-
-      categoryLookupCache = {
-        allDistCats,
-        allBancaCats,
-        expiresAt: Date.now() + CATEGORY_LOOKUP_TTL_MS,
-      };
-
-      return { allDistCats, allBancaCats };
-    })().finally(() => {
-      categoryLookupPromise = null;
-    });
-  }
-
-  return categoryLookupPromise;
-}
 
 /**
  * API PÚBLICA para produtos (Home Page)
@@ -162,220 +40,19 @@ export async function GET(req: NextRequest) {
     const userLng = searchParams.get("lng") ? parseFloat(searchParams.get("lng") as string) : null;
     const hasUserLocation = Number.isFinite(userLat) && Number.isFinite(userLng);
 
-    // Aliases de slug do mega menu → chave do mapeamento
-    const SLUG_ALIASES: Record<string, string> = {
-      'cigarros': 'tabacaria',
-      'snacks': 'bomboniere',
-      'quadrinhos': 'panini',
-      'jogos': 'cartas',
-      'presentes': 'diversos',
-      'acessorios': 'diversos',
-    };
-
-    // Mapeamento de categorias pai para subcategorias (usado na home)
-    const CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
-      'tabacaria': ['Boladores', 'Carvão Narguile', 'Charutos e Cigarrilhas', 'Cigarros', 'Essências', 'Filtro', 'Filtros', 'Incensos', 'Isqueiros', 'Palheiros', 'Piteira', 'Piteiras', 'Porta Cigarros', 'Seda', 'Seda OCB', 'Tabaco', 'Tabaco e Seda', 'Tabacos Importados', 'Trituradores'],
-      'bebidas': ['Energéticos', 'Energético', 'Bebidas', 'Bebida', 'Cerveja', 'Cervejas', 'Água', 'Águas', 'Refrigerantes', 'Refrigerante', 'Sucos', 'Suco', 'Isotônicos', 'Isotônico'],
-      'bomboniere': ['Bala', 'Bala Doce', 'Balas e Drops', 'Balas a Granel', 'Biscoitos', 'Chiclete', 'Chicletes', 'Chocolate', 'Chocolates', 'Doces', 'Pirulito', 'Pirulitos', 'Salgados', 'Salgadinhos', 'Snacks'],
-      'brinquedos': ['Adesivos', 'Blocos de Montar', 'Bonecos', 'Brinquedos', 'Caminhão', 'Carrinhos', 'Educativos', 'Esportivo', 'Lança Bolhas', 'Massinha', 'Pelúcia', 'Pelúcias', 'Tipo "Lego"', 'Livros Infantis'],
-      'cartas': ['Baralhos', 'Baralhos e Cards', 'Cards Colecionáveis', 'Cards Pokémon', 'Jogos Copag', 'Jogos de Cartas'],
-      'eletronicos': ['Acessórios para eletrônicos', 'Adaptadores', 'Cabo', 'Caixa de som', 'Caixas de Som', 'Carregador com tomada', 'Carregador Portátil', 'Carregador veicular', 'Fone', 'Fone de ouvido', 'Fones de Ouvido', 'Informática', 'Pilhas', 'Eletrônicos'],
-      'informatica': ['Informática'],
-      'papelaria': ['Papelaria', 'Adesivos', 'Canetas', 'Cadernos', 'Material Escolar'],
-      'telefonia': ['Telefonia', 'Chip Pré', 'Capinha Para Celular', 'Acessórios Celular'],
-      'diversos': ['Acessórios', 'Acessórios Celular', 'Adesivos Times', 'Chaveiros', 'Diversos', 'Guarda-Chuvas', 'Mochilas', 'Outros', 'Papelaria', 'Utilidades', 'Figurinhas'],
-      'pokemon': ['Cards Pokémon', 'Fichários Pokémon'],
-      'panini': ['Colecionáveis', 'Conan', 'DC Comics', 'Disney Comics', 'Marvel Comics', 'Maurício de Sousa Produções', 'Panini Books', 'Panini Comics', 'Panini Magazines', 'Panini Partwork', 'Planet Manga', 'HQs', 'HQ', 'Comics', 'Quadrinhos', 'Mangás', 'Manga', 'Graphic Novels', 'Graphic Novel', 'Revistas', 'Gibis', 'Gibi'],
-      'marvel': ['Marvel Comics', 'Marvel', 'Vingadores', 'Avengers', 'Homem-Aranha', 'Spider-Man', 'X-Men', 'Deadpool', 'Wolverine', 'Thor', 'Hulk', 'Homem de Ferro', 'Iron Man', 'Capitão América', 'Captain America'],
-      'manga': ['Planet Manga', 'Mangá', 'Mangás', 'Manga', 'Anime', 'Naruto', 'One Piece', 'Dragon Ball', 'Demon Slayer', 'Jujutsu Kaisen', 'My Hero Academia', 'Attack on Titan', 'Death Note', 'Bleach', 'Hunter x Hunter'],
-      'mauricio': ['Maurício de Sousa Produções', 'Maurício de Sousa', 'Turma da Mônica', 'Mônica', 'Cebolinha', 'Cascão', 'Magali', 'Chico Bento', 'Pelezinho', 'Horácio', 'Astronauta', 'Piteco'],
-    };
-
-    // Mapeamento de slug de subcategoria → nomes de categoria no banco
-    const SUB_SLUG_TO_NAMES: Record<string, string[]> = {
-      // Tabacaria
-      'cigarros': ['Cigarros'],
-      'charutos': ['Charutos e Cigarrilhas', 'Charutos'],
-      'tabaco': ['Tabaco e Seda', 'Tabacos Importados', 'Tabaco'],
-      'essencias': ['Essências'],
-      'narguile': ['Carvão Narguile', 'Narguilé'],
-      'seda-papel': ['Seda OCB', 'Seda', 'Papel'],
-      'seda': ['Seda', 'Seda OCB'],
-      'filtro': ['Filtro', 'Filtros'],
-      'isqueiros': ['Isqueiros'],
-      'piteira': ['Piteira', 'Piteiras'],
-      // Bebidas
-      'bebidas': ['Bebidas', 'Bebida'],
-      'cerveja': ['Cerveja', 'Cervejas'],
-      'refrigerante': ['Refrigerante', 'Refrigerantes'],
-      'energetico': ['Energéticos', 'Energético'],
-      'energeticos': ['Energéticos', 'Energético'],
-      'agua': ['Água', 'Águas'],
-      'suco': ['Suco', 'Sucos'],
-      'destilados': ['Destilados'],
-      'vinho': ['Vinho', 'Vinhos'],
-      'cafe': ['Café'],
-      'cha': ['Chá', 'Chás'],
-      // Snacks
-      'bala': ['Bala', 'Balas e Drops', 'Balas a Granel'],
-      'bala-doce': ['Bala Doce', 'Bala'],
-      'chiclete': ['Chiclete', 'Chicletes'],
-      'doces': ['Doces'],
-      'salgados': ['Salgados', 'Salgadinhos', 'Snacks'],
-      'chocolates': ['Chocolates'],
-      'balas-chicletes': ['Balas e Drops', 'Chicletes', 'Balas a Granel'],
-      'salgadinhos': ['Salgadinhos', 'Snacks'],
-      'biscoitos': ['Biscoitos'],
-      'amendoins-castanhas': ['Amendoins', 'Castanhas'],
-      // Panini / HQs
-      'figurinhas': ['Figurinhas', 'Colecionáveis'],
-      'albuns': ['Álbuns'],
-      'cards-colecao': ['Cards Colecionáveis'],
-      'mangas': ['Planet Manga', 'Mangá', 'Mangás'],
-      'quadrinhos': ['Quadrinhos', 'HQs', 'Gibis', 'Comics', 'Panini Comics'],
-      'graphic-novels': ['Graphic Novels', 'Graphic Novel'],
-      'marvel': ['Marvel Comics', 'Marvel'],
-      'marvel-comics': ['Marvel Comics', 'Marvel'],
-      'dc-comics': ['DC Comics'],
-      'disney-comics': ['Disney Comics', 'Disney'],
-      'panini-books': ['Panini Books'],
-      'panini-comics': ['Panini Comics'],
-      'panini-magazines': ['Panini Magazines'],
-      'panini-partwork': ['Panini Partwork'],
-      'planet-manga': ['Planet Manga', 'Mangá', 'Mangás'],
-      'mauricio-de-sousa-producoes': ['Maurício de Sousa Produções', 'Maurício de Sousa'],
-      'independentes': ['Independentes'],
-      'panini-collections': ['Colecionáveis'],
-      // Jogos & Cards
-      'pokemon-tcg': ['Cards Pokémon'],
-      'yugioh': ['Yu-Gi-Oh'],
-      'magic': ['Magic'],
-      // Brinquedos
-      'miniaturas': ['Miniaturas'],
-      'pelucias': ['Pelúcias'],
-      'colecionaveis': ['Colecionáveis'],
-      'bonecos': ['Bonecos'],
-      'carrinhos': ['Carrinhos'],
-      'educativos': ['Educativos'],
-      'esportivo': ['Esportivo'],
-      'caminhao': ['Caminhão'],
-      // Presentes
-      'utilidades': ['Utilidades'],
-      'chaveiros': ['Chaveiros'],
-      // Papelaria
-      'canetas': ['Canetas'],
-      'cadernos': ['Cadernos'],
-      'material-escolar': ['Material Escolar', 'Papelaria'],
-      'adesivos': ['Adesivos', 'Adesivos Times'],
-      // Eletrônicos / Telefonia
-      'cabo': ['Cabo'],
-      'adaptadores': ['Adaptadores'],
-      'caixa-de-som': ['Caixa de som', 'Caixas de Som'],
-      'carregador-com-tomada': ['Carregador com tomada'],
-      'carregador-portatil': ['Carregador Portátil'],
-      'carregador-veicular': ['Carregador veicular'],
-      'fone': ['Fone', 'Fone de ouvido', 'Fones de Ouvido'],
-      'fone-de-ouvido': ['Fone de ouvido', 'Fones de Ouvido'],
-      'informatica': ['Informática'],
-      'papelaria': ['Papelaria'],
-      'telefonia': ['Telefonia'],
-      'chip-pre': ['Chip Pré'],
-    };
-
-    // Se tiver categoryName, resolver IDs e termos de busca por nome
-    let categoryId = category;
-    let categoryIds: string[] = [];
-    let nameSearchTerms: string[] = []; // Termos para buscar por nome do produto (OR entre eles)
-    
-    // Carregar dicionários de categorias com cache em memória (evita repetir essa leitura a cada seção da Home)
-    const { allDistCats, allBancaCats } = await getCategoryLookups();
-
-    const categoryNameById = new Map<string, string>();
-    (allDistCats || []).forEach((cat: any) => {
-      if (cat?.id && cat?.nome) categoryNameById.set(cat.id, cat.nome);
+    const {
+      categoryId,
+      categoryIds,
+      nameSearchTerms,
+      categoryNameById,
+      includeDistribuidor,
+    } = await resolvePublicCatalogCategoryFilters({
+      category,
+      categoryName,
+      subSlug,
     });
-    (allBancaCats || []).forEach((cat: any) => {
-      if (cat?.id && cat?.name) categoryNameById.set(cat.id, cat.name);
-    });
-    
-    if (categoryName && !categoryId) {
-      let searchName = categoryName.replace(/-/g, ' ').toLowerCase();
-      // Resolver alias do mega menu (ex: cigarros → tabacaria)
-      const resolvedName = SLUG_ALIASES[searchName] || searchName;
-      const normalizedResolvedSlug = normalizeSlug(resolvedName);
-      const normalizedSubSlug = normalizeSlug(subSlug);
-      const resolvedSubSlug = normalizedSubSlug || normalizedResolvedSlug;
-
-      // Se tiver sub, buscar apenas a subcategoria específica
-      const subCategoryNames = resolveSubcategoryNamesBySlug({
-        requestedSubSlug: normalizedSubSlug,
-        fallbackSlug: resolvedSubSlug,
-        parentKey: normalizedResolvedSlug,
-        parentMap: CATEGORY_SUBCATEGORIES,
-        slugMap: SUB_SLUG_TO_NAMES,
-      });
-      const subcategories = subCategoryNames || CATEGORY_SUBCATEGORIES[normalizedResolvedSlug];
-      
-      if (subcategories && subcategories.length > 0) {
-        const label = subSlug ? `subcategoria "${subSlug}"` : `categoria pai "${resolvedName}"`;
-        console.log(`[API Public] ${label} - buscando: ${subcategories.join(', ')}`);
-        
-        // Buscar IDs em distribuidor_categories (case-insensitive)
-        if (allDistCats && allDistCats.length > 0) {
-          const matchedDist = allDistCats.filter(c =>
-            subcategories.some(s => normalizeText(c.nome || "") === normalizeText(s))
-          );
-          if (matchedDist.length > 0) {
-            categoryIds = matchedDist.map(c => c.id);
-          }
-        }
-        
-        // Buscar IDs em categories (bancas) - case-insensitive
-        if (allBancaCats && allBancaCats.length > 0) {
-          const matchedCat = allBancaCats.filter(c =>
-            subcategories.some(s => normalizeText(c.name || "") === normalizeText(s))
-          );
-          if (matchedCat.length > 0) {
-            categoryIds = [...categoryIds, ...matchedCat.map(c => c.id)];
-          }
-        }
-        
-        // Busca por nome para cobrir produtos sem category_id
-        nameSearchTerms = subcategories.map(s => s.toLowerCase());
-        // Só adicionar nome da categoria pai quando NÃO for busca por subcategoria específica
-        // (evita que "bebida" match "LIVRARIA DE BEBIDAS" ao buscar "cerveja")
-        if (!subSlug) {
-          if (!nameSearchTerms.includes(resolvedName)) {
-            nameSearchTerms.push(resolvedName);
-          }
-          // Adicionar singular (remover 's' final) para cobrir variações
-          const singular = resolvedName.endsWith('s') ? resolvedName.slice(0, -1) : null;
-          if (singular && !nameSearchTerms.includes(singular)) {
-            nameSearchTerms.push(singular);
-          }
-        }
-        
-        console.log(`[API Public] categoryIds: ${categoryIds.length}, nameSearchTerms: ${nameSearchTerms.length}`);
-      } else {
-        // Busca normal por nome - tentar encontrar a categoria exata
-        const normalizedResolved = normalizeText(resolvedName);
-        const matchedCat = allBancaCats?.find(c => normalizeText(c.name || "").includes(normalizedResolved));
-        if (matchedCat) {
-          categoryId = matchedCat.id;
-        }
-        const matchedDist = allDistCats?.find(c => normalizeText(c.nome || "").includes(normalizedResolved));
-        if (matchedDist) {
-          categoryIds = [matchedDist.id];
-        }
-        // Também buscar por nome do produto como fallback
-        nameSearchTerms = [resolvedName];
-        console.log(`[API Public] Busca simples: categoryId=${categoryId || 'none'}, categoryIds=${categoryIds.length}, nome="${resolvedName}"`);
-      }
-    }
 
     // Query - apenas produtos ativos
-    const includeDistribuidor = !!(categoryId || categoryName || categoryIds.length > 0);
-    
     let query = supabaseAdmin
       .from('products')
       .select(`
@@ -474,25 +151,12 @@ export async function GET(req: NextRequest) {
       .limit(80);
 
     const cotistaBancas = (cotistaBancasData || []).filter((b: any) => b?.id);
-    const sortedCotistaBancas = [...cotistaBancas].map((b: any) => {
-      if (!hasUserLocation) return { ...b, distance: null };
-      const lat = Number(b.lat);
-      const lng = Number(b.lng);
-      const distance = Number.isFinite(lat) && Number.isFinite(lng)
-        ? calculateDistance(userLat as number, userLng as number, lat, lng)
-        : null;
-      return { ...b, distance };
+    const sortedCotistaBancas = sortItemsByDistance({
+      items: cotistaBancas,
+      userLat,
+      userLng,
+      randomizeWhenNoLocation: true,
     });
-
-    if (hasUserLocation) {
-      sortedCotistaBancas.sort((a: any, b: any) => {
-        const da = typeof a.distance === 'number' ? a.distance : Number.POSITIVE_INFINITY;
-        const db = typeof b.distance === 'number' ? b.distance : Number.POSITIVE_INFINITY;
-        return da - db;
-      });
-    } else {
-      sortedCotistaBancas.sort(() => Math.random() - 0.5);
-    }
 
     // Se buscando por categoria, incluir produtos de distribuidores
     // Caso contrário, manter apenas produtos de bancas cotistas
@@ -502,110 +166,24 @@ export async function GET(req: NextRequest) {
       return isCotistaBanca(bancaMap.get(p.banca_id));
     });
 
-    // Buscar regras de preço de distribuidores (produto > categoria > global)
-    const distribuidorIds = Array.from(new Set(
-      filteredProducts.filter((p: any) => p.distribuidor_id).map((p: any) => p.distribuidor_id)
-    ));
-    const distribuidorMap = new Map<string, any>();
-    const markupProdMap = new Map<string, { perc: number; fixo: number }>();
-    const markupCatMap = new Map<string, { perc: number; fixo: number }>();
-    const customMap = new Map<string, { enabled: boolean | null; custom_price: number | null }>();
+    const candidateBancaIds = bancaId
+      ? [bancaId]
+      : Array.from(new Set([
+          ...bancaIds,
+          ...sortedCotistaBancas.slice(0, 40).map((b: any) => b.id).filter(Boolean),
+        ]));
 
-    if (distribuidorIds.length > 0) {
-      const distribuidorProducts = filteredProducts.filter((p: any) => p.distribuidor_id);
-      const productIds = Array.from(new Set(distribuidorProducts.map((p: any) => p.id)));
-      const categoryIds = Array.from(new Set(distribuidorProducts.map((p: any) => p.category_id).filter(Boolean)));
-      const candidateBancaIds = bancaId
-        ? [bancaId]
-        : Array.from(new Set([
-            ...bancaIds,
-            ...sortedCotistaBancas.slice(0, 40).map((b: any) => b.id).filter(Boolean),
-          ]));
-
-      const [distRes, markupProdRes, markupCatRes, customRes] = await Promise.all([
-        supabaseAdmin
-          .from('distribuidores')
-          .select('id, tipo_calculo, markup_global_percentual, markup_global_fixo, margem_divisor')
-          .in('id', distribuidorIds),
-        productIds.length > 0
-          ? supabaseAdmin
-              .from('distribuidor_markup_produtos')
-              .select('distribuidor_id, product_id, markup_percentual, markup_fixo')
-              .in('distribuidor_id', distribuidorIds)
-              .in('product_id', productIds)
-          : Promise.resolve({ data: [] as any[] }),
-        categoryIds.length > 0
-          ? supabaseAdmin
-              .from('distribuidor_markup_categorias')
-              .select('distribuidor_id, category_id, markup_percentual, markup_fixo')
-              .in('distribuidor_id', distribuidorIds)
-              .in('category_id', categoryIds)
-          : Promise.resolve({ data: [] as any[] }),
-        productIds.length > 0 && candidateBancaIds.length > 0
-          ? supabaseAdmin
-              .from('banca_produtos_distribuidor')
-              .select('product_id, banca_id, enabled, custom_price')
-              .in('product_id', productIds)
-              .in('banca_id', candidateBancaIds)
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
-
-      (distRes.data || []).forEach((d: any) => {
-        distribuidorMap.set(d.id, d);
-      });
-      (markupProdRes.data || []).forEach((m: any) => {
-        markupProdMap.set(`${m.distribuidor_id}:${m.product_id}`, {
-          perc: Number(m.markup_percentual || 0),
-          fixo: Number(m.markup_fixo || 0),
-        });
-      });
-      (markupCatRes.data || []).forEach((m: any) => {
-        markupCatMap.set(`${m.distribuidor_id}:${m.category_id}`, {
-          perc: Number(m.markup_percentual || 0),
-          fixo: Number(m.markup_fixo || 0),
-        });
-      });
-      (customRes.data || []).forEach((c: any) => {
-        customMap.set(`${c.banca_id}:${c.product_id}`, {
-          enabled: c.enabled,
-          custom_price: c.custom_price,
-        });
-      });
-    }
-
-    const calcularPrecoVendaDistribuidor = (p: any): number => {
-      const precoBase = Number(p.price || 0);
-      if (!p.distribuidor_id) return precoBase;
-
-      const dist = distribuidorMap.get(p.distribuidor_id);
-      if (!dist) return precoBase;
-
-      const markupProd = markupProdMap.get(`${p.distribuidor_id}:${p.id}`);
-      if (markupProd && (markupProd.perc > 0 || markupProd.fixo > 0)) {
-        return Math.round((precoBase * (1 + markupProd.perc / 100) + markupProd.fixo) * 100) / 100;
-      }
-
-      const markupCat = markupCatMap.get(`${p.distribuidor_id}:${p.category_id}`);
-      if (markupCat && (markupCat.perc > 0 || markupCat.fixo > 0)) {
-        return Math.round((precoBase * (1 + markupCat.perc / 100) + markupCat.fixo) * 100) / 100;
-      }
-
-      const tipoCalculo = dist.tipo_calculo || 'markup';
-      if (tipoCalculo === 'margem') {
-        const divisor = Number(dist.margem_divisor || 1);
-        if (divisor > 0 && divisor < 1) {
-          return Math.round((precoBase / divisor) * 100) / 100;
-        }
-      }
-
-      const perc = Number(dist.markup_global_percentual || 0);
-      const fixo = Number(dist.markup_global_fixo || 0);
-      if (perc > 0 || fixo > 0) {
-        return Math.round((precoBase * (1 + perc / 100) + fixo) * 100) / 100;
-      }
-
-      return precoBase;
-    };
+    const { customMap, calculateDistributorPrice } = await loadDistributorPricingContext<{
+      product_id: string;
+      banca_id: string;
+      enabled: boolean | null;
+      custom_price: number | null;
+    }>({
+      products: filteredProducts,
+      customFields: 'product_id, banca_id, enabled, custom_price',
+      customBancaIds: candidateBancaIds,
+      buildCustomizationKey: (customization) => `${customization.banca_id}:${customization.product_id}`,
+    });
 
     const isActiveBanca = (b: any) => b?.active !== false;
     let bancaRotationIndex = 0;
@@ -629,7 +207,7 @@ export async function GET(req: NextRequest) {
 
       let finalPrice = Number(p.price || 0);
       if (p.distribuidor_id) {
-        finalPrice = calcularPrecoVendaDistribuidor(p);
+        finalPrice = calculateDistributorPrice(p);
         const custom = resolvedBancaId ? customMap.get(`${resolvedBancaId}:${p.id}`) : null;
         if (custom?.enabled === false) {
           return null;
@@ -672,31 +250,11 @@ export async function GET(req: NextRequest) {
       };
     }).filter(Boolean) as any[];
 
-    // Intercalar produtos por banca para evitar concentração em uma única banca
-    const productsByBanca = new Map<string, any[]>();
-    for (const item of formatted) {
-      const key = item?.banca_id || 'sem-banca';
-      if (!productsByBanca.has(key)) productsByBanca.set(key, []);
-      productsByBanca.get(key)!.push(item);
-    }
-
-    const bancaGroups = Array.from(productsByBanca.entries()).map(([bancaGroupId, groupItems]) => {
-      const avgDistance = groupItems.reduce((acc, it) => {
-        const d = typeof it.distance === 'number' ? it.distance : 9999;
-        return acc + d;
-      }, 0) / Math.max(1, groupItems.length);
-      return { bancaGroupId, groupItems, avgDistance };
-    }).sort((a, b) => a.avgDistance - b.avgDistance);
-
-    const interleaved: any[] = [];
-    const maxGroupSize = bancaGroups.length > 0 ? Math.max(...bancaGroups.map((g) => g.groupItems.length)) : 0;
-    for (let i = 0; i < maxGroupSize; i++) {
-      for (const group of bancaGroups) {
-        if (i < group.groupItems.length) {
-          interleaved.push(group.groupItems[i]);
-        }
-      }
-    }
+    const interleaved = interleaveItemsByGroup({
+      items: formatted,
+      getGroupKey: (item) => item?.banca_id || 'sem-banca',
+      getDistance: (item) => (typeof item?.distance === 'number' ? item.distance : null),
+    });
 
     const deduplicated: any[] = [];
     const seenProductIds = new Set<string>();
@@ -722,16 +280,4 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
 }
