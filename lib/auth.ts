@@ -5,6 +5,7 @@ import { loadUserProfileById } from "@/lib/modules/auth/user-profiles";
 import { isJornaleiroRole } from "@/lib/modules/auth/session";
 import { supabaseAdmin } from "@/lib/supabase";
 import { normalizeBrazilianDocument } from "@/lib/documents";
+import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 
 const LOCAL_DEV_ADMIN_EMAIL = "admin@guiadasbancas.com";
 const LOCAL_DEV_ADMIN_PASSWORD = "admin123";
@@ -98,6 +99,19 @@ function isSupabaseSchemaAuthFailure(message: string | undefined | null) {
   return /database error querying schema/i.test(message || "");
 }
 
+function collectNormalizedDocuments(values: Array<unknown>) {
+  const documents = new Set<string>();
+
+  for (const value of values) {
+    const normalized = normalizeBrazilianDocument(typeof value === "string" ? value : "");
+    if (normalized) {
+      documents.add(normalized);
+    }
+  }
+
+  return documents;
+}
+
 async function authorizeEmergencyJornaleiro(rawEmail: string, rawPassword: string) {
   const normalizedEmail = normalizeAdminIdentifier(rawEmail);
   const normalizedDocument = normalizeBrazilianDocument(rawPassword);
@@ -136,12 +150,19 @@ async function authorizeEmergencyJornaleiro(rawEmail: string, rawPassword: strin
     return null;
   }
 
-  const profileDocument = normalizeBrazilianDocument(profile.cpf || "");
-  if (!profileDocument || profileDocument !== normalizedDocument) {
+  const banca = await getActiveBancaRowForUser(profile.id, "id, cpf, cnpj, cotista_cnpj_cpf, user_id");
+  const acceptedDocuments = collectNormalizedDocuments([
+    profile.cpf,
+    (banca as any)?.cpf,
+    (banca as any)?.cnpj,
+    (banca as any)?.cotista_cnpj_cpf,
+  ]);
+
+  if (!acceptedDocuments.has(normalizedDocument)) {
     return null;
   }
 
-  console.warn("⚠️ [AUTHORIZE] Usando login emergencial do jornaleiro via CPF/CNPJ");
+  console.warn("⚠️ [AUTHORIZE] Usando login emergencial do jornaleiro via CPF/CNPJ cadastrado");
 
   return {
     id: profile.id,
