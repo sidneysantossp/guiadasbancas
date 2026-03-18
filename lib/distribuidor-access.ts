@@ -1,3 +1,4 @@
+import logger from "@/lib/logger";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -53,7 +54,7 @@ export async function getDistribuidorAccessibleBancas(): Promise<DistribuidorAcc
           is_legacy_cotista_linked: entitlements.isLegacyCotistaLinked,
         };
       } catch (error) {
-        console.error("[distribuidor-access] Falha ao resolver entitlements da banca:", banca.id, error);
+        logger.error("[distribuidor-access] Falha ao resolver entitlements da banca:", banca.id, error);
         return {
           ...banca,
           contact_phone: banca.whatsapp || banca.phone,
