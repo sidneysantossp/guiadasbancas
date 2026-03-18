@@ -552,7 +552,7 @@ export default function JornaleiroRegistrarPageClient() {
     if (step === 6) setStep(5);
   };
 
-  const { signUp, signIn, profile } = useAuth();
+  const { signUp, signIn, profile, isJornaleiro } = useAuth();
 
   // REMOVIDO: useEffect que redirecionava para dashboard quando profile.role === 'jornaleiro'
   // Isso causava conflito porque o redirecionamento acontecia ANTES do onboarding criar a banca
@@ -716,7 +716,7 @@ export default function JornaleiroRegistrarPageClient() {
       // Aguardar sessão ser estabelecida com polling (máximo 5 tentativas)
       for (let attempt = 0; attempt < 5; attempt++) {
         await new Promise(r => setTimeout(r, 500));
-        if (profile?.role === 'jornaleiro') {
+        if (isJornaleiro || profile?.role === 'jornaleiro') {
           logger.log('[Wizard] ✅ Sessão estabelecida na tentativa', attempt + 1);
           break;
         }

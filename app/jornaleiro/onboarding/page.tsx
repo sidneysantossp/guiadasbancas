@@ -11,7 +11,7 @@ import logger from "@/lib/logger";
 
 export default function JornaleiroOnboardingPage() {
   const router = useRouter();
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, isJornaleiro } = useAuth();
   const [status, setStatus] = useState<"loading" | "creating" | "success" | "error">("loading");
   const [message, setMessage] = useState("Configurando sua conta...");
 
@@ -24,7 +24,7 @@ export default function JornaleiroOnboardingPage() {
 
       // Se o usuário já é jornaleiro, verificar se já tem banca na tabela bancas
       // (não confiar apenas no profile.banca_id que pode estar desatualizado)
-      if (user && profile?.role === "jornaleiro") {
+      if (user && isJornaleiro) {
         // Usar maybeSingle() para não lançar erro se não encontrar
         const { data: existingBanca, error: bancaError } = await supabase
           .from('bancas')
@@ -72,7 +72,7 @@ export default function JornaleiroOnboardingPage() {
 
     checkAndProceed();
     return () => { cancelled = true; };
-  }, [user, profile, loading, router]);
+  }, [user, profile, loading, isJornaleiro, router]);
 
   const createBanca = async () => {
     try {

@@ -2,9 +2,10 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useSession, signIn } from "next-auth/react";
+import { getSession, useSession, signIn } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
+import { isJornaleiroRole } from "@/lib/modules/auth/session";
 
 export default function JornaleiroLoginPageClient() {
   const router = useRouter();
@@ -22,13 +23,15 @@ export default function JornaleiroLoginPageClient() {
     setMounted(true);
   }, []);
 
+  const canAccessJornaleiroPanel = isJornaleiroRole((session?.user as any)?.role as string | undefined);
+
   // Se já está autenticado como jornaleiro, redireciona
   useEffect(() => {
-    if (status === "authenticated" && session?.user?.role === "jornaleiro") {
+    if (status === "authenticated" && canAccessJornaleiroPanel) {
       setRedirecting(true);
       router.replace("/jornaleiro/dashboard");
     }
-  }, [status, session?.user?.role]);
+  }, [status, canAccessJornaleiroPanel, router]);
 
   // Carregar branding para exibir a mesma logo da navbar
   useEffect(() => {
@@ -76,16 +79,34 @@ export default function JornaleiroLoginPageClient() {
 
       if (result?.error) {
         console.error("❌ Erro no login:", result.error);
-        setError("Email ou senha inválidos");
+        setError("Email, senha ou CPF/CNPJ de contingência inválidos");
         setLoading(false);
         return;
       }
 
       if (result?.ok) {
-        console.log("✅ Login bem-sucedido, redirecionando...");
-        // Não fazer push manual, deixar o useEffect handle
-        // O useEffect vai detectar a mudança de sessão e redirecionar
+        console.log("✅ Login bem-sucedido, confirmando sessão do jornaleiro...");
+
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const nextSession = await getSession();
+          const nextRole = (nextSession?.user as any)?.role as string | undefined;
+
+          if (isJornaleiroRole(nextRole)) {
+            setRedirecting(true);
+            router.replace("/jornaleiro/dashboard");
+            return;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+
+        setError("Sua sessão foi criada, mas o painel não confirmou o acesso de jornaleiro. Tente novamente.");
+        setLoading(false);
+        return;
       }
+
+      setError("Não foi possível concluir o login. Tente novamente.");
+      setLoading(false);
     } catch (err: any) {
       console.error("❌ Exceção no login:", err);
       setError(err.message || "Erro ao fazer login");
@@ -216,6 +237,9 @@ export default function JornaleiroLoginPageClient() {
                     )}
                   </button>
                 </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  Em contingência do acesso, você também pode usar o CPF/CNPJ cadastrado da banca neste campo.
+                </p>
               </div>
 
               {/* Lembrar + Esqueci senha */}

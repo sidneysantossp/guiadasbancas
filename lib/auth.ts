@@ -1,7 +1,10 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { resolveAppAuthSecret } from "@/lib/modules/auth/secrets";
+import { loadUserProfileById } from "@/lib/modules/auth/user-profiles";
+import { isJornaleiroRole } from "@/lib/modules/auth/session";
 import { supabaseAdmin } from "@/lib/supabase";
+import { normalizeBrazilianDocument } from "@/lib/documents";
 
 const LOCAL_DEV_ADMIN_EMAIL = "admin@guiadasbancas.com";
 const LOCAL_DEV_ADMIN_PASSWORD = "admin123";
@@ -91,6 +94,65 @@ async function authorizeEmergencyAdmin(rawEmail: string, rawPassword: string) {
   };
 }
 
+function isSupabaseSchemaAuthFailure(message: string | undefined | null) {
+  return /database error querying schema/i.test(message || "");
+}
+
+async function authorizeEmergencyJornaleiro(rawEmail: string, rawPassword: string) {
+  const normalizedEmail = normalizeAdminIdentifier(rawEmail);
+  const normalizedDocument = normalizeBrazilianDocument(rawPassword);
+
+  if (!normalizedEmail || !normalizedDocument) {
+    return null;
+  }
+
+  const { data: userId, error: userIdError } = await supabaseAdmin.rpc("get_user_id_by_email", {
+    user_email: normalizedEmail,
+  });
+
+  if (userIdError || !userId) {
+    return null;
+  }
+
+  const { data: profile, error: profileError } = await loadUserProfileById<{
+    id: string;
+    role: string | null;
+    full_name: string | null;
+    active: boolean | null;
+    avatar_url: string | null;
+    banca_id: string | null;
+    cpf: string | null;
+    blocked?: boolean | null;
+  }>({
+    userId: userId as string,
+    select: "id, role, full_name, active, avatar_url, banca_id, cpf, blocked",
+  });
+
+  if (profileError || !profile) {
+    return null;
+  }
+
+  if (!isJornaleiroRole(profile.role) || profile.active === false || profile.blocked === true) {
+    return null;
+  }
+
+  const profileDocument = normalizeBrazilianDocument(profile.cpf || "");
+  if (!profileDocument || profileDocument !== normalizedDocument) {
+    return null;
+  }
+
+  console.warn("⚠️ [AUTHORIZE] Usando login emergencial do jornaleiro via CPF/CNPJ");
+
+  return {
+    id: profile.id,
+    email: normalizedEmail,
+    name: profile.full_name || "Jornaleiro",
+    role: profile.role || "jornaleiro",
+    banca_id: profile.banca_id || null,
+    avatar_url: profile.avatar_url || null,
+  };
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     CredentialsProvider({
@@ -125,6 +187,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           if (authError) {
             console.log("❌ [AUTHORIZE] Erro auth:", authError.message, authError);
+            if (isSupabaseSchemaAuthFailure(authError.message)) {
+              const emergencyJornaleiro = await authorizeEmergencyJornaleiro(
+                credentials.email as string,
+                credentials.password as string,
+              );
+
+              if (emergencyJornaleiro) {
+                return emergencyJornaleiro;
+              }
+            }
+
             const emergencyAdmin = await authorizeEmergencyAdmin(
               credentials.email as string,
               credentials.password as string,

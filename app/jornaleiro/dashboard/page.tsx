@@ -46,7 +46,7 @@ const SUBSCRIPTION_STATUS_META: Record<string, { label: string; className: strin
 };
 
 export default function JornaleiroDashboardPage() {
-  const { user, profile } = useAuth();
+  const { user, profile, isJornaleiro } = useAuth();
   const [banca, setBanca] = useState<any>(null);
   const [loadingBanca, setLoadingBanca] = useState(true);
   const [loadingMetrics, setLoadingMetrics] = useState(true);
@@ -59,10 +59,10 @@ export default function JornaleiroDashboardPage() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
 
   useEffect(() => {
-    if (user && profile?.role === 'jornaleiro') {
+    if (user && isJornaleiro) {
       loadBancaData();
     }
-  }, [user, profile]);
+  }, [user, isJornaleiro]);
 
   const loadBancaData = async () => {
     try {
