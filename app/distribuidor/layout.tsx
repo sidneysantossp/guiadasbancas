@@ -10,17 +10,17 @@ import DashboardOfficialLogo from "@/components/dashboard/DashboardOfficialLogo"
 import { destroyDistribuidorSession } from "@/lib/distribuidor-client-auth";
 import { useDistribuidorSession } from "@/lib/distribuidor-client-session";
 import {
+  DISTRIBUIDOR_MENU,
+  type DistribuidorIconKey,
+} from "@/lib/distribuidor-navigation";
+import {
   IconLayoutDashboard,
   IconBox,
   IconClipboardList,
   IconTags,
-  IconChartLine,
   IconSettings,
   IconTruck,
-  IconUsers,
   IconPhoto,
-  IconReportMoney,
-  IconPackage,
   IconPercentage,
   IconPlugConnected,
 } from "@tabler/icons-react";
@@ -30,59 +30,12 @@ const iconComponents = {
   box: IconBox,
   orders: IconClipboardList,
   tags: IconTags,
-  chart: IconChartLine,
   settings: IconSettings,
   truck: IconTruck,
-  users: IconUsers,
   image: IconPhoto,
-  money: IconReportMoney,
-  package: IconPackage,
   percentage: IconPercentage,
   plug: IconPlugConnected,
 } as const;
-
-type IconKey = keyof typeof iconComponents;
-
-const DISTRIBUIDOR_MENU = [
-  {
-    section: "Principal",
-    items: [
-      { label: "Dashboard", href: "/distribuidor/dashboard", icon: "dashboard" as IconKey },
-    ]
-  },
-  {
-    section: "Catálogo",
-    items: [
-      { label: "Produtos", href: "/distribuidor/produtos", icon: "box" as IconKey },
-      { label: "Categorias", href: "/distribuidor/categorias", icon: "tags" as IconKey },
-      { label: "Importar Fotos", href: "/distribuidor/upload-imagens", icon: "image" as IconKey },
-    ]
-  },
-  {
-    section: "Vendas",
-    items: [
-      { label: "Pedidos", href: "/distribuidor/pedidos", icon: "orders" as IconKey },
-      { label: "Bancas Parceiras", href: "/distribuidor/bancas", icon: "truck" as IconKey },
-    ]
-  },
-  // Seção de Relatórios ocultada temporariamente
-  // {
-  //   section: "Relatórios",
-  //   items: [
-  //     { label: "Vendas", href: "/distribuidor/relatorios/vendas", icon: "money" as IconKey },
-  //     { label: "Produtos", href: "/distribuidor/relatorios/produtos", icon: "package" as IconKey },
-  //     { label: "Analytics", href: "/distribuidor/analytics", icon: "chart" as IconKey },
-  //   ]
-  // },
-  {
-    section: "Configurações",
-    items: [
-      { label: "Markup / Preços", href: "/distribuidor/configuracoes/markup", icon: "percentage" as IconKey },
-      { label: "Integração Mercos", href: "/distribuidor/configuracoes/integracao", icon: "plug" as IconKey },
-      { label: "Minha Conta", href: "/distribuidor/configuracoes", icon: "settings" as IconKey },
-    ]
-  }
-];
 
 export default function DistribuidorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -184,37 +137,72 @@ export default function DistribuidorLayout({ children }: { children: React.React
 
       <div className="flex">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#1e3a5f] border-r border-gray-200 transition-transform duration-300 ease-in-out`}>
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 w-80 bg-[#334257] border-r border-gray-200 transition-transform duration-300 ease-in-out`}>
           <div className="h-full overflow-y-auto">
-            <nav className="p-4 space-y-6">
+            <div className="border-b border-white/10 px-4 py-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-200">
+                  Portal do Distribuidor
+                </div>
+                <div className="mt-2 text-sm font-medium text-white">
+                  Operacao comercial e abastecimento da rede
+                </div>
+                <div className="mt-2 text-xs leading-5 text-gray-300">
+                  Catalogo, pedidos, bancas parceiras, markup e integracoes em uma navegacao unica.
+                </div>
+              </div>
+            </div>
+
+            <nav className="space-y-5 p-4">
               {DISTRIBUIDOR_MENU.map((section) => (
-                <div key={section.section}>
-                  <h3 className="text-xs font-semibold text-blue-200 uppercase tracking-wider mb-2">
-                    {section.section}
-                  </h3>
+                <section key={section.section} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <div className="mb-3 px-1">
+                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-200">
+                      {section.section}
+                    </h3>
+                    <p className="mt-2 text-xs leading-5 text-gray-300">
+                      {section.description}
+                    </p>
+                  </div>
+
                   <div className="space-y-1">
                     {section.items.map((item) => {
-                      const IconComponent = iconComponents[item.icon];
-                      const isActive = pathname === item.href;
+                      const IconComponent = iconComponents[item.icon as DistribuidorIconKey];
+                      const isActive =
+                        pathname === item.href ||
+                        (item.href !== "/distribuidor/dashboard" && pathname.startsWith(`${item.href}/`));
 
                       return (
                         <Link
                           key={item.href}
                           href={item.href as Route}
                           onClick={() => setSidebarOpen(false)}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          className={`group flex items-start gap-3 rounded-xl px-3 py-3 text-sm transition-colors ${
                             isActive
-                              ? 'bg-white text-blue-700 border-r-2 border-blue-500'
+                              ? 'bg-[#fff7f2] text-[#ff5c00] shadow-sm'
                               : 'text-gray-100 hover:bg-white/10 hover:text-white'
                           }`}
                         >
-                          <IconComponent size={20} stroke={1.7} />
-                          {item.label}
+                          <div
+                            className={`mt-0.5 rounded-lg p-2 ${
+                              isActive
+                                ? "bg-[#fff1e8] text-[#ff5c00]"
+                                : "bg-white/5 text-gray-200 group-hover:bg-white/10"
+                            }`}
+                          >
+                            <IconComponent size={18} stroke={1.8} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-medium">{item.label}</div>
+                            <div className={`mt-1 text-xs leading-5 ${isActive ? "text-[#c85a16]" : "text-gray-300"}`}>
+                              {item.description}
+                            </div>
+                          </div>
                         </Link>
                       );
                     })}
                   </div>
-                </div>
+                </section>
               ))}
             </nav>
           </div>
