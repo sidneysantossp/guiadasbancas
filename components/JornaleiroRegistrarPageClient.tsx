@@ -14,6 +14,7 @@ import {
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
 import CotistaSearch from "@/components/CotistaSearch";
 import PlanEntryGuide from "@/components/jornaleiro/PlanEntryGuide";
+import JornaleiroMarketingAssistPanel from "@/components/marketing/JornaleiroMarketingAssistPanel";
 import logger from "@/lib/logger";
 
 export default function JornaleiroRegistrarPageClient() {
@@ -750,6 +751,11 @@ export default function JornaleiroRegistrarPageClient() {
 
   return (
     <>
+    <div className="container-max pt-6">
+      <div className="mx-auto max-w-3xl">
+        <JornaleiroMarketingAssistPanel variant="signup" />
+      </div>
+    </div>
     {/* Barra de progresso superior */}
     <div className="container-max pt-6">
       <div className="max-w-3xl mx-auto">

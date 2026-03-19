@@ -6,6 +6,7 @@ import { getSession, useSession, signIn } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 import { isJornaleiroRole } from "@/lib/modules/auth/session";
+import JornaleiroMarketingAssistPanel from "@/components/marketing/JornaleiroMarketingAssistPanel";
 
 export default function JornaleiroLoginPageClient() {
   const router = useRouter();
@@ -282,6 +283,8 @@ export default function JornaleiroLoginPageClient() {
                 CADASTRE-SE AQUI
               </Link>
             </div>
+
+            <JornaleiroMarketingAssistPanel variant="login" className="mt-6" />
 
             {/* Voltar */}
             <div className="mt-4 text-center">

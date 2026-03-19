@@ -23,6 +23,8 @@ import Newsletter from "@/components/Newsletter";
 import Testimonials from "@/components/Testimonials";
 import WorldCupHomeSpotlight from "@/components/seo/WorldCupHomeSpotlight";
 import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
+import { loadJornaleiroPartnerLandingDocument } from "@/lib/jornaleiro-partner-landing";
+import JornaleiroPartnerPromoStrip from "@/components/marketing/JornaleiroPartnerPromoStrip";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -297,6 +299,7 @@ export default async function HomePage() {
     getFeaturedBancas(50),
     getCategories(),
   ]);
+  const { document: jornaleiroMarketingDocument } = await loadJornaleiroPartnerLandingDocument();
   const initialCategoryItems = initialCategories.map((cat) => ({
     key: cat.id,
     name: cat.name,
@@ -308,6 +311,7 @@ export default async function HomePage() {
       <div>
         <FullBanner initialSlides={hero.slides} initialConfig={hero.config} />
       </div>
+      <JornaleiroPartnerPromoStrip content={jornaleiroMarketingDocument.promoStrip} />
       <MobileCategoryScroller initialCategories={initialCategories} />
       <MiniCategoryBar initialItems={initialCategoryItems} />
       {/* PRIORIDADE ALTA: Primeiro scroll */}

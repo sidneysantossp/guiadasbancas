@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import JornaleiroPartnerLanding from "@/components/landing/JornaleiroPartnerLanding";
 import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
+import { loadJornaleiroPartnerLandingDocument } from "@/lib/jornaleiro-partner-landing";
 
 export const metadata: Metadata = {
   title: "Sua banca vendendo pela internet | Guia das Bancas",
@@ -27,6 +28,7 @@ export const metadata: Metadata = {
   ],
 };
 
-export default function ParaJornaleirosPage() {
-  return <JornaleiroPartnerLanding />;
+export default async function ParaJornaleirosPage() {
+  const { document } = await loadJornaleiroPartnerLandingDocument();
+  return <JornaleiroPartnerLanding content={document} />;
 }

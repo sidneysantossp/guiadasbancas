@@ -188,6 +188,12 @@ export const ADMIN_MENU: AdminMenuSection[] = [
         description: "Comunicacao institucional e comercial voltada ao jornaleiro.",
       },
       {
+        label: "Landing Jornaleiro",
+        href: "/admin/cms/jornaleiro-landing",
+        icon: "megaphone",
+        description: "Narrativa de aquisicao, oferta e objecoes da jornada publica do jornaleiro.",
+      },
+      {
         label: "Banner Indicacao",
         href: "/admin/cms/referral-banner",
         icon: "gift",
