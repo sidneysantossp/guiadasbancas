@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadDistributorPricingContext } from "@/lib/modules/products/service";
 
@@ -37,10 +39,10 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     const supabase = supabaseAdmin;
 
-    // Verificar se a banca é cotista
+    // Verificar se a banca está publicada
     const { data: banca, error: bancaError } = await supabase
       .from('bancas')
-      .select('is_cotista, cotista_id, active')
+      .select('id, active, approved, is_cotista, cotista_id')
       .eq('id', bancaId)
       .single();
 
@@ -48,7 +50,20 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
     }
 
-    const isCotista = (banca?.is_cotista === true || !!banca?.cotista_id);
+    if (!isPublishedMarketplaceBanca(banca)) {
+      return NextResponse.json({
+        success: true,
+        banca_id: bancaId,
+        total: 0,
+        products: [],
+      });
+    }
+
+    const entitlements = await resolveBancaPlanEntitlements({
+      id: banca.id,
+      is_cotista: banca.is_cotista,
+      cotista_id: banca.cotista_id,
+    });
 
     // 1. Buscar produtos próprios da banca marcados como destaque
     const { data: produtosProprios, error: produtosPropriosError } = await supabase
@@ -79,10 +94,10 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     const ownCategoryMap = new Map((ownCategories || []).map((c: any) => [c.id, c.name]));
 
-    // 2. Se for cotista, buscar produtos de distribuidores marcados como destaque
+    // 2. Se o plano liberar a rede parceira, buscar produtos de distribuidores marcados como destaque
     let produtosDistribuidor: any[] = [];
     
-    if (isCotista) {
+    if (entitlements.canAccessDistributorCatalog) {
       // Buscar customizações com custom_featured = true
       const { data: customizacoesFeatured, error: customizacoesError } = await supabase
         .from('banca_produtos_distribuidor')

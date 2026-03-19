@@ -1,4 +1,5 @@
 import { NextResponse, NextRequest } from "next/server";
+import { isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadDistributorPricingContext } from "@/lib/modules/products/service";
 
@@ -49,12 +50,10 @@ export async function GET(
     if (bancaIds.length > 0) {
       const { data: bancas } = await supabaseAdmin
         .from('bancas')
-        .select('id, is_cotista, cotista_id, active')
+        .select('id, active, approved')
         .in('id', bancaIds);
       (bancas || []).forEach((b: any) => bancaMap.set(b.id, b));
     }
-
-    const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
 
     // Resolver preço de venda para produtos de distribuidor
     const distribuidorProducts = (data || []).filter((p: any) => p.distribuidor_id);
@@ -68,10 +67,10 @@ export async function GET(
       customBancaId: bancaId || null,
     });
 
-    // Filtrar produtos com imagem (produtos de distribuidor ou de banca cotista)
+    // Filtrar produtos com imagem (produtos de distribuidor ou de banca publicada)
     const filteredProducts = (data || [])
       .filter(product => product.images && product.images.length > 0)
-      .filter(product => product.distribuidor_id || isActiveCotistaBanca(bancaMap.get(product.banca_id)))
+      .filter(product => product.distribuidor_id || isPublishedMarketplaceBanca(bancaMap.get(product.banca_id)))
       .filter((product: any) => {
         if (!product.distribuidor_id || !bancaId) return true;
         const custom = customMap.get(product.id);

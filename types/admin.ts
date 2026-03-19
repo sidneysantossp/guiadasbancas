@@ -39,6 +39,7 @@ export interface Produto {
   images: string[];
   price: number;
   price_original?: number;
+  cost_price?: number;
   discount_percent?: number;
   stock_qty?: number;
   track_stock?: boolean;

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadDistributorPricingContext } from "@/lib/modules/products/service";
 
@@ -38,10 +40,10 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const requestedLimit = parseInt(searchParams.get('limit') || '10000'); // Limite alto para buscar todos os produtos
     const fastMode = searchParams.get('fast') === 'true'; // Modo rápido sem markup/customizações
 
-    // 1. Buscar dados da banca (para saber se é cotista)
+    // 1. Buscar dados da banca pública
     const { data: banca, error: bancaError } = await supabase
       .from('bancas')
-      .select('id, is_cotista, cotista_id, active')
+      .select('id, active, approved, is_cotista, cotista_id')
       .eq('id', bancaId)
       .single();
 
@@ -49,7 +51,15 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
     }
 
-    const isCotista = (banca?.is_cotista === true || !!banca?.cotista_id);
+    if (!isPublishedMarketplaceBanca(banca)) {
+      return NextResponse.json({ success: true, banca_id: bancaId, total: 0, limit: requestedLimit, products: [] });
+    }
+
+    const entitlements = await resolveBancaPlanEntitlements({
+      id: banca.id,
+      is_cotista: banca.is_cotista,
+      cotista_id: banca.cotista_id,
+    });
 
     // 2. Buscar produtos sem OR em string para evitar inconsistências entre ambientes
     const fetchProducts = async (
@@ -102,11 +112,11 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       return { rows, count: total || rows.length };
     };
 
-    // Regra pública atual: toda banca ativa exibe produtos próprios + produtos de distribuidores
-    // (o frontend controla visibilidade final por status/customização)
     const [ownProductsResult, distributorProductsResult] = await Promise.all([
       fetchProducts('own', requestedLimit),
-      fetchProducts('distributor', requestedLimit),
+      entitlements.canAccessDistributorCatalog
+        ? fetchProducts('distributor', requestedLimit)
+        : Promise.resolve({ rows: [] as any[], count: 0 }),
     ]);
 
     const dedupMap = new Map<string, any>();
@@ -279,7 +289,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     return NextResponse.json({
       success: true,
       banca_id: bancaId,
-      is_cotista: isCotista,
+      is_cotista: banca?.is_cotista === true || !!banca?.cotista_id,
+      can_access_distributor_catalog: entitlements.canAccessDistributorCatalog,
       total: totalCount || produtos.length,
       limit: requestedLimit,
       products: mappedProducts,

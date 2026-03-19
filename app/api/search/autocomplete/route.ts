@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadDistributorPricingContext } from "@/lib/modules/products/service";
 import { calculateDistance } from "@/lib/modules/products/public-catalog";
@@ -153,7 +154,7 @@ export async function GET(req: NextRequest) {
       category_id,
       distribuidor_id,
       codigo_mercos,
-      bancas(name, lat, lng, is_cotista, cotista_id, active)
+      bancas(name, lat, lng, active, approved)
     `;
 
     let productsQuery = supabase
@@ -238,13 +239,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Erro na busca' }, { status: 500 });
     }
 
-    // Verificar se banca é cotista E está ativa
-    const isActiveCotistaBanca = (b: any) => {
-      if (!b) return false;
-      const isCotista = b.is_cotista === true || !!b.cotista_id;
-      const isActive = b.active !== false; // active pode ser undefined, então só exclui se for explicitamente false
-      return isCotista && isActive;
-    };
+    const isPublicBanca = (b: any) => isPublishedMarketplaceBanca(b);
 
     // Separar produtos normais e produtos de distribuidores
     const produtosNormais: any[] = [];
@@ -256,36 +251,26 @@ export async function GET(req: NextRequest) {
           produtosDistribuidor.push(p);
         } else {
           const banca = Array.isArray(p.bancas) ? p.bancas[0] : p.bancas;
-          if (isActiveCotistaBanca(banca)) {
+          if (isPublicBanca(banca)) {
             produtosNormais.push(p);
           }
         }
       }
     }
 
-    // Para produtos de distribuidores, buscar TODAS as bancas cotistas ativas
-    let bancasCotistas: any[] = [];
+    // Para produtos de distribuidores, usar apenas bancas com acesso ao catálogo parceiro
+    let bancasComCatalogoParceiro: any[] = [];
     let calculateDistributorPrice = (product: any) => Number(product?.price || 0);
     let customMap = new Map<string, { enabled: boolean | null; custom_price: number | null }>(); // banca_id:product_id -> custom
     
     if (produtosDistribuidor.length > 0) {
-      // Buscar todas as bancas cotistas ativas
-      let bancasQuery = supabase
-        .from('bancas')
-        .select('id, name, lat, lng, is_cotista, cotista_id, active')
-        .eq('active', true)
-        .or('is_cotista.eq.true,cotista_id.not.is.null');
-
-      if (bancaId) {
-        bancasQuery = bancasQuery.eq('id', bancaId);
-      }
-
-      const { data: bancas } = await bancasQuery;
-      
-      bancasCotistas = bancas || [];
+      const bancasElegiveis = await getPublishedDistributorCatalogBancas();
+      bancasComCatalogoParceiro = bancaId
+        ? bancasElegiveis.filter((banca) => banca.id === bancaId)
+        : bancasElegiveis;
       
       const productIds = produtosDistribuidor.map((p: any) => p.id);
-      const bancaIds = bancasCotistas.map((b: any) => b.id);
+      const bancaIds = bancasComCatalogoParceiro.map((b: any) => b.id);
       if (productIds.length > 0 && bancaIds.length > 0) {
         const pricingContext = await loadDistributorPricingContext<{
           banca_id: string;
@@ -336,12 +321,12 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Processar produtos de distribuidores - criar entrada para CADA banca cotista
+    // Processar produtos de distribuidores - criar entrada para cada banca com acesso ao catálogo parceiro
     for (const p of produtosDistribuidor) {
       const baseSellingPrice = calculateDistributorPrice(p);
       const category = Array.isArray(p.categories) ? p.categories[0] : p.categories;
       
-      for (const banca of bancasCotistas) {
+      for (const banca of bancasComCatalogoParceiro) {
         const custom = customMap.get(`${banca.id}:${p.id}`);
 
         // Produto explicitamente desabilitado para essa banca

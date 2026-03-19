@@ -10,6 +10,11 @@ import {
   loadDistributorProductCustomization,
   saveDistributorProductCustomization,
 } from "@/lib/modules/products/service";
+import {
+  buildOwnedProductSpecifications,
+  extractOwnedProductPricing,
+  normalizeOwnedProductRecord,
+} from "@/lib/owned-product-pricing";
 import { getNextPlanType } from "@/lib/plan-messaging";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -195,7 +200,8 @@ export async function listJornaleiroProducts(params: {
     }),
   ]);
 
-  let allItems = [...(produtosBanca || []), ...distributorCatalog.items];
+  const ownedProducts = (produtosBanca || []).map((product) => normalizeOwnedProductRecord(product));
+  let allItems = [...ownedProducts, ...distributorCatalog.items];
 
   if (priceFilter === "personalizado") {
     allItems = allItems.filter((product: any) => {
@@ -211,7 +217,7 @@ export async function listJornaleiroProducts(params: {
 
   const totalReal =
     entitlements.canAccessDistributorCatalog && statsOnly
-      ? (produtosBanca?.length || 0) + distributorCatalog.totalAvailable
+      ? ownedProducts.length + distributorCatalog.totalAvailable
       : allItems.length;
 
   return {
@@ -235,7 +241,7 @@ export async function listJornaleiroProducts(params: {
       overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
     },
     stats: {
-      proprios: produtosBanca?.length || 0,
+      proprios: ownedProducts.length,
       distribuidores: statsOnly
         ? distributorCatalog.totalAvailable
         : distributorCatalog.items.length,
@@ -297,6 +303,17 @@ export async function createJornaleiroProduct(params: {
     discount_percent: body.discount_percent != null ? Number(body.discount_percent) : null,
     stock_qty: body.stock_qty != null ? Number(body.stock_qty) : 0,
     active: body.active ?? true,
+    description_full: body.description_full || "",
+    specifications: buildOwnedProductSpecifications({
+      specifications: body.specifications,
+      costPrice: body.cost_price,
+    }),
+    track_stock: body.track_stock ?? false,
+    featured: body.featured ?? false,
+    sob_encomenda: body.sob_encomenda ?? false,
+    pre_venda: body.pre_venda ?? false,
+    pronta_entrega: body.pronta_entrega ?? false,
+    coupon_code: body.coupon_code || null,
   };
 
   const { data: created, error } = await supabaseAdmin
@@ -382,7 +399,7 @@ export async function loadJornaleiroProductDetail(params: {
 
   return {
     success: true,
-    data: product,
+    data: normalizeOwnedProductRecord(product),
   };
 }
 
@@ -399,7 +416,7 @@ export async function updateJornaleiroProduct(params: {
 
   const { data: existingProduct } = await supabaseAdmin
     .from("products")
-    .select("id, banca_id, distribuidor_id")
+    .select("id, banca_id, distribuidor_id, specifications")
     .eq("id", params.productId)
     .single();
 
@@ -457,6 +474,18 @@ export async function updateJornaleiroProduct(params: {
     if (params.input[key] !== undefined) {
       updateData[key] = params.input[key];
     }
+  }
+
+  if (params.input.cost_price !== undefined || params.input.specifications !== undefined) {
+    const { costPrice: currentCostPrice } = extractOwnedProductPricing(existingProduct.specifications);
+    updateData.specifications = buildOwnedProductSpecifications({
+      specifications:
+        params.input.specifications !== undefined
+          ? params.input.specifications
+          : existingProduct.specifications,
+      costPrice:
+        params.input.cost_price !== undefined ? params.input.cost_price : currentCostPrice,
+    });
   }
 
   if (

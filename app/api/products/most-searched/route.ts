@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import Fuse, { IFuseOptions } from 'fuse.js';
 import { loadDistributorPricingContext } from "@/lib/modules/products/service";
@@ -195,22 +196,12 @@ export async function GET(req: NextRequest) {
       )
     );
 
-    // Buscar bancas cotistas com localização para associar produtos de distribuidores
-    const cotistaBancasRes = await supabase
-      .from('bancas')
-      .select('id, name, cover_image, whatsapp, lat, lng, is_cotista, cotista_id, active')
-      .eq('active', true)
-      .or('is_cotista.eq.true,cotista_id.not.is.null')
-      .not('lat', 'is', null)
-      .not('lng', 'is', null)
-      .limit(50);
-
-    const cotistaBancas = (cotistaBancasRes?.data || []).filter((b: any) => 
+    const partnerCatalogBancas = (await getPublishedDistributorCatalogBancas()).filter((b: any) =>
       b.lat != null && b.lng != null
     );
 
-    const sortedCotistaBancas = sortItemsByDistance({
-      items: cotistaBancas,
+    const sortedPartnerCatalogBancas = sortItemsByDistance({
+      items: partnerCatalogBancas,
       userLat,
       userLng,
     });
@@ -220,7 +211,7 @@ export async function GET(req: NextRequest) {
     const bancasRes = bancaIds.length
       ? await supabase
           .from('bancas')
-          .select('id, name, cover_image, whatsapp, lat, lng, is_cotista, cotista_id, active')
+          .select('id, name, cover_image, whatsapp, lat, lng, active, approved')
           .in('id', bancaIds)
       : ({ data: [], error: null } as any);
 
@@ -249,7 +240,7 @@ export async function GET(req: NextRequest) {
 
     const candidateBancaIds = Array.from(new Set([
       ...bancaIds,
-      ...sortedCotistaBancas.map((b: any) => b.id).filter(Boolean),
+      ...sortedPartnerCatalogBancas.map((b: any) => b.id).filter(Boolean),
     ]));
 
     const { customMap, calculateDistributorPrice } = await loadDistributorPricingContext<{
@@ -265,13 +256,12 @@ export async function GET(req: NextRequest) {
     });
 
     // Map reduzido para o front com informações da banca/distribuidor resolvidas via Map
-    // Incluir produtos de TODAS as bancas ativas (não apenas cotistas)
-    const isActiveBanca = (b: any) => b?.active !== false;
+    const isPublicBanca = (b: any) => isPublishedMarketplaceBanca(b);
 
     const pickDisplayBancaForDistributorProduct = (productId: string, fallbackBanca: any) => {
-      if (sortedCotistaBancas.length === 0) return fallbackBanca;
+      if (sortedPartnerCatalogBancas.length === 0) return fallbackBanca;
 
-      const eligible = sortedCotistaBancas.filter((banca: any) => {
+      const eligible = sortedPartnerCatalogBancas.filter((banca: any) => {
         const custom = customMap.get(`${banca.id}:${productId}`);
         return custom?.enabled !== false;
       });
@@ -304,8 +294,8 @@ export async function GET(req: NextRequest) {
         bancaData = pickDisplayBancaForDistributorProduct(p.id, fallbackBanca);
       }
       
-      // Permitir produtos sem banca (produtos de distribuidor) ou de bancas ativas
-      if (bancaData && !isActiveBanca(bancaData)) {
+      // Permitir produtos sem banca (catálogo parceiro) ou de bancas publicadas
+      if (bancaData && !isPublicBanca(bancaData)) {
         return null;
       }
       

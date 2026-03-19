@@ -80,7 +80,7 @@ export default function GerenciarCatalogoPage() {
       });
       const json = await res.json();
       
-      // Verificar se é cotista
+      // Verificar se o plano libera o catálogo parceiro
       setHasCatalogAccess(json.has_catalog_access === true);
       setPlanType(json.entitlements?.plan_type || json.plan?.type || "free");
       setPlanName(json.plan?.name || "Free");
@@ -156,7 +156,7 @@ export default function GerenciarCatalogoPage() {
 
   return (
     <div className="space-y-6 relative">
-      {/* Overlay de bloqueio para não-cotistas - apenas no conteúdo central */}
+      {/* Overlay de bloqueio para planos sem catálogo parceiro - apenas no conteúdo central */}
       {hasCatalogAccess === false && (
         <div className="absolute inset-0 z-40 flex items-center justify-center min-h-[500px]">
           {/* Backdrop com blur */}

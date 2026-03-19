@@ -1,5 +1,9 @@
 import "server-only";
 
+import {
+  getPublishedDistributorCatalogBancas,
+  isPublishedMarketplaceBanca,
+} from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import Fuse, { IFuseOptions } from 'fuse.js';
 
@@ -125,50 +129,38 @@ export async function getSearchProducts(query: string, limit = 20): Promise<any[
     const bancaIds = Array.from(new Set(items.map(p => p.banca_id).filter(Boolean)));
     const categoryIds = Array.from(new Set(items.map(p => p.category_id).filter(Boolean)));
     
-    // Buscar bancas cotistas para associar produtos de distribuidores
-    const [bancasRes, categoriesRes, cotistaBancasRes] = await Promise.all([
+    const [bancasRes, categoriesRes, partnerCatalogBancas] = await Promise.all([
       bancaIds.length
-        ? supabaseAdmin.from('bancas').select('id, name, cover_image, whatsapp, lat, lng, active').in('id', bancaIds)
+        ? supabaseAdmin
+            .from('bancas')
+            .select('id, name, cover_image, whatsapp, lat, lng, active, approved')
+            .in('id', bancaIds)
         : { data: [] },
       categoryIds.length
         ? supabaseAdmin.from('categories').select('id, name').in('id', categoryIds)
         : { data: [] },
-      // Buscar bancas cotistas ativas para associar produtos de distribuidores
-      supabaseAdmin
-        .from('bancas')
-        .select('id, name, cover_image, whatsapp, lat, lng, is_cotista, cotista_id, active')
-        .eq('active', true)
-        .or('is_cotista.eq.true,cotista_id.not.is.null')
-        .limit(20)
+      getPublishedDistributorCatalogBancas(),
     ]);
     
     const bancaMap = new Map((bancasRes.data || []).map((b: any) => [b.id, b]));
     const categoryMap = new Map((categoriesRes.data || []).map((c: any) => [c.id, c]));
-    const cotistaBancas = (cotistaBancasRes.data || []).filter((b: any) => b.active !== false);
-    
-    // Incluir produtos de TODAS as bancas ativas (não apenas cotistas)
-    const isActiveBanca = (b: any) => b?.active !== false;
-    
-    // Índice para rotação de bancas cotistas
+
     let bancaRotationIndex = 0;
     
     const results = items
       .map(p => {
         let bancaData = p.banca_id ? bancaMap.get(p.banca_id) : null;
         
-        // IMPORTANTE: Para produtos de distribuidor sem banca_id, associar a uma banca cotista
-        // Isso evita mostrar o nome do distribuidor nos cards
-        if (!bancaData && p.distribuidor_id && cotistaBancas.length > 0) {
-          bancaData = cotistaBancas[bancaRotationIndex % cotistaBancas.length];
+        if (!bancaData && p.distribuidor_id && partnerCatalogBancas.length > 0) {
+          bancaData = partnerCatalogBancas[bancaRotationIndex % partnerCatalogBancas.length];
           bancaRotationIndex++;
         }
-        
-        // Permitir produtos sem banca ou de bancas ativas
-        if (bancaData && !isActiveBanca(bancaData)) return null;
+
+        if (!bancaData) return null;
+        if (!isPublishedMarketplaceBanca(bancaData)) return null;
         
         const categoryData = p.category_id ? categoryMap.get(p.category_id) : null;
-        
-        // Nome da banca - NUNCA mostrar nome de distribuidor
+
         const bancaName = bancaData?.name || 'Banca Local';
         
         return {
@@ -216,6 +208,7 @@ export async function getPromoProducts(limit = 20): Promise<any[]> {
         discount_percent,
         images,
         banca_id,
+        distribuidor_id,
         category_id,
         description
       `)
@@ -229,19 +222,30 @@ export async function getPromoProducts(limit = 20): Promise<any[]> {
     
     const bancaIds = Array.from(new Set(items.map(p => p.banca_id).filter(Boolean)));
     
-    const bancasRes = bancaIds.length
-      ? await supabaseAdmin.from('bancas').select('id, name, cover_image, whatsapp, active').in('id', bancaIds)
-      : { data: [] };
+    const [bancasRes, partnerCatalogBancas] = await Promise.all([
+      bancaIds.length
+        ? supabaseAdmin
+            .from('bancas')
+            .select('id, name, cover_image, whatsapp, active, approved')
+            .in('id', bancaIds)
+        : Promise.resolve({ data: [] }),
+      getPublishedDistributorCatalogBancas(),
+    ]);
     
     const bancaMap = new Map((bancasRes.data || []).map((b: any) => [b.id, b]));
-    // Incluir produtos de TODAS as bancas ativas (não apenas cotistas)
-    const isActiveBanca = (b: any) => b?.active !== false;
+    let bancaRotationIndex = 0;
     
     const results = items
       .map(p => {
-        const bancaData = p.banca_id ? bancaMap.get(p.banca_id) : null;
-        // Permitir produtos sem banca ou de bancas ativas
-        if (bancaData && !isActiveBanca(bancaData)) return null;
+        let bancaData = p.banca_id ? bancaMap.get(p.banca_id) : null;
+
+        if (!bancaData && p.distribuidor_id && partnerCatalogBancas.length > 0) {
+          bancaData = partnerCatalogBancas[bancaRotationIndex % partnerCatalogBancas.length];
+          bancaRotationIndex++;
+        }
+
+        if (!bancaData) return null;
+        if (!isPublishedMarketplaceBanca(bancaData)) return null;
         
         return {
           id: p.id,
@@ -251,7 +255,7 @@ export async function getPromoProducts(limit = 20): Promise<any[]> {
           images: p.images || [],
           discount_percent: p.discount_percent,
           banca: {
-            id: p.banca_id,
+            id: bancaData?.id || p.banca_id,
             name: bancaData?.name || 'Banca',
             avatar: bancaData?.cover_image || null,
             phone: bancaData?.whatsapp || null

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 
 // Regex simples para validar UUID v4 (mesmo que o banco aceite outras formas,
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
 
     const { data: banca, error: bancaError } = await supabaseAdmin
       .from('bancas')
-      .select('id, is_cotista, cotista_id, active')
+      .select('id, active, approved')
       .eq('id', bancaId)
       .single();
 
@@ -29,8 +30,7 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       return NextResponse.json({ success: false, error: bancaError.message }, { status: 500 });
     }
 
-    const isActiveCotista = (banca?.is_cotista === true || !!banca?.cotista_id);
-    if (!isActiveCotista) {
+    if (!isPublishedMarketplaceBanca(banca)) {
       return NextResponse.json({ success: true, items: [] });
     }
 

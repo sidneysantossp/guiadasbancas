@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,7 +20,10 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error("Error fetching settings:", error);
       // If table doesn't exist, return empty
-      return NextResponse.json({ success: true, data: {} });
+      return NextResponse.json(
+        { success: true, data: {} },
+        { headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
     const keys: any = {};
@@ -30,9 +35,15 @@ export async function GET(request: NextRequest) {
       if (item.key === 'groq_model') keys.groqModel = item.value;
     });
 
-    return NextResponse.json({ success: true, data: keys });
+    return NextResponse.json(
+      { success: true, data: keys },
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   } catch (e) {
-    return NextResponse.json({ success: false, error: "Erro interno" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Erro interno" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }
 
@@ -59,13 +70,22 @@ export async function POST(req: NextRequest) {
     if (error) {
       console.error("Error saving settings:", error);
       if (error.code === '42P01') { // undefined_table
-         return NextResponse.json({ success: false, error: "Tabela 'settings' não existe. Por favor execute o script SQL em /sql/create_settings_table.sql" }, { status: 500 });
+         return NextResponse.json(
+           { success: false, error: "Tabela 'settings' não existe. Por favor execute o script SQL em /sql/create_settings_table.sql" },
+           { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+         );
       }
-      return NextResponse.json({ success: false, error: "Erro ao salvar configurações" }, { status: 500 });
+      return NextResponse.json(
+        { success: false, error: "Erro ao salvar configurações" },
+        { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
   } catch (e) {
-    return NextResponse.json({ success: false, error: "Erro interno" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Erro interno" },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   }
 }

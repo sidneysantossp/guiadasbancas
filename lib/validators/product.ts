@@ -9,8 +9,8 @@ export function validateProductCreate(input: Partial<Produto>): ValidationResult
   if (!Number.isFinite(price) || price <= 0) return { ok: false, error: "Preço deve ser maior que zero" };
   if (input.price_original != null) {
     const po = Number(input.price_original);
-    // Preço de venda (price_original) pode ser maior ou igual ao preço de custo (price)
-    if (!Number.isFinite(po) || po < 0) return { ok: false, error: "Preço de venda deve ser um valor válido" };
+    // price_original representa o preço de tabela antes do desconto.
+    if (!Number.isFinite(po) || po < 0) return { ok: false, error: "Preço original deve ser um valor válido" };
   }
   if (input.discount_percent != null) {
     const d = Number(input.discount_percent);
@@ -42,8 +42,8 @@ export function validateProductUpdate(input: Partial<Produto>): ValidationResult
     if (!Number.isFinite(price) || price <= 0) return { ok: false, error: "Preço inválido" };
     if (input.price_original != null) {
       const po = Number(input.price_original);
-      // Preço de venda pode ser maior ou igual ao preço de custo
-      if (!Number.isFinite(po) || po < 0) return { ok: false, error: "Preço de venda deve ser um valor válido" };
+      // price_original representa o preço de tabela antes do desconto.
+      if (!Number.isFinite(po) || po < 0) return { ok: false, error: "Preço original deve ser um valor válido" };
     }
   }
   if (input.discount_percent != null) {

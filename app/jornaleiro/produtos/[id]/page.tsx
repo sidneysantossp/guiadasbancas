@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { validateProductUpdate } from "@/lib/validators/product";
-import ImageUploader from "@/components/admin/ImageUploader";
 import ProductImageUploader from "@/components/admin/ProductImageUploader";
-import ImageSizeGuide from "@/components/admin/ImageSizeGuide";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import SpecificationsEditor from "@/components/admin/SpecificationsEditor";
 import { useToast } from "@/components/admin/ToastProvider";
+import { getOwnedProductListPrice } from "@/lib/owned-product-pricing";
 
 interface CategoryOption {
   id: string;
@@ -67,26 +66,10 @@ export default function SellerProductEditPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isCotista, setIsCotista] = useState<boolean | null>(null);
   const [price, setPrice] = useState("");
   const [priceOriginal, setPriceOriginal] = useState("");
   const [discountPercent, setDiscountPercent] = useState(0);
-  const [hasCustomPrice, setHasCustomPrice] = useState(false); // Flag para saber se jornaleiro personalizou
   const isDistributorProduct = Boolean(product?.distribuidor_id);
-
-  useEffect(() => {
-    const loadBanca = async () => {
-      try {
-        const res = await fetch("/api/jornaleiro/banca", { cache: "no-store" });
-        const json = await res.json();
-        const banca = json?.data;
-        setIsCotista(Boolean(banca?.is_cotista === true && banca?.cotista_id));
-      } catch {
-        setIsCotista(false);
-      }
-    };
-    loadBanca();
-  }, []);
 
   // Estados para contexto da IA
   const [productName, setProductName] = useState("");
@@ -112,34 +95,27 @@ export default function SellerProductEditPage() {
         setError(null);
         const id = String(params?.id || "");
         if (!id) throw new Error("Produto inválido");
-        
-        console.log("Carregando produto ID:", id);
-        // Timeout de 10 segundos
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
-        
-        // Adicionar timestamp para evitar cache
         const timestamp = Date.now();
         const res = await fetch(`/api/jornaleiro/products/${id}?t=${timestamp}`, { 
           cache: "no-store",
           signal: controller.signal
         });
         clearTimeout(timeoutId);
-        console.log("Response status:", res.status);
-        
+
         if (!res.ok) {
-          const errorText = await res.text();
-          console.log("Error response:", errorText);
+          await res.text();
           throw new Error("Não foi possível carregar o produto.");
         }
-        
+
         const json = await res.json();
-        console.log("Response JSON:", json);
         const p = json?.data;
         if (!p || !p.id) {
           throw new Error("Dados do produto inválidos");
         }
-        
+
         setProduct({
           id: p.id,
           name: p.name || "",
@@ -161,46 +137,23 @@ export default function SellerProductEditPage() {
         setProductName(p.name || "");
         setProductMiniDesc(p.description || "");
         setImages(Array.isArray(p.images) ? p.images : []);
-        
-        // Lógica de preços:
-        // BANCO: price = preço de venda, price_original = preço do distribuidor (antes do desconto)
-        // INTERFACE: price (state) = preço do distribuidor, priceOriginal (state) = preço de venda
-        
-        console.log('[DEBUG] Dados do produto carregado:', {
-          price_banco: p.price,
-          price_original_banco: p.price_original,
-          discount_percent: p.discount_percent
-        });
-        
-        // Se tem price_original no banco, significa que o jornaleiro customizou
-        const hasCustomization = p.price_original && p.price_original !== p.price;
-        setHasCustomPrice(hasCustomization);
-        
-        if (hasCustomization) {
-          // Tem customização: price_original (banco) = preço distribuidor, price (banco) = preço venda
-          const priceDistribuidorInCents = Math.round((p.price_original || 0) * 100).toString();
-          const priceVendaInCents = Math.round((p.price || 0) * 100).toString();
-          
-          setPrice(priceDistribuidorInCents);        // Preço do distribuidor (não editável)
-          setPriceOriginal(priceVendaInCents);       // Preço de venda (editável)
-          setDiscountPercent(p.discount_percent || 0);
-          
-          console.log('[DEBUG] Com customização:', {
-            priceDistribuidor: priceDistribuidorInCents,
-            priceVenda: priceVendaInCents
-          });
+
+        if (p.distribuidor_id) {
+          const suggestedPriceInCents = Math.round((p.price_original || p.price || 0) * 100).toString();
+          const salePriceInCents = Math.round((p.price || 0) * 100).toString();
+
+          setPrice(suggestedPriceInCents);
+          setPriceOriginal(salePriceInCents);
+          setDiscountPercent(Number(p.discount_percent || 0));
         } else {
-          // Sem customização: usar price (banco) para ambos
-          const priceInCents = Math.round((p.price || 0) * 100).toString();
-          
-          setPrice(priceInCents);                    // Preço do distribuidor
-          setPriceOriginal(priceInCents);            // Preço de venda (igual ao distribuidor)
-          setDiscountPercent(0);
-          
-          console.log('[DEBUG] Sem customização:', {
-            price: priceInCents
-          });
+          const costPriceInCents = Math.round((p.cost_price || 0) * 100).toString();
+          const listPriceInCents = Math.round(getOwnedProductListPrice(p) * 100).toString();
+
+          setPrice(costPriceInCents);
+          setPriceOriginal(listPriceInCents);
+          setDiscountPercent(Number(p.discount_percent || 0));
         }
+
         setDescriptionFull(p.description_full || "");
         setSpecifications(p.specifications || "");
       } catch (e: any) {
@@ -208,11 +161,9 @@ export default function SellerProductEditPage() {
         if (e.name === 'AbortError') {
           message = "Timeout: A requisição demorou muito para responder.";
         }
-        console.error("Erro ao carregar produto:", e);
         setError(message);
         toast.error(message);
-        
-        // Se o produto não foi encontrado, redirecionar para listagem
+
         if (message.includes("não encontrado") || message.includes("inválido")) {
           setTimeout(() => {
             router.push("/jornaleiro/produtos");
@@ -267,79 +218,78 @@ export default function SellerProductEditPage() {
           uploadedUrls.push(src);
         }
       }
-      
+      const referencePrice = parseCurrency(price);
+      const salePrice = parseCurrency(priceOriginal);
+      const normalizedDiscount = Number(discountPercent || 0);
 
-      // Lógica de preços para não-cotistas:
-      // - price (state) = preço de custo
-      // - priceOriginal (state) = preço de venda
-      // 
-      // Ao salvar no banco:
-      // - price (banco) = preço de venda final
-      // - price_original (banco) = preço de custo (se diferente do preço de venda)
-      
-      const priceCusto = parseCurrency(price);
-      const priceVenda = parseCurrency(priceOriginal);
-      
-      // Garantir que temos valores válidos
-      const finalPrice = priceVenda > 0 ? priceVenda : priceCusto;
-      const finalPriceOriginal = priceCusto !== finalPrice ? priceCusto : null;
-      
-      console.log('[DEBUG] Valores antes de salvar:', {
-        price_state: price,
-        priceOriginal_state: priceOriginal,
-        priceCusto,
-        priceVenda,
-        finalPrice,
-        finalPriceOriginal,
-        discountPercent
-      });
+      let body: Record<string, any>;
 
-      const body = {
-        name: (fd.get("name") as string)?.trim(),
-        description: (fd.get("description") as string) || "",
-        price: finalPrice,
-        price_original: finalPriceOriginal,
-        discount_percent: discountPercent || 0,
-        stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
-        track_stock: Boolean(fd.get("track_stock")),
-        featured: Boolean(fd.get("featured")),
-        images: uploadedUrls,
-        active: Boolean(fd.get("active")),
-        sob_encomenda: Boolean(fd.get("sob_encomenda")),
-        pre_venda: Boolean(fd.get("pre_venda")),
-        pronta_entrega: Boolean(fd.get("pronta_entrega")),
-        coupon_code: (fd.get("coupon_code") as string)?.trim() || undefined,
-        description_full: descriptionFull,
-        specifications: specifications,
-      };
+      if (isDistributorProduct) {
+        body = {
+          name: (fd.get("name") as string)?.trim(),
+          description: (fd.get("description") as string) || "",
+          price: salePrice > 0 ? salePrice : referencePrice,
+          price_original: referencePrice > 0 ? referencePrice : null,
+          discount_percent: normalizedDiscount,
+          stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
+          track_stock: Boolean(fd.get("track_stock")),
+          featured: Boolean(fd.get("featured")),
+          images: uploadedUrls,
+          active: Boolean(fd.get("active")),
+          sob_encomenda: Boolean(fd.get("sob_encomenda")),
+          pre_venda: Boolean(fd.get("pre_venda")),
+          pronta_entrega: Boolean(fd.get("pronta_entrega")),
+          coupon_code: (fd.get("coupon_code") as string)?.trim() || undefined,
+          description_full: descriptionFull,
+          specifications,
+        };
+      } else {
+        const listPrice = salePrice > 0 ? salePrice : referencePrice;
+        const finalPrice =
+          normalizedDiscount > 0 && normalizedDiscount <= 100
+            ? listPrice * (1 - normalizedDiscount / 100)
+            : listPrice;
+        const finalPriceOriginal =
+          normalizedDiscount > 0 && normalizedDiscount <= 100 ? listPrice : null;
+
+        body = {
+          name: (fd.get("name") as string)?.trim(),
+          description: (fd.get("description") as string) || "",
+          price: finalPrice,
+          price_original: finalPriceOriginal,
+          cost_price: referencePrice > 0 ? referencePrice : undefined,
+          discount_percent: normalizedDiscount,
+          stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
+          track_stock: Boolean(fd.get("track_stock")),
+          featured: Boolean(fd.get("featured")),
+          images: uploadedUrls,
+          active: Boolean(fd.get("active")),
+          sob_encomenda: Boolean(fd.get("sob_encomenda")),
+          pre_venda: Boolean(fd.get("pre_venda")),
+          pronta_entrega: Boolean(fd.get("pronta_entrega")),
+          coupon_code: (fd.get("coupon_code") as string)?.trim() || undefined,
+          description_full: descriptionFull,
+          specifications,
+        };
+      }
 
       const vr = validateProductUpdate(body as any);
       if (!vr.ok) throw new Error(vr.error);
-      
-      console.log('[DEBUG] Enviando para API:', vr.data);
-      
+
       const res = await fetch(`/api/jornaleiro/products/${params.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(vr.data),
       });
-      
+
       const responseData = await res.json();
-      console.log('[DEBUG] Resposta da API:', responseData);
-      
+
       if (!res.ok) {
         throw new Error(responseData?.error || "Falha ao salvar produto.");
       }
-      
-      console.log('[DEBUG] Produto salvo com sucesso:', responseData);
-      
+
       toast.success("Produto atualizado com sucesso");
-      
-      // Recarregar dados do produto para mostrar valores atualizados
-      console.log('[DEBUG] Recarregando produto...');
       await loadProduct();
-      console.log('[DEBUG] Produto recarregado!');
-      
     } catch (e: any) {
       const message = e?.message || "Erro ao salvar.";
       setError(message);
@@ -522,7 +472,6 @@ export default function SellerProductEditPage() {
                         onChange={(e) => {
                           const newPrice = formatCurrency(e.target.value);
                           setPriceOriginal(newPrice);
-                          setHasCustomPrice(true);
                           updateDiscountFromPrices(parseCurrency(price), parseCurrency(newPrice));
                         }}
                         className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
@@ -543,7 +492,6 @@ export default function SellerProductEditPage() {
                       onChange={(e) => {
                         const newDiscount = Number(e.target.value);
                         setDiscountPercent(newDiscount);
-                        setHasCustomPrice(true);
                         updateSalePriceFromDiscount(newDiscount);
                       }}
                       name="discount_percent"
@@ -557,7 +505,7 @@ export default function SellerProductEditPage() {
               <>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-sm font-medium">Preço de Custo</label>
+                    <label className="text-sm font-medium">Custo Interno</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
                       <input
@@ -568,6 +516,7 @@ export default function SellerProductEditPage() {
                         placeholder="0,00"
                       />
                     </div>
+                    <p className="mt-1 text-xs text-gray-500">Opcional. Serve para margem e gestão interna da banca.</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium">Preço de Venda</label>
@@ -596,6 +545,17 @@ export default function SellerProductEditPage() {
                       className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                     />
                   </div>
+                  <div>
+                    <label className="text-sm font-medium">Cupom</label>
+                    <input
+                      defaultValue={product.coupon_code}
+                      name="coupon_code"
+                      placeholder="EX: BANCAX10"
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-sm font-medium">Estoque</label>
                     <input

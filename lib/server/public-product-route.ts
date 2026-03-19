@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import { buildFriendlyProductPath, parseProductParam, slugifyProductName } from "@/lib/product-url";
 import { toBancaSlug } from "@/lib/slug";
@@ -7,6 +8,7 @@ import { toBancaSlug } from "@/lib/slug";
 type BancaRow = {
   id: string;
   name: string;
+  approved?: boolean | null;
   is_cotista?: boolean | null;
   cotista_id?: string | null;
   active?: boolean | null;
@@ -36,11 +38,8 @@ function extractBancaRow(input: ProductRow["bancas"]): BancaRow | null {
   return input as BancaRow;
 }
 
-function isActiveCotistaBanca(b: BancaRow | null | undefined): boolean {
-  if (!b) return false;
-  const isCotista = b.is_cotista === true || !!b.cotista_id;
-  const isActive = b.active !== false;
-  return isCotista && isActive;
+function isPublicOwnProductBanca(b: BancaRow | null | undefined): boolean {
+  return isPublishedMarketplaceBanca(b);
 }
 
 function toPublicBanca(row: BancaRow): PublicBanca {
@@ -51,17 +50,10 @@ export function buildCanonicalProductPath(bancaName: string, productName: string
   return buildFriendlyProductPath(bancaName, productName);
 }
 
-export async function getActiveCotistaBancas(): Promise<PublicBanca[]> {
-  const { data, error } = await supabaseAdmin
-    .from("bancas")
-    .select("id,name,is_cotista,cotista_id,active")
-    .eq("active", true)
-    .or("is_cotista.eq.true,cotista_id.not.is.null");
+export async function getActiveDistributorCatalogBancas(): Promise<PublicBanca[]> {
+  const bancas = await getPublishedDistributorCatalogBancas();
 
-  if (error || !Array.isArray(data)) return [];
-
-  return data
-    .filter((b) => isActiveCotistaBanca(b as BancaRow))
+  return bancas
     .map((b) => toPublicBanca(b as BancaRow))
     .sort((a, b) => {
       const nameCmp = a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" });
@@ -70,26 +62,26 @@ export async function getActiveCotistaBancas(): Promise<PublicBanca[]> {
     });
 }
 
+export async function getActiveCotistaBancas(): Promise<PublicBanca[]> {
+  return getActiveDistributorCatalogBancas();
+}
+
 export async function resolveBancaById(id?: string | null): Promise<PublicBanca | null> {
   const bancaId = String(id || "").trim();
   if (!bancaId) return null;
 
-  const { data, error } = await supabaseAdmin
-    .from("bancas")
-    .select("id,name,is_cotista,cotista_id,active")
-    .eq("id", bancaId)
-    .maybeSingle();
+  const bancas = await getPublishedDistributorCatalogBancas();
+  const banca = bancas.find((item) => item.id === bancaId);
 
-  if (error || !data) return null;
-  if (!isActiveCotistaBanca(data as BancaRow)) return null;
-  return toPublicBanca(data as BancaRow);
+  if (!banca) return null;
+  return toPublicBanca(banca as BancaRow);
 }
 
 export async function resolveBancaBySlug(rawSlug: string): Promise<PublicBanca | null> {
   const bancaSlug = toBancaSlug(rawSlug || "");
   if (!bancaSlug) return null;
 
-  const bancas = await getActiveCotistaBancas();
+  const bancas = await getActiveDistributorCatalogBancas();
   const matches = bancas.filter((b) => toBancaSlug(b.name) === bancaSlug);
   if (matches.length === 0) return null;
 
@@ -98,7 +90,7 @@ export async function resolveBancaBySlug(rawSlug: string): Promise<PublicBanca |
 
 function isProductPublic(product: ProductRow): boolean {
   if (product.distribuidor_id) return true;
-  return isActiveCotistaBanca(extractBancaRow(product.bancas));
+  return isPublicOwnProductBanca(extractBancaRow(product.bancas));
 }
 
 async function getActiveProductsForPublicRoute(): Promise<ProductRow[]> {
@@ -118,7 +110,7 @@ async function getActiveProductsForPublicRoute(): Promise<ProductRow[]> {
         banca_id,
         distribuidor_id,
         active,
-        bancas(id,name,is_cotista,cotista_id,active)
+        bancas(id,name,approved,is_cotista,cotista_id,active)
       `)
       .eq("active", true)
       .range(from, from + pageSize - 1);
@@ -148,7 +140,7 @@ export async function resolveProductByRawParam(rawParam: string): Promise<Public
       banca_id,
       distribuidor_id,
       active,
-      bancas(id,name,is_cotista,cotista_id,active)
+      bancas(id,name,approved,is_cotista,cotista_id,active)
     `)
     .eq("active", true);
 
@@ -228,6 +220,6 @@ export async function resolveBancaForProduct(
   const fromProduct = await resolveBancaById(product.banca_id);
   if (fromProduct) return fromProduct;
 
-  const cotistas = await getActiveCotistaBancas();
-  return cotistas[0] || null;
+  const bancasElegiveis = await getActiveDistributorCatalogBancas();
+  return bancasElegiveis[0] || null;
 }

@@ -173,7 +173,7 @@ export default function CatalogoDistribuidorPage() {
         </p>
       </div>
 
-      {/* Alerta de status de cotista */}
+      {/* Alerta de status do plano para a rede parceira */}
       <div className="mb-6">
         {hasCatalogAccess ? (
           <div className="rounded-lg border border-green-200 bg-green-50 p-4">

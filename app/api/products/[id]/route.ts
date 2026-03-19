@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import {
   applyDistributorProductCustomization,
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       .from('products')
       .select(`
         *,
-        bancas(id, name, address, whatsapp, is_cotista, cotista_id, active)
+        bancas(id, name, address, whatsapp, active, approved)
       `)
       .eq('id', productId)
       .single();
@@ -40,11 +41,9 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       }
     }
 
-    const isActiveCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
-
-    // Produtos próprios só são públicos se a banca for cotista ativa
+    // Produtos próprios só são públicos se a banca estiver publicada no marketplace
     if (!data.distribuidor_id) {
-      if (!isActiveCotistaBanca(data.bancas)) {
+      if (!isPublishedMarketplaceBanca(data.bancas)) {
         return NextResponse.json({ error: "Produto não disponível" }, { status: 404 });
       }
     }
@@ -65,13 +64,8 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       
       // Para produtos de distribuidor, usar a banca especificada na query (se fornecida e válida)
       if (bancaIdFromQuery) {
-        const { data: bancaOverride } = await supabaseAdmin
-          .from('bancas')
-          .select('id, name, address, whatsapp, is_cotista, cotista_id, active')
-          .eq('id', bancaIdFromQuery)
-          .eq('active', true)
-          .or('is_cotista.eq.true,cotista_id.not.is.null')
-          .single();
+        const bancasElegiveis = await getPublishedDistributorCatalogBancas();
+        const bancaOverride = bancasElegiveis.find((banca) => banca.id === bancaIdFromQuery) || null;
         
         if (bancaOverride) {
           // Verificar customização da banca para esse produto

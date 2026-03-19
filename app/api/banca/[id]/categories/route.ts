@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const revalidate = 60;
@@ -248,11 +250,43 @@ export async function GET(_request: NextRequest, context: { params: { id: string
 
     const { data: banca } = await supabase
       .from("bancas")
-      .select("id, is_cotista, cotista_id")
+      .select("id, active, approved, is_cotista, cotista_id")
       .eq("id", bancaId)
       .single();
 
     const isCotista = banca?.is_cotista === true || !!banca?.cotista_id;
+
+    if (!isPublishedMarketplaceBanca(banca)) {
+      return NextResponse.json({
+        success: true,
+        banca_id: bancaId,
+        is_cotista: isCotista,
+        can_access_distributor_catalog: false,
+        categories: [],
+        hierarchy: {},
+        standalone: [],
+      });
+    }
+
+    const entitlements = banca
+      ? await resolveBancaPlanEntitlements({
+          id: banca.id,
+          is_cotista: banca.is_cotista,
+          cotista_id: banca.cotista_id,
+        })
+      : null;
+
+    if (!entitlements?.canAccessDistributorCatalog) {
+      return NextResponse.json({
+        success: true,
+        banca_id: bancaId,
+        is_cotista: isCotista,
+        can_access_distributor_catalog: false,
+        categories: [],
+        hierarchy: {},
+        standalone: [],
+      });
+    }
 
     const { data: distributorProducts } = await supabase
       .from("products")
@@ -273,6 +307,7 @@ export async function GET(_request: NextRequest, context: { params: { id: string
         success: true,
         banca_id: bancaId,
         is_cotista: isCotista,
+        can_access_distributor_catalog: true,
         categories: [],
         hierarchy: {},
         standalone: [],
@@ -301,6 +336,7 @@ export async function GET(_request: NextRequest, context: { params: { id: string
         success: true,
         banca_id: bancaId,
         is_cotista: isCotista,
+        can_access_distributor_catalog: true,
         categories: [],
         hierarchy: {},
         standalone: [],
@@ -497,6 +533,7 @@ export async function GET(_request: NextRequest, context: { params: { id: string
         success: true,
         banca_id: bancaId,
         is_cotista: isCotista,
+        can_access_distributor_catalog: true,
         categories: flatCategories,
         hierarchy,
         standalone,

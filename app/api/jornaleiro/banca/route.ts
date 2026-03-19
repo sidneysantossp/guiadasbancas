@@ -11,11 +11,16 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
+const privateNoStoreHeaders = buildNoStoreHeaders({ isPrivate: true });
+
 function mapBancaError(error: any) {
   const message = error?.message || "";
 
   if (message === "FORBIDDEN_JORNALEIRO") {
-    return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
+    return NextResponse.json(
+      { success: false, error: "Acesso negado" },
+      { status: 403, headers: privateNoStoreHeaders }
+    );
   }
 
   if (message === "UNAUTHORIZED_BANCA_ACCESS") {
@@ -25,21 +30,21 @@ function mapBancaError(error: any) {
         error: "Erro de validação de segurança. Faça logout e login novamente.",
         details: "USER_ID_MISMATCH",
       },
-      { status: 403 }
+      { status: 403, headers: privateNoStoreHeaders }
     );
   }
 
   if (message === "BANCA_NOT_FOUND") {
     return NextResponse.json(
       { success: false, error: "Banca não encontrada para este usuário" },
-      { status: 404 }
+      { status: 404, headers: privateNoStoreHeaders }
     );
   }
 
   if (message === "INVALID_BANCA_NAME") {
     return NextResponse.json(
       { success: false, error: "Nome da banca é obrigatório" },
-      { status: 400 }
+      { status: 400, headers: privateNoStoreHeaders }
     );
   }
 
@@ -49,7 +54,10 @@ function mapBancaError(error: any) {
 export async function GET(request: NextRequest) {
   const user = await getAuthenticatedRequestUser(request);
   if (!user?.id) {
-    return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+    return NextResponse.json(
+      { success: false, error: "Não autorizado" },
+      { status: 401, headers: privateNoStoreHeaders }
+    );
   }
 
   try {
@@ -58,13 +66,13 @@ export async function GET(request: NextRequest) {
     if (!banca) {
       return NextResponse.json(
         { success: false, error: "Banca não encontrada para este usuário" },
-        { status: 404 }
+        { status: 404, headers: privateNoStoreHeaders }
       );
     }
 
     return NextResponse.json(
       { success: true, data: banca },
-      { headers: buildNoStoreHeaders() }
+      { headers: privateNoStoreHeaders }
     );
   } catch (error: any) {
     const mapped = mapBancaError(error);
@@ -73,7 +81,7 @@ export async function GET(request: NextRequest) {
     console.error("[API/JORNALEIRO/BANCA] Erro ao carregar banca:", error);
     return NextResponse.json(
       { success: false, error: error?.message || "Erro ao carregar banca" },
-      { status: 500 }
+      { status: 500, headers: privateNoStoreHeaders }
     );
   }
 }
@@ -81,14 +89,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const user = await getAuthenticatedRequestUser(request);
   if (!user?.id) {
-    return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+    return NextResponse.json(
+      { success: false, error: "Não autorizado" },
+      { status: 401, headers: privateNoStoreHeaders }
+    );
   }
 
   let body: any;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ success: false, error: "JSON inválido" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: "JSON inválido" },
+      { status: 400, headers: privateNoStoreHeaders }
+    );
   }
 
   try {
@@ -98,7 +112,7 @@ export async function POST(request: NextRequest) {
       input: body,
     });
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, { headers: privateNoStoreHeaders });
   } catch (error: any) {
     const mapped = mapBancaError(error);
     if (mapped) return mapped;
@@ -106,7 +120,7 @@ export async function POST(request: NextRequest) {
     console.error("[API/JORNALEIRO/BANCA] Erro ao criar banca:", error);
     return NextResponse.json(
       { success: false, error: error?.message || "Erro ao criar banca" },
-      { status: 500 }
+      { status: 500, headers: privateNoStoreHeaders }
     );
   }
 }
@@ -114,14 +128,20 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const user = await getAuthenticatedRequestUser(request);
   if (!user?.id) {
-    return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+    return NextResponse.json(
+      { success: false, error: "Não autorizado" },
+      { status: 401, headers: privateNoStoreHeaders }
+    );
   }
 
   let body: any;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ success: false, error: "JSON inválido" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: "JSON inválido" },
+      { status: 400, headers: privateNoStoreHeaders }
+    );
   }
 
   try {
@@ -141,7 +161,7 @@ export async function PUT(request: NextRequest) {
     console.error("[API/JORNALEIRO/BANCA] Erro ao atualizar banca:", error);
     return NextResponse.json(
       { success: false, error: error?.message || "Erro ao atualizar banca" },
-      { status: 500 }
+      { status: 500, headers: privateNoStoreHeaders }
     );
   }
 }

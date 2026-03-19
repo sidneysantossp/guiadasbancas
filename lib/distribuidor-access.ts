@@ -10,6 +10,7 @@ type ActiveBancaRow = {
   phone: string | null;
   cover_image: string | null;
   active: boolean | null;
+  approved: boolean | null;
   created_at: string;
   lat: number | null;
   lng: number | null;
@@ -27,7 +28,7 @@ export type DistribuidorAccessibleBanca = ActiveBancaRow & {
 export async function getDistribuidorAccessibleBancas(): Promise<DistribuidorAccessibleBanca[]> {
   const { data: bancas, error } = await supabaseAdmin
     .from("bancas")
-    .select("id, name, address, whatsapp, phone, cover_image, active, created_at, lat, lng, is_cotista, cotista_id")
+    .select("id, name, address, whatsapp, phone, cover_image, active, approved, created_at, lat, lng, is_cotista, cotista_id")
     .neq("active", false)
     .order("name", { ascending: true });
 

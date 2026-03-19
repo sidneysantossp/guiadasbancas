@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadDistributorPricingContext } from "@/lib/modules/products/service";
 import {
@@ -135,42 +136,32 @@ export async function GET(req: NextRequest) {
     if (bancaIds.length > 0) {
       const { data: bancas } = await supabaseAdmin
         .from('bancas')
-        .select('id, name, is_cotista, cotista_id, active, lat, lng')
+        .select('id, name, active, approved, lat, lng')
         .in('id', bancaIds);
       (bancas || []).forEach((b: any) => bancaMap.set(b.id, b));
     }
 
-    // Bancas cotistas candidatas para distribuir produtos de distribuidor sem banca_id
-    const { data: cotistaBancasData } = await supabaseAdmin
-      .from('bancas')
-      .select('id, name, is_cotista, cotista_id, active, lat, lng')
-      .eq('active', true)
-      .or('is_cotista.eq.true,cotista_id.not.is.null')
-      .not('lat', 'is', null)
-      .not('lng', 'is', null)
-      .limit(80);
-
-    const cotistaBancas = (cotistaBancasData || []).filter((b: any) => b?.id);
-    const sortedCotistaBancas = sortItemsByDistance({
-      items: cotistaBancas,
+    const partnerCatalogBancas = (await getPublishedDistributorCatalogBancas())
+      .filter((b: any) => b?.id && b.lat != null && b.lng != null);
+    const sortedPartnerCatalogBancas = sortItemsByDistance({
+      items: partnerCatalogBancas,
       userLat,
       userLng,
       randomizeWhenNoLocation: true,
     });
 
-    // Se buscando por categoria, incluir produtos de distribuidores
-    // Caso contrário, manter apenas produtos de bancas cotistas
-    const isCotistaBanca = (b: any) => (b?.is_cotista === true || !!b?.cotista_id);
+    // Se buscando por categoria, incluir produtos de distribuidores.
+    // Para produtos próprios, só entram bancas publicadas no marketplace.
     const filteredProducts = (products || []).filter((p: any) => {
       if (p.distribuidor_id && includeDistribuidor) return true;
-      return isCotistaBanca(bancaMap.get(p.banca_id));
+      return isPublishedMarketplaceBanca(bancaMap.get(p.banca_id));
     });
 
     const candidateBancaIds = bancaId
       ? [bancaId]
       : Array.from(new Set([
           ...bancaIds,
-          ...sortedCotistaBancas.slice(0, 40).map((b: any) => b.id).filter(Boolean),
+          ...sortedPartnerCatalogBancas.slice(0, 40).map((b: any) => b.id).filter(Boolean),
         ]));
 
     const { customMap, calculateDistributorPrice } = await loadDistributorPricingContext<{
@@ -185,21 +176,20 @@ export async function GET(req: NextRequest) {
       buildCustomizationKey: (customization) => `${customization.banca_id}:${customization.product_id}`,
     });
 
-    const isActiveBanca = (b: any) => b?.active !== false;
     let bancaRotationIndex = 0;
 
     // Formatar produtos e resolver banca por proximidade (quando aplicável)
     const formatted = filteredProducts.map((p: any) => {
       let bancaData = p?.banca_id ? bancaMap.get(p.banca_id) : null;
 
-      // Produtos de distribuidor: distribuir entre bancas cotistas próximas
+      // Produtos de distribuidor: distribuir entre bancas com acesso ao catálogo parceiro
       // (na Home queremos variedade por proximidade, exceto quando banca_id é forçada na query)
-      if (p.distribuidor_id && !bancaId && sortedCotistaBancas.length > 0) {
-        bancaData = sortedCotistaBancas[bancaRotationIndex % sortedCotistaBancas.length];
+      if (p.distribuidor_id && !bancaId && sortedPartnerCatalogBancas.length > 0) {
+        bancaData = sortedPartnerCatalogBancas[bancaRotationIndex % sortedPartnerCatalogBancas.length];
         bancaRotationIndex++;
       }
 
-      if (bancaData && !isActiveBanca(bancaData)) {
+      if (bancaData && !isPublishedMarketplaceBanca(bancaData)) {
         return null;
       }
 

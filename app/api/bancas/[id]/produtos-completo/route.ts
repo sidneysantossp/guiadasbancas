@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isPublishedMarketplaceBanca } from '@/lib/public-banca-access';
+import { resolveBancaPlanEntitlements } from '@/lib/plan-entitlements';
 import { supabaseAdmin } from '@/lib/supabase';
 import { loadDistributorPricingContext } from '@/lib/modules/products/service';
 
@@ -16,7 +18,7 @@ export async function GET(
 
     const { data: banca, error: bancaError } = await supabase
       .from('bancas')
-      .select('id, is_cotista, cotista_id, active')
+      .select('id, active, approved, is_cotista, cotista_id')
       .eq('id', bancaId)
       .single();
 
@@ -28,8 +30,7 @@ export async function GET(
       );
     }
 
-    const isActiveCotista = (banca?.is_cotista === true || !!banca?.cotista_id);
-    if (!isActiveCotista) {
+    if (!isPublishedMarketplaceBanca(banca)) {
       return NextResponse.json({
         success: true,
         data: [],
@@ -40,6 +41,12 @@ export async function GET(
         },
       });
     }
+
+    const entitlements = await resolveBancaPlanEntitlements({
+      id: banca.id,
+      is_cotista: banca.is_cotista,
+      cotista_id: banca.cotista_id,
+    });
 
     // 1. Buscar produtos próprios da banca
     const { data: produtosProprios, error: propriosError } = await supabase
@@ -59,7 +66,7 @@ export async function GET(
 
     let produtosDistribuidor: any[] = [];
 
-    if (produtosHabilitados && produtosHabilitados.length > 0) {
+    if (entitlements.canAccessDistributorCatalog && produtosHabilitados && produtosHabilitados.length > 0) {
       const productIds = produtosHabilitados.map(p => p.product_id);
 
       // Buscar dados completos dos produtos
