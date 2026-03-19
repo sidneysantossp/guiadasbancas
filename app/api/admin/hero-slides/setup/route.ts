@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabase } from "@/lib/supabase";
+import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
 
 // API para criar as tabelas automaticamente
 export async function POST(request: NextRequest) {
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
         cta1Link: "/bancas-perto-de-mim",
         cta1Style: "primary" as const,
         cta2Text: "Sou jornaleiro",
-        cta2Link: "/jornaleiro",
+        cta2Link: JOURNALEIRO_MARKETING_PATH,
         cta2Style: "outline" as const,
         active: true,
         order: 1

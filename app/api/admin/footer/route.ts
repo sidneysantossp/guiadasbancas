@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminAuth } from "@/lib/security/admin-auth";
+import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
 
 type FooterLink = {
   id: string;
@@ -54,7 +55,7 @@ const getDefaultFooterData = (): FooterData => ({
     { id: '8', text: 'Suporte', url: '/suporte', section: 'para_voce', order: 4, active: true },
     
     // Para o Jornaleiro
-    { id: '9', text: 'Cadastre sua banca', url: '/jornaleiro/registrar', section: 'para_jornaleiro', order: 1, active: true },
+    { id: '9', text: 'Cadastre sua banca', url: JOURNALEIRO_MARKETING_PATH, section: 'para_jornaleiro', order: 1, active: true },
     { id: '10', text: 'Fazer login', url: '/jornaleiro', section: 'para_jornaleiro', order: 2, active: true },
     { id: '11', text: 'Central de ajuda', url: '/jornaleiro/ajuda', section: 'para_jornaleiro', order: 3, active: true },
     { id: '12', text: 'Termos para Parceiros', url: '/termos-parceiros', section: 'para_jornaleiro', order: 4, active: true },

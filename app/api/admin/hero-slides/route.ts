@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabase } from "@/lib/supabase";
+import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
 
 type HeroSlide = {
   id: string;
@@ -165,7 +166,7 @@ const DEFAULT_SLIDES: HeroSlide[] = [
     cta1Link: "/bancas-perto-de-mim",
     cta1Style: "primary",
     cta2Text: "Sou jornaleiro",
-    cta2Link: "/jornaleiro",
+    cta2Link: JOURNALEIRO_MARKETING_PATH,
     cta2Style: "outline",
     active: true,
     order: 1

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { loadStoredLocation, UserLocation } from "@/lib/location";
+import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
 
 export default function Hero() {
   const [loc, setLoc] = useState<UserLocation | null>(null);
@@ -26,7 +27,7 @@ export default function Hero() {
               Explorar bancas perto de mim
             </Link>
             <Link
-              href="/jornaleiro"
+              href={JOURNALEIRO_MARKETING_PATH}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-black shadow-sm hover:bg-gray-50"
             >
               Sou Jornaleiro

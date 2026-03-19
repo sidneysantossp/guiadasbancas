@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
+import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
 
 type VendorBanner = {
   id?: string;
@@ -28,7 +29,7 @@ export default function VendorBannerAdminPage() {
     subtitle: "Registre sua banca agora",
     description: "Anuncie seus produtos, receba pedidos pelo WhatsApp e alcance clientes perto de você com o Guia das Bancas.",
     button_text: "Quero me cadastrar",
-    button_link: "/jornaleiro/registrar",
+    button_link: JOURNALEIRO_MARKETING_PATH,
     image_url: "",
     background_color: "#000000",
     text_color: "#FFFFFF",

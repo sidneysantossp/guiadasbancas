@@ -9,6 +9,7 @@ import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { categories as fallbackCategories } from "@/components/categoriesData";
 import type { BrandingConfig } from "@/types/branding";
 import { CACHE_TTL } from "@/lib/data/cache";
+import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
 
 const DEFAULT_FOOTER_DATA: FooterData = {
   title: "Guia das Bancas",
@@ -34,7 +35,7 @@ const DEFAULT_FOOTER_DATA: FooterData = {
       { id: "8", text: "Suporte", url: "/suporte", section: "para_voce", order: 4 },
     ],
     para_jornaleiro: [
-      { id: "9", text: "Cadastre sua banca", url: "/jornaleiro/registrar", section: "para_jornaleiro", order: 1 },
+      { id: "9", text: "Cadastre sua banca", url: JOURNALEIRO_MARKETING_PATH, section: "para_jornaleiro", order: 1 },
       { id: "10", text: "Fazer login", url: "/jornaleiro", section: "para_jornaleiro", order: 2 },
       { id: "11", text: "Central de ajuda", url: "/jornaleiro/ajuda", section: "para_jornaleiro", order: 3 },
       { id: "12", text: "Termos para Parceiros", url: "/termos-parceiros", section: "para_jornaleiro", order: 4 },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 import { requireAdminAuth } from "@/lib/security/admin-auth";
+import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -22,7 +23,7 @@ const defaultBanner = {
   subtitle: "Registre sua banca agora",
   description: "Anuncie seus produtos, receba pedidos pelo WhatsApp e alcance clientes perto de você com o Guia das Bancas.",
   button_text: "Quero me cadastrar",
-  button_link: "/jornaleiro/registrar",
+  button_link: JOURNALEIRO_MARKETING_PATH,
   image_url: "",
   background_color: "#000000",
   text_color: "#FFFFFF",

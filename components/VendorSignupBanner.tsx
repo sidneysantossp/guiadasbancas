@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
 
 // Dados padrão para evitar hidratação
 const DEFAULT_BANNER = {
@@ -10,7 +11,7 @@ const DEFAULT_BANNER = {
   subtitle: "Registre sua banca agora",
   description: "Anuncie seus produtos, receba pedidos pelo WhatsApp e alcance clientes perto de você com o Guia das Bancas.",
   button_text: "Quero me cadastrar",
-  button_link: "/jornaleiro/registrar",
+  button_link: JOURNALEIRO_MARKETING_PATH,
   image_url: "https://images.unsplash.com/photo-1521334726092-b509a19597d6?q=80&w=1600&auto=format&fit=crop",
   active: true
 };
@@ -20,45 +21,24 @@ export default function VendorSignupBanner() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    console.log('🏠 🚀 VendorSignupBanner useEffect iniciado');
     setMounted(true);
     
-    // Carregar dados salvos
     const loadBanner = async () => {
       try {
-        console.log('🏠 📡 Fazendo fetch para /api/admin/vendor-banner...');
         const response = await fetch('/api/admin/vendor-banner');
-        console.log('🏠 📨 Response status:', response.status);
-        console.log('🏠 📨 Response ok:', response.ok);
-        
         if (response.ok) {
           const result = await response.json();
-          console.log('🏠 📊 Resultado completo:', JSON.stringify(result, null, 2));
-          
           if (result.success && result.data) {
-            console.log('🏠 ✅ Dados válidos recebidos!');
-            console.log('🏠 📝 Título:', result.data.title);
-            console.log('🏠 🖼️ Imagem:', result.data.image_url);
-            console.log('🏠 ✅ Ativo:', result.data.active);
-            
             if (result.data.active) {
-              console.log('🏠 🎯 ATUALIZANDO BANNER COM DADOS SALVOS!');
               setBanner(result.data);
-            } else {
-              console.log('🏠 ⚠️ Banner não está ativo');
             }
-          } else {
-            console.log('🏠 ❌ Dados inválidos:', { success: result.success, hasData: !!result.data });
           }
-        } else {
-          console.log('🏠 ❌ Response não OK:', response.status);
         }
-      } catch (error) {
-        console.error('🏠 💥 Erro ao carregar banner:', error);
+      } catch {
+        return;
       }
     };
 
-    // Delay pequeno para garantir que está montado
     setTimeout(loadBanner, 100);
   }, []);
 
@@ -67,37 +47,9 @@ export default function VendorSignupBanner() {
     return null;
   }
 
-  console.log('🏠 🎯 RENDERIZANDO BANNER:', banner.title);
-
-  // Função de teste
-  const testAPI = async () => {
-    console.log('🧪 TESTE MANUAL - Chamando API...');
-    try {
-      const response = await fetch('/api/admin/vendor-banner');
-      const result = await response.json();
-      console.log('🧪 TESTE MANUAL - Resultado:', result);
-      alert(`API Response: ${JSON.stringify(result, null, 2)}`);
-    } catch (error: any) {
-      console.error('🧪 TESTE MANUAL - Erro:', error);
-      alert(`Erro: ${error.message}`);
-    }
-  };
-
   return (
     <section className="w-full">
       <div className="container-max">
-        {/* Botão de teste temporário */}
-        <div className="mb-4 text-center">
-          <button 
-            onClick={testAPI}
-            className="bg-red-500 text-white px-4 py-2 rounded text-sm"
-          >
-            🧪 TESTAR API BANNER
-          </button>
-          <p className="text-xs text-gray-600 mt-1">
-            Banner atual: {banner.title} | Imagem: {banner.image_url.substring(0, 50)}...
-          </p>
-        </div>
         <Link 
           href={banner.button_link} 
           className="relative w-full overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-shadow block"

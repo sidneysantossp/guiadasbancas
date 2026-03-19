@@ -22,6 +22,7 @@ import ReferralBanner from "@/components/ReferralBanner";
 import Newsletter from "@/components/Newsletter";
 import Testimonials from "@/components/Testimonials";
 import WorldCupHomeSpotlight from "@/components/seo/WorldCupHomeSpotlight";
+import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -88,7 +89,7 @@ const DEFAULT_HERO_SLIDES: HeroSlide[] = [
     cta1Link: "/bancas-perto-de-mim",
     cta1Style: "primary",
     cta2Text: "Sou jornaleiro",
-    cta2Link: "/jornaleiro",
+    cta2Link: JOURNALEIRO_MARKETING_PATH,
     cta2Style: "outline",
     active: true,
     order: 1

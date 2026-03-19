@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
+import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
 // Removido next/image - usando img nativo para evitar falhas de otimização em produção
 
 type HeroSlide = {
@@ -45,7 +46,7 @@ const DEFAULT_SLIDES: HeroSlide[] = [
     cta1Link: "/bancas-perto-de-mim",
     cta1Style: "primary",
     cta2Text: "Sou jornaleiro",
-    cta2Link: "/jornaleiro",
+    cta2Link: JOURNALEIRO_MARKETING_PATH,
     cta2Style: "outline",
     active: true,
     order: 1
