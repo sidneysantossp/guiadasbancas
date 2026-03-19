@@ -74,8 +74,6 @@ export default function ProdutosDistribuidorPage() {
       const prodResult = await prodResponse.json();
       
       if (prodResult.success) {
-        console.log('[PRODUTOS-PAGE] Produtos recebidos:', prodResult.data?.length);
-        console.log('[PRODUTOS-PAGE] Primeiro produto:', prodResult.data?.[0]);
         setProdutos(prodResult.data);
         const dbTotal = Number(prodResult.total) || 0;
         const distTotal = Number(distResult?.data?.total_produtos) || 0;
@@ -84,7 +82,7 @@ export default function ProdutosDistribuidorPage() {
         setTotalPages(Math.ceil(finalTotal / itemsPerPage));
       }
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('Erro ao carregar dados do distribuidor:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);

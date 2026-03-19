@@ -34,9 +34,6 @@ export default function CategoriasPage() {
 
   const fetchData = async () => {
     try {
-      console.log('[CATEGORIAS-PAGE] 🔄 Carregando dados...');
-      console.log('[CATEGORIAS-PAGE] 📍 Distribuidor ID:', params.id);
-      
       // Buscar distribuidor
       const distRes = await fetchAdminWithDevFallback(`/api/admin/distribuidores/${params.id}`, {
         cache: 'no-store',
@@ -46,17 +43,10 @@ export default function CategoriasPage() {
         }
       });
       
-      console.log('[CATEGORIAS-PAGE] 📡 Distribuidor response status:', distRes.status);
-      
       if (distRes.ok) {
         const distData = await distRes.json();
-        console.log('[CATEGORIAS-PAGE] 📦 Distribuidor raw data:', distData);
-        // Tratar tanto distData.data quanto distData direto
         const distribuidor = distData.data || distData;
         setDistribuidor(distribuidor);
-        console.log('[CATEGORIAS-PAGE] ✅ Distribuidor carregado:', distribuidor.nome);
-      } else {
-        console.error('[CATEGORIAS-PAGE] ❌ Erro ao buscar distribuidor:', distRes.status, distRes.statusText);
       }
 
       // Buscar categorias
@@ -68,31 +58,12 @@ export default function CategoriasPage() {
         }
       });
       
-      console.log('[CATEGORIAS-PAGE] 📡 Categorias response status:', catRes.status);
-      
       if (catRes.ok) {
         const catData = await catRes.json();
-        console.log('[CATEGORIAS-PAGE] 📦 Categorias raw data:', catData);
-        console.log('[CATEGORIAS-PAGE] 📊 Categorias recebidas:', catData.data?.length);
-        console.log('[CATEGORIAS-PAGE] 🔍 Debug info:', catData.debug);
-        
-        // Verificar se a categoria 0855e8eb está presente
-        const targetCategory = catData.data?.find((cat: any) => cat.nome && cat.nome.includes('0855e8eb'));
-        if (targetCategory) {
-          console.log('[CATEGORIAS-PAGE] 🎯 Categoria "0855e8eb" encontrada no frontend:', targetCategory.nome);
-        } else {
-          console.log('[CATEGORIAS-PAGE] ❌ Categoria "0855e8eb" NÃO encontrada no frontend');
-        }
-
-        // Usar apenas os dados reais vindos da API (sem injeção manual)
         setCategorias(catData.data || []);
-      } else {
-        console.error('[CATEGORIAS-PAGE] ❌ Erro ao buscar categorias:', catRes.status, catRes.statusText);
-        const errorText = await catRes.text();
-        console.error('[CATEGORIAS-PAGE] 📄 Error response:', errorText);
       }
     } catch (error) {
-      console.error('[CATEGORIAS-PAGE] ❌ Erro ao carregar dados:', error);
+      console.error('Erro ao carregar categorias do distribuidor:', error);
     } finally {
       setLoading(false);
     }
@@ -140,17 +111,6 @@ export default function CategoriasPage() {
   const endIndex = startIndex + itemsPerPage;
   const currentCategorias = showAll ? categorias : categorias.slice(startIndex, endIndex);
   
-  // Debug logs para renderização
-  console.log('[CATEGORIAS-PAGE] 📋 Estado atual:', {
-    totalCategorias: categorias.length,
-    currentPage,
-    showAll,
-    startIndex,
-    endIndex,
-    currentCategoriasLength: currentCategorias.length,
-    primeiras3Categorias: currentCategorias.slice(0, 3).map(cat => cat.nome)
-  });
-
   const goToPage = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };

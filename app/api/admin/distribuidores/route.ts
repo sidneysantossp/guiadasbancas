@@ -1,59 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { buildNoStoreHeaders } from '@/lib/modules/http/no-store';
+import { getAdminDistribuidoresList } from '@/lib/modules/distribuidor/admin';
 import { requireAdminAuth } from '@/lib/security/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
     const authError = await requireAdminAuth(request);
     if (authError) return authError;
 
-    const supabase = supabaseAdmin;
-
-    // Buscar distribuidores
-    const { data: distribuidores, error } = await supabase
-      .from('distribuidores')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 500 }
-      );
-    }
-
-    if (!distribuidores || distribuidores.length === 0) {
-      return NextResponse.json({
-        success: true,
-        data: [],
-      });
-    }
-
-    // Para cada distribuidor, contar apenas produtos ATIVOS
-    const distribuidoresComTotais = await Promise.all(
-      distribuidores.map(async (dist) => {
-        const { count } = await supabase
-          .from('products')
-          .select('*', { count: 'exact', head: true })
-          .eq('distribuidor_id', dist.id)
-          .eq('active', true); // Apenas produtos ativos na plataforma
-
-        return {
-          ...dist,
-          // total_produtos reflete apenas produtos ATIVOS
-          total_produtos: count ?? 0,
-        };
-      })
-    );
+    const distribuidores = await getAdminDistribuidoresList();
 
     return NextResponse.json({
       success: true,
-      data: distribuidoresComTotais,
-    });
+      data: distribuidores,
+    }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 }
@@ -98,11 +66,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data,
-    });
+    }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 }
