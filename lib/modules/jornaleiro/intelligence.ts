@@ -1,4 +1,5 @@
 import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
+import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
@@ -97,6 +98,7 @@ export async function loadJornaleiroIntelligence(params: {
   }
 
   const entitlements = await resolveBancaPlanEntitlements(banca);
+  const bancaLifecycle = resolveBancaLifecycle(banca);
   const [
     ownProductsResponse,
     distributorProductsResponse,
@@ -273,7 +275,7 @@ export async function loadJornaleiroIntelligence(params: {
     hasContactChannel,
     hasOwnProducts,
   ].filter(Boolean).length;
-  const isPublished = Boolean(banca.active && banca.approved);
+  const isPublished = bancaLifecycle.isPublished;
   const activeCampaigns = campaigns.filter((item) =>
     ["active", "approved"].includes(String(item.status || "").toLowerCase())
   ).length;
@@ -292,12 +294,30 @@ export async function loadJornaleiroIntelligence(params: {
       : 0;
 
   const alerts = [
-    !isPublished
+    bancaLifecycle.code === "draft"
       ? buildAlert(
-          "not-published",
+          "banca-draft",
           "warning",
-          "Sua banca ainda nao esta publicada",
-          "A banca segue em rascunho ou aguardando aprovacao. Enquanto isso, ela nao converte em descoberta para o cliente final.",
+          "Sua banca ainda esta em preparacao",
+          "O cadastro ja existe, mas ainda esta em configuracao inicial e sem liberacao para operar no marketplace.",
+          "/jornaleiro/banca-v2"
+        )
+      : null,
+    bancaLifecycle.code === "pending_approval"
+      ? buildAlert(
+          "banca-pending-approval",
+          "warning",
+          "Sua banca aguarda aprovacao",
+          "A banca ja foi criada e pode ser configurada no painel, mas ainda nao foi liberada para publicacao.",
+          "/jornaleiro/banca-v2"
+        )
+      : null,
+    bancaLifecycle.code === "paused"
+      ? buildAlert(
+          "banca-paused",
+          "critical",
+          "Sua banca esta pausada",
+          "A operacao foi interrompida no marketplace. Revise o status operacional antes de investir em catalogo e campanhas.",
           "/jornaleiro/banca-v2"
         )
       : null,
@@ -462,6 +482,7 @@ export async function loadJornaleiroIntelligence(params: {
       name: banca.name,
       active: banca.active,
       approved: banca.approved,
+      lifecycle: bancaLifecycle,
       checklist_completed: checklistCompleted,
       checklist_total: 4,
       is_published: isPublished,

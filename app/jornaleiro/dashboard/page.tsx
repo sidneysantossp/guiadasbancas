@@ -6,6 +6,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
 import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
 import PlanEntryGuide from "@/components/jornaleiro/PlanEntryGuide";
@@ -136,6 +137,7 @@ export default function JornaleiroDashboardPage() {
   const sellerName = profile?.full_name || user?.email?.split('@')[0] || 'Jornaleiro';
   const sellerEmail = user?.email || '';
   const sellerPhone = profile?.phone || '';
+  const bancaLifecycle = resolveBancaLifecycle(banca);
 
   // Memoizar cálculos pesados
   const memoizedMetrics = useMemo(() => metrics, [metrics]);
@@ -196,14 +198,34 @@ export default function JornaleiroDashboardPage() {
     ];
   }, [banca?.cover_image, banca?.hours, banca?.profile_image, banca?.whatsapp, memoizedMetrics.produtosAtivos, sellerEmail, sellerPhone]);
   const completedChecklistCount = checklistItems.filter((item) => item.done).length;
-  const isPublished = Boolean(banca?.active && banca?.approved);
+  const isPublished = bancaLifecycle.isPublished;
   const nextObjective = useMemo(() => {
     if (!checklistItems.find((item) => !item.done)) {
-      if (!isPublished) {
+      if (bancaLifecycle.code === "draft") {
         return {
           eyebrow: "Publicação da banca",
-          title: "Feche a publicação da sua banca",
-          description: "O básico já foi concluído. Agora revise cadastro, aprovação e visibilidade para colocar a banca em produção.",
+          title: "Conclua a configuração inicial da banca",
+          description: "A banca já existe, mas ainda está em preparação. Feche os dados principais antes de avançar para publicação.",
+          href: "/jornaleiro/banca-v2" as Route,
+          actionLabel: "Continuar cadastro",
+        };
+      }
+
+      if (bancaLifecycle.code === "pending_approval") {
+        return {
+          eyebrow: "Publicação da banca",
+          title: "Acompanhe a aprovação da sua banca",
+          description: "O cadastro já foi criado. Agora revise as informações e acompanhe a liberação para aparecer no marketplace.",
+          href: "/jornaleiro/banca-v2" as Route,
+          actionLabel: "Revisar publicação",
+        };
+      }
+
+      if (bancaLifecycle.code === "paused") {
+        return {
+          eyebrow: "Operação da banca",
+          title: "Reative a operação da sua banca",
+          description: "Sua banca já foi aprovada, mas está pausada. Revise o status operacional antes de focar em crescimento.",
           href: "/jornaleiro/banca-v2" as Route,
           actionLabel: "Revisar publicação",
         };
@@ -236,7 +258,13 @@ export default function JornaleiroDashboardPage() {
       href: firstPendingItem.href,
       actionLabel: firstPendingItem.actionLabel,
     };
-  }, [checklistItems, isPublished, memoizedMetrics.pedidosPendentes]);
+  }, [bancaLifecycle.code, checklistItems, memoizedMetrics.pedidosPendentes]);
+  const publicationToneClass =
+    bancaLifecycle.code === "published"
+      ? "border-green-200 bg-green-50 text-green-800"
+      : bancaLifecycle.code === "paused"
+        ? "border-red-200 bg-red-50 text-red-800"
+        : "border-amber-200 bg-amber-50 text-amber-900";
   const quickActions = useMemo(
     () => [
       {
@@ -314,13 +342,11 @@ export default function JornaleiroDashboardPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#ff5c00] shadow-sm">
-              {isPublished ? "Banca em operação" : "Banca em preparação"}
+              {bancaLifecycle.shortLabel}
             </div>
             <h1 className="mt-3 text-2xl font-semibold text-gray-900">Olá, {sellerName}</h1>
             <p className="mt-2 max-w-2xl text-sm text-gray-600 sm:text-base">
-              {isPublished
-                ? "Sua banca já está publicada. Agora o foco é manter catálogo, pedidos e demanda sob controle."
-                : "Seu painel já está pronto para organizar a banca, fechar o cadastro e preparar a publicação com menos atrito."}
+              {bancaLifecycle.description}
             </p>
           </div>
           <div className="flex w-full flex-col gap-2 rounded-2xl border border-orange-100 bg-white/90 p-4 text-sm shadow-sm lg:max-w-xs">
@@ -402,19 +428,15 @@ export default function JornaleiroDashboardPage() {
         </div>
 
         <div
-          className={`mt-4 rounded-2xl border p-4 text-sm shadow-sm ${
-            isPublished ? "border-green-200 bg-green-50 text-green-800" : "border-amber-200 bg-amber-50 text-amber-900"
-          }`}
+          className={`mt-4 rounded-2xl border p-4 text-sm shadow-sm ${publicationToneClass}`}
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <h2 className="text-base font-semibold">
-                {isPublished ? "Sua banca já está publicada" : "Sua banca ainda não está publicada"}
+                {bancaLifecycle.label}
               </h2>
               <p className="mt-1">
-                {isPublished
-                  ? "Os clientes já podem encontrar sua banca na vitrine pública."
-                  : "Você já pode configurar tudo por aqui, mas a banca ainda não aparece para os clientes enquanto publicação e aprovação não forem concluídas."}
+                {bancaLifecycle.description}
               </p>
             </div>
             <Link

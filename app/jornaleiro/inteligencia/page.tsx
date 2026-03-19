@@ -9,6 +9,13 @@ type IntelligencePayload = {
   banca: {
     id: string;
     name: string;
+    lifecycle?: {
+      code: string;
+      label: string;
+      shortLabel: string;
+      description: string;
+      isPublished: boolean;
+    };
     checklist_completed: number;
     checklist_total: number;
     is_published: boolean;
@@ -165,12 +172,13 @@ export default function JornaleiroInteligenciaPage() {
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Publicacao</div>
               <div className="mt-2 text-lg font-semibold text-gray-900">
-                {banca.is_published ? "Banca publicada" : "Banca ainda nao publicada"}
+                {banca.lifecycle?.label || (banca.is_published ? "Banca publicada" : "Banca ainda nao publicada")}
               </div>
               <p className="mt-1 text-sm text-gray-600">
-                {banca.is_published
-                  ? "Sua banca ja pode ser encontrada pelos clientes."
-                  : "Foque em fechar o cadastro e a publicacao para converter a operacao em descoberta."}
+                {banca.lifecycle?.description ||
+                  (banca.is_published
+                    ? "Sua banca ja pode ser encontrada pelos clientes."
+                    : "Foque em fechar o cadastro e a publicacao para converter a operacao em descoberta.")}
               </p>
             </div>
 

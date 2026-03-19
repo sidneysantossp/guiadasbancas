@@ -1,4 +1,5 @@
 import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
+import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
 import {
   applyDistributorProductCustomization,
@@ -152,12 +153,14 @@ export async function listJornaleiroProducts(params: {
   requestUrl: string;
 }) {
   const { banca, entitlements } = await ensureJornaleiroProductContext(params.userId);
+  const bancaLifecycle = resolveBancaLifecycle(banca);
 
   if (!banca || !entitlements) {
     return {
       success: true,
       items: [],
       total: 0,
+      banca_lifecycle: bancaLifecycle,
       message: "Cadastre sua banca para ver seus produtos",
     };
   }
@@ -221,6 +224,7 @@ export async function listJornaleiroProducts(params: {
     plan: entitlements.plan,
     requested_plan: entitlements.requestedPlan,
     subscription: entitlements.subscription,
+    banca_lifecycle: bancaLifecycle,
     entitlements: {
       plan_type: entitlements.planType,
       product_limit: entitlements.productLimit,

@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 // GET - Buscar plano por ID
 export async function GET(
@@ -28,12 +25,12 @@ export async function GET(
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
   } catch (error: any) {
     console.error("[API/ADMIN/PLANS/ID] Erro ao buscar plano:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 }
@@ -94,12 +91,12 @@ export async function PUT(
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
   } catch (error: any) {
     console.error("[API/ADMIN/PLANS/ID] Erro ao atualizar plano:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 }
@@ -125,7 +122,7 @@ export async function DELETE(
     if (count && count > 0) {
       return NextResponse.json(
         { success: false, error: `Não é possível excluir. ${count} assinatura(s) ativa(s) neste plano.` },
-        { status: 400 }
+        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
       );
     }
 
@@ -136,12 +133,15 @@ export async function DELETE(
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, message: "Plano excluído" });
+    return NextResponse.json(
+      { success: true, message: "Plano excluído" },
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   } catch (error: any) {
     console.error("[API/ADMIN/PLANS/ID] Erro ao excluir plano:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 }

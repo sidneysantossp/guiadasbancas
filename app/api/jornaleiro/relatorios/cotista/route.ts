@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 // GET /api/jornaleiro/relatorios/cotista
-// Estatísticas de produtos para cotistas
+// Estatisticas de produtos do catalogo parceiro
 export async function GET(req: NextRequest) {
   try {
     const user = await getAuthenticatedRequestUser(req);
@@ -38,9 +38,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    if (error?.message === "FORBIDDEN_COTISTA_ONLY") {
+    if (error?.message === "FORBIDDEN_DISTRIBUTOR_PLAN_ONLY") {
       return NextResponse.json(
-        { success: false, error: "Apenas cotistas podem acessar este relatório" },
+        { success: false, error: "Seu plano atual nao libera este relatorio do catalogo parceiro" },
         { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
       );
     }

@@ -1126,7 +1126,7 @@ export default function BancaV2Page() {
 
                   <div className="bg-green-50 border border-green-200 rounded p-3 mt-3">
                     <p className="text-xs text-green-800">
-                      ✅ Como cotista, você terá acesso automático ao catálogo de produtos dos distribuidores cadastrados na plataforma.
+                      ✅ Esse vinculo identifica sua operacao na rede. O acesso ao catalogo de distribuidores depende do plano ativo da banca.
                     </p>
                   </div>
                 </div>
@@ -1136,7 +1136,7 @@ export default function BancaV2Page() {
               {isCotista && !selectedCotista && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
                   <p className="text-xs text-yellow-800">
-                    ⚠️ Selecione um cotista acima para vincular sua banca e ter acesso aos produtos dos distribuidores.
+                    ⚠️ Selecione a rede vinculada da sua banca para manter o cadastro comercial consistente. O catalogo parceiro continua sendo liberado pelo plano.
                   </p>
                 </div>
               )}

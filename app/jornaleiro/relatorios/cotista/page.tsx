@@ -20,20 +20,20 @@ export default function RelatorioCotistaPage() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [isCotista, setIsCotista] = useState<boolean | null>(null);
+  const [hasCatalogAccess, setHasCatalogAccess] = useState<boolean | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
 
-        // Verificar se é cotista
+        // Verificar se o plano libera o catalogo parceiro
         const bancaRes = await fetch('/api/jornaleiro/banca');
         const bancaJson = await bancaRes.json();
-        const cotista = bancaJson?.data?.is_cotista === true && bancaJson?.data?.cotista_id;
-        setIsCotista(cotista);
+        const canAccessCatalog = bancaJson?.data?.entitlements?.can_access_distributor_catalog === true;
+        setHasCatalogAccess(canAccessCatalog);
 
-        if (!cotista) {
+        if (!canAccessCatalog) {
           setLoading(false);
           return;
         }
@@ -77,30 +77,30 @@ export default function RelatorioCotistaPage() {
     );
   }
 
-  if (isCotista === false) {
+  if (hasCatalogAccess === false) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Relatório de Cotista</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Relatorio da Rede Parceira</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Estatísticas e insights sobre produtos de distribuidores
+            Estatisticas e insights sobre produtos de distribuidores
           </p>
         </div>
 
         <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-6 text-center">
           <span className="text-yellow-600 text-4xl">⚠️</span>
           <h3 className="text-lg font-semibold text-yellow-900 mt-4">
-            Este relatório é exclusivo para cotistas
+            Este relatorio depende do plano da banca
           </h3>
           <p className="text-sm text-yellow-800 mt-2">
-            Para acessar estatísticas avançadas sobre produtos de distribuidores, você precisa se identificar como cotista.
+            Para acessar estatisticas avancadas sobre produtos de distribuidores, ative um plano com acesso ao catalogo parceiro.
           </p>
           <div className="mt-6">
             <Link
-              href="/jornaleiro/banca"
+              href="/jornaleiro/meu-plano"
               className="inline-flex items-center gap-2 rounded-md bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700"
             >
-              → Vincular minha conta como cotista
+              → Revisar meu plano
             </Link>
           </div>
         </div>
@@ -127,11 +127,11 @@ export default function RelatorioCotistaPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Relatório de Cotista</h1>
+        <div className="flex items-center justify-between">
+          <div>
+          <h1 className="text-2xl font-bold text-gray-900">Relatorio da Rede Parceira</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Estatísticas e insights sobre seus produtos e customizações
+            Estatisticas e insights sobre seus produtos e customizacoes
           </p>
         </div>
         <Link
@@ -148,10 +148,10 @@ export default function RelatorioCotistaPage() {
           <span className="text-green-600 text-2xl">✓</span>
           <div>
             <h3 className="text-sm font-semibold text-green-900">
-              Você é um cotista ativo!
+              Catalogo parceiro liberado no seu plano
             </h3>
             <p className="text-xs text-green-700 mt-1">
-              Acesso total ao catálogo de {stats.produtos_distribuidores} produtos de distribuidores
+              Acesso ao catalogo de {stats.produtos_distribuidores} produtos de distribuidores
             </p>
           </div>
         </div>
@@ -179,7 +179,7 @@ export default function RelatorioCotistaPage() {
           <p className="text-sm text-green-700">De Distribuidores</p>
           <p className="text-3xl font-bold text-green-900 mt-2">{stats.produtos_distribuidores}</p>
           <p className="text-xs text-green-600 mt-1">
-            Acesso automático
+            Disponiveis no plano
           </p>
         </div>
 
@@ -338,7 +338,7 @@ export default function RelatorioCotistaPage() {
             <span className="text-2xl">👤</span>
             <div>
               <p className="text-sm font-medium text-gray-900">Minha Conta</p>
-              <p className="text-xs text-gray-500">Dados do cotista</p>
+              <p className="text-xs text-gray-500">Dados da banca e do plano</p>
             </div>
           </Link>
         </div>

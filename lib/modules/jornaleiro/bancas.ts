@@ -1,5 +1,6 @@
 import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
 import { getBrazilianDocumentVariants } from "@/lib/documents";
+import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 import { normalizePlatformRole } from "@/lib/modules/auth/session";
 import { loadAccessibleBancaForJornaleiro } from "@/lib/modules/jornaleiro/access";
 import { loadUserProfileById } from "@/lib/modules/auth/user-profiles";
@@ -310,6 +311,7 @@ async function formatBancaResponse(params: {
     is_cotista: params.banca.is_cotista,
     cotista_id: params.banca.cotista_id,
   });
+  const lifecycle = resolveBancaLifecycle(params.banca);
 
   return {
     id: params.banca.id,
@@ -351,6 +353,7 @@ async function formatBancaResponse(params: {
     ctaUrl: "",
     active: params.banca.active !== false,
     approved: params.banca.approved === true,
+    lifecycle,
     createdAt: params.banca.created_at,
     delivery_enabled: params.banca.delivery_enabled || false,
     free_shipping_threshold: params.banca.free_shipping_threshold || 120,

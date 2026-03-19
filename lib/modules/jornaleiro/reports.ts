@@ -1,9 +1,10 @@
 import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
 import { loadDistributorPricingContext } from "@/lib/modules/products/service";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
-async function ensureCotistaJornaleiro(userId: string) {
+async function ensureDistributorReportAccess(userId: string) {
   const { actor, error } = await loadJornaleiroActor(userId);
 
   if (error) {
@@ -20,15 +21,17 @@ async function ensureCotistaJornaleiro(userId: string) {
     throw new Error("BANCA_NOT_FOUND");
   }
 
-  if (!banca.is_cotista || !banca.cotista_id) {
-    throw new Error("FORBIDDEN_COTISTA_ONLY");
+  const entitlements = await resolveBancaPlanEntitlements(banca);
+
+  if (!entitlements.canAccessDistributorCatalog) {
+    throw new Error("FORBIDDEN_DISTRIBUTOR_PLAN_ONLY");
   }
 
-  return banca;
+  return { banca, entitlements };
 }
 
 export async function loadJornaleiroCotistaReport(userId: string) {
-  const banca = await ensureCotistaJornaleiro(userId);
+  const { banca, entitlements } = await ensureDistributorReportAccess(userId);
 
   const [{ data: produtosProprios, error: produtosPropriosError }, { data: produtosDistribuidor, error: produtosDistribuidorError }] =
     await Promise.all([
@@ -96,6 +99,11 @@ export async function loadJornaleiroCotistaReport(userId: string) {
 
   return {
     success: true,
+    plan: {
+      type: entitlements.planType,
+      name: entitlements.plan?.name || "Free",
+      can_access_distributor_catalog: entitlements.canAccessDistributorCatalog,
+    },
     stats: {
       total_produtos: (produtosProprios?.length || 0) + produtosHabilitados.length,
       produtos_proprios: produtosProprios?.length || 0,

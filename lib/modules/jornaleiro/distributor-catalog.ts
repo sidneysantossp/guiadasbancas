@@ -1,4 +1,5 @@
 import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
+import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
 import {
   buildDistributorProductCustomizationInput,
@@ -17,7 +18,7 @@ function buildLockedCatalogPayload(entitlements: Awaited<ReturnType<typeof resol
   const pendingUpgradeMessage =
     entitlements.paidFeaturesLockedUntilPayment && entitlements.requestedPlan
       ? `Seu upgrade para ${entitlements.requestedPlan.name} foi iniciado, mas a rede de distribuidores só será liberada após o pagamento da primeira cobrança.`
-      : "O catálogo de distribuidores é liberado para bancas parceiras ou planos com acesso à rede de distribuidores.";
+      : "O catálogo de distribuidores é liberado apenas para planos com acesso à rede parceira.";
 
   return {
     success: true,
@@ -179,12 +180,14 @@ export async function loadJornaleiroDistributorCatalog(params: {
   requestUrl: string;
 }) {
   const context = await ensureJornaleiroDistributorCatalogContext(params.userId);
+  const bancaLifecycle = resolveBancaLifecycle(context.banca);
 
   if (!context.banca || !context.entitlements) {
     return {
       success: true,
       data: [],
       products: [],
+      banca_lifecycle: bancaLifecycle,
       message: "Cadastre sua banca para ver o catálogo de produtos dos distribuidores",
     };
   }
@@ -299,6 +302,7 @@ export async function loadJornaleiroDistributorCatalog(params: {
     total: items.length,
     is_cotista: entitlements.isLegacyCotistaLinked,
     has_catalog_access: true,
+    banca_lifecycle: bancaLifecycle,
     plan: entitlements.plan,
     entitlements: {
       plan_type: entitlements.planType,
