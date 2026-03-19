@@ -79,6 +79,53 @@ function buildPlanLimitError(params: {
   });
 }
 
+function buildPlanImageLimitError(params: {
+  entitlements: NonNullable<Awaited<ReturnType<typeof ensureJornaleiroProductContext>>["entitlements"]>;
+  imageLimit: number;
+  currentCount: number;
+}) {
+  const { entitlements, imageLimit, currentCount } = params;
+  const payload =
+    entitlements.overdueFeaturesLocked && entitlements.subscription?.plan
+      ? {
+          success: false,
+          error: `Seu plano ${entitlements.subscription.plan.name} está com cobrança em aberto e os recursos avançados foram pausados após o período de carência.`,
+          code: "PLAN_OVERDUE_SUSPENDED",
+          limit: imageLimit,
+          currentCount,
+          plan: entitlements.plan,
+          contracted_plan: entitlements.subscription.plan,
+          overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
+          upgrade_url: "/jornaleiro/meu-plano",
+        }
+      : entitlements.paidFeaturesLockedUntilPayment && entitlements.requestedPlan
+        ? {
+            success: false,
+            error: `Seu upgrade para ${entitlements.requestedPlan.name} já foi iniciado. Assim que a primeira cobrança for paga, o novo limite será liberado.`,
+            code: "PLAN_PENDING_PAYMENT",
+            limit: imageLimit,
+            currentCount,
+            plan: entitlements.plan,
+            requested_plan: entitlements.requestedPlan,
+            upgrade_url: "/jornaleiro/meu-plano",
+          }
+        : {
+            success: false,
+            error: `Seu plano ${entitlements.plan?.name || "atual"} permite até ${imageLimit} imagens por produto. Faça upgrade para continuar.`,
+            code: "PLAN_IMAGE_LIMIT_REACHED",
+            limit: imageLimit,
+            currentCount,
+            plan: entitlements.plan,
+            recommended_plan_type: getNextPlanType(entitlements.planType),
+            upgrade_url: "/jornaleiro/meu-plano",
+          };
+
+  return Object.assign(new Error(String(payload.code)), {
+    status: 403,
+    payload,
+  });
+}
+
 function buildDistributorCatalogProductsError(
   entitlements: NonNullable<Awaited<ReturnType<typeof ensureJornaleiroProductContext>>["entitlements"]>,
   mode: "read" | "edit"
@@ -222,12 +269,25 @@ export async function createJornaleiroProduct(params: {
   }
 
   const body = params.input;
+  const incomingImages = Array.isArray(body.images) ? body.images : [];
+
+  if (
+    entitlements.maxImagesPerProduct &&
+    incomingImages.length > entitlements.maxImagesPerProduct
+  ) {
+    throw buildPlanImageLimitError({
+      entitlements,
+      imageLimit: entitlements.maxImagesPerProduct,
+      currentCount: incomingImages.length,
+    });
+  }
+
   const novo: Record<string, any> = {
     banca_id: banca.id,
     category_id: body.category_id || null,
     name: body.name,
     description: body.description || "",
-    images: Array.isArray(body.images) ? body.images : [],
+    images: incomingImages,
     price: Number(body.price || 0),
     price_original: body.price_original != null ? Number(body.price_original) : null,
     discount_percent: body.discount_percent != null ? Number(body.discount_percent) : null,
@@ -393,6 +453,18 @@ export async function updateJornaleiroProduct(params: {
     if (params.input[key] !== undefined) {
       updateData[key] = params.input[key];
     }
+  }
+
+  if (
+    Array.isArray(updateData.images) &&
+    entitlements.maxImagesPerProduct &&
+    updateData.images.length > entitlements.maxImagesPerProduct
+  ) {
+    throw buildPlanImageLimitError({
+      entitlements,
+      imageLimit: entitlements.maxImagesPerProduct,
+      currentCount: updateData.images.length,
+    });
   }
 
   if (

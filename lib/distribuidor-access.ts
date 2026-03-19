@@ -37,8 +37,6 @@ export async function getDistribuidorAccessibleBancas(): Promise<DistribuidorAcc
 
   const resolved = await Promise.all(
     ((bancas || []) as ActiveBancaRow[]).map(async (banca) => {
-      const legacyAccess = banca.is_cotista === true || Boolean(banca.cotista_id);
-
       try {
         const entitlements = await resolveBancaPlanEntitlements({
           id: banca.id,
@@ -58,9 +56,9 @@ export async function getDistribuidorAccessibleBancas(): Promise<DistribuidorAcc
         return {
           ...banca,
           contact_phone: banca.whatsapp || banca.phone,
-          can_access_distributor_catalog: legacyAccess,
+          can_access_distributor_catalog: false,
           plan_type: null,
-          is_legacy_cotista_linked: legacyAccess,
+          is_legacy_cotista_linked: banca.is_cotista === true || Boolean(banca.cotista_id),
         };
       }
     })

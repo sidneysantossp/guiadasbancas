@@ -670,6 +670,28 @@ export async function createPrimaryJornaleiroBanca(params: {
   const body = params.input;
   const banca = body?.banca || body;
   const profile = body?.profile || {};
+  const preferredPlanId =
+    (body?.preferred_plan_id as string | null | undefined) ||
+    (banca?.preferred_plan_id as string | null | undefined) ||
+    null;
+  const preferredPlanType =
+    (body?.preferred_plan_type as string | null | undefined) ||
+    (banca?.preferred_plan_type as string | null | undefined) ||
+    null;
+
+  let resolvedPlanId = preferredPlanId;
+  if (!resolvedPlanId && preferredPlanType) {
+    const { data: planByType } = await supabaseAdmin
+      .from("plans")
+      .select("id, type, price, is_active, sort_order")
+      .eq("is_active", true)
+      .eq("type", preferredPlanType)
+      .order("sort_order", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    resolvedPlanId = (planByType as any)?.id || null;
+  }
 
   if (!banca?.name) {
     throw new Error("INVALID_BANCA_NAME");
@@ -678,7 +700,9 @@ export async function createPrimaryJornaleiroBanca(params: {
   const existing = await loadActiveJornaleiroBanca(params.userId);
   if (existing) {
     try {
-      await ensureBancaHasOnboardingPlan(existing.id);
+      await ensureBancaHasOnboardingPlan(existing.id, {
+        preferredPlanId: resolvedPlanId || undefined,
+      });
     } catch (error: any) {
       console.warn("[JornaleiroBancas] Falha ao garantir plano inicial da banca existente:", error?.message || error);
     }
@@ -719,7 +743,7 @@ export async function createPrimaryJornaleiroBanca(params: {
     cotista_codigo: banca.cotista_codigo ?? null,
     cotista_razao_social: banca.cotista_razao_social ?? null,
     cotista_cnpj_cpf: banca.cotista_cnpj_cpf ?? null,
-    active: false,
+    active: true,
     approved: false,
     created_at: now,
     updated_at: now,
@@ -750,7 +774,9 @@ export async function createPrimaryJornaleiroBanca(params: {
   }
 
   try {
-    await ensureBancaHasOnboardingPlan(created.id);
+    await ensureBancaHasOnboardingPlan(created.id, {
+      preferredPlanId: resolvedPlanId || undefined,
+    });
   } catch (error: any) {
     console.warn("[JornaleiroBancas] Falha ao garantir plano inicial da nova banca:", error?.message || error);
   }

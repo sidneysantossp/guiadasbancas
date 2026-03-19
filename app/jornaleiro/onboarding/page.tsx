@@ -219,6 +219,7 @@ export default function JornaleiroOnboardingPage() {
         cotista_codigo: saved.cotista_codigo ?? null,
         cotista_razao_social: saved.cotista_razao_social ?? null,
         cotista_cnpj_cpf: saved.cotista_cnpj_cpf ?? null,
+        preferred_plan_type: saved.preferred_plan_type || null,
       } as any;
       
       logger.log('[Onboarding] 🏢 Preparando dados da banca - is_cotista:', bancaData.is_cotista);
@@ -277,6 +278,7 @@ export default function JornaleiroOnboardingPage() {
         body: JSON.stringify({
           banca: bancaData,
           profile: profileUpdates,
+          preferred_plan_type: bancaData.preferred_plan_type || null,
         }),
       });
 

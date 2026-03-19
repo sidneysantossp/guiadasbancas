@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 // GET - Listar configurações
 export async function GET(request: NextRequest) {
@@ -36,12 +33,15 @@ export async function GET(request: NextRequest) {
         : setting.value,
     }));
 
-    return NextResponse.json({ success: true, data: maskedData });
+    return NextResponse.json(
+      { success: true, data: maskedData },
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   } catch (error: any) {
     console.error("[API/ADMIN/SETTINGS] Erro ao listar:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 }
@@ -122,12 +122,12 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
   } catch (error: any) {
     console.error("[API/ADMIN/SETTINGS] Erro ao salvar:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }
 }

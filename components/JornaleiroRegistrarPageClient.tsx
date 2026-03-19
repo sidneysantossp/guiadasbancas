@@ -29,6 +29,7 @@ export default function JornaleiroRegistrarPageClient() {
   const cepInputRef = useRef<HTMLInputElement | null>(null);
   const numberInputRef = useRef<HTMLInputElement | null>(null);
   const [socialsSkipped, setSocialsSkipped] = useState<boolean>(false);
+  const [preferredPlanType, setPreferredPlanType] = useState<"free" | "start" | "premium">("free");
 
   // Step 1: Seller
   const [name, setName] = useState("");
@@ -647,6 +648,7 @@ export default function JornaleiroRegistrarPageClient() {
         cotista_codigo: selectedCotaAtiva?.codigo || null,
         cotista_razao_social: selectedCotaAtiva?.razao_social || null,
         cotista_cnpj_cpf: selectedCotaAtiva?.cnpj_cpf || null,
+        preferred_plan_type: preferredPlanType || "free",
       };
 
       logger.log('[Wizard] 📦 Dados da banca preparados:', bancaData);
@@ -763,16 +765,19 @@ export default function JornaleiroRegistrarPageClient() {
             { n: 1, label: 'Jornaleiro', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>
             )},
-            { n: 2, label: 'Banca', icon: (
+            { n: 2, label: 'Acesso', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l1-5h16l1 5M4 9h16v10H4z"/></svg>
             )},
-            { n: 3, label: 'Imagens', icon: (
+            { n: 3, label: 'Banca', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z"/></svg>
             )},
-            { n: 4, label: 'Funcionamento', icon: (
+            { n: 4, label: 'Imagens', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
             )},
-            { n: 5, label: 'Conclusão', icon: (
+            { n: 5, label: 'Funcionamento', icon: (
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            )},
+            { n: 6, label: 'Conclusão', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
             )},
           ].map(({ n, label, icon }) => {
@@ -801,7 +806,7 @@ export default function JornaleiroRegistrarPageClient() {
       <div className="max-w-3xl mx-auto rounded-2xl border border-[#ff5c00] bg-white p-6 shadow-lg">
         <div className="flex flex-col items-center gap-2">
           <div className="text-center">
-            <h1 className="text-xl font-semibold">{step === 2 ? 'Dados de Acesso da Banca' : step === 3 ? 'Informações da Banca' : step === 4 ? 'Imagens da Banca' : step === 6 ? 'Conclusão' : 'Cadastro do Jornaleiro'}</h1>
+            <h1 className="text-xl font-semibold">{step === 2 ? 'Dados de Acesso da Banca' : step === 3 ? 'Informações da Banca' : step === 4 ? 'Imagens da Banca' : step === 5 ? 'Funcionamento da Banca' : step === 6 ? 'Conclusão' : 'Cadastro do Jornaleiro'}</h1>
             {step === 1 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Informe seu nome completo, CPF ou CNPJ e WhatsApp para começarmos seu cadastro. Seu painel entra no plano Free automaticamente.</p>
             ) : step === 2 ? (
@@ -811,7 +816,7 @@ export default function JornaleiroRegistrarPageClient() {
             ) : step === 4 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Adicione as imagens da sua banca para criar uma identidade visual atrativa. O banner aparece no topo e a foto de perfil identifica sua banca.</p>
             ) : step === 5 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Defina os horários de funcionamento da sua banca. Essas informações aparecerão para os clientes.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Defina os horários em que a banca atende. Essas informações aparecem para os clientes na plataforma.</p>
             ) : step === 6 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Revise suas informações e finalize o cadastro da sua banca.</p>
             ) : null}
@@ -827,6 +832,36 @@ export default function JornaleiroRegistrarPageClient() {
         {step === 1 && (
           <div className="mt-4 grid grid-cols-1 gap-3">
             <PlanEntryGuide compact />
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Plano inicial</div>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                {[
+                  { id: "free", label: "Free", helper: "Comece sem cobrança." },
+                  { id: "start", label: "Start", helper: "Mais capacidade e visibilidade." },
+                  { id: "premium", label: "Premium", helper: "Catálogo parceiro e expansão." },
+                ].map((plan) => {
+                  const selected = preferredPlanType === plan.id;
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => setPreferredPlanType(plan.id as "free" | "start" | "premium")}
+                      className={`rounded-xl border px-3 py-3 text-left text-sm transition ${
+                        selected
+                          ? "border-[#ff5c00] bg-[#fff7f2] text-[#ff5c00]"
+                          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold">{plan.label}</div>
+                      <div className="mt-1 text-xs text-gray-500">{plan.helper}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-3 text-xs text-gray-500">
+                O plano selecionado entra como referência do onboarding. A cobrança só acontece quando você confirmar o upgrade no painel.
+              </p>
+            </div>
             <div>
               <label className="text-[12px] text-gray-700">Nome completo</label>
               <input
@@ -1368,7 +1403,7 @@ export default function JornaleiroRegistrarPageClient() {
                     <path d="M12 2a10 10 0 0 1 10 10" opacity="0.75"/>
                   </svg>
                 )}
-                {isBusy ? 'Concluindo...' : 'Concluir e ativar plano Free'}
+                {isBusy ? 'Concluindo...' : 'Concluir cadastro'}
               </button>
             ) : null}
           </div>

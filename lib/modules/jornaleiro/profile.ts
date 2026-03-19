@@ -160,7 +160,7 @@ export async function saveJornaleiroProfileBundle(params: {
         .from("bancas")
         .insert({
           user_id: params.userId,
-          active: false,
+          active: true,
           approved: false,
           cep: "00000-000",
           address: "Endereço não informado",

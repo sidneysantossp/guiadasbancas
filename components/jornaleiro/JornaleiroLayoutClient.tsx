@@ -169,10 +169,10 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   }, [user?.id, isAuthRoute, banca?.id]);
 
   const hasCatalogAccess = Boolean(
-    banca?.entitlements?.can_access_distributor_catalog ?? banca?.is_cotista
+    banca?.entitlements?.can_access_distributor_catalog
   );
   const hasPartnerDirectoryAccess = Boolean(
-    banca?.entitlements?.can_access_partner_directory ?? banca?.is_cotista
+    banca?.entitlements?.can_access_partner_directory
   );
 
   const menuSections = useMemo(() => {

@@ -89,12 +89,15 @@ export async function ensureBancaHasOnboardingPlan(
   }
 
   const now = new Date().toISOString();
+  const isPaidPlan =
+    Number(initialPlan.price || 0) > 0 &&
+    String(initialPlan.type || "free").toLowerCase() !== "free";
   const { data: subscription, error: insertError } = await supabaseAdmin
     .from("subscriptions")
     .insert({
       banca_id: bancaId,
       plan_id: initialPlan.id,
-      status: "active",
+      status: isPaidPlan ? "pending" : "active",
       current_period_start: now,
       current_period_end: null,
     })
