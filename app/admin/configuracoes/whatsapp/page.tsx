@@ -7,6 +7,8 @@ import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 interface EvolutionConfig {
   baseUrl: string;
   apiKey: string;
+  apiKeyConfigured?: boolean;
+  apiKeySuffix?: string | null;
   instanceName: string;
   isActive: boolean;
 }
@@ -48,8 +50,14 @@ export default function AdminWhatsAppConfigPage() {
       const response = await fetchAdminWithDevFallback('/api/admin/whatsapp/config');
       if (response.ok) {
         const data = await response.json();
-        console.log('Configurações carregadas:', data);
-        setConfig(data);
+        setConfig({
+          baseUrl: data.baseUrl || 'https://api.guiadasbancas.com.br',
+          apiKey: '',
+          apiKeyConfigured: Boolean(data.apiKeyConfigured),
+          apiKeySuffix: data.apiKeySuffix || null,
+          instanceName: data.instanceName || 'guiadasbancas-central',
+          isActive: Boolean(data.isActive),
+        });
       } else {
         console.error('Erro HTTP ao carregar configurações:', response.status);
         toast.error('Erro ao carregar configurações');
@@ -72,9 +80,9 @@ export default function AdminWhatsAppConfigPage() {
       });
 
       if (response.ok) {
-        const result = await response.json();
-        console.log('Configurações salvas:', result);
+        await response.json();
         toast.success('Configurações salvas com sucesso!');
+        await loadConfig();
         checkStatus(); // Verificar status após salvar
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
@@ -211,11 +219,11 @@ export default function AdminWhatsAppConfigPage() {
               type="password"
               value={config.apiKey}
               onChange={(e) => setConfig({...config, apiKey: e.target.value})}
-              placeholder="Sua chave de API"
+              placeholder={config.apiKeyConfigured ? "Deixe em branco para manter a chave atual" : "Sua chave de API"}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Chave de autenticação da Evolution API
+              Chave de autenticação da Evolution API. {config.apiKeyConfigured ? `Chave já configurada${config.apiKeySuffix ? ` (final ${config.apiKeySuffix})` : ""}.` : "Nenhuma chave configurada."} Deixe em branco para manter a chave atual.
             </p>
           </div>
 

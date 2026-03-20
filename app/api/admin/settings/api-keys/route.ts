@@ -26,13 +26,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const keys: any = {};
+    const keys = {
+      openaiConfigured: false,
+      geminiConfigured: false,
+      deepseekConfigured: false,
+      groqConfigured: false,
+      groqModel: "llama-3.1-8b-instant",
+    };
     data?.forEach((item: any) => {
-      if (item.key === 'openai_api_key') keys.openai = item.value;
-      if (item.key === 'gemini_api_key') keys.gemini = item.value;
-      if (item.key === 'deepseek_api_key') keys.deepseek = item.value;
-      if (item.key === 'groq_api_key') keys.groq = item.value;
-      if (item.key === 'groq_model') keys.groqModel = item.value;
+      if (item.key === 'openai_api_key') keys.openaiConfigured = Boolean(item.value);
+      if (item.key === 'gemini_api_key') keys.geminiConfigured = Boolean(item.value);
+      if (item.key === 'deepseek_api_key') keys.deepseekConfigured = Boolean(item.value);
+      if (item.key === 'groq_api_key') keys.groqConfigured = Boolean(item.value);
+      if (item.key === 'groq_model' && item.value) keys.groqModel = item.value;
     });
 
     return NextResponse.json(
@@ -53,15 +59,20 @@ export async function POST(req: NextRequest) {
     if (authError) return authError;
 
     const body = await req.json();
-    const { openai, gemini, deepseek, groq, groqModel } = body;
+    const openai = typeof body?.openai === "string" ? body.openai.trim() : "";
+    const gemini = typeof body?.gemini === "string" ? body.gemini.trim() : "";
+    const deepseek = typeof body?.deepseek === "string" ? body.deepseek.trim() : "";
+    const groq = typeof body?.groq === "string" ? body.groq.trim() : "";
+    const groqModel = typeof body?.groqModel === "string" && body.groqModel.trim()
+      ? body.groqModel.trim()
+      : "llama-3.1-8b-instant";
 
-    const upserts = [
-      { key: 'openai_api_key', value: openai || '' },
-      { key: 'gemini_api_key', value: gemini || '' },
-      { key: 'deepseek_api_key', value: deepseek || '' },
-      { key: 'groq_api_key', value: groq || '' },
-      { key: 'groq_model', value: groqModel || 'llama-3.1-8b-instant' }
-    ];
+    const upserts = [{ key: 'groq_model', value: groqModel }];
+
+    if (openai) upserts.push({ key: 'openai_api_key', value: openai });
+    if (gemini) upserts.push({ key: 'gemini_api_key', value: gemini });
+    if (deepseek) upserts.push({ key: 'deepseek_api_key', value: deepseek });
+    if (groq) upserts.push({ key: 'groq_api_key', value: groq });
 
     const { error } = await supabaseAdmin
       .from('settings')
@@ -81,7 +92,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
+    return NextResponse.json(
+      {
+        success: true,
+        updated: upserts.map((item) => item.key),
+      },
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   } catch (e) {
     return NextResponse.json(
       { success: false, error: "Erro interno" },

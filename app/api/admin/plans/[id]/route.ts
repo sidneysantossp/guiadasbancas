@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { normalizeAdminPlanPayload } from "@/lib/modules/admin/plan-validation";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,14 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
+    const normalized = normalizeAdminPlanPayload(body, { partial: true });
+
+    if (!normalized.ok) {
+      return NextResponse.json(
+        { success: false, error: normalized.error },
+        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
 
     const {
       name,
@@ -59,7 +68,7 @@ export async function PUT(
       is_active,
       is_default,
       sort_order,
-    } = body;
+    } = normalized.data;
 
     // Se for definido como padrão, remover padrão dos outros
     if (is_default) {
@@ -81,6 +90,7 @@ export async function PUT(
     if (is_active !== undefined) updateData.is_active = is_active;
     if (is_default !== undefined) updateData.is_default = is_default;
     if (sort_order !== undefined) updateData.sort_order = sort_order;
+    updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabaseAdmin
       .from("plans")
@@ -122,6 +132,21 @@ export async function DELETE(
     if (count && count > 0) {
       return NextResponse.json(
         { success: false, error: `Não é possível excluir. ${count} assinatura(s) ativa(s) neste plano.` },
+        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
+    const { data: currentPlan, error: currentPlanError } = await supabaseAdmin
+      .from("plans")
+      .select("id, is_default")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (currentPlanError) throw currentPlanError;
+
+    if (currentPlan?.is_default) {
+      return NextResponse.json(
+        { success: false, error: "Não é possível excluir o plano padrão da plataforma." },
         { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
       );
     }

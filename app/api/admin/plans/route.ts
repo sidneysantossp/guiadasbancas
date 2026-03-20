@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { normalizeAdminPlanPayload } from "@/lib/modules/admin/plan-validation";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -36,27 +37,38 @@ export async function POST(request: NextRequest) {
     if (authError) return authError;
 
     const body = await request.json();
-    
+    const normalized = normalizeAdminPlanPayload({
+      type: "premium",
+      price: 0,
+      billing_cycle: "monthly",
+      features: [],
+      limits: {},
+      is_active: true,
+      is_default: false,
+      sort_order: 0,
+      ...body,
+    });
+
+    if (!normalized.ok) {
+      return NextResponse.json(
+        { success: false, error: normalized.error },
+        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
     const {
       name,
       slug,
       description,
-      type = "premium",
-      price = 0,
-      billing_cycle = "monthly",
-      features = [],
-      limits = {},
-      is_active = true,
-      is_default = false,
-      sort_order = 0,
-    } = body;
-
-    if (!name || !slug) {
-      return NextResponse.json(
-        { success: false, error: "Nome e slug são obrigatórios" },
-        { status: 400 }
-      );
-    }
+      type,
+      price,
+      billing_cycle,
+      features,
+      limits,
+      is_active,
+      is_default,
+      sort_order,
+    } = normalized.data;
 
     // Se for definido como padrão, remover padrão dos outros
     if (is_default) {
@@ -80,6 +92,7 @@ export async function POST(request: NextRequest) {
         is_active,
         is_default,
         sort_order,
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single();

@@ -31,8 +31,10 @@ function buildAdminLoginAliases(email: string) {
 function getEmergencyAdminCredentials() {
   const envEmail = process.env.ADMIN_LOGIN_EMAIL?.trim().toLowerCase();
   const envPassword = process.env.ADMIN_LOGIN_PASSWORD;
+  const emergencyAdminEnabled =
+    process.env.ALLOW_EMERGENCY_ADMIN_LOGIN === "true" || process.env.NODE_ENV !== "production";
 
-  if (envEmail && envPassword) {
+  if (envEmail && envPassword && emergencyAdminEnabled) {
     return {
       email: envEmail,
       password: envPassword,
@@ -40,10 +42,14 @@ function getEmergencyAdminCredentials() {
     } as const;
   }
 
+  if (process.env.NODE_ENV === "production") {
+    return null;
+  }
+
   return {
     email: LOCAL_DEV_ADMIN_EMAIL,
     password: LOCAL_DEV_ADMIN_PASSWORD,
-    source: process.env.NODE_ENV === "production" ? "emergency-default" : "local-dev",
+    source: "local-dev",
   } as const;
 }
 
@@ -53,17 +59,15 @@ async function authorizeEmergencyAdmin(rawEmail: string, rawPassword: string) {
 
   if (!credentials) return null;
 
-  const canUseLocalDevBypass =
-    credentials.source === "local-dev" &&
-    process.env.NODE_ENV !== "production" &&
-    rawPassword === credentials.password;
-
-  const acceptedAliases = buildAdminLoginAliases(credentials.email);
+  const acceptedAliases =
+    credentials.source === "local-dev"
+      ? buildAdminLoginAliases(credentials.email)
+      : new Set<string>([credentials.email]);
   const matchesEmergencyCredentials =
     acceptedAliases.has(normalizedEmail) &&
     rawPassword === credentials.password;
 
-  if (!canUseLocalDevBypass && !matchesEmergencyCredentials) {
+  if (!matchesEmergencyCredentials) {
     return null;
   }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
 import { callEvolutionApi, getEvolutionErrorMessage } from "@/lib/evolution-api";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 // POST - Criar nova instância na Evolution API
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: false,
         error: 'Configure a URL e API Key primeiro'
-      }, { status: 400 });
+      }, { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) });
     }
 
     const finalInstanceName = instanceName || config.instanceName;
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
             error: `A instância \"${finalInstanceName}\" já existe, mas não pertence a esta API Key. Use um nome novo de instância.`,
             upstreamStatus: ownershipCheck.status,
             timestamp: new Date().toISOString(),
-          });
+          }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
         }
 
         return NextResponse.json({
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
             alreadyExists: true,
           },
           timestamp: new Date().toISOString(),
-        });
+        }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
       }
 
       return NextResponse.json({
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
         error: errMsg,
         upstreamStatus: result.status,
         timestamp: new Date().toISOString(),
-      });
+      }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
     }
 
     const data = result.data || {};
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
         authModeUsed: result.authMode,
         ...data
       }
-    });
+    }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
 
   } catch (error: any) {
     console.error('[ADMIN] Erro ao criar instância WhatsApp:', error);
@@ -107,6 +108,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: false,
       error: error.message || 'Erro ao criar instância'
-    });
+    }, { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) });
   }
 }

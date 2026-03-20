@@ -13,6 +13,12 @@ export default function ApiKeysPage() {
     gemini: "",
     deepseek: ""
   });
+  const [configured, setConfigured] = useState({
+    groq: false,
+    openai: false,
+    gemini: false,
+    deepseek: false,
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -28,11 +34,17 @@ export default function ApiKeysPage() {
       const json = await res.json();
       if (json.success) {
         setKeys({
-          groq: json.data.groq || "",
+          groq: "",
           groqModel: json.data.groqModel || "llama-3.1-8b-instant",
-          openai: json.data.openai || "",
-          gemini: json.data.gemini || "",
-          deepseek: json.data.deepseek || ""
+          openai: "",
+          gemini: "",
+          deepseek: ""
+        });
+        setConfigured({
+          groq: Boolean(json.data.groqConfigured),
+          openai: Boolean(json.data.openaiConfigured),
+          gemini: Boolean(json.data.geminiConfigured),
+          deepseek: Boolean(json.data.deepseekConfigured),
         });
       }
     } catch (e) {
@@ -55,6 +67,14 @@ export default function ApiKeysPage() {
       const json = await res.json();
       if (json.success) {
         toast.success("Chaves salvas com sucesso");
+        setKeys((current) => ({
+          ...current,
+          groq: "",
+          openai: "",
+          gemini: "",
+          deepseek: "",
+        }));
+        await loadKeys();
       } else {
         throw new Error(json.error || "Erro ao salvar");
       }
@@ -100,7 +120,9 @@ export default function ApiKeysPage() {
               placeholder="gsk_..."
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
-            <p className="text-xs text-gray-500 mt-1">Usada como provedor preferencial do botão "Gerar com IA".</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Usada como provedor preferencial do botão "Gerar com IA". {configured.groq ? "Chave já configurada." : "Nenhuma chave configurada."} Deixe em branco para manter a chave atual.
+            </p>
           </div>
 
           <div>
@@ -124,7 +146,9 @@ export default function ApiKeysPage() {
               placeholder="sk-..."
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
-            <p className="text-xs text-gray-500 mt-1">Usada para geração de textos e descrições.</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Usada para geração de textos e descrições. {configured.openai ? "Chave já configurada." : "Nenhuma chave configurada."} Deixe em branco para manter a chave atual.
+            </p>
           </div>
 
           <div>
@@ -136,6 +160,9 @@ export default function ApiKeysPage() {
               placeholder="AIza..."
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              {configured.gemini ? "Chave já configurada." : "Nenhuma chave configurada."} Deixe em branco para manter a chave atual.
+            </p>
           </div>
 
           <div>
@@ -147,6 +174,9 @@ export default function ApiKeysPage() {
               placeholder="sk-..."
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              {configured.deepseek ? "Chave já configurada." : "Nenhuma chave configurada."} Deixe em branco para manter a chave atual.
+            </p>
           </div>
 
           <div className="pt-4 border-t border-gray-200 flex justify-end">

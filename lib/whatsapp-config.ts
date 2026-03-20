@@ -53,9 +53,7 @@ export function setWhatsAppConfig(config: Partial<WhatsAppConfig>): WhatsAppConf
     ...sanitized,
   };
   
-  const result = getWhatsAppConfig();
-  console.log('[CONFIG] WhatsApp configuração atualizada:', result);
-  return result;
+  return getWhatsAppConfig();
 }
 
 export function updateWhatsAppConfig(updates: Partial<WhatsAppConfig>): WhatsAppConfig {

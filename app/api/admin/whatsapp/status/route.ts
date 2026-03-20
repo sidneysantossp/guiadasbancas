@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
 import { callEvolutionApi, getEvolutionErrorMessage } from "@/lib/evolution-api";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
         status: 'Configurações não encontradas',
         error: 'Configure a URL e API Key primeiro',
         timestamp: new Date().toISOString()
-      });
+      }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
     }
 
     const result = await callEvolutionApi({
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
         upstreamStatus: result.status,
         authModeTried: result.authMode,
         timestamp: new Date().toISOString()
-      });
+      }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
     }
 
     const data = result.data || {};
@@ -69,7 +70,7 @@ export async function GET(req: NextRequest) {
         profileName: instance?.profileName || null,
         profilePicUrl: instance?.profilePicUrl || null
       }
-    });
+    }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
 
   } catch (error: any) {
     console.error('[ADMIN] Erro ao verificar status WhatsApp:', error);
@@ -79,6 +80,6 @@ export async function GET(req: NextRequest) {
       status: 'Erro na conexão',
       error: error.message || 'Falha ao conectar com Evolution API',
       timestamp: new Date().toISOString()
-    });
+    }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
   }
 }

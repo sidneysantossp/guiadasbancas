@@ -13,7 +13,11 @@ export async function GET(request: NextRequest) {
     if (authError) return authError;
 
     const { searchParams } = new URL(request.url);
-    const keys = searchParams.get("keys")?.split(",");
+    const keys = searchParams
+      .get("keys")
+      ?.split(",")
+      .map((key) => key.trim())
+      .filter(Boolean);
 
     let query = supabaseAdmin.from("system_settings").select("*");
     
@@ -53,12 +57,15 @@ export async function POST(request: NextRequest) {
     if (authError) return authError;
 
     const body = await request.json();
-    const { key, value, description, is_secret } = body;
+    const key = typeof body?.key === "string" ? body.key.trim() : "";
+    const value = body?.value;
+    const description = typeof body?.description === "string" ? body.description.trim() : null;
+    const is_secret = Boolean(body?.is_secret);
 
     if (!key) {
       return NextResponse.json(
         { success: false, error: "Key é obrigatória" },
-        { status: 400 }
+        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
       );
     }
 
@@ -79,10 +86,10 @@ export async function POST(request: NextRequest) {
               key === "subscription_overdue_grace_days"
                 ? "Os dias de carência devem ser um número inteiro igual ou maior que zero"
                 : key === "subscription_trial_days_paid"
-                  ? "Os dias de degustação devem ser um número inteiro igual ou maior que zero"
+                ? "Os dias de degustação devem ser um número inteiro igual ou maior que zero"
                 : "A quantidade de vagas promocionais deve ser um número inteiro igual ou maior que zero",
           },
-          { status: 400 }
+          { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
         );
       }
 
@@ -98,7 +105,7 @@ export async function POST(request: NextRequest) {
             success: false,
             error: "O preço promocional deve ser um número maior que zero",
           },
-          { status: 400 }
+          { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
         );
       }
 
@@ -122,7 +129,18 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, data }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
+    const maskedData =
+      data && data.is_secret && data.value
+        ? {
+            ...data,
+            value: "••••••••" + String(data.value).slice(-4),
+          }
+        : data;
+
+    return NextResponse.json(
+      { success: true, data: maskedData },
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
   } catch (error: any) {
     console.error("[API/ADMIN/SETTINGS] Erro ao salvar:", error);
     return NextResponse.json(
