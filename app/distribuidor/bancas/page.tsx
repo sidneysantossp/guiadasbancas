@@ -34,6 +34,8 @@ type Banca = {
   lat?: number;
   lng?: number;
   is_cotista: boolean;
+  can_access_distributor_catalog: boolean;
+  plan_type?: string | null;
   tem_produtos_distribuidor: boolean;
   produtos_distribuidor: number;
   produtos_ativos: number;
@@ -46,6 +48,7 @@ type Banca = {
 
 type Stats = {
   total_bancas: number;
+  bancas_com_acesso: number;
   bancas_com_produtos: number;
   total_pedidos: number;
   valor_total: number;
@@ -77,10 +80,10 @@ export default function DistribuidorBancasPage() {
         let items = json.items || [];
         
         // Filtrar no frontend
-        if (statusFilter === "com_produtos") {
-          items = items.filter((b: Banca) => b.tem_produtos_distribuidor);
-        } else if (statusFilter === "sem_produtos") {
-          items = items.filter((b: Banca) => !b.tem_produtos_distribuidor);
+        if (statusFilter === "com_acesso") {
+          items = items.filter((b: Banca) => b.can_access_distributor_catalog);
+        } else if (statusFilter === "sem_acesso") {
+          items = items.filter((b: Banca) => !b.can_access_distributor_catalog);
         }
         
         setBancas(items);
@@ -148,7 +151,7 @@ export default function DistribuidorBancasPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Bancas</h1>
           <p className="text-gray-600">
-            Bancas que já têm acesso ao seu catálogo na plataforma
+            Acompanhe as bancas da plataforma e quem já pode operar com o seu catálogo
           </p>
         </div>
         <button
@@ -181,8 +184,8 @@ export default function DistribuidorBancasPage() {
                 <IconCheck className="text-green-600" size={20} />
               </div>
               <div>
-                <p className="text-xl font-bold text-gray-900">{stats.bancas_com_produtos}</p>
-                <p className="text-xs text-gray-600">Com Seus Produtos</p>
+                <p className="text-xl font-bold text-gray-900">{stats.bancas_com_acesso}</p>
+                <p className="text-xs text-gray-600">Com Acesso ao Catálogo</p>
               </div>
             </div>
           </div>
@@ -239,20 +242,20 @@ export default function DistribuidorBancasPage() {
               Todas
             </button>
             <button
-              onClick={() => setStatusFilter("com_produtos")}
+              onClick={() => setStatusFilter("com_acesso")}
               className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
-                statusFilter === "com_produtos" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                statusFilter === "com_acesso" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Com Seus Produtos
+              Com Acesso
             </button>
             <button
-              onClick={() => setStatusFilter("sem_produtos")}
+              onClick={() => setStatusFilter("sem_acesso")}
               className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
-                statusFilter === "sem_produtos" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                statusFilter === "sem_acesso" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Sem Seus Produtos
+              Sem Acesso
             </button>
           </div>
         </div>
@@ -295,6 +298,15 @@ export default function DistribuidorBancasPage() {
                 
                 {/* Status badge */}
                 <div className="absolute top-2 right-2 flex gap-1">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      banca.can_access_distributor_catalog
+                        ? "bg-green-100 text-green-700"
+                        : "bg-orange-100 text-orange-700"
+                    }`}
+                  >
+                    {banca.can_access_distributor_catalog ? "Catálogo liberado" : "Aguardando plano"}
+                  </span>
                   {banca.tem_produtos_distribuidor && (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
                       Seus Produtos
@@ -329,6 +341,9 @@ export default function DistribuidorBancasPage() {
                   <IconMapPin size={14} />
                   <span className="line-clamp-1">{banca.address}</span>
                 </div>
+                <p className="text-xs text-gray-500 mb-3">
+                  Plano atual: <span className="font-medium text-gray-700">{banca.plan_type || "free"}</span>
+                </p>
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-3 mb-4">

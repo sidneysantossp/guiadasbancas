@@ -1,4 +1,4 @@
-import { getDistribuidorAccessibleBancas } from "@/lib/distribuidor-access";
+import { getDistribuidorNetworkBancas } from "@/lib/distribuidor-access";
 import { getDistribuidorProductIds } from "@/lib/modules/distribuidor/orders";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -37,7 +37,7 @@ export async function getDistribuidorBancasOverview(params: {
   distribuidorId: string;
   query?: string;
 }) {
-  const bancas = await getDistribuidorAccessibleBancas();
+  const bancas = await getDistribuidorNetworkBancas();
   const productIds = await getDistribuidorProductIds(params.distribuidorId);
   const productIdSet = new Set(productIds);
 
@@ -74,9 +74,12 @@ export async function getDistribuidorBancasOverview(params: {
 
   const items = bancas
     .map((banca) => {
+      const canAccessDistributorCatalog = banca.can_access_distributor_catalog;
       const produtosBanca = customizations.filter((customization) => customization.banca_id === banca.id);
       const produtosDesativados = produtosBanca.filter((product) => product.enabled === false);
-      const produtosAtivosCount = Math.max(totalProdutosBase - produtosDesativados.length, 0);
+      const produtosAtivosCount = canAccessDistributorCatalog
+        ? Math.max(totalProdutosBase - produtosDesativados.length, 0)
+        : 0;
 
       const pedidosBancaComProdutos = orders
         .filter((pedido) => pedido.banca_id === banca.id)
@@ -114,7 +117,8 @@ export async function getDistribuidorBancasOverview(params: {
       )[0];
 
       const temProdutosDistribuidor =
-        produtosAtivosCount > 0 || produtosBanca.length > 0 || pedidosBancaComProdutos.length > 0;
+        canAccessDistributorCatalog &&
+        (produtosAtivosCount > 0 || produtosBanca.length > 0 || pedidosBancaComProdutos.length > 0);
 
       return {
         id: banca.id,
@@ -129,8 +133,9 @@ export async function getDistribuidorBancasOverview(params: {
         lng: banca.lng,
         is_cotista: banca.is_legacy_cotista_linked,
         plan_type: banca.plan_type,
+        can_access_distributor_catalog: canAccessDistributorCatalog,
         tem_produtos_distribuidor: temProdutosDistribuidor,
-        produtos_distribuidor: totalProdutosBase,
+        produtos_distribuidor: canAccessDistributorCatalog ? totalProdutosBase : 0,
         produtos_ativos: produtosAtivosCount,
         total_pedidos: pedidosBancaComProdutos.length,
         pedidos_pendentes: pedidosBancaComProdutos.filter((pedido) =>
@@ -148,6 +153,8 @@ export async function getDistribuidorBancasOverview(params: {
       return searchFields.includes(normalizedQuery);
     })
     .sort((a, b) => {
+      if (a.can_access_distributor_catalog && !b.can_access_distributor_catalog) return -1;
+      if (!a.can_access_distributor_catalog && b.can_access_distributor_catalog) return 1;
       if (a.tem_produtos_distribuidor && !b.tem_produtos_distribuidor) return -1;
       if (!a.tem_produtos_distribuidor && b.tem_produtos_distribuidor) return 1;
       return a.name.localeCompare(b.name);
@@ -157,6 +164,7 @@ export async function getDistribuidorBancasOverview(params: {
     items,
     stats: {
       total_bancas: items.length,
+      bancas_com_acesso: items.filter((banca) => banca.can_access_distributor_catalog).length,
       bancas_com_produtos: items.filter((banca) => banca.tem_produtos_distribuidor).length,
       total_pedidos: items.reduce((acc, banca) => acc + banca.total_pedidos, 0),
       valor_total: items.reduce((acc, banca) => acc + banca.valor_total, 0),

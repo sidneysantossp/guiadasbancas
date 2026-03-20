@@ -47,6 +47,8 @@ type Category = {
   visible?: boolean;
 };
 
+const DEFAULT_STATUS_FILTER = "active";
+
 export default function DistribuidorProdutosPage() {
   const { distribuidor } = useDistribuidorSession();
   const [products, setProducts] = useState<Product[]>([]);
@@ -56,7 +58,7 @@ export default function DistribuidorProdutosPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [filterActive, setFilterActive] = useState<string>("active"); // all, active, inactive
+  const [filterActive, setFilterActive] = useState<string>(DEFAULT_STATUS_FILTER); // all, active, inactive
   const [markups, setMarkups] = useState<any>(null);
   const [totalItems, setTotalItems] = useState(0);
   const [summary, setSummary] = useState({ total: 0, active: 0, inactive: 0 });
@@ -122,30 +124,16 @@ export default function DistribuidorProdutosPage() {
       const json = await res.json();
       
       if (json.success) {
-        const grouped = new Map<string, Category>();
-
-        (json.data || [])
+        const cats: Category[] = (json.data || [])
           .filter((category: any) => category.product_count > 0)
-          .forEach((category: any) => {
-            const key = category.name;
-            const current = grouped.get(key);
+          .map((category: any) => ({
+            id: category.id,
+            name: category.name,
+            count: category.product_count || 0,
+            visible: category.visible,
+          }))
+          .sort((a: Category, b: Category) => a.name.localeCompare(b.name));
 
-            if (current) {
-              current.count += category.product_count || 0;
-              current.visible = current.visible !== false && category.visible !== false;
-              return;
-            }
-
-            grouped.set(key, {
-              id: key,
-              name: key,
-              count: category.product_count || 0,
-              visible: category.visible,
-            });
-          });
-
-        const cats: Category[] = Array.from(grouped.values()).sort((a, b) => a.name.localeCompare(b.name));
-        
         setCategories(cats);
       }
     } catch (error) {
@@ -246,9 +234,7 @@ export default function DistribuidorProdutosPage() {
       const json = await res.json();
       
       if (json.success) {
-        setProducts(products.map(p => 
-          p.id === productId ? { ...p, active: !currentActive } : p
-        ));
+        await fetchProducts();
       }
     } catch (error) {
       console.error('Erro ao alterar status:', error);
@@ -304,7 +290,7 @@ export default function DistribuidorProdutosPage() {
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:ring-blue-500"
             >
-              <option value="">Todas as categorias ({summary.total})</option>
+              <option value="">Todas as categorias ({categories.length})</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name} ({cat.count})
@@ -331,7 +317,7 @@ export default function DistribuidorProdutosPage() {
         </div>
 
         {/* Filtros ativos */}
-        {(search || selectedCategory || filterActive !== "all") && (
+        {(search || selectedCategory || filterActive !== DEFAULT_STATUS_FILTER) && (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600">
             <span>Filtros ativos:</span>
             {search && (
@@ -350,10 +336,10 @@ export default function DistribuidorProdutosPage() {
                 </button>
               </span>
             )}
-            {filterActive !== "all" && (
+            {filterActive !== DEFAULT_STATUS_FILTER && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-800 rounded">
-                Status: {filterActive === "active" ? "Ativos" : "Inativos"}
-                <button onClick={() => setFilterActive("all")} className="hover:text-purple-900">
+                Status: {filterActive === "all" ? "Todos" : filterActive === "active" ? "Ativos" : "Inativos"}
+                <button onClick={() => setFilterActive(DEFAULT_STATUS_FILTER)} className="hover:text-purple-900">
                   <IconX size={14} />
                 </button>
               </span>
@@ -362,7 +348,7 @@ export default function DistribuidorProdutosPage() {
               onClick={() => {
                 setSearch("");
                 setSelectedCategory("");
-                setFilterActive("all");
+                setFilterActive(DEFAULT_STATUS_FILTER);
               }}
               className="text-blue-600 hover:text-blue-700 font-medium"
             >
@@ -404,7 +390,9 @@ export default function DistribuidorProdutosPage() {
         <div className="text-center py-12 rounded-xl border border-gray-200 bg-white">
           <IconBox size={48} className="mx-auto text-gray-300" />
           <p className="mt-3 text-gray-500">
-            {search || selectedCategory ? 'Nenhum produto encontrado com esses filtros' : 'Nenhum produto cadastrado'}
+            {search || selectedCategory || filterActive !== DEFAULT_STATUS_FILTER
+              ? "Nenhum produto encontrado com esses filtros"
+              : "Nenhum produto ativo cadastrado"}
           </p>
         </div>
       ) : (

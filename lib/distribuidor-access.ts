@@ -25,7 +25,7 @@ export type DistribuidorAccessibleBanca = ActiveBancaRow & {
   is_legacy_cotista_linked: boolean;
 };
 
-export async function getDistribuidorAccessibleBancas(): Promise<DistribuidorAccessibleBanca[]> {
+export async function getDistribuidorNetworkBancas(): Promise<DistribuidorAccessibleBanca[]> {
   const { data: bancas, error } = await supabaseAdmin
     .from("bancas")
     .select("id, name, address, whatsapp, phone, cover_image, active, approved, created_at, lat, lng, is_cotista, cotista_id")
@@ -65,5 +65,10 @@ export async function getDistribuidorAccessibleBancas(): Promise<DistribuidorAcc
     })
   );
 
-  return resolved.filter((banca) => banca.can_access_distributor_catalog);
+  return resolved;
+}
+
+export async function getDistribuidorAccessibleBancas(): Promise<DistribuidorAccessibleBanca[]> {
+  const bancas = await getDistribuidorNetworkBancas();
+  return bancas.filter((banca) => banca.can_access_distributor_catalog);
 }
