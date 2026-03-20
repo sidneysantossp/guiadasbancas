@@ -5,9 +5,10 @@ import { validateProductCreate } from "@/lib/validators/product";
 
 type DistribuidorProductsQueryParams = {
   distribuidorId: string;
+  page: number;
   limit: number;
   sort: string;
-  activeOnly: boolean;
+  status: "all" | "active" | "inactive";
   search: string;
   category: string;
   productId?: string | null;
@@ -56,68 +57,88 @@ async function loadDistribuidorCategoryNameMap(distribuidorId: string) {
   return categoryNameMap;
 }
 
-async function loadDistribuidorProductsRaw(params: DistribuidorProductsQueryParams) {
-  const batchSize = 1000;
-  let allProducts: any[] = [];
-  let hasMore = true;
-  let offset = 0;
+function applyDistribuidorProductsFilters(query: any, params: DistribuidorProductsQueryParams) {
+  query = query.eq("distribuidor_id", params.distribuidorId);
 
-  while (hasMore) {
-    let query = supabaseAdmin.from("products").select("*").eq("distribuidor_id", params.distribuidorId);
-
-    if (params.productId) {
-      query = query.eq("id", params.productId).limit(1);
-    }
-
-    if (params.activeOnly) {
-      query = query.eq("active", true);
-    }
-
-    if (params.search) {
-      const conditions = buildSearchVariants(params.search)
-        .map((term) => `name.ilike.%${term}%,codigo_mercos.ilike.%${term}%`)
-        .join(",");
-
-      const fallbackSearch = params.search.trim();
-      query = query.or(
-        conditions || `name.ilike.%${fallbackSearch}%,codigo_mercos.ilike.%${fallbackSearch}%`
-      );
-    }
-
-    if (params.sort === "vendas") {
-      query = query.order("created_at", { ascending: false });
-    } else if (params.sort === "price") {
-      query = query.order("price", { ascending: true });
-    } else if (params.sort === "stock") {
-      query = query.order("stock_qty", { ascending: false });
-    } else if (params.sort === "recent") {
-      query = query.order("sincronizado_em", { ascending: false });
-    } else {
-      query = query.order("name", { ascending: true });
-    }
-
-    const { data: batch, error } = await query.range(offset, offset + batchSize - 1);
-
-    if (error) {
-      throw error;
-    }
-
-    if (batch && batch.length > 0) {
-      allProducts.push(...batch);
-      hasMore = batch.length === batchSize && allProducts.length < params.limit;
-      offset += batchSize;
-    } else {
-      hasMore = false;
-    }
+  if (params.productId) {
+    query = query.eq("id", params.productId);
   }
 
-  return allProducts.slice(0, params.limit);
+  if (params.status === "active") {
+    query = query.eq("active", true);
+  } else if (params.status === "inactive") {
+    query = query.eq("active", false);
+  }
+
+  if (params.category) {
+    query = query.eq("category_id", params.category);
+  }
+
+  if (params.search) {
+    const conditions = buildSearchVariants(params.search)
+      .map((term) => `name.ilike.%${term}%,codigo_mercos.ilike.%${term}%`)
+      .join(",");
+
+    const fallbackSearch = params.search.trim();
+    query = query.or(
+      conditions || `name.ilike.%${fallbackSearch}%,codigo_mercos.ilike.%${fallbackSearch}%`
+    );
+  }
+
+  return query;
+}
+
+async function loadDistribuidorProductsRaw(params: DistribuidorProductsQueryParams) {
+  let query = supabaseAdmin.from("products").select("*", { count: "exact" });
+  query = applyDistribuidorProductsFilters(query, params);
+
+  if (params.productId) {
+    query = query.limit(1);
+  }
+
+  if (params.sort === "vendas") {
+    query = query.order("created_at", { ascending: false });
+  } else if (params.sort === "price") {
+    query = query.order("price", { ascending: true });
+  } else if (params.sort === "stock") {
+    query = query.order("stock_qty", { ascending: false });
+  } else if (params.sort === "recent") {
+    query = query.order("sincronizado_em", { ascending: false });
+  } else {
+    query = query.order("name", { ascending: true });
+  }
+
+  if (!params.productId) {
+    const from = Math.max(0, (params.page - 1) * params.limit);
+    const to = from + params.limit - 1;
+    query = query.range(from, to);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    products: data || [],
+    filteredTotal: Number(count || 0),
+  };
 }
 
 export async function getDistribuidorProductsOverview(params: DistribuidorProductsQueryParams) {
-  const [products, categoryNameMap] = await Promise.all([
+  const [{ products, filteredTotal }, categoryNameMap, { count: totalCatalog }, { count: totalActive }] = await Promise.all([
     loadDistribuidorProductsRaw(params),
     loadDistribuidorCategoryNameMap(params.distribuidorId),
+    supabaseAdmin
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("distribuidor_id", params.distribuidorId),
+    supabaseAdmin
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("distribuidor_id", params.distribuidorId)
+      .eq("active", true),
   ]);
 
   const [{ calculateDistributorPrice }, { data: markupProdutos }] = await Promise.all([
@@ -186,15 +207,16 @@ export async function getDistribuidorProductsOverview(params: DistribuidorProduc
     };
   });
 
-  if (params.category) {
-    data = data.filter((product) => product.category === params.category);
-  }
-
   return {
     data,
-    total: data.length,
+    total: filteredTotal,
     distribuidor_id: params.distribuidorId,
     product: params.productId ? data[0] || null : null,
+    summary: {
+      total: Number(totalCatalog || 0),
+      active: Number(totalActive || 0),
+      inactive: Math.max(Number(totalCatalog || 0) - Number(totalActive || 0), 0),
+    },
   };
 }
 

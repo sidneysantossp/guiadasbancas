@@ -212,6 +212,66 @@ export interface DistributorPricingContextResult<TCustomization = any> {
   }) => number;
 }
 
+const SUPABASE_IN_FILTER_BATCH_SIZE = 200;
+
+async function loadDistribuidorMarkupProdutos(params: {
+  distribuidorIds: string[];
+  productIds: string[];
+}) {
+  if (params.distribuidorIds.length === 0 || params.productIds.length === 0) {
+    return { data: [] as any[], error: null };
+  }
+
+  const rows: any[] = [];
+
+  for (let index = 0; index < params.productIds.length; index += SUPABASE_IN_FILTER_BATCH_SIZE) {
+    const chunk = params.productIds.slice(index, index + SUPABASE_IN_FILTER_BATCH_SIZE);
+
+    const { data, error } = await supabaseAdmin
+      .from("distribuidor_markup_produtos")
+      .select("distribuidor_id, product_id, markup_percentual, markup_fixo")
+      .in("distribuidor_id", params.distribuidorIds)
+      .in("product_id", chunk);
+
+    if (error) {
+      return { data: [] as any[], error };
+    }
+
+    rows.push(...(data || []));
+  }
+
+  return { data: rows, error: null };
+}
+
+async function loadDistribuidorMarkupCategorias(params: {
+  distribuidorIds: string[];
+  categoryIds: string[];
+}) {
+  if (params.distribuidorIds.length === 0 || params.categoryIds.length === 0) {
+    return { data: [] as any[], error: null };
+  }
+
+  const rows: any[] = [];
+
+  for (let index = 0; index < params.categoryIds.length; index += SUPABASE_IN_FILTER_BATCH_SIZE) {
+    const chunk = params.categoryIds.slice(index, index + SUPABASE_IN_FILTER_BATCH_SIZE);
+
+    const { data, error } = await supabaseAdmin
+      .from("distribuidor_markup_categorias")
+      .select("distribuidor_id, category_id, markup_percentual, markup_fixo")
+      .in("distribuidor_id", params.distribuidorIds)
+      .in("category_id", chunk);
+
+    if (error) {
+      return { data: [] as any[], error };
+    }
+
+    rows.push(...(data || []));
+  }
+
+  return { data: rows, error: null };
+}
+
 export async function loadDistributorPricingContext<TCustomization extends { product_id?: string | null } = any>(params: {
   products: Array<{
     id: string;
@@ -226,9 +286,11 @@ export async function loadDistributorPricingContext<TCustomization extends { pro
   buildCustomizationKey?: (customization: TCustomization) => string;
 }): Promise<DistributorPricingContextResult<TCustomization>> {
   const productRows = params.products || [];
-  const distribuidorIds = Array.from(
-    new Set(productRows.map((product) => product.distribuidor_id).filter(Boolean))
-  );
+  const distribuidorIds = Array.from(new Set(
+    productRows
+      .map((product) => product.distribuidor_id)
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
+  ));
 
   if (distribuidorIds.length === 0) {
     return {
@@ -242,10 +304,16 @@ export async function loadDistributorPricingContext<TCustomization extends { pro
     };
   }
 
-  const productIds = Array.from(new Set(productRows.map((product) => product.id).filter(Boolean)));
-  const categoryIds = Array.from(
-    new Set(productRows.map((product) => product.category_id).filter(Boolean))
-  );
+  const productIds = Array.from(new Set(
+    productRows
+      .map((product) => product.id)
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
+  ));
+  const categoryIds = Array.from(new Set(
+    productRows
+      .map((product) => product.category_id)
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
+  ));
   const buildCustomizationKey =
     params.buildCustomizationKey ||
     ((customization: TCustomization) => String(customization.product_id || ""));
@@ -288,18 +356,16 @@ export async function loadDistributorPricingContext<TCustomization extends { pro
       .select("id, nome, markup_global_percentual, markup_global_fixo, margem_percentual, margem_divisor, tipo_calculo")
       .in("id", distribuidorIds),
     productIds.length > 0
-      ? supabaseAdmin
-          .from("distribuidor_markup_produtos")
-          .select("distribuidor_id, product_id, markup_percentual, markup_fixo")
-          .in("distribuidor_id", distribuidorIds)
-          .in("product_id", productIds)
+      ? loadDistribuidorMarkupProdutos({
+          distribuidorIds,
+          productIds,
+        })
       : Promise.resolve({ data: [] as any[], error: null }),
     categoryIds.length > 0
-      ? supabaseAdmin
-          .from("distribuidor_markup_categorias")
-          .select("distribuidor_id, category_id, markup_percentual, markup_fixo")
-          .in("distribuidor_id", distribuidorIds)
-          .in("category_id", categoryIds)
+      ? loadDistribuidorMarkupCategorias({
+          distribuidorIds,
+          categoryIds,
+        })
       : Promise.resolve({ data: [] as any[], error: null }),
     customQuery,
   ]);

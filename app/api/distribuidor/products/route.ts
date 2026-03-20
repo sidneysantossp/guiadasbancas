@@ -19,9 +19,20 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
     const distribuidorId = searchParams.get("id");
-    const limit = parseInt(searchParams.get("limit") || "10000", 10);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    const limit = Math.max(1, parseInt(searchParams.get("limit") || "10000", 10) || 25);
     const sort = searchParams.get("sort") || "name";
-    const activeOnly = searchParams.get("active") !== "false";
+    const requestedStatus = searchParams.get("status");
+    const status =
+      requestedStatus === "inactive"
+        ? "inactive"
+        : requestedStatus === "all"
+          ? "all"
+          : requestedStatus === "active"
+            ? "active"
+            : searchParams.get("active") === "false"
+              ? "all"
+              : "active";
     const search = searchParams.get("search") || "";
     const category = searchParams.get("category") || "";
     const productId = searchParams.get("productId");
@@ -31,9 +42,10 @@ export async function GET(request: NextRequest) {
 
     const payload = await getDistribuidorProductsOverview({
       distribuidorId: distribuidorId!,
+      page,
       limit,
       sort,
-      activeOnly,
+      status: productId ? "all" : status,
       search,
       category,
       productId,

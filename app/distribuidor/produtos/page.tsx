@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 // Removido next/image - usando img nativo para evitar falhas em produção
 import Link from "next/link";
 import {
@@ -58,6 +58,9 @@ export default function DistribuidorProdutosPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [filterActive, setFilterActive] = useState<string>("all"); // all, active, inactive
   const [markups, setMarkups] = useState<any>(null);
+  const [totalItems, setTotalItems] = useState(0);
+  const [summary, setSummary] = useState({ total: 0, active: 0, inactive: 0 });
+  const deferredSearch = useDeferredValue(search);
 
   // Buscar markups
   useEffect(() => {
@@ -155,9 +158,24 @@ export default function DistribuidorProdutosPage() {
     
     try {
       setLoading(true);
-      
-      console.log('[Produtos] Chamando API com id:', distribuidor.id);
-      const res = await fetch(`/api/distribuidor/products?id=${distribuidor.id}&active=false`, {
+
+      const params = new URLSearchParams({
+        id: distribuidor.id,
+        page: String(page),
+        limit: String(pageSize),
+        status: filterActive,
+      });
+
+      const normalizedSearch = deferredSearch.trim();
+      if (normalizedSearch) {
+        params.set("search", normalizedSearch);
+      }
+
+      if (selectedCategory) {
+        params.set("category", selectedCategory);
+      }
+
+      const res = await fetch(`/api/distribuidor/products?${params.toString()}`, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
@@ -165,14 +183,23 @@ export default function DistribuidorProdutosPage() {
         },
       });
       const json = await res.json();
-      console.log('[Produtos] Resposta da API:', json);
       
       if (json.success) {
-        console.log('[Produtos] Total recebido:', json.data?.length || 0);
         setProducts(json.data || []);
+        setTotalItems(Number(json.total || 0));
+        setSummary({
+          total: Number(json.summary?.total || 0),
+          active: Number(json.summary?.active || 0),
+          inactive: Number(json.summary?.inactive || 0),
+        });
+      } else {
+        setProducts([]);
+        setTotalItems(0);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
+      setProducts([]);
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
@@ -181,6 +208,11 @@ export default function DistribuidorProdutosPage() {
   useEffect(() => {
     if (distribuidor?.id) {
       fetchProducts();
+    }
+  }, [distribuidor?.id, page, pageSize, selectedCategory, filterActive, deferredSearch]);
+
+  useEffect(() => {
+    if (distribuidor?.id) {
       fetchCategories();
     }
   }, [distribuidor?.id]);
@@ -188,20 +220,9 @@ export default function DistribuidorProdutosPage() {
   useEffect(() => {
     setPage(1);
   }, [search, selectedCategory, filterActive]);
-
-  const filteredProducts = products.filter(p => {
-    const matchSearch = search === "" || 
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.codigo_mercos && p.codigo_mercos.toLowerCase().includes(search.toLowerCase()));
-    const matchCategory = selectedCategory === "" || p.category === selectedCategory;
-    const matchActive = filterActive === "all" || 
-      (filterActive === "active" && p.active) ||
-      (filterActive === "inactive" && !p.active);
-    return matchSearch && matchCategory && matchActive;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
-  const pagedProducts = filteredProducts.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const selectedCategoryLabel =
+    categories.find((category) => category.id === selectedCategory)?.name || selectedCategory;
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', { 
@@ -283,9 +304,9 @@ export default function DistribuidorProdutosPage() {
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:ring-blue-500"
             >
-              <option value="">Todas as categorias ({products.length})</option>
+              <option value="">Todas as categorias ({summary.total})</option>
               {categories.map((cat) => (
-                <option key={cat.id} value={cat.name}>
+                <option key={cat.id} value={cat.id}>
                   {cat.name} ({cat.count})
                 </option>
               ))}
@@ -323,7 +344,7 @@ export default function DistribuidorProdutosPage() {
             )}
             {selectedCategory && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded">
-                Categoria: {selectedCategory}
+                Categoria: {selectedCategoryLabel}
                 <button onClick={() => setSelectedCategory("")} className="hover:text-green-900">
                   <IconX size={14} />
                 </button>
@@ -355,19 +376,15 @@ export default function DistribuidorProdutosPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-gray-600">Total de Produtos</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{products.length}</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{summary.total}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-gray-600">Ativos</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">
-            {products.filter(p => p.active).length}
-          </p>
+          <p className="text-2xl font-bold text-green-600 mt-1">{summary.active}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-gray-600">Inativos</p>
-          <p className="text-2xl font-bold text-gray-500 mt-1">
-            {products.filter(p => !p.active).length}
-          </p>
+          <p className="text-2xl font-bold text-gray-500 mt-1">{summary.inactive}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-gray-600">Categorias</p>
@@ -383,7 +400,7 @@ export default function DistribuidorProdutosPage() {
             <p className="mt-3 text-gray-500">Carregando produtos...</p>
           </div>
         </div>
-      ) : filteredProducts.length === 0 ? (
+      ) : products.length === 0 ? (
         <div className="text-center py-12 rounded-xl border border-gray-200 bg-white">
           <IconBox size={48} className="mx-auto text-gray-300" />
           <p className="mt-3 text-gray-500">
@@ -392,7 +409,7 @@ export default function DistribuidorProdutosPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {pagedProducts.map((product) => (
+          {products.map((product) => (
             <div
               key={product.id}
               className={`rounded-xl border bg-white p-4 hover:shadow-lg transition-all flex flex-col ${
@@ -498,10 +515,10 @@ export default function DistribuidorProdutosPage() {
       )}
 
       {/* Pagination */}
-      {!loading && filteredProducts.length > 0 && (
+      {!loading && totalItems > 0 && (
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white rounded-xl border border-gray-200 p-4">
           <div className="text-sm text-gray-600">
-            Mostrando {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, filteredProducts.length)} de {filteredProducts.length}
+            Mostrando {((page - 1) * pageSize) + 1} - {Math.min(((page - 1) * pageSize) + products.length, totalItems)} de {totalItems}
           </div>
           
           <div className="flex items-center gap-1">
