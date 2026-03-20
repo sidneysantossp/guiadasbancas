@@ -56,7 +56,7 @@ export default function DistribuidorProdutosPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [filterActive, setFilterActive] = useState<string>("all"); // all, active, inactive
+  const [filterActive, setFilterActive] = useState<string>("active"); // all, active, inactive
   const [markups, setMarkups] = useState<any>(null);
   const [totalItems, setTotalItems] = useState(0);
   const [summary, setSummary] = useState({ total: 0, active: 0, inactive: 0 });
