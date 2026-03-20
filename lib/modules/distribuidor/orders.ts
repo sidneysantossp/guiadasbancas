@@ -78,17 +78,33 @@ function formatRelativeDate(dateString: string): string {
   return date.toLocaleDateString("pt-BR");
 }
 
-export async function getDistribuidorProductIds(distribuidorId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("products")
-    .select("id")
-    .eq("distribuidor_id", distribuidorId);
+const PRODUCT_ID_BATCH_SIZE = 500;
 
-  if (error) {
-    throw error;
+export async function getDistribuidorProductIds(distribuidorId: string) {
+  const productIds: string[] = [];
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await supabaseAdmin
+      .from("products")
+      .select("id")
+      .eq("distribuidor_id", distribuidorId)
+      .order("id", { ascending: true })
+      .range(offset, offset + PRODUCT_ID_BATCH_SIZE - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    const batch = (data || []).map((product) => product.id);
+    productIds.push(...batch);
+
+    hasMore = batch.length === PRODUCT_ID_BATCH_SIZE;
+    offset += PRODUCT_ID_BATCH_SIZE;
   }
 
-  return (data || []).map((product) => product.id);
+  return productIds;
 }
 
 export async function getDistribuidorRecentOrders(params: {

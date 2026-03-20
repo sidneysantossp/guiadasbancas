@@ -15,6 +15,8 @@ type DistribuidorBancaCustomization = {
   enabled?: boolean | null;
 };
 
+const CUSTOMIZATION_BATCH_SIZE = 200;
+
 function parseOrderItems(rawItems: unknown): Array<{
   product_id?: string | null;
   total_price?: number | null;
@@ -33,6 +35,30 @@ function parseOrderItems(rawItems: unknown): Array<{
   return Array.isArray(rawItems) ? rawItems : [];
 }
 
+async function loadDistribuidorBancaCustomizations(productIds: string[]) {
+  if (productIds.length === 0) {
+    return [] as DistribuidorBancaCustomization[];
+  }
+
+  const customizations: DistribuidorBancaCustomization[] = [];
+
+  for (let index = 0; index < productIds.length; index += CUSTOMIZATION_BATCH_SIZE) {
+    const batch = productIds.slice(index, index + CUSTOMIZATION_BATCH_SIZE);
+    const { data, error } = await supabaseAdmin
+      .from("banca_produtos_distribuidor")
+      .select("banca_id, product_id, enabled")
+      .in("product_id", batch);
+
+    if (error) {
+      throw error;
+    }
+
+    customizations.push(...((data || []) as DistribuidorBancaCustomization[]));
+  }
+
+  return customizations;
+}
+
 export async function getDistribuidorBancasOverview(params: {
   distribuidorId: string;
   query?: string;
@@ -43,19 +69,14 @@ export async function getDistribuidorBancasOverview(params: {
 
   const [
     { count: totalProdutosDistribuidor },
-    { data: bancasProdutos },
+    bancasProdutos,
     { data: pedidos },
   ] = await Promise.all([
     supabaseAdmin
       .from("products")
       .select("*", { count: "exact", head: true })
       .eq("distribuidor_id", params.distribuidorId),
-    productIds.length
-      ? supabaseAdmin
-          .from("banca_produtos_distribuidor")
-          .select("banca_id, product_id, enabled")
-          .in("product_id", productIds)
-      : Promise.resolve({ data: [] as DistribuidorBancaCustomization[] }),
+    loadDistribuidorBancaCustomizations(productIds),
     bancas.length
       ? supabaseAdmin
           .from("orders")
@@ -68,7 +89,7 @@ export async function getDistribuidorBancasOverview(params: {
   ]);
 
   const totalProdutosBase = totalProdutosDistribuidor || 0;
-  const customizations = (bancasProdutos || []) as DistribuidorBancaCustomization[];
+  const customizations = bancasProdutos;
   const orders = (pedidos || []) as DistribuidorBancaPedido[];
   const normalizedQuery = (params.query || "").trim().toLowerCase();
 
