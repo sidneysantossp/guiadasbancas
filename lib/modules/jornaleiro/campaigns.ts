@@ -1,5 +1,5 @@
-import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
+import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 import { supabaseAdmin } from "@/lib/supabase";
 
 async function ensureJornaleiroWithBanca(userId: string) {
@@ -13,7 +13,10 @@ async function ensureJornaleiroWithBanca(userId: string) {
     throw new Error("FORBIDDEN_JORNALEIRO");
   }
 
-  const banca = await getActiveBancaRowForUser(userId, "id, user_id");
+  const banca = await loadActiveJornaleiroBancaRow({
+    userId,
+    select: "id, user_id",
+  });
 
   if (!banca) {
     throw new Error("BANCA_NOT_FOUND");

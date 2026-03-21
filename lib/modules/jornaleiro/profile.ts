@@ -1,5 +1,9 @@
 import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
+import {
+  createPrimaryJornaleiroBanca,
+  loadActiveJornaleiroBancaRow,
+} from "@/lib/modules/jornaleiro/bancas";
 import { supabaseAdmin } from "@/lib/supabase";
 
 type JornaleiroProfilePayload = {
@@ -52,6 +56,15 @@ async function ensureJornaleiroActor(userId: string) {
 }
 
 async function loadOwnedBanca(userId: string) {
+  const activeOwnedBanca = await loadActiveJornaleiroBancaRow<any>({
+    userId,
+    select: "*",
+  });
+
+  if (activeOwnedBanca?.id && activeOwnedBanca.user_id === userId) {
+    return activeOwnedBanca;
+  }
+
   const { data, error } = await supabaseAdmin
     .from("bancas")
     .select("*")
@@ -94,7 +107,7 @@ export async function saveJornaleiroProfileBundle(params: {
   profileUpdates?: JornaleiroProfilePayload | null;
   bancaUpdates?: JornaleiroBancaPayload | null;
 }) {
-  await ensureJornaleiroActor(params.userId);
+  const actor = await ensureJornaleiroActor(params.userId);
 
   if (params.profileUpdates) {
     const profilePayload = pickDefinedEntries<JornaleiroProfilePayload>({
@@ -141,9 +154,10 @@ export async function saveJornaleiroProfileBundle(params: {
       preparation_time: params.bancaUpdates.preparation_time,
       payment_methods: params.bancaUpdates.payment_methods,
     });
+    const hasBancaChanges = Object.keys(bancaPayload).length > 0;
 
     if (existingBanca) {
-      if (Object.keys(bancaPayload).length > 0) {
+      if (hasBancaChanges) {
         const { error } = await supabaseAdmin
           .from("bancas")
           .update(bancaPayload)
@@ -155,43 +169,24 @@ export async function saveJornaleiroProfileBundle(params: {
       }
 
       bancaId = existingBanca.id;
-    } else {
-      const { data: createdBanca, error } = await supabaseAdmin
-        .from("bancas")
-        .insert({
-          user_id: params.userId,
-          active: true,
-          approved: false,
-          cep: "00000-000",
-          address: "Endereço não informado",
-          lat: -23.5505,
-          lng: -46.6333,
-          delivery_fee: 0,
-          min_order_value: 0,
-          delivery_radius: 5,
-          preparation_time: 30,
-          payment_methods: ["pix", "dinheiro"],
-          ...bancaPayload,
-        })
-        .select("id")
-        .single();
-
-      if (error) {
-        throw new Error(error.message || "Erro ao criar banca do jornaleiro");
+    } else if (hasBancaChanges) {
+      if (actor.accessLevel === "collaborator") {
+        throw new Error("FORBIDDEN_COLLABORATOR_CREATE_BANCA");
       }
 
-      bancaId = createdBanca?.id || null;
-
-      if (bancaId) {
-        const { error: profileUpdateError } = await supabaseAdmin
-          .from("user_profiles")
-          .update({ banca_id: bancaId })
-          .eq("id", params.userId);
-
-        if (profileUpdateError) {
-          throw new Error(profileUpdateError.message || "Erro ao vincular banca ao perfil");
-        }
+      if (!bancaPayload.name || bancaPayload.name.trim().length < 2) {
+        throw new Error("INVALID_BANCA_NAME");
       }
+
+      const created = await createPrimaryJornaleiroBanca({
+        userId: params.userId,
+        input: {
+          profile: params.profileUpdates || null,
+          banca: bancaPayload,
+        },
+      });
+
+      bancaId = created?.data?.id || null;
     }
   }
 

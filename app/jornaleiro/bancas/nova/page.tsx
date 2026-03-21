@@ -260,7 +260,7 @@ export default function JornaleiroNovaBancaPage() {
         <h1 className="text-xl font-semibold">Cadastrar nova banca</h1>
         <p className="text-sm text-gray-600">
           Use este formulário para cadastrar outra banca no seu CPF/CNPJ. Após salvar, você poderá completar os dados na
-          tela de edição.
+          tela de edição enquanto a nova banca fica aguardando aprovação para publicação.
         </p>
       </div>
 

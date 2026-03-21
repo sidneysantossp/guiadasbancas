@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
+import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 
 type BancaListItem = {
   id: string;
@@ -37,8 +38,11 @@ export default function JornaleiroBancasPage() {
   const [error, setError] = useState<string | null>(null);
 
   const canManageBancas = accountAccessLevel !== "collaborator";
-  const activeCount = items.filter((item) => item.active).length;
-  const pendingCount = items.filter((item) => !item.active && !item.approved).length;
+  const publishedCount = items.filter((item) => resolveBancaLifecycle(item).code === "published").length;
+  const pendingCount = items.filter((item) => {
+    const lifecycle = resolveBancaLifecycle(item);
+    return lifecycle.code === "draft" || lifecycle.code === "pending_approval";
+  }).length;
   const cotistaCount = items.filter((item) => item.is_cotista).length;
 
   const tabs = useMemo(
@@ -127,14 +131,14 @@ export default function JornaleiroBancasPage() {
           <p className="mt-1 text-sm text-gray-500">Unidades sob gestão desta conta.</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Ativas</div>
-          <div className="mt-3 text-2xl font-semibold text-gray-900">{activeCount}</div>
-          <p className="mt-1 text-sm text-gray-500">Bancas já ativas dentro da plataforma.</p>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Publicadas</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{publishedCount}</div>
+          <p className="mt-1 text-sm text-gray-500">Bancas aprovadas e operando no marketplace.</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Em aprovação</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Em preparação</div>
           <div className="mt-3 text-2xl font-semibold text-gray-900">{pendingCount}</div>
-          <p className="mt-1 text-sm text-gray-500">Bancas ainda em transição para operação plena.</p>
+          <p className="mt-1 text-sm text-gray-500">Bancas ainda em configuração inicial ou aguardando aprovação.</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Com cota vinculada</div>
@@ -179,6 +183,7 @@ export default function JornaleiroBancasPage() {
           {items.map((b) => {
             const isSelected = activeBancaId === b.id;
             const address = b.address || "";
+            const lifecycle = resolveBancaLifecycle(b);
             return (
               <div key={b.id} className={`rounded-xl border bg-white p-4 ${isSelected ? "border-[#ff5c00]" : "border-gray-200"}`}>
                 <div className="flex items-start justify-between gap-3">
@@ -189,14 +194,24 @@ export default function JornaleiroBancasPage() {
                     </div>
                     <div className="mt-1 text-sm text-gray-600 line-clamp-2">{address}</div>
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-600">
-                      {!b.approved && !b.active && (
-                        <span className="rounded-full border border-yellow-300 bg-yellow-50 text-yellow-700 px-2 py-0.5">
-                          Em aprovação
+                      {lifecycle.code === "published" && (
+                        <span className="rounded-full border border-green-300 bg-green-50 text-green-700 px-2 py-0.5">
+                          Publicada
                         </span>
                       )}
-                      {b.active && (
-                        <span className="rounded-full border border-green-300 bg-green-50 text-green-700 px-2 py-0.5">
-                          Banca Ativa
+                      {lifecycle.code === "pending_approval" && (
+                        <span className="rounded-full border border-amber-300 bg-amber-50 text-amber-700 px-2 py-0.5">
+                          Aguardando aprovação
+                        </span>
+                      )}
+                      {lifecycle.code === "draft" && (
+                        <span className="rounded-full border border-yellow-300 bg-yellow-50 text-yellow-700 px-2 py-0.5">
+                          Em preparação
+                        </span>
+                      )}
+                      {lifecycle.code === "paused" && (
+                        <span className="rounded-full border border-red-300 bg-red-50 text-red-700 px-2 py-0.5">
+                          Operação pausada
                         </span>
                       )}
                       {b.is_cotista && b.cotista_codigo && (

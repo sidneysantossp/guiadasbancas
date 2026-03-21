@@ -3,9 +3,9 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { resolveAppAuthSecret } from "@/lib/modules/auth/secrets";
 import { loadUserProfileById } from "@/lib/modules/auth/user-profiles";
 import { isJornaleiroRole } from "@/lib/modules/auth/session";
+import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 import { supabaseAdmin } from "@/lib/supabase";
 import { normalizeBrazilianDocument } from "@/lib/documents";
-import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 
 const LOCAL_DEV_ADMIN_EMAIL = "admin@guiadasbancas.com";
 const LOCAL_DEV_ADMIN_PASSWORD = "admin123";
@@ -154,7 +154,10 @@ async function authorizeEmergencyJornaleiro(rawEmail: string, rawPassword: strin
     return null;
   }
 
-  const banca = await getActiveBancaRowForUser(profile.id, "id, cpf, cnpj, cotista_cnpj_cpf, user_id");
+  const banca = await loadActiveJornaleiroBancaRow({
+    userId: profile.id,
+    select: "id, cpf, cnpj, cotista_cnpj_cpf, user_id",
+  });
   const acceptedDocuments = collectNormalizedDocuments([
     profile.cpf,
     (banca as any)?.cpf,

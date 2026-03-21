@@ -78,7 +78,6 @@ export default function JornaleiroDashboardPage() {
         throw new Error(json?.error || `HTTP ${res.status}`);
       }
 
-      console.log('[Dashboard] 🏪 Banca carregada:', json.data);
       setBanca(json.data);
     } catch (error) {
       console.error('[Dashboard] Erro ao carregar banca:', error);
@@ -291,21 +290,21 @@ export default function JornaleiroDashboardPage() {
     []
   );
 
-  // Se não tem banca, mostrar CTA para cadastrar
+  // Sem banca vinculada, orientar o jornaleiro para iniciar o cadastro.
   if (!loadingBanca && !banca) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
           <div className="text-6xl mb-4">🏪</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Cadastre sua Banca</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Nenhuma banca vinculada</h1>
           <p className="text-gray-600 mb-6">
-            Para começar a vender, você precisa cadastrar sua banca com informações como nome, endereço e horário de funcionamento.
+            Este perfil ainda não tem uma banca principal configurada. Cadastre a banca para liberar o painel operacional e iniciar a publicação.
           </p>
           <Link
             href="/jornaleiro/banca-v2"
             className="inline-block bg-[#ff5c00] text-white px-6 py-3 rounded-md hover:opacity-90 font-semibold"
           >
-            Cadastrar Minha Banca
+            Cadastrar banca
           </Link>
         </div>
       </div>
@@ -323,18 +322,7 @@ export default function JornaleiroDashboardPage() {
     );
   }
 
-  // Verificar se precisa mostrar alerta de TPU
   const needsTpuAlert = banca && !banca.is_cotista && !banca.tpu_url;
-  
-  console.log('[Dashboard] 🚨 Verificação do alerta TPU:', {
-    banca_exists: !!banca,
-    is_cotista: banca?.is_cotista,
-    is_cotista_type: typeof banca?.is_cotista,
-    not_is_cotista: !banca?.is_cotista,
-    tpu_url: banca?.tpu_url,
-    not_tpu_url: !banca?.tpu_url,
-    needsTpuAlert
-  });
 
   return (
     <div className="space-y-4 overflow-x-hidden px-3 sm:px-0 max-w-full">

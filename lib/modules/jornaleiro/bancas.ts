@@ -134,7 +134,7 @@ function buildAccessibleBancasResponse(params: {
   });
 
   const items = Array.from(itemsMap.values());
-  const activeItems = items.filter((banca: any) => banca?.active !== false);
+  const panelAccessibleItems = items.filter((banca: any) => resolveBancaLifecycle(banca).canAccessPanel);
 
   let resolvedActiveBancaId = params.activeBancaId;
 
@@ -142,15 +142,8 @@ function buildAccessibleBancasResponse(params: {
     resolvedActiveBancaId = null;
   }
 
-  if (resolvedActiveBancaId && itemsMap.has(resolvedActiveBancaId)) {
-    const activeCandidate = itemsMap.get(resolvedActiveBancaId) as any;
-    if (activeCandidate?.active === false) {
-      resolvedActiveBancaId = null;
-    }
-  }
-
-  if (!resolvedActiveBancaId && activeItems.length > 0) {
-    resolvedActiveBancaId = activeItems[0].id;
+  if (!resolvedActiveBancaId && panelAccessibleItems.length > 0) {
+    resolvedActiveBancaId = panelAccessibleItems[0].id;
   }
 
   if (!resolvedActiveBancaId && items.length > 0) {
@@ -474,7 +467,7 @@ export async function listAccessibleJornaleiroBancas(userId: string) {
     items: response.items,
     active_banca_id: response.activeBancaId,
     account_access_level: requester.accessLevel,
-    headers: buildNoStoreHeaders(),
+    headers: buildNoStoreHeaders({ isPrivate: true }),
   };
 }
 
@@ -585,7 +578,7 @@ export async function createJornaleiroBanca(params: {
     cotista_razao_social: banca.cotista_razao_social ?? null,
     cotista_cnpj_cpf: banca.cotista_cnpj_cpf ?? null,
     active: true,
-    approved: true,
+    approved: false,
     created_at: now,
     updated_at: now,
   };
@@ -643,6 +636,7 @@ export async function createJornaleiroBanca(params: {
     success: true,
     data: created,
     access_user: createdAccessUser,
+    pendingApproval: true,
   };
 }
 
@@ -657,6 +651,34 @@ export async function loadActiveJornaleiroBanca(userId: string) {
     banca: context.banca,
     requester: context.requester,
   });
+}
+
+export async function loadActiveJornaleiroBancaRow<T = any>(params: {
+  userId: string;
+  select?: string;
+}) {
+  const context = await loadActiveBancaContext(params.userId);
+
+  if (!context.banca?.id) {
+    return null;
+  }
+
+  const select = params.select || "*";
+  if (select === "*") {
+    return context.banca as T;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("bancas")
+    .select(select)
+    .eq("id", context.banca.id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "Erro ao carregar banca ativa");
+  }
+
+  return (data as T | null) || null;
 }
 
 export async function createPrimaryJornaleiroBanca(params: {
@@ -869,7 +891,7 @@ export async function updateActiveJornaleiroBanca(params: {
       banca: updated,
       requester: context.requester,
     }),
-    headers: buildNoStoreHeaders(),
+    headers: buildNoStoreHeaders({ isPrivate: true }),
   };
 }
 
@@ -891,7 +913,7 @@ export async function setActiveJornaleiroBanca(params: {
   return {
     success: true,
     banca_id: params.bancaId,
-    headers: buildNoStoreHeaders(),
+    headers: buildNoStoreHeaders({ isPrivate: true }),
   };
 }
 
@@ -959,6 +981,6 @@ export async function updateJornaleiroBancaById(params: {
     success: true,
     message: "Banca atualizada com sucesso",
     banca_id: params.bancaId,
-    headers: buildNoStoreHeaders(),
+    headers: buildNoStoreHeaders({ isPrivate: true }),
   };
 }

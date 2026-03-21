@@ -1,4 +1,4 @@
-import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
+import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const NOTIFICATION_READS_TABLE = "notification_reads";
@@ -75,7 +75,10 @@ export async function markNotificationKeysAsRead(userId: string, notificationIds
 }
 
 export async function buildJornaleiroNotifications(userId: string) {
-  const banca = await getActiveBancaRowForUser(userId, "id, user_id, is_cotista, cotista_id");
+  const banca = await loadActiveJornaleiroBancaRow({
+    userId,
+    select: "id, user_id, is_cotista, cotista_id",
+  });
 
   if (!banca) {
     return { banca: null, notifications: [] as JornaleiroNotification[] };

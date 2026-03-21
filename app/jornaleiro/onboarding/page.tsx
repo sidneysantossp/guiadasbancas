@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import type { Route } from "next";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { geocodeByAddressNominatim, resolveCepToLocation, isValidCep } from "@/lib/location";
 import PlanEntryGuide from "@/components/jornaleiro/PlanEntryGuide";
 import logger from "@/lib/logger";
@@ -22,33 +21,42 @@ export default function JornaleiroOnboardingPage() {
       if (cancelled) return;
       if (loading) return;
 
-      // Se o usuário já é jornaleiro, verificar se já tem banca na tabela bancas
-      // (não confiar apenas no profile.banca_id que pode estar desatualizado)
       if (user && isJornaleiro) {
-        // Usar maybeSingle() para não lançar erro se não encontrar
-        const { data: existingBanca, error: bancaError } = await supabase
-          .from('bancas')
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        try {
+          const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}`, {
+            method: "GET",
+            cache: "no-store",
+            credentials: "include",
+          });
+          const text = await res.text();
+          const json = text ? JSON.parse(text) : null;
 
-        if (bancaError) {
-          logger.error('[Onboarding] Erro ao verificar banca:', bancaError);
-        }
+          if (res.ok && json?.success && json?.data) {
+            logger.log('[Onboarding] ✅ Banca já existe, redirecionando para dashboard');
+            setStatus("success");
+            setMessage("Você já possui uma banca cadastrada. Seu painel segue liberado no plano Free ou no plano que já estiver ativo.");
+            setTimeout(() => {
+              if (!cancelled) {
+                router.push("/jornaleiro/dashboard" as Route);
+              }
+            }, 1000);
+            return;
+          }
 
-        if (existingBanca) {
-          logger.log('[Onboarding] ✅ Banca já existe, redirecionando para dashboard');
-          setStatus("success");
-          setMessage("Você já possui uma banca cadastrada. Seu painel segue liberado no plano Free ou no plano que já estiver ativo.");
-          setTimeout(() => {
-            if (!cancelled) {
-              router.push("/jornaleiro/dashboard" as Route);
-            }
-          }, 1000);
+          if (res.status !== 404) {
+            const apiError = json?.error || `HTTP ${res.status}`;
+            logger.error('[Onboarding] Erro ao verificar contexto da banca:', apiError);
+            setStatus("error");
+            setMessage("Não foi possível validar sua banca agora. Tente novamente em instantes.");
+            return;
+          }
+        } catch (error) {
+          logger.error('[Onboarding] Erro ao verificar banca via API:', error);
+          setStatus("error");
+          setMessage("Não foi possível validar sua banca agora. Tente novamente em instantes.");
           return;
         }
 
-        // Se não tem banca, segue para criação
         logger.log('[Onboarding] 📝 Banca não encontrada, iniciando criação');
         if (!cancelled) {
           createBanca();
@@ -224,35 +232,6 @@ export default function JornaleiroOnboardingPage() {
       
       logger.log('[Onboarding] 🏢 Preparando dados da banca - is_cotista:', bancaData.is_cotista);
 
-      // Se já existe uma banca para este usuário, não criar novamente
-      const { data: existing, error: existingErr } = await supabase
-        .from("bancas")
-        .select("id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-
-      if (existing?.id) {
-        // Garante vinculação no perfil
-        logger.log('[Onboarding] Banca já existe, vinculando ao perfil:', existing.id);
-        const { error: linkError } = await supabase
-          .from("user_profiles")
-          .update({ banca_id: existing.id })
-          .eq("id", user!.id);
-
-        if (linkError) {
-          logger.error('[Onboarding] ERRO ao vincular banca existente:', linkError);
-          throw new Error(`Erro ao vincular banca: ${linkError.message}`);
-        }
-
-        logger.log('[Onboarding] Banca existente vinculada ao perfil!');
-        setStatus("success");
-        setMessage("Você já possui uma banca cadastrada. Agora vamos abrir o painel da sua banca.");
-        setTimeout(() => {
-          router.push(("/jornaleiro/dashboard" as Route));
-        }, 1500);
-        return;
-      }
-
       // Preparar dados de perfil para salvar junto
       const profileUpdates: any = {};
       const phoneToSave = saved.phone || wizard?.phone || wizard?.servicePhone;
@@ -275,6 +254,7 @@ export default function JornaleiroOnboardingPage() {
       const response = await fetch("/api/jornaleiro/banca", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           banca: bancaData,
           profile: profileUpdates,
@@ -296,13 +276,12 @@ export default function JornaleiroOnboardingPage() {
         logger.error('[Onboarding] ❌ Erro ao criar banca via API:', apiError);
         throw new Error(apiError);
       }
-
-      const data = parsed.data;
-      logger.log('[Onboarding] ✅ Banca criada com sucesso!');
+      const alreadyExists = parsed?.alreadyExists === true;
+      logger.log(alreadyExists ? '[Onboarding] ✅ Banca já existia e foi reutilizada' : '[Onboarding] ✅ Banca criada com sucesso!');
 
       // Limpar dados pendentes do Supabase
       try {
-        await fetch('/api/jornaleiro/get-pending-banca', { method: 'DELETE' });
+        await fetch('/api/jornaleiro/get-pending-banca', { method: 'DELETE', credentials: 'include' });
         logger.log('[Onboarding] 🗑️ Dados pendentes removidos do Supabase');
       } catch (e) {
         logger.warn('[Onboarding] ⚠️ Erro ao limpar dados pendentes:', e);
@@ -315,7 +294,11 @@ export default function JornaleiroOnboardingPage() {
       } catch {}
 
       setStatus("success");
-      setMessage("Banca criada com sucesso! Seu painel já começa no plano Free. Você decide o upgrade depois.");
+      setMessage(
+        alreadyExists
+          ? "Sua banca já estava cadastrada. Vamos abrir o painel para você continuar a configuração."
+          : "Banca criada com sucesso! Seu painel já começa no plano Free. Você decide o upgrade depois."
+      );
       
       logger.log('[Onboarding] 🎉 Sucesso! Redirecionando para dashboard...');
 

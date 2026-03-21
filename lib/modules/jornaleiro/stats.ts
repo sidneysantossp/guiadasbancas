@@ -1,5 +1,5 @@
-import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
+import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -18,7 +18,14 @@ async function ensureJornaleiro(userId: string) {
 export async function loadJornaleiroStats(userId: string) {
   await ensureJornaleiro(userId);
 
-  const banca = await getActiveBancaRowForUser(userId, "id, is_cotista, cotista_id");
+  const banca = await loadActiveJornaleiroBancaRow<{
+    id: string;
+    is_cotista?: boolean | null;
+    cotista_id?: string | null;
+  }>({
+    userId,
+    select: "id, is_cotista, cotista_id",
+  });
 
   if (!banca) {
     return {

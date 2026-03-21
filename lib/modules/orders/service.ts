@@ -1,6 +1,6 @@
 import type { PlatformUserRole } from "@/lib/contracts/auth";
 import { readAuthenticatedUserClaims } from "@/lib/modules/auth/session";
-import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
+import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 
 export type OrderItem = {
   id: string;
@@ -85,7 +85,10 @@ export async function resolveOrderActorBancaId(actor: OrderActor): Promise<strin
     return null;
   }
 
-  const banca = await getActiveBancaRowForUser(actor.userId, "id");
+  const banca = await loadActiveJornaleiroBancaRow<{ id: string }>({
+    userId: actor.userId,
+    select: "id",
+  });
   return banca?.id || null;
 }
 

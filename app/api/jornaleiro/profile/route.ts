@@ -6,17 +6,21 @@ import {
   saveJornaleiroProfileBundle,
 } from "@/lib/modules/jornaleiro/profile";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
+const privateNoStoreHeaders = buildNoStoreHeaders({ isPrivate: true });
 
 // GET - Buscar perfil e banca do jornaleiro
 export async function GET(request: NextRequest) {
   try {
     const user = await getAuthenticatedRequestUser(request);
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "Não autenticado" },
-        { status: 401 }
+        { status: 401, headers: privateNoStoreHeaders }
       );
     }
 
@@ -27,13 +31,13 @@ export async function GET(request: NextRequest) {
       profile,
       banca: banca || null,
     }, {
-      headers: buildNoStoreHeaders(),
+      headers: privateNoStoreHeaders,
     });
   } catch (error) {
     console.error("Erro ao buscar perfil:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },
-      { status: 500 }
+      { status: 500, headers: privateNoStoreHeaders }
     );
   }
 }
@@ -42,11 +46,11 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const user = await getAuthenticatedRequestUser(request);
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "Não autenticado" },
-        { status: 401 }
+        { status: 401, headers: privateNoStoreHeaders }
       );
     }
 
@@ -63,7 +67,7 @@ export async function PUT(request: NextRequest) {
       profile,
       banca,
     }, {
-      headers: buildNoStoreHeaders(),
+      headers: privateNoStoreHeaders,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
@@ -71,21 +75,35 @@ export async function PUT(request: NextRequest) {
     if (message === "FORBIDDEN_JORNALEIRO") {
       return NextResponse.json(
         { error: "Acesso negado" },
-        { status: 403 }
+        { status: 403, headers: privateNoStoreHeaders }
+      );
+    }
+
+    if (message === "FORBIDDEN_COLLABORATOR_CREATE_BANCA") {
+      return NextResponse.json(
+        { error: "Colaboradores não podem criar uma nova banca" },
+        { status: 403, headers: privateNoStoreHeaders }
       );
     }
 
     if (message === "PROFILE_NOT_FOUND") {
       return NextResponse.json(
         { error: "Perfil não encontrado" },
-        { status: 404 }
+        { status: 404, headers: privateNoStoreHeaders }
+      );
+    }
+
+    if (message === "INVALID_BANCA_NAME") {
+      return NextResponse.json(
+        { error: "Nome da banca é obrigatório" },
+        { status: 400, headers: privateNoStoreHeaders }
       );
     }
 
     console.error("Erro ao atualizar perfil:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },
-      { status: 500 }
+      { status: 500, headers: privateNoStoreHeaders }
     );
   }
 }

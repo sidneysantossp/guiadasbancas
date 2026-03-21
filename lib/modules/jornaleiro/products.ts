@@ -1,6 +1,6 @@
-import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
+import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 import {
   applyDistributorProductCustomization,
   buildDistributorProductCustomizationInput,
@@ -33,7 +33,10 @@ async function ensureJornaleiroProductContext(
     throw new Error("FORBIDDEN_JORNALEIRO");
   }
 
-  const banca = await getActiveBancaRowForUser(userId, select);
+  const banca = await loadActiveJornaleiroBancaRow({
+    userId,
+    select,
+  });
   const entitlements = banca ? await resolveBancaPlanEntitlements(banca) : null;
 
   return { banca, entitlements };

@@ -1,8 +1,8 @@
-import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
+import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 
 export type TimelinePeriod = "7d" | "30d" | "90d" | "all";
 
@@ -88,10 +88,11 @@ export async function loadJornaleiroIntelligence(params: {
 
   const period = (params.period || "30d") as TimelinePeriod;
   const startDate = getStartDate(period);
-  const banca = await getActiveBancaRowForUser(
-    params.userId,
-    "id, user_id, name, active, approved, profile_image, cover_image, whatsapp, email, hours, opening_hours, tpu_url, is_cotista, cotista_id, updated_at, created_at"
-  );
+  const banca = await loadActiveJornaleiroBancaRow({
+    userId: params.userId,
+    select:
+      "id, user_id, name, active, approved, profile_image, cover_image, whatsapp, email, hours, opening_hours, tpu_url, is_cotista, cotista_id, updated_at, created_at",
+  });
 
   if (!banca) {
     throw new Error("BANCA_NOT_FOUND");

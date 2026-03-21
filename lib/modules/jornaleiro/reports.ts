@@ -1,5 +1,5 @@
-import { getActiveBancaRowForUser } from "@/lib/jornaleiro-banca";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
+import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 import { loadDistributorPricingContext } from "@/lib/modules/products/service";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -15,7 +15,10 @@ async function ensureDistributorReportAccess(userId: string) {
     throw new Error("FORBIDDEN_JORNALEIRO");
   }
 
-  const banca = await getActiveBancaRowForUser(userId, "id, user_id, is_cotista, cotista_id");
+  const banca = await loadActiveJornaleiroBancaRow({
+    userId,
+    select: "id, user_id, is_cotista, cotista_id",
+  });
 
   if (!banca) {
     throw new Error("BANCA_NOT_FOUND");

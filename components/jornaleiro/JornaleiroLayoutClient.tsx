@@ -67,10 +67,6 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
-  
-  // SEGURANÇA CRÍTICA: Usuário sem banca NÃO pode acessar nenhuma rota do painel
-  // Apenas rotas de autenticação são permitidas
-  const allowedWithoutBanca = false; // SEMPRE false para segurança
 
   const logout = async () => {
     if (user?.id) {
@@ -386,18 +382,24 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
           logger.error('[Layout] Resposta inválida da API /jornaleiro/banca:', responseText);
         }
 
-        if (!response.ok || !parsed?.success || !parsed?.data) {
-          const apiError = parsed?.error || `HTTP ${response.status}`;
-          logger.error('[Layout] Usuário sem banca ou erro na API!', apiError);
+        const missingBanca = response.status === 404 && parsed?.error === "Banca não encontrada para este usuário";
+
+        if (missingBanca) {
+          logger.warn("[Layout] Conta sem banca principal vinculada");
           setBanca(null);
           setBancaValidated(true);
-          
-          // Regra nova:
-          // - Onboarding é reservado para o fluxo logo após o wizard de cadastro
-          // - Se o usuário acessa uma rota protegida sem ter banca, enviamos para /jornaleiro/registrar
+
           if (!pathname?.startsWith('/jornaleiro/registrar')) {
             router.push('/jornaleiro/registrar');
           }
+          return;
+        }
+
+        if (!response.ok || !parsed?.success || !parsed?.data) {
+          const apiError = parsed?.error || `HTTP ${response.status}`;
+          logger.error('[Layout] Erro ao validar contexto da banca:', apiError);
+          setBanca(null);
+          setBancaValidated(true);
           return;
         }
         
