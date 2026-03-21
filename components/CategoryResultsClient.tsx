@@ -12,71 +12,7 @@ import { useToast } from "@/components/ToastProvider";
 import { shippingConfig } from "@/components/shippingConfig";
 import CategoryCarousel from "@/components/CategoryCarousel";
 import CatalogSidebar from "@/components/CatalogSidebar";
-
-const FALLBACK_CATEGORY_GROUPS: Record<string, string[]> = {
-  Panini: [
-    "Colecionáveis",
-    "Conan",
-    "DC Comics",
-    "Disney",
-    "Disney Comics",
-    "Marvel",
-    "Marvel Comics",
-    "Mangás",
-    "Maurício de Sousa Produções",
-    "Panini Books",
-    "Panini Comics",
-    "Panini Magazines",
-    "Panini Partwork",
-    "Planet Manga",
-  ],
-  Bebidas: ["Energéticos", "Bebidas"],
-  Bomboniere: [
-    "Balas e Drops",
-    "Balas a Granel",
-    "Biscoitos",
-    "Chicletes",
-    "Chocolates",
-    "Doces",
-    "Pirulitos",
-    "Salgadinhos",
-    "Snacks",
-  ],
-  Brinquedos: ["Blocos de Montar", "Carrinhos", "Massinha", "Pelúcias", "Brinquedos", "Livros Infantis"],
-  Cartas: ["Baralhos", "Baralhos e Cards", "Cards Colecionáveis", "Cards Pokémon", "Jogos Copag", "Jogos de Cartas"],
-  Diversos: [
-    "Acessórios",
-    "Acessórios Celular",
-    "Adesivos Times",
-    "Chaveiros",
-    "Diversos",
-    "Guarda-Chuvas",
-    "Mochilas",
-    "Outros",
-    "Papelaria",
-    "Utilidades",
-    "Figurinhas",
-  ],
-  Eletrônicos: ["Caixas de Som", "Fones de Ouvido", "Informática", "Pilhas", "Eletrônicos"],
-  "Pokémon": ["Cards Pokémon", "Fichários Pokémon"],
-  Tabacaria: [
-    "Boladores",
-    "Carvão Narguile",
-    "Charutos e Cigarrilhas",
-    "Cigarros",
-    "Essências",
-    "Filtros",
-    "Incensos",
-    "Isqueiros",
-    "Palheiros",
-    "Piteiras",
-    "Porta Cigarros",
-    "Seda OCB",
-    "Tabaco e Seda",
-    "Tabacos Importados",
-    "Trituradores",
-  ],
-};
+import { FALLBACK_CATEGORY_GROUPS } from "@/lib/catalog/fallbackCategories";
 
 type SidebarMenuSubcategory = {
   name: string;
