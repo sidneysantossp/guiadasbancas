@@ -98,6 +98,7 @@ export default function BancaV2Page() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get('tab') as 'jornaleiro' | 'banca' | 'func' | 'social' | null;
+  const bancaIdParam = (searchParams?.get('banca') || '').trim() || null;
   const queryClient = useQueryClient();
   const [formKey, setFormKey] = useState<number>(() => Date.now());
   const nameRef = useRef<HTMLInputElement | null>(null);
@@ -109,13 +110,19 @@ export default function BancaV2Page() {
   const [coverImages, setCoverImages] = useState<string[]>([]);
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
   const [imagesChanged, setImagesChanged] = useState(false);
-  const [activeTab, setActiveTab] = useState<'jornaleiro' | 'banca' | 'func' | 'social'>('jornaleiro');
+  const [activeTab, setActiveTab] = useState<'jornaleiro' | 'banca' | 'func' | 'social'>(
+    bancaIdParam ? 'banca' : 'jornaleiro'
+  );
 
   useEffect(() => {
     if (tabParam) {
       setActiveTab(tabParam);
+      return;
     }
-  }, [tabParam]);
+    if (bancaIdParam) {
+      setActiveTab('banca');
+    }
+  }, [tabParam, bancaIdParam]);
   const [isCotista, setIsCotista] = useState(false);
   const [selectedCotista, setSelectedCotista] = useState<SelectedCotistaInfo | null>(null);
   const [cotistaDirty, setCotistaDirty] = useState(false);
@@ -138,9 +145,12 @@ export default function BancaV2Page() {
   };
 
   const { data: bancaData, isLoading, error, refetch: refetchBanca } = useQuery({
-    queryKey: ['banca', session?.user?.id],
+    queryKey: ['banca', session?.user?.id, bancaIdParam || 'active'],
     queryFn: async () => {
-      const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}` , {
+      const endpoint = bancaIdParam
+        ? `/api/jornaleiro/bancas/${bancaIdParam}?ts=${Date.now()}`
+        : `/api/jornaleiro/banca?ts=${Date.now()}`;
+      const res = await fetch(endpoint, {
         cache: 'no-store',
         credentials: 'include',
       });
@@ -454,7 +464,10 @@ export default function BancaV2Page() {
         throw new Error(profileError.error || 'Erro ao salvar perfil');
       }
 
-      const res = await fetch('/api/jornaleiro/banca', {
+      const bancaEndpoint = bancaIdParam
+        ? `/api/jornaleiro/bancas/${bancaIdParam}`
+        : '/api/jornaleiro/banca';
+      const res = await fetch(bancaEndpoint, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -512,6 +525,7 @@ export default function BancaV2Page() {
     onSuccess: () => {
       setJustSaved(true);
       setSaveMessage('Informações atualizadas com sucesso!');
+      window.dispatchEvent(new Event('banca-updated'));
 
       setTimeout(() => {
         setJustSaved(false);
@@ -550,7 +564,7 @@ export default function BancaV2Page() {
   return (
     <div className="space-y-6 overflow-x-hidden">
       <JornaleiroPageHeading
-        title="Perfil e publicação"
+        title={bancaIdParam ? "Editar banca" : "Perfil e publicação"}
         actions={
           (isDirty || imagesChanged) ? (
             <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">

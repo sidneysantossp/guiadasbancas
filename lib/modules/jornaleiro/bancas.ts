@@ -99,6 +99,72 @@ function smartParseAddress(fullAddress: string, cep: string) {
   }
 }
 
+function buildJornaleiroBancaUpdateData(input: any) {
+  const data = input?.data ?? input?.banca ?? input;
+  const addressObj = data?.addressObj || {};
+
+  const numberNeighborhood = [addressObj.number, addressObj.neighborhood].filter(Boolean).join(" - ");
+  const cityUf = [addressObj.city, addressObj.uf].filter(Boolean).join(" - ");
+  const streetWithComplement = addressObj.complement
+    ? `${addressObj.street}, ${addressObj.complement}`
+    : addressObj.street;
+
+  const fullAddress = [streetWithComplement, numberNeighborhood || undefined, cityUf || undefined]
+    .filter(Boolean)
+    .join(", ");
+
+  const updateData: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (data?.name) updateData.name = data.name;
+  if (data?.description) updateData.description = data.description;
+  if (data?.tpu_url) updateData.tpu_url = data.tpu_url;
+  if (data?.address) updateData.address = data.address;
+  if (fullAddress) updateData.address = fullAddress;
+  if (data?.cep) updateData.cep = data.cep;
+  if (addressObj?.cep) updateData.cep = addressObj.cep;
+  if (typeof data?.lat === "number") updateData.lat = data.lat;
+  if (typeof data?.lng === "number") updateData.lng = data.lng;
+  if (typeof data?.location?.lat === "number") updateData.lat = data.location.lat;
+  if (typeof data?.location?.lng === "number") updateData.lng = data.location.lng;
+  if (data?.categories) updateData.categories = data.categories;
+  if (data?.payments) updateData.payment_methods = data.payments;
+  if (data?.payment_methods !== undefined) updateData.payment_methods = data.payment_methods;
+  if (data?.hours) updateData.hours = data.hours;
+  if (data?.contact?.whatsapp) updateData.whatsapp = data.contact.whatsapp;
+  if (data?.whatsapp) updateData.whatsapp = data.whatsapp;
+  if (data?.socials?.instagram) updateData.instagram = data.socials.instagram;
+  if (data?.socials?.facebook) updateData.facebook = data.socials.facebook;
+  if (data?.instagram !== undefined) updateData.instagram = data.instagram;
+  if (data?.facebook !== undefined) updateData.facebook = data.facebook;
+  if (data?.delivery_enabled !== undefined) updateData.delivery_enabled = data.delivery_enabled;
+  if (data?.free_shipping_threshold !== undefined) updateData.free_shipping_threshold = data.free_shipping_threshold;
+  if (data?.origin_cep !== undefined) updateData.origin_cep = data.origin_cep || null;
+  if (data?.delivery_fee !== undefined) updateData.delivery_fee = data.delivery_fee;
+  if (data?.min_order_value !== undefined) updateData.min_order_value = data.min_order_value;
+  if (data?.delivery_radius !== undefined) updateData.delivery_radius = data.delivery_radius;
+  if (data?.preparation_time !== undefined) updateData.preparation_time = data.preparation_time;
+  if (data?.is_cotista !== undefined) updateData.is_cotista = data.is_cotista;
+  if (data?.cotista_id !== undefined) updateData.cotista_id = data.cotista_id;
+  if (data?.cotista_codigo !== undefined) updateData.cotista_codigo = data.cotista_codigo;
+  if (data?.cotista_razao_social !== undefined) updateData.cotista_razao_social = data.cotista_razao_social;
+  if (data?.cotista_cnpj_cpf !== undefined) updateData.cotista_cnpj_cpf = data.cotista_cnpj_cpf;
+
+  if (data?.images?.cover !== undefined && data.images.cover !== null) {
+    updateData.cover_image = data.images.cover || null;
+  }
+
+  if (data?.images?.avatar !== undefined && data.images.avatar !== null) {
+    updateData.profile_image = data.images.avatar || null;
+  }
+
+  if (data?.cover_image !== undefined) updateData.cover_image = data.cover_image;
+  if (data?.profile_image !== undefined) updateData.profile_image = data.profile_image;
+
+  return updateData;
+}
+
 function buildAccessibleBancasResponse(params: {
   owned: any[];
   cpfLinked: any[];
@@ -837,57 +903,7 @@ export async function updateActiveJornaleiroBanca(params: {
     throw new Error("BANCA_NOT_FOUND");
   }
 
-  const data = params.input?.data ?? params.input;
-  const addressObj = data?.addressObj || {};
-
-  const numberNeighborhood = [addressObj.number, addressObj.neighborhood].filter(Boolean).join(" - ");
-  const cityUf = [addressObj.city, addressObj.uf].filter(Boolean).join(" - ");
-  const streetWithComplement = addressObj.complement
-    ? `${addressObj.street}, ${addressObj.complement}`
-    : addressObj.street;
-
-  const fullAddress = [streetWithComplement, numberNeighborhood || undefined, cityUf || undefined]
-    .filter(Boolean)
-    .join(", ");
-
-  const updateData: Record<string, any> = {
-    updated_at: new Date().toISOString(),
-  };
-
-  if (data?.name) updateData.name = data.name;
-  if (data?.description) updateData.description = data.description;
-  if (data?.tpu_url) updateData.tpu_url = data.tpu_url;
-  if (fullAddress) updateData.address = fullAddress;
-  if (addressObj?.cep) updateData.cep = addressObj.cep;
-  if (data?.location?.lat) updateData.lat = data.location.lat;
-  if (data?.location?.lng) updateData.lng = data.location.lng;
-  if (data?.categories) updateData.categories = data.categories;
-  if (data?.payments) updateData.payment_methods = data.payments;
-  if (data?.payment_methods !== undefined) updateData.payment_methods = data.payment_methods;
-  if (data?.hours) updateData.hours = data.hours;
-  if (data?.contact?.whatsapp) updateData.whatsapp = data.contact.whatsapp;
-  if (data?.socials?.instagram) updateData.instagram = data.socials.instagram;
-  if (data?.socials?.facebook) updateData.facebook = data.socials.facebook;
-  if (data?.delivery_enabled !== undefined) updateData.delivery_enabled = data.delivery_enabled;
-  if (data?.free_shipping_threshold !== undefined) updateData.free_shipping_threshold = data.free_shipping_threshold;
-  if (data?.origin_cep !== undefined) updateData.origin_cep = data.origin_cep || null;
-  if (data?.delivery_fee !== undefined) updateData.delivery_fee = data.delivery_fee;
-  if (data?.min_order_value !== undefined) updateData.min_order_value = data.min_order_value;
-  if (data?.delivery_radius !== undefined) updateData.delivery_radius = data.delivery_radius;
-  if (data?.preparation_time !== undefined) updateData.preparation_time = data.preparation_time;
-  if (data?.is_cotista !== undefined) updateData.is_cotista = data.is_cotista;
-  if (data?.cotista_id) updateData.cotista_id = data.cotista_id;
-  if (data?.cotista_codigo) updateData.cotista_codigo = data.cotista_codigo;
-  if (data?.cotista_razao_social) updateData.cotista_razao_social = data.cotista_razao_social;
-  if (data?.cotista_cnpj_cpf) updateData.cotista_cnpj_cpf = data.cotista_cnpj_cpf;
-
-  if (data?.images?.cover !== undefined && data.images.cover !== null) {
-    updateData.cover_image = data.images.cover || null;
-  }
-
-  if (data?.images?.avatar !== undefined && data.images.avatar !== null) {
-    updateData.profile_image = data.images.avatar || null;
-  }
+  const updateData = buildJornaleiroBancaUpdateData(params.input);
 
   let updateQuery: any = supabaseAdmin.from("bancas").update(updateData).eq("id", context.banca.id);
   if (context.isOwner) {
@@ -946,7 +962,7 @@ export async function updateJornaleiroBancaById(params: {
     throw new Error("FORBIDDEN_BANCA_ADMIN");
   }
 
-  const banca = params.input?.banca;
+  const banca = params.input?.data ?? params.input?.banca ?? params.input;
   const newPassword = params.input?.newPassword;
 
   if (!banca) {
@@ -963,25 +979,7 @@ export async function updateJornaleiroBancaById(params: {
     }
   }
 
-  const updateData: Record<string, any> = {
-    updated_at: new Date().toISOString(),
-  };
-
-  if (banca.name) updateData.name = banca.name;
-  if (banca.whatsapp) updateData.whatsapp = banca.whatsapp;
-  if (banca.cep) updateData.cep = banca.cep;
-  if (banca.address) updateData.address = banca.address;
-  if (typeof banca.lat === "number") updateData.lat = banca.lat;
-  if (typeof banca.lng === "number") updateData.lng = banca.lng;
-  if (banca.cover_image !== undefined) updateData.cover_image = banca.cover_image;
-  if (banca.profile_image !== undefined) updateData.profile_image = banca.profile_image;
-  if (banca.hours) updateData.hours = banca.hours;
-  if (banca.payment_methods) updateData.payment_methods = banca.payment_methods;
-  if (typeof banca.is_cotista === "boolean") updateData.is_cotista = banca.is_cotista;
-  if (banca.cotista_id !== undefined) updateData.cotista_id = banca.cotista_id;
-  if (banca.cotista_codigo !== undefined) updateData.cotista_codigo = banca.cotista_codigo;
-  if (banca.cotista_razao_social !== undefined) updateData.cotista_razao_social = banca.cotista_razao_social;
-  if (banca.cotista_cnpj_cpf !== undefined) updateData.cotista_cnpj_cpf = banca.cotista_cnpj_cpf;
+  const updateData = buildJornaleiroBancaUpdateData(params.input);
 
   const { error: updateError } = await supabaseAdmin
     .from("bancas")

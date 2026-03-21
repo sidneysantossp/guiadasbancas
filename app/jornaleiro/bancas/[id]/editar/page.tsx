@@ -10,7 +10,11 @@ export default function EditarBancaPage() {
 
   useEffect(() => {
     if (!bancaId) return;
-    router.replace(`/jornaleiro/bancas/${bancaId}/editar-form`);
+    const query = new URLSearchParams({
+      banca: bancaId,
+      tab: "banca",
+    });
+    router.replace(`/jornaleiro/banca-v2?${query.toString()}`);
   }, [bancaId, router]);
 
   return (
