@@ -355,18 +355,28 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
     return Array.from(new Set(Object.values(FALLBACK_CATEGORY_GROUPS).flat()));
   }, [effectiveSidebarMenu]);
 
+  const knownRootCategories = useMemo(() => {
+    const fromMenu = effectiveSidebarMenu.map((node) => node.name);
+    if (fromMenu.length > 0) return Array.from(new Set(fromMenu));
+    return Object.keys(FALLBACK_CATEGORY_GROUPS);
+  }, [effectiveSidebarMenu]);
+
   const resolveCategoryForItem = useCallback((item: any): string => {
     const explicitCategory =
       (typeof item?.category_name === "string" && item.category_name.trim()) ||
       (typeof item?.category === "string" && item.category.trim()) ||
       "";
-    if (explicitCategory) return explicitCategory;
 
-    const routeHint = sub || slug;
-    const normalizedHint = normalizeCategoryKey((routeHint || "").replace(/-/g, " "));
-    if (normalizedHint) {
+    const normalizedSlug = normalizeCategoryKey((slug || "").replace(/-/g, " "));
+    const normalizedSub = normalizeCategoryKey((sub || "").replace(/-/g, " "));
+    const slugIsRootCategory = knownRootCategories.some(
+      (candidate) => normalizeCategoryKey(candidate) === normalizedSlug
+    );
+
+    const routeSubcategoryHint = normalizedSub || (!slugIsRootCategory ? normalizedSlug : "");
+    if (routeSubcategoryHint) {
       const exactByHint = knownSubcategories.find(
-        (candidate) => normalizeCategoryKey(candidate) === normalizedHint
+        (candidate) => normalizeCategoryKey(candidate) === routeSubcategoryHint
       );
       if (exactByHint) return exactByHint;
     }
@@ -379,8 +389,24 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
       if (byName) return byName;
     }
 
+    if (explicitCategory) {
+      const exactByExplicit = knownSubcategories.find(
+        (candidate) => normalizeCategoryKey(candidate) === normalizeCategoryKey(explicitCategory)
+      );
+      if (exactByExplicit) return exactByExplicit;
+      return explicitCategory;
+    }
+
+    const normalizedHint = normalizeCategoryKey(((sub || slug) || "").replace(/-/g, " "));
+    if (normalizedHint) {
+      const fallbackByHint = knownSubcategories.find(
+        (candidate) => normalizeCategoryKey(candidate) === normalizedHint
+      );
+      if (fallbackByHint) return fallbackByHint;
+    }
+
     return "";
-  }, [knownSubcategories, slug, sub]);
+  }, [knownRootCategories, knownSubcategories, slug, sub]);
 
   // Extrair categorias únicas dos produtos (usa products não filtrados para mostrar todas as categorias)
   const allCategories = useMemo(() => {

@@ -18,18 +18,37 @@ type StoreBanca = {
   order: number; 
 };
 
+async function fetchPublishedBancas() {
+  if (!supabaseAdmin) return [] as any[];
+
+  const baseQuery = () =>
+    supabaseAdmin
+      .from('bancas')
+      .select('*')
+      .eq('active', true);
+
+  const approvedResult = await baseQuery()
+    .eq('approved', true)
+    .order('name');
+
+  if (!approvedResult.error && approvedResult.data && approvedResult.data.length > 0) {
+    return approvedResult.data as any[];
+  }
+
+  const fallbackResult = await baseQuery().order('name');
+  if (fallbackResult.error || !fallbackResult.data) {
+    return [];
+  }
+
+  return fallbackResult.data as any[];
+}
+
 async function readStore(): Promise<StoreBanca[]> {
   try {
     if (!supabaseAdmin) return [];
-    
-    const { data, error } = await supabaseAdmin
-      .from('bancas')
-      .select('*')
-      .eq('active', true)
-      .eq('approved', true)
-      .order('name');
 
-    if (error || !data) {
+    const data = await fetchPublishedBancas();
+    if (!data || data.length === 0) {
       return [];
     }
 
@@ -62,11 +81,8 @@ export async function GET(req: Request) {
     const lng = url.searchParams.get("lng");
     const radiusKm = url.searchParams.get("radiusKm");
 
-    let query = supabaseAdmin
-      .from('bancas')
-      .select('*')
-      .eq('active', true)
-      .eq('approved', true);
+    const allPublishedBancas = await fetchPublishedBancas();
+    let filteredBancas = allPublishedBancas;
 
     // Se temos coordenadas e raio, aplicar filtro geográfico
     if (lat && lng && radiusKm) {
@@ -78,23 +94,22 @@ export async function GET(req: Request) {
         const degLat = r / 111; // approx degrees per km
         const degLng = r / (111 * Math.cos((la * Math.PI) / 180));
         
-        query = query
-          .gte('lat', la - degLat)
-          .lte('lat', la + degLat)
-          .gte('lng', ln - degLng)
-          .lte('lng', ln + degLng);
+        filteredBancas = allPublishedBancas.filter((banca: any) => {
+          const bancaLat = typeof banca?.lat === 'number' ? banca.lat : Number(banca?.lat);
+          const bancaLng = typeof banca?.lng === 'number' ? banca.lng : Number(banca?.lng);
+          if (Number.isNaN(bancaLat) || Number.isNaN(bancaLng)) return false;
+          return (
+            bancaLat >= la - degLat &&
+            bancaLat <= la + degLat &&
+            bancaLng >= ln - degLng &&
+            bancaLng <= ln + degLng
+          );
+        });
       }
     }
 
-    const { data, error } = await query.order('name');
-
-    if (error) {
-      console.error('Erro ao buscar bancas:', error);
-      return NextResponse.json([]);
-    }
-
     // Transformar para o formato esperado
-    const list = (data as any[] || []).map((banca: any) => ({
+    const list = (filteredBancas as any[] || []).map((banca: any) => ({
       id: banca.id,
       name: banca.name,
       address: banca.address,
