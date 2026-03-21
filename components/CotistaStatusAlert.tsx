@@ -18,10 +18,10 @@ export default function CotistaStatusAlert({ isCotista, stats }: Props) {
           <span className="text-green-600 text-2xl shrink-0">✓</span>
           <div className="flex-1">
             <h3 className="text-sm font-semibold text-green-900">
-              Você é um cotista!
+              Sua banca está vinculada a uma rede parceira
             </h3>
             <p className="text-sm text-green-800 mt-1">
-              Você tem acesso automático ao catálogo completo de produtos dos distribuidores cadastrados na plataforma.
+              O vínculo comercial da banca está identificado. O acesso ao catálogo de distribuidores continua sendo definido pelo plano ativo da operação.
             </p>
             {stats && (
               <div className="mt-3 flex gap-4 text-xs">
@@ -47,10 +47,10 @@ export default function CotistaStatusAlert({ isCotista, stats }: Props) {
         <span className="text-yellow-600 text-2xl shrink-0">⚠️</span>
         <div className="flex-1">
           <h3 className="text-sm font-semibold text-yellow-900">
-            Você não é cotista
+            Sua banca ainda não tem vínculo comercial informado
           </h3>
           <p className="text-sm text-yellow-800 mt-1">
-            Para ter acesso automático aos produtos dos distribuidores, você precisa se identificar como cotista.
+            Você pode seguir operando com produtos próprios normalmente. Se a banca faz parte de uma rede parceira, revise o cadastro comercial para manter os dados corretos.
           </p>
           {stats && (
             <div className="mt-3 flex gap-4 text-xs">
@@ -69,7 +69,7 @@ export default function CotistaStatusAlert({ isCotista, stats }: Props) {
               href="/jornaleiro/banca-v2?tab=banca"
               className="inline-flex items-center gap-2 text-sm font-medium text-[#ff5c00] hover:underline"
             >
-              → Vincular minha conta como cotista
+              → Revisar vínculo comercial da banca
             </Link>
           </div>
         </div>

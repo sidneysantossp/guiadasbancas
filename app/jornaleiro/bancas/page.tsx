@@ -141,7 +141,7 @@ export default function JornaleiroBancasPage() {
           <p className="mt-1 text-sm text-gray-500">Bancas ainda em configuração inicial ou aguardando aprovação.</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Com cota vinculada</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Com rede vinculada</div>
           <div className="mt-3 text-2xl font-semibold text-gray-900">{cotistaCount}</div>
           <p className="mt-1 text-sm text-gray-500">Bancas já ligadas a relacionamento comercial.</p>
         </div>
@@ -216,7 +216,7 @@ export default function JornaleiroBancasPage() {
                       )}
                       {b.is_cotista && b.cotista_codigo && (
                         <span className="rounded-full border border-blue-300 bg-blue-50 text-blue-700 px-2 py-0.5">
-                          Cota: {b.cotista_codigo}
+                          Rede: {b.cotista_codigo}
                         </span>
                       )}
                     </div>
