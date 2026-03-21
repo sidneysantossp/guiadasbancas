@@ -556,7 +556,7 @@ export default function JornaleiroDashboardPage() {
         )}
       </div>
 
-      {/* Alerta TPU para não-cotistas sem documento */}
+      {/* Alerta de documento operacional da banca */}
       {needsTpuAlert && (
         <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 sm:p-6 shadow-sm">
           <div className="flex items-start gap-4">
@@ -569,12 +569,12 @@ export default function JornaleiroDashboardPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-lg font-semibold text-amber-900 mb-2">
-                📄 Documento Pendente
+                📄 Documento da banca pendente
               </div>
               <p className="text-sm text-amber-800 mb-4">
-                <strong>Seu cadastro da banca só será liberado após o envio do Termo de Permissão de Uso (TPU).</strong>
+                <strong>Seu cadastro só será liberado após o envio do documento operacional da banca (TPU).</strong>
                 <br />
-                Documento obrigatório para ativação.
+                Esse arquivo é obrigatório para concluir a ativação.
               </p>
               <div>
                 <Link
@@ -584,7 +584,7 @@ export default function JornaleiroDashboardPage() {
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
                   </svg>
-                  Enviar TPU da minha banca
+                  Enviar documento da banca
                 </Link>
               </div>
             </div>

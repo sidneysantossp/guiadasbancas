@@ -16,7 +16,7 @@ type Stats = {
   economia_preco_custom: number;
 };
 
-export default function RelatorioCotistaPage() {
+export default function RelatorioRedeParceiraPage() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -38,7 +38,7 @@ export default function RelatorioCotistaPage() {
           return;
         }
 
-        // Buscar estatísticas
+        // Buscar estatisticas da rede parceira
         const res = await fetch('/api/jornaleiro/relatorios/cotista');
         const json = await res.json();
 
@@ -83,17 +83,17 @@ export default function RelatorioCotistaPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Relatorio da Rede Parceira</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Estatisticas e insights sobre produtos de distribuidores
+            Estatisticas sobre produtos parceiros e performance do catalogo complementar
           </p>
         </div>
 
         <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-6 text-center">
           <span className="text-yellow-600 text-4xl">⚠️</span>
           <h3 className="text-lg font-semibold text-yellow-900 mt-4">
-            Este relatorio depende do plano da banca
+            Este painel depende do plano da banca
           </h3>
           <p className="text-sm text-yellow-800 mt-2">
-            Para acessar estatisticas avancadas sobre produtos de distribuidores, ative um plano com acesso ao catalogo parceiro.
+            Para acessar os indicadores do catalogo parceiro, ative um plano com acesso a rede de distribuidores.
           </p>
           <div className="mt-6">
             <Link
@@ -131,7 +131,7 @@ export default function RelatorioCotistaPage() {
           <div>
           <h1 className="text-2xl font-bold text-gray-900">Relatorio da Rede Parceira</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Estatisticas e insights sobre seus produtos e customizacoes
+            Estatisticas e insights sobre produtos parceiros, mix e customizacoes
           </p>
         </div>
         <Link
@@ -148,10 +148,10 @@ export default function RelatorioCotistaPage() {
           <span className="text-green-600 text-2xl">✓</span>
           <div>
             <h3 className="text-sm font-semibold text-green-900">
-              Catalogo parceiro liberado no seu plano
+              Catalogo parceiro liberado neste plano
             </h3>
             <p className="text-xs text-green-700 mt-1">
-              Acesso ao catalogo de {stats.produtos_distribuidores} produtos de distribuidores
+              Acesso atual a {stats.produtos_distribuidores} produtos da rede parceira
             </p>
           </div>
         </div>

@@ -402,8 +402,8 @@ export async function loadJornaleiroIntelligence(params: {
       ? buildAlert(
           "missing-tpu",
           "warning",
-          "Documento TPU ainda nao foi enviado",
-          "Sem o TPU, a ativacao final da banca pode ficar travada em etapas posteriores de publicacao.",
+          "Documento operacional da banca ainda nao foi enviado",
+          "Sem o documento TPU, a ativacao final da banca pode ficar travada nas etapas de publicacao.",
           "/jornaleiro/banca-v2"
         )
       : null,
