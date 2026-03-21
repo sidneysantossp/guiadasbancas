@@ -269,7 +269,7 @@ export default function CatalogoDistribuidorPage() {
           {!searchTerm && (
             hasCatalogAccess ? (
               <Link 
-                href="/jornaleiro/banca"
+                href="/jornaleiro/banca-v2?tab=banca"
                 className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#ff5c00] hover:bg-[#ff6a1a]"
               >
                 Revisar minha banca

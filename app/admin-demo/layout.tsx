@@ -15,7 +15,7 @@ export default function AdminDemoLayout({ children }: { children: React.ReactNod
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12l2-2 4 4L21 4"/></svg>
               <span>Dashboard</span>
             </Link>
-            <Link href="/jornaleiro/banca" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-orange-50 hover:text-[#ff5c00] transition-colors">
+            <Link href="/jornaleiro/banca-v2?tab=banca" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-orange-50 hover:text-[#ff5c00] transition-colors">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
               <span>Minha Banca</span>
             </Link>

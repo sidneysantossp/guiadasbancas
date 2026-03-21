@@ -66,7 +66,7 @@ export default function CotistaStatusAlert({ isCotista, stats }: Props) {
           )}
           <div className="mt-3">
             <Link
-              href="/jornaleiro/banca"
+              href="/jornaleiro/banca-v2?tab=banca"
               className="inline-flex items-center gap-2 text-sm font-medium text-[#ff5c00] hover:underline"
             >
               → Vincular minha conta como cotista

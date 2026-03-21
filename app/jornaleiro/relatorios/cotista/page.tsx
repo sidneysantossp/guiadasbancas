@@ -332,7 +332,7 @@ export default function RelatorioCotistaPage() {
           </Link>
 
           <Link
-            href="/jornaleiro/banca"
+            href="/jornaleiro/banca-v2?tab=banca"
             className="flex items-center gap-3 rounded-lg border border-gray-200 p-4 hover:bg-gray-50 transition-colors"
           >
             <span className="text-2xl">👤</span>

@@ -23,7 +23,7 @@ export default function SellerCouponCreatePage() {
           setSellerId(banca.id);
         } else {
           toast.error("Banca não encontrada. Cadastre sua banca primeiro.");
-          router.push("/jornaleiro/banca");
+          router.push("/jornaleiro/banca-v2?tab=banca");
         }
       } catch (err) {
         console.error('Erro ao buscar banca:', err);

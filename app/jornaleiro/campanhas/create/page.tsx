@@ -148,7 +148,7 @@ export default function CreateCampaignPage() {
                   <>
                     <p className="mb-3">{apiMessage}</p>
                     <Link
-                      href="/jornaleiro/banca"
+                      href="/jornaleiro/banca-v2?tab=banca"
                       className="inline-block bg-[#ff5c00] text-white px-4 py-2 rounded-lg hover:opacity-90 text-sm font-medium"
                     >
                       Cadastrar Banca
