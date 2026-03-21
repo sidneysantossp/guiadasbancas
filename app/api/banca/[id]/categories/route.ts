@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
+import {
+  BAMBINO_GROUPED_ROOTS,
+  BAMBINO_ROOT_CATEGORY_ORDER,
+  BRANCALEONE_GROUPED_ROOTS,
+  BRANCALEONE_ROOT_CATEGORY_ORDER,
+  normalizeCategoryText,
+} from "@/lib/catalog/fallbackCategories";
 
 export const revalidate = 60;
 export const dynamic = "force-dynamic";
@@ -13,61 +20,6 @@ const SUPPORTED_DISTRIBUIDOR_IDS = new Set([
   BRANCALEONE_DISTRIBUIDOR_ID,
   BAMBINO_DISTRIBUIDOR_ID,
 ]);
-
-const BRANCALEONE_ROOT_CATEGORY_ORDER = [
-  "Colecionável",
-  "Panini",
-  "Panini Collections",
-] as const;
-
-const BRANCALEONE_GROUPED_ROOTS = new Set(
-  ["Panini"].map((name) =>
-    String(name)
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-  )
-);
-
-const BAMBINO_ROOT_CATEGORY_ORDER = [
-  "Bebidas",
-  "Bomboniere",
-  "Brinquedos",
-  "Cartas",
-  "Descartáveis",
-  "Diversos",
-  "Eletronicos",
-  "Guarda-chuva / capa de chuva",
-  "Informática",
-  "Jogos",
-  "Miniaturas",
-  "Papelaria",
-  "PET SHOP",
-  "Pilhas e baterias",
-  "Pokémon",
-  "Tabacaria",
-  "Telefonia",
-] as const;
-
-const BAMBINO_GROUPED_ROOTS = new Set(
-  [
-    "Bebidas",
-    "Bomboniere",
-    "Brinquedos",
-    "Cartas",
-    "Eletronicos",
-    "Miniaturas",
-    "Pokémon",
-    "Tabacaria",
-  ].map((name) =>
-    String(name)
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-  )
-);
 
 type DistribuidorConfig = {
   id: string;
@@ -126,15 +78,6 @@ function dedupeOrdered(items: string[]): string[] {
     out.push(item);
   }
   return out;
-}
-
-function normalizeText(value: string): string {
-  return String(value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 async function fetchMercosCategoryOrder(distribuidor: DistribuidorConfig): Promise<Map<number, number>> {
@@ -435,14 +378,14 @@ export async function GET(_request: NextRequest, context: { params: { id: string
       if (dist.id === BAMBINO_DISTRIBUIDOR_ID) {
         const bambinoOrderMap = new Map<string, number>();
         BAMBINO_ROOT_CATEGORY_ORDER.forEach((name, index) =>
-          bambinoOrderMap.set(normalizeText(name), index)
+          bambinoOrderMap.set(normalizeCategoryText(name), index)
         );
 
         rootRows = rootRows
-          .filter((row) => bambinoOrderMap.has(normalizeText(row.nome)))
+          .filter((row) => bambinoOrderMap.has(normalizeCategoryText(row.nome)))
           .sort((a, b) => {
-            const orderA = bambinoOrderMap.get(normalizeText(a.nome)) ?? Number.MAX_SAFE_INTEGER;
-            const orderB = bambinoOrderMap.get(normalizeText(b.nome)) ?? Number.MAX_SAFE_INTEGER;
+            const orderA = bambinoOrderMap.get(normalizeCategoryText(a.nome)) ?? Number.MAX_SAFE_INTEGER;
+            const orderB = bambinoOrderMap.get(normalizeCategoryText(b.nome)) ?? Number.MAX_SAFE_INTEGER;
             return orderA - orderB;
           });
       }
@@ -450,14 +393,14 @@ export async function GET(_request: NextRequest, context: { params: { id: string
       if (dist.id === BRANCALEONE_DISTRIBUIDOR_ID) {
         const brancaleoneOrderMap = new Map<string, number>();
         BRANCALEONE_ROOT_CATEGORY_ORDER.forEach((name, index) =>
-          brancaleoneOrderMap.set(normalizeText(name), index)
+          brancaleoneOrderMap.set(normalizeCategoryText(name), index)
         );
 
         rootRows = rootRows
-          .filter((row) => brancaleoneOrderMap.has(normalizeText(row.nome)))
+          .filter((row) => brancaleoneOrderMap.has(normalizeCategoryText(row.nome)))
           .sort((a, b) => {
-            const orderA = brancaleoneOrderMap.get(normalizeText(a.nome)) ?? Number.MAX_SAFE_INTEGER;
-            const orderB = brancaleoneOrderMap.get(normalizeText(b.nome)) ?? Number.MAX_SAFE_INTEGER;
+            const orderA = brancaleoneOrderMap.get(normalizeCategoryText(a.nome)) ?? Number.MAX_SAFE_INTEGER;
+            const orderB = brancaleoneOrderMap.get(normalizeCategoryText(b.nome)) ?? Number.MAX_SAFE_INTEGER;
             return orderA - orderB;
           });
       }
@@ -481,7 +424,7 @@ export async function GET(_request: NextRequest, context: { params: { id: string
       for (const root of rootRows) {
         const isBambinoStandaloneRoot =
           dist.id === BAMBINO_DISTRIBUIDOR_ID &&
-          !BAMBINO_GROUPED_ROOTS.has(normalizeText(root.nome));
+          !BAMBINO_GROUPED_ROOTS.has(normalizeCategoryText(root.nome));
 
         if (isBambinoStandaloneRoot) {
           addStandalone(root.nome);
@@ -490,7 +433,7 @@ export async function GET(_request: NextRequest, context: { params: { id: string
 
         const isBrancaleoneStandaloneRoot =
           dist.id === BRANCALEONE_DISTRIBUIDOR_ID &&
-          !BRANCALEONE_GROUPED_ROOTS.has(normalizeText(root.nome));
+          !BRANCALEONE_GROUPED_ROOTS.has(normalizeCategoryText(root.nome));
 
         if (isBrancaleoneStandaloneRoot) {
           addStandalone(root.nome);
