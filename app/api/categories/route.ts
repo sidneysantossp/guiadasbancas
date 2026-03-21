@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sanitizePublicImageUrl } from "@/lib/sanitizePublicImageUrl";
-import { buildFallbackPublicRootCategories } from "@/lib/catalog/publicCategories";
+import {
+  buildFallbackPublicRootCategories,
+  PUBLIC_ROOT_CATEGORY_SOURCES,
+} from "@/lib/catalog/publicCategories";
 import { normalizeCategoryText, slugify } from "@/lib/catalog/fallbackCategories";
 
 export const dynamic = "force-dynamic";
@@ -43,20 +46,12 @@ type DistribuidorCategoryRow = {
   categoria_pai_id: number | null;
 };
 
-const BRANCALEONE_DISTRIBUIDOR_ID = "1511df09-1f4a-4e68-9f8c-05cd06be6269";
-const BAMBINO_DISTRIBUIDOR_ID = "3a989c56-bbd3-4769-b076-a83483e39542";
-const FOCUSED_MEGA_MENU_ROOTS: ReadonlyArray<{ distribuidorId: string; name: string }> = [
-  { distribuidorId: BRANCALEONE_DISTRIBUIDOR_ID, name: "Panini" },
-  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Bebidas" },
-  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Bomboniere" },
-  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Brinquedos" },
-  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Eletronicos" },
-  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Informática" },
-  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Papelaria" },
-  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Tabacaria" },
-  { distribuidorId: BAMBINO_DISTRIBUIDOR_ID, name: "Telefonia" },
-] as const;
-const ALWAYS_INCLUDE_ROOTS = new Set<string>(["bebidas"]);
+const FOCUSED_MEGA_MENU_ROOTS = PUBLIC_ROOT_CATEGORY_SOURCES;
+const ALWAYS_INCLUDE_ROOTS = new Set<string>(
+  PUBLIC_ROOT_CATEGORY_SOURCES.filter((root) => root.alwaysInclude).map((root) =>
+    normalizeCategoryText(root.name)
+  )
+);
 
 const ICON_RULES: Array<{ pattern: RegExp; icon: string }> = [
   { pattern: /(bebida|energet|suco|agua|refriger|cervej|vinho|cafe|cha)/i, icon: "🍺" },
