@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sanitizePublicImageUrl } from "@/lib/sanitizePublicImageUrl";
 import { buildFallbackPublicRootCategories } from "@/lib/catalog/publicCategories";
+import { normalizeCategoryText, slugify } from "@/lib/catalog/fallbackCategories";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -69,17 +70,6 @@ const ICON_RULES: Array<{ pattern: RegExp; icon: string }> = [
   { pattern: /(brinquedo|pelucia|massinha|carrinho)/i, icon: "🧸" },
   { pattern: /(eletron|fone|caixa de som|informatic|pilha|celular|acessorio)/i, icon: "🔌" },
 ];
-
-function slugify(value: string): string {
-  return (value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-}
 
 function resolveCategoryLink(name: string, link?: string | null): string {
   const expectedSlug = slugify(name) || "categoria";
@@ -279,15 +269,6 @@ function dedupeSubcategories(items: TreeSubcategory[]): TreeSubcategory[] {
   return Array.from(map.values());
 }
 
-function normalizeText(value: string): string {
-  return String(value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 async function buildFocusedMegaMenuTree(
   normalizedData: PublicCategory[]
 ): Promise<TreeCategory[] | null> {
@@ -337,7 +318,7 @@ async function buildFocusedMegaMenuTree(
   type LinkRef = { link: string; score: number };
   const linkByNormalizedName = new Map<string, LinkRef>();
   for (const row of normalizedData) {
-    const key = normalizeText(row.name);
+    const key = normalizeCategoryText(row.name);
     const score = typeof row.mercos_id === "number" ? 2 : 1;
     const existing = linkByNormalizedName.get(key);
     if (!existing || score >= existing.score) {
@@ -358,7 +339,7 @@ async function buildFocusedMegaMenuTree(
     const rowByNormalizedName = new Map<string, DistribuidorCategoryRow>();
     for (const row of distRows) {
       if (typeof row.mercos_id === "number") byMercos.set(row.mercos_id, row);
-      const key = normalizeText(row.nome);
+      const key = normalizeCategoryText(row.nome);
       if (!rowByNormalizedName.has(key)) rowByNormalizedName.set(key, row);
     }
 
@@ -372,7 +353,7 @@ async function buildFocusedMegaMenuTree(
       childrenByParent.get(row.categoria_pai_id)!.push(row);
     }
 
-    const rootRow = rowByNormalizedName.get(normalizeText(rootConfig.name));
+    const rootRow = rowByNormalizedName.get(normalizeCategoryText(rootConfig.name));
     if (!rootRow || typeof rootRow.mercos_id !== "number") continue;
 
     const collectDescendantsWithRows = (
@@ -399,7 +380,7 @@ async function buildFocusedMegaMenuTree(
 
     const descendants = collectDescendantsWithRows(rootRow.mercos_id, new Set<number>());
 
-    const shouldAlwaysIncludeRoot = ALWAYS_INCLUDE_ROOTS.has(normalizeText(rootConfig.name));
+    const shouldAlwaysIncludeRoot = ALWAYS_INCLUDE_ROOTS.has(normalizeCategoryText(rootConfig.name));
 
     const filteredSubs = descendants.filter((sub) => {
       const normalizedName = String(sub.nome || "").trim();
@@ -415,7 +396,7 @@ async function buildFocusedMegaMenuTree(
       filteredSubs.length > 0;
     if (!rootHasProducts) continue;
 
-    const rootLinkRef = linkByNormalizedName.get(normalizeText(rootConfig.name));
+    const rootLinkRef = linkByNormalizedName.get(normalizeCategoryText(rootConfig.name));
     const rootLink = rootLinkRef?.link || resolveCategoryLink(rootConfig.name);
     const subcategories = dedupeSubcategories(
       filteredSubs.map((sub, subIndex) => {

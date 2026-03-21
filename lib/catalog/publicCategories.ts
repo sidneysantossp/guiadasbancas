@@ -1,6 +1,9 @@
 import { sanitizePublicImageUrl } from "@/lib/sanitizePublicImageUrl";
 import { categories as fallbackCategories } from "@/components/categoriesData";
-import { FALLBACK_TOP_CATEGORY_MENU } from "@/lib/catalog/fallbackCategories";
+import {
+  FALLBACK_TOP_CATEGORY_MENU,
+  normalizeCategoryText,
+} from "@/lib/catalog/fallbackCategories";
 
 export type PublicRootCategory = {
   id: string;
@@ -18,18 +21,9 @@ type RawCategoryLike = {
   order?: number | null;
 };
 
-function normalizeText(value: string): string {
-  return String(value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function fallbackVisualByName(name: string) {
-  const normalizedName = normalizeText(name);
-  return fallbackCategories.find((category) => normalizeText(category.name) === normalizedName);
+  const normalizedName = normalizeCategoryText(name);
+  return fallbackCategories.find((category) => normalizeCategoryText(category.name) === normalizedName);
 }
 
 export function buildFallbackPublicRootCategories(): PublicRootCategory[] {
@@ -52,7 +46,7 @@ export function curatePublicRootCategories(rawCategories: RawCategoryLike[]): Pu
   for (const category of rawCategories || []) {
     const name = String(category?.name || "").trim();
     if (!name) continue;
-    const key = normalizeText(name);
+    const key = normalizeCategoryText(name);
     const current = bestByName.get(key);
     const score = (category?.image ? 2 : 0) + (category?.link ? 1 : 0);
     const currentScore = current ? ((current.image ? 2 : 0) + (current.link ? 1 : 0)) : -1;
@@ -62,7 +56,7 @@ export function curatePublicRootCategories(rawCategories: RawCategoryLike[]): Pu
   }
 
   return fallback.map((category, index) => {
-    const matched = bestByName.get(normalizeText(category.name));
+    const matched = bestByName.get(normalizeCategoryText(category.name));
     if (!matched) {
       return category;
     }

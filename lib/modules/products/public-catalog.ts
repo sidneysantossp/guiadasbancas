@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { FALLBACK_CATEGORY_GROUPS_BY_SLUG } from "@/lib/catalog/fallbackCategories";
 
 type DistributorCategoryLookup = { id: string; nome: string };
 type BancaCategoryLookup = { id: string; name: string };
@@ -28,19 +29,25 @@ const SLUG_ALIASES: Record<string, string> = {
   acessorios: "diversos",
 };
 
+function mergeUniqueCategoryNames(...groups: Array<string[] | undefined>): string[] {
+  return Array.from(
+    new Set(groups.flatMap((group) => group || []).filter((value): value is string => Boolean(value)))
+  );
+}
+
 const CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
-  tabacaria: ["Boladores", "Carvão Narguile", "Charutos e Cigarrilhas", "Cigarros", "Essências", "Filtro", "Filtros", "Incensos", "Isqueiros", "Palheiros", "Piteira", "Piteiras", "Porta Cigarros", "Seda", "Seda OCB", "Tabaco", "Tabaco e Seda", "Tabacos Importados", "Trituradores"],
-  bebidas: ["Energéticos", "Energético", "Bebidas", "Bebida", "Cerveja", "Cervejas", "Água", "Águas", "Refrigerantes", "Refrigerante", "Sucos", "Suco", "Isotônicos", "Isotônico"],
-  bomboniere: ["Bala", "Bala Doce", "Balas e Drops", "Balas a Granel", "Biscoitos", "Chiclete", "Chicletes", "Chocolate", "Chocolates", "Doces", "Pirulito", "Pirulitos", "Salgados", "Salgadinhos", "Snacks"],
-  brinquedos: ["Adesivos", "Blocos de Montar", "Bonecos", "Brinquedos", "Caminhão", "Carrinhos", "Educativos", "Esportivo", "Lança Bolhas", "Massinha", "Pelúcia", "Pelúcias", 'Tipo "Lego"', "Livros Infantis"],
-  cartas: ["Baralhos", "Baralhos e Cards", "Cards Colecionáveis", "Cards Pokémon", "Jogos Copag", "Jogos de Cartas"],
-  eletronicos: ["Acessórios para eletrônicos", "Adaptadores", "Cabo", "Caixa de som", "Caixas de Som", "Carregador com tomada", "Carregador Portátil", "Carregador veicular", "Fone", "Fone de ouvido", "Fones de Ouvido", "Informática", "Pilhas", "Eletrônicos"],
-  informatica: ["Informática"],
-  papelaria: ["Papelaria", "Adesivos", "Canetas", "Cadernos", "Material Escolar"],
-  telefonia: ["Telefonia", "Chip Pré", "Capinha Para Celular", "Acessórios Celular"],
-  diversos: ["Acessórios", "Acessórios Celular", "Adesivos Times", "Chaveiros", "Diversos", "Guarda-Chuvas", "Mochilas", "Outros", "Papelaria", "Utilidades", "Figurinhas"],
-  pokemon: ["Cards Pokémon", "Fichários Pokémon"],
-  panini: ["Colecionáveis", "Conan", "DC Comics", "Disney Comics", "Marvel Comics", "Maurício de Sousa Produções", "Panini Books", "Panini Comics", "Panini Magazines", "Panini Partwork", "Planet Manga", "HQs", "HQ", "Comics", "Quadrinhos", "Mangás", "Manga", "Graphic Novels", "Graphic Novel", "Revistas", "Gibis", "Gibi"],
+  tabacaria: mergeUniqueCategoryNames(FALLBACK_CATEGORY_GROUPS_BY_SLUG.tabacaria, ["Filtro", "Piteira", "Piteiras", "Seda", "Tabaco"]),
+  bebidas: mergeUniqueCategoryNames(FALLBACK_CATEGORY_GROUPS_BY_SLUG.bebidas, ["Energético", "Bebida", "Cervejas", "Águas", "Refrigerantes", "Sucos", "Isotônico"]),
+  bomboniere: mergeUniqueCategoryNames(FALLBACK_CATEGORY_GROUPS_BY_SLUG.bomboniere, ["Bala", "Bala Doce", "Chiclete", "Chocolate", "Pirulito", "Salgados"]),
+  brinquedos: mergeUniqueCategoryNames(FALLBACK_CATEGORY_GROUPS_BY_SLUG.brinquedos, ["Adesivos", "Caminhão", "Lança Bolhas", "Pelúcia", 'Tipo "Lego"']),
+  cartas: mergeUniqueCategoryNames(FALLBACK_CATEGORY_GROUPS_BY_SLUG.cartas),
+  eletronicos: mergeUniqueCategoryNames(FALLBACK_CATEGORY_GROUPS_BY_SLUG.eletronicos, ["Caixas de Som", "Fone", "Fone de ouvido", "Informática"]),
+  informatica: mergeUniqueCategoryNames(FALLBACK_CATEGORY_GROUPS_BY_SLUG.informatica),
+  papelaria: mergeUniqueCategoryNames(FALLBACK_CATEGORY_GROUPS_BY_SLUG.papelaria),
+  telefonia: mergeUniqueCategoryNames(FALLBACK_CATEGORY_GROUPS_BY_SLUG.telefonia),
+  diversos: mergeUniqueCategoryNames(FALLBACK_CATEGORY_GROUPS_BY_SLUG.diversos),
+  pokemon: mergeUniqueCategoryNames(FALLBACK_CATEGORY_GROUPS_BY_SLUG.pokemon),
+  panini: mergeUniqueCategoryNames(FALLBACK_CATEGORY_GROUPS_BY_SLUG.panini, ["HQs", "HQ", "Comics", "Quadrinhos", "Manga", "Graphic Novels", "Graphic Novel", "Revistas", "Gibis", "Gibi"]),
   marvel: ["Marvel Comics", "Marvel", "Vingadores", "Avengers", "Homem-Aranha", "Spider-Man", "X-Men", "Deadpool", "Wolverine", "Thor", "Hulk", "Homem de Ferro", "Iron Man", "Capitão América", "Captain America"],
   manga: ["Planet Manga", "Mangá", "Mangás", "Manga", "Anime", "Naruto", "One Piece", "Dragon Ball", "Demon Slayer", "Jujutsu Kaisen", "My Hero Academia", "Attack on Titan", "Death Note", "Bleach", "Hunter x Hunter"],
   mauricio: ["Maurício de Sousa Produções", "Maurício de Sousa", "Turma da Mônica", "Mônica", "Cebolinha", "Cascão", "Magali", "Chico Bento", "Pelezinho", "Horácio", "Astronauta", "Piteco"],

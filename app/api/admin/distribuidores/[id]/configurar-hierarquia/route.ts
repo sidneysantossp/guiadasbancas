@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { FALLBACK_CATEGORY_GROUPS } from "@/lib/catalog/fallbackCategories";
 
 export const dynamic = 'force-dynamic';
 
@@ -9,59 +10,19 @@ export const dynamic = 'force-dynamic';
  * GET: Retorna configuração atual
  */
 
-// Hierarquia padrão para Bambino Distribuidora
-const BAMBINO_HIERARCHY: Record<string, string[]> = {
-  'Tabacaria': [
-    'Boladores',
-    'Carvão Narguile', 
-    'Cigarros',
-    'Cigarros L&M',
-    'Essências',
-    'Filtros',
-    'Incensos',
-    'Isqueiros',
-    'Palheiros',
-    'Piteiras',
-    'Porta Cigarros',
-    'Seda OCB',
-    'Tabaco e Seda',
-    'Tabacos Importados',
-    'Trituradores',
-  ],
-  'Bomboniere': [
-    'Balas e Drops',
-    'Chicletes',
-    'Chocolates',
-    'Doces',
-    'Salgadinhos',
-  ],
-  'Bebidas': [
-    'Energéticos',
-  ],
-  'Eletrônicos': [
-    'Caixas de Som',
-    'Fones de Ouvido',
-    'Pilhas',
-    'Acessórios Celular',
-    'Capinhas Celular',
-  ],
-  'Cartas e Jogos': [
-    'Baralhos',
-    'Baralhos e Cards',
-    'Cards Colecionáveis',
-    'Jogos de Cartas',
-    'Cartas',
-  ],
-  'Brinquedos': [
-    'Pelúcias',
-    'Livros Infantis',
-  ],
-  'Diversos': [
-    'Acessórios',
-    'Adesivos Times',
-    'Utilidades',
-  ],
-};
+const BAMBINO_HIERARCHY_ROOTS = [
+  "Bebidas",
+  "Bomboniere",
+  "Brinquedos",
+  "Cartas",
+  "Diversos",
+  "Eletronicos",
+  "Tabacaria",
+] as const;
+
+const BAMBINO_HIERARCHY: Record<string, string[]> = Object.fromEntries(
+  BAMBINO_HIERARCHY_ROOTS.map((rootName) => [rootName, [...(FALLBACK_CATEGORY_GROUPS[rootName] || [])]])
+);
 
 export async function POST(
   request: NextRequest,

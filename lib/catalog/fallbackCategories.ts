@@ -11,7 +11,16 @@ export interface FallbackMainCategory {
   subcategories: FallbackSubCategory[];
 }
 
-function slugify(value: string): string {
+export function normalizeCategoryText(value: string): string {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function slugify(value: string): string {
   return (value || "")
     .toLowerCase()
     .normalize("NFD")
@@ -125,6 +134,53 @@ export const FALLBACK_CATEGORY_GROUPS: Record<string, string[]> = {
   ],
   Telefonia: ["Telefonia", "Chip Pré", "Capinha Para Celular", "Acessórios Celular"],
 };
+
+export const FALLBACK_CATEGORY_GROUPS_BY_SLUG: Record<string, string[]> = Object.fromEntries(
+  Object.entries(FALLBACK_CATEGORY_GROUPS).map(([name, subcategories]) => [slugify(name), [...subcategories]])
+);
+
+export const BRANCALEONE_ROOT_CATEGORY_ORDER = [
+  "Colecionável",
+  "Panini",
+  "Panini Collections",
+] as const;
+
+export const BRANCALEONE_GROUPED_ROOTS = new Set(
+  ["Panini"].map((name) => normalizeCategoryText(name))
+);
+
+export const BAMBINO_ROOT_CATEGORY_ORDER = [
+  "Bebidas",
+  "Bomboniere",
+  "Brinquedos",
+  "Cartas",
+  "Descartáveis",
+  "Diversos",
+  "Eletronicos",
+  "Guarda-chuva / capa de chuva",
+  "Informática",
+  "Jogos",
+  "Miniaturas",
+  "Papelaria",
+  "PET SHOP",
+  "Pilhas e baterias",
+  "Pokémon",
+  "Tabacaria",
+  "Telefonia",
+] as const;
+
+export const BAMBINO_GROUPED_ROOTS = new Set(
+  [
+    "Bebidas",
+    "Bomboniere",
+    "Brinquedos",
+    "Cartas",
+    "Eletronicos",
+    "Miniaturas",
+    "Pokémon",
+    "Tabacaria",
+  ].map((name) => normalizeCategoryText(name))
+);
 
 const TOP_MENU_META: Array<{ name: string; slug: string; icon: string }> = [
   { name: "Panini", slug: "panini", icon: "⚽" },
