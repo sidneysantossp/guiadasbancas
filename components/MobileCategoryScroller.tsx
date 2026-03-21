@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { categories as fallbackCategories } from "@/components/categoriesData";
 import { sanitizePublicImageUrl } from "@/lib/sanitizePublicImageUrl";
+import { buildFallbackPublicRootCategories, curatePublicRootCategories } from "@/lib/catalog/publicCategories";
 
 type PublicCategory = {
   id: string;
@@ -37,7 +37,29 @@ export default function MobileCategoryScroller({ initialCategories }: MobileCate
         const res = await fetch('/api/categories', { cache: 'no-store' });
         if (!res.ok) throw new Error('failed');
         const j = await res.json();
-        if (mounted) setCats(Array.isArray(j?.data) && j.data.length ? j.data : []);
+        if (!mounted) return;
+        const fromTree = Array.isArray(j?.tree)
+          ? j.tree.map((item: any, index: number) => ({
+              id: item.id || `tree-${index}`,
+              name: item.name || "Categoria",
+              image: "",
+              link: item.link || "",
+              order: typeof item.order === "number" ? item.order : index,
+            }))
+          : [];
+
+        const fromData = Array.isArray(j?.data)
+          ? j.data.map((item: any, index: number) => ({
+              id: item.id || `data-${index}`,
+              name: item.name || "Categoria",
+              image: item.image || "",
+              link: item.link || "",
+              order: typeof item.order === "number" ? item.order : index,
+            }))
+          : [];
+
+        const curated = curatePublicRootCategories(fromTree.length > 0 ? [...fromTree, ...fromData] : fromData);
+        setCats(curated.length > 0 ? curated : []);
       } catch {
         if (mounted) setCats([]);
       }
@@ -51,7 +73,12 @@ export default function MobileCategoryScroller({ initialCategories }: MobileCate
       return cats.map((c) => ({ key: c.id, name: c.name, image: sanitizePublicImageUrl(c.image), link: c.link }));
     }
     // fallback to static when API has nothing yet
-    return fallbackCategories.map((c, i) => ({ key: c.slug+':'+i, name: c.name, image: sanitizePublicImageUrl(c.image), link: `/categorias?cat=${c.slug}` }));
+    return buildFallbackPublicRootCategories().map((c, i) => ({
+      key: `${c.id}:${i}`,
+      name: c.name,
+      image: sanitizePublicImageUrl(c.image),
+      link: c.link,
+    }));
   }, [cats]);
 
   // Auto-scroll one card at a time with smooth behavior; wraps back to start

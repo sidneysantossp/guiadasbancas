@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
-import { categories as fallbackCategories } from "@/components/categoriesData";
 import { sanitizePublicImageUrl } from "@/lib/sanitizePublicImageUrl";
+import { buildFallbackPublicRootCategories, curatePublicRootCategories } from "@/lib/catalog/publicCategories";
 import FullBanner from "@/components/FullBanner";
 import MobileCategoryScroller from "@/components/MobileCategoryScroller";
 import MiniCategoryBar from "@/components/MiniCategoryBar";
@@ -265,31 +265,21 @@ async function getCategories(): Promise<HomeCategory[]> {
       .order("name", { ascending: true });
 
     if (error || !data || data.length === 0) {
-      return fallbackCategories.map((cat, index) => ({
-        id: cat.slug,
-        name: cat.name,
-        image: sanitizePublicImageUrl(cat.image),
-        link: `/categorias/${cat.slug}`,
-        order: index,
-      }));
+      return buildFallbackPublicRootCategories();
     }
 
-    return data.map((cat: any, index: number) => ({
-      id: cat.id,
-      name: cat.name,
-      image: sanitizePublicImageUrl(cat.image),
-      link: cat.link,
-      order: typeof cat.order === "number" ? cat.order : index,
-    }));
+    return curatePublicRootCategories(
+      data.map((cat: any, index: number) => ({
+        id: cat.id,
+        name: cat.name,
+        image: sanitizePublicImageUrl(cat.image),
+        link: cat.link,
+        order: typeof cat.order === "number" ? cat.order : index,
+      }))
+    );
   } catch (error) {
     console.error("[home] Exception ao buscar categorias:", error);
-    return fallbackCategories.map((cat, index) => ({
-      id: cat.slug,
-      name: cat.name,
-      image: sanitizePublicImageUrl(cat.image),
-      link: `/categorias/${cat.slug}`,
-      order: index,
-    }));
+    return buildFallbackPublicRootCategories();
   }
 }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sanitizePublicImageUrl } from "@/lib/sanitizePublicImageUrl";
-import { categories as fallbackCategories } from "@/components/categoriesData";
+import { buildFallbackPublicRootCategories } from "@/lib/catalog/publicCategories";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -121,12 +121,12 @@ function sortByOrderThenName(a: { order?: number; name: string }, b: { order?: n
 }
 
 function buildFallbackPublicCategories(): PublicCategory[] {
-  return fallbackCategories.map((cat, index) => ({
-    id: cat.slug,
+  return buildFallbackPublicRootCategories().map((cat) => ({
+    id: cat.id,
     name: cat.name,
     image: sanitizePublicImageUrl(cat.image),
-    link: `/categorias/${cat.slug}`,
-    order: index,
+    link: cat.link,
+    order: cat.order,
     parent_category_id: null,
     mercos_id: null,
   }));

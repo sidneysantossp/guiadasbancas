@@ -6,10 +6,10 @@ import FloatingCart from "@/components/FloatingCart";
 import CookieConsent from "@/components/CookieConsent";
 import SiteProviders from "@/components/SiteProviders";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
-import { categories as fallbackCategories } from "@/components/categoriesData";
 import type { BrandingConfig } from "@/types/branding";
 import { CACHE_TTL } from "@/lib/data/cache";
 import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
+import { buildFallbackPublicRootCategories, curatePublicRootCategories } from "@/lib/catalog/publicCategories";
 
 const DEFAULT_FOOTER_DATA: FooterData = {
   title: "Guia das Bancas",
@@ -67,26 +67,33 @@ const getFooterCategories = unstable_cache(async (): Promise<SimpleCategory[]> =
       .order("order", { ascending: true });
 
     if (error || !data || data.length === 0) {
-      return fallbackCategories.map((cat, index) => ({
-        id: cat.slug,
+      return buildFallbackPublicRootCategories().map((cat) => ({
+        id: cat.id,
         name: cat.name,
-        link: `/categorias/${cat.slug}`,
+        link: cat.link,
       }));
     }
 
     const visibleData = data.filter((cat: any) => cat.visible !== false);
     const source = visibleData.length > 0 ? visibleData : data;
 
-    return source.map((cat: any, index: number) => ({
-      id: cat.id || String(index),
-      name: cat.name || "Categoria",
-      link: cat.link || `/categorias/${cat.id || ""}`,
+    return curatePublicRootCategories(
+      source.map((cat: any, index: number) => ({
+        id: cat.id || String(index),
+        name: cat.name || "Categoria",
+        link: cat.link || "",
+        order: typeof cat.order === "number" ? cat.order : index,
+      }))
+    ).map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      link: cat.link,
     }));
   } catch {
-    return fallbackCategories.map((cat) => ({
-      id: cat.slug,
+    return buildFallbackPublicRootCategories().map((cat) => ({
+      id: cat.id,
       name: cat.name,
-      link: `/categorias/${cat.slug}`,
+      link: cat.link,
     }));
   }
 }, ["site-footer-categories"], { revalidate: CACHE_TTL.footer });
