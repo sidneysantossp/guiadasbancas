@@ -1,34 +1,83 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
-import { updateJornaleiroBancaById } from "@/lib/modules/jornaleiro/bancas";
+import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import {
+  loadJornaleiroBancaById,
+  updateJornaleiroBancaById,
+} from "@/lib/modules/jornaleiro/bancas";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
+const privateNoStoreHeaders = buildNoStoreHeaders({ isPrivate: true });
+
 function mapBancaByIdError(error: any) {
   const message = error?.message || "";
 
   if (message === "FORBIDDEN_JORNALEIRO") {
-    return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
+    return NextResponse.json(
+      { success: false, error: "Acesso negado" },
+      { status: 403, headers: privateNoStoreHeaders }
+    );
   }
 
   if (message === "BANCA_NOT_FOUND") {
-    return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
+    return NextResponse.json(
+      { success: false, error: "Banca não encontrada" },
+      { status: 404, headers: privateNoStoreHeaders }
+    );
   }
 
   if (message === "UNAUTHORIZED_BANCA_ACCESS" || message === "FORBIDDEN_BANCA_ADMIN") {
-    return NextResponse.json({ success: false, error: "Acesso negado" }, { status: 403 });
+    return NextResponse.json(
+      { success: false, error: "Acesso negado" },
+      { status: 403, headers: privateNoStoreHeaders }
+    );
   }
 
   if (message === "INVALID_BANCA_PAYLOAD") {
     return NextResponse.json(
       { success: false, error: "Dados da banca são obrigatórios" },
-      { status: 400 }
+      { status: 400, headers: privateNoStoreHeaders }
     );
   }
 
   return null;
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const user = await getAuthenticatedRequestUser(request);
+  if (!user?.id) {
+    return NextResponse.json(
+      { success: false, error: "Não autorizado" },
+      { status: 401, headers: privateNoStoreHeaders }
+    );
+  }
+
+  try {
+    const data = await loadJornaleiroBancaById({
+      userId: user.id,
+      bancaId: params.id,
+    });
+
+    return NextResponse.json(
+      { success: true, data },
+      { headers: privateNoStoreHeaders }
+    );
+  } catch (error: any) {
+    const mapped = mapBancaByIdError(error);
+    if (mapped) return mapped;
+
+    console.error("[API/JORNALEIRO/BANCAS/:ID] Erro ao carregar banca:", error);
+    return NextResponse.json(
+      { success: false, error: error?.message || "Erro ao carregar banca" },
+      { status: 500, headers: privateNoStoreHeaders }
+    );
+  }
 }
 
 export async function PUT(
@@ -37,14 +86,20 @@ export async function PUT(
 ) {
   const user = await getAuthenticatedRequestUser(request);
   if (!user?.id) {
-    return NextResponse.json({ success: false, error: "Não autorizado" }, { status: 401 });
+    return NextResponse.json(
+      { success: false, error: "Não autorizado" },
+      { status: 401, headers: privateNoStoreHeaders }
+    );
   }
 
   let body: any;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ success: false, error: "JSON inválido" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: "JSON inválido" },
+      { status: 400, headers: privateNoStoreHeaders }
+    );
   }
 
   try {
@@ -60,7 +115,7 @@ export async function PUT(
         message: response.message,
         banca_id: response.banca_id,
       },
-      { headers: response.headers }
+      { headers: response.headers || privateNoStoreHeaders }
     );
   } catch (error: any) {
     const mapped = mapBancaByIdError(error);
@@ -69,7 +124,7 @@ export async function PUT(
     console.error("[API/JORNALEIRO/BANCAS/:ID] Erro ao atualizar banca:", error);
     return NextResponse.json(
       { success: false, error: error?.message || "Erro ao atualizar banca" },
-      { status: 500 }
+      { status: 500, headers: privateNoStoreHeaders }
     );
   }
 }

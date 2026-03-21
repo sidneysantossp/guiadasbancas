@@ -110,19 +110,18 @@ export default function JornaleiroEditarBancaPage() {
   useEffect(() => {
     const loadBanca = async () => {
       try {
-        const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}`, {
+        const res = await fetch(`/api/jornaleiro/bancas/${bancaId}?ts=${Date.now()}`, {
           cache: "no-store",
           credentials: "include",
         });
-        
-        if (!res.ok) throw new Error("Erro ao carregar banca");
-        
+
         const json = await res.json();
+        if (!res.ok || !json?.success || !json?.data) {
+          throw new Error(json?.error || "Erro ao carregar banca");
+        }
+
         const banca = json.data;
-        
-        if (!banca) throw new Error("Banca não encontrada");
-        
-        // Preencher formulário com dados da banca
+
         setName(banca.name || "");
         setWhatsapp(banca.contact?.whatsapp || banca.whatsapp || "");
         setCep(banca.addressObj?.cep || banca.cep || "");
@@ -152,11 +151,10 @@ export default function JornaleiroEditarBancaPage() {
             cnpj_cpf: banca.cotista_cnpj_cpf || '',
           });
         }
-        
+
         setLoading(false);
-      } catch (error) {
-        console.error("Erro ao carregar banca:", error);
-        setError("Erro ao carregar dados da banca");
+      } catch (error: any) {
+        setError(error?.message || "Erro ao carregar dados da banca");
         setLoading(false);
       }
     };
@@ -209,7 +207,7 @@ export default function JornaleiroEditarBancaPage() {
     setError(null);
 
     if (isCollaborator) {
-      setError("Apenas administradores podem cadastrar novas bancas.");
+      setError("Apenas administradores podem editar a banca.");
       return;
     }
 

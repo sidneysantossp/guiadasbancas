@@ -251,7 +251,7 @@ export default function JornaleiroBancasPage() {
                     type="button"
                     onClick={async () => {
                       await setActive(b.id);
-                      router.push(`/jornaleiro/bancas/${b.id}/editar` as Route);
+                      router.push(`/jornaleiro/bancas/${b.id}/editar-form` as Route);
                     }}
                     disabled={busyId === b.id}
                     className="flex-1 rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-3 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"

@@ -653,6 +653,21 @@ export async function loadActiveJornaleiroBanca(userId: string) {
   });
 }
 
+export async function loadJornaleiroBancaById(params: {
+  userId: string;
+  bancaId: string;
+}) {
+  const context = await loadBancaAccessContext({
+    userId: params.userId,
+    bancaId: params.bancaId,
+  });
+
+  return formatBancaResponse({
+    banca: context.banca,
+    requester: context.requester,
+  });
+}
+
 export async function loadActiveJornaleiroBancaRow<T = any>(params: {
   userId: string;
   select?: string;

@@ -1,18 +1,16 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-import { useRouter, useSearchParams } from 'next/navigation';
-// import { useToast } from '@/components/admin/ToastProvider'; // REMOVIDO
-import { supabase } from '@/lib/supabase';
+import { useSearchParams } from 'next/navigation';
 import ImageUploader from '@/components/admin/ImageUploader';
 import FileUploadDragDrop from '@/components/common/FileUploadDragDrop';
 import JornaleiroPageHeading from '@/components/jornaleiro/JornaleiroPageHeading';
-import { IconUser, IconBuildingStore, IconClock, IconBrandWhatsapp, IconBuilding, IconLink } from '@tabler/icons-react';
+import { IconUser, IconClock, IconBuilding, IconLink } from '@tabler/icons-react';
 import CotistaSearch from '@/components/CotistaSearch';
 
 // Constantes auxiliares
@@ -98,11 +96,9 @@ type BancaFormData = z.infer<typeof bancaSchema>;
 
 export default function BancaV2Page() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get('tab') as 'jornaleiro' | 'banca' | 'func' | 'social' | null;
   const queryClient = useQueryClient();
-  // const toast = useToast(); // REMOVIDO
   const [formKey, setFormKey] = useState<number>(() => Date.now());
   const nameRef = useRef<HTMLInputElement | null>(null);
   const sellerNameRef = useRef<HTMLInputElement | null>(null);
@@ -113,13 +109,10 @@ export default function BancaV2Page() {
   const [coverImages, setCoverImages] = useState<string[]>([]);
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
   const [imagesChanged, setImagesChanged] = useState(false);
-  const [authToken, setAuthToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'jornaleiro' | 'banca' | 'func' | 'social'>('jornaleiro');
 
-  // Atualizar aba quando query parameter mudar
   useEffect(() => {
     if (tabParam) {
-      console.log('🔄 [BancaV2] Query param tab detectado:', tabParam);
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -127,7 +120,7 @@ export default function BancaV2Page() {
   const [selectedCotista, setSelectedCotista] = useState<SelectedCotistaInfo | null>(null);
   const [cotistaDirty, setCotistaDirty] = useState(false);
   const [addressFieldsEnabled, setAddressFieldsEnabled] = useState(false);
-  const [justSaved, setJustSaved] = useState(false); // Flag para evitar reset após salvar
+  const [justSaved, setJustSaved] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
 
   const withCacheBust = (url?: string, seed?: number | string) => {
@@ -144,30 +137,25 @@ export default function BancaV2Page() {
     return (div.textContent || div.innerText || '').trim();
   };
 
-  // React Query - buscar dados da banca (SIMPLIFICADO - SEM CACHE)
   const { data: bancaData, isLoading, error, refetch: refetchBanca } = useQuery({
     queryKey: ['banca', session?.user?.id],
     queryFn: async () => {
-      console.log('🔄 [BancaV2] Carregando dados da banca...');
       const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}` , {
         cache: 'no-store',
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Erro ao carregar banca');
       const json = await res.json();
-      console.log('✅ [BancaV2] Banca carregada:', json.data?.name, 'ID:', json.data?.id);
       return json.data;
     },
-    enabled: status === 'authenticated', // Sempre buscar quando autenticado
-    staleTime: 0, // Sem cache
+    enabled: status === 'authenticated',
+    staleTime: 0,
     refetchOnWindowFocus: false, 
     refetchOnMount: false,
   });
 
-  // Listener para evento banca-updated - recarregar dados quando banca mudar
   useEffect(() => {
     const handleBancaUpdated = () => {
-      console.log('🔔 [BancaV2] Evento banca-updated recebido, recarregando dados...');
       refetchBanca();
     };
 
@@ -188,31 +176,22 @@ export default function BancaV2Page() {
     enabled: status === 'authenticated',
   });
 
-  // React Query - perfil do jornaleiro (usa token do Supabase)
   const { data: profileResp } = useQuery({
-    queryKey: ['jornaleiroProfile', authToken],
+    queryKey: ['jornaleiroProfile'],
     queryFn: async () => {
-      console.log('🔑 [Profile] Token usado:', authToken ? 'presente' : 'ausente');
       const res = await fetch('/api/jornaleiro/profile', {
         cache: 'no-store',
         credentials: 'include',
-        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
       });
-      
-      console.log('📡 [Profile] Status da resposta:', res.status);
-      
+
       if (!res.ok) {
         const errorText = await res.text();
-        console.log('❌ [Profile] Erro na API:', errorText);
         throw new Error(`Erro ao carregar perfil: ${res.status} - ${errorText}`);
       }
-      
-      const data = await res.json();
-      console.log('✅ [Profile] Dados recebidos:', data);
-      return data;
+
+      return res.json();
     },
     staleTime: 0,
-    // Buscar mesmo sem token do Supabase; a API usa auth() como fallback
     enabled: status === 'authenticated',
   });
 
@@ -246,67 +225,45 @@ export default function BancaV2Page() {
   });
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setAuthToken(data.session?.access_token ?? null);
-    }).catch(() => setAuthToken(null));
-  }, []);
-
-  // 🔥 CRITICAL: UseEffect específico para garantir preenchimento de WhatsApp e CPF via REF
-  useEffect(() => {
     if (bancaData?.profile || profileResp?.profile) {
       const phoneValue = profileResp?.profile?.phone || bancaData?.profile?.phone || '';
       const cpfValue = profileResp?.profile?.cpf || bancaData?.profile?.cpf || '';
-      
-      console.log('[CRITICAL FIX] 📱🔧 Forçando atualização crítica dos campos via REF:', { phoneValue, cpfValue });
-      
-      // Forçar via REF (mais direto)
+
       if (phoneRef.current && phoneValue) {
         phoneRef.current.value = phoneValue;
         setValue('profile.phone', phoneValue, { shouldDirty: false, shouldTouch: false });
-        console.log('[CRITICAL FIX] 📱 WhatsApp definido via REF:', phoneValue);
       }
-      
+
       if (cpfRef.current && cpfValue) {
         cpfRef.current.value = cpfValue;
         setValue('profile.cpf', cpfValue, { shouldDirty: false, shouldTouch: false });
-        console.log('[CRITICAL FIX] 📄 CPF definido via REF:', cpfValue);
       }
-      
-      // Backup: tentar novamente após um delay
+
       setTimeout(() => {
         if (phoneRef.current && phoneValue && phoneRef.current.value !== phoneValue) {
-          console.log('[CRITICAL FIX] 📱 BACKUP: Forçando WhatsApp novamente:', phoneValue);
           phoneRef.current.value = phoneValue;
           phoneRef.current.dispatchEvent(new Event('input', { bubbles: true }));
         }
-        
+
         if (cpfRef.current && cpfValue && cpfRef.current.value !== cpfValue) {
-          console.log('[CRITICAL FIX] 📄 BACKUP: Forçando CPF novamente:', cpfValue);
           cpfRef.current.value = cpfValue;
           cpfRef.current.dispatchEvent(new Event('input', { bubbles: true }));
         }
       }, 200);
     }
-    
-    // Habilitar campos de endereço se já houver dados
+
     if (bancaData?.addressObj?.cep || bancaData?.cep) {
       setAddressFieldsEnabled(true);
     }
   }, [bancaData?.profile, profileResp?.profile, bancaData?.addressObj, bancaData?.cep, setValue]);
 
-  // 🔥 CRITICAL: useEffect SIMPLIFICADO - apenas para carregar dados INICIAL (uma vez)
-  // SEM reset posterior que sobrescreve dados do usuário
   const [initialLoaded, setInitialLoaded] = useState(false);
-  
+
   useEffect(() => {
-    // 🔥 CRITICAL: Não resetar se acabou de salvar (justSaved=true)
     if (bancaData && !initialLoaded && !justSaved) {
-      console.log('📥 [V2] Carregando dados INICIAL apenas - SEM reset posterior');
-      
       const adr = bancaData.addressObj || {};
       const prof = (profileResp?.profile) ?? (bancaData?.profile) ?? {};
-      
-      // Reset APENAS na primeira vez
+
       reset({
         name: bancaData.name || '',
         description: stripHtml(bancaData.description) || '',
@@ -341,11 +298,8 @@ export default function BancaV2Page() {
           avatar_url: prof.avatar_url || '',
         },
       });
-      
-      // Configurar estado do cotista
+
       try {
-        console.log('[Banca-V2] 🏢 bancaData.is_cotista:', bancaData.is_cotista);
-        console.log('[Banca-V2] 👥 bancaData.cotista_razao_social:', bancaData.cotista_razao_social);
         const isCotistaValue = bancaData.is_cotista === true;
         setIsCotista(isCotistaValue);
         if (isCotistaValue && bancaData.cotista_razao_social) {
@@ -357,13 +311,10 @@ export default function BancaV2Page() {
           });
         } else {
           setSelectedCotista(null);
-        }
-        setCotistaDirty(false);
-      } catch {
-        console.warn('Erro ao configurar dados do cotista');
       }
-      
-      // Configurar imagens
+      setCotistaDirty(false);
+      } catch {}
+
       try {
         const seed = bancaData.updated_at || Date.now();
         const cover = bancaData.cover_image || bancaData.cover || '';
@@ -371,266 +322,11 @@ export default function BancaV2Page() {
         setCoverImages(cover ? [withCacheBust(cover, seed)] : []);
         setAvatarImages(avatar ? [withCacheBust(avatar, seed)] : []);
         setImagesChanged(false);
-      } catch {
-        console.warn('Erro ao configurar imagens');
-      }
-      
-      // Marcar como carregado para nunca mais fazer reset
+      } catch {}
+
       setInitialLoaded(true);
-      console.log('✅ [V2] Dados carregados INICIALMENTE - nunca mais resetará');
     }
   }, [bancaData, profileResp, initialLoaded, justSaved, reset, session?.user?.email]);
-
-  /*
-  // CÓDIGO ANTIGO COMENTADO QUE CAUSAVA O PROBLEMA:
-  useLayoutEffect(() => {
-    if (bancaData && !justSaved) {
-      const adr = bancaData.addressObj || {};
-      const prof = (profileResp?.profile) ?? (bancaData?.profile) ?? {};
-      const formData = {
-        name: bancaData.name || '',
-        description: stripHtml(bancaData.description) || '',
-        tpu_url: bancaData.tpu_url || '',
-        contact: {
-          whatsapp: bancaData.contact?.whatsapp || bancaData.whatsapp || '',
-        },
-        socials: {
-          instagram: bancaData.socials?.instagram || bancaData.instagram || '',
-          facebook: bancaData.socials?.facebook || bancaData.facebook || '',
-          gmb: bancaData.socials?.gmb || '',
-        },
-        addressObj: {
-          cep: adr.cep || bancaData.cep || '',
-          street: adr.street || (bancaData.address?.split(',')[0] || ''),
-          number: adr.number || '',
-          neighborhood: adr.neighborhood || '',
-          city: adr.city || (bancaData.address?.split(',')[1]?.trim() || ''),
-          uf: adr.uf || '',
-          complement: adr.complement || '',
-        },
-        payments: Array.isArray(bancaData.payments) ? bancaData.payments : (Array.isArray(bancaData.payment_methods) ? bancaData.payment_methods : []),
-        categories: Array.isArray(bancaData.categories) ? bancaData.categories : [],
-        hours: (() => {
-          console.log('🕐 [V2] bancaData.hours:', bancaData.hours);
-          console.log('🕐 [V2] É array?', Array.isArray(bancaData.hours));
-          console.log('🕐 [V2] Tem itens?', bancaData.hours?.length);
-          
-          if (Array.isArray(bancaData.hours) && bancaData.hours.length > 0) {
-            console.log('🕐 [V2] Usando horários do banco:', bancaData.hours);
-            return bancaData.hours;
-          } else {
-            console.log('🕐 [V2] Usando horários padrão');
-            return DAYS.map((d) => ({ key: d.key, label: d.label, open: false, start: '08:00', end: '18:00' }));
-          }
-        })(),
-        delivery_enabled: bancaData.delivery_enabled === true,
-        free_shipping_threshold: typeof bancaData.free_shipping_threshold === 'number' ? bancaData.free_shipping_threshold : 120,
-        origin_cep: bancaData.origin_cep || '',
-        location: {
-          lat: typeof bancaData.lat === 'number' ? bancaData.lat : undefined,
-          lng: typeof bancaData.lng === 'number' ? bancaData.lng : undefined,
-        },
-        profile: {
-          full_name: prof.full_name || (session?.user?.name || ''),
-          phone: prof.phone || prof.telefone || bancaData.contact?.whatsapp || bancaData.whatsapp || '',
-          email: session?.user?.email || '',
-          cpf: prof.cpf || '',
-          avatar_url: prof.avatar_url || prof.avatarUrl || '',
-        },
-      } as any;
-      
-      console.log('🔄 [V2] Carregando dados da banca:', {
-        bancaData,
-        profileResp,
-        adr,
-        prof,
-        formData
-      });
-      console.log('👤 [V2] Dados do perfil (prof):', prof);
-      console.log('📱 [V2] prof.phone:', prof.phone);
-      console.log('📄 [V2] prof.cpf:', prof.cpf);
-      console.log('📍 [V2] CEP:', formData.addressObj.cep);
-      console.log('🏠 [V2] Complemento:', formData.addressObj.complement);
-      console.log('🔄 [V2] Resetando form com novos dados:', formData);
-      reset(formData, { keepDirty: false, keepDirtyValues: false, keepValues: false });
-      // Forçar preenchimento de campos simples (telefone/CPF) após reset com múltiplas tentativas
-      try {
-        const phoneValue = formData.profile?.phone || '';
-        const cpfValue = formData.profile?.cpf || '';
-        
-        console.log('[FIX] 🔄 Preenchendo campos WhatsApp e CPF:', { phoneValue, cpfValue });
-        
-        // Primeira tentativa: React Hook Form
-        setValue('profile.phone', phoneValue, { shouldDirty: false, shouldTouch: false, shouldValidate: false });
-        setValue('profile.cpf', cpfValue, { shouldDirty: false, shouldTouch: false, shouldValidate: false });
-        
-        // Segunda tentativa: DOM direto (imediato)
-        setTimeout(() => {
-          const phoneInput = document.querySelector('input[name="profile.phone"]') as HTMLInputElement;
-          const cpfInput = document.querySelector('input[name="profile.cpf"]') as HTMLInputElement;
-          
-          if (phoneInput && phoneValue) {
-            console.log('[FIX] 📱 Preenchimento DOM imediato WhatsApp:', phoneValue);
-            phoneInput.value = phoneValue;
-            phoneInput.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-          
-          if (cpfInput && cpfValue) {
-            console.log('[FIX] 📄 Preenchimento DOM imediato CPF:', cpfValue);
-            cpfInput.value = cpfValue;
-            cpfInput.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-        }, 100);
-        
-        // Terceira tentativa: DOM com delay maior
-        setTimeout(() => {
-          const phoneInput = document.querySelector('input[name="profile.phone"]') as HTMLInputElement;
-          const cpfInput = document.querySelector('input[name="profile.cpf"]') as HTMLInputElement;
-          
-          if (phoneInput && phoneValue && phoneInput.value !== phoneValue) {
-            console.log('[FIX] 📱 Correção tardia WhatsApp:', phoneValue);
-            phoneInput.value = phoneValue;
-            phoneInput.dispatchEvent(new Event('input', { bubbles: true }));
-            phoneInput.dispatchEvent(new Event('change', { bubbles: true }));
-          }
-          
-          if (cpfInput && cpfValue && cpfInput.value !== cpfValue) {
-            console.log('[FIX] 📄 Correção tardia CPF:', cpfValue);
-            cpfInput.value = cpfValue;
-            cpfInput.dispatchEvent(new Event('input', { bubbles: true }));
-            cpfInput.dispatchEvent(new Event('change', { bubbles: true }));
-          }
-        }, 500);
-        
-      } catch {}
-      // Imagens
-      try {
-        const seed = bancaData.updated_at || Date.now();
-        const cover = bancaData.cover_image || bancaData.cover || '';
-        const avatar = bancaData.profile_image || bancaData.avatar || '';
-        setCoverImages(cover ? [withCacheBust(cover, seed)] : []);
-        setAvatarImages(avatar ? [withCacheBust(avatar, seed)] : []);
-        setImagesChanged(false);
-      } catch {}
-      
-      // Cotista
-      try {
-        console.log('[Banca-V2] 🏢 bancaData.is_cotista:', bancaData.is_cotista);
-        console.log('[Banca-V2] 👥 bancaData.cotista_razao_social:', bancaData.cotista_razao_social);
-        console.log('[Banca-V2] 📦 bancaData completo:', bancaData);
-        const isCotistaValue = bancaData.is_cotista === true;
-        setIsCotista(isCotistaValue);
-        if (isCotistaValue && bancaData.cotista_razao_social) {
-          setSelectedCotista({
-            id: bancaData.cotista_id || null,
-            codigo: bancaData.cotista_codigo || '',
-            razao_social: bancaData.cotista_razao_social || '',
-            cnpj_cpf: bancaData.cotista_cnpj_cpf || '',
-          });
-        } else {
-          setSelectedCotista(null);
-        }
-        setCotistaDirty(false);
-      } catch {}
-      // Forçar injeção de valores no DOM após o reset para contornar restauração do browser
-      queueMicrotask(() => {
-        try {
-          setValue('name', formData.name, { shouldDirty: false, shouldTouch: false });
-          setValue('tpu_url', formData.tpu_url || '', { shouldDirty: false, shouldTouch: false });
-          if (nameRef.current) {
-            nameRef.current.value = formData.name;
-          }
-          setValue('profile.full_name', formData.profile?.full_name || '', { shouldDirty: false, shouldTouch: false });
-          if (sellerNameRef.current) {
-            sellerNameRef.current.value = formData.profile?.full_name || '';
-          }
-        } catch {}
-      });
-      // Reforço adicional por alguns ciclos curtos para derrotar extensões de autofill
-      let attempts = 0;
-      const maxAttempts = 15; // Aumentado para dar mais tempo
-      const timer = setInterval(() => {
-        attempts++;
-        const el = nameRef.current;
-        if (el && el.value !== formData.name) {
-          el.value = formData.name;
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-        const el2 = sellerNameRef.current;
-        if (el2 && el2.value !== (formData.profile?.full_name || '')) {
-          el2.value = formData.profile?.full_name || '';
-          el2.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-        
-        // 🔥 CRITICAL: Forçar também WhatsApp e CPF via REF no timer
-        const phoneEl = phoneRef.current;
-        const cpfEl = cpfRef.current;
-        const phoneValue = formData.profile?.phone || '';
-        const cpfValue = formData.profile?.cpf || '';
-        
-        if (phoneEl && phoneValue && phoneEl.value !== phoneValue) {
-          console.log('[TIMER FIX] 📱 Forçando WhatsApp via timer:', phoneValue);
-          phoneEl.value = phoneValue;
-          phoneEl.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-        
-        if (cpfEl && cpfValue && cpfEl.value !== cpfValue) {
-          console.log('[TIMER FIX] 📄 Forçando CPF via timer:', cpfValue);
-          cpfEl.value = cpfValue;
-          cpfEl.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-        
-        const allFieldsCorrect = (
-          (el && el.value === formData.name) &&
-          (el2 && el2.value === (formData.profile?.full_name || '')) &&
-          (!phoneValue || (phoneEl && phoneEl.value === phoneValue)) &&
-          (!cpfValue || (cpfEl && cpfEl.value === cpfValue))
-        );
-        
-        if (attempts >= maxAttempts || allFieldsCorrect) {
-          clearInterval(timer);
-          console.log('[FIX] ✅ Timer finalizado. Tentativas:', attempts, 'Sucesso:', allFieldsCorrect);
-        }
-      }, 75); // Aumentado intervalo para dar mais tempo
-      
-      setFormKey(Date.now());
-    }
-  }, [bancaData, profileResp, reset, session?.user?.email, session?.user?.name, justSaved]);
-  */
-
-  // 🔔 Realtime: ouvir alterações na tabela bancas para este user_id e sincronizar automaticamente
-  // DESABILITADO: O realtime estava causando problemas ao sobrescrever dados após salvar
-  // O usuário pode recarregar a página manualmente se precisar ver mudanças externas
-  /*
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    const channel = supabase
-      .channel(`banca-realtime-${session.user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'bancas',
-          filter: `user_id=eq.${session.user.id}`,
-        },
-        (payload) => {
-          console.log('📡 [V2] Realtime mudança detectada na banca:', payload.eventType);
-          // Invalidar query para buscar dados mais recentes
-          queryClient.invalidateQueries({ queryKey: ['banca'] });
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 [V2] Canal realtime status:', status);
-      });
-
-    return () => {
-      try {
-        supabase.removeChannel(channel);
-      } catch {}
-    };
-  }, [session?.user?.id, queryClient]);
-  */
 
   // Função para comprimir imagem antes do upload (evita erro 413 na Vercel)
   const compressImage = async (dataUrl: string, maxSizeMB: number = 2): Promise<Blob> => {
@@ -662,7 +358,6 @@ export default function BancaV2Page() {
         canvas.toBlob(
           (blob) => {
             if (blob) {
-              console.log(`📸 Imagem comprimida para ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
               resolve(blob);
             } else {
               // Fallback: converter dataUrl para blob original
@@ -699,7 +394,6 @@ export default function BancaV2Page() {
           }
           if (isDataUrl) {
             // Comprimir imagem antes do upload para evitar erro 413
-            console.log('📸 Comprimindo imagem antes do upload...');
             const compressedBlob = await compressImage(src, 2);
             
             // Verificar tamanho após compressão
@@ -741,13 +435,10 @@ export default function BancaV2Page() {
       const uploadedCover = await uploadImages(coverImages);
       const uploadedAvatar = await uploadImages(avatarImages);
 
-      // 🔥 CRITICAL: Salvar dados do perfil PRIMEIRO
-      console.log('💾 [SAVE] Salvando dados do perfil primeiro...');
-      console.log('💾 [SAVE] Dados do perfil:', data.profile);
-      
       const profileRes = await fetch('/api/jornaleiro/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           profile: {
             full_name: data.profile?.full_name || '',
@@ -760,21 +451,13 @@ export default function BancaV2Page() {
       
       if (!profileRes.ok) {
         const profileError = await profileRes.json();
-        console.error('❌ [SAVE] Erro ao salvar perfil:', profileError);
         throw new Error(profileError.error || 'Erro ao salvar perfil');
       }
-      
-      console.log('✅ [SAVE] Perfil salvo com sucesso!');
-      
-      // Agora salvar dados da banca
-      console.log('💾 [SAVE] Salvando dados da banca...');
-      console.log('👥 [SAVE] is_cotista:', isCotista);
-      console.log('🏢 [SAVE] selectedCotista:', selectedCotista);
-      console.log('🏠 [SAVE] addressObj enviado:', data.addressObj);
-      
+
       const res = await fetch('/api/jornaleiro/banca', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           data: {
             name: data.name,
@@ -810,16 +493,11 @@ export default function BancaV2Page() {
       
       if (!res.ok) {
         const error = await res.json();
-        console.error('❌ [SAVE] Erro ao salvar banca:', error);
         throw new Error(error.error || 'Erro ao salvar banca');
       }
-      
-      console.log('✅ [SAVE] Banca salva com sucesso!');
-      console.log('🎉 [SAVE] Salvamento completo - Perfil + Banca atualizados!');
 
       const bancaResponse = await res.json();
-      
-      // Retornar dados da banca + dados do perfil que foram salvos
+
       return {
         ...bancaResponse,
         savedProfile: {
@@ -831,33 +509,19 @@ export default function BancaV2Page() {
         }
       };
     },
-    onSuccess: (response) => {
-      console.log('✅ [V2] Salvamento concluído - MANTENDO DADOS DO FORMULÁRIO');
-      
-      // 🔥 CRITICAL: NÃO invalidar queries nem resetar formulário
-      // Os dados já estão corretos no formulário, não precisamos recarregar da API
-      // A API retorna addressObj vazio que iria limpar os campos
-      
-      // Apenas marcar que salvou com sucesso
+    onSuccess: () => {
       setJustSaved(true);
       setSaveMessage('Informações atualizadas com sucesso!');
-      
-      // Resetar flag após delay
+
       setTimeout(() => {
         setJustSaved(false);
-        console.log('🔄 [V2] Flag justSaved resetada');
         setSaveMessage('');
       }, 2000);
     },
-    onError: (error: Error) => {
-      console.log('❌ [V2] Erro no salvamento:', error.message);
-      // toast.error(`❌ ${error.message}`); // REMOVIDO
-    },
+    onError: () => {},
   });
 
   const onSubmit = (data: BancaFormData) => {
-    console.log('🚀 [SUBMIT] Formulário enviado com dados:', data);
-    console.log('🚀 [SUBMIT] Dados do perfil enviados:', data.profile);
     saveMutation.mutate(data);
   };
 
@@ -1354,7 +1018,6 @@ export default function BancaV2Page() {
                           const data = await response.json();
                           
                           if (!data.erro) {
-                            console.log('✅ CEP encontrado:', data);
                             setValue('addressObj.street', data.logradouro, { shouldDirty: true });
                             setValue('addressObj.neighborhood', data.bairro, { shouldDirty: true });
                             setValue('addressObj.city', data.localidade, { shouldDirty: true });
