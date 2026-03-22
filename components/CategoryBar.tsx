@@ -297,10 +297,10 @@ function dedupeSubcategories(items: MenuSubcategory[]): MenuSubcategory[] {
   return Array.from(byKey.values());
 }
 
-function curateMegaMenu(items: MenuCategory[]): MenuCategory[] {
+function prepareMegaMenu(items: MenuCategory[]): MenuCategory[] {
   if (!Array.isArray(items) || items.length === 0) return items;
 
-  const prepared = items
+  return items
     .map((category, index) => ({
       ...category,
       order: typeof category.order === "number" ? category.order : index,
@@ -315,25 +315,19 @@ function curateMegaMenu(items: MenuCategory[]): MenuCategory[] {
       if (a.order !== b.order) return a.order - b.order;
       return a.name.localeCompare(b.name, "pt-BR");
     });
-
-  const bySlug = new Map(prepared.map((category) => [slugify(category.name), category]));
-  const pinnedOrder = ["colecionavel", "panini", "panini-collections"];
-  const hasPinnedSet = pinnedOrder.every((slug) => bySlug.has(slug));
-
-  if (hasPinnedSet) {
-    return pinnedOrder.map((slug, index) => {
-      const category = bySlug.get(slug)!;
-      return {
-        ...category,
-        order: index,
-      };
-    });
-  }
-
-  return prepared.slice(0, 10);
 }
 
-const FALLBACK_MENU = curateMegaMenu(toFallbackMenu());
+const FALLBACK_MENU = prepareMegaMenu(toFallbackMenu());
+const CURATED_SHORTCUT_SLUGS = fallbackCategoryMenu.map((category) => slugify(category.name));
+
+function selectShortcutItems(items: MenuCategory[]): MenuCategory[] {
+  if (!Array.isArray(items) || items.length === 0) return [];
+
+  const bySlug = new Map(items.map((category) => [slugify(category.name), category]));
+  const curated = CURATED_SHORTCUT_SLUGS.map((slug) => bySlug.get(slug)).filter(Boolean) as MenuCategory[];
+
+  return curated.length > 0 ? curated : items.slice(0, 8);
+}
 
 export default function CategoryBar({ visible = true }: CategoryBarProps) {
   const [isClientMounted, setIsClientMounted] = useState(false);
@@ -344,6 +338,7 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeMenuItems = menuItems.length > 0 ? menuItems : FALLBACK_MENU;
+  const shortcutMenuItems = selectShortcutItems(activeMenuItems);
 
   const scheduleClose = useCallback(() => {
     if (closeTimeout.current) clearTimeout(closeTimeout.current);
@@ -390,7 +385,7 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
         const response = await fetch("/api/categories?menu_version=20260305-2", { cache: "no-store" });
         if (!response.ok) return;
         const json = await response.json();
-        const parsedTree = curateMegaMenu(normalizeMenuTree(json?.tree || []));
+        const parsedTree = prepareMegaMenu(normalizeMenuTree(json?.tree || []));
         if (!mounted || parsedTree.length === 0) return;
         setMenuItems(parsedTree);
       } catch {
@@ -495,12 +490,12 @@ export default function CategoryBar({ visible = true }: CategoryBarProps) {
 
           <div className="h-5 w-px bg-gray-200" />
 
-          {activeMenuItems.slice(0, 8).map((category, index) => (
+          {shortcutMenuItems.map((category) => (
             <Link
               key={category.id}
               href={category.link as any}
               className={`whitespace-nowrap px-3 py-2.5 font-medium transition-colors ${
-                menuOpen && activeIndex === index
+                menuOpen && activeCategory?.id === category.id
                   ? "text-[#ff5c00]"
                   : "text-gray-600 hover:text-[#ff5c00]"
               }`}

@@ -5,7 +5,12 @@ import {
   buildFallbackPublicRootCategories,
   PUBLIC_ROOT_CATEGORY_SOURCES,
 } from "@/lib/catalog/publicCategories";
-import { normalizeCategoryText, slugify } from "@/lib/catalog/fallbackCategories";
+import {
+  BAMBINO_ROOT_CATEGORY_ORDER,
+  BRANCALEONE_ROOT_CATEGORY_ORDER,
+  normalizeCategoryText,
+  slugify,
+} from "@/lib/catalog/fallbackCategories";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -52,6 +57,14 @@ const ALWAYS_INCLUDE_ROOTS = new Set<string>(
     normalizeCategoryText(root.name)
   )
 );
+const DISTRIBUIDOR_ROOT_ORDER: Record<string, readonly string[]> = {
+  "1511df09-1f4a-4e68-9f8c-05cd06be6269": BRANCALEONE_ROOT_CATEGORY_ORDER,
+  "3a989c56-bbd3-4769-b076-a83483e39542": BAMBINO_ROOT_CATEGORY_ORDER,
+};
+const DISTRIBUIDOR_SEQUENCE = [
+  "1511df09-1f4a-4e68-9f8c-05cd06be6269",
+  "3a989c56-bbd3-4769-b076-a83483e39542",
+];
 
 const ICON_RULES: Array<{ pattern: RegExp; icon: string }> = [
   { pattern: /(bebida|energet|suco|agua|refriger|cervej|vinho|cafe|cha)/i, icon: "🍺" },
@@ -265,10 +278,20 @@ function dedupeSubcategories(items: TreeSubcategory[]): TreeSubcategory[] {
 }
 
 async function buildFocusedMegaMenuTree(
-  normalizedData: PublicCategory[]
+  normalizedData: PublicCategory[],
+  options?: {
+    focusedOnly?: boolean;
+    filterByActiveProducts?: boolean;
+  }
 ): Promise<TreeCategory[] | null> {
+  const focusedOnly = options?.focusedOnly ?? true;
+  const filterByActiveProducts = options?.filterByActiveProducts ?? true;
   const distributores = Array.from(
-    new Set(FOCUSED_MEGA_MENU_ROOTS.map((root) => root.distribuidorId))
+    new Set(
+      focusedOnly
+        ? FOCUSED_MEGA_MENU_ROOTS.map((root) => root.distribuidorId)
+        : DISTRIBUIDOR_SEQUENCE
+    )
   );
 
   const { data, error } = await supabaseAdmin
@@ -324,10 +347,21 @@ async function buildFocusedMegaMenuTree(
     }
   }
 
-  const tree: TreeCategory[] = [];
+  const focusedRootsByDistribuidor = new Map<string, Set<string>>();
+  for (const root of FOCUSED_MEGA_MENU_ROOTS) {
+    if (!focusedRootsByDistribuidor.has(root.distribuidorId)) {
+      focusedRootsByDistribuidor.set(root.distribuidorId, new Set<string>());
+    }
+    focusedRootsByDistribuidor
+      .get(root.distribuidorId)!
+      .add(normalizeCategoryText(root.name));
+  }
 
-  for (const [index, rootConfig] of FOCUSED_MEGA_MENU_ROOTS.entries()) {
-    const distRows = rowsByDistribuidor.get(rootConfig.distribuidorId) || [];
+  const tree: TreeCategory[] = [];
+  let globalOrder = 0;
+
+  for (const distribuidorId of DISTRIBUIDOR_SEQUENCE) {
+    const distRows = rowsByDistribuidor.get(distribuidorId) || [];
     if (distRows.length === 0) continue;
 
     const byMercos = new Map<number, DistribuidorCategoryRow>();
@@ -348,8 +382,17 @@ async function buildFocusedMegaMenuTree(
       childrenByParent.get(row.categoria_pai_id)!.push(row);
     }
 
-    const rootRow = rowByNormalizedName.get(normalizeCategoryText(rootConfig.name));
-    if (!rootRow || typeof rootRow.mercos_id !== "number") continue;
+    const orderedRootNames = (DISTRIBUIDOR_ROOT_ORDER[distribuidorId] || []).map((name) =>
+      normalizeCategoryText(name)
+    );
+    const focusedRootNames = focusedRootsByDistribuidor.get(distribuidorId) || new Set<string>();
+
+    const rootRows = orderedRootNames
+      .map((name) => rowByNormalizedName.get(name))
+      .filter((row): row is DistribuidorCategoryRow => Boolean(row))
+      .filter((row) => !focusedOnly || focusedRootNames.has(normalizeCategoryText(row.nome)));
+
+    if (rootRows.length === 0) continue;
 
     const collectDescendantsWithRows = (
       parentMercosId: number,
@@ -373,47 +416,54 @@ async function buildFocusedMegaMenuTree(
       return out;
     };
 
-    const descendants = collectDescendantsWithRows(rootRow.mercos_id, new Set<number>());
+    for (const rootRow of rootRows) {
+      if (typeof rootRow.mercos_id !== "number") continue;
 
-    const shouldAlwaysIncludeRoot = ALWAYS_INCLUDE_ROOTS.has(normalizeCategoryText(rootConfig.name));
+      const descendants = collectDescendantsWithRows(rootRow.mercos_id, new Set<number>());
 
-    const filteredSubs = descendants.filter((sub) => {
-      const normalizedName = String(sub.nome || "").trim();
-      if (!normalizedName) return false;
-      if (/^\d+$/.test(normalizedName)) return false;
-      if (shouldAlwaysIncludeRoot) return true;
-      return activeProductCategoryIds.has(sub.id);
-    });
+      const shouldAlwaysIncludeRoot = ALWAYS_INCLUDE_ROOTS.has(normalizeCategoryText(rootRow.nome));
 
-    const rootHasProducts =
-      shouldAlwaysIncludeRoot ||
-      activeProductCategoryIds.has(rootRow.id) ||
-      filteredSubs.length > 0;
-    if (!rootHasProducts) continue;
+      const filteredSubs = descendants.filter((sub) => {
+        const normalizedName = String(sub.nome || "").trim();
+        if (!normalizedName) return false;
+        if (/^\d+$/.test(normalizedName)) return false;
+        if (!filterByActiveProducts) return true;
+        if (shouldAlwaysIncludeRoot) return true;
+        return activeProductCategoryIds.has(sub.id);
+      });
 
-    const rootLinkRef = linkByNormalizedName.get(normalizeCategoryText(rootConfig.name));
-    const rootLink = rootLinkRef?.link || resolveCategoryLink(rootConfig.name);
-    const subcategories = dedupeSubcategories(
-      filteredSubs.map((sub, subIndex) => {
-        const subSlug = slugify(sub.nome) || `sub-${subIndex}`;
-        return {
-          id: sub.id || `${rootRow.id}-sub-${subIndex}`,
-          name: sub.nome,
-          slug: subSlug,
-          link: `${rootLink}?sub=${encodeURIComponent(subSlug)}`,
-        };
-      })
-    );
+      const rootHasProducts =
+        !filterByActiveProducts ||
+        shouldAlwaysIncludeRoot ||
+        activeProductCategoryIds.has(rootRow.id) ||
+        filteredSubs.length > 0;
+      if (!rootHasProducts) continue;
 
-    tree.push({
-      id: rootRow.id || `menu-root-${index}-${slugify(rootConfig.name)}`,
-      name: rootConfig.name,
-      slug: slugify(rootConfig.name) || `root-${index}`,
-      icon: iconForCategory(rootConfig.name),
-      link: rootLink,
-      order: index,
-      subcategories,
-    });
+      const rootLinkRef = linkByNormalizedName.get(normalizeCategoryText(rootRow.nome));
+      const rootLink = rootLinkRef?.link || resolveCategoryLink(rootRow.nome);
+      const subcategories = dedupeSubcategories(
+        filteredSubs.map((sub, subIndex) => {
+          const subSlug = slugify(sub.nome) || `sub-${subIndex}`;
+          return {
+            id: sub.id || `${rootRow.id}-sub-${subIndex}`,
+            name: sub.nome,
+            slug: subSlug,
+            link: `${rootLink}?sub=${encodeURIComponent(subSlug)}`,
+          };
+        })
+      );
+
+      tree.push({
+        id: rootRow.id || `menu-root-${globalOrder}-${slugify(rootRow.nome)}`,
+        name: rootRow.nome,
+        slug: slugify(rootRow.nome) || `root-${globalOrder}`,
+        icon: iconForCategory(rootRow.nome),
+        link: rootLink,
+        order: globalOrder,
+        subcategories,
+      });
+      globalOrder += 1;
+    }
   }
 
   return tree.length > 0 ? tree : null;
@@ -453,11 +503,14 @@ function curateMegaMenuTree(tree: TreeCategory[]): TreeCategory[] {
   });
 }
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   const cacheHeaders = {
     "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
     "Surrogate-Control": "no-store",
   };
+  const menuVersion = request.nextUrl.searchParams.get("menu_version");
+  const useExpandedCategoryTree =
+    menuVersion === "20260305-2" || menuVersion === "20260305-sidebar";
 
   try {
     const { data, error } = await supabaseAdmin
@@ -501,7 +554,10 @@ export async function GET(_request: NextRequest) {
         ? normalizedData.filter((cat) => typeof cat.mercos_id === "number")
         : normalizedData;
 
-    const treeFromFocusedRoots = await buildFocusedMegaMenuTree(normalizedData);
+    const treeFromFocusedRoots = await buildFocusedMegaMenuTree(normalizedData, {
+      focusedOnly: !useExpandedCategoryTree,
+      filterByActiveProducts: !useExpandedCategoryTree,
+    });
     const tree =
       treeFromFocusedRoots && treeFromFocusedRoots.length > 0
         ? treeFromFocusedRoots
