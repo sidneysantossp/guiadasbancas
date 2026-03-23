@@ -24,6 +24,7 @@ type BancaListItem = {
   my_access_level?: "admin" | "collaborator" | string | null;
   my_relation?: "owner" | "member" | string | null;
   is_cotista?: boolean | null;
+  partner_linked?: boolean | null;
   cotista_codigo?: string | null;
 };
 
@@ -43,7 +44,9 @@ export default function JornaleiroBancasPage() {
     const lifecycle = resolveBancaLifecycle(item);
     return lifecycle.code === "draft" || lifecycle.code === "pending_approval";
   }).length;
-  const cotistaCount = items.filter((item) => item.is_cotista).length;
+  const partnerLinkedCount = items.filter(
+    (item) => item.partner_linked === true || item.is_cotista === true
+  ).length;
 
   const tabs = useMemo(
     () => [
@@ -91,8 +94,9 @@ export default function JornaleiroBancasPage() {
       const json = JSON.parse(text);
       if (!res.ok || !json?.success) throw new Error(json?.error || `HTTP ${res.status}`);
 
-      setActiveBancaId(bancaId);
-      const activeItem = items.find((it) => it.id === bancaId);
+      const resolvedBancaId = json?.banca_id || bancaId;
+      setActiveBancaId(resolvedBancaId);
+      const activeItem = items.find((it) => it.id === resolvedBancaId) || items.find((it) => it.id === bancaId);
       if (activeItem && user?.id) {
         sessionStorage.setItem(`gb:banca:${user.id}`, JSON.stringify(activeItem));
       }
@@ -142,7 +146,7 @@ export default function JornaleiroBancasPage() {
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Com rede vinculada</div>
-          <div className="mt-3 text-2xl font-semibold text-gray-900">{cotistaCount}</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{partnerLinkedCount}</div>
           <p className="mt-1 text-sm text-gray-500">Bancas já ligadas a relacionamento comercial.</p>
         </div>
       </div>
@@ -184,6 +188,7 @@ export default function JornaleiroBancasPage() {
             const isSelected = activeBancaId === b.id;
             const address = b.address || "";
             const lifecycle = resolveBancaLifecycle(b);
+            const partnerLinked = b.partner_linked === true || b.is_cotista === true;
             return (
               <div key={b.id} className={`rounded-xl border bg-white p-4 ${isSelected ? "border-[#ff5c00]" : "border-gray-200"}`}>
                 <div className="flex items-start justify-between gap-3">
@@ -214,9 +219,9 @@ export default function JornaleiroBancasPage() {
                           Operação pausada
                         </span>
                       )}
-                      {b.is_cotista && b.cotista_codigo && (
+                      {partnerLinked && (
                         <span className="rounded-full border border-blue-300 bg-blue-50 text-blue-700 px-2 py-0.5">
-                          Rede: {b.cotista_codigo}
+                          {b.cotista_codigo ? `Rede: ${b.cotista_codigo}` : "Rede parceira vinculada"}
                         </span>
                       )}
                     </div>

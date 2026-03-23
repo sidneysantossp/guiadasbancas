@@ -11,7 +11,7 @@ import ImageUploader from '@/components/admin/ImageUploader';
 import FileUploadDragDrop from '@/components/common/FileUploadDragDrop';
 import JornaleiroPageHeading from '@/components/jornaleiro/JornaleiroPageHeading';
 import { IconUser, IconClock, IconBuilding, IconLink } from '@tabler/icons-react';
-import CotistaSearch from '@/components/CotistaSearch';
+import PartnerRegistrySearch from '@/components/jornaleiro/PartnerRegistrySearch';
 
 // Constantes auxiliares
 const ESTADOS = [
@@ -129,6 +129,7 @@ export default function BancaV2Page() {
   const [addressFieldsEnabled, setAddressFieldsEnabled] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const lastAppliedSnapshotRef = useRef<string>('');
 
   const withCacheBust = (url?: string, seed?: number | string) => {
     if (!url) return '';
@@ -161,7 +162,7 @@ export default function BancaV2Page() {
     enabled: status === 'authenticated',
     staleTime: 0,
     refetchOnWindowFocus: false, 
-    refetchOnMount: false,
+    refetchOnMount: 'always',
   });
 
   useEffect(() => {
@@ -267,10 +268,12 @@ export default function BancaV2Page() {
     }
   }, [bancaData?.profile, profileResp?.profile, bancaData?.addressObj, bancaData?.cep, setValue]);
 
-  const [initialLoaded, setInitialLoaded] = useState(false);
-
   useEffect(() => {
-    if (bancaData && !initialLoaded && !justSaved) {
+    const bancaSnapshot = bancaData
+      ? [bancaData.id || '', bancaData.updated_at || '', profileResp?.profile?.updated_at || ''].join(':')
+      : '';
+
+    if (bancaData && bancaSnapshot && lastAppliedSnapshotRef.current !== bancaSnapshot && !justSaved) {
       const adr = bancaData.addressObj || {};
       const prof = (profileResp?.profile) ?? (bancaData?.profile) ?? {};
 
@@ -310,7 +313,7 @@ export default function BancaV2Page() {
       });
 
       try {
-        const isCotistaValue = bancaData.is_cotista === true;
+        const isCotistaValue = bancaData.partner_linked === true || bancaData.is_cotista === true;
         setIsCotista(isCotistaValue);
         if (isCotistaValue && bancaData.cotista_razao_social) {
           setSelectedCotista({
@@ -334,9 +337,9 @@ export default function BancaV2Page() {
         setImagesChanged(false);
       } catch {}
 
-      setInitialLoaded(true);
+      lastAppliedSnapshotRef.current = bancaSnapshot;
     }
-  }, [bancaData, profileResp, initialLoaded, justSaved, reset, session?.user?.email]);
+  }, [bancaData, justSaved, profileResp, reset, session?.user?.email]);
 
   // Função para comprimir imagem antes do upload (evita erro 413 na Vercel)
   const compressImage = async (dataUrl: string, maxSizeMB: number = 2): Promise<Blob> => {
@@ -525,6 +528,7 @@ export default function BancaV2Page() {
     onSuccess: () => {
       setJustSaved(true);
       setSaveMessage('Informações atualizadas com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['banca', session?.user?.id, bancaIdParam || 'active'] });
       window.dispatchEvent(new Event('banca-updated'));
 
       setTimeout(() => {
@@ -742,7 +746,7 @@ export default function BancaV2Page() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Buscar rede vinculada
                 </label>
-                <CotistaSearch
+                <PartnerRegistrySearch
                   mode="public"
                   onSelect={(cotista) => {
                     setSelectedCotista(cotista);

@@ -4,6 +4,7 @@ import WorldCupClusterLinks from "@/components/seo/WorldCupClusterLinks";
 import { toBancaSlug } from "@/lib/slug";
 import { getAdminBancaById, getAdminBancasAll } from "@/lib/data/bancas";
 import { findWorldCupCityByAddress, isWorldCupRelevantText } from "@/lib/seo/world-cup-2026";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -101,10 +102,16 @@ export default async function BancaSlugPage({ params }: { params: { uf: string; 
   // Tenta buscar dados reais da banca para JSON-LD
   let ld: any = null;
   let bancaSeoContext: { name: string; address: string; categoriesText: string } | null = null;
+  let canonicalTargetId = resolvedId || heuristicId || slug;
   try {
     const targetId = resolvedId || heuristicId || slug;
     const b = await getAdminBancaById(targetId);
     if (b) {
+      const canonicalSlug = `${toBancaSlug(String(b.name || name))}-${String(b.id)}`;
+      if (String(b.id) !== String(targetId) || canonicalSlug !== slug) {
+        redirect(`/banca/${uf}/${canonicalSlug}`);
+      }
+      canonicalTargetId = String(b.id);
       bancaSeoContext = {
         name: String(b.name || name),
         address: String(b.address || [b.addressObj?.street, b.addressObj?.city, b.addressObj?.uf].filter(Boolean).join(", ")),
@@ -189,7 +196,7 @@ export default async function BancaSlugPage({ params }: { params: { uf: string; 
     <>
       <script suppressHydrationWarning type="application/ld+json" dangerouslySetInnerHTML={{ __html: toSafeJsonLd(ld) }} />
       <script suppressHydrationWarning type="application/ld+json" dangerouslySetInnerHTML={{ __html: toSafeJsonLd(breadcrumbLd) }} />
-      <BancaPageClient bancaId={resolvedId || heuristicId || slug} />
+      <BancaPageClient bancaId={canonicalTargetId} />
       {showWorldCupCluster ? (
         <div className="container-max pb-16">
           <WorldCupClusterLinks

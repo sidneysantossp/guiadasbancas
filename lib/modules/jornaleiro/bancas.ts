@@ -1,5 +1,5 @@
 import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
-import { resolveCanonicalOwnedBancaId } from "@/lib/banca-canonical";
+import { isSameBancaIdentity, pickCanonicalBanca, resolveCanonicalBancaRowById, resolveCanonicalOwnedBancaId } from "@/lib/banca-canonical";
 import { getBrazilianDocumentVariants } from "@/lib/documents";
 import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 import { normalizePlatformRole } from "@/lib/modules/auth/session";
@@ -10,7 +10,7 @@ import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const BANCA_LIST_SELECT =
-  "id, user_id, name, email, address, cep, profile_image, cover_image, active, approved, created_at, updated_at, is_cotista, cotista_codigo";
+  "id, user_id, name, email, address, cep, profile_image, cover_image, active, approved, created_at, updated_at, is_cotista, cotista_id, cotista_codigo";
 
 const DAYS = [
   { key: "seg", label: "Segunda" },
@@ -166,6 +166,51 @@ function buildJornaleiroBancaUpdateData(input: any) {
   return updateData;
 }
 
+function bancaAccessRank(banca: any) {
+  if (banca?.my_relation === "owner") return 3;
+  if (banca?.my_access_level === "admin") return 2;
+  return 1;
+}
+
+function collapseAccessibleBancas(items: any[]) {
+  const remaining = [...items];
+  const canonicalIdBySourceId = new Map<string, string>();
+  const collapsed: any[] = [];
+
+  while (remaining.length > 0) {
+    const current = remaining.shift();
+    if (!current) continue;
+
+    const cluster = [current];
+    for (let index = remaining.length - 1; index >= 0; index -= 1) {
+      const candidate = remaining[index];
+      if (isSameBancaIdentity(current, candidate)) {
+        cluster.push(candidate);
+        remaining.splice(index, 1);
+      }
+    }
+
+    const canonical = pickCanonicalBanca(cluster) || current;
+    const bestAccess = [...cluster].sort((left, right) => bancaAccessRank(right) - bancaAccessRank(left))[0] || canonical;
+    const merged = {
+      ...canonical,
+      my_access_level: bestAccess?.my_access_level ?? canonical?.my_access_level ?? null,
+      my_relation: bestAccess?.my_relation ?? canonical?.my_relation ?? null,
+      partner_linked: cluster.some((item) => item?.partner_linked === true || item?.is_cotista === true),
+      is_cotista: cluster.some((item) => item?.is_cotista === true) || canonical?.is_cotista === true,
+      cotista_id: canonical?.cotista_id ?? bestAccess?.cotista_id ?? null,
+      cotista_codigo: canonical?.cotista_codigo ?? bestAccess?.cotista_codigo ?? null,
+    };
+
+    collapsed.push(merged);
+    for (const item of cluster) {
+      if (item?.id) canonicalIdBySourceId.set(String(item.id), String(canonical.id));
+    }
+  }
+
+  return { collapsed, canonicalIdBySourceId };
+}
+
 function buildAccessibleBancasResponse(params: {
   owned: any[];
   cpfLinked: any[];
@@ -173,6 +218,11 @@ function buildAccessibleBancasResponse(params: {
   memberBancas: any[];
   activeBancaId: string | null;
 }) {
+  const withPartnerLinkState = (banca: any) => ({
+    ...banca,
+    partner_linked: banca?.is_cotista === true || Boolean(banca?.cotista_id),
+  });
+
   const membershipMap = new Map<string, string>(
     (params.memberships || []).map((membership: any) => [
       String(membership.banca_id),
@@ -183,18 +233,28 @@ function buildAccessibleBancasResponse(params: {
   const itemsMap = new Map<string, any>();
 
   (params.owned || []).forEach((banca: any) => {
-    itemsMap.set(banca.id, { ...banca, my_access_level: "admin", my_relation: "owner" });
+    itemsMap.set(
+      banca.id,
+      withPartnerLinkState({ ...banca, my_access_level: "admin", my_relation: "owner" })
+    );
   });
 
   (params.cpfLinked || []).forEach((banca: any) => {
     if (itemsMap.has(banca.id)) return;
-    itemsMap.set(banca.id, { ...banca, my_access_level: "admin", my_relation: "cpf_linked" });
+    itemsMap.set(
+      banca.id,
+      withPartnerLinkState({
+        ...banca,
+        my_access_level: "admin",
+        my_relation: "cpf_linked",
+      })
+    );
   });
 
   (params.memberBancas || []).forEach((banca: any) => {
     if (itemsMap.has(banca.id)) return;
     itemsMap.set(banca.id, {
-      ...banca,
+      ...withPartnerLinkState(banca),
       my_access_level: membershipMap.get(banca.id) || "collaborator",
       my_relation: "member",
     });
@@ -278,15 +338,7 @@ async function loadActiveBancaContext(userId: string) {
     };
   }
 
-  const { data: banca, error: bancaError } = await supabaseAdmin
-    .from("bancas")
-    .select("*")
-    .eq("id", activeBancaId)
-    .maybeSingle();
-
-  if (bancaError) {
-    throw new Error(bancaError.message || "Erro ao carregar banca ativa");
-  }
+  const banca = await resolveCanonicalBancaRowById<any>(activeBancaId);
 
   if (!banca) {
     return {
@@ -343,11 +395,24 @@ async function loadBancaAccessContext(params: {
   bancaId: string;
 }) {
   const requester = await loadRequesterProfile(params.userId);
+  const canonicalBanca = await resolveCanonicalBancaRowById<any>(params.bancaId);
+  const resolvedBancaId = canonicalBanca?.id || params.bancaId;
   const access = await loadAccessibleBancaForJornaleiro({
     userId: params.userId,
-    bancaId: params.bancaId,
+    bancaId: resolvedBancaId,
     select: "*",
   });
+
+  if (requester.bancaId && requester.bancaId !== resolvedBancaId) {
+    const { error: updateError } = await supabaseAdmin
+      .from("user_profiles")
+      .update({ banca_id: resolvedBancaId })
+      .eq("id", params.userId);
+
+    if (updateError) {
+      console.warn("[JornaleiroBancas] Falha ao sincronizar banca acessada:", updateError.message);
+    }
+  }
 
   return {
     requester,
@@ -425,6 +490,7 @@ async function formatBancaResponse(params: {
     payment_methods: params.banca.payment_methods || [],
     whatsapp: params.banca.whatsapp || "",
     is_cotista: params.banca.is_cotista || false,
+    partner_linked: entitlements.isLegacyCotistaLinked,
     cotista_id: params.banca.cotista_id || null,
     cotista_codigo: params.banca.cotista_codigo || null,
     cotista_razao_social: params.banca.cotista_razao_social || null,
@@ -439,6 +505,8 @@ async function formatBancaResponse(params: {
       can_access_distributor_catalog: entitlements.canAccessDistributorCatalog,
       can_access_partner_directory: entitlements.canAccessPartnerDirectory,
       is_legacy_cotista_linked: entitlements.isLegacyCotistaLinked,
+      partner_linked: entitlements.isLegacyCotistaLinked,
+      partner_catalog_access: entitlements.canAccessDistributorCatalog,
       paid_features_locked_until_payment: entitlements.paidFeaturesLockedUntilPayment,
       overdue_features_locked: entitlements.overdueFeaturesLocked,
       overdue_in_grace_period: entitlements.overdueInGracePeriod,
@@ -520,10 +588,15 @@ export async function listAccessibleJornaleiroBancas(userId: string) {
     activeBancaId: resolvedOwnedCanonicalBancaId || requester.bancaId,
   });
 
-  if (response.activeBancaId && response.activeBancaId !== requester.bancaId) {
+  const { collapsed, canonicalIdBySourceId } = collapseAccessibleBancas(response.items || []);
+  const canonicalActiveBancaId = response.activeBancaId
+    ? canonicalIdBySourceId.get(String(response.activeBancaId)) || response.activeBancaId
+    : null;
+
+  if (canonicalActiveBancaId && canonicalActiveBancaId !== requester.bancaId) {
     const { error: updateError } = await supabaseAdmin
       .from("user_profiles")
-      .update({ banca_id: response.activeBancaId })
+      .update({ banca_id: canonicalActiveBancaId })
       .eq("id", userId);
 
     if (updateError) {
@@ -533,8 +606,8 @@ export async function listAccessibleJornaleiroBancas(userId: string) {
 
   return {
     success: true,
-    items: response.items,
-    active_banca_id: response.activeBancaId,
+    items: collapsed,
+    active_banca_id: canonicalActiveBancaId,
     account_access_level: requester.accessLevel,
     headers: buildNoStoreHeaders({ isPrivate: true }),
   };
@@ -933,11 +1006,17 @@ export async function setActiveJornaleiroBanca(params: {
   userId: string;
   bancaId: string;
 }) {
-  await loadBancaAccessContext(params);
+  const canonicalBanca = await resolveCanonicalBancaRowById<any>(params.bancaId);
+  const resolvedBancaId = canonicalBanca?.id || params.bancaId;
+
+  await loadBancaAccessContext({
+    userId: params.userId,
+    bancaId: resolvedBancaId,
+  });
 
   const { error: profileError } = await supabaseAdmin
     .from("user_profiles")
-    .update({ banca_id: params.bancaId })
+    .update({ banca_id: resolvedBancaId })
     .eq("id", params.userId);
 
   if (profileError) {
@@ -946,7 +1025,7 @@ export async function setActiveJornaleiroBanca(params: {
 
   return {
     success: true,
-    banca_id: params.bancaId,
+    banca_id: resolvedBancaId,
     headers: buildNoStoreHeaders({ isPrivate: true }),
   };
 }
