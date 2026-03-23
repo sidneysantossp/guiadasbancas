@@ -147,6 +147,7 @@ export default function EditBancaPage() {
 
         if (json.data) {
           const banca = json.data;
+          setSuccess(null);
           setName(banca.name || "");
           setAddress(banca.address || "");
           setCep(banca.addressObj?.cep || banca.cep || "");
@@ -160,6 +161,7 @@ export default function EditBancaPage() {
           setLng(banca.lng?.toString() || banca.location?.lng?.toString() || "");
           setCover(banca.cover || banca.cover_image || "");
           setAvatar(banca.avatar || banca.images?.avatar || "");
+          setGallery(Array.isArray(banca.gallery) ? banca.gallery : []);
           setWhatsapp(banca.contact?.whatsapp || "");
           setFacebook(banca.socials?.facebook || "");
           setInstagram(banca.socials?.instagram || "");
@@ -339,6 +341,7 @@ export default function EditBancaPage() {
         hours,
         featured,
         active,
+        gallery,
         is_cotista: isCotista,
         cotista_id: selectedCotista?.id || null,
         cotista_codigo: selectedCotista?.codigo || null,
@@ -355,10 +358,11 @@ export default function EditBancaPage() {
 
       const json = await res.json();
 
-      if (json?.success) {
-        setSuccess('✅ Alterações realizadas com sucesso!');
+      if (res.ok && json?.success) {
+        setSuccess('Dados atualizados com sucesso.');
         setHasChanges(false);
-        setTimeout(() => setSuccess(null), 3000);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => setSuccess(null), 5000);
       } else {
         setError(json?.error || 'Erro ao atualizar banca');
       }
@@ -934,6 +938,11 @@ export default function EditBancaPage() {
 
           {/* BOTÕES FLUTUANTES (SAVE) */}
           <div className="fixed bottom-0 left-0 lg:left-64 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 flex justify-end gap-4 px-6 md:px-12">
+            {success && (
+              <div className="mr-auto inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
+                {success}
+              </div>
+            )}
             <Link
               href="/admin/cms/bancas"
               className="px-6 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm"

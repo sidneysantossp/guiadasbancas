@@ -33,6 +33,11 @@ export type AdminBanca = {
   payments?: string[];
   gallery?: string[];
   featured?: boolean;
+  is_cotista?: boolean;
+  cotista_id?: string | null;
+  cotista_codigo?: string | null;
+  cotista_razao_social?: string | null;
+  cotista_cnpj_cpf?: string | null;
   ctaUrl?: string;
   description?: string;
   tpu_url?: string;
@@ -44,6 +49,31 @@ export type AdminBanca = {
   user_id?: string | null;
   ownerEmail?: string | null;
 };
+
+function buildFullAddress(address?: string, addressObj?: any) {
+  if (!addressObj || typeof addressObj !== 'object') return address || '';
+
+  const street = [addressObj.street, addressObj.complement].filter(Boolean).join(', ');
+  const numberNeighborhood = [addressObj.number, addressObj.neighborhood].filter(Boolean).join(' - ');
+  const cityUf = [addressObj.city, addressObj.uf].filter(Boolean).join(' - ');
+
+  const fullAddress = [street || undefined, numberNeighborhood || undefined, cityUf || undefined]
+    .filter(Boolean)
+    .join(', ');
+
+  return fullAddress || address || '';
+}
+
+function buildOpeningHours(hours?: Array<{ key: string; open: boolean; start: string; end: string }>) {
+  if (!Array.isArray(hours)) return null;
+
+  return hours.reduce<Record<string, string>>((acc, item) => {
+    if (item?.key && item.open && item.start && item.end) {
+      acc[item.key] = `${item.start}-${item.end}`;
+    }
+    return acc;
+  }, {});
+}
 
 async function readBancas(): Promise<AdminBanca[]> {
   try {
@@ -90,14 +120,21 @@ async function readBancas(): Promise<AdminBanca[]> {
         avatar: banca.profile_image || '/placeholder/banca-avatar.svg',
         description: banca.description || banca.address,
         tpu_url: banca.tpu_url || undefined,
-        addressObj: banca.addressObj || undefined,
+        addressObj: banca.address_obj || banca.addressobj || undefined,
         location: banca.location || undefined,
         contact: { whatsapp: whatsappNumber },
         socials: { facebook: banca.facebook || undefined, instagram: banca.instagram || undefined, gmb: banca.gmb || undefined },
         hours: banca.hours || undefined,
         categories: banca.categories || [],
+        gallery: Array.isArray(banca.gallery) ? banca.gallery : [],
         active: banca.active !== false,
-        order: banca.order || 0,
+        featured: banca.featured === true,
+        is_cotista: banca.is_cotista === true,
+        cotista_id: banca.cotista_id || null,
+        cotista_codigo: banca.cotista_codigo || null,
+        cotista_razao_social: banca.cotista_razao_social || null,
+        cotista_cnpj_cpf: banca.cotista_cnpj_cpf || null,
+        order: banca.order_index || banca.order || 0,
         createdAt: banca.created_at,
         user_id: banca.user_id || null
       };
@@ -177,13 +214,25 @@ export async function POST(request: NextRequest) {
     // Preparar dados para inserção
     const insertData: any = {
       name: data.name,
-      address: data.address || '',
+      address: buildFullAddress(data.address, data.addressObj),
       cep: data.addressObj?.cep || '00000-000',
       lat: (data.lat != null ? Number(data.lat) : (data.location?.lat != null ? Number(data.location.lat) : -23.5505)),
       lng: (data.lng != null ? Number(data.lng) : (data.location?.lng != null ? Number(data.location.lng) : -46.6333)),
-      cover_image: data.cover || data.images?.cover,
+      cover_image: data.cover || data.images?.cover || null,
+      profile_image: data.avatar || data.images?.avatar || null,
+      gallery: Array.isArray(data.gallery) ? data.gallery : [],
+      address_obj: data.addressObj || null,
+      addressobj: data.addressObj || null,
       tpu_url: data.tpu_url || null,
       categories: data.categories || [],
+      hours: data.hours || null,
+      opening_hours: buildOpeningHours(data.hours),
+      featured: data.featured === true,
+      is_cotista: data.is_cotista === true,
+      cotista_id: data.cotista_id || null,
+      cotista_codigo: data.cotista_codigo || null,
+      cotista_razao_social: data.cotista_razao_social || null,
+      cotista_cnpj_cpf: data.cotista_cnpj_cpf || null,
       active: data.active !== false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -222,11 +271,13 @@ export async function PUT(request: NextRequest) {
     // Preparar dados para atualização
     const updateData: any = {
       name: data.name,
-      address: data.address || data.addressObj?.street,
+      address: buildFullAddress(data.address, data.addressObj),
       cep: data.addressObj?.cep || data.cep,
       lat: (data.lat != null ? Number(data.lat) : (data.location?.lat != null ? Number(data.location.lat) : undefined)),
       lng: (data.lng != null ? Number(data.lng) : (data.location?.lng != null ? Number(data.location.lng) : undefined)),
-      cover_image: data.cover || data.images?.cover,
+      cover_image: data.cover === '' ? null : (data.cover || data.images?.cover),
+      profile_image: data.avatar === '' ? null : (data.avatar || data.images?.avatar),
+      gallery: Array.isArray(data.gallery) ? data.gallery : [],
       tpu_url: data.tpu_url,
       description: data.description || null,
       whatsapp: data.contact?.whatsapp || null,
@@ -234,9 +285,17 @@ export async function PUT(request: NextRequest) {
       instagram: data.socials?.instagram || null,
       gmb: data.socials?.gmb || null,
       hours: data.hours || null,
+      opening_hours: buildOpeningHours(data.hours),
+      address_obj: data.addressObj || null,
+      addressobj: data.addressObj || null,
       categories: data.categories || [],
       active: data.active !== false,
       featured: data.featured || false,
+      is_cotista: data.is_cotista === true,
+      cotista_id: data.cotista_id || null,
+      cotista_codigo: data.cotista_codigo || null,
+      cotista_razao_social: data.cotista_razao_social || null,
+      cotista_cnpj_cpf: data.cotista_cnpj_cpf || null,
       updated_at: new Date().toISOString()
     };
 
