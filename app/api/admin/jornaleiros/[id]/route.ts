@@ -72,7 +72,7 @@ export async function GET(
       bancaId
         ? supabaseAdmin
             .from("orders")
-            .select("id, user_id, customer_name, total, status, payment_method, created_at")
+            .select("id, customer_name, customer_email, total, status, payment_method, created_at")
             .eq("banca_id", bancaId)
             .order("created_at", { ascending: false })
             .limit(8)
@@ -128,8 +128,8 @@ export async function GET(
     }>;
     const recentOrders = (ordersResponse.data || []) as Array<{
       id: string;
-      user_id: string | null;
       customer_name: string | null;
+      customer_email: string | null;
       total: number | null;
       status: string | null;
       payment_method: string | null;

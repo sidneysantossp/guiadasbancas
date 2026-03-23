@@ -4,7 +4,6 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 type OrderRecord = {
   id: string;
-  user_id: string | null;
   banca_id: string | null;
   customer_name: string | null;
   customer_phone: string | null;
@@ -37,7 +36,7 @@ export async function GET(
     const { data: order, error } = await supabaseAdmin
       .from("orders")
       .select(
-        "id, user_id, banca_id, customer_name, customer_phone, customer_email, customer_address, items, subtotal, shipping_fee, total, status, payment_method, notes, estimated_delivery, created_at, updated_at"
+        "id, banca_id, customer_name, customer_phone, customer_email, customer_address, items, subtotal, shipping_fee, total, status, payment_method, notes, estimated_delivery, created_at, updated_at"
       )
       .eq("id", id)
       .single();
@@ -54,12 +53,12 @@ export async function GET(
             .eq("id", order.banca_id)
             .single()
         : Promise.resolve({ data: null, error: null }),
-      order.user_id
+      order.customer_email
         ? supabaseAdmin
             .from("user_profiles")
             .select("id, full_name, email, role, phone, blocked")
-            .eq("id", order.user_id)
-            .single()
+            .eq("email", order.customer_email)
+            .limit(1)
         : Promise.resolve({ data: null, error: null }),
       supabaseAdmin
         .from("order_history")
@@ -71,6 +70,8 @@ export async function GET(
     if (bancaResponse.error) throw bancaResponse.error;
     if (userResponse.error) throw userResponse.error;
     if (historyResponse.error) throw historyResponse.error;
+
+    const customerProfile = Array.isArray(userResponse.data) ? userResponse.data[0] || null : userResponse.data;
 
     return NextResponse.json({
       success: true,
@@ -87,14 +88,14 @@ export async function GET(
               approved: bancaResponse.data.approved === true,
             }
           : null,
-        customer: userResponse.data
+        customer: customerProfile
           ? {
-              id: userResponse.data.id,
-              full_name: userResponse.data.full_name,
-              email: userResponse.data.email,
-              role: userResponse.data.role,
-              phone: userResponse.data.phone,
-              blocked: userResponse.data.blocked === true,
+              id: customerProfile.id,
+              full_name: customerProfile.full_name,
+              email: customerProfile.email,
+              role: customerProfile.role,
+              phone: customerProfile.phone,
+              blocked: customerProfile.blocked === true,
             }
           : null,
         history: historyResponse.data || [],

@@ -40,12 +40,14 @@ export async function GET(
             .eq("id", bancaId)
             .single()
         : Promise.resolve({ data: null, error: null }),
-      supabaseAdmin
-        .from("orders")
-        .select("id, banca_id, customer_name, total, status, payment_method, created_at")
-        .eq("user_id", id)
-        .order("created_at", { ascending: false })
-        .limit(10),
+      profile.email
+        ? supabaseAdmin
+            .from("orders")
+            .select("id, banca_id, customer_name, customer_email, total, status, payment_method, created_at")
+            .eq("customer_email", profile.email)
+            .order("created_at", { ascending: false })
+            .limit(10)
+        : Promise.resolve({ data: [], error: null }),
       bancaId
         ? supabaseAdmin
             .from("subscriptions")
@@ -79,6 +81,7 @@ export async function GET(
       id: string;
       banca_id: string | null;
       customer_name: string | null;
+      customer_email: string | null;
       total: number | null;
       status: string | null;
       payment_method: string | null;

@@ -5,7 +5,6 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 type OrderRecord = {
   id: string;
-  user_id: string | null;
   banca_id: string | null;
   customer_name: string | null;
   customer_phone: string | null;
@@ -60,10 +59,29 @@ export async function GET(request: NextRequest) {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
+    let customerEmailFilter: string | null = null;
+    if (userId) {
+      const { data: profileById, error: profileByIdError } = await supabaseAdmin
+        .from("user_profiles")
+        .select("id, email")
+        .eq("id", userId)
+        .single();
+
+      if (profileByIdError) throw profileByIdError;
+      customerEmailFilter = profileById?.email || null;
+      if (!customerEmailFilter) {
+        return NextResponse.json({
+          success: true,
+          data: [],
+          pagination: { total: 0, page, pageSize, pages: 0 },
+        });
+      }
+    }
+
     let query = supabaseAdmin
       .from("orders")
       .select(
-        "id, user_id, banca_id, customer_name, customer_phone, customer_email, total, subtotal, shipping_fee, status, payment_method, notes, created_at, updated_at",
+        "id, banca_id, customer_name, customer_phone, customer_email, total, subtotal, shipping_fee, status, payment_method, notes, created_at, updated_at",
         { count: "exact" }
       )
       .order("created_at", { ascending: false });
@@ -79,8 +97,8 @@ export async function GET(request: NextRequest) {
       query = query.eq("banca_id", bancaId);
     }
 
-    if (userId) {
-      query = query.eq("user_id", userId);
+    if (customerEmailFilter) {
+      query = query.eq("customer_email", customerEmailFilter);
     }
 
     if (q) {
@@ -95,14 +113,14 @@ export async function GET(request: NextRequest) {
 
     const orders = ((data || []) as OrderRecord[]).filter(Boolean);
     const bancaIds = Array.from(new Set(orders.map((item) => item.banca_id).filter(Boolean))) as string[];
-    const userIds = Array.from(new Set(orders.map((item) => item.user_id).filter(Boolean))) as string[];
+    const customerEmails = Array.from(new Set(orders.map((item) => item.customer_email).filter(Boolean))) as string[];
 
     const [bancasResponse, usersResponse] = await Promise.all([
       bancaIds.length
         ? supabaseAdmin.from("bancas").select("id, user_id, name, active, approved").in("id", bancaIds)
         : Promise.resolve({ data: [], error: null }),
-      userIds.length
-        ? supabaseAdmin.from("user_profiles").select("id, full_name, email, role, blocked").in("id", userIds)
+      customerEmails.length
+        ? supabaseAdmin.from("user_profiles").select("id, full_name, email, role, blocked").in("email", customerEmails)
         : Promise.resolve({ data: [], error: null }),
     ]);
 
@@ -113,12 +131,12 @@ export async function GET(request: NextRequest) {
       (((bancasResponse.data || []) as BancaRecord[]).filter(Boolean) || []).map((item) => [item.id, item])
     );
     const users = new Map(
-      (((usersResponse.data || []) as UserRecord[]).filter(Boolean) || []).map((item) => [item.id, item])
+      (((usersResponse.data || []) as UserRecord[]).filter(Boolean) || []).map((item) => [item.email || "", item])
     );
 
     const rows = orders.map((order) => {
       const banca = order.banca_id ? bancas.get(order.banca_id) || null : null;
-      const user = order.user_id ? users.get(order.user_id) || null : null;
+      const user = order.customer_email ? users.get(order.customer_email) || null : null;
 
       return {
         id: order.id,
@@ -128,7 +146,7 @@ export async function GET(request: NextRequest) {
         shipping_fee: Number(order.shipping_fee || 0),
         payment_method: order.payment_method || "—",
         customer: {
-          id: user?.id || order.user_id,
+          id: user?.id || null,
           name: user?.full_name || order.customer_name || "Cliente",
           email: user?.email || order.customer_email || null,
           phone: order.customer_phone || null,

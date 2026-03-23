@@ -26,8 +26,8 @@ type BancaRow = {
 
 type OrderRow = {
   id: string;
-  user_id: string | null;
   banca_id: string | null;
+  customer_email: string | null;
   total: number | null;
   status: string | null;
   created_at: string | null;
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         )
         .order("created_at", { ascending: false }),
       supabaseAdmin.from("bancas").select("id, name, active, approved"),
-      supabaseAdmin.from("orders").select("id, user_id, banca_id, total, status, created_at"),
+      supabaseAdmin.from("orders").select("id, customer_email, banca_id, total, status, created_at"),
     ]);
 
     if (profilesResponse.error) throw profilesResponse.error;
@@ -73,8 +73,8 @@ export async function GET(request: NextRequest) {
     >();
 
     for (const order of ((ordersResponse.data || []) as OrderRow[])) {
-      if (!order.user_id) continue;
-      const current = orderStatsByUser.get(order.user_id) || {
+      if (!order.customer_email) continue;
+      const current = orderStatsByUser.get(order.customer_email) || {
         totalOrders: 0,
         totalSpent: 0,
         openOrders: 0,
@@ -88,13 +88,13 @@ export async function GET(request: NextRequest) {
       if (!current.lastOrderAt || (order.created_at && order.created_at > current.lastOrderAt)) {
         current.lastOrderAt = order.created_at || current.lastOrderAt;
       }
-      orderStatsByUser.set(order.user_id, current);
+      orderStatsByUser.set(order.customer_email, current);
     }
 
     const rows = profiles
       .map((profile) => {
         const banca = profile.banca_id ? bancas.get(profile.banca_id) || null : null;
-        const orderStats = orderStatsByUser.get(profile.id) || null;
+        const orderStats = profile.email ? orderStatsByUser.get(profile.email) || null : null;
         const role = (profile.role || "cliente").toLowerCase();
 
         return {

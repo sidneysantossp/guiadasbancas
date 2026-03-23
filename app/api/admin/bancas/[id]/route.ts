@@ -67,7 +67,7 @@ export async function GET(
           .limit(1),
         supabaseAdmin
           .from("orders")
-          .select("id, user_id, customer_name, total, status, payment_method, created_at")
+          .select("id, customer_name, customer_email, total, status, payment_method, created_at")
           .eq("banca_id", banca.id)
           .order("created_at", { ascending: false })
           .limit(10),
