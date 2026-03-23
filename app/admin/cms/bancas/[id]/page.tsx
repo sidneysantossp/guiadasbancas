@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useCategories } from "@/lib/useCategories";
@@ -22,6 +22,7 @@ export default function EditBancaPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [categoriesInitialized, setCategoriesInitialized] = useState(false);
 
   // Form fields
   const [name, setName] = useState("");
@@ -83,6 +84,7 @@ export default function EditBancaPage() {
     razao_social: string;
     cnpj_cpf: string;
   } | null>(null);
+  const selectAllCategoriesRef = useRef<HTMLInputElement | null>(null);
 
   // Estados brasileiros
   const estados = [
@@ -169,7 +171,9 @@ export default function EditBancaPage() {
           setDescription(banca.description || "");
           setActive(banca.active !== false);
           setFeatured(banca.featured || false);
-          setSelectedCategories(banca.categories || []);
+          const existingCategories = Array.isArray(banca.categories) ? banca.categories.filter(Boolean) : [];
+          setSelectedCategories(existingCategories);
+          setCategoriesInitialized(existingCategories.length > 0);
           if (banca.hours) setHours(banca.hours);
           if (banca.tpu_url) setTpuUrl(banca.tpu_url);
           // Email do jornaleiro (proprietário) quando disponível
@@ -198,13 +202,37 @@ export default function EditBancaPage() {
       loadBanca();
     }
   }, [bancaId]);
+  const allCategoryKeys = useMemo(
+    () => categories.map((category) => category.key).filter(Boolean),
+    [categories]
+  );
+  const areAllCategoriesSelected =
+    allCategoryKeys.length > 0 && allCategoryKeys.every((key) => selectedCategories.includes(key));
+
+  useEffect(() => {
+    if (categoriesInitialized || allCategoryKeys.length === 0) return;
+    setSelectedCategories(allCategoryKeys);
+    setCategoriesInitialized(true);
+  }, [allCategoryKeys, categoriesInitialized]);
+
+  useEffect(() => {
+    if (!selectAllCategoriesRef.current) return;
+    selectAllCategoriesRef.current.indeterminate =
+      selectedCategories.length > 0 && !areAllCategoriesSelected;
+  }, [selectedCategories.length, areAllCategoriesSelected]);
 
   const toggleCategory = (categoryId: string) => {
-    setSelectedCategories(prev =>
+    setSelectedCategories((prev) =>
       prev.includes(categoryId)
-        ? prev.filter(id => id !== categoryId)
+        ? prev.filter((id) => id !== categoryId)
         : [...prev, categoryId]
     );
+    setHasChanges(true);
+  };
+
+  const toggleAllCategories = () => {
+    setSelectedCategories(areAllCategoriesSelected ? [] : allCategoryKeys);
+    setHasChanges(true);
   };
 
   const handleCepChange = async (value: string) => {
@@ -825,24 +853,38 @@ export default function EditBancaPage() {
                 <div className="h-4 bg-gray-200 rounded w-1/3"></div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {categories.map((category) => (
-                  <label key={category.key} className="flex items-center space-x-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedCategories.includes(category.key)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedCategories([...selectedCategories, category.key]);
-                        } else {
-                          setSelectedCategories(selectedCategories.filter(id => id !== category.key));
-                        }
-                      }}
-                      className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
-                    />
-                    <span className="text-gray-700">{category.name}</span>
-                  </label>
-                ))}
+              <div className="space-y-4">
+                <label className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 cursor-pointer">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {areAllCategoriesSelected ? "Desselecionar todas" : "Selecionar todas"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {selectedCategories.length} de {allCategoryKeys.length} categorias marcadas
+                    </div>
+                  </div>
+                  <input
+                    ref={selectAllCategoriesRef}
+                    type="checkbox"
+                    checked={areAllCategoriesSelected}
+                    onChange={toggleAllCategories}
+                    className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {categories.map((category) => (
+                    <label key={category.key} className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.includes(category.key)}
+                        onChange={() => toggleCategory(category.key)}
+                        className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
+                      />
+                      <span className="text-gray-700">{category.name}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
           </div>

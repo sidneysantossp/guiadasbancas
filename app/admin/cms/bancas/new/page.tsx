@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCategories } from "@/lib/useCategories";
 import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
@@ -24,6 +24,27 @@ export default function NewBancaPage() {
   const [active, setActive] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [tpuUrl, setTpuUrl] = useState<string>("");
+  const [categoriesInitialized, setCategoriesInitialized] = useState(false);
+  const selectAllCategoriesRef = useRef<HTMLInputElement | null>(null);
+
+  const allCategoryKeys = useMemo(
+    () => categories.map((category) => category.key).filter(Boolean),
+    [categories]
+  );
+  const areAllCategoriesSelected =
+    allCategoryKeys.length > 0 && allCategoryKeys.every((key) => selectedCategories.includes(key));
+
+  useEffect(() => {
+    if (categoriesInitialized || allCategoryKeys.length === 0) return;
+    setSelectedCategories(allCategoryKeys);
+    setCategoriesInitialized(true);
+  }, [allCategoryKeys, categoriesInitialized]);
+
+  useEffect(() => {
+    if (!selectAllCategoriesRef.current) return;
+    selectAllCategoriesRef.current.indeterminate =
+      selectedCategories.length > 0 && !areAllCategoriesSelected;
+  }, [selectedCategories.length, areAllCategoriesSelected]);
 
   const toggleCategory = (categoryId: string) => {
     setSelectedCategories(prev => 
@@ -31,6 +52,10 @@ export default function NewBancaPage() {
         ? prev.filter(id => id !== categoryId)
         : [...prev, categoryId]
     );
+  };
+
+  const toggleAllCategories = () => {
+    setSelectedCategories(areAllCategoriesSelected ? [] : allCategoryKeys);
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -193,13 +218,32 @@ export default function NewBancaPage() {
           {/* Categorias */}
           <div className="rounded-lg border border-gray-200 bg-white p-4">
             <h3 className="text-sm font-medium mb-3">Categorias</h3>
+            <div className="mb-3">
+              <label className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 cursor-pointer">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {areAllCategoriesSelected ? "Desselecionar todas" : "Selecionar todas"}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {selectedCategories.length} de {allCategoryKeys.length} categorias marcadas
+                  </div>
+                </div>
+                <input
+                  ref={selectAllCategoriesRef}
+                  type="checkbox"
+                  checked={areAllCategoriesSelected}
+                  onChange={toggleAllCategories}
+                  className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                />
+              </label>
+            </div>
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {categories.map((category: any) => (
-                <label key={category.id} className="flex items-center gap-2 text-sm">
+              {categories.map((category) => (
+                <label key={category.key} className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    checked={selectedCategories.includes(category.id)}
-                    onChange={() => toggleCategory(category.id)}
+                    checked={selectedCategories.includes(category.key)}
+                    onChange={() => toggleCategory(category.key)}
                     className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                   />
                   <span>{category.name}</span>
