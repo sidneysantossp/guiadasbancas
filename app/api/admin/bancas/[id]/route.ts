@@ -52,7 +52,6 @@ export async function GET(
               status,
               current_period_start,
               current_period_end,
-              contracted_price,
               created_at,
               plan:plans (
                 id,
@@ -161,6 +160,7 @@ export async function GET(
         subscription: subscription
           ? {
               ...subscription,
+              contracted_price: null,
               plan: normalizeRelation(subscription.plan),
             }
           : null,
