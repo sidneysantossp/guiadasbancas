@@ -125,18 +125,30 @@ export default function AdminBancaDetailPage() {
   const bancaId = params.id as string;
   const [data, setData] = useState<BancaDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setError(null);
       try {
         const response = await fetchAdminWithDevFallback(`/api/admin/bancas/${bancaId}`);
         const json = await response.json();
+        if (!response.ok || !json?.success) {
+          setData(null);
+          setError(
+            json?.error ||
+              (response.status === 401 ? "Sessão sem permissão de administrador." : `Erro HTTP ${response.status}`)
+          );
+          return;
+        }
         if (json.success) {
           setData(json.data);
         }
       } catch (error) {
         console.error("Erro ao carregar detalhe da banca:", error);
+        setData(null);
+        setError("Erro ao carregar banca. Verifique a sessão de admin e a API.");
       } finally {
         setLoading(false);
       }
@@ -147,6 +159,10 @@ export default function AdminBancaDetailPage() {
 
   if (loading) {
     return <div className="py-16 text-center text-sm text-gray-500">Carregando banca...</div>;
+  }
+
+  if (error) {
+    return <div className="py-16 text-center text-sm text-red-600">{error}</div>;
   }
 
   if (!data) {

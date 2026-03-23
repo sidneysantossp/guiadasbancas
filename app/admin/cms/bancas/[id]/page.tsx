@@ -137,7 +137,15 @@ export default function EditBancaPage() {
         });
         const json = await res.json();
 
-        if (json?.success && json.data) {
+        if (!res.ok || !json?.success) {
+          setError(
+            json?.error ||
+              (res.status === 401 ? 'Sessão sem permissão de administrador.' : `Erro HTTP ${res.status}`)
+          );
+          return;
+        }
+
+        if (json.data) {
           const banca = json.data;
           setName(banca.name || "");
           setAddress(banca.address || "");
@@ -178,7 +186,7 @@ export default function EditBancaPage() {
           setError("Banca não encontrada");
         }
       } catch (err) {
-        setError("Erro ao carregar banca");
+        setError("Erro ao carregar banca. Verifique a sessão de admin e a API.");
       } finally {
         setLoading(false);
       }

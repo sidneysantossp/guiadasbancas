@@ -47,6 +47,7 @@ function SummaryCard({
 export default function AdminBancasPage() {
   const [rows, setRows] = useState<BancaRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [cityFilter, setCityFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -54,12 +55,23 @@ export default function AdminBancasPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setError(null);
       try {
         const response = await fetchAdminWithDevFallback("/api/admin/bancas?all=true", {
           cache: "no-store",
         });
         const json = await response.json();
-        const items = json.success && Array.isArray(json.data) ? json.data : [];
+
+        if (!response.ok || !json?.success) {
+          const message =
+            json?.error ||
+            (response.status === 401 ? "Sessão sem permissão de administrador." : `Erro HTTP ${response.status}`);
+          setRows([]);
+          setError(message);
+          return;
+        }
+
+        const items = Array.isArray(json.data) ? json.data : [];
 
         setRows(
           items.map((banca: any) => ({
@@ -83,6 +95,7 @@ export default function AdminBancasPage() {
       } catch (error) {
         console.error("Erro ao carregar bancas:", error);
         setRows([]);
+        setError("Erro ao carregar bancas. Verifique a sessão de admin e a API.");
       } finally {
         setLoading(false);
       }
@@ -240,6 +253,10 @@ export default function AdminBancasPage() {
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         {loading ? (
           <div className="py-16 text-center text-sm text-gray-500">Carregando bancas...</div>
+        ) : error ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-5 text-sm text-red-700">
+            {error}
+          </div>
         ) : (
           <DataTable
             columns={columns}

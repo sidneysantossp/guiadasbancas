@@ -54,7 +54,7 @@ async function readBancas(): Promise<AdminBanca[]> {
       .order('name');
 
     if (error || !data) {
-      return [];
+      throw new Error(error?.message || 'Falha ao consultar bancas');
     }
 
     // Buscar telefones dos perfis em batch
@@ -104,7 +104,7 @@ async function readBancas(): Promise<AdminBanca[]> {
     });
   } catch (err) {
     console.error('[readBancas] Error:', err);
-    return [];
+    throw err instanceof Error ? err : new Error('Falha ao consultar bancas');
   }
 }
 
@@ -114,7 +114,18 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const includeInactive = searchParams.get("all") === "true";
   const id = searchParams.get("id");
-  const items = await readBancas();
+  let items: AdminBanca[];
+
+  try {
+    items = await readBancas();
+  } catch (error) {
+    console.error('[GET /api/admin/bancas] Error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Erro ao carregar bancas no banco de dados' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
   // Para listagem sem filtro de id, respeite o active, a não ser que all=true
   const list = includeInactive ? items : items.filter((c) => c.active);
 

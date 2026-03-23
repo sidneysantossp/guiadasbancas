@@ -34,6 +34,7 @@ export type AdminBanca = {
 export default function BancasPage() {
   const [items, setItems] = useState<AdminBanca[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showPendingOnly, setShowPendingOnly] = useState(false);
   const [showFeaturedOnly, setShowFeaturedOnly] = useState(false);
   const [featuredFirst, setFeaturedFirst] = useState(false);
@@ -41,15 +42,24 @@ export default function BancasPage() {
   const fetchAll = async () => {
       try {
         setLoading(true);
+        setError(null);
         const res = await fetchAdminWithDevFallback('/api/admin/bancas?all=true', {
           cache: 'no-store',
         });
         const json = await res.json();
-        if (json?.success) {
-          setItems(json.data || []);
-      }
+        if (!res.ok || !json?.success) {
+          setItems([]);
+          setError(
+            json?.error ||
+              (res.status === 401 ? 'Sessão sem permissão de administrador.' : `Erro HTTP ${res.status}`)
+          );
+          return;
+        }
+        setItems(json.data || []);
     } catch (error) {
       console.error('Erro ao carregar bancas:', error);
+      setItems([]);
+      setError('Erro ao carregar bancas. Verifique a sessão de admin e a API.');
     } finally {
       setLoading(false);
     }
@@ -187,6 +197,12 @@ export default function BancasPage() {
           <div className="p-12 text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff5c00]"></div>
             <p className="mt-2 text-gray-600">Carregando bancas...</p>
+          </div>
+        ) : error ? (
+          <div className="p-6">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-5 text-sm text-red-700">
+              {error}
+            </div>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
