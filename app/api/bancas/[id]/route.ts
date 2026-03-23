@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { resolveCanonicalBancaRowById } from "@/lib/banca-canonical";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,16 +12,12 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   };
 
   try {
-    const { data, error } = await supabaseAdmin
-      .from('bancas')
-      .select('*')
-      .eq('id', params.id)
-      .single();
-    
-    if (error || !data) {
+    const data = await resolveCanonicalBancaRowById(params.id);
+
+    if (!data) {
       return NextResponse.json({ error: "Banca não encontrada" }, { status: 404, headers });
     }
-    
+
     return NextResponse.json({ data }, { headers });
   } catch (e: any) {
     console.error('Erro ao buscar banca:', e);

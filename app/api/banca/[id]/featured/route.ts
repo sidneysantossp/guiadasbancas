@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { readAuthenticatedUserClaims } from "@/lib/modules/auth/session";
 import { canPreviewMarketplaceBanca, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
+import { resolveCanonicalBancaRowById } from "@/lib/banca-canonical";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadDistributorPricingContext } from "@/lib/modules/products/service";
 
@@ -43,16 +44,21 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const session = await auth();
     const claims = readAuthenticatedUserClaims(session);
 
-    // Verificar se a banca está publicada
-    const { data: banca, error: bancaError } = await supabase
-      .from('bancas')
-      .select('id, user_id, active, approved, is_cotista, cotista_id')
-      .eq('id', bancaId)
-      .single();
+    // Verificar se a banca está publicada (com resolução canônica para bancas duplicadas)
+    const banca = await resolveCanonicalBancaRowById<{
+      id: string;
+      user_id: string | null;
+      active: boolean | null;
+      approved: boolean | null;
+      is_cotista: boolean | null;
+      cotista_id: string | null;
+    }>(bancaId);
 
-    if (bancaError || !banca) {
+    if (!banca) {
       return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
     }
+
+    const effectiveBancaId = banca.id;
 
     const partnerLinked = banca.is_cotista === true || Boolean(banca.cotista_id);
     const canPreview = canPreviewMarketplaceBanca({
@@ -66,7 +72,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     if (!isPublishedMarketplaceBanca(banca) && !canPreview) {
       return NextResponse.json({
         success: true,
-        banca_id: bancaId,
+        banca_id: effectiveBancaId,
         is_cotista: partnerLinked,
         partner_linked: partnerLinked,
         can_access_distributor_catalog: false,
@@ -86,7 +92,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const { data: produtosProprios, error: produtosPropriosError } = await supabase
       .from('products')
       .select(FEATURED_PRODUCT_FIELDS)
-      .eq('banca_id', bancaId)
+      .eq('banca_id', effectiveBancaId)
       .is('distribuidor_id', null)
       .eq('featured', true)
       .eq('active', true);
@@ -119,7 +125,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       const { data: customizacoesFeatured, error: customizacoesError } = await supabase
         .from('banca_produtos_distribuidor')
         .select('product_id, enabled, custom_price, custom_stock_enabled, custom_stock_qty')
-        .eq('banca_id', bancaId)
+        .eq('banca_id', effectiveBancaId)
         .eq('enabled', true)
         .eq('custom_featured', true);
 
@@ -253,7 +259,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     return NextResponse.json({
       success: true,
-      banca_id: bancaId,
+      banca_id: effectiveBancaId,
       is_cotista: partnerLinked,
       partner_linked: partnerLinked,
       can_access_distributor_catalog: entitlements.canAccessDistributorCatalog,

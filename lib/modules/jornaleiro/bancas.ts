@@ -1,4 +1,5 @@
 import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
+import { resolveCanonicalOwnedBancaId } from "@/lib/banca-canonical";
 import { getBrazilianDocumentVariants } from "@/lib/documents";
 import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 import { normalizePlatformRole } from "@/lib/modules/auth/session";
@@ -509,12 +510,14 @@ export async function listAccessibleJornaleiroBancas(userId: string) {
     throw new Error(memberBancasError.message || "Erro ao listar bancas vinculadas");
   }
 
+  const resolvedOwnedCanonicalBancaId = resolveCanonicalOwnedBancaId(owned || [], requester.bancaId);
+
   const response = buildAccessibleBancasResponse({
     owned: owned || [],
     cpfLinked: cpfBancasResult.data || [],
     memberships: memberships || [],
     memberBancas: memberBancas || [],
-    activeBancaId: requester.bancaId,
+    activeBancaId: resolvedOwnedCanonicalBancaId || requester.bancaId,
   });
 
   if (response.activeBancaId && response.activeBancaId !== requester.bancaId) {

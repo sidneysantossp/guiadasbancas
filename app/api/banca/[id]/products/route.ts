@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { readAuthenticatedUserClaims } from "@/lib/modules/auth/session";
 import { canPreviewMarketplaceBanca, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
+import { resolveCanonicalBancaRowById } from "@/lib/banca-canonical";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadDistributorPricingContext } from "@/lib/modules/products/service";
 
@@ -42,18 +43,23 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const requestedLimit = parseInt(searchParams.get('limit') || '10000'); // Limite alto para buscar todos os produtos
     const fastMode = searchParams.get('fast') === 'true'; // Modo rápido sem markup/customizações
 
-    // 1. Buscar dados da banca pública
+    // 1. Buscar dados da banca pública (com resolução canônica para bancas duplicadas)
     const session = await auth();
     const claims = readAuthenticatedUserClaims(session);
-    const { data: banca, error: bancaError } = await supabase
-      .from('bancas')
-      .select('id, user_id, active, approved, is_cotista, cotista_id')
-      .eq('id', bancaId)
-      .single();
+    const banca = await resolveCanonicalBancaRowById<{
+      id: string;
+      user_id: string | null;
+      active: boolean | null;
+      approved: boolean | null;
+      is_cotista: boolean | null;
+      cotista_id: string | null;
+    }>(bancaId);
 
-    if (bancaError || !banca) {
+    if (!banca) {
       return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
     }
+
+    const effectiveBancaId = banca.id;
 
     const partnerLinked = banca.is_cotista === true || Boolean(banca.cotista_id);
     const canPreview = canPreviewMarketplaceBanca({
@@ -67,7 +73,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     if (!isPublishedMarketplaceBanca(banca) && !canPreview) {
       return NextResponse.json({
         success: true,
-        banca_id: bancaId,
+        banca_id: effectiveBancaId,
         is_cotista: partnerLinked,
         partner_linked: partnerLinked,
         can_access_distributor_catalog: false,
@@ -96,7 +102,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
           .eq('active', true);
 
         if (kind === 'own') {
-          q = q.eq('banca_id', bancaId);
+          q = q.eq('banca_id', effectiveBancaId);
         } else {
           q = q.not('distribuidor_id', 'is', null);
         }
@@ -177,7 +183,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
       return NextResponse.json({
         success: true,
-        banca_id: bancaId,
+        banca_id: effectiveBancaId,
         total: totalCount || produtos.length,
         limit: requestedLimit,
         products: fastProducts,
@@ -216,7 +222,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       }>({
         products: produtosCarregados,
         customFields: 'product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty',
-        customBancaId: bancaId,
+        customBancaId: effectiveBancaId,
         includeAllBancaCustomizationsWhenLarge: true,
       }),
       // Categorias de distribuidores (para produtos de distribuidores)
@@ -311,7 +317,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     return NextResponse.json({
       success: true,
-      banca_id: bancaId,
+      banca_id: effectiveBancaId,
       is_cotista: partnerLinked,
       partner_linked: partnerLinked,
       can_access_distributor_catalog: entitlements.canAccessDistributorCatalog,

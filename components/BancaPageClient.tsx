@@ -322,8 +322,10 @@ const isHiddenTopDuplicateCategory = (name: string): boolean => {
 };
 
 export default function BancaPageClient({ bancaId }: { bancaId: string }) {
+  const [resolvedBancaId, setResolvedBancaId] = useState<string>(bancaId);
   const [loc, setLoc] = useState<UserLocation | null>(null);
   useEffect(() => setLoc(loadStoredLocation()), []);
+  useEffect(() => setResolvedBancaId(bancaId), [bancaId]);
 
   // Começa sem banca; só exibe header quando houver dados reais da API
   const [banca, setBanca] = useState<BancaDetail | null>(null);
@@ -390,12 +392,12 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
 
   // Carregar hierarquia de categorias dinâmica da banca (sincronizada com Mercos)
   useEffect(() => {
-    if (!bancaId) return;
+    if (!resolvedBancaId) return;
     let active = true;
     (async () => {
       try {
         setLoadingCategories(true);
-        const res = await fetch(`/api/banca/${encodeURIComponent(bancaId)}/categories`);
+        const res = await fetch(`/api/banca/${encodeURIComponent(resolvedBancaId)}/categories`);
         const json = await res.json();
         if (active && json?.success) {
           setDynamicCategoryHierarchy(json.hierarchy || {});
@@ -409,7 +411,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       }
     })();
     return () => { active = false; };
-  }, [bancaId]);
+  }, [bancaId, resolvedBancaId]);
   const { show } = useToast();
   const [hoursOpen, setHoursOpen] = useState(false);
   const hoursRef = useRef<HTMLDivElement | null>(null);
@@ -460,6 +462,10 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         const j = await res.json();
         const it = j?.data || null;
         if (!it) throw new Error('Banca not found');
+        const effectiveBancaId = typeof it.id === 'string' && it.id ? it.id : bancaId;
+        if (active && effectiveBancaId !== resolvedBancaId) {
+          setResolvedBancaId(effectiveBancaId);
+        }
 
         const parseMaybeJson = (value: any) => {
           if (value == null) return undefined;
@@ -537,7 +543,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           // Track page view
           trackEvent({
             event_type: "page_view",
-            banca_id: bancaId,
+            banca_id: effectiveBancaId,
             metadata: { banca_name: mapped.name }
           });
         }
@@ -551,7 +557,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
       }
     })();
     return () => { active = false; };
-  }, [bancaId]);
+  }, [resolvedBancaId]);
 
   // Fetch produtos da banca usando endpoint direto
   // Função para mapear produtos da API para o formato do frontend
