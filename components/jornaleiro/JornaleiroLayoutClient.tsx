@@ -347,7 +347,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
             // Validar se o cache é mesmo deste usuário
             const cacheValido = isCollaborator
               ? !!expectedBancaId && bancaData.id === expectedBancaId
-              : bancaData.user_id === user.id;
+              : (!!expectedBancaId ? bancaData.id === expectedBancaId : bancaData.user_id === user.id);
 
             if (cacheValido) {
               setBanca(bancaData);
