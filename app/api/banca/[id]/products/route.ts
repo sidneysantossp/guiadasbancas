@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
+import { auth } from "@/lib/auth";
+import { readAuthenticatedUserClaims } from "@/lib/modules/auth/session";
+import { canPreviewMarketplaceBanca, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadDistributorPricingContext } from "@/lib/modules/products/service";
@@ -41,9 +43,11 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const fastMode = searchParams.get('fast') === 'true'; // Modo rápido sem markup/customizações
 
     // 1. Buscar dados da banca pública
+    const session = await auth();
+    const claims = readAuthenticatedUserClaims(session);
     const { data: banca, error: bancaError } = await supabase
       .from('bancas')
-      .select('id, active, approved, is_cotista, cotista_id')
+      .select('id, user_id, active, approved, is_cotista, cotista_id')
       .eq('id', bancaId)
       .single();
 
@@ -51,8 +55,27 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       return NextResponse.json({ success: false, error: "Banca não encontrada" }, { status: 404 });
     }
 
-    if (!isPublishedMarketplaceBanca(banca)) {
-      return NextResponse.json({ success: true, banca_id: bancaId, total: 0, limit: requestedLimit, products: [] });
+    const partnerLinked = banca.is_cotista === true || Boolean(banca.cotista_id);
+    const canPreview = canPreviewMarketplaceBanca({
+      bancaId: banca.id,
+      bancaUserId: banca.user_id,
+      viewerUserId: claims?.id,
+      viewerBancaId: claims?.bancaId,
+      viewerRole: claims?.role,
+    });
+
+    if (!isPublishedMarketplaceBanca(banca) && !canPreview) {
+      return NextResponse.json({
+        success: true,
+        banca_id: bancaId,
+        is_cotista: partnerLinked,
+        partner_linked: partnerLinked,
+        can_access_distributor_catalog: false,
+        partner_catalog_access: false,
+        total: 0,
+        limit: requestedLimit,
+        products: [],
+      });
     }
 
     const entitlements = await resolveBancaPlanEntitlements({
@@ -289,11 +312,14 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     return NextResponse.json({
       success: true,
       banca_id: bancaId,
-      is_cotista: banca?.is_cotista === true || !!banca?.cotista_id,
+      is_cotista: partnerLinked,
+      partner_linked: partnerLinked,
       can_access_distributor_catalog: entitlements.canAccessDistributorCatalog,
+      partner_catalog_access: entitlements.canAccessDistributorCatalog,
       total: totalCount || produtos.length,
       limit: requestedLimit,
       products: mappedProducts,
+      preview_mode: canPreview && !isPublishedMarketplaceBanca(banca),
     }, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',

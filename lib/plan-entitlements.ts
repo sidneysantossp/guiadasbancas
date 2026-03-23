@@ -283,7 +283,7 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
     productLimit: readNumericLimit(limits, "max_products"),
     maxImagesPerProduct: readNumericLimit(limits, "max_images_per_product"),
     canAccessPartnerDirectory: planIncludesPartnerDirectory,
-    canAccessDistributorCatalog: planIncludesDistributorCatalog,
+    canAccessDistributorCatalog: planIncludesDistributorCatalog || isLegacyCotistaLinked,
     isLegacyCotistaLinked,
     paidFeaturesLockedUntilPayment,
     overdueFeaturesLocked,

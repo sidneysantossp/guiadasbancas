@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
+import { auth } from "@/lib/auth";
+import { readAuthenticatedUserClaims } from "@/lib/modules/auth/session";
+import { canPreviewMarketplaceBanca, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 import {
@@ -190,21 +192,32 @@ export async function GET(_request: NextRequest, context: { params: { id: string
     }
 
     const supabase = supabaseAdmin;
+    const session = await auth();
+    const claims = readAuthenticatedUserClaims(session);
 
     const { data: banca } = await supabase
       .from("bancas")
-      .select("id, active, approved, is_cotista, cotista_id")
+      .select("id, user_id, active, approved, is_cotista, cotista_id")
       .eq("id", bancaId)
       .single();
 
-    const isCotista = banca?.is_cotista === true || !!banca?.cotista_id;
+    const partnerLinked = banca?.is_cotista === true || Boolean(banca?.cotista_id);
+    const canPreview = canPreviewMarketplaceBanca({
+      bancaId: banca?.id,
+      bancaUserId: (banca as any)?.user_id,
+      viewerUserId: claims?.id,
+      viewerBancaId: claims?.bancaId,
+      viewerRole: claims?.role,
+    });
 
-    if (!isPublishedMarketplaceBanca(banca)) {
+    if (!isPublishedMarketplaceBanca(banca) && !canPreview) {
       return NextResponse.json({
         success: true,
         banca_id: bancaId,
-        is_cotista: isCotista,
+        is_cotista: partnerLinked,
+        partner_linked: partnerLinked,
         can_access_distributor_catalog: false,
+        partner_catalog_access: false,
         categories: [],
         hierarchy: {},
         standalone: [],
@@ -223,8 +236,10 @@ export async function GET(_request: NextRequest, context: { params: { id: string
       return NextResponse.json({
         success: true,
         banca_id: bancaId,
-        is_cotista: isCotista,
+        is_cotista: partnerLinked,
+        partner_linked: partnerLinked,
         can_access_distributor_catalog: false,
+        partner_catalog_access: false,
         categories: [],
         hierarchy: {},
         standalone: [],
@@ -249,8 +264,11 @@ export async function GET(_request: NextRequest, context: { params: { id: string
       return NextResponse.json({
         success: true,
         banca_id: bancaId,
-        is_cotista: isCotista,
+        is_cotista: partnerLinked,
+        partner_linked: partnerLinked,
         can_access_distributor_catalog: true,
+        partner_catalog_access: true,
+        preview_mode: canPreview && !isPublishedMarketplaceBanca(banca),
         categories: [],
         hierarchy: {},
         standalone: [],
@@ -278,8 +296,11 @@ export async function GET(_request: NextRequest, context: { params: { id: string
       return NextResponse.json({
         success: true,
         banca_id: bancaId,
-        is_cotista: isCotista,
+        is_cotista: partnerLinked,
+        partner_linked: partnerLinked,
         can_access_distributor_catalog: true,
+        partner_catalog_access: true,
+        preview_mode: canPreview && !isPublishedMarketplaceBanca(banca),
         categories: [],
         hierarchy: {},
         standalone: [],
@@ -475,8 +496,11 @@ export async function GET(_request: NextRequest, context: { params: { id: string
       {
         success: true,
         banca_id: bancaId,
-        is_cotista: isCotista,
+        is_cotista: partnerLinked,
+        partner_linked: partnerLinked,
         can_access_distributor_catalog: true,
+        partner_catalog_access: true,
+        preview_mode: canPreview && !isPublishedMarketplaceBanca(banca),
         categories: flatCategories,
         hierarchy,
         standalone,

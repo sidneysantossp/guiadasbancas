@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { buildBancaHref } from "@/lib/slug";
 import { filterProductsFuzzy } from "@/lib/fuzzySearch";
+import { resolvePublicBancaAvatar, resolvePublicBancaCover } from "@/lib/public-banca-images";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
@@ -475,8 +476,20 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         const location = parseMaybeJson(it.location);
         const hours = Array.isArray(it.hours) ? it.hours : (parseMaybeJson(it.hours) || undefined);
         const categories = Array.isArray(it.categories) ? it.categories : (parseMaybeJson(it.categories) || []);
-        const cover = it.cover || it.cover_image || it.images?.cover || "";
-        const avatar = it.avatar || it.profile_image || it.images?.avatar || "";
+        const cover = resolvePublicBancaCover({
+          cover: it.cover,
+          coverImage: it.cover_image,
+          avatar: it.avatar,
+          profileImage: it.profile_image,
+          logoUrl: it.logo_url,
+        });
+        const avatar = resolvePublicBancaAvatar({
+          avatar: it.avatar,
+          profileImage: it.profile_image,
+          logoUrl: it.logo_url,
+          coverImage: it.cover_image,
+          cover: it.cover,
+        });
         const lat =
           typeof it.lat === 'number'
             ? it.lat
