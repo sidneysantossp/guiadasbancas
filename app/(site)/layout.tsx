@@ -51,10 +51,11 @@ const DEFAULT_FOOTER_DATA: FooterData = {
 };
 
 function sanitizeLogoUrl(value: string | null | undefined): string {
-  if (!value) return "/images/logo-default.svg";
+  if (!value) return "/images/logo-default.png";
   const normalized = value.trim();
-  if (!normalized) return "/images/logo-default.svg";
-  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(normalized)) return normalized;
+  if (!normalized) return "/images/logo-default.png";
+  if (normalized === "/images/logo-default.svg") return "/images/logo-default.png";
+  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(normalized)) return "/images/logo-default.png";
   return normalized;
 }
 
@@ -122,7 +123,7 @@ const getBranding = unstable_cache(async (): Promise<BrandingConfig | null> => {
   } catch {
     return null;
   }
-}, ["site-branding-v2"], { revalidate: CACHE_TTL.branding });
+}, ["site-branding-v3"], { revalidate: CACHE_TTL.branding });
 
 export default async function SiteLayout({ children }: { children: ReactNode }) {
   const [footerCategories, branding] = await Promise.all([

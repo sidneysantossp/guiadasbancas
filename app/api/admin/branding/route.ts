@@ -17,13 +17,14 @@ export type BrandingConfig = {
   socialLinkedin: string;
 };
 
-const DEFAULT_LOGO_PATH = "/images/logo-default.svg";
+const DEFAULT_LOGO_PATH = "/images/logo-default.png";
 
 function sanitizeLogoUrl(value: string | null | undefined): string {
   if (!value) return DEFAULT_LOGO_PATH;
   const normalized = value.trim();
   if (!normalized) return DEFAULT_LOGO_PATH;
-  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(normalized)) return normalized;
+  if (normalized === "/images/logo-default.svg") return DEFAULT_LOGO_PATH;
+  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(normalized)) return DEFAULT_LOGO_PATH;
   return normalized;
 }
 

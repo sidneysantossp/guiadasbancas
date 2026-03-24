@@ -77,6 +77,13 @@ export default function WorldCupSeoPage({
   products = [],
   faqs = [],
   extraSchemas = [],
+  relatedLinksTitle = "Páginas do cluster",
+  cityLinksTitle = "Cidades prioritárias",
+  bancasTitle = "Bancas públicas relacionadas",
+  productsTitle = "Coleções e ofertas esportivas já publicadas",
+  productsDescription = "Esta camada aproxima o cluster da oferta real do marketplace. Em vez de depender só de páginas conceituais, ela passa a apontar para produtos e coleções esportivas que já ajudam a capturar a intenção do colecionador.",
+  editorialTitle = "Conteúdo editorial que sustenta o cluster",
+  editorialDescription = "Estes artigos aumentam a profundidade temática da Copa 2026 e ajudam a distribuir autoridade entre intenção informacional, local e transacional.",
 }: {
   title: string;
   description: string;
@@ -93,6 +100,13 @@ export default function WorldCupSeoPage({
   products?: ProductCard[];
   faqs?: FaqItem[];
   extraSchemas?: unknown[];
+  relatedLinksTitle?: string;
+  cityLinksTitle?: string;
+  bancasTitle?: string;
+  productsTitle?: string;
+  productsDescription?: string;
+  editorialTitle?: string;
+  editorialDescription?: string;
 }) {
   const breadcrumbSchema = {
     "@context": "https://schema.org",
@@ -233,7 +247,7 @@ export default function WorldCupSeoPage({
             <aside className="space-y-6">
               {relatedLinks.length > 0 ? (
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h2 className="text-xl font-bold text-slate-900">Páginas do cluster</h2>
+                  <h2 className="text-xl font-bold text-slate-900">{relatedLinksTitle}</h2>
                   <div className="mt-4 space-y-3">
                     {relatedLinks.map((item) => (
                       <Link
@@ -251,7 +265,7 @@ export default function WorldCupSeoPage({
 
               {cityLinks.length > 0 ? (
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h2 className="text-xl font-bold text-slate-900">Cidades prioritárias</h2>
+                  <h2 className="text-xl font-bold text-slate-900">{cityLinksTitle}</h2>
                   <div className="mt-4 space-y-3">
                     {cityLinks.map((item) => (
                       <Link
@@ -269,7 +283,7 @@ export default function WorldCupSeoPage({
 
               {bancas.length > 0 ? (
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h2 className="text-xl font-bold text-slate-900">Bancas públicas relacionadas</h2>
+                  <h2 className="text-xl font-bold text-slate-900">{bancasTitle}</h2>
                   <div className="mt-4 space-y-3">
                     {bancas.map((banca) => (
                       <Link
@@ -292,9 +306,9 @@ export default function WorldCupSeoPage({
           <section className="container-max pb-8">
             <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
               <div className="max-w-3xl">
-                <h2 className="text-2xl font-bold text-slate-900">Coleções e ofertas esportivas já publicadas</h2>
+                <h2 className="text-2xl font-bold text-slate-900">{productsTitle}</h2>
                 <p className="mt-3 text-base leading-8 text-slate-700">
-                  Esta camada aproxima o cluster da oferta real do marketplace. Em vez de depender só de páginas conceituais, ela passa a apontar para produtos e coleções esportivas que já ajudam a capturar a intenção do colecionador.
+                  {productsDescription}
                 </p>
               </div>
 
@@ -340,9 +354,9 @@ export default function WorldCupSeoPage({
           <section className="container-max pb-8">
             <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
               <div className="max-w-3xl">
-                <h2 className="text-2xl font-bold text-slate-900">Conteúdo editorial que sustenta o cluster</h2>
+                <h2 className="text-2xl font-bold text-slate-900">{editorialTitle}</h2>
                 <p className="mt-3 text-base leading-8 text-slate-700">
-                  Estes artigos aumentam a profundidade temática da Copa 2026 e ajudam a distribuir autoridade entre intenção informacional, local e transacional.
+                  {editorialDescription}
                 </p>
               </div>
 

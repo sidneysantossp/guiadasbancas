@@ -4,7 +4,7 @@ export default function DashboardOfficialLogo({ className = "" }: { className?: 
   return (
     <span className={`flex shrink-0 items-center ${className}`}>
       <Image
-        src="/images/logo-default.svg"
+        src="/images/logo-default.png"
         alt="Guia das Bancas"
         width={172}
         height={52}
