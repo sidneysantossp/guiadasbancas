@@ -16,8 +16,12 @@ export async function GET() {
     }
 
     const userId = (session.user as any).id as string | undefined;
+    const userEmail = session.user.email?.trim().toLowerCase() || "";
     if (!userId) {
       return NextResponse.json({ error: "Usuário inválido" }, { status: 401 });
+    }
+    if (!userEmail) {
+      return NextResponse.json({ error: "E-mail do usuário não disponível" }, { status: 400 });
     }
 
     const [
@@ -28,7 +32,7 @@ export async function GET() {
       supabaseAdmin
         .from("orders")
         .select("id, total, status, created_at, banca_id, items, bancas:banca_id(name)")
-        .eq("user_id", userId)
+        .eq("customer_email", userEmail)
         .order("created_at", { ascending: false })
         .limit(100),
       supabaseAdmin
