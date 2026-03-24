@@ -38,8 +38,13 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const sort = searchParams.get("sort") || "created_at";
     const order = searchParams.get("order") || "desc";
+    const scope = (searchParams.get("scope") || "").toLowerCase();
     const bancaIdFilter = searchParams.get("banca_id") || "";
     const countPref = (searchParams.get("count") || "planned") as 'exact' | 'planned' | 'estimated';
+    const effectiveActor =
+      scope === "customer" && actor.email
+        ? { ...actor, role: "cliente" as const }
+        : actor;
 
     // Se buscar por ID específico, retorna apenas esse pedido
     if (orderId) {
@@ -56,8 +61,8 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      const actorBancaId = await resolveOrderActorBancaId(actor);
-      if (!canActorAccessOrder({ actor, order: singleOrder, actorBancaId })) {
+      const actorBancaId = await resolveOrderActorBancaId(effectiveActor);
+      if (!canActorAccessOrder({ actor: effectiveActor, order: singleOrder, actorBancaId })) {
         return NextResponse.json(
           { success: false, error: "Acesso negado" },
           { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
@@ -71,11 +76,11 @@ export async function GET(req: NextRequest) {
     }
 
     let userBancaId: string | undefined;
-    if (actor.role === 'jornaleiro') {
-      const bancaId = await resolveOrderActorBancaId(actor);
+    if (effectiveActor.role === 'jornaleiro') {
+      const bancaId = await resolveOrderActorBancaId(effectiveActor);
 
       if (!bancaId) {
-        console.error('[API/ORDERS/GET] Banca não encontrada para jornaleiro:', actor.userId);
+        console.error('[API/ORDERS/GET] Banca não encontrada para jornaleiro:', effectiveActor.userId);
         return NextResponse.json(
           { error: "Banca não encontrada" },
           { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
@@ -86,14 +91,14 @@ export async function GET(req: NextRequest) {
     }
     
     // Log para debug
-    console.log('[API/ORDERS/GET] Role:', actor.role, '| UserId:', actor.userId, '| BancaId filtro:', userBancaId || 'N/A');
+    console.log('[API/ORDERS/GET] Role:', effectiveActor.role, '| UserId:', effectiveActor.userId, '| BancaId filtro:', userBancaId || 'N/A');
     
     // Buscar pedidos do Supabase (evitar join pesado para jornaleiro)
     const selectForAdmin = `*, bancas:banca_id ( id, name, address, whatsapp )`;
     const selectForJornaleiro = `*`;
     let query = supabaseAdmin
       .from('orders')
-      .select(actor.role === 'admin' ? selectForAdmin : selectForJornaleiro, { count: countPref });
+      .select(effectiveActor.role === 'admin' ? selectForAdmin : selectForJornaleiro, { count: countPref });
 
     // Filtrar por status (suporta múltiplos status separados por vírgula)
     if (status) {
@@ -106,17 +111,17 @@ export async function GET(req: NextRequest) {
     }
 
     // Filtrar por banca (jornaleiro só vê pedidos da própria banca)
-    if (actor.role === 'jornaleiro' && userBancaId) {
+    if (effectiveActor.role === 'jornaleiro' && userBancaId) {
       query = query.eq('banca_id', userBancaId);
-    } else if (actor.role === 'cliente') {
+    } else if (effectiveActor.role === 'cliente') {
       // Compatibilidade: a tabela orders real não possui user_id em todos os ambientes.
-      if (!actor.email) {
+      if (!effectiveActor.email) {
         return NextResponse.json(
           { ok: false, error: "E-mail do cliente não disponível na sessão" },
           { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
         );
       }
-      query = query.eq('customer_email', actor.email);
+      query = query.eq('customer_email', effectiveActor.email);
     } else if (bancaIdFilter) {
       query = query.eq('banca_id', bancaIdFilter);
     }
@@ -488,6 +493,11 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json();
     const { id, status, notes, estimated_delivery, items } = body || {};
+    const scope = String(body?.scope || "").toLowerCase();
+    const effectiveActor =
+      scope === "customer" && actor.email
+        ? { ...actor, role: "cliente" as const }
+        : actor;
     
     // Buscar pedido atual no Supabase
     const { data: currentOrder, error: fetchError } = await supabaseAdmin
@@ -503,11 +513,11 @@ export async function PATCH(req: NextRequest) {
       );
     }
     
-    if (actor.role === "cliente") {
+    if (effectiveActor.role === "cliente") {
       const nextStatus = String(status || "").toLowerCase();
       const allowedCustomerStatuses = ["cancelado", "cancelled", "canceled"];
 
-      if (!canActorAccessOrder({ actor, order: currentOrder })) {
+      if (!canActorAccessOrder({ actor: effectiveActor, order: currentOrder })) {
         return NextResponse.json(
           { ok: false, error: "Acesso negado" },
           { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
@@ -522,9 +532,9 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    if (actor.role === "jornaleiro") {
-      const actorBancaId = await resolveOrderActorBancaId(actor);
-      if (!canActorAccessOrder({ actor, order: currentOrder, actorBancaId })) {
+    if (effectiveActor.role === "jornaleiro") {
+      const actorBancaId = await resolveOrderActorBancaId(effectiveActor);
+      if (!canActorAccessOrder({ actor: effectiveActor, order: currentOrder, actorBancaId })) {
         return NextResponse.json(
           { ok: false, error: "Acesso negado" },
           { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }

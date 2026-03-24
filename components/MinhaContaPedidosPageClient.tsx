@@ -88,7 +88,7 @@ function PedidosContent() {
             credentials: "include",
             cache: "no-store",
           }),
-          fetch("/api/orders?limit=50&sort=created_at&order=desc", {
+          fetch("/api/orders?limit=50&sort=created_at&order=desc&scope=customer", {
             credentials: "include",
             cache: "no-store",
           }),

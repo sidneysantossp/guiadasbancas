@@ -15,8 +15,14 @@ export async function GET(
     const { id } = params;
     const session = await auth();
     const actor = readOrderActor(session);
+    const { searchParams } = new URL(req.url);
+    const scope = (searchParams.get("scope") || "").toLowerCase();
+    const effectiveActor =
+      scope === "customer" && actor?.email
+        ? { ...actor, role: "cliente" as const }
+        : actor;
 
-    if (!actor) {
+    if (!effectiveActor) {
       return NextResponse.json(
         { ok: false, error: "Não autorizado" },
         { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
@@ -55,8 +61,8 @@ export async function GET(
       );
     }
 
-    const actorBancaId = await resolveOrderActorBancaId(actor);
-    if (!canActorAccessOrder({ actor, order, actorBancaId })) {
+    const actorBancaId = await resolveOrderActorBancaId(effectiveActor);
+    if (!canActorAccessOrder({ actor: effectiveActor, order, actorBancaId })) {
       return NextResponse.json(
         { ok: false, error: "Acesso negado" },
         { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }

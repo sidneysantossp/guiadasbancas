@@ -72,7 +72,7 @@ export default function MinhaContaPedidoPageClient() {
             credentials: "include",
             cache: "no-store",
           }),
-          fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
+          fetch(`/api/orders/${encodeURIComponent(orderId)}?scope=customer`, {
             credentials: "include",
             cache: "no-store",
           }),
@@ -135,6 +135,7 @@ export default function MinhaContaPedidoPageClient() {
         body: JSON.stringify({
           id: order.id,
           status: "cancelado",
+          scope: "customer",
         }),
       });
 
