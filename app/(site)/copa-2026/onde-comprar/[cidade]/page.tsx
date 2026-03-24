@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import WorldCupSeoPage from "@/components/seo/WorldCupSeoPage";
 import {
+  WORLD_CUP_CITY_PAGES,
   WORLD_CUP_SUBHUBS,
   buildAbsoluteSiteUrl,
   buildWorldCupMetadata,
@@ -13,14 +14,7 @@ import {
 export const revalidate = 3600;
 
 export function generateStaticParams() {
-  return [
-    { cidade: "sao-paulo-sp" },
-    { cidade: "rio-de-janeiro-rj" },
-    { cidade: "belo-horizonte-mg" },
-    { cidade: "curitiba-pr" },
-    { cidade: "porto-alegre-rs" },
-    { cidade: "brasilia-df" },
-  ];
+  return WORLD_CUP_CITY_PAGES.map((city) => ({ cidade: city.slug }));
 }
 
 export function generateMetadata({ params }: { params: { cidade: string } }) {
@@ -87,7 +81,7 @@ export default async function OndeComprarCopaCidadePage({ params }: { params: { 
   return (
     <WorldCupSeoPage
       title={`Onde comprar figurinhas da Copa 2026 em ${city.label}`}
-      description={`Landing page local para capturar buscas de ${city.label} e ligar essa intenção a bancas públicas, categorias relevantes e navegação transacional do Guia das Bancas.`}
+      description={`Landing page local para quem procura figurinhas da Copa 2026 em ${city.label}. Aqui a busca é direcionada para bancas paulistas reais, perfis publicados e rotas de compra local.`}
       breadcrumbs={[
         { name: "Início", href: buildAbsoluteSiteUrl("/") },
         { name: "Copa 2026", href: buildAbsoluteSiteUrl("/copa-2026") },
@@ -114,11 +108,11 @@ export default async function OndeComprarCopaCidadePage({ params }: { params: { 
       sectionBlocks={[
         {
           title: `Como capturar a demanda de ${city.label}`,
-          body: `Quem busca por álbum e figurinhas da Copa 2026 em ${city.label} costuma já ter intenção local. A melhor forma de atender essa SERP é conectar a busca da cidade a bancas reais, categorias relevantes e à navegação comercial do marketplace.`,
+          body: `Quem busca por álbum e figurinhas da Copa 2026 em ${city.label} já está em modo de ação. Esta página existe para levar essa pessoa até bancas paulistas reais, com caminho claro para encontrar, reservar ou seguir para a compra local.`,
         },
         {
-          title: "Próximos ganhos desta página",
-          body: "Com mais profundidade, esta URL pode receber FAQs por cidade, links de bairro, eventos de troca e sinais de abastecimento. Nesta primeira camada, ela já cria um ativo indexável forte e sem depender da busca interna.",
+          title: "Por que esta URL é decisiva na campanha",
+          body: "A operação da Copa 2026 está concentrada em São Paulo. Por isso, esta URL não existe para cobrir o Brasil inteiro, mas para transformar busca local em visita qualificada à banca certa, com menos atrito e mais clareza para o usuário.",
         },
       ]}
       relatedLinks={[

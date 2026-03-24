@@ -11,7 +11,7 @@ import {
 export const metadata = buildWorldCupMetadata({
   title: "Troca de figurinhas da Copa 2026 | Guia das Bancas",
   description:
-    "Veja a página estratégica para capturar buscas sobre troca de figurinhas da Copa 2026 e conectar o usuário a bancas, cidades e rotina de coleção.",
+    "Veja a página estratégica para capturar buscas sobre troca de figurinhas da Copa 2026 e conectar o usuário às bancas paulistas e à rotina da coleção em São Paulo.",
   path: "/copa-2026/troca-de-figurinhas",
   keywords: ["troca de figurinhas copa 2026", "onde trocar figurinhas da copa 2026", "repetidas copa 2026"],
 });
@@ -22,7 +22,7 @@ export default async function TrocaDeFigurinhasPage() {
   return (
     <WorldCupSeoPage
       title="Troca de figurinhas da Copa 2026"
-      description="Troca é uma intenção comunitária, mas também ajuda a reativar demanda por bancas, kits e faltantes. Esta página serve para capturar esse comportamento e amarrar o usuário ao ecossistema local."
+      description="Troca é uma intenção comunitária, mas também ajuda a reativar demanda por bancas, kits e faltantes. Esta página existe para capturar esse comportamento dentro da operação paulista e manter o usuário ligado às bancas da plataforma."
       breadcrumbs={[
         { name: "Início", href: buildAbsoluteSiteUrl("/") },
         { name: "Copa 2026", href: buildAbsoluteSiteUrl("/copa-2026") },
@@ -33,7 +33,7 @@ export default async function TrocaDeFigurinhasPage() {
       sectionBlocks={[
         {
           title: "Por que a troca entra no cluster principal",
-          body: "Durante a Copa, muita gente alterna entre compra e troca. Se a plataforma capturar só a ponta comercial, perde parte importante do tráfego. A página de troca amplia a cobertura do tema e reforça a relevância das bancas como ponto de encontro.",
+          body: "Durante a Copa, muita gente alterna entre compra e troca. Se a plataforma capturar só a ponta comercial, perde parte importante do tráfego. A página de troca amplia a cobertura do tema e reforça a relevância das bancas de São Paulo como ponto de encontro.",
         },
         {
           title: "Como esta página ajuda o marketplace",

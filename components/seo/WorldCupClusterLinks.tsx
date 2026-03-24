@@ -42,7 +42,7 @@ export default function WorldCupClusterLinks({
         </h3>
         <p className="mt-2 text-sm leading-7 text-slate-700">
           {description ||
-            "O cluster da Copa 2026 foi criado para levar o leitor do conteúdo editorial para páginas com intenção mais forte de compra, descoberta local e reposição da coleção."}
+            "O cluster da Copa 2026 foi criado para levar o leitor até páginas com intenção mais forte de compra, descoberta local e reposição da coleção dentro da operação paulista da plataforma."}
         </p>
 
         <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -72,7 +72,7 @@ export default function WorldCupClusterLinks({
         </h2>
         <p className="mt-3 text-base leading-8 text-slate-700">
           {description ||
-            "Estas páginas foram desenhadas para transformar o interesse por Copa 2026 em tráfego transacional e local. Elas unem busca nacional, intenção por cidade, categorias Panini e páginas públicas de bancas."}
+            "Estas páginas foram desenhadas para transformar o interesse por Copa 2026 em tráfego transacional e local dentro da operação ativa em São Paulo. Elas unem busca por figurinhas, intenção por bairro, categorias Panini e páginas públicas de bancas."}
         </p>
       </div>
 
@@ -90,7 +90,7 @@ export default function WorldCupClusterLinks({
       </div>
 
       <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-        <h3 className="text-lg font-semibold text-slate-900">Entradas locais prioritárias</h3>
+        <h3 className="text-lg font-semibold text-slate-900">Entradas locais ativas</h3>
         <div className="mt-4 flex flex-wrap gap-3">
           {resolvedCityLinks.map((city) => (
             <Link

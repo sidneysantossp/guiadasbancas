@@ -207,41 +207,6 @@ export const WORLD_CUP_CITY_PAGES: WorldCupCityPage[] = [
     label: "São Paulo, SP",
     aliases: ["sao paulo", "são paulo"],
   },
-  {
-    slug: "rio-de-janeiro-rj",
-    city: "Rio de Janeiro",
-    state: "RJ",
-    label: "Rio de Janeiro, RJ",
-    aliases: ["rio de janeiro"],
-  },
-  {
-    slug: "belo-horizonte-mg",
-    city: "Belo Horizonte",
-    state: "MG",
-    label: "Belo Horizonte, MG",
-    aliases: ["belo horizonte"],
-  },
-  {
-    slug: "curitiba-pr",
-    city: "Curitiba",
-    state: "PR",
-    label: "Curitiba, PR",
-    aliases: ["curitiba"],
-  },
-  {
-    slug: "porto-alegre-rs",
-    city: "Porto Alegre",
-    state: "RS",
-    label: "Porto Alegre, RS",
-    aliases: ["porto alegre"],
-  },
-  {
-    slug: "brasilia-df",
-    city: "Brasília",
-    state: "DF",
-    label: "Brasília, DF",
-    aliases: ["brasilia", "brasília"],
-  },
 ];
 
 export const WORLD_CUP_NEIGHBORHOODS_BY_CITY: Record<string, WorldCupNeighborhoodPage[]> = {
@@ -252,17 +217,6 @@ export const WORLD_CUP_NEIGHBORHOODS_BY_CITY: Record<string, WorldCupNeighborhoo
     { slug: "perdizes", label: "Perdizes", aliases: ["perdizes"], citySlug: "sao-paulo-sp", city: "São Paulo", state: "SP", cityLabel: "São Paulo, SP" },
     { slug: "santana", label: "Santana", aliases: ["santana"], citySlug: "sao-paulo-sp", city: "São Paulo", state: "SP", cityLabel: "São Paulo, SP" },
     { slug: "itaim-bibi", label: "Itaim Bibi", aliases: ["itaim bibi", "itaim"], citySlug: "sao-paulo-sp", city: "São Paulo", state: "SP", cityLabel: "São Paulo, SP" },
-  ],
-  "rio-de-janeiro-rj": [
-    { slug: "copacabana", label: "Copacabana", aliases: ["copacabana"], citySlug: "rio-de-janeiro-rj", city: "Rio de Janeiro", state: "RJ", cityLabel: "Rio de Janeiro, RJ" },
-    { slug: "barra-da-tijuca", label: "Barra da Tijuca", aliases: ["barra da tijuca", "barra"], citySlug: "rio-de-janeiro-rj", city: "Rio de Janeiro", state: "RJ", cityLabel: "Rio de Janeiro, RJ" },
-    { slug: "tijuca", label: "Tijuca", aliases: ["tijuca"], citySlug: "rio-de-janeiro-rj", city: "Rio de Janeiro", state: "RJ", cityLabel: "Rio de Janeiro, RJ" },
-    { slug: "botafogo", label: "Botafogo", aliases: ["botafogo"], citySlug: "rio-de-janeiro-rj", city: "Rio de Janeiro", state: "RJ", cityLabel: "Rio de Janeiro, RJ" },
-  ],
-  "curitiba-pr": [
-    { slug: "batel", label: "Batel", aliases: ["batel"], citySlug: "curitiba-pr", city: "Curitiba", state: "PR", cityLabel: "Curitiba, PR" },
-    { slug: "agua-verde", label: "Água Verde", aliases: ["agua verde", "água verde"], citySlug: "curitiba-pr", city: "Curitiba", state: "PR", cityLabel: "Curitiba, PR" },
-    { slug: "centro", label: "Centro", aliases: ["centro"], citySlug: "curitiba-pr", city: "Curitiba", state: "PR", cityLabel: "Curitiba, PR" },
   ],
 };
 
@@ -449,8 +403,7 @@ function toWorldCupBancaLink(
 }
 
 export async function getFeaturedWorldCupBancas(limit = 6): Promise<WorldCupBancaLink[]> {
-  const bancas = await readPublicBancas(limit);
-  return bancas.slice(0, limit).map((item) => toWorldCupBancaLink(item));
+  return getWorldCupCityBancas("sao-paulo-sp", limit);
 }
 
 export async function getWorldCupCityBancas(citySlug: string, limit = 8): Promise<WorldCupBancaLink[]> {

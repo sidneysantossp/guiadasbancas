@@ -2,7 +2,7 @@ import Link from "next/link";
 import { WORLD_CUP_CITY_PAGES } from "@/lib/seo/world-cup-2026";
 
 export default function WorldCupHomeSpotlight() {
-  const cities = WORLD_CUP_CITY_PAGES.slice(0, 4);
+  const cities = WORLD_CUP_CITY_PAGES.slice(0, 1);
 
   return (
     <section className="container-max py-8">
@@ -15,10 +15,10 @@ export default function WorldCupHomeSpotlight() {
               </span>
               <div className="space-y-3">
                 <h2 className="text-3xl font-bold leading-tight md:text-4xl">
-                  Álbum, figurinhas e bancas perto de você
+                  Figurinhas da Copa 2026 com foco nas bancas de São Paulo
                 </h2>
                 <p className="max-w-2xl text-base leading-8 text-slate-200">
-                  Criamos um hub para a Copa 2026 que conecta busca por álbum, figurinhas, preços e compra local às bancas públicas da plataforma.
+                  A campanha da Copa 2026 está concentrada em São Paulo. Use a plataforma para descobrir bancas paulistas perto de você e chegar mais rápido ao álbum ou às figurinhas que está procurando.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -38,8 +38,8 @@ export default function WorldCupHomeSpotlight() {
             </div>
 
             <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
-              <h3 className="text-lg font-semibold text-white">Cidades prioritárias</h3>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <h3 className="text-lg font-semibold text-white">Cidade ativa da campanha</h3>
+              <div className="mt-4 grid gap-3 sm:grid-cols-1">
                 {cities.map((city) => (
                   <Link
                     key={city.slug}
@@ -48,7 +48,7 @@ export default function WorldCupHomeSpotlight() {
                   >
                     <div className="font-semibold text-white">{city.label}</div>
                     <p className="mt-1 text-sm leading-6 text-slate-300">
-                      Banca, álbum e figurinhas com foco local.
+                      Operação local ativa para encontrar bancas, álbum e figurinhas da Copa 2026.
                     </p>
                   </Link>
                 ))}

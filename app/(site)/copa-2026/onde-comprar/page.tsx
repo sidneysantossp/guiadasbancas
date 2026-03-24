@@ -12,11 +12,11 @@ import {
 } from "@/lib/seo/world-cup-2026";
 
 export const metadata = buildWorldCupMetadata({
-  title: "Onde comprar figurinhas da Copa 2026 | Guia das Bancas",
+  title: "Onde comprar figurinhas da Copa 2026 em São Paulo | Guia das Bancas",
   description:
-    "Encontre a melhor porta de entrada para comprar álbum e figurinhas da Copa 2026: páginas por cidade, categorias e bancas públicas do marketplace.",
+    "Encontre a principal porta de entrada para comprar álbum e figurinhas da Copa 2026 em São Paulo, com foco nas bancas cadastradas da plataforma.",
   path: "/copa-2026/onde-comprar",
-  keywords: ["onde comprar figurinhas da copa 2026", "banca com figurinhas da copa", "onde comprar album da copa 2026"],
+  keywords: ["onde comprar figurinhas da copa 2026 em sao paulo", "banca com figurinhas da copa em sao paulo", "onde comprar album da copa 2026 em sao paulo"],
 });
 
 export const revalidate = 3600;
@@ -34,8 +34,8 @@ export default async function OndeComprarCopa2026Page() {
 
   return (
     <WorldCupSeoPage
-      title="Onde comprar figurinhas da Copa 2026"
-      description="Esta é a página de intenção comercial mais importante do cluster. Ela concentra a busca por compra local e distribui o tráfego para cidades, categorias e bancas já indexáveis da plataforma."
+      title="Onde comprar figurinhas da Copa 2026 em São Paulo"
+      description="Esta é a página comercial central da campanha em São Paulo. Ela existe para levar o usuário das buscas por figurinhas e álbum até bancas paulistas reais, perfis publicados e rotas claras de descoberta local."
       breadcrumbs={[
         { name: "Início", href: buildAbsoluteSiteUrl("/") },
         { name: "Copa 2026", href: buildAbsoluteSiteUrl("/copa-2026") },
@@ -57,12 +57,12 @@ export default async function OndeComprarCopa2026Page() {
       secondaryCta={{ href: "/categorias/panini", label: "Ver categoria Panini" }}
       sectionBlocks={[
         {
-          title: "Como esta página deve funcionar",
-          body: "Ela precisa ser a ponte entre o termo genérico 'onde comprar' e a camada local da plataforma. Por isso, a prioridade é listar cidades estratégicas, categorias relacionadas e bancas públicas que já ajudam o Google a entender o papel local do marketplace.",
+          title: "Como esta página deve funcionar agora",
+          body: "Ela precisa ser a ponte entre a busca por figurinhas da Copa 2026 e a camada local da plataforma em São Paulo. Por isso, a prioridade é concentrar a jornada paulista, mostrar bancas reais e levar o usuário para páginas onde a ação de encontrar ou reservar faz sentido.",
         },
         {
           title: "O que faz esta URL ganhar relevância",
-          body: "Diferente de um blog informativo, esta página tem intenção de compra explícita. Para performar, ela precisa manter ligação forte com páginas de cidade, categoria e banca, além de atualização contínua de links internos vindos do blog e das páginas de coleção.",
+          body: "Diferente de um blog informativo, esta página tem intenção de compra explícita. Para performar, ela precisa manter ligação forte com páginas de São Paulo, categorias relacionadas e perfis de banca que sustentem a promessa local da plataforma.",
         },
       ]}
       relatedLinks={[
@@ -77,8 +77,9 @@ export default async function OndeComprarCopa2026Page() {
       cityLinks={WORLD_CUP_CITY_PAGES.map((city) => ({
         href: `/copa-2026/onde-comprar/${city.slug}`,
         title: city.label,
-        description: `Página local para quem busca álbum e figurinhas da Copa 2026 em ${city.label}.`,
+        description: `Página local da operação paulista para quem busca álbum e figurinhas da Copa 2026 em ${city.label}.`,
       }))}
+      cityLinksTitle="Cidade ativa da campanha"
       bancas={bancas}
       products={products}
       extraSchemas={productsSchema ? [productsSchema] : []}

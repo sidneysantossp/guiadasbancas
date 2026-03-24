@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import WorldCupSeoPage from "@/components/seo/WorldCupSeoPage";
 import {
+  WORLD_CUP_CITY_PAGES,
   WORLD_CUP_SUBHUBS,
   buildAbsoluteSiteUrl,
   buildWorldCupMetadata,
@@ -14,9 +15,9 @@ import {
 export const revalidate = 3600;
 
 export function generateStaticParams() {
-  return ["sao-paulo-sp", "rio-de-janeiro-rj", "curitiba-pr"].flatMap((cidade) =>
-    getWorldCupNeighborhoodsByCity(cidade).map((bairro) => ({
-      cidade,
+  return WORLD_CUP_CITY_PAGES.flatMap((city) =>
+    getWorldCupNeighborhoodsByCity(city.slug).map((bairro) => ({
+      cidade: city.slug,
       bairro: bairro.slug,
     }))
   );
@@ -126,11 +127,11 @@ export default async function OndeComprarCopaBairroPage({
       sectionBlocks={[
         {
           title: `Como rankear ${neighborhood.label} dentro de ${city.city}`,
-          body: `A busca por bairro é mais específica do que a busca por cidade. Nesta camada, o conteúdo deixa claro o contexto local, aponta para bancas reais e mantém conexão com categorias e páginas da Copa 2026 que já carregam intenção transacional.`,
+          body: `A busca por bairro é mais específica do que a busca por cidade. Nesta camada, o conteúdo deixa claro o contexto local em São Paulo, aponta para bancas reais e mantém conexão com categorias e páginas da Copa 2026 que já carregam intenção transacional.`,
         },
         {
           title: "O que faz esta página ter valor para SEO",
-          body: "Ela aproxima o cluster do comportamento real do colecionador. Em vez de uma página genérica, o usuário encontra uma entrada local que pode ser reforçada com bancas, eventos de troca, categorias e páginas comerciais.",
+          body: "Ela aproxima o cluster do comportamento real do colecionador paulista. Em vez de uma página genérica, o usuário encontra uma entrada local que pode ser reforçada com bancas, eventos de troca, categorias e páginas comerciais.",
         },
       ]}
       relatedLinks={[
