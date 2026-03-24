@@ -209,6 +209,14 @@ export const WORLD_CUP_CITY_PAGES: WorldCupCityPage[] = [
   },
 ];
 
+const WORLD_CUP_LEGACY_CITY_SLUGS = new Set([
+  "rio-de-janeiro-rj",
+  "belo-horizonte-mg",
+  "curitiba-pr",
+  "porto-alegre-rs",
+  "brasilia-df",
+]);
+
 export const WORLD_CUP_NEIGHBORHOODS_BY_CITY: Record<string, WorldCupNeighborhoodPage[]> = {
   "sao-paulo-sp": [
     { slug: "moema", label: "Moema", aliases: ["moema"], citySlug: "sao-paulo-sp", city: "São Paulo", state: "SP", cityLabel: "São Paulo, SP" },
@@ -349,6 +357,14 @@ export function buildWorldCupMetadata({
 
 export function getWorldCupCityBySlug(slug: string) {
   return WORLD_CUP_CITY_PAGES.find((city) => city.slug === slug) || null;
+}
+
+export function getWorldCupLegacyCityRedirectPath(slug: string) {
+  if (WORLD_CUP_LEGACY_CITY_SLUGS.has(slug)) {
+    return "/copa-2026/onde-comprar/sao-paulo-sp";
+  }
+
+  return null;
 }
 
 export function getWorldCupNeighborhoodsByCity(citySlug: string) {

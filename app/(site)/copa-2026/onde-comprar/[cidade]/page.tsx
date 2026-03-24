@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import WorldCupSeoPage from "@/components/seo/WorldCupSeoPage";
 import {
   WORLD_CUP_CITY_PAGES,
@@ -8,6 +8,7 @@ import {
   getWorldCupCityBancas,
   getWorldCupCityBySlug,
   getWorldCupCategoryLinks,
+  getWorldCupLegacyCityRedirectPath,
   getWorldCupNeighborhoodsByCity,
 } from "@/lib/seo/world-cup-2026";
 
@@ -41,7 +42,11 @@ export function generateMetadata({ params }: { params: { cidade: string } }) {
 
 export default async function OndeComprarCopaCidadePage({ params }: { params: { cidade: string } }) {
   const city = getWorldCupCityBySlug(params.cidade);
-  if (!city) notFound();
+  if (!city) {
+    const redirectPath = getWorldCupLegacyCityRedirectPath(params.cidade);
+    if (redirectPath) permanentRedirect(redirectPath);
+    notFound();
+  }
 
   const [bancas, categoryLinks] = await Promise.all([
     getWorldCupCityBancas(city.slug, 8),
