@@ -109,8 +109,14 @@ export async function GET(req: NextRequest) {
     if (actor.role === 'jornaleiro' && userBancaId) {
       query = query.eq('banca_id', userBancaId);
     } else if (actor.role === 'cliente') {
-      // Cliente só vê próprios pedidos
-      query = query.eq('user_id', actor.userId);
+      // Compatibilidade: a tabela orders real não possui user_id em todos os ambientes.
+      if (!actor.email) {
+        return NextResponse.json(
+          { ok: false, error: "E-mail do cliente não disponível na sessão" },
+          { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+        );
+      }
+      query = query.eq('customer_email', actor.email);
     } else if (bancaIdFilter) {
       query = query.eq('banca_id', bancaIdFilter);
     }
@@ -231,15 +237,11 @@ export async function POST(req: NextRequest) {
     const timestamp = Date.now();
     const orderNumber = generateOrderNumber(banca.name || "BAN", timestamp);
 
-    // Obter user_id da sessão (para associar pedido ao cliente)
-    const userId = actor?.userId || null;
-    
     // Criar pedido no Supabase (id será UUID gerado automaticamente)
     const { data: newOrder, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert({
         order_number: orderNumber,
-        user_id: userId, // Associar pedido ao usuário logado
         customer_name: customer.name || "Cliente",
         customer_phone: customer.phone || "",
         customer_email: customer.email || "",
@@ -505,7 +507,7 @@ export async function PATCH(req: NextRequest) {
       const nextStatus = String(status || "").toLowerCase();
       const allowedCustomerStatuses = ["cancelado", "cancelled", "canceled"];
 
-      if (currentOrder.user_id !== actor.userId) {
+      if (!canActorAccessOrder({ actor, order: currentOrder })) {
         return NextResponse.json(
           { ok: false, error: "Acesso negado" },
           { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }

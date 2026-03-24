@@ -94,7 +94,7 @@ export async function resolveOrderActorBancaId(actor: OrderActor): Promise<strin
 
 export function canActorAccessOrder(params: {
   actor: OrderActor;
-  order: { user_id?: string | null; banca_id?: string | null };
+  order: { user_id?: string | null; customer_email?: string | null; banca_id?: string | null };
   actorBancaId?: string | null;
 }): boolean {
   if (params.actor.role === "admin") {
@@ -102,7 +102,15 @@ export function canActorAccessOrder(params: {
   }
 
   if (params.actor.role === "cliente") {
-    return params.order.user_id === params.actor.userId;
+    if (params.order.user_id) {
+      return params.order.user_id === params.actor.userId;
+    }
+
+    if (!params.actor.email || !params.order.customer_email) {
+      return false;
+    }
+
+    return params.order.customer_email.trim().toLowerCase() === params.actor.email.trim().toLowerCase();
   }
 
   if (params.actor.role === "jornaleiro") {

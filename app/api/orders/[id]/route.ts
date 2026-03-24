@@ -101,7 +101,7 @@ export async function DELETE(
     // Verificar se o pedido existe
     const { data: existingOrder, error: checkError } = await supabaseAdmin
       .from('orders')
-      .select('id, user_id, banca_id')
+      .select('id, customer_email, banca_id')
       .eq('id', id)
       .single();
     
