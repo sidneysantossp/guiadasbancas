@@ -812,7 +812,7 @@ export default function CheckoutPageClient() {
     
     if (sessionStatus !== 'authenticated' || !session?.user) {
       show("Entre ou registre-se para finalizar a compra");
-      router.push("/minha-conta?redirect=/checkout");
+      router.push("/entrar/cliente?redirect=/checkout");
       setSubmitting(false);
       return;
     }
@@ -896,7 +896,7 @@ export default function CheckoutPageClient() {
                 <p className="text-sm text-blue-900 font-medium text-center">Para finalizar sua compra, você precisa fazer login ou criar uma conta.</p>
                 <p className="text-xs text-blue-700 mt-2 text-center">Seus dados serão preenchidos automaticamente após o login.</p>
                 <div className="mt-4 grid grid-cols-2 gap-3">
-                  <Link href="/minha-conta?redirect=/checkout" className="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 text-center">Entrar</Link>
+                  <Link href="/entrar/cliente?redirect=/checkout" className="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 text-center">Entrar</Link>
                   <Link href="/registrar/cliente?redirect=/checkout" className="rounded-md border-2 border-blue-600 bg-white px-4 py-2.5 text-sm font-semibold text-blue-600 hover:bg-blue-50 text-center">Criar Conta</Link>
                 </div>
               </div>
