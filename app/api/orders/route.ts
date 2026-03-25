@@ -11,6 +11,7 @@ import {
   normalizeCheckoutPayload,
   readOrderActor,
   resolveOrderActorBancaId,
+  resolveOrderActorCustomerEmail,
 } from "@/lib/modules/orders/service";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
@@ -41,10 +42,16 @@ export async function GET(req: NextRequest) {
     const scope = (searchParams.get("scope") || "").toLowerCase();
     const bancaIdFilter = searchParams.get("banca_id") || "";
     const countPref = (searchParams.get("count") || "planned") as 'exact' | 'planned' | 'estimated';
-    const effectiveActor =
-      scope === "customer" && actor.email
-        ? { ...actor, role: "cliente" as const }
-        : actor;
+    const requestedCustomerScope = scope === "customer";
+    const effectiveActor = requestedCustomerScope
+      ? { ...actor, role: "cliente" as const }
+      : actor;
+    const effectiveCustomerEmail = requestedCustomerScope
+      ? await resolveOrderActorCustomerEmail(effectiveActor)
+      : null;
+    if (requestedCustomerScope) {
+      effectiveActor.email = effectiveCustomerEmail;
+    }
 
     // Se buscar por ID específico, retorna apenas esse pedido
     if (orderId) {
@@ -115,13 +122,13 @@ export async function GET(req: NextRequest) {
       query = query.eq('banca_id', userBancaId);
     } else if (effectiveActor.role === 'cliente') {
       // Compatibilidade: a tabela orders real não possui user_id em todos os ambientes.
-      if (!effectiveActor.email) {
+      if (!effectiveCustomerEmail) {
         return NextResponse.json(
           { ok: false, error: "E-mail do cliente não disponível na sessão" },
           { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
         );
       }
-      query = query.eq('customer_email', effectiveActor.email);
+      query = query.eq('customer_email', effectiveCustomerEmail);
     } else if (bancaIdFilter) {
       query = query.eq('banca_id', bancaIdFilter);
     }
@@ -494,10 +501,16 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { id, status, notes, estimated_delivery, items } = body || {};
     const scope = String(body?.scope || "").toLowerCase();
-    const effectiveActor =
-      scope === "customer" && actor.email
-        ? { ...actor, role: "cliente" as const }
-        : actor;
+    const requestedCustomerScope = scope === "customer";
+    const effectiveActor = requestedCustomerScope
+      ? { ...actor, role: "cliente" as const }
+      : actor;
+    const effectiveCustomerEmail = requestedCustomerScope
+      ? await resolveOrderActorCustomerEmail(effectiveActor)
+      : null;
+    if (requestedCustomerScope) {
+      effectiveActor.email = effectiveCustomerEmail;
+    }
     
     // Buscar pedido atual no Supabase
     const { data: currentOrder, error: fetchError } = await supabaseAdmin

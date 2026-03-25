@@ -1,4 +1,5 @@
 import type { PlatformUserRole } from "@/lib/contracts/auth";
+import { loadUserProfileById } from "@/lib/modules/auth/user-profiles";
 import { readAuthenticatedUserClaims } from "@/lib/modules/auth/session";
 import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 
@@ -90,6 +91,20 @@ export async function resolveOrderActorBancaId(actor: OrderActor): Promise<strin
     select: "id",
   });
   return banca?.id || null;
+}
+
+export async function resolveOrderActorCustomerEmail(actor: OrderActor): Promise<string | null> {
+  const normalizedActorEmail = actor.email?.trim().toLowerCase() || null;
+  if (normalizedActorEmail) {
+    return normalizedActorEmail;
+  }
+
+  const { data } = await loadUserProfileById<{ email: string | null }>({
+    userId: actor.userId,
+    select: "email",
+  });
+
+  return data?.email?.trim().toLowerCase() || null;
 }
 
 export function canActorAccessOrder(params: {

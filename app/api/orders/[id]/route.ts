@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
-import { canActorAccessOrder, formatOrderRecord, readOrderActor, resolveOrderActorBancaId } from "@/lib/modules/orders/service";
+import {
+  canActorAccessOrder,
+  formatOrderRecord,
+  readOrderActor,
+  resolveOrderActorBancaId,
+  resolveOrderActorCustomerEmail,
+} from "@/lib/modules/orders/service";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -17,16 +23,23 @@ export async function GET(
     const actor = readOrderActor(session);
     const { searchParams } = new URL(req.url);
     const scope = (searchParams.get("scope") || "").toLowerCase();
-    const effectiveActor =
-      scope === "customer" && actor?.email
-        ? { ...actor, role: "cliente" as const }
-        : actor;
 
-    if (!effectiveActor) {
+    if (!actor) {
       return NextResponse.json(
         { ok: false, error: "Não autorizado" },
         { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
       );
+    }
+
+    const requestedCustomerScope = scope === "customer";
+    const effectiveActor = requestedCustomerScope
+      ? { ...actor, role: "cliente" as const }
+      : actor;
+    const effectiveCustomerEmail = requestedCustomerScope
+      ? await resolveOrderActorCustomerEmail(effectiveActor)
+      : null;
+    if (requestedCustomerScope) {
+      effectiveActor.email = effectiveCustomerEmail;
     }
 
     console.log('[API/ORDERS/[ID]/GET] Buscando pedido:', id);
