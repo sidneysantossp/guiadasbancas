@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
-import { callEvolutionApi, getEvolutionErrorMessage } from "@/lib/evolution-api";
+import { getEvolutionInstanceStatus } from "@/lib/evolution-api";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 
@@ -30,45 +30,25 @@ export async function GET(req: NextRequest) {
       }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
     }
 
-    const result = await callEvolutionApi({
+    const instanceStatus = await getEvolutionInstanceStatus({
       baseUrl: config.baseUrl,
       apiKey: config.apiKey,
-      path: `/instance/connectionState/${encodeURIComponent(config.instanceName)}`,
-      method: "GET",
+      instanceName: config.instanceName,
       timeoutMs: 15000,
     });
 
-    if (!result.ok) {
-      const unauthorized = result.status === 401 || result.status === 403;
-      const unauthorizedHint = unauthorized
-        ? `Sem permissão para acessar a instância "${config.instanceName}" com a API Key atual.`
-        : null;
-      return NextResponse.json({
-        connected: false,
-        status: unauthorized ? 'Não autorizado' : 'Erro na conexão',
-        error: unauthorizedHint || getEvolutionErrorMessage(result, 'Falha ao conectar com Evolution API'),
-        upstreamStatus: result.status,
-        authModeTried: result.authMode,
-        timestamp: new Date().toISOString()
-      }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
-    }
-
-    const data = result.data || {};
-    const instance = data?.instance || data;
-    const rawState = (instance?.state || instance?.status || instance?.connectionStatus || 'unknown').toString();
-    const state = rawState.toLowerCase();
-    const isConnected = state === 'open' || state === 'connected' || state === 'online';
-
     return NextResponse.json({
-      connected: isConnected,
-      status: isConnected ? 'Conectado e funcionando' : 'Instância não conectada',
+      connected: instanceStatus.connected,
+      status: instanceStatus.connected ? 'Conectado e funcionando' : 'Instância não conectada',
       timestamp: new Date().toISOString(),
-      authModeUsed: result.authMode,
+      authModeUsed: instanceStatus.authModeUsed,
+      source: instanceStatus.source,
       instanceInfo: {
         name: config.instanceName,
-        state: rawState || 'unknown',
-        profileName: instance?.profileName || null,
-        profilePicUrl: instance?.profilePicUrl || null
+        state: instanceStatus.state || 'unknown',
+        profileName: instanceStatus.profileName || null,
+        profilePicUrl: instanceStatus.profilePicUrl || null,
+        instanceId: instanceStatus.instanceId || null,
       }
     }, { headers: buildNoStoreHeaders({ isPrivate: true }) });
 

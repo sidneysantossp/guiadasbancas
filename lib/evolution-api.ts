@@ -20,6 +20,19 @@ export interface EvolutionCallResult {
   error?: string;
 }
 
+export interface EvolutionInstanceStatus {
+  connected: boolean;
+  state: string;
+  source: "connectionState" | "fetchInstances" | "unknown";
+  profileName?: string | null;
+  profilePicUrl?: string | null;
+  instanceId?: string | null;
+  token?: string | null;
+  authModeUsed?: AuthMode | "none";
+  upstreamStatus?: number | null;
+  raw?: any;
+}
+
 function normalizeBaseUrl(baseUrl: string): string {
   return (baseUrl || "").trim().replace(/\/$/, "");
 }
@@ -162,4 +175,91 @@ export async function callEvolutionApi(options: EvolutionCallOptions): Promise<E
   }
 
   return lastResult;
+}
+
+function isConnectedState(value: unknown): boolean {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "open" || normalized === "connected" || normalized === "online";
+}
+
+export async function getEvolutionInstanceStatus(options: {
+  baseUrl: string;
+  apiKey: string;
+  instanceName: string;
+  timeoutMs?: number;
+}): Promise<EvolutionInstanceStatus> {
+  const connectionStateResult = await callEvolutionApi({
+    baseUrl: options.baseUrl,
+    apiKey: options.apiKey,
+    path: `/instance/connectionState/${encodeURIComponent(options.instanceName)}`,
+    method: "GET",
+    timeoutMs: options.timeoutMs ?? 15000,
+  });
+
+  const connectionPayload = connectionStateResult.data?.instance || connectionStateResult.data || null;
+  const connectionState = String(
+    connectionPayload?.state ||
+      connectionPayload?.status ||
+      connectionPayload?.connectionStatus ||
+      ""
+  ).trim();
+
+  const fetchInstancesResult = await callEvolutionApi({
+    baseUrl: options.baseUrl,
+    apiKey: options.apiKey,
+    path: "/instance/fetchInstances",
+    method: "GET",
+    timeoutMs: options.timeoutMs ?? 15000,
+  });
+
+  const instances = Array.isArray(fetchInstancesResult.data) ? fetchInstancesResult.data : [];
+  const matchedInstance = instances.find((instance) => {
+    const byName = String(instance?.name || "").trim() === options.instanceName;
+    const byInstanceName = String(instance?.instanceName || "").trim() === options.instanceName;
+    return byName || byInstanceName;
+  });
+
+  const fetchState = String(
+    matchedInstance?.connectionStatus ||
+      matchedInstance?.state ||
+      matchedInstance?.status ||
+      ""
+  ).trim();
+
+  if (matchedInstance) {
+    return {
+      connected: isConnectedState(fetchState),
+      state: fetchState || connectionState || "unknown",
+      source: "fetchInstances",
+      profileName: matchedInstance?.profileName || null,
+      profilePicUrl: matchedInstance?.profilePicUrl || null,
+      instanceId: matchedInstance?.id || null,
+      token: matchedInstance?.token || null,
+      authModeUsed: fetchInstancesResult.authMode,
+      upstreamStatus: fetchInstancesResult.status,
+      raw: matchedInstance,
+    };
+  }
+
+  if (connectionStateResult.ok) {
+    return {
+      connected: isConnectedState(connectionState),
+      state: connectionState || "unknown",
+      source: "connectionState",
+      profileName: connectionPayload?.profileName || null,
+      profilePicUrl: connectionPayload?.profilePicUrl || null,
+      authModeUsed: connectionStateResult.authMode,
+      upstreamStatus: connectionStateResult.status,
+      raw: connectionPayload,
+    };
+  }
+
+  return {
+    connected: false,
+    state: connectionState || fetchState || "unknown",
+    source: "unknown",
+    authModeUsed: fetchInstancesResult.ok ? fetchInstancesResult.authMode : connectionStateResult.authMode,
+    upstreamStatus: fetchInstancesResult.ok ? fetchInstancesResult.status : connectionStateResult.status,
+    raw: fetchInstancesResult.ok ? fetchInstancesResult.data : connectionStateResult.data,
+  };
 }

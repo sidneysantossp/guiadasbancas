@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
+import { getEvolutionInstanceStatus } from "@/lib/evolution-api";
 
 /**
  * API para tentar reconectar WhatsApp
@@ -90,32 +91,23 @@ export async function GET(request: NextRequest) {
 
     console.log('[WhatsApp Status] Verificando status da instância:', instanceName);
 
-    const statusResponse = await fetch(`${baseUrl}/instance/connectionState/${instanceName}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': apiKey
-      }
+    const instanceStatus = await getEvolutionInstanceStatus({
+      baseUrl,
+      apiKey,
+      instanceName,
+      timeoutMs: 15000,
     });
 
-    if (!statusResponse.ok) {
-      throw new Error(`HTTP error! status: ${statusResponse.status}`);
-    }
-
-    const statusData = await statusResponse.json();
-    console.log('[WhatsApp Status] Resposta:', statusData);
-
-    const isConnected = statusData.instance?.state === 'open';
-
     return NextResponse.json({
-      connected: isConnected,
-      state: statusData.instance?.state || 'unknown',
-      message: isConnected 
+      connected: instanceStatus.connected,
+      state: instanceStatus.state || 'unknown',
+      source: instanceStatus.source,
+      message: instanceStatus.connected 
         ? '✅ WhatsApp está CONECTADO' 
         : '❌ WhatsApp está DESCONECTADO',
       instance: instanceName,
-      details: statusData,
-      nextSteps: isConnected ? [] : [
+      details: instanceStatus.raw,
+      nextSteps: instanceStatus.connected ? [] : [
         'Acesse: https://api.guiadasbancas.com.br',
         'Vá em Instâncias',
         `Conecte a instância ${instanceName}`,

@@ -1,6 +1,7 @@
 // Configuração da Evolution API para WhatsApp (Centralizada)
 import { loadJornaleiroWhatsAppByBancaId } from "@/lib/modules/jornaleiro/whatsapp";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
+import { getEvolutionInstanceStatus } from "@/lib/evolution-api";
 
 export interface WhatsAppConfig {
   baseUrl: string;
@@ -74,20 +75,13 @@ class WhatsAppService {
   async checkConnection(): Promise<boolean> {
     try {
       const config = await this.refreshConfig();
-      const response = await fetch(`${config.baseUrl}/instance/connectionState/${config.instanceName}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': config.apiKey
-        }
+      const instanceStatus = await getEvolutionInstanceStatus({
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
+        instanceName: config.instanceName,
+        timeoutMs: 15000,
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.instance?.state === 'open';
+      return instanceStatus.connected;
     } catch (error) {
       console.error('Erro ao verificar conexão WhatsApp:', error);
       return false;

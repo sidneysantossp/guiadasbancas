@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
+import { getEvolutionInstanceStatus } from "@/lib/evolution-api";
 
 // GET - Verificar status da conexão WhatsApp
 export async function GET(req: NextRequest) {
@@ -15,30 +16,25 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Verificar conexão com a Evolution API
-    const response = await fetch(`${config.baseUrl}/instance/connectionState/${config.instanceName}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': config.apiKey
-      }
+    const instanceStatus = await getEvolutionInstanceStatus({
+      baseUrl: config.baseUrl,
+      apiKey: config.apiKey,
+      instanceName: config.instanceName,
+      timeoutMs: 15000,
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const isConnected = data.instance?.state === 'open';
     
     return NextResponse.json({
-      connected: isConnected,
-      status: isConnected ? 'Conectado e funcionando' : 'Instância não conectada',
+      connected: instanceStatus.connected,
+      status: instanceStatus.connected ? 'Conectado e funcionando' : 'Instância não conectada',
       timestamp: new Date().toISOString(),
       instanceInfo: {
         name: config.instanceName,
-        state: data.instance?.state || 'unknown'
-      }
+        state: instanceStatus.state || 'unknown',
+        profileName: instanceStatus.profileName || null,
+        profilePicUrl: instanceStatus.profilePicUrl || null,
+        instanceId: instanceStatus.instanceId || null,
+      },
+      source: instanceStatus.source,
     });
   } catch (error: any) {
     console.error('[JORNALEIRO] Erro ao verificar status WhatsApp:', error);
