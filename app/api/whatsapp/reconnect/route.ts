@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = process.env.EVOLUTION_API_URL || 'https://api.guiadasbancas.com.br';
     const apiKey = process.env.EVOLUTION_API_KEY || '';
-    const instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas-central';
+    const instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas';
 
     console.log('[WhatsApp Reconnect] Tentando reconectar instância:', instanceName);
 
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
 
     const baseUrl = process.env.EVOLUTION_API_URL || 'https://api.guiadasbancas.com.br';
     const apiKey = process.env.EVOLUTION_API_KEY || '';
-    const instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas-central';
+    const instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas';
 
     console.log('[WhatsApp Status] Verificando status da instância:', instanceName);
 
@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
       nextSteps: isConnected ? [] : [
         'Acesse: https://api.guiadasbancas.com.br',
         'Vá em Instâncias',
-        'Conecte a instância guiadasbancas-central',
+        `Conecte a instância ${instanceName}`,
         'Escaneie o QR Code'
       ]
     });

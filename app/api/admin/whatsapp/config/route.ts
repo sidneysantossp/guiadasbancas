@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       instanceName:
         typeof instanceName === "string" && instanceName.trim()
           ? instanceName.trim()
-          : currentConfig.instanceName || 'guiadasbancas-central',
+          : currentConfig.instanceName || 'guiadasbancas',
     };
 
     // Validar configuração

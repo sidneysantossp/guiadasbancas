@@ -33,7 +33,7 @@ export default function AdminWhatsAppConfigPage() {
   const [config, setConfig] = useState<EvolutionConfig>({
     baseUrl: 'https://api.guiadasbancas.com.br',
     apiKey: '',
-    instanceName: 'guiadasbancas-central',
+    instanceName: 'guiadasbancas',
     isActive: false
   });
   const [status, setStatus] = useState<ConnectionStatus | null>(null);
@@ -55,7 +55,7 @@ export default function AdminWhatsAppConfigPage() {
           apiKey: '',
           apiKeyConfigured: Boolean(data.apiKeyConfigured),
           apiKeySuffix: data.apiKeySuffix || null,
-          instanceName: data.instanceName || 'guiadasbancas-central',
+          instanceName: data.instanceName || 'guiadasbancas',
           isActive: Boolean(data.isActive),
         });
       } else {
@@ -235,7 +235,7 @@ export default function AdminWhatsAppConfigPage() {
               type="text"
               value={config.instanceName}
               onChange={(e) => setConfig({...config, instanceName: e.target.value})}
-              placeholder="guiadasbancas-central"
+              placeholder="guiadasbancas"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <p className="text-xs text-gray-500 mt-1">

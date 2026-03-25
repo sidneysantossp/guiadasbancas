@@ -49,7 +49,7 @@ class WhatsAppService {
     this.config = {
       baseUrl: process.env.EVOLUTION_API_URL || 'https://api.guiadasbancas.com.br',
       apiKey: process.env.EVOLUTION_API_KEY || '',
-      instanceName: process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas-central',
+      instanceName: process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas',
       isActive: true
     };
   }
