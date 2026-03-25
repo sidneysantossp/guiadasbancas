@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getWhatsAppConfig } from "@/lib/whatsapp-config";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,9 +13,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Configurações da Evolution API
-    const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
-    const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
-    const EVOLUTION_INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME;
+    const config = await getWhatsAppConfig();
+    const EVOLUTION_API_URL = config.baseUrl;
+    const EVOLUTION_API_KEY = config.apiKey;
+    const EVOLUTION_INSTANCE_NAME = config.instanceName;
 
     if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY || !EVOLUTION_INSTANCE_NAME) {
       console.error("Evolution API não configurada");

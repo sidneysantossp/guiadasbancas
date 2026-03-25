@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
+import { getWhatsAppConfig } from "@/lib/whatsapp-config";
 
 /**
  * API para tentar reconectar WhatsApp
@@ -10,9 +11,10 @@ export async function POST(request: NextRequest) {
     const authError = await requireAdminAuth(request);
     if (authError) return authError;
 
-    const baseUrl = process.env.EVOLUTION_API_URL || 'https://api.guiadasbancas.com.br';
-    const apiKey = process.env.EVOLUTION_API_KEY || '';
-    const instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas';
+    const config = await getWhatsAppConfig();
+    const baseUrl = config.baseUrl;
+    const apiKey = config.apiKey;
+    const instanceName = config.instanceName;
 
     console.log('[WhatsApp Reconnect] Tentando reconectar instância:', instanceName);
 
@@ -81,9 +83,10 @@ export async function GET(request: NextRequest) {
     const authError = await requireAdminAuth(request);
     if (authError) return authError;
 
-    const baseUrl = process.env.EVOLUTION_API_URL || 'https://api.guiadasbancas.com.br';
-    const apiKey = process.env.EVOLUTION_API_KEY || '';
-    const instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'guiadasbancas';
+    const config = await getWhatsAppConfig();
+    const baseUrl = config.baseUrl;
+    const apiKey = config.apiKey;
+    const instanceName = config.instanceName;
 
     console.log('[WhatsApp Status] Verificando status da instância:', instanceName);
 

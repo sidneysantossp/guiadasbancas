@@ -310,7 +310,7 @@ export async function POST(req: NextRequest) {
     // Enviar notificação WhatsApp para o jornaleiro (utilizando config centralizada)
     if (banca.whatsapp) {
       try {
-        const config = getWhatsAppConfig();
+        const config = await getWhatsAppConfig();
 
         if (!config.isActive) {
           console.warn(`[WHATSAPP] ⚠️ Integração inativa no painel. Pedido #${orderNumber}`);
@@ -394,7 +394,7 @@ export async function POST(req: NextRequest) {
     
     // 1) Enviar mensagem de boas-vindas para o CLIENTE via WhatsApp oficial da plataforma
     try {
-      const config = getWhatsAppConfig();
+      const config = await getWhatsAppConfig();
       if (!config.isActive) {
         console.warn('[WHATSAPP] ⚠️ Integração inativa ao tentar enviar boas-vindas ao cliente');
       } else if (!config.baseUrl || !config.apiKey || !config.instanceName) {
@@ -434,7 +434,7 @@ export async function POST(req: NextRequest) {
 
     // 2) Mensagem de "pedido recebido" para o CLIENTE (logo após as boas-vindas)
     try {
-      const config = getWhatsAppConfig();
+      const config = await getWhatsAppConfig();
       if (config.isActive && config.baseUrl && config.apiKey && config.instanceName && customer.phone) {
         const cleanCustomer = String(customer.phone).replace(/\D/g, '');
         const customerNumber = cleanCustomer.startsWith('55') ? cleanCustomer : `55${cleanCustomer}`;

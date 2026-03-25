@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Buscar configuração do WhatsApp
-    const config = getWhatsAppConfig();
+    const config = await getWhatsAppConfig();
     
     if (!config.isActive) {
       console.warn('[WhatsApp Send Receipt] Integração inativa');

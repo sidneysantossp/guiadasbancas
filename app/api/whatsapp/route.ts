@@ -4,7 +4,7 @@ import { getWhatsAppConfig } from "@/lib/whatsapp-config";
 // GET - Verificar status da conexão WhatsApp
 export async function GET(req: NextRequest) {
   try {
-    const config = getWhatsAppConfig();
+    const config = await getWhatsAppConfig();
     
     if (!config.baseUrl || !config.apiKey) {
       return NextResponse.json({
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    const config = getWhatsAppConfig();
+    const config = await getWhatsAppConfig();
     
     if (!config.baseUrl || !config.apiKey) {
       return NextResponse.json({

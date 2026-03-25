@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    const config = getWhatsAppConfig();
+    const config = await getWhatsAppConfig();
     
     console.log('[WHATSAPP TEST] 🔧 Configuração:', {
       baseUrl: config.baseUrl,

@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { instanceName } = body;
 
-    const config = getWhatsAppConfig();
+    const config = await getWhatsAppConfig();
     
     if (!config.baseUrl || !config.apiKey) {
       return NextResponse.json({

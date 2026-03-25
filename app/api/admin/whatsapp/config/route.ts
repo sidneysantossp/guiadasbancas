@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     const authError = await requireAdminAuth(req);
     if (authError) return authError;
 
-    const config = getWhatsAppConfig();
+    const config = await getWhatsAppConfig();
     return NextResponse.json(sanitizeWhatsAppConfig(config), {
       headers: buildNoStoreHeaders({ isPrivate: true }),
     });
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { baseUrl, apiKey, instanceName, isActive } = body;
-    const currentConfig = getWhatsAppConfig();
+    const currentConfig = await getWhatsAppConfig();
     const normalizedApiKey = typeof apiKey === "string" ? apiKey.trim() : "";
     const effectiveConfig = {
       baseUrl: typeof baseUrl === "string" ? baseUrl.trim() : currentConfig.baseUrl,
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Salvar configurações
-    const savedConfig = setWhatsAppConfig({
+    const savedConfig = await setWhatsAppConfig({
       baseUrl: effectiveConfig.baseUrl,
       ...(normalizedApiKey ? { apiKey: normalizedApiKey } : {}),
       instanceName: effectiveConfig.instanceName,

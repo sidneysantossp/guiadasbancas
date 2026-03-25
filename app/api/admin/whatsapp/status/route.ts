@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const authError = await requireAdminAuth(req);
     if (authError) return authError;
 
-    const config = getWhatsAppConfig();
+    const config = await getWhatsAppConfig();
     
     console.log('[ADMIN] Verificando status com configurações:', {
       baseUrl: config.baseUrl,

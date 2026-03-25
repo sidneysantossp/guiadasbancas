@@ -1,5 +1,6 @@
 // Configuração da Evolution API para WhatsApp (Centralizada)
 import { loadJornaleiroWhatsAppByBancaId } from "@/lib/modules/jornaleiro/whatsapp";
+import { getWhatsAppConfig } from "@/lib/whatsapp-config";
 
 export interface WhatsAppConfig {
   baseUrl: string;
@@ -54,22 +55,9 @@ class WhatsAppService {
     };
   }
 
-  // Buscar configurações do admin (em produção, do banco)
-  async getAdminConfig(): Promise<WhatsAppConfig | null> {
-    try {
-      const response = await fetch('/api/admin/whatsapp/config');
-      if (!response.ok) return null;
-      const config = await response.json();
-      
-      if (config.baseUrl && config.apiKey) {
-        this.config = config;
-        return config;
-      }
-      return null;
-    } catch (error) {
-      console.error('Erro ao buscar configurações admin:', error);
-      return null;
-    }
+  private async refreshConfig(): Promise<WhatsAppConfig> {
+    this.config = await getWhatsAppConfig();
+    return this.config;
   }
 
   // Buscar dados do jornaleiro
@@ -85,11 +73,12 @@ class WhatsAppService {
   // Verificar se a instância está conectada
   async checkConnection(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.config.baseUrl}/instance/connectionState/${this.config.instanceName}`, {
+      const config = await this.refreshConfig();
+      const response = await fetch(`${config.baseUrl}/instance/connectionState/${config.instanceName}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': this.config.apiKey
+          'apikey': config.apiKey
         }
       });
 
@@ -109,6 +98,7 @@ class WhatsAppService {
   async sendMessage(message: WhatsAppMessage): Promise<boolean> {
     try {
       console.log('[WhatsAppService.sendMessage] Enviando para:', message.number);
+      const config = await this.refreshConfig();
       
       // REMOVIDO: checkConnection() - estava causando falsos negativos
       // Vamos tentar enviar diretamente, a API retornará erro se não conectado
@@ -118,14 +108,14 @@ class WhatsAppService {
         text: message.text
       };
       
-      console.log('[WhatsAppService.sendMessage] URL:', `${this.config.baseUrl}/message/sendText/${this.config.instanceName}`);
+      console.log('[WhatsAppService.sendMessage] URL:', `${config.baseUrl}/message/sendText/${config.instanceName}`);
       console.log('[WhatsAppService.sendMessage] Payload:', JSON.stringify(payload));
 
-      const response = await fetch(`${this.config.baseUrl}/message/sendText/${this.config.instanceName}`, {
+      const response = await fetch(`${config.baseUrl}/message/sendText/${config.instanceName}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': this.config.apiKey
+          'apikey': config.apiKey
         },
         body: JSON.stringify(payload)
       });
@@ -155,6 +145,7 @@ class WhatsAppService {
   async sendImage(number: string, imageBase64: string, caption?: string): Promise<boolean> {
     try {
       console.log('[WhatsAppService.sendImage] Enviando imagem para:', number);
+      const config = await this.refreshConfig();
       
       const payload = {
         number: number,
@@ -163,13 +154,13 @@ class WhatsAppService {
         caption: caption || ''
       };
       
-      console.log('[WhatsAppService.sendImage] URL:', `${this.config.baseUrl}/message/sendMedia/${this.config.instanceName}`);
+      console.log('[WhatsAppService.sendImage] URL:', `${config.baseUrl}/message/sendMedia/${config.instanceName}`);
 
-      const response = await fetch(`${this.config.baseUrl}/message/sendMedia/${this.config.instanceName}`, {
+      const response = await fetch(`${config.baseUrl}/message/sendMedia/${config.instanceName}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': this.config.apiKey
+          'apikey': config.apiKey
         },
         body: JSON.stringify(payload)
       });
@@ -228,8 +219,7 @@ class WhatsAppService {
   // Enviar notificação de pedido para o jornaleiro (usando instância centralizada)
   async sendOrderNotificationToJornaleiro(bancaId: string, orderData: OrderWhatsAppData): Promise<boolean> {
     try {
-      // Buscar configurações do admin
-      const adminConfig = await this.getAdminConfig();
+      const adminConfig = await this.refreshConfig();
       if (!adminConfig || !adminConfig.isActive) {
         console.warn('WhatsApp não configurado ou inativo no admin');
         return false;

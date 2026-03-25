@@ -225,6 +225,9 @@ export default function AdminWhatsAppConfigPage() {
             <p className="text-xs text-gray-500 mt-1">
               Chave de autenticação da Evolution API. {config.apiKeyConfigured ? `Chave já configurada${config.apiKeySuffix ? ` (final ${config.apiKeySuffix})` : ""}.` : "Nenhuma chave configurada."} Deixe em branco para manter a chave atual.
             </p>
+            <p className="text-xs text-emerald-700 mt-1">
+              Por segurança, a chave não é exibida novamente no campo após salvar. O indicador acima confirma se ela foi persistida no servidor.
+            </p>
           </div>
 
           <div>
