@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
+import { normalizeEvolutionPhoneDigits, sendEvolutionTextMessage } from "@/lib/evolution-api";
 import { supabaseAdmin } from "@/lib/supabase";
 
 /**
@@ -107,38 +108,28 @@ ${items.map((item: any) => `• ${item.quantity}x ${item.product_name} - R$ ${Nu
 Obrigado pela preferência! 🙏`;
 
     // Formatar telefone
-    const cleanPhone = String(customerPhone).replace(/\D/g, '');
-    const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+    const formattedPhone = normalizeEvolutionPhoneDigits(String(customerPhone));
 
     console.log('[WhatsApp Send Receipt] Enviando mensagem para:', formattedPhone);
 
-    // Enviar mensagem de texto via Evolution API
-    const payload = {
+    const result = await sendEvolutionTextMessage({
+      baseUrl: config.baseUrl,
+      apiKey: config.apiKey,
+      instanceName: config.instanceName,
       number: formattedPhone,
-      text: message
-    };
-
-    const response = await fetch(`${config.baseUrl}/message/sendText/${config.instanceName}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': config.apiKey
-      },
-      body: JSON.stringify(payload)
+      text: message,
+      timeoutMs: 20000,
     });
 
-    console.log('[WhatsApp Send Receipt] Response status:', response.status);
+    console.log('[WhatsApp Send Receipt] Response status:', result.status);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[WhatsApp Send Receipt] Erro ao enviar:', errorText);
+    if (!result.ok) {
+      console.error('[WhatsApp Send Receipt] Erro ao enviar:', result.raw || result.error);
       return NextResponse.json({ success: false, error: 'Erro ao enviar imagem via WhatsApp' });
     }
 
-    const result = await response.json();
-    console.log('[WhatsApp Send Receipt] Resultado:', result);
-
-    const success = result.key?.id ? true : false;
+    console.log('[WhatsApp Send Receipt] Resultado:', result.data);
+    const success = Boolean(result.messageId);
     
     console.log('[WhatsApp Send Receipt] ===== FIM =====', success ? '✅' : '❌');
 

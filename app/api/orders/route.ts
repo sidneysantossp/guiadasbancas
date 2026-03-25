@@ -14,6 +14,7 @@ import {
   resolveOrderActorCustomerEmail,
 } from "@/lib/modules/orders/service";
 import { supabaseAdmin } from "@/lib/supabase";
+import { normalizeEvolutionPhoneDigits, sendEvolutionTextMessage } from "@/lib/evolution-api";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
 
 export const dynamic = "force-dynamic";
@@ -347,28 +348,22 @@ export async function POST(req: NextRequest) {
             `✅ Acesse seu painel para gerenciar este pedido.`;
 
           // Formatar telefone da banca
-          const cleanPhone = banca.whatsapp.replace(/\D/g, '');
-          const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+          const formattedPhone = normalizeEvolutionPhoneDigits(banca.whatsapp);
 
-          const response = await fetch(`${config.baseUrl}/message/sendText/${config.instanceName}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': config.apiKey
-            },
-            body: JSON.stringify({
-              number: formattedPhone,
-              text: message
-            })
+          const response = await sendEvolutionTextMessage({
+            baseUrl: config.baseUrl,
+            apiKey: config.apiKey,
+            instanceName: config.instanceName,
+            number: formattedPhone,
+            text: message,
+            timeoutMs: 20000,
           });
 
           if (!response.ok) {
-            const error = await response.text();
-            console.warn(`[WHATSAPP] ❌ Falha ao enviar (status ${response.status}) - Pedido #${orderNumber} -> ${error}`);
+            console.warn(`[WHATSAPP] ❌ Falha ao enviar (status ${response.status}) - Pedido #${orderNumber} -> ${response.raw || response.error}`);
           } else {
-            const payloadResp = await response.json().catch(() => null);
-            console.log(`[WHATSAPP] ✅ Notificação enviada para ${banca.name} (${formattedPhone}) - Pedido #${orderNumber}`, {
-              messageId: payloadResp?.key?.id
+            console.log(`[WHATSAPP] ✅ Notificação enviada para ${banca.name} (${response.recipientUsed || formattedPhone}) - Pedido #${orderNumber}`, {
+              messageId: response.messageId
             });
           }
         }
@@ -400,8 +395,7 @@ export async function POST(req: NextRequest) {
       } else if (!config.baseUrl || !config.apiKey || !config.instanceName) {
         console.warn('[WHATSAPP] ⚠️ Configuração incompleta (baseUrl/apiKey/instanceName) para mensagem de boas-vindas');
       } else if (customer.phone) {
-        const cleanCustomer = String(customer.phone).replace(/\D/g, '');
-        const customerNumber = cleanCustomer.startsWith('55') ? cleanCustomer : `55${cleanCustomer}`;
+        const customerNumber = normalizeEvolutionPhoneDigits(String(customer.phone));
 
         const welcomeMsg =
           `👋 Olá ${customer.name || 'cliente'}!\n` +
@@ -409,13 +403,16 @@ export async function POST(req: NextRequest) {
           `e já encaminhamos para a banca *${banca.name}*.\n` +
           `Em breve você receberá a confirmação e atualizações do status por aqui.`;
 
-        const respWelcome = await fetch(`${config.baseUrl}/message/sendText/${config.instanceName}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', apikey: config.apiKey },
-          body: JSON.stringify({ number: customerNumber, text: welcomeMsg })
+        const respWelcome = await sendEvolutionTextMessage({
+          baseUrl: config.baseUrl,
+          apiKey: config.apiKey,
+          instanceName: config.instanceName,
+          number: customerNumber,
+          text: welcomeMsg,
+          timeoutMs: 20000,
         });
         if (!respWelcome.ok) {
-          console.warn('[WHATSAPP] ❌ Falha ao enviar mensagem de boas-vindas ao cliente:', await respWelcome.text());
+          console.warn('[WHATSAPP] ❌ Falha ao enviar mensagem de boas-vindas ao cliente:', respWelcome.raw || respWelcome.error);
         }
 
         // Registrar histórico: Mensagem de boas-vindas enviada
@@ -436,20 +433,22 @@ export async function POST(req: NextRequest) {
     try {
       const config = await getWhatsAppConfig();
       if (config.isActive && config.baseUrl && config.apiKey && config.instanceName && customer.phone) {
-        const cleanCustomer = String(customer.phone).replace(/\D/g, '');
-        const customerNumber = cleanCustomer.startsWith('55') ? cleanCustomer : `55${cleanCustomer}`;
+        const customerNumber = normalizeEvolutionPhoneDigits(String(customer.phone));
 
         const receivedMsg =
           `🛒 Seu pedido foi recebido pela banca *${banca.name}* e está em análise! ` +
           `Em breve você receberá a confirmação e os próximos passos.`;
 
-        const respReceived = await fetch(`${config.baseUrl}/message/sendText/${config.instanceName}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', apikey: config.apiKey },
-          body: JSON.stringify({ number: customerNumber, text: receivedMsg })
+        const respReceived = await sendEvolutionTextMessage({
+          baseUrl: config.baseUrl,
+          apiKey: config.apiKey,
+          instanceName: config.instanceName,
+          number: customerNumber,
+          text: receivedMsg,
+          timeoutMs: 20000,
         });
         if (!respReceived.ok) {
-          console.warn('[WHATSAPP] ❌ Falha ao enviar mensagem de pedido recebido ao cliente:', await respReceived.text());
+          console.warn('[WHATSAPP] ❌ Falha ao enviar mensagem de pedido recebido ao cliente:', respReceived.raw || respReceived.error);
         }
 
         // Registrar histórico: Confirmação de recebimento enviada

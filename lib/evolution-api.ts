@@ -22,7 +22,11 @@ export interface EvolutionCallResult {
 
 export interface EvolutionInstanceStatus {
   connected: boolean;
+  deliveryReady: boolean;
   state: string;
+  connectionState?: string | null;
+  fetchState?: string | null;
+  hasStateMismatch?: boolean;
   source: "connectionState" | "fetchInstances" | "unknown";
   profileName?: string | null;
   profilePicUrl?: string | null;
@@ -182,6 +186,98 @@ function isConnectedState(value: unknown): boolean {
   return normalized === "open" || normalized === "connected" || normalized === "online";
 }
 
+export function normalizeEvolutionPhoneDigits(value: string): string {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+
+  if (trimmed.includes("@")) {
+    const [jid] = trimmed.split("@");
+    const digits = jid.replace(/\D/g, "");
+    if (!digits) return "";
+    return digits.startsWith("55") ? digits : `55${digits}`;
+  }
+
+  const digits = trimmed.replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.startsWith("55") ? digits : `55${digits}`;
+}
+
+export function formatEvolutionRecipient(value: string): string {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  if (trimmed.includes("@")) return trimmed;
+
+  const digits = normalizeEvolutionPhoneDigits(trimmed);
+  return digits ? `${digits}@s.whatsapp.net` : "";
+}
+
+export function getEvolutionRecipientCandidates(value: string): string[] {
+  const jid = formatEvolutionRecipient(value);
+  const digits = normalizeEvolutionPhoneDigits(value);
+  return [...new Set([jid, digits].filter(Boolean))];
+}
+
+export function extractEvolutionMessageId(payload: any): string | null {
+  return (
+    payload?.key?.id ||
+    payload?.message?.key?.id ||
+    payload?.response?.key?.id ||
+    payload?.data?.key?.id ||
+    null
+  );
+}
+
+export async function sendEvolutionTextMessage(options: {
+  baseUrl: string;
+  apiKey: string;
+  instanceName: string;
+  number: string;
+  text: string;
+  timeoutMs?: number;
+}): Promise<EvolutionCallResult & { recipientUsed: string | null; messageId: string | null }> {
+  const recipients = getEvolutionRecipientCandidates(options.number);
+  let lastResult: EvolutionCallResult = {
+    ok: false,
+    status: null,
+    data: null,
+    raw: "",
+    authMode: "none",
+    error: "Nenhum destinatário válido informado",
+  };
+  let recipientUsed: string | null = null;
+
+  for (const recipient of recipients) {
+    const result = await callEvolutionApi({
+      baseUrl: options.baseUrl,
+      apiKey: options.apiKey,
+      path: `/message/sendText/${encodeURIComponent(options.instanceName)}`,
+      method: "POST",
+      body: {
+        number: recipient,
+        text: options.text,
+      },
+      timeoutMs: options.timeoutMs ?? 20000,
+    });
+
+    lastResult = result;
+    recipientUsed = recipient;
+
+    if (result.ok) {
+      return {
+        ...result,
+        recipientUsed,
+        messageId: extractEvolutionMessageId(result.data),
+      };
+    }
+  }
+
+  return {
+    ...lastResult,
+    recipientUsed,
+    messageId: extractEvolutionMessageId(lastResult.data),
+  };
+}
+
 export async function getEvolutionInstanceStatus(options: {
   baseUrl: string;
   apiKey: string;
@@ -225,11 +321,21 @@ export async function getEvolutionInstanceStatus(options: {
       matchedInstance?.status ||
       ""
   ).trim();
+  const deliveryReady = isConnectedState(connectionState);
+  const connected = isConnectedState(fetchState) || deliveryReady;
+  const hasStateMismatch =
+    Boolean(fetchState) &&
+    Boolean(connectionState) &&
+    fetchState.trim().toLowerCase() !== connectionState.trim().toLowerCase();
 
   if (matchedInstance) {
     return {
-      connected: isConnectedState(fetchState),
+      connected,
+      deliveryReady,
       state: fetchState || connectionState || "unknown",
+      connectionState: connectionState || null,
+      fetchState: fetchState || null,
+      hasStateMismatch,
       source: "fetchInstances",
       profileName: matchedInstance?.profileName || null,
       profilePicUrl: matchedInstance?.profilePicUrl || null,
@@ -243,8 +349,12 @@ export async function getEvolutionInstanceStatus(options: {
 
   if (connectionStateResult.ok) {
     return {
-      connected: isConnectedState(connectionState),
+      connected: deliveryReady,
+      deliveryReady,
       state: connectionState || "unknown",
+      connectionState: connectionState || null,
+      fetchState: fetchState || null,
+      hasStateMismatch,
       source: "connectionState",
       profileName: connectionPayload?.profileName || null,
       profilePicUrl: connectionPayload?.profilePicUrl || null,
@@ -256,7 +366,11 @@ export async function getEvolutionInstanceStatus(options: {
 
   return {
     connected: false,
+    deliveryReady: false,
     state: connectionState || fetchState || "unknown",
+    connectionState: connectionState || null,
+    fetchState: fetchState || null,
+    hasStateMismatch,
     source: "unknown",
     authModeUsed: fetchInstancesResult.ok ? fetchInstancesResult.authMode : connectionStateResult.authMode,
     upstreamStatus: fetchInstancesResult.ok ? fetchInstancesResult.status : connectionStateResult.status,

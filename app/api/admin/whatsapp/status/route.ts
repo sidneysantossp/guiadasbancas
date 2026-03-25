@@ -39,13 +39,21 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       connected: instanceStatus.connected,
-      status: instanceStatus.connected ? 'Conectado e funcionando' : 'Instância não conectada',
+      deliveryReady: instanceStatus.deliveryReady,
+      status: instanceStatus.deliveryReady
+        ? 'Conectado e funcionando'
+        : instanceStatus.connected
+          ? 'Conectado com inconsistência de sessão'
+          : 'Instância não conectada',
       timestamp: new Date().toISOString(),
       authModeUsed: instanceStatus.authModeUsed,
       source: instanceStatus.source,
+      hasStateMismatch: instanceStatus.hasStateMismatch || false,
       instanceInfo: {
         name: config.instanceName,
         state: instanceStatus.state || 'unknown',
+        connectionState: instanceStatus.connectionState || null,
+        fetchState: instanceStatus.fetchState || null,
         profileName: instanceStatus.profileName || null,
         profilePicUrl: instanceStatus.profilePicUrl || null,
         instanceId: instanceStatus.instanceId || null,

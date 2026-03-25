@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
-import { callEvolutionApi, getEvolutionErrorMessage } from "@/lib/evolution-api";
+import {
+  getEvolutionErrorMessage,
+  normalizeEvolutionPhoneDigits,
+  sendEvolutionTextMessage,
+} from "@/lib/evolution-api";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
-
-function extractMessageId(payload: any): string | null {
-  return (
-    payload?.key?.id ||
-    payload?.message?.key?.id ||
-    payload?.response?.key?.id ||
-    payload?.data?.key?.id ||
-    null
-  );
-}
 
 // POST - Enviar mensagem de teste
 export async function POST(req: NextRequest) {
@@ -60,42 +54,17 @@ export async function POST(req: NextRequest) {
 
     // Formatar número brasileiro
     const cleanPhone = phone.replace(/\D/g, '');
-    const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+    const formattedPhone = normalizeEvolutionPhoneDigits(phone);
 
     console.log('[WHATSAPP TEST] 📞 Número formatado:', { original: phone, clean: cleanPhone, formatted: formattedPhone });
-
-    let payload = {
-      number: formattedPhone,
-      text: message
-    };
-
-    console.log('[WHATSAPP TEST] 🚀 Enviando para Evolution API:', {
-      path: `/message/sendText/${instanceName}`,
-      payload
-    });
-
-    let result = await callEvolutionApi({
+    const result = await sendEvolutionTextMessage({
       baseUrl,
       apiKey,
-      path: `/message/sendText/${encodeURIComponent(instanceName)}`,
-      method: 'POST',
-      body: payload,
+      instanceName,
+      number: formattedPhone,
+      text: message,
       timeoutMs: 20000,
     });
-
-    // Algumas instalações esperam número no formato jid
-    if (!result.ok && result.status === 400 && !formattedPhone.includes('@')) {
-      const jidNumber = `${formattedPhone}@s.whatsapp.net`;
-      payload = { number: jidNumber, text: message };
-      result = await callEvolutionApi({
-        baseUrl,
-        apiKey,
-        path: `/message/sendText/${encodeURIComponent(instanceName)}`,
-        method: 'POST',
-        body: payload,
-        timeoutMs: 20000,
-      });
-    }
 
     if (!result.ok) {
       const unauthorized = result.status === 401 || result.status === 403;
@@ -110,12 +79,12 @@ export async function POST(req: NextRequest) {
     }
 
     const data = result.data || {};
-    const messageId = extractMessageId(data);
+    const messageId = result.messageId;
     const success = Boolean(messageId) || result.status === 200 || result.status === 201;
 
     console.log('[WHATSAPP TEST] 📦 Response data:', data);
     console.log('[ADMIN] Mensagem de teste enviada:', {
-      to: payload.number,
+      to: result.recipientUsed || formattedPhone,
       success,
       messageId
     });
@@ -125,7 +94,7 @@ export async function POST(req: NextRequest) {
       message: success ? 'Mensagem enviada com sucesso' : 'Falha ao enviar mensagem',
       data: {
         messageId,
-        phone: payload.number,
+        phone: result.recipientUsed || formattedPhone,
         authModeUsed: result.authMode,
       }
     });

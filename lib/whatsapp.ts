@@ -1,7 +1,12 @@
 // Configuração da Evolution API para WhatsApp (Centralizada)
 import { loadJornaleiroWhatsAppByBancaId } from "@/lib/modules/jornaleiro/whatsapp";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
-import { getEvolutionInstanceStatus } from "@/lib/evolution-api";
+import {
+  extractEvolutionMessageId,
+  formatEvolutionRecipient,
+  getEvolutionInstanceStatus,
+  sendEvolutionTextMessage,
+} from "@/lib/evolution-api";
 
 export interface WhatsAppConfig {
   baseUrl: string;
@@ -81,7 +86,7 @@ class WhatsAppService {
         instanceName: config.instanceName,
         timeoutMs: 15000,
       });
-      return instanceStatus.connected;
+      return instanceStatus.deliveryReady || instanceStatus.connected;
     } catch (error) {
       console.error('Erro ao verificar conexão WhatsApp:', error);
       return false;
@@ -93,39 +98,24 @@ class WhatsAppService {
     try {
       console.log('[WhatsAppService.sendMessage] Enviando para:', message.number);
       const config = await this.refreshConfig();
-      
-      // REMOVIDO: checkConnection() - estava causando falsos negativos
-      // Vamos tentar enviar diretamente, a API retornará erro se não conectado
-      
-      const payload = {
-        number: message.number,
-        text: message.text
-      };
-      
-      console.log('[WhatsAppService.sendMessage] URL:', `${config.baseUrl}/message/sendText/${config.instanceName}`);
-      console.log('[WhatsAppService.sendMessage] Payload:', JSON.stringify(payload));
 
-      const response = await fetch(`${config.baseUrl}/message/sendText/${config.instanceName}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': config.apiKey
-        },
-        body: JSON.stringify(payload)
+      const result = await sendEvolutionTextMessage({
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
+        instanceName: config.instanceName,
+        number: message.number,
+        text: message.text || "",
       });
 
-      console.log('[WhatsAppService.sendMessage] Response status:', response.status);
+      console.log('[WhatsAppService.sendMessage] Recipient used:', result.recipientUsed);
+      console.log('[WhatsAppService.sendMessage] Response status:', result.status);
+      console.log('[WhatsAppService.sendMessage] Response data:', result.data);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[WhatsAppService.sendMessage] HTTP error:', response.status, errorText);
-        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+      if (!result.ok) {
+        throw new Error(`HTTP error! status: ${result.status} - ${result.raw || result.error || "unknown error"}`);
       }
 
-      const result = await response.json();
-      console.log('[WhatsAppService.sendMessage] Response data:', result);
-      
-      const success = result.key?.id ? true : false;
+      const success = Boolean(result.messageId || extractEvolutionMessageId(result.data));
       console.log(`[WhatsAppService.sendMessage] Resultado final: ${success ? 'SUCESSO ✅' : 'FALHOU ❌'}`);
       
       return success;
@@ -142,7 +132,7 @@ class WhatsAppService {
       const config = await this.refreshConfig();
       
       const payload = {
-        number: number,
+        number: formatEvolutionRecipient(number),
         mediatype: 'image',
         media: imageBase64,
         caption: caption || ''

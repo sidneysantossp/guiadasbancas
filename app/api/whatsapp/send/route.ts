@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
+import { normalizeEvolutionPhoneDigits, sendEvolutionTextMessage } from "@/lib/evolution-api";
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,38 +28,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Formatar número (remover caracteres especiais)
-    const cleanPhone = phone.replace(/\D/g, "");
-    const formattedPhone = cleanPhone.includes("@") 
-      ? cleanPhone 
-      : `55${cleanPhone}@s.whatsapp.net`;
+    const formattedPhone = normalizeEvolutionPhoneDigits(phone);
+    const result = await sendEvolutionTextMessage({
+      baseUrl: EVOLUTION_API_URL,
+      apiKey: EVOLUTION_API_KEY,
+      instanceName: EVOLUTION_INSTANCE_NAME,
+      number: formattedPhone,
+      text: message,
+      timeoutMs: 20000,
+    });
 
-    // Enviar mensagem via Evolution API
-    const response = await fetch(
-      `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE_NAME}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: EVOLUTION_API_KEY,
-        },
-        body: JSON.stringify({
-          number: formattedPhone,
-          text: message,
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error("Erro da Evolution API:", errorData);
+    if (!result.ok) {
+      console.error("Erro da Evolution API:", result.raw || result.error);
       throw new Error("Failed to send WhatsApp message");
     }
 
-    const data = await response.json();
-
     return NextResponse.json({
       success: true,
-      messageId: data.key?.id,
+      messageId: result.messageId,
+      phone: result.recipientUsed || formattedPhone,
     });
   } catch (error) {
     console.error("Erro ao enviar WhatsApp:", error);

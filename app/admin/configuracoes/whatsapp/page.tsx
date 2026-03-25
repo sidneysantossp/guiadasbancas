@@ -15,15 +15,19 @@ interface EvolutionConfig {
 
 interface ConnectionStatus {
   connected: boolean;
+  deliveryReady?: boolean;
   status: string;
   timestamp: string;
   error?: string;
   upstreamStatus?: number | null;
   authModeTried?: string;
   authModeUsed?: string;
+  hasStateMismatch?: boolean;
   instanceInfo?: {
     name: string;
     state: string;
+    connectionState?: string | null;
+    fetchState?: string | null;
     profileName?: string;
     profilePicUrl?: string;
   };
@@ -180,6 +184,9 @@ export default function AdminWhatsAppConfigPage() {
     loadConfig();
   }, []);
 
+  const isDeliveryReady = Boolean(status?.deliveryReady ?? status?.connected);
+  const isMismatch = Boolean(status?.hasStateMismatch);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -301,8 +308,8 @@ export default function AdminWhatsAppConfigPage() {
           <div className="space-y-4">
             {/* Indicador Principal */}
             <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${status.connected ? 'bg-green-400' : 'bg-red-400'}`}></div>
-              <span className={`font-medium ${status.connected ? 'text-green-700' : 'text-red-700'}`}>
+              <div className={`w-3 h-3 rounded-full ${isDeliveryReady ? 'bg-green-400' : status.connected ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
+              <span className={`font-medium ${isDeliveryReady ? 'text-green-700' : status.connected ? 'text-yellow-700' : 'text-red-700'}`}>
                 {status.status}
               </span>
               <span className="text-sm text-gray-500">
@@ -324,6 +331,22 @@ export default function AdminWhatsAppConfigPage() {
                       {status.instanceInfo.state}
                     </span>
                   </div>
+                  {status.instanceInfo.fetchState && (
+                    <div>
+                      <span className="font-medium text-gray-700">fetchInstances:</span>
+                      <span className={`ml-2 ${status.instanceInfo.fetchState === 'open' ? 'text-green-600' : 'text-red-600'}`}>
+                        {status.instanceInfo.fetchState}
+                      </span>
+                    </div>
+                  )}
+                  {status.instanceInfo.connectionState && (
+                    <div>
+                      <span className="font-medium text-gray-700">connectionState:</span>
+                      <span className={`ml-2 ${status.instanceInfo.connectionState === 'open' ? 'text-green-600' : 'text-red-600'}`}>
+                        {status.instanceInfo.connectionState}
+                      </span>
+                    </div>
+                  )}
                   {status.instanceInfo.profileName && (
                     <div>
                       <span className="font-medium text-gray-700">Perfil:</span>
@@ -331,6 +354,15 @@ export default function AdminWhatsAppConfigPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {isMismatch && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800">
+                  A instância aparece aberta no dashboard da Evolution, mas a sessão de envio ainda não confirmou abertura total.
+                  Nesse estado, a API pode aceitar a mensagem e contabilizar envio sem entrega real no WhatsApp.
+                </p>
               </div>
             )}
 
@@ -354,7 +386,7 @@ export default function AdminWhatsAppConfigPage() {
             )}
 
             {/* Ações */}
-            {!status.connected && (
+            {!isDeliveryReady && (
               <div className="flex gap-3">
                 <button
                   onClick={createInstance}
@@ -387,7 +419,7 @@ export default function AdminWhatsAppConfigPage() {
       )}
 
       {/* Teste de Mensagem */}
-      {status?.connected && (
+      {isDeliveryReady && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Teste de Envio</h2>
 
