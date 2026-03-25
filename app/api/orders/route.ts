@@ -400,7 +400,7 @@ export async function POST(req: NextRequest) {
         const welcomeMsg =
           `👋 Olá ${customer.name || 'cliente'}!\n` +
           `Bem-vindo ao *Guia das Bancas*. Recebemos seu pedido ${orderNumber ? `#${orderNumber}` : ''} ` +
-          `e já encaminhamos para a banca *${banca.name}*.\n` +
+          `e já encaminhamos o seu pedido para o jornaleiro da *${banca.name}*.\n` +
           `Em breve você receberá a confirmação e atualizações do status por aqui.`;
 
         const respWelcome = await sendEvolutionTextMessage({
@@ -436,7 +436,7 @@ export async function POST(req: NextRequest) {
         const customerNumber = normalizeEvolutionPhoneDigits(String(customer.phone));
 
         const receivedMsg =
-          `🛒 Seu pedido foi recebido pela banca *${banca.name}* e está em análise! ` +
+          `🛒 Seu pedido foi recebido pelo jornaleiro da *${banca.name}* e está em análise! ` +
           `Em breve você receberá a confirmação e os próximos passos.`;
 
         const respReceived = await sendEvolutionTextMessage({
