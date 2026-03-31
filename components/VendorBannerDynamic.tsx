@@ -45,7 +45,7 @@ export default function VendorBannerDynamic() {
       console.log('📊 Registrando clique no banner...');
       
       // Fazer requisição assíncrona para registrar o clique
-      fetch('/api/admin/vendor-banner/analytics', {
+      fetch('/api/vendor-banner/analytics', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ export default function VendorBannerDynamic() {
     const loadBanner = async () => {
       try {
         console.log('🎯 Fazendo fetch da API...');
-        const response = await fetch('/api/admin/vendor-banner');
+        const response = await fetch('/api/vendor-banner', { cache: 'no-store' });
         console.log('🎯 Response status:', response.status);
         
         const data = await response.json();

@@ -25,7 +25,7 @@ export default function VendorSignupBanner() {
     
     const loadBanner = async () => {
       try {
-        const response = await fetch('/api/admin/vendor-banner');
+        const response = await fetch('/api/vendor-banner', { cache: 'no-store' });
         if (response.ok) {
           const result = await response.json();
           if (result.success && result.data) {

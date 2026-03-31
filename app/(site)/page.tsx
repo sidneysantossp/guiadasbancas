@@ -8,7 +8,7 @@ import MiniCategoryBar from "@/components/MiniCategoryBar";
 import CategoryCarousel from "@/components/CategoryCarousel";
 import BancasSections from "@/components/BancasSections";
 import LazyViewportSection from "@/components/LazyViewportSection";
-import ReferralPlatformBannerWrapper from "@/components/ReferralPlatformBannerWrapper";
+import VendorBannerDynamic from "@/components/VendorBannerDynamic";
 import MostSearchedProducts from "@/components/MostSearchedProducts";
 import CampaignSection from "@/components/CampaignSection";
 import BrancaleoneProducts from "@/components/BrancaleoneProducts";
@@ -385,7 +385,7 @@ export default async function HomePage() {
       </LazyViewportSection>
 
       <LazyViewportSection minHeight={260}>
-        <ReferralPlatformBannerWrapper />
+        <VendorBannerDynamic />
       </LazyViewportSection>
 
       <LazyViewportSection minHeight={220}>
