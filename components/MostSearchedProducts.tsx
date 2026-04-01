@@ -36,6 +36,21 @@ function formatBancaDisplay(name?: string | null) {
   return /^banca\b/i.test(name) ? name : `Banca ${name}`;
 }
 
+function hasRealProductImage(src?: string | null) {
+  if (!src) return false;
+
+  const normalized = src.trim().toLowerCase();
+  if (!normalized) return false;
+
+  return !(
+    normalized.includes('unsplash.com') ||
+    normalized.includes('placeholder.com') ||
+    normalized.includes('placehold.co') ||
+    normalized.includes('picsum.photos') ||
+    normalized.includes('via.placeholder.com')
+  );
+}
+
 type ApiProduct = {
   id: string;
   name: string;
@@ -251,8 +266,8 @@ function SmallCard({ p }: { p: Product }) {
 
 export default function MostSearchedProducts() {
   const CURATED_SECTION_KEY = 'most_sold_bambino';
-  const HOME_DESKTOP_PRODUCTS_LIMIT = 48;
   const HOME_MOBILE_PRODUCTS_LIMIT = 12;
+  const HOME_GRID_MAX_ROWS = 4;
   const [apiItems, setApiItems] = useState<Product[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -325,7 +340,12 @@ export default function MostSearchedProducts() {
           }
         }
 
-        const mapped: Product[] = list.map((p) => {
+        const productsWithRealImages = list.filter((p) => {
+          const imageUrl = (p.images && p.images[0]) || p.image || '';
+          return hasRealProductImage(imageUrl);
+        });
+
+        const mapped: Product[] = productsWithRealImages.map((p) => {
           const price = Number(p.price ?? 0);
           const priceOriginal = p.price_original != null ? Number(p.price_original) : undefined;
           const discountPercentRaw = p.discount_percent != null ? Number(p.discount_percent) : undefined;
@@ -361,6 +381,7 @@ export default function MostSearchedProducts() {
           };
         });
         
+        console.log('[MostSearchedProducts] Produtos com imagem real:', productsWithRealImages.length);
         console.log('[DEBUG] Produtos mapeados:', mapped.map(m => ({ name: m.name, bancaName: m.bancaName, bancaId: m.bancaId })));
         console.log('[DEBUG] Primeiro produto completo:', mapped[0]);
         if (active) setApiItems(mapped);
@@ -374,11 +395,6 @@ export default function MostSearchedProducts() {
     return () => { active = false; };
   }, [userLocation]);
 
-  const items = useMemo(() => {
-    if (!apiItems) return [];
-    return apiItems.slice(0, HOME_DESKTOP_PRODUCTS_LIMIT);
-  }, [apiItems]);
-
   const [viewport, setViewport] = useState<number>(1024);
   useEffect(() => {
     const onResize = () => setViewport(window.innerWidth);
@@ -388,6 +404,14 @@ export default function MostSearchedProducts() {
   }, []);
 
   const isMobile = viewport < 640;
+  const desktopColumns = viewport >= 1024 ? 5 : viewport >= 768 ? 3 : 2;
+  const desktopGridLimit = desktopColumns * HOME_GRID_MAX_ROWS;
+
+  const items = useMemo(() => {
+    if (!apiItems) return [];
+    return apiItems.slice(0, isMobile ? HOME_MOBILE_PRODUCTS_LIMIT : desktopGridLimit);
+  }, [apiItems, isMobile, desktopGridLimit]);
+
   const mobileItems = useMemo(
     () => (isMobile ? items.slice(0, HOME_MOBILE_PRODUCTS_LIMIT) : items),
     [isMobile, items, HOME_MOBILE_PRODUCTS_LIMIT]
