@@ -274,8 +274,8 @@ function FavCard({ item }: { item: FavItem }) {
 // ID da categoria de bebidas
 const BEBIDAS_ID = 'c230ed83-b08a-4b7a-8f19-7c8230f36c86'; // Bebidas
 const HOME_FETCH_PRODUCTS_LIMIT = 96;
-const HOME_DESKTOP_PRODUCTS_LIMIT = 48;
 const HOME_MOBILE_PRODUCTS_LIMIT = 12;
+const HOME_GRID_MAX_ROWS = 4;
 
 export default function FavoritePicks() {
   const [loading, setLoading] = useState(true);
@@ -373,11 +373,13 @@ export default function FavoritePicks() {
   }, []);
 
   const isMobile = viewport < 640;
+  const desktopColumns = viewport >= 1024 ? 4 : viewport >= 640 ? 2 : 1;
+  const desktopGridLimit = desktopColumns * HOME_GRID_MAX_ROWS;
 
   const data = useMemo(() => {
     if (!Array.isArray(items)) return [];
-    return items.slice(0, isMobile ? HOME_MOBILE_PRODUCTS_LIMIT : HOME_DESKTOP_PRODUCTS_LIMIT);
-  }, [items, isMobile]);
+    return items.slice(0, isMobile ? HOME_MOBILE_PRODUCTS_LIMIT : desktopGridLimit);
+  }, [items, isMobile, desktopGridLimit]);
 
   const [scrollIndex, setScrollIndex] = useState(0);
   const touchRef = useRef<{ startX: number; startY: number; active: boolean } | null>(null);
