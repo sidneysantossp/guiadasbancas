@@ -49,32 +49,27 @@ export async function POST(request: NextRequest) {
         authError.message?.includes('already been registered') ||
         authError.message?.includes('already exists') ||
         (authError as any).code === 'user_already_exists';
-      
-      if (isAlreadyExists && role === 'jornaleiro') {
-        // Usuário comum querendo virar jornaleiro - isso é permitido!
-        // Não criamos novo usuário, apenas retornamos sucesso
-        // O fluxo do wizard vai tentar fazer signIn depois
-        console.log('ℹ️ [SIGNUP] Usuário já existe - permitindo fluxo de conversão para jornaleiro');
-        
-        // Buscar o ID do usuário existente
-        const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-        const existingUser = usersData?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
-        
-        if (existingUser) {
-          userId = existingUser.id;
-          console.log('✅ [SIGNUP] Usuário existente encontrado:', userId);
-        } else {
-          // Não encontrou - retornar erro genérico
-          console.error('❌ [SIGNUP] Usuário existe mas não foi encontrado na listagem');
-          return NextResponse.json(
-            { error: 'Erro ao localizar conta existente. Tente fazer login.' },
-            { status: 400 }
-          );
-        }
+
+      if (isAlreadyExists) {
+        const errorMessage =
+          role === 'jornaleiro'
+            ? 'Este e-mail já está cadastrado. Faça login com a senha existente para continuar o cadastro da banca.'
+            : 'Este e-mail já está cadastrado. Faça login para continuar.';
+
+        console.log('ℹ️ [SIGNUP] Conta já existente detectada:', email);
+
+        return NextResponse.json(
+          {
+            error: errorMessage,
+            code: 'user_already_exists',
+            exists: true,
+          },
+          { status: 409 }
+        );
       } else {
         console.error('❌ [SIGNUP] Erro ao criar usuário:', authError);
         return NextResponse.json(
-          { error: authError.message },
+          { error: authError.message, code: (authError as any)?.code || null },
           { status: 400 }
         );
       }

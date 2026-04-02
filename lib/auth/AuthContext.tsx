@@ -180,7 +180,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!response.ok || data.error) {
         console.error('❌ Signup API error:', data.error);
-        return { error: new Error(data.error || 'Erro ao criar conta') };
+        const error: Error & { code?: string | null; status?: number } = new Error(
+          data.error || 'Erro ao criar conta'
+        );
+        error.code = data.code || null;
+        error.status = response.status;
+        return { error };
       }
 
       console.log('✅ Conta criada com sucesso! ID:', data.user?.id);
