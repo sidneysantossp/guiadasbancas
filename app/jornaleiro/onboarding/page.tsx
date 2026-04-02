@@ -5,7 +5,6 @@ import type { Route } from "next";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { geocodeByAddressNominatim, resolveCepToLocation, isValidCep } from "@/lib/location";
-import PlanEntryGuide from "@/components/jornaleiro/PlanEntryGuide";
 import logger from "@/lib/logger";
 
 export default function JornaleiroOnboardingPage() {
@@ -87,7 +86,7 @@ export default function JornaleiroOnboardingPage() {
       setStatus("creating");
       setMessage("Criando sua banca...");
       
-      // Buscar dados da banca pendente do Supabase (NÃO do localStorage)
+      // Buscar dados pendentes da banca do Supabase (NÃO do localStorage)
       logger.log('[Onboarding] 🔍 Buscando dados da banca no Supabase...');
       
       let saved: any = null;
@@ -102,7 +101,10 @@ export default function JornaleiroOnboardingPage() {
           if (data.success && data.banca_data) {
             saved = data.banca_data;
             logger.log('[Onboarding] ✅ Dados recuperados do Supabase');
-            logger.log('[Onboarding] 🏢 is_cotista:', saved.is_cotista);
+            logger.log(
+              '[Onboarding] 🔗 Vínculo comercial recuperado:',
+              saved.partner_linked === true || saved.is_cotista === true || Boolean(saved.cotista_id)
+            );
           }
         }
       } catch (e) {
@@ -131,6 +133,8 @@ export default function JornaleiroOnboardingPage() {
 
       // Não precisamos mais do wizard do localStorage
       const wizard: any = null;
+      const partnerLinked =
+        saved.partner_linked === true || saved.is_cotista === true || Boolean(saved.cotista_id);
 
       const normalizedAddress = wizard
         ? `${wizard.street || ''}, ${wizard.number || ''}${wizard.neighborhood ? ' - ' + wizard.neighborhood : ''}, ${wizard.city || ''}${wizard.uf ? ' - ' + wizard.uf : ''}`.replace(/\s+,/g, ',').replace(/,\s+,/g, ', ')
@@ -221,8 +225,8 @@ export default function JornaleiroOnboardingPage() {
         delivery_radius: saved.delivery_radius ?? 5,
         preparation_time: saved.preparation_time ?? 30,
         payment_methods: saved.payment_methods || ['pix', 'dinheiro'],
-        // Dados do cotista (prioritize saved que vem do wizard completo)
-        is_cotista: saved.is_cotista ?? false,
+        // Vínculo comercial da rede parceira (persistido em campos legados por compatibilidade)
+        is_cotista: partnerLinked,
         cotista_id: saved.cotista_id ?? null,
         cotista_codigo: saved.cotista_codigo ?? null,
         cotista_razao_social: saved.cotista_razao_social ?? null,
@@ -230,7 +234,7 @@ export default function JornaleiroOnboardingPage() {
         preferred_plan_type: saved.preferred_plan_type || null,
       } as any;
       
-      logger.log('[Onboarding] 🏢 Preparando dados da banca - is_cotista:', bancaData.is_cotista);
+      logger.log('[Onboarding] 🏢 Preparando dados da banca - partner_linked:', partnerLinked);
 
       // Preparar dados de perfil para salvar junto
       const profileUpdates: any = {};
@@ -297,7 +301,7 @@ export default function JornaleiroOnboardingPage() {
       setMessage(
         alreadyExists
           ? "Sua banca já estava cadastrada. Vamos abrir o painel para você continuar a configuração."
-          : "Banca criada com sucesso! Seu painel já começa no plano Free. Você decide o upgrade depois."
+          : "Banca criada com sucesso! Estamos liberando o painel para você continuar a configuração."
       );
       
       logger.log('[Onboarding] 🎉 Sucesso! Redirecionando para dashboard...');
@@ -366,7 +370,7 @@ export default function JornaleiroOnboardingPage() {
           <p className="text-gray-600">{message}</p>
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="mt-6">
           <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
             <div className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
               O que acontece agora
@@ -378,20 +382,14 @@ export default function JornaleiroOnboardingPage() {
               </li>
               <li className="flex items-start gap-3">
                 <span className="mt-1 h-2 w-2 rounded-full bg-[#ff5c00]" />
-                <span>O acesso inicial entra no plano <strong>Free</strong>, sem cobrança agora.</span>
+                <span>O painel será aberto para você continuar a configuração operacional da banca.</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="mt-1 h-2 w-2 rounded-full bg-[#ff5c00]" />
-                <span>Você primeiro organiza a banca, horários e produtos.</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-1 h-2 w-2 rounded-full bg-[#ff5c00]" />
-                <span>Quando fizer sentido, ativa <strong>Start</strong> ou <strong>Premium</strong> dentro do painel.</span>
+                <span>As próximas ações são revisar dados, publicar os produtos e deixar o atendimento pronto.</span>
               </li>
             </ul>
           </div>
-
-          <PlanEntryGuide />
         </div>
 
         {/* Botão de Retry */}

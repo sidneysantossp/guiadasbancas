@@ -28,7 +28,7 @@ export default function JornaleiroRegistrarPageClient() {
   const cepInputRef = useRef<HTMLInputElement | null>(null);
   const numberInputRef = useRef<HTMLInputElement | null>(null);
   const [socialsSkipped, setSocialsSkipped] = useState<boolean>(false);
-  const preferredPlanType: "free" = "free";
+  const [selectedPlanType, setSelectedPlanType] = useState<"free" | "premium">("free");
 
   // Step 1: Seller
   const [name, setName] = useState("");
@@ -571,9 +571,9 @@ export default function JornaleiroRegistrarPageClient() {
     const err1 = validateStep1();
     if (err1) { setError(err1); setStep(1); finishingRef.current = false; return; }
     const err2 = validateStep2();
-    if (err2) { setError(err2); setStep(2); finishingRef.current = false; return; }
+    if (err2) { setError(err2); setStep(3); finishingRef.current = false; return; }
     const err3 = validateStep3();
-    if (err3) { setError(err3); setStep(3); finishingRef.current = false; return; }
+    if (err3) { setError(err3); setStep(5); finishingRef.current = false; return; }
     const err4 = validateStep4();
     if (err4) { setError(err4); setStep(4); finishingRef.current = false; return; }
     
@@ -650,7 +650,7 @@ export default function JornaleiroRegistrarPageClient() {
         cotista_codigo: selectedCotaAtiva?.codigo || null,
         cotista_razao_social: selectedCotaAtiva?.razao_social || null,
         cotista_cnpj_cpf: selectedCotaAtiva?.cnpj_cpf || null,
-        preferred_plan_type: preferredPlanType || "free",
+        preferred_plan_type: selectedPlanType || "free",
       };
 
       logger.log('[Wizard] 📦 Dados da banca preparados:', bancaData);
@@ -889,8 +889,8 @@ export default function JornaleiroRegistrarPageClient() {
             { n: 5, label: 'Funcionamento', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
             )},
-            { n: 6, label: 'Conclusão', icon: (
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+            { n: 6, label: 'Plano', icon: (
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M7 12h10M9 18h6"/></svg>
             )},
           ].map(({ n, label, icon }) => {
             const isDone = step > n;
@@ -918,7 +918,7 @@ export default function JornaleiroRegistrarPageClient() {
       <div className="max-w-3xl mx-auto rounded-2xl border border-[#ff5c00] bg-white p-6 shadow-lg">
         <div className="flex flex-col items-center gap-2">
           <div className="text-center">
-            <h1 className="text-xl font-semibold">{step === 2 ? 'Dados de Acesso da Banca' : step === 3 ? 'Informações da Banca' : step === 4 ? 'Imagens da Banca' : step === 5 ? 'Funcionamento da Banca' : step === 6 ? 'Conclusão' : 'Cadastro do Jornaleiro'}</h1>
+            <h1 className="text-xl font-semibold">{step === 2 ? 'Dados de Acesso da Banca' : step === 3 ? 'Informações da Banca' : step === 4 ? 'Imagens da Banca' : step === 5 ? 'Funcionamento da Banca' : step === 6 ? 'Como você quer começar?' : 'Cadastro do Jornaleiro'}</h1>
             {step === 1 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Informe seu nome completo, CPF ou CNPJ e WhatsApp para começarmos seu cadastro gratuito na plataforma.</p>
             ) : step === 2 ? (
@@ -930,7 +930,7 @@ export default function JornaleiroRegistrarPageClient() {
             ) : step === 5 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Defina os horários em que a banca atende. Essas informações aparecem para os clientes na plataforma.</p>
             ) : step === 6 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Revise suas informações e finalize o cadastro da sua banca.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Escolha o plano inicial da sua banca antes de concluir. Você pode começar no Free ou já entrar no Premium.</p>
             ) : null}
           </div>
         </div>
@@ -1470,23 +1470,96 @@ export default function JornaleiroRegistrarPageClient() {
         )}
 
         {step === 6 && (
-          <div className="mt-6 text-center space-y-3">
-            <h2 className="text-lg font-semibold">Tudo pronto! Bem-vindo ao Guia das Bancas</h2>
-            <p className="text-sm text-gray-700 max-w-xl mx-auto">Você tomou a decisão certa ao trazer sua banca para o digital. Agora sua presença online vai ajudar novos clientes a encontrarem seus produtos com facilidade.</p>
-            <div className="mt-4 flex items-center justify-center gap-3">
-              <a href="/jornaleiro" className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95">Acessar Painel do Jornaleiro</a>
-              <a href="https://chat.whatsapp.com/LiPZtsKqSrUEx222oAUBWM" target="_blank" rel="noopener noreferrer" className="rounded-md bg-gradient-to-r from-[#25D366] to-[#1ebe5d] px-4 py-2 text-sm font-semibold text-white hover:opacity-95">Entrar no grupo do WhatsApp</a>
+          <div className="mt-4 space-y-5">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+              <div className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#ff5c00]">
+                Plano inicial da banca
+              </div>
+              <p className="mt-3 text-sm leading-6 text-gray-600">
+                Seu cadastro já está pronto para concluir. Defina agora como a banca entra na plataforma.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setSelectedPlanType("free")}
+                className={`rounded-2xl border p-5 text-left transition-all ${
+                  selectedPlanType === "free"
+                    ? "border-[#ff5c00] bg-orange-50 shadow-sm"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-lg font-semibold text-gray-900">Free</div>
+                    <div className="mt-1 text-sm text-gray-600">Comece sem cobrança.</div>
+                  </div>
+                  {selectedPlanType === "free" ? (
+                    <span className="grid h-6 w-6 place-items-center rounded-full bg-[#ff5c00] text-white">
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    </span>
+                  ) : null}
+                </div>
+                <ul className="mt-4 space-y-2 text-sm text-gray-700">
+                  <li>• Cadastro gratuito da banca</li>
+                  <li>• Até 10 produtos próprios</li>
+                  <li>• Gestão básica de pedidos e informações</li>
+                </ul>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedPlanType("premium")}
+                className={`rounded-2xl border p-5 text-left transition-all ${
+                  selectedPlanType === "premium"
+                    ? "border-[#ff5c00] bg-orange-50 shadow-sm"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-lg font-semibold text-gray-900">Premium</div>
+                    <div className="mt-1 text-sm text-gray-600">Tudo liberado para acelerar a operação.</div>
+                  </div>
+                  {selectedPlanType === "premium" ? (
+                    <span className="grid h-6 w-6 place-items-center rounded-full bg-[#ff5c00] text-white">
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    </span>
+                  ) : null}
+                </div>
+                <ul className="mt-4 space-y-2 text-sm text-gray-700">
+                  <li>• Catálogo dos distribuidores</li>
+                  <li>• Mais capacidade de cadastro manual</li>
+                  <li>• Recursos avançados do painel</li>
+                </ul>
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-700">
+              {selectedPlanType === "free" ? (
+                <p>
+                  A banca será criada no <strong>Free</strong> e você poderá decidir o upgrade depois no painel.
+                </p>
+              ) : (
+                <p>
+                  A banca será criada com intenção de <strong>Premium</strong>. A etapa de cobrança do teste grátis com cartão entra no próximo ajuste do onboarding.
+                </p>
+              )}
             </div>
           </div>
         )}
 
-        {step !== 6 && (
         <div className="mt-6 flex items-center justify-end">
           <div className="flex items-center gap-2">
             {step > 1 && (
               <button onClick={onBack} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50">Voltar</button>
             )}
-            {step < 5 ? (
+            {step < 6 ? (
               <button 
                 onClick={onNext} 
                 disabled={checkingCpf || isBusy || checkingEmail}
@@ -1500,7 +1573,7 @@ export default function JornaleiroRegistrarPageClient() {
                 )}
                 {checkingCpf ? 'Verificando...' : checkingEmail ? 'Validando email...' : isBusy ? 'Aguarde...' : 'Avançar'}
               </button>
-            ) : step === 5 ? (
+            ) : step === 6 ? (
               <button
                 onClick={onFinish}
                 disabled={isBusy}
@@ -1517,7 +1590,6 @@ export default function JornaleiroRegistrarPageClient() {
             ) : null}
           </div>
         </div>
-        )}
       </div>
     </section>
     <div className="container-max mt-4 mb-10">
