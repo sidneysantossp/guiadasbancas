@@ -12,8 +12,6 @@ import {
   validateBrazilianDocument,
 } from "@/lib/documents";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
-import CotistaSearch from "@/components/CotistaSearch";
-import PlanEntryGuide from "@/components/jornaleiro/PlanEntryGuide";
 import JornaleiroMarketingAssistPanel from "@/components/marketing/JornaleiroMarketingAssistPanel";
 import logger from "@/lib/logger";
 
@@ -30,7 +28,7 @@ export default function JornaleiroRegistrarPageClient() {
   const cepInputRef = useRef<HTMLInputElement | null>(null);
   const numberInputRef = useRef<HTMLInputElement | null>(null);
   const [socialsSkipped, setSocialsSkipped] = useState<boolean>(false);
-  const [preferredPlanType, setPreferredPlanType] = useState<"free" | "start" | "premium">("free");
+  const preferredPlanType: "free" = "free";
 
   // Step 1: Seller
   const [name, setName] = useState("");
@@ -257,10 +255,10 @@ export default function JornaleiroRegistrarPageClient() {
         if (data.exists && data.bancas && data.bancas.length > 0) {
           console.log('[Frontend] CPF existe com bancas:', data.bancas.length);
           setCpfExists(true);
-          setIsCotista(data.isCotista || false);
+          setIsCotista(data.partnerLinked === true || data.isCotista === true);
           setExistingBancas(data.bancas);
         } else {
-          console.log('[Frontend] CPF livre ou apenas cotista');
+          console.log('[Frontend] Documento livre ou sem vinculo comercial identificado');
           setCpfExists(false);
           setIsCotista(false);
           setExistingBancas([]);
@@ -814,7 +812,7 @@ export default function JornaleiroRegistrarPageClient() {
           <div className="text-center">
             <h1 className="text-xl font-semibold">{step === 2 ? 'Dados de Acesso da Banca' : step === 3 ? 'Informações da Banca' : step === 4 ? 'Imagens da Banca' : step === 5 ? 'Funcionamento da Banca' : step === 6 ? 'Conclusão' : 'Cadastro do Jornaleiro'}</h1>
             {step === 1 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Informe seu nome completo, CPF ou CNPJ e WhatsApp para começarmos seu cadastro. Seu painel entra no plano Free automaticamente.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Informe seu nome completo, CPF ou CNPJ e WhatsApp para começarmos seu cadastro gratuito na plataforma.</p>
             ) : step === 2 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Agora precisamos do seu email e senha para criar sua conta de acesso.</p>
             ) : step === 3 ? (
@@ -837,37 +835,6 @@ export default function JornaleiroRegistrarPageClient() {
 
         {step === 1 && (
           <div className="mt-4 grid grid-cols-1 gap-3">
-            <PlanEntryGuide compact />
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Plano inicial</div>
-              <div className="mt-3 grid gap-3 md:grid-cols-3">
-                {[
-                  { id: "free", label: "Free", helper: "Comece sem cobrança." },
-                  { id: "start", label: "Start", helper: "Mais capacidade e visibilidade." },
-                  { id: "premium", label: "Premium", helper: "Catálogo parceiro e expansão." },
-                ].map((plan) => {
-                  const selected = preferredPlanType === plan.id;
-                  return (
-                    <button
-                      key={plan.id}
-                      type="button"
-                      onClick={() => setPreferredPlanType(plan.id as "free" | "start" | "premium")}
-                      className={`rounded-xl border px-3 py-3 text-left text-sm transition ${
-                        selected
-                          ? "border-[#ff5c00] bg-[#fff7f2] text-[#ff5c00]"
-                          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="text-sm font-semibold">{plan.label}</div>
-                      <div className="mt-1 text-xs text-gray-500">{plan.helper}</div>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-3 text-xs text-gray-500">
-                O plano selecionado entra como referência do onboarding. A cobrança só acontece quando você confirmar o upgrade no painel.
-              </p>
-            </div>
             <div>
               <label className="text-[12px] text-gray-700">Nome completo</label>
               <input
