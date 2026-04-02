@@ -317,8 +317,8 @@ export default function EditBancaPage() {
 
   // Função para excluir banca
   const handleDeleteBanca = async () => {
-    if (deleteConfirmText !== name) {
-      alert('O nome digitado não confere com o nome da banca. Digite exatamente: ' + name);
+    if (deleteConfirmText.trim().toUpperCase() !== 'EXCLUIR') {
+      alert('Digite EXCLUIR para confirmar a exclusão da banca.');
       return;
     }
 
@@ -958,7 +958,7 @@ export default function EditBancaPage() {
                   <button
                     type="button"
                     onClick={handleDeleteBanca}
-                    disabled={deleteConfirmText !== 'EXCLUIR' || deleteLoading}
+                    disabled={deleteConfirmText.trim().toUpperCase() !== 'EXCLUIR' || deleteLoading}
                     className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                   >
                     {deleteLoading ? 'Excluindo...' : 'Confirmar Exclusão'}
