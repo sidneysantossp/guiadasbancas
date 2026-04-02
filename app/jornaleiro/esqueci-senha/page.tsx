@@ -1,14 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function EsqueciSenhaPage() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const prefilledEmail = searchParams.get("email");
+    if (prefilledEmail) {
+      setEmail(prefilledEmail);
+    }
+  }, [searchParams]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

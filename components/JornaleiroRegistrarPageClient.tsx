@@ -39,6 +39,7 @@ export default function JornaleiroRegistrarPageClient() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [existingAccountEmail, setExistingAccountEmail] = useState<string | null>(null);
   
   // Estado específico para validação de email no blur
   const [checkingEmail, setCheckingEmail] = useState(false);
@@ -488,10 +489,12 @@ export default function JornaleiroRegistrarPageClient() {
       const e6 = validateConfirmField(confirmPassword, password); setErrorField('confirmPassword', e6);
       if (e4 || e5 || e6) { return; }
 
-      // Verificar se e-mail já existe
+      // Se o e-mail já existir, não bloqueia o wizard aqui.
+      // O tratamento correto acontece no onFinish:
+      // - entra com a senha existente, se estiver correta
+      // - ou orienta redefinição/login, se a conta já existir
       try {
         setIsBusy(true); 
-        // Limpar erro anterior antes de verificar
         setError(null);
         
         const res = await fetch('/api/jornaleiro/check-email', {
@@ -502,15 +505,15 @@ export default function JornaleiroRegistrarPageClient() {
         const data = await res.json();
         
         if (data.exists) {
-          const msg = data.message || 'Este e-mail já está cadastrado. Faça login para continuar.';
-          setError(msg);
-          setErrorField('email', msg);
-          setIsBusy(false);
-          return; // Bloqueia o avanço
+          setEmailExists(true);
+          setExistingAccountEmail(email);
+          setErrorField('email');
+        } else {
+          setEmailExists(false);
+          setExistingAccountEmail(null);
         }
       } catch (err) {
         console.error('Erro ao verificar email:', err);
-        // Em caso de erro de rede, alertar o usuário mas (opcionalmente) permitir tentar novamente
         setError('Erro ao verificar disponibilidade do e-mail. Tente novamente.');
         setIsBusy(false);
         return;
@@ -653,7 +656,102 @@ export default function JornaleiroRegistrarPageClient() {
       logger.log('[Wizard] 📦 Dados da banca preparados:', bancaData);
       logger.log('[Wizard] 🏢 is_cotista:', bancaData.is_cotista);
 
+      try {
+        localStorage.setItem("gb:bancaData", JSON.stringify(bancaData));
+      } catch (storageError) {
+        logger.warn("[Wizard] Não foi possível salvar fallback local da banca:", storageError);
+      }
+
+      const waitForAuthenticatedSession = async () => {
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 400));
+          }
+
+          try {
+            const response = await fetch("/api/auth/validate-session", {
+              method: "GET",
+              cache: "no-store",
+              credentials: "include",
+            });
+            const payload = await response.json().catch(() => null);
+
+            if (response.ok && payload?.authenticated === true) {
+              logger.log("[Wizard] ✅ Sessão autenticada confirmada", { attempt: attempt + 1 });
+              return true;
+            }
+          } catch (sessionError) {
+            logger.warn("[Wizard] Erro ao validar sessão autenticada:", sessionError);
+          }
+        }
+
+        return false;
+      };
+
       setToast('Criando sua conta...');
+
+      const savePendingBancaAfterLogin = async () => {
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          try {
+            if (attempt > 0) {
+              await new Promise((resolve) => setTimeout(resolve, 400));
+            }
+
+            const response = await fetch('/api/jornaleiro/save-pending-banca', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ banca_data: bancaData }),
+            });
+
+            if (response.ok) {
+              logger.log('[Wizard] ✅ Banca pendente salva após autenticar conta existente', { attempt: attempt + 1 });
+              return true;
+            }
+
+            logger.warn('[Wizard] save-pending-banca respondeu com erro', {
+              attempt: attempt + 1,
+              status: response.status,
+            });
+          } catch (saveError) {
+            logger.warn('[Wizard] Erro ao salvar banca pendente após autenticar conta existente:', saveError);
+          }
+        }
+
+        return false;
+      };
+
+      setToast('Verificando acesso...');
+      setExistingAccountEmail(null);
+      const existingLogin = await signIn(email, password);
+      if (!existingLogin?.error) {
+        logger.log('[Wizard] ✅ Conta existente autenticada antes do signup.');
+        setExistingAccountEmail(email);
+
+        const sessionReady = await waitForAuthenticatedSession();
+        if (!sessionReady) {
+          setError("Sua conta foi autenticada, mas a sessão ainda não ficou pronta para continuar o cadastro. Tente novamente em instantes.");
+          setStep(2);
+          setIsBusy(false);
+          setToast(null);
+          finishingRef.current = false;
+          return;
+        }
+
+        const pendingSaved = await savePendingBancaAfterLogin();
+        if (!pendingSaved) {
+          setError("Conseguimos autenticar sua conta, mas não foi possível retomar o cadastro da banca agora. Tente novamente em instantes.");
+          setStep(2);
+          setIsBusy(false);
+          setToast(null);
+          finishingRef.current = false;
+          return;
+        }
+
+        setToast('✅ Conta autenticada! Continuando cadastro da banca...');
+        window.location.href = '/jornaleiro/onboarding';
+        return;
+      }
       
       // 3. Criar usuário no Supabase Auth COM CPF, phone e dados da banca
       // Tudo é salvo diretamente no Supabase, sem usar localStorage
@@ -684,9 +782,10 @@ export default function JornaleiroRegistrarPageClient() {
         }
         // Se já existe, tentar autenticar com a senha informada
         setToast('Conta já existe. Verificando credenciais...');
+        setExistingAccountEmail(email);
         const login = await signIn(email, password);
         if (login?.error) {
-          setError("Você já possui uma conta com este e-mail. Use a mesma senha da sua conta existente ou faça login primeiro na área 'Minha Conta' e depois retorne aqui.");
+          setError("Este e-mail já possui uma conta. Entre com a senha já cadastrada ou redefina a senha para continuar o cadastro da banca.");
           setStep(2);
           setIsBusy(false);
           setToast(null);
@@ -694,16 +793,25 @@ export default function JornaleiroRegistrarPageClient() {
           return;
         }
         logger.log('[Wizard] ✅ Usuário existente autenticado. Convertendo para jornaleiro.');
+
+        const sessionReady = await waitForAuthenticatedSession();
+        if (!sessionReady) {
+          setError("Sua conta foi autenticada, mas a sessão ainda não ficou pronta para continuar o cadastro. Tente novamente em instantes.");
+          setStep(2);
+          setIsBusy(false);
+          setToast(null);
+          finishingRef.current = false;
+          return;
+        }
         
-        // Salvar dados da banca para usuário existente via API separada
-        try {
-          await fetch('/api/jornaleiro/save-pending-banca', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ banca_data: bancaData }),
-          });
-        } catch (e) {
-          logger.warn('[Wizard] Erro ao salvar banca pendente:', e);
+        const pendingSaved = await savePendingBancaAfterLogin();
+        if (!pendingSaved) {
+          setError("Conseguimos autenticar sua conta, mas não foi possível retomar o cadastro da banca agora. Tente novamente em instantes.");
+          setStep(2);
+          setIsBusy(false);
+          setToast(null);
+          finishingRef.current = false;
+          return;
         }
       }
 
@@ -711,17 +819,17 @@ export default function JornaleiroRegistrarPageClient() {
 
       // Tentar autenticar explicitamente (reforço)
       try { await signIn(email, password); } catch {}
-      
+
       setToast('✅ Cadastro concluído! Redirecionando...');
       
-      // Aguardar sessão ser estabelecida com polling (máximo 5 tentativas)
-      for (let attempt = 0; attempt < 5; attempt++) {
-        await new Promise(r => setTimeout(r, 500));
-        if (isJornaleiro || profile?.role === 'jornaleiro') {
-          logger.log('[Wizard] ✅ Sessão estabelecida na tentativa', attempt + 1);
-          break;
-        }
-        logger.log('[Wizard] ⏳ Aguardando sessão... tentativa', attempt + 1);
+      const sessionReady = await waitForAuthenticatedSession();
+      if (!sessionReady) {
+        setError("A conta foi criada, mas a sessão ainda não ficou pronta para concluir o cadastro da banca. Entre na sua conta e continue pelo onboarding.");
+        setStep(2);
+        setIsBusy(false);
+        setToast(null);
+        finishingRef.current = false;
+        return;
       }
       
       // Redirecionar para onboarding (usar hard navigation para garantir)
@@ -828,7 +936,25 @@ export default function JornaleiroRegistrarPageClient() {
         </div>
 
         {error && (
-          <div className="mt-3 rounded-md border border-rose-300 bg-rose-50 text-rose-700 text-sm px-3 py-2">{error}</div>
+          <div className="mt-3 rounded-md border border-rose-300 bg-rose-50 px-3 py-3 text-sm text-rose-700">
+            <div>{error}</div>
+            {existingAccountEmail ? (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <Link
+                  href={`/jornaleiro/esqueci-senha?email=${encodeURIComponent(existingAccountEmail)}`}
+                  className="inline-flex items-center rounded-md border border-rose-200 bg-white px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100"
+                >
+                  Redefinir senha
+                </Link>
+                <Link
+                  href="/jornaleiro"
+                  className="inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Ir para login
+                </Link>
+              </div>
+            ) : null}
+          </div>
         )}
 
         {/* Step de Cota Ativa oculto temporariamente - será reativado futuramente */}
@@ -978,7 +1104,10 @@ export default function JornaleiroRegistrarPageClient() {
                   onChange={(e)=>{ 
                     setEmail(e.target.value); 
                     if (fieldErrors.email) setErrorField('email');
-                    if (emailExists) setEmailExists(false); 
+                    if (emailExists) {
+                      setEmailExists(false);
+                      setExistingAccountEmail(null);
+                    }
                   }}
                   onBlur={async () => {
                     const error = validateEmailField(email);
@@ -996,9 +1125,11 @@ export default function JornaleiroRegistrarPageClient() {
                         const data = await res.json();
                         if (data.exists) {
                           setEmailExists(true);
-                          setErrorField('email', data.message || 'Este e-mail já está cadastrado.');
+                          setExistingAccountEmail(email);
+                          setErrorField('email');
                         } else {
                           setEmailExists(false);
+                          setExistingAccountEmail(null);
                         }
                       } catch (err) {
                         console.error('Erro ao verificar email:', err);
@@ -1037,6 +1168,11 @@ export default function JornaleiroRegistrarPageClient() {
                 )}
               </div>
               {fieldErrors.email && <div className="mt-1 text-[11px] text-rose-600">{fieldErrors.email}</div>}
+              {!fieldErrors.email && emailExists && (
+                <div className="mt-1 text-[11px] text-amber-700">
+                  Este e-mail já possui uma conta. Continue com a senha já cadastrada para concluir ou redefina a senha no passo final.
+                </div>
+              )}
             </div>
             <div className="relative">
               <label className="text-[12px] text-gray-700">Senha</label>
@@ -1353,7 +1489,7 @@ export default function JornaleiroRegistrarPageClient() {
             {step < 5 ? (
               <button 
                 onClick={onNext} 
-                disabled={checkingCpf || isBusy || checkingEmail || emailExists}
+                disabled={checkingCpf || isBusy || checkingEmail}
                 className="rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
               >
                 {(checkingCpf || isBusy || checkingEmail) && (

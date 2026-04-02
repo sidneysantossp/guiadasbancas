@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
     const profileData: any = {
       role: role,
       full_name: full_name,
+      email: email,
       email_verified: true,
       active: true,
     };

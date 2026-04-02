@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
-import { doesJornaleiroBancaEmailExist } from "@/lib/modules/jornaleiro/email";
+import { doesPlatformEmailExist } from "@/lib/modules/jornaleiro/email";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email não informado" }, { status: 400, headers: buildNoStoreHeaders() });
     }
 
-    const { exists } = await doesJornaleiroBancaEmailExist(email);
+    const exists = await doesPlatformEmailExist(email);
 
     if (exists) {
       return NextResponse.json({ 
