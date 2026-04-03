@@ -13,6 +13,12 @@ export default function JornaleiroOnboardingPage() {
   const [status, setStatus] = useState<"loading" | "creating" | "success" | "error">("loading");
   const [message, setMessage] = useState("Configurando sua conta...");
 
+  const resolvePostOnboardingTarget = (preferredPlanType?: string | null) => {
+    return preferredPlanType === "premium"
+      ? ("/jornaleiro/meu-plano?source=signup&target=premium&trial=1&autostart=1" as Route)
+      : ("/jornaleiro/dashboard" as Route);
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -33,10 +39,17 @@ export default function JornaleiroOnboardingPage() {
           if (res.ok && json?.success && json?.data) {
             logger.log('[Onboarding] ✅ Banca já existe, redirecionando para dashboard');
             setStatus("success");
-            setMessage("Você já possui uma banca cadastrada. Seu painel segue liberado no plano Free ou no plano que já estiver ativo.");
+            setMessage("Você já possui uma banca cadastrada. Vamos abrir a próxima etapa do seu painel.");
             setTimeout(() => {
               if (!cancelled) {
-                router.push("/jornaleiro/dashboard" as Route);
+                const preferredPlanType = typeof json?.data?.requested_plan?.type === "string"
+                  ? json.data.requested_plan.type
+                  : typeof json?.data?.plan?.type === "string"
+                    ? json.data.plan.type
+                    : typeof json?.data?.entitlements?.plan_type === "string"
+                      ? json.data.entitlements.plan_type
+                      : null;
+                router.push(resolvePostOnboardingTarget(preferredPlanType));
               }
             }, 1000);
             return;
@@ -304,12 +317,14 @@ export default function JornaleiroOnboardingPage() {
           : "Banca criada com sucesso! Estamos liberando o painel para você continuar a configuração."
       );
       
-      logger.log('[Onboarding] 🎉 Sucesso! Redirecionando para dashboard...');
+      logger.log('[Onboarding] 🎉 Sucesso! Redirecionando para a próxima etapa...');
 
-      // Redirecionar para dashboard (com hard reload para garantir que o layout detecte a banca)
+      const nextTarget = resolvePostOnboardingTarget(saved.preferred_plan_type || null);
+
+      // Redirecionar com hard reload para garantir que o layout detecte a banca
       setTimeout(() => {
         logger.log('[Onboarding] 🔄 Executando redirecionamento agora...');
-        window.location.href = '/jornaleiro/dashboard';
+        window.location.href = nextTarget;
       }, 1500);
 
     } catch (error: any) {

@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { fetchViaCEP, ViaCEP } from "@/lib/viacep";
-import { maskCEP, maskCPF, maskCPFOrCNPJ, maskPhoneBR } from "@/lib/masks";
+import { formatCep, isValidCep, resolveCepToLocation } from "@/lib/location";
+import { maskCPF, maskCPFOrCNPJ, maskPhoneBR } from "@/lib/masks";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   isValidBrazilianDocument,
@@ -181,6 +181,15 @@ export default function JornaleiroRegistrarPageClient() {
   const [bankProfilePreview, setBankProfilePreview] = useState<string>("");
   const [bankTpuUrl, setBankTpuUrl] = useState<string>("");
 
+  const clearResolvedAddress = () => {
+    setStreet("");
+    setNeighborhood("");
+    setCity("");
+    setUf("");
+    setLat2("");
+    setLng2("");
+  };
+
   // Socials
   const [gmbHas, setGmbHas] = useState<"yes" | "no">("no");
   const [gmbUrl, setGmbUrl] = useState("");
@@ -215,10 +224,16 @@ export default function JornaleiroRegistrarPageClient() {
     } catch {}
   }, []);
 
-  // CEP preenchido (8 dígitos)
-  const cepReady = ((cep || "").replace(/\D/g, "").length === 8);
+  // CEP preenchido (8 dígitos) e realmente resolvido em endereço válido
   const cepOnly = (cep || "").replace(/\D/g, "");
-  const cepValid = cepOnly.length === 8 && lastCepFetched === cepOnly && !cepError;
+  const cepValid =
+    cepOnly.length === 8 &&
+    lastCepFetched === cepOnly &&
+    !!street &&
+    !!neighborhood &&
+    !!city &&
+    !!uf &&
+    !cepError;
 
   const cpfOnly = normalizeBrazilianDocument(cpf);
   const cpfValid = isValidBrazilianDocument(cpf);
@@ -276,14 +291,6 @@ export default function JornaleiroRegistrarPageClient() {
     return () => clearTimeout(timer);
   }, [cpf, cpfValid]);
 
-  // Restaurar lastCepFetched para evitar refetch após refresh
-  useEffect(() => {
-    try {
-      const last = localStorage.getItem('gb:lastCepFetched');
-      if (last) setLastCepFetched(last);
-    } catch {}
-  }, []);
-
   // REMOVIDO: Restaurar/Salvar progresso do wizard no localStorage
   // Causava popup "Sair do site?" do Chrome ao detectar dados não salvos
   // Agora os dados são salvos diretamente no Supabase durante o signup
@@ -299,75 +306,55 @@ export default function JornaleiroRegistrarPageClient() {
   // Causava problemas durante o cadastro - jornaleiro leigo não entende o popup
   // e ao clicar em "Cancelar" ficava preso na tela
 
-  const fetchAndFillCep = async (onlyCep: string) => {
-    if (!onlyCep || onlyCep.length !== 8) return;
-    if (onlyCep === lastCepFetched) return;
+  const fetchAndFillCep = async (cepValue: string) => {
+    const formattedCep = formatCep(cepValue);
+    const onlyCep = formattedCep.replace(/\D/g, "");
+    if (!isValidCep(formattedCep)) return;
+    if (onlyCep === lastCepFetched && street && neighborhood && city && uf) return;
     setLoadingCep(true);
     setCepError(null);
-    const data: ViaCEP | null = await fetchViaCEP(onlyCep);
-    setLoadingCep(false);
-    if (data) {
-      setStreet(data.logradouro || "");
-      setNeighborhood(data.bairro || "");
-      setCity(data.localidade || "");
-      setUf(data.uf || "");
+
+    try {
+      const location = await resolveCepToLocation(formattedCep);
+      setStreet(location.street || "");
+      setNeighborhood(location.neighborhood || "");
+      setCity(location.city || "");
+      setUf((location.state || "").toUpperCase());
+      setLat2(location.lat ? String(location.lat) : "");
+      setLng2(location.lng ? String(location.lng) : "");
       setLastCepFetched(onlyCep);
-      try { localStorage.setItem('gb:lastCepFetched', onlyCep); } catch {}
-      // Focar no campo Número para agilizar o preenchimento
       setTimeout(() => numberInputRef.current?.focus(), 0);
-    } else {
+    } catch {
+      clearResolvedAddress();
+      setLastCepFetched("");
       setCepError('CEP não encontrado. Verifique e tente novamente.');
-      // Selecionar o CEP para facilitar correção
       setTimeout(() => {
         if (cepInputRef.current) {
           cepInputRef.current.focus();
           cepInputRef.current.select();
         }
       }, 0);
+    } finally {
+      setLoadingCep(false);
     }
   };
 
   const onCepBlur = async () => {
-    const only = (cep || "").replace(/\D/g, "");
-    if (only.length !== 8) { setCepError('CEP incompleto.'); return; }
-    await fetchAndFillCep(only);
+    const formattedCep = formatCep(cep || "");
+    if (!isValidCep(formattedCep)) {
+      setCepError('CEP incompleto.');
+      return;
+    }
+    await fetchAndFillCep(formattedCep);
   };
 
-  // Buscar CEP automaticamente quando atingir 8 dígitos (sem debounce)
   useEffect(() => {
-    const only = (cep || "").replace(/\D/g, "");
-    if (only.length !== 8) return;
-    if (only === lastCepFetched) return;
-    
-    // Executar busca inline para evitar problemas de dependência
-    const executeFetch = async () => {
-      setLoadingCep(true);
-      setCepError(null);
-      const data: ViaCEP | null = await fetchViaCEP(only);
-      setLoadingCep(false);
-      if (data) {
-        setStreet(data.logradouro || "");
-        setNeighborhood(data.bairro || "");
-        setCity(data.localidade || "");
-        setUf(data.uf || "");
-        setLastCepFetched(only);
-        try { localStorage.setItem('gb:lastCepFetched', only); } catch {}
-        // Focar no campo Número para agilizar o preenchimento
-        setTimeout(() => numberInputRef.current?.focus(), 0);
-      } else {
-        setCepError('CEP não encontrado. Verifique e tente novamente.');
-        // Selecionar o CEP para facilitar correção
-        setTimeout(() => {
-          if (cepInputRef.current) {
-            cepInputRef.current.focus();
-            cepInputRef.current.select();
-          }
-        }, 0);
-      }
-    };
-    
-    executeFetch();
-  }, [cep, lastCepFetched]);
+    const formattedCep = formatCep(cep || "");
+    const onlyCep = formattedCep.replace(/\D/g, "");
+    if (!isValidCep(formattedCep)) return;
+    if (onlyCep === lastCepFetched && street && neighborhood && city && uf) return;
+    void fetchAndFillCep(formattedCep);
+  }, [cep, lastCepFetched, street, neighborhood, city, uf]);
 
   // Prefill service phone on step 3 from step 2 phone
   // Sempre sincroniza se servicePhone estiver vazio ou incompleto
@@ -918,7 +905,7 @@ export default function JornaleiroRegistrarPageClient() {
       <div className="max-w-3xl mx-auto rounded-2xl border border-[#ff5c00] bg-white p-6 shadow-lg">
         <div className="flex flex-col items-center gap-2">
           <div className="text-center">
-            <h1 className="text-xl font-semibold">{step === 2 ? 'Dados de Acesso da Banca' : step === 3 ? 'Informações da Banca' : step === 4 ? 'Imagens da Banca' : step === 5 ? 'Funcionamento da Banca' : step === 6 ? 'Como você quer começar?' : 'Cadastro do Jornaleiro'}</h1>
+            <h1 className="text-xl font-semibold">{step === 2 ? 'Dados de Acesso da Banca' : step === 3 ? 'Informações da Banca' : step === 4 ? 'Imagens da Banca' : step === 5 ? 'Funcionamento da Banca' : step === 6 ? 'Como você quer ativar sua banca?' : 'Cadastro do Jornaleiro'}</h1>
             {step === 1 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Informe seu nome completo, CPF ou CNPJ e WhatsApp para começarmos seu cadastro gratuito na plataforma.</p>
             ) : step === 2 ? (
@@ -930,7 +917,7 @@ export default function JornaleiroRegistrarPageClient() {
             ) : step === 5 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Defina os horários em que a banca atende. Essas informações aparecem para os clientes na plataforma.</p>
             ) : step === 6 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Escolha o plano inicial da sua banca antes de concluir. Você pode começar no Free ou já entrar no Premium.</p>
+              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Você pode começar grátis ou ativar 7 dias grátis do Premium com cartão. Se cancelar antes do prazo, nenhuma cobrança será feita.</p>
             ) : null}
           </div>
         </div>
@@ -1258,9 +1245,18 @@ export default function JornaleiroRegistrarPageClient() {
                     className="input w-full border-[#ff5c00] bg-orange-50 pr-10 focus:border-[#ff5c00] focus:ring-[#ff5c00]/30"
                     ref={cepInputRef}
                     value={cep}
-                    onChange={(e)=>{ setCep(maskCEP(e.target.value)); if (cepError) setCepError(null); }}
+                    onChange={(e)=>{
+                      const nextCep = formatCep(e.target.value);
+                      const nextDigits = nextCep.replace(/\D/g, "");
+                      setCep(nextCep);
+                      if (cepError) setCepError(null);
+                      if (nextDigits !== lastCepFetched) {
+                        setLastCepFetched("");
+                        clearResolvedAddress();
+                      }
+                    }}
                     onBlur={onCepBlur}
-                    onKeyDown={(e)=>{ if (e.key === 'Enter') { if (cepReady) { e.preventDefault(); numberInputRef.current?.focus(); } } }}
+                    onKeyDown={(e)=>{ if (e.key === 'Enter') { if (cepValid) { e.preventDefault(); numberInputRef.current?.focus(); } } }}
                     placeholder="00000-000"
                   />
                   {loadingCep && (
@@ -1284,7 +1280,7 @@ export default function JornaleiroRegistrarPageClient() {
                       onClick={() => {
                         setCep("");
                         setCepError(null);
-                        setStreet(""); setNeighborhood(""); setCity(""); setUf("");
+                        clearResolvedAddress();
                         setNumber(""); setComplement("");
                         setLastCepFetched("");
                         setTimeout(()=>cepInputRef.current?.focus(), 0);
@@ -1297,7 +1293,7 @@ export default function JornaleiroRegistrarPageClient() {
               </div>
               <div>
                 <label className="text-[12px] text-gray-700">Endereço</label>
-                <input className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={street} onChange={(e)=>setStreet(e.target.value)} disabled={!cepReady} />
+                <input className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={street} onChange={(e)=>setStreet(e.target.value)} disabled={!cepValid} />
               </div>
             </div>
 
@@ -1305,19 +1301,19 @@ export default function JornaleiroRegistrarPageClient() {
             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="md:col-span-1">
                 <label className="text-[12px] text-gray-700">Número</label>
-                <input ref={numberInputRef} className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={number} onChange={(e)=>setNumber(e.target.value)} placeholder="Nº" disabled={!cepReady} />
+                <input ref={numberInputRef} className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={number} onChange={(e)=>setNumber(e.target.value)} placeholder="Nº" disabled={!cepValid} />
               </div>
               <div className="md:col-span-1">
                 <label className="text-[12px] text-gray-700">Cidade</label>
-                <input className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={city} onChange={(e)=>setCity(e.target.value)} disabled={!cepReady} />
+                <input className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={city} onChange={(e)=>setCity(e.target.value)} disabled={!cepValid} />
               </div>
               <div className="md:col-span-1">
                 <label className="text-[12px] text-gray-700">Bairro</label>
-                <input className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={neighborhood} onChange={(e)=>setNeighborhood(e.target.value)} disabled={!cepReady} />
+                <input className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={neighborhood} onChange={(e)=>setNeighborhood(e.target.value)} disabled={!cepValid} />
               </div>
               <div className="md:col-span-1">
                 <label className="text-[12px] text-gray-700">UF</label>
-                <select className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={uf} onChange={(e)=>setUf(e.target.value)} disabled={!cepReady}>
+                <select className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={uf} onChange={(e)=>setUf(e.target.value)} disabled={!cepValid}>
                   <option value="">Selecione</option>
                   {STATES.map(s => (
                     <option key={s.uf} value={s.uf}>{s.uf} - {s.name}</option>
@@ -1326,7 +1322,7 @@ export default function JornaleiroRegistrarPageClient() {
               </div>
               <div className="md:col-span-2">
                 <label className="text-[12px] text-gray-700">Complemento</label>
-                <input className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={complement} onChange={(e)=>setComplement(e.target.value)} placeholder="Opcional" disabled={!cepReady} />
+                <input className="input mt-1 w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100" value={complement} onChange={(e)=>setComplement(e.target.value)} placeholder="Opcional" disabled={!cepValid} />
               </div>
             </div>
             <div className="md:col-span-2">
@@ -1471,85 +1467,129 @@ export default function JornaleiroRegistrarPageClient() {
 
         {step === 6 && (
           <div className="mt-4 space-y-5">
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-              <div className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#ff5c00]">
-                Plano inicial da banca
-              </div>
-              <p className="mt-3 text-sm leading-6 text-gray-600">
-                Seu cadastro já está pronto para concluir. Defina agora como a banca entra na plataforma.
-              </p>
-            </div>
+            <div className="grid gap-5 xl:grid-cols-[1.1fr,0.9fr]">
+              <div className="space-y-5">
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                  <div className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#ff5c00]">
+                    Ativação da banca
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-gray-600">
+                    Seu cadastro já está pronto. Escolha agora se a banca entra no plano gratuito ou se ativa 7 dias grátis do Premium antes da primeira cobrança.
+                  </p>
+                </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setSelectedPlanType("free")}
-                className={`rounded-2xl border p-5 text-left transition-all ${
-                  selectedPlanType === "free"
-                    ? "border-[#ff5c00] bg-orange-50 shadow-sm"
-                    : "border-gray-200 bg-white hover:border-gray-300"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="text-lg font-semibold text-gray-900">Free</div>
-                    <div className="mt-1 text-sm text-gray-600">Comece sem cobrança.</div>
+                <div className="grid grid-cols-1 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlanType("free")}
+                    className={`rounded-2xl border p-5 text-left transition-all ${
+                      selectedPlanType === "free"
+                        ? "border-[#ff5c00] bg-orange-50 shadow-sm"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="text-lg font-semibold text-gray-900">Free</div>
+                        <div className="mt-1 text-sm text-gray-600">Cadastro gratuito para começar agora.</div>
+                      </div>
+                      {selectedPlanType === "free" ? (
+                        <span className="grid h-6 w-6 place-items-center rounded-full bg-[#ff5c00] text-white">
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                        </span>
+                      ) : null}
+                    </div>
+                    <ul className="mt-4 space-y-2 text-sm text-gray-700">
+                      <li>• Até 10 produtos manuais</li>
+                      <li>• Gestão de produtos e pedidos</li>
+                      <li>• Venda pelo WhatsApp</li>
+                      <li>• Exposição da banca nas redes sociais da plataforma</li>
+                      <li>• Suporte</li>
+                    </ul>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlanType("premium")}
+                    className={`rounded-2xl border p-5 text-left transition-all ${
+                      selectedPlanType === "premium"
+                        ? "border-[#ff5c00] bg-orange-50 shadow-sm"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="text-lg font-semibold text-gray-900">Premium</div>
+                        <div className="mt-1 text-sm text-gray-600">Todos os recursos liberados por 7 dias grátis.</div>
+                      </div>
+                      {selectedPlanType === "premium" ? (
+                        <span className="grid h-6 w-6 place-items-center rounded-full bg-[#ff5c00] text-white">
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-3 inline-flex items-center rounded-full bg-purple-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-purple-700">
+                      7 dias grátis
+                    </div>
+                    <ul className="mt-4 space-y-2 text-sm text-gray-700">
+                      <li>• Catálogo dos distribuidores</li>
+                      <li>• Cadastro manual ampliado de produtos</li>
+                      <li>• Todos os recursos premium do painel</li>
+                      <li>• Cartão obrigatório para ativação do teste</li>
+                    </ul>
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-5">
+                <div className="inline-flex items-center rounded-full bg-[#fff0e6] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#ff5c00]">
+                  Ativação segura
+                </div>
+                <h3 className="mt-3 text-xl font-semibold text-gray-900">
+                  {selectedPlanType === "free" ? "Comece sem cobrança" : "7 dias grátis do Premium"}
+                </h3>
+                <p className="mt-3 text-sm leading-6 text-gray-600">
+                  {selectedPlanType === "free"
+                    ? "Você conclui o cadastro agora e entra direto no plano gratuito. O Premium pode ser ativado depois no painel."
+                    : "Na próxima tela você ativa o teste grátis em um ambiente seguro. O cartão só será usado se você decidir continuar após os 7 dias."}
+                </p>
+
+                <div className="mt-5 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+                    {selectedPlanType === "free" ? "O que acontece agora" : "Gateway de pagamento"}
                   </div>
                   {selectedPlanType === "free" ? (
-                    <span className="grid h-6 w-6 place-items-center rounded-full bg-[#ff5c00] text-white">
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M20 6L9 17l-5-5" />
-                      </svg>
-                    </span>
-                  ) : null}
+                    <ul className="mt-3 space-y-2 text-sm text-gray-700">
+                      <li>• Sua banca entra no Free imediatamente</li>
+                      <li>• Sem cobrança ou cartão nesta etapa</li>
+                      <li>• Upgrade para Premium disponível no painel</li>
+                    </ul>
+                  ) : (
+                    <ul className="mt-3 space-y-2 text-sm text-gray-700">
+                      <li>• Ativação segura via Asaas</li>
+                      <li>• Cartão obrigatório para iniciar o teste</li>
+                      <li>• Cancelamento sem cobrança até o 7º dia</li>
+                      <li>• Cobrança automática no 8º dia se não cancelar</li>
+                    </ul>
+                  )}
                 </div>
-                <ul className="mt-4 space-y-2 text-sm text-gray-700">
-                  <li>• Cadastro gratuito da banca</li>
-                  <li>• Até 10 produtos próprios</li>
-                  <li>• Gestão básica de pedidos e informações</li>
-                </ul>
-              </button>
 
-              <button
-                type="button"
-                onClick={() => setSelectedPlanType("premium")}
-                className={`rounded-2xl border p-5 text-left transition-all ${
-                  selectedPlanType === "premium"
-                    ? "border-[#ff5c00] bg-orange-50 shadow-sm"
-                    : "border-gray-200 bg-white hover:border-gray-300"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="text-lg font-semibold text-gray-900">Premium</div>
-                    <div className="mt-1 text-sm text-gray-600">Tudo liberado para acelerar a operação.</div>
-                  </div>
-                  {selectedPlanType === "premium" ? (
-                    <span className="grid h-6 w-6 place-items-center rounded-full bg-[#ff5c00] text-white">
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M20 6L9 17l-5-5" />
-                      </svg>
-                    </span>
-                  ) : null}
+                <div className="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                  {selectedPlanType === "free" ? (
+                    <p>
+                      A banca será criada no <strong>Free</strong> com os recursos básicos liberados.
+                    </p>
+                  ) : (
+                    <p>
+                      A banca será criada com intenção de <strong>Premium</strong>. Você seguirá para a ativação do teste grátis com cartão antes da cobrança automática.
+                    </p>
+                  )}
                 </div>
-                <ul className="mt-4 space-y-2 text-sm text-gray-700">
-                  <li>• Catálogo dos distribuidores</li>
-                  <li>• Mais capacidade de cadastro manual</li>
-                  <li>• Recursos avançados do painel</li>
-                </ul>
-              </button>
-            </div>
-
-            <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-700">
-              {selectedPlanType === "free" ? (
-                <p>
-                  A banca será criada no <strong>Free</strong> e você poderá decidir o upgrade depois no painel.
-                </p>
-              ) : (
-                <p>
-                  A banca será criada com intenção de <strong>Premium</strong>. A etapa de cobrança do teste grátis com cartão entra no próximo ajuste do onboarding.
-                </p>
-              )}
+              </div>
             </div>
           </div>
         )}
@@ -1585,7 +1625,7 @@ export default function JornaleiroRegistrarPageClient() {
                     <path d="M12 2a10 10 0 0 1 10 10" opacity="0.75"/>
                   </svg>
                 )}
-                {isBusy ? 'Concluindo...' : 'Concluir cadastro'}
+                {isBusy ? 'Concluindo...' : selectedPlanType === 'premium' ? 'Continuar para ativação segura' : 'Concluir cadastro grátis'}
               </button>
             ) : null}
           </div>

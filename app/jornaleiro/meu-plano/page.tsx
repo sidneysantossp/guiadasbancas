@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 
 type PlanType = "free" | "start" | "premium";
@@ -107,6 +108,7 @@ const PAYMENT_STATUS: Record<string, { label: string; color: string }> = {
 };
 
 export default function MeuPlanoPage() {
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [effectivePlan, setEffectivePlan] = useState<Plan | null>(null);
@@ -119,6 +121,11 @@ export default function MeuPlanoPage() {
   const [processing, setProcessing] = useState(false);
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [autostartConsumed, setAutostartConsumed] = useState(false);
+  const signupSource = searchParams.get("source") === "signup";
+  const signupTargetPremium = searchParams.get("target") === "premium";
+  const signupTrialRequested = searchParams.get("trial") === "1";
+  const signupAutostart = searchParams.get("autostart") === "1";
 
   const getPlanDisplayPrice = (plan: Plan | null | undefined) =>
     Number(plan?.effective_price ?? plan?.price ?? 0);
@@ -130,6 +137,13 @@ export default function MeuPlanoPage() {
   const currentStatusMeta = subscription?.status ? STATUS_LABELS[subscription.status] : null;
   const pendingPayments = payments.filter((payment) => ["pending", "overdue"].includes(payment.status)).length;
   const confirmedPayments = payments.filter((payment) => ["confirmed", "received"].includes(payment.status)).length;
+  const isOnboardingActivation = signupSource && signupTargetPremium;
+  const visiblePlans = useMemo(() => {
+    const priority: Record<string, number> = { free: 0, premium: 1 };
+    return [...plans]
+      .filter((plan) => plan.type === "free" || plan.type === "premium")
+      .sort((a, b) => (priority[a.type] ?? 99) - (priority[b.type] ?? 99));
+  }, [plans]);
 
   const loadData = async () => {
     try {
@@ -162,6 +176,17 @@ export default function MeuPlanoPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (!isOnboardingActivation || !signupAutostart || autostartConsumed || !visiblePlans.length) return;
+    const premiumPlan = visiblePlans.find((plan) => plan.type === "premium");
+    if (!premiumPlan) return;
+
+    setSelectedPlan(premiumPlan);
+    setCheckoutResult(null);
+    setShowPaymentModal(true);
+    setAutostartConsumed(true);
+  }, [autostartConsumed, isOnboardingActivation, signupAutostart, visiblePlans]);
 
   const handleSelectPlan = async (plan: Plan) => {
     const planPrice = getPlanDisplayPrice(plan);
@@ -243,6 +268,71 @@ export default function MeuPlanoPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <JornaleiroPageHeading title="Meu plano" className="mb-6" />
+
+      {isOnboardingActivation ? (
+        <div className="mb-8 overflow-hidden rounded-[28px] border border-[#eadfd2] bg-gradient-to-br from-white via-[#fff9f5] to-[#fff1e7] shadow-sm">
+          <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr,0.8fr] lg:p-8">
+            <div>
+              <span className="inline-flex rounded-full bg-[#fff0e6] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
+                Ativação da banca
+              </span>
+              <h2 className="mt-4 text-3xl font-bold tracking-tight text-gray-900">
+                Sua conta já está criada. Agora escolha como quer começar.
+              </h2>
+              <p className="mt-4 max-w-3xl text-lg leading-8 text-gray-600">
+                Você pode seguir no plano gratuito ou ativar <strong>7 dias grátis do Premium</strong>. Se cancelar
+                antes do prazo, a banca volta automaticamente para o plano Free e nenhuma cobrança será feita.
+              </p>
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-gray-200 bg-white p-5">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Free</div>
+                  <h3 className="mt-2 text-xl font-semibold text-gray-900">Cadastro gratuito para operar já</h3>
+                  <ul className="mt-4 space-y-2 text-sm text-gray-600">
+                    <li>Até 10 produtos manuais</li>
+                    <li>Gestão de produtos e pedidos</li>
+                    <li>Venda pelo WhatsApp</li>
+                    <li>Exposição nas redes sociais da plataforma</li>
+                    <li>Suporte</li>
+                  </ul>
+                </div>
+                <div className="rounded-2xl border border-[#ffcfb3] bg-[#fff7f2] p-5">
+                  <div className="inline-flex rounded-full bg-[#ff5c00] px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-white">
+                    7 dias grátis
+                  </div>
+                  <h3 className="mt-2 text-xl font-semibold text-gray-900">Premium completo durante o teste</h3>
+                  <ul className="mt-4 space-y-2 text-sm text-gray-600">
+                    <li>Catálogo dos distribuidores liberado</li>
+                    <li>Cadastro ampliado de produtos manuais</li>
+                    <li>Todos os módulos premium do painel</li>
+                    <li>Cancelamento automático para Free se não quiser continuar</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-gray-200 bg-white p-6">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Como funciona</div>
+              <h3 className="mt-3 text-2xl font-semibold text-gray-900">Teste premium com downgrade automático</h3>
+              <ol className="mt-5 space-y-4 text-sm text-gray-600">
+                <li>
+                  <strong className="text-gray-900">1.</strong> Você pode continuar no Free sem cobrança.
+                </li>
+                <li>
+                  <strong className="text-gray-900">2.</strong> Se ativar o Premium, o período de degustação libera todos os recursos por 7 dias.
+                </li>
+                <li>
+                  <strong className="text-gray-900">3.</strong> Se cancelar antes da primeira cobrança, a banca permanece no Free com os recursos básicos.
+                </li>
+              </ol>
+              {signupTrialRequested ? (
+                <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                  O fluxo de ativação premium foi solicitado no cadastro. Conclua essa etapa agora ou siga com o plano gratuito.
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -369,14 +459,33 @@ export default function MeuPlanoPage() {
 
       {/* Planos Disponíveis */}
       <h2 className="text-lg font-semibold text-gray-900 mb-4">
-        {subscription ? "Alterar Plano" : "Escolha um Plano"}
+        {isOnboardingActivation ? "Escolha como ativar sua banca" : subscription ? "Alterar Plano" : "Escolha um Plano"}
       </h2>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-        {plans.map((plan) => {
+        {visiblePlans.map((plan) => {
           const isCurrentPlan = subscription?.plan_id === plan.id;
           const planTypeMeta = PLAN_TYPE_META[plan.type] || PLAN_TYPE_META.premium;
           const displayPrice = getPlanDisplayPrice(plan);
+          const isPremiumTrialOption = isOnboardingActivation && plan.type === "premium";
+          const featureList =
+            isOnboardingActivation && plan.type === "free"
+              ? [
+                  "Até 10 produtos manuais",
+                  "Gestão de produtos",
+                  "Gestão de pedidos",
+                  "Venda pelo WhatsApp",
+                  "Exposição nas redes sociais da plataforma",
+                  "Suporte",
+                ]
+              : isOnboardingActivation && plan.type === "premium"
+                ? [
+                    "Catálogo dos distribuidores",
+                    "Cadastro ampliado de produtos",
+                    "Todos os recursos premium do painel",
+                    "7 dias grátis antes da primeira cobrança",
+                  ]
+                : plan.features?.slice(0, 4) || [];
 
           return (
             <div
@@ -385,6 +494,11 @@ export default function MeuPlanoPage() {
                 isCurrentPlan ? "border-green-500 ring-2 ring-green-100" : "border-gray-200"
               }`}
             >
+              {isPremiumTrialOption ? (
+                <span className="absolute -top-3 left-4 rounded-full bg-[#7c3aed] px-3 py-1 text-xs font-semibold text-white">
+                  Recomendado
+                </span>
+              ) : null}
               {isCurrentPlan && (
                 <span className="absolute -top-3 left-4 bg-green-500 text-white text-xs px-2 py-1 rounded">
                   Plano Atual
@@ -413,7 +527,7 @@ export default function MeuPlanoPage() {
                 )}
               </div>
 
-              {plan.description && (
+              {plan.description && !isOnboardingActivation && (
                 <p className="text-gray-600 text-sm mt-2">{plan.description}</p>
               )}
 
@@ -435,7 +549,7 @@ export default function MeuPlanoPage() {
               ) : null}
 
               <ul className="mt-4 space-y-2">
-                {plan.features?.slice(0, 4).map((feature, i) => (
+                {featureList.map((feature, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-gray-700">
                     <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -454,7 +568,15 @@ export default function MeuPlanoPage() {
                     : "bg-[#ff5c00] text-white hover:bg-[#ff7a33]"
                 }`}
               >
-                {isCurrentPlan ? "Plano Atual" : displayPrice === 0 ? "Ativar Grátis" : "Assinar"}
+                {isCurrentPlan
+                  ? "Plano Atual"
+                  : displayPrice === 0
+                    ? isOnboardingActivation
+                      ? "Continuar grátis"
+                      : "Ativar grátis"
+                    : isOnboardingActivation
+                      ? "Ativar 7 dias grátis"
+                      : "Assinar"}
               </button>
             </div>
           );
@@ -531,7 +653,11 @@ export default function MeuPlanoPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md">
             <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold">Finalizar Assinatura</h2>
+              <h2 className="text-xl font-bold">
+                {isOnboardingActivation && selectedPlan.type === "premium"
+                  ? "Ativar 7 dias grátis do Premium"
+                  : "Finalizar assinatura"}
+              </h2>
             </div>
 
             {!checkoutResult ? (
@@ -565,12 +691,22 @@ export default function MeuPlanoPage() {
                       A degustação é liberada uma única vez por banca.
                     </p>
                   ) : null}
+                  {isOnboardingActivation && selectedPlan.type === "premium" ? (
+                    <p className="mt-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-sm text-purple-700">
+                      Essa é a etapa de ativação do Premium após o cadastro. Se preferir, você pode fechar e seguir no plano gratuito.
+                    </p>
+                  ) : null}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Forma de Pagamento
+                    Forma de cobrança
                   </label>
+                  {isOnboardingActivation && selectedPlan.type === "premium" ? (
+                    <p className="mb-3 text-sm text-gray-500">
+                      Esta assinatura será criada no Asaas. Se a degustação for cancelada antes do prazo, a banca volta automaticamente para o plano gratuito.
+                    </p>
+                  ) : null}
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
@@ -616,7 +752,11 @@ export default function MeuPlanoPage() {
                     disabled={processing}
                     className="flex-1 py-3 bg-[#ff5c00] text-white font-semibold rounded-lg hover:bg-[#ff7a33] transition disabled:opacity-50"
                   >
-                    {processing ? "Processando..." : "Gerar Assinatura"}
+                    {processing
+                      ? "Processando..."
+                      : isOnboardingActivation && selectedPlan.type === "premium"
+                        ? "Criar assinatura de teste"
+                        : "Gerar assinatura"}
                   </button>
                 </div>
               </div>
