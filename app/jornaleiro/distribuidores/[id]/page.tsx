@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { usePremiumRouteGuard } from "@/components/jornaleiro/usePremiumRouteGuard";
 
 type Distribuidor = {
   id: string;
@@ -31,6 +32,10 @@ const DISTRIBUIDORES: Record<string, Distribuidor> = {
 export default function DistribuidorPage() {
   const params = useParams();
   const router = useRouter();
+  const { guarding, allowed } = usePremiumRouteGuard({
+    entitlementKey: "can_access_partner_directory",
+    source: "distribuidores",
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
@@ -38,6 +43,10 @@ export default function DistribuidorPage() {
   const distribuidor = DISTRIBUIDORES[distribuidorId];
 
   useEffect(() => {
+    if (guarding || !allowed) {
+      return;
+    }
+
     if (!distribuidor) {
       router.push("/jornaleiro/distribuidores");
       return;
@@ -49,7 +58,19 @@ export default function DistribuidorPage() {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [distribuidor, router]);
+  }, [allowed, distribuidor, guarding, router]);
+
+  if (guarding) {
+    return (
+      <div className="flex items-center justify-center py-12 text-sm text-gray-500">
+        Validando acesso ao distribuidor...
+      </div>
+    );
+  }
+
+  if (!allowed) {
+    return null;
+  }
 
   if (!distribuidor) {
     return null;
