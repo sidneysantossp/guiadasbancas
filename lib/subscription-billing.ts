@@ -300,6 +300,22 @@ export async function removeSubscriptionBindingByAsaasId(asaasSubscriptionId: st
   await writeBindings(bindings);
 }
 
+export async function removeSubscriptionBindingByBancaId(bancaId: string): Promise<void> {
+  const bindings = await readBindings();
+  let changed = false;
+
+  for (const [asaasId, binding] of Object.entries(bindings)) {
+    if (binding.bancaId === bancaId) {
+      delete bindings[asaasId];
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    await writeBindings(bindings);
+  }
+}
+
 export async function findSubscriptionBindingByAsaasId(asaasSubscriptionId: string): Promise<SubscriptionBinding | null> {
   const bindings = await readBindings();
   return bindings[asaasSubscriptionId] || null;

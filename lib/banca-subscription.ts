@@ -18,6 +18,31 @@ type SubscriptionRecord = {
   current_period_end: string | null;
 };
 
+type ActiveSubscriptionRow = SubscriptionRecord & {
+  trial_ends_at?: string | null;
+  plan?: {
+    id: string;
+    type?: string | null;
+    price?: number | null;
+  } | {
+    id: string;
+    type?: string | null;
+    price?: number | null;
+  }[] | null;
+};
+
+function normalizeSubscriptionPlan(plan: ActiveSubscriptionRow["plan"]): {
+  id: string;
+  type?: string | null;
+  price?: number | null;
+} | null {
+  if (Array.isArray(plan)) {
+    return plan[0] || null;
+  }
+
+  return plan || null;
+}
+
 async function resolveInitialPlan(preferredPlanId?: string | null): Promise<PlanRecord | null> {
   if (preferredPlanId) {
     const { data: preferredPlan, error: preferredPlanError } = await supabaseAdmin
@@ -109,4 +134,78 @@ export async function ensureBancaHasOnboardingPlan(
   }
 
   return subscription as SubscriptionRecord;
+}
+
+export async function downgradeBancaToFreePlan(
+  bancaId: string,
+  options?: {
+    cancelReason?: string | null;
+    cancelledAt?: string | null;
+    matchSubscriptionId?: string | null;
+  }
+): Promise<{
+  cancelledSubscriptions: ActiveSubscriptionRow[];
+  freeSubscription: SubscriptionRecord | null;
+}> {
+  const cancelledAt = options?.cancelledAt || new Date().toISOString();
+  const cancelReason = options?.cancelReason || "Downgrade automático para o plano Free";
+  const matchSubscriptionId = options?.matchSubscriptionId || null;
+
+  const { data: activeSubscriptions, error: activeSubscriptionsError } = await supabaseAdmin
+    .from("subscriptions")
+    .select(`
+      id,
+      banca_id,
+      plan_id,
+      status,
+      current_period_start,
+      current_period_end,
+      trial_ends_at,
+      plan:plans(id, type, price)
+    `)
+    .eq("banca_id", bancaId)
+    .in("status", ["active", "trial", "pending", "overdue"])
+    .order("created_at", { ascending: false });
+
+  if (activeSubscriptionsError) {
+    throw new Error(activeSubscriptionsError.message);
+  }
+
+  const paidSubscriptions = (activeSubscriptions || []).filter((subscription) => {
+    if (matchSubscriptionId && subscription.id !== matchSubscriptionId) {
+      return false;
+    }
+
+    const plan = normalizeSubscriptionPlan((subscription as ActiveSubscriptionRow).plan);
+    const planType = String(plan?.type || "free").toLowerCase();
+    const planPrice = Number(plan?.price || 0);
+    return planType !== "free" && planPrice > 0;
+  }) as ActiveSubscriptionRow[];
+
+  if (paidSubscriptions.length > 0) {
+    const { error: updateError } = await supabaseAdmin
+      .from("subscriptions")
+      .update({
+        status: "cancelled",
+        current_period_end: cancelledAt,
+        cancelled_at: cancelledAt,
+        cancel_reason: cancelReason,
+        trial_ends_at: null,
+      })
+      .in(
+        "id",
+        paidSubscriptions.map((subscription) => subscription.id)
+      );
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+  }
+
+  const freeSubscription = await ensureBancaHasOnboardingPlan(bancaId);
+
+  return {
+    cancelledSubscriptions: paidSubscriptions,
+    freeSubscription,
+  };
 }

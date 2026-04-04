@@ -7,7 +7,7 @@ import {
   getPaymentPixQrCode,
   getSubscriptionPayments,
 } from "@/lib/asaas";
-import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
+import { downgradeBancaToFreePlan, ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import {
   claimPaidPlanTrial,
@@ -20,6 +20,7 @@ import {
   releasePremiumLaunchOffer,
   releasePaidPlanTrial,
   removeSubscriptionBindingByAsaasId,
+  removeSubscriptionBindingByBancaId,
   resolvePlanPricing,
   saveBancaPricingOverride,
   saveSubscriptionBinding,
@@ -284,12 +285,14 @@ export async function POST(request: NextRequest) {
       }
 
       await clearBancaPricingOverride(banca.id);
-      const subscription = await ensureBancaHasOnboardingPlan(banca.id, { preferredPlanId: plan.id });
+      const { freeSubscription } = await downgradeBancaToFreePlan(banca.id, {
+        cancelReason: "Migração manual para o plano Free",
+      });
 
       return NextResponse.json(
         {
           success: true,
-          subscription,
+          subscription: freeSubscription,
           message: "Plano gratuito ativado com sucesso! Seu painel já está liberado.",
         },
         { headers: buildNoStoreHeaders({ isPrivate: true }) }
@@ -476,6 +479,20 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      const { error: subscriptionSyncError } = await supabaseAdmin
+        .from("subscriptions")
+        .update({
+          asaas_subscription_id: asaasSubscription.id,
+          trial_ends_at: trialEndsAt,
+          current_period_end: trialEndsAt,
+          status: trialDaysApplied > 0 ? "trial" : "pending",
+        })
+        .eq("id", subscription.id);
+
+      if (subscriptionSyncError) {
+        throw subscriptionSyncError;
+      }
+
       await saveSubscriptionBinding({
         asaasSubscriptionId: asaasSubscription.id,
         localSubscriptionId: subscription.id,
@@ -506,6 +523,22 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch (subscriptionError) {
+      if (asaasSubscription?.id) {
+        try {
+          await cancelSubscription(asaasSubscription.id);
+        } catch (cancelError: any) {
+          console.warn("[API/JORNALEIRO/SUBSCRIPTION] Falha ao desfazer assinatura remota após erro:", cancelError?.message || cancelError);
+        }
+      }
+
+      await removeSubscriptionBindingByBancaId(banca.id);
+      await clearBancaPricingOverride(banca.id);
+
+      await downgradeBancaToFreePlan(banca.id, {
+        cancelReason: "Falha ao ativar o Premium. Banca retornou ao plano Free.",
+        matchSubscriptionId: subscription.id,
+      });
+
       if (claimedLaunchOfferNow) {
         await releasePremiumLaunchOffer(banca.id);
       }
@@ -650,22 +683,11 @@ export async function DELETE(request: NextRequest) {
       await removeSubscriptionBindingByAsaasId(binding.asaasSubscriptionId);
     }
 
-    if (currentSubscription?.id) {
-      const { error: updateError } = await supabaseAdmin
-        .from("subscriptions")
-        .update({
-          status: "cancelled",
-          current_period_end: new Date().toISOString(),
-        })
-        .eq("id", currentSubscription.id);
-
-      if (updateError) {
-        throw updateError;
-      }
-    }
-
     await clearBancaPricingOverride(banca.id);
-    const freeSubscription = await ensureBancaHasOnboardingPlan(banca.id);
+    const { freeSubscription } = await downgradeBancaToFreePlan(banca.id, {
+      cancelReason: "Cancelamento manual do Premium",
+      matchSubscriptionId: currentSubscription?.id || null,
+    });
 
     await supabaseAdmin.from("notifications").insert({
       banca_id: banca.id,
