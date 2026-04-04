@@ -10,6 +10,7 @@ type Distribuidor = {
   url: string;
   descricao: string;
   cor: string;
+  embedHeight: number;
 };
 
 const DISTRIBUIDORES: Record<string, Distribuidor> = {
@@ -18,14 +19,16 @@ const DISTRIBUIDORES: Record<string, Distribuidor> = {
     nome: "Brancaleone Publicações",
     url: "https://brancaleonepublicacoes.meuspedidos.com.br/",
     descricao: "Revistas, gibis, cards colecionáveis e produtos licenciados",
-    cor: "bg-blue-600"
+    cor: "bg-blue-600",
+    embedHeight: 2400,
   },
   "branca-leone": {
     id: "branca-leone",
     nome: "Bambino distribuidora",
     url: "https://jornaleiro.meuspedidos.com.br/",
     descricao: "Jornais, revistas e publicações especializadas",
-    cor: "bg-green-600"
+    cor: "bg-green-600",
+    embedHeight: 2400,
   }
 };
 
@@ -86,7 +89,7 @@ export default function DistribuidorPage() {
   };
 
   return (
-    <div className="flex min-h-[calc(100dvh-10rem)] flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-sm lg:min-h-[calc(100dvh-7rem)]">
+    <div className="rounded-xl border border-gray-200 bg-gray-50 shadow-sm">
       {/* Header Compacto */}
       <div className="flex-shrink-0 bg-white border-b border-gray-200 shadow-sm">
         <div className="flex items-center justify-between px-4 py-2">
@@ -151,7 +154,7 @@ export default function DistribuidorPage() {
       </div>
 
       {/* Conteúdo Principal com Iframe */}
-      <div className="relative min-h-0 flex-1 bg-gray-100 mb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] lg:mb-0">
+      <div className="relative bg-gray-100">
         {/* Loading Overlay */}
         {isLoading && (
           <div className="absolute inset-0 bg-white flex items-center justify-center z-10">
@@ -208,7 +211,8 @@ export default function DistribuidorPage() {
         <iframe
           id="distribuidor-iframe"
           src={distribuidor.url}
-          className="w-full h-full border-0"
+          className="w-full border-0 bg-white"
+          style={{ height: `${distribuidor.embedHeight}px` }}
           onLoad={handleIframeLoad}
           onError={handleIframeError}
           title={`Catálogo ${distribuidor.nome}`}
