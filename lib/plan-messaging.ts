@@ -1,4 +1,4 @@
-export type SupportedPlanType = "free" | "start" | "premium";
+export type SupportedPlanType = "free" | "premium";
 export type UpgradeContext = "dashboard" | "product-limit" | "partner-network";
 
 export type PlanUpgradeHint = {
@@ -12,8 +12,8 @@ export type PlanUpgradeHint = {
 };
 
 function normalizePlanType(value: string | null | undefined): SupportedPlanType {
-  if (value === "start" || value === "premium") {
-    return value;
+  if (value === "premium" || value === "start") {
+    return "premium";
   }
 
   return "free";
@@ -22,7 +22,6 @@ function normalizePlanType(value: string | null | undefined): SupportedPlanType 
 export function getPlanLabel(planType: string | null | undefined): string {
   const normalized = normalizePlanType(planType);
 
-  if (normalized === "start") return "Start";
   if (normalized === "premium") return "Premium";
   return "Free";
 }
@@ -30,8 +29,7 @@ export function getPlanLabel(planType: string | null | undefined): string {
 export function getNextPlanType(planType: string | null | undefined): SupportedPlanType | null {
   const normalized = normalizePlanType(planType);
 
-  if (normalized === "free") return "start";
-  if (normalized === "start") return "premium";
+  if (normalized === "free") return "premium";
   return null;
 }
 
@@ -57,15 +55,15 @@ export function getPlanUpgradeHint(params: {
       return {
         tone: "orange",
         title: "Seu catálogo chegou ao limite do Free",
-        description: `No ${currentPlanName}, ${currentCountText}. Faça upgrade para continuar cadastrando produtos sem travar sua operação.`,
+        description: `No ${currentPlanName}, ${currentCountText}. Ative o Premium desta banca para ampliar o catálogo manual sem travar a operação.`,
         bullets: [
-          "Suba para o Start e ganhe mais espaço para ampliar seu sortimento.",
-          "Continue organizando a vitrine sem precisar apagar itens já cadastrados.",
-          "Faça o upgrade em poucos cliques dentro do painel.",
+          "Amplie o limite de produtos próprios cadastrados manualmente.",
+          "Continue organizando a vitrine sem apagar itens já cadastrados.",
+          "Mantenha a licença desta banca separada das demais unidades.",
         ],
         targetPlanType: nextPlanType,
         targetPlanLabel: nextPlanLabel,
-        primaryLabel: "Ver planos e continuar",
+        primaryLabel: "Ativar Premium",
       };
     }
 
@@ -90,11 +88,11 @@ export function getPlanUpgradeHint(params: {
       title:
         currentPlanType === "premium"
           ? "Sua banca já faz parte da rede parceira"
-          : "A rede de distribuidores faz parte do Premium",
+          : "Distribuidores são um recurso do Premium",
       description:
         currentPlanType === "premium"
           ? "Seu plano já libera o catálogo parceiro e a navegação pelos distribuidores habilitados na plataforma."
-          : `Hoje sua banca está no ${currentPlanName}. Ative o Premium para receber acesso ao catálogo parceiro e ampliar o mix sem cadastrar tudo manualmente.`,
+          : `Hoje sua banca está no ${currentPlanName}. Ative o Premium para liberar distribuidores e ampliar o mix sem cadastrar tudo manualmente.`,
       bullets:
         currentPlanType === "premium"
           ? [
@@ -103,9 +101,9 @@ export function getPlanUpgradeHint(params: {
               "Aproveite a estrutura pronta para crescer com mais rapidez.",
             ]
           : [
-              "Acesse o catálogo parceiro diretamente no painel.",
-              "Ganhe agilidade para ativar produtos de distribuidores.",
-              "Centralize seu abastecimento em uma jornada mais simples.",
+              "Acesse catálogos de distribuidores diretamente no painel.",
+              "Ative produtos parceiros na banca sem retrabalho manual.",
+              "Transforme abastecimento em um fluxo mais rápido e previsível.",
             ],
       targetPlanType: currentPlanType === "premium" ? null : "premium",
       targetPlanLabel: currentPlanType === "premium" ? null : "Premium",
@@ -116,28 +114,12 @@ export function getPlanUpgradeHint(params: {
   if (currentPlanType === "free") {
     return {
       tone: "blue",
-      title: "Seu próximo passo sugerido é o Start",
-      description: `O ${currentPlanName} já libera o painel e a vitrine inicial. Quando sua banca estiver pronta para crescer, o Start é a evolução natural.`,
+      title: "Seu próximo passo sugerido é o Premium",
+      description: `O ${currentPlanName} já libera a operação base da banca. Quando quiser crescer com campanhas, publi editorial, destaque, distribuidores e suporte prioritário, o Premium passa a fazer sentido.`,
       bullets: [
-        "Tenha mais fôlego para ampliar o catálogo.",
-        "Organize melhor a operação sem complicar o cadastro.",
-        "Faça o upgrade no momento em que sentir necessidade real.",
-      ],
-      targetPlanType: nextPlanType,
-      targetPlanLabel: nextPlanLabel,
-      primaryLabel: "Conhecer o Start",
-    };
-  }
-
-  if (currentPlanType === "start") {
-    return {
-      tone: "blue",
-      title: "O próximo salto do Start é o Premium",
-      description: `Sua banca já saiu do básico. Quando quiser acelerar o sortimento e conectar distribuidores, o Premium passa a fazer mais sentido.`,
-      bullets: [
-        "Destrave a rede parceira da plataforma.",
-        "Ganhe mais escala para crescer sem retrabalho.",
-        "Centralize catálogo próprio e catálogo parceiro no mesmo fluxo.",
+        "Destrave campanhas, publi editorial e destaque na plataforma.",
+        "Libere distribuidores e amplie o mix sem retrabalho manual.",
+        "Ative o Premium desta banca somente quando fizer sentido para a operação.",
       ],
       targetPlanType: nextPlanType,
       targetPlanLabel: nextPlanLabel,

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/admin/ToastProvider";
+import { usePremiumRouteGuard } from "@/components/jornaleiro/usePremiumRouteGuard";
 
 interface Product {
   id: string;
@@ -22,14 +23,18 @@ interface Product {
 }
 
 const durationOptions = [
-  { days: 7, label: '7 dias', price: 'Gratuito' },
-  { days: 15, label: '15 dias', price: 'Gratuito' },
-  { days: 30, label: '30 dias', price: 'Gratuito' }
+  { days: 7, label: '7 dias', price: 'Plano Premium' },
+  { days: 15, label: '15 dias', price: 'Plano Premium' },
+  { days: 30, label: '30 dias', price: 'Plano Premium' }
 ];
 
 export default function CreateCampaignPage() {
   const router = useRouter();
   const toast = useToast();
+  const { guarding, allowed } = usePremiumRouteGuard({
+    entitlementKey: "can_access_campaigns",
+    source: "campanhas",
+  });
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedDuration, setSelectedDuration] = useState<number>(7);
@@ -39,8 +44,10 @@ export default function CreateCampaignPage() {
   const [apiMessage, setApiMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    if (!guarding && allowed) {
+      fetchProducts();
+    }
+  }, [guarding, allowed]);
 
   const fetchProducts = async () => {
     try {
@@ -114,6 +121,18 @@ export default function CreateCampaignPage() {
       setSubmitting(false);
     }
   };
+
+  if (guarding) {
+    return (
+      <div className="flex items-center justify-center py-12 text-sm text-gray-500">
+        Validando acesso ao módulo de campanhas...
+      </div>
+    );
+  }
+
+  if (!allowed) {
+    return null;
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

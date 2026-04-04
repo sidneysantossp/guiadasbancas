@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
-import { loadJornaleiroCotistaReport } from "@/lib/modules/jornaleiro/reports";
+import { loadJornaleiroPartnerCatalogReport } from "@/lib/modules/jornaleiro/reports";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const response = await loadJornaleiroCotistaReport(user.id);
+    const response = await loadJornaleiroPartnerCatalogReport(user.id);
     return NextResponse.json(response, {
       headers: buildNoStoreHeaders({ isPrivate: true }),
     });

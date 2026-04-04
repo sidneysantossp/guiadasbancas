@@ -125,6 +125,7 @@ export async function checkJornaleiroDocumentAvailability(document: string) {
       exists: false,
       bancas: [],
       isCotista: Boolean(cotistas && cotistas.length > 0),
+      partnerLinked: Boolean(cotistas && cotistas.length > 0),
     };
   }
 
@@ -132,6 +133,7 @@ export async function checkJornaleiroDocumentAvailability(document: string) {
     exists: true,
     bancas,
     isCotista: Boolean(cotistas && cotistas.length > 0),
+    partnerLinked: Boolean(cotistas && cotistas.length > 0),
     message:
       documentType === "cpf"
         ? "CPF já possui cadastro com banca ativa"

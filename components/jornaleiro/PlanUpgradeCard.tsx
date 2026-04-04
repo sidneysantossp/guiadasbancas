@@ -187,7 +187,7 @@ export default function PlanUpgradeCard({
           ) : null}
           {resolvedTrialAvailable && Number(resolvedTrialDays || 0) > 0 ? (
             <p className={resolvedPromotionLabel ? "mt-1" : ""}>
-              Inclui <strong>{resolvedTrialDays} dias de degustação</strong> antes da primeira cobrança.
+              Inclui <strong>{resolvedTrialDays} dias grátis</strong> antes da primeira cobrança.
             </p>
           ) : null}
         </div>

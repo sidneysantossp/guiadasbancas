@@ -39,6 +39,19 @@ function addDaysToIso(days: number): string {
   return date.toISOString();
 }
 
+function extractRemoteIp(request: NextRequest): string {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() || "127.0.0.1";
+  }
+
+  return request.headers.get("x-real-ip") || "127.0.0.1";
+}
+
+function digitsOnly(value: string | null | undefined) {
+  return String(value || "").replace(/\D/g, "");
+}
+
 async function waitForFirstSubscriptionPayment(asaasSubscriptionId: string) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const payments = await getSubscriptionPayments(asaasSubscriptionId);
@@ -75,9 +88,13 @@ export async function GET(request: NextRequest) {
       id: string;
       name: string;
       email: string | null;
+      whatsapp: string | null;
+      cep: string | null;
+      address_obj?: Record<string, any> | null;
+      addressobj?: Record<string, any> | null;
     }>({
       userId: user.id,
-      select: "id, name, email",
+      select: "id, name, email, whatsapp, cep, address_obj, addressobj",
     });
 
     if (!banca) {
@@ -135,6 +152,12 @@ export async function GET(request: NextRequest) {
 
     const entitlements = await resolveBancaPlanEntitlements({ id: banca.id });
 
+    const { data: requesterProfile } = await supabaseAdmin
+      .from("user_profiles")
+      .select("full_name, phone, cpf")
+      .eq("id", user.id)
+      .maybeSingle();
+
     // Buscar últimos pagamentos
     const { data: payments } = await supabaseAdmin
       .from("payments")
@@ -157,7 +180,21 @@ export async function GET(request: NextRequest) {
           overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
         },
         payments: payments || [],
-        banca: { id: banca.id, name: banca.name, email: banca.email },
+        banca: {
+          id: banca.id,
+          name: banca.name,
+          email: banca.email,
+          whatsapp: banca.whatsapp,
+          cep: banca.cep,
+          address_obj: banca.address_obj || banca.addressobj || null,
+        },
+        requester_profile: requesterProfile
+          ? {
+              full_name: requesterProfile.full_name || null,
+              phone: requesterProfile.phone || null,
+              cpf: requesterProfile.cpf || null,
+            }
+          : null,
       },
       { headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
@@ -182,7 +219,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { plan_id, billing_type = "PIX" } = body;
+    const { plan_id, billing_type = "PIX", card } = body;
 
     if (!plan_id) {
       return NextResponse.json(
@@ -213,9 +250,13 @@ export async function POST(request: NextRequest) {
       whatsapp: string | null;
       cnpj: string | null;
       cpf: string | null;
+      address: string | null;
+      cep: string | null;
+      address_obj?: Record<string, any> | null;
+      addressobj?: Record<string, any> | null;
     }>({
       userId: user.id,
-      select: "id, name, email, whatsapp, cnpj, cpf",
+      select: "id, name, email, whatsapp, cnpj, cpf, address, cep, address_obj, addressobj",
     });
 
     if (!banca) {
@@ -289,8 +330,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Para planos pagos, criar assinatura recorrente no Asaas
-    const cpfCnpj = banca.cnpj || banca.cpf;
+    const { data: requesterProfile } = await supabaseAdmin
+      .from("user_profiles")
+      .select("full_name, phone, cpf")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const cpfCnpj = digitsOnly(banca.cnpj || banca.cpf || (requesterProfile as any)?.cpf || null);
     const billingEmail = banca.email || user.email;
+    const structuredAddress =
+      (banca.address_obj && typeof banca.address_obj === "object" ? banca.address_obj : null) ||
+      (banca.addressobj && typeof banca.addressobj === "object" ? banca.addressobj : null);
 
     if (!billingEmail) {
       return NextResponse.json(
@@ -306,6 +356,13 @@ export async function POST(request: NextRequest) {
       cpfCnpj: cpfCnpj || undefined,
       phone: banca.whatsapp || undefined,
       externalReference: banca.id,
+      postalCode: digitsOnly(structuredAddress?.cep || banca.cep || undefined) || undefined,
+      address: structuredAddress?.street || banca.address || undefined,
+      addressNumber: structuredAddress?.number || undefined,
+      complement: structuredAddress?.complement || undefined,
+      province: structuredAddress?.neighborhood || undefined,
+      city: structuredAddress?.city || undefined,
+      state: structuredAddress?.uf || undefined,
     });
 
     const previousBinding = await findSubscriptionBindingByBancaId(banca.id);
@@ -336,24 +393,88 @@ export async function POST(request: NextRequest) {
 
     const dueDate = formatDueDate(undefined, trialDaysApplied > 0 ? trialDaysApplied : 3);
     const trialEndsAt = trialDaysApplied > 0 ? addDaysToIso(trialDaysApplied) : null;
+    const requestedBillingType = String(billing_type || "PIX").toUpperCase();
+    const normalizedBillingType: "BOLETO" | "PIX" | "CREDIT_CARD" =
+      requestedBillingType === "BOLETO"
+        ? "BOLETO"
+        : requestedBillingType === "CREDIT_CARD"
+          ? "CREDIT_CARD"
+          : "PIX";
     let asaasSubscription: any = null;
     let firstPayment: any = null;
     let pixData = null;
 
     try {
-      asaasSubscription = await createSubscription({
-        customer: customer.id,
-        billingType: billing_type,
-        value: pricing.effectivePrice,
-        cycle: plan.billing_cycle,
-        nextDueDate: dueDate,
-        description: pricing.promotionLabel
-          ? `${plan.name} - ${pricing.promotionLabel}`
-          : trialDaysApplied > 0
-            ? `Assinatura ${plan.name} - ${trialDaysApplied} dias de degustação`
-          : `Assinatura ${plan.name} - Guia das Bancas`,
-        externalReference: `gb-sub:${subscription.id}`,
-      });
+      if (normalizedBillingType === "CREDIT_CARD") {
+        const cardNumber = digitsOnly(card?.number);
+        const cardCvv = digitsOnly(card?.ccv);
+        const expiryMonth = digitsOnly(card?.expiryMonth);
+        const expiryYear = digitsOnly(card?.expiryYear);
+        const holderName = String(card?.holderName || requesterProfile?.full_name || banca.name || "").trim();
+        const holderCpfCnpj = digitsOnly(card?.holderCpfCnpj || cpfCnpj);
+        const holderPhone = digitsOnly(card?.holderPhone || banca.whatsapp || (requesterProfile as any)?.phone || "");
+        const holderEmail = String(card?.holderEmail || billingEmail || "").trim().toLowerCase();
+        const holderPostalCode = digitsOnly(structuredAddress?.cep || banca.cep || "");
+        const holderAddressNumber = String(card?.holderAddressNumber || structuredAddress?.number || "S/N").trim();
+
+        if (!holderName || !holderCpfCnpj || !holderEmail || !holderPostalCode) {
+          throw new Error("Dados do titular incompletos para ativar o Premium.");
+        }
+
+        if (!cardNumber || !cardCvv || !expiryMonth || !expiryYear) {
+          throw new Error("Preencha os dados do cartão para ativar o Premium.");
+        }
+
+        asaasSubscription = await createSubscription({
+          customer: customer.id,
+          billingType: "CREDIT_CARD",
+          value: pricing.effectivePrice,
+          cycle: plan.billing_cycle,
+          nextDueDate: dueDate,
+          description: pricing.promotionLabel
+            ? `${plan.name} - ${pricing.promotionLabel}`
+            : trialDaysApplied > 0
+              ? `Assinatura ${plan.name} - ${trialDaysApplied} dias de degustação`
+              : `Assinatura ${plan.name} - Guia das Bancas`,
+          externalReference: `gb-sub:${subscription.id}`,
+          remoteIp: extractRemoteIp(request),
+          creditCard: {
+            holderName,
+            number: cardNumber,
+            expiryMonth,
+            expiryYear,
+            ccv: cardCvv,
+          },
+          creditCardHolderInfo: {
+            name: holderName,
+            email: holderEmail,
+            cpfCnpj: holderCpfCnpj,
+            postalCode: holderPostalCode,
+            addressNumber: holderAddressNumber,
+            addressComplement: String(card?.holderAddressComplement || structuredAddress?.complement || "").trim() || undefined,
+            phone: holderPhone || undefined,
+            mobilePhone: holderPhone || undefined,
+            address: structuredAddress?.street || banca.address || undefined,
+            province: structuredAddress?.neighborhood || undefined,
+            city: structuredAddress?.city || undefined,
+            state: structuredAddress?.uf || undefined,
+          },
+        });
+      } else {
+        asaasSubscription = await createSubscription({
+          customer: customer.id,
+          billingType: normalizedBillingType,
+          value: pricing.effectivePrice,
+          cycle: plan.billing_cycle,
+          nextDueDate: dueDate,
+          description: pricing.promotionLabel
+            ? `${plan.name} - ${pricing.promotionLabel}`
+            : trialDaysApplied > 0
+              ? `Assinatura ${plan.name} - ${trialDaysApplied} dias de degustação`
+              : `Assinatura ${plan.name} - Guia das Bancas`,
+          externalReference: `gb-sub:${subscription.id}`,
+        });
+      }
 
       await saveSubscriptionBinding({
         asaasSubscriptionId: asaasSubscription.id,
@@ -361,7 +482,7 @@ export async function POST(request: NextRequest) {
         bancaId: banca.id,
         planId: plan.id,
         effectivePrice: pricing.effectivePrice,
-        billingType: billing_type,
+        billingType: normalizedBillingType,
         createdAt: new Date().toISOString(),
       });
 
@@ -377,7 +498,7 @@ export async function POST(request: NextRequest) {
 
       firstPayment = await waitForFirstSubscriptionPayment(asaasSubscription.id);
 
-      if (billing_type === "PIX" && firstPayment?.id) {
+      if (normalizedBillingType === "PIX" && firstPayment?.id) {
         try {
           pixData = await getPaymentPixQrCode(firstPayment.id);
         } catch (e) {
@@ -409,7 +530,7 @@ export async function POST(request: NextRequest) {
           asaas_pix_code: pixData?.payload,
           amount: pricing.effectivePrice,
           status: "pending",
-          payment_method: billing_type.toLowerCase(),
+          payment_method: normalizedBillingType.toLowerCase(),
           due_date: firstPayment.dueDate || dueDate,
           description: pricing.promotionLabel
             ? `Assinatura ${plan.name} - ${pricing.promotionLabel}`
@@ -455,6 +576,7 @@ export async function POST(request: NextRequest) {
           promotion_label: pricing.promotionLabel,
           trial_days_applied: trialDaysApplied,
           trial_ends_at: trialEndsAt,
+          billing_type: normalizedBillingType,
         },
         message:
           trialDaysApplied > 0
@@ -467,6 +589,107 @@ export async function POST(request: NextRequest) {
     console.error("[API/JORNALEIRO/SUBSCRIPTION] POST Error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
+      { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+}
+
+// DELETE - Cancelar assinatura premium desta banca e voltar para o Free
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await getAuthenticatedRequestUser(request);
+    if (!user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Não autenticado" },
+        { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
+    const { data: banca, error: bancaError } = await loadPrimaryOwnedBanca<{
+      id: string;
+      name: string;
+      email: string | null;
+    }>({
+      userId: user.id,
+      select: "id, name, email",
+    });
+
+    if (!banca) {
+      if (bancaError) {
+        console.error("[API/JORNALEIRO/SUBSCRIPTION] DELETE banca error:", bancaError);
+      }
+
+      return NextResponse.json(
+        { success: false, error: "Banca não encontrada" },
+        { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
+    const { data: currentSubscription, error: subscriptionError } = await supabaseAdmin
+      .from("subscriptions")
+      .select("id, banca_id, plan_id, status, asaas_customer_id, current_period_start, current_period_end")
+      .eq("banca_id", banca.id)
+      .in("status", ["active", "trial", "pending", "overdue"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (subscriptionError) {
+      throw subscriptionError;
+    }
+
+    const binding = await findSubscriptionBindingByBancaId(banca.id);
+
+    if (binding?.asaasSubscriptionId) {
+      try {
+        await cancelSubscription(binding.asaasSubscriptionId);
+      } catch (cancelError: any) {
+        console.warn("[API/JORNALEIRO/SUBSCRIPTION] Falha ao cancelar assinatura remota:", cancelError?.message || cancelError);
+      }
+
+      await removeSubscriptionBindingByAsaasId(binding.asaasSubscriptionId);
+    }
+
+    if (currentSubscription?.id) {
+      const { error: updateError } = await supabaseAdmin
+        .from("subscriptions")
+        .update({
+          status: "cancelled",
+          current_period_end: new Date().toISOString(),
+        })
+        .eq("id", currentSubscription.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+    }
+
+    await clearBancaPricingOverride(banca.id);
+    const freeSubscription = await ensureBancaHasOnboardingPlan(banca.id);
+
+    await supabaseAdmin.from("notifications").insert({
+      banca_id: banca.id,
+      type: "subscription_cancelled",
+      title: "Premium cancelado",
+      message: `A banca ${banca.name} voltou a operar no plano Free.`,
+      data: {
+        banca_id: banca.id,
+        local_subscription_id: currentSubscription?.id || null,
+      },
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        subscription: freeSubscription,
+        message: "Premium cancelado com sucesso. Sua banca voltou a operar no plano Free.",
+      },
+      { headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  } catch (error: any) {
+    console.error("[API/JORNALEIRO/SUBSCRIPTION] DELETE Error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Erro ao cancelar assinatura" },
       { status: 500, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   }

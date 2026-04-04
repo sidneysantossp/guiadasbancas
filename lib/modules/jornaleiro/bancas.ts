@@ -502,8 +502,21 @@ async function formatBancaResponse(params: {
       plan_type: entitlements.planType,
       product_limit: entitlements.productLimit,
       max_images_per_product: entitlements.maxImagesPerProduct,
+      can_manage_manual_products: entitlements.canManageManualProducts,
+      can_manage_orders: entitlements.canManageOrders,
+      can_use_coupons: entitlements.canUseCoupons,
+      can_access_intelligence: entitlements.canAccessIntelligence,
+      can_access_academy: entitlements.canAccessAcademy,
+      can_access_support: entitlements.canAccessSupport,
+      can_sell_via_whatsapp: entitlements.canSellViaWhatsapp,
+      can_manage_inventory: entitlements.canManageInventory,
+      can_access_campaigns: entitlements.canAccessCampaigns,
+      can_manage_collaborators: entitlements.canManageCollaborators,
+      can_access_editorial: entitlements.canAccessEditorial,
+      can_access_featured_placement: entitlements.canAccessFeaturedPlacement,
       can_access_distributor_catalog: entitlements.canAccessDistributorCatalog,
       can_access_partner_directory: entitlements.canAccessPartnerDirectory,
+      has_priority_support: entitlements.hasPrioritySupport,
       is_legacy_cotista_linked: entitlements.isLegacyCotistaLinked,
       partner_linked: entitlements.isLegacyCotistaLinked,
       partner_catalog_access: entitlements.canAccessDistributorCatalog,
@@ -628,6 +641,11 @@ export async function createJornaleiroBanca(params: {
     throw new Error("FORBIDDEN_COLLABORATOR_CREATE_BANCA");
   }
 
+  const accessibleBancas = await listAccessibleJornaleiroBancas(params.userId);
+  if ((accessibleBancas.items || []).length > 0) {
+    throw new Error("ADDITIONAL_BANCA_REQUIRES_LICENSE");
+  }
+
   const body = params.input;
   const banca = body?.banca || body;
   const access = body?.access || body?.access_user || null;
@@ -714,6 +732,22 @@ export async function createJornaleiroBanca(params: {
     delivery_radius: banca.delivery_radius ?? 5,
     preparation_time: banca.preparation_time ?? 30,
     payment_methods: banca.payment_methods || ["pix", "dinheiro"],
+    address_obj:
+      banca.addressObj && typeof banca.addressObj === "object"
+        ? banca.addressObj
+        : banca.address_obj && typeof banca.address_obj === "object"
+        ? banca.address_obj
+        : banca.addressobj && typeof banca.addressobj === "object"
+        ? banca.addressobj
+        : null,
+    addressobj:
+      banca.addressObj && typeof banca.addressObj === "object"
+        ? banca.addressObj
+        : banca.address_obj && typeof banca.address_obj === "object"
+        ? banca.address_obj
+        : banca.addressobj && typeof banca.addressobj === "object"
+        ? banca.addressobj
+        : null,
     is_cotista: banca.is_cotista ?? false,
     cotista_id: banca.cotista_id ?? null,
     cotista_codigo: banca.cotista_codigo ?? null,
@@ -852,28 +886,6 @@ export async function createPrimaryJornaleiroBanca(params: {
   const body = params.input;
   const banca = body?.banca || body;
   const profile = body?.profile || {};
-  const preferredPlanId =
-    (body?.preferred_plan_id as string | null | undefined) ||
-    (banca?.preferred_plan_id as string | null | undefined) ||
-    null;
-  const preferredPlanType =
-    (body?.preferred_plan_type as string | null | undefined) ||
-    (banca?.preferred_plan_type as string | null | undefined) ||
-    null;
-
-  let resolvedPlanId = preferredPlanId;
-  if (!resolvedPlanId && preferredPlanType) {
-    const { data: planByType } = await supabaseAdmin
-      .from("plans")
-      .select("id, type, price, is_active, sort_order")
-      .eq("is_active", true)
-      .eq("type", preferredPlanType)
-      .order("sort_order", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    resolvedPlanId = (planByType as any)?.id || null;
-  }
 
   if (!banca?.name) {
     throw new Error("INVALID_BANCA_NAME");
@@ -882,9 +894,7 @@ export async function createPrimaryJornaleiroBanca(params: {
   const existing = await loadActiveJornaleiroBanca(params.userId);
   if (existing) {
     try {
-      await ensureBancaHasOnboardingPlan(existing.id, {
-        preferredPlanId: resolvedPlanId || undefined,
-      });
+      await ensureBancaHasOnboardingPlan(existing.id);
     } catch (error: any) {
       console.warn("[JornaleiroBancas] Falha ao garantir plano inicial da banca existente:", error?.message || error);
     }
@@ -920,6 +930,22 @@ export async function createPrimaryJornaleiroBanca(params: {
     delivery_radius: banca.delivery_radius ?? 5,
     preparation_time: banca.preparation_time ?? 30,
     payment_methods: banca.payment_methods || [],
+    address_obj:
+      banca.addressObj && typeof banca.addressObj === "object"
+        ? banca.addressObj
+        : banca.address_obj && typeof banca.address_obj === "object"
+        ? banca.address_obj
+        : banca.addressobj && typeof banca.addressobj === "object"
+        ? banca.addressobj
+        : null,
+    addressobj:
+      banca.addressObj && typeof banca.addressObj === "object"
+        ? banca.addressObj
+        : banca.address_obj && typeof banca.address_obj === "object"
+        ? banca.address_obj
+        : banca.addressobj && typeof banca.addressobj === "object"
+        ? banca.addressobj
+        : null,
     is_cotista: banca.is_cotista ?? false,
     cotista_id: banca.cotista_id ?? null,
     cotista_codigo: banca.cotista_codigo ?? null,
@@ -956,9 +982,7 @@ export async function createPrimaryJornaleiroBanca(params: {
   }
 
   try {
-    await ensureBancaHasOnboardingPlan(created.id, {
-      preferredPlanId: resolvedPlanId || undefined,
-    });
+    await ensureBancaHasOnboardingPlan(created.id);
   } catch (error: any) {
     console.warn("[JornaleiroBancas] Falha ao garantir plano inicial da nova banca:", error?.message || error);
   }

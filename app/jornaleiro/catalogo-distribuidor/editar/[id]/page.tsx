@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useFetchAuth } from '@/lib/hooks/useFetchAuth';
 import Image from 'next/image';
 import { useToast } from '@/components/admin/ToastProvider';
+import { usePremiumRouteGuard } from '@/components/jornaleiro/usePremiumRouteGuard';
 
 interface Product {
   id: string;
@@ -34,6 +35,10 @@ export default function EditarProdutoDistribuidorPage() {
   const router = useRouter();
   const fetchAuth = useFetchAuth();
   const toast = useToast();
+  const { guarding, allowed } = usePremiumRouteGuard({
+    entitlementKey: "can_access_distributor_catalog",
+    source: "catalogo-distribuidor",
+  });
 
   const [produto, setProduto] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,8 +55,9 @@ export default function EditarProdutoDistribuidorPage() {
   const [customFeatured, setCustomFeatured] = useState(false);
 
   useEffect(() => {
+    if (guarding || !allowed) return;
     loadProduto();
-  }, []);
+  }, [guarding, allowed]);
 
   const loadProduto = async () => {
     try {
@@ -127,7 +133,7 @@ export default function EditarProdutoDistribuidorPage() {
     }
   };
 
-  if (loading) {
+  if (guarding || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -136,6 +142,10 @@ export default function EditarProdutoDistribuidorPage() {
         </div>
       </div>
     );
+  }
+
+  if (!allowed) {
+    return null;
   }
 
   if (!produto) {

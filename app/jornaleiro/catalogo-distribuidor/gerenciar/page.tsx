@@ -9,6 +9,7 @@ import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
 import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
 import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
 import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
+import { usePremiumRouteGuard } from "@/components/jornaleiro/usePremiumRouteGuard";
 import { getPlanUpgradeHint } from "@/lib/plan-messaging";
 
 type Product = {
@@ -36,6 +37,10 @@ type DistribuidorInfo = {
 
 export default function GerenciarCatalogoPage() {
   const toast = useToast();
+  const { guarding, allowed } = usePremiumRouteGuard({
+    entitlementKey: "can_access_distributor_catalog",
+    source: "catalogo-distribuidor-gerenciar",
+  });
   const [products, setProducts] = useState<Product[]>([]);
   const [allDistribuidores, setAllDistribuidores] = useState<DistribuidorInfo[]>([]); // Lista completa de distribuidores com contagem
   const [loading, setLoading] = useState(true);
@@ -81,7 +86,9 @@ export default function GerenciarCatalogoPage() {
       const json = await res.json();
       
       // Verificar se o plano libera o catálogo parceiro
-      setHasCatalogAccess(json.has_catalog_access === true);
+      setHasCatalogAccess(
+        json.partner_catalog_access === true || json.has_catalog_access === true
+      );
       setPlanType(json.entitlements?.plan_type || json.plan?.type || "free");
       setPlanName(json.plan?.name || "Free");
       setPaidFeaturesLockedUntilPayment(json.entitlements?.paid_features_locked_until_payment === true);
@@ -113,8 +120,11 @@ export default function GerenciarCatalogoPage() {
   };
 
   useEffect(() => {
+    if (guarding || !allowed) {
+      return;
+    }
     fetchProducts();
-  }, [debouncedSearch, selectedDistribuidor]);
+  }, [allowed, debouncedSearch, guarding, selectedDistribuidor]);
 
   useEffect(() => {
     setPage(1);
@@ -153,6 +163,18 @@ export default function GerenciarCatalogoPage() {
       currency: 'BRL' 
     }).format(price);
   };
+
+  if (guarding) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-gray-500">Validando acesso ao catálogo parceiro...</div>
+      </div>
+    );
+  }
+
+  if (!allowed) {
+    return null;
+  }
 
   return (
     <div className="space-y-6 relative">

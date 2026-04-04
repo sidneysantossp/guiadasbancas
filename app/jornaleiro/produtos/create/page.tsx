@@ -65,6 +65,7 @@ export default function SellerProductCreatePage() {
   const [overdueInGracePeriod, setOverdueInGracePeriod] = useState(false);
   const [overdueGraceEndsAt, setOverdueGraceEndsAt] = useState<string | null>(null);
   const [contractedPlanName, setContractedPlanName] = useState<string | null>(null);
+  const featuredUpgradeUrl = "/jornaleiro/meu-plano?source=destaque";
   
   // Estados para contexto da IA
   const [productName, setProductName] = useState("");
@@ -101,6 +102,7 @@ export default function SellerProductCreatePage() {
         setOverdueInGracePeriod(banca?.entitlements?.overdue_in_grace_period === true);
         setOverdueGraceEndsAt(banca?.entitlements?.overdue_grace_ends_at || null);
         setContractedPlanName(banca?.subscription?.plan?.name || null);
+        setCanFeature(banca?.entitlements?.can_access_featured_placement === true);
       } catch {
         setPlanName("Plano atual");
         setPlanType("free");
@@ -111,6 +113,7 @@ export default function SellerProductCreatePage() {
         setOverdueInGracePeriod(false);
         setOverdueGraceEndsAt(null);
         setContractedPlanName(null);
+        setCanFeature(false);
       }
     };
     loadBanca();
@@ -193,6 +196,8 @@ export default function SellerProductCreatePage() {
             planName: errorData.plan?.name || planName,
             planType: errorData.plan?.type || planType,
           });
+        } else if (errorData?.code === "PLAN_FEATURED_PLACEMENT_LOCKED") {
+          setCanFeature(false);
         } else if (errorData?.code === "PLAN_PENDING_PAYMENT") {
           setPendingPlanName(errorData?.requested_plan?.name || pendingPlanName || "Plano solicitado");
           setPaidFeaturesLockedUntilPayment(true);
@@ -448,12 +453,23 @@ export default function SellerProductCreatePage() {
                   <div className="text-xs text-gray-600 mt-1">
                     Produto aparecerá na seção especial da vitrine da banca.
                     <br />
-                    <span className={`font-medium ${canFeature ? 'text-green-600' : 'text-amber-600'}`}>
-                      {canFeature 
-                        ? `✅ ${8 - featuredCount} vagas disponíveis de 8` 
-                        : '⚠️ Limite de 8 produtos atingido! Desative algum produto abaixo.'
-                      }
-                    </span>
+                    {canFeature ? (
+                      <span className="font-medium text-green-600">
+                        {`✅ ${8 - featuredCount} vagas disponíveis de 8`}
+                      </span>
+                    ) : (
+                      <span className="font-medium text-amber-600">
+                        Recurso disponível apenas no Premium.
+                      </span>
+                    )}
+                    {!canFeature ? (
+                      <>
+                        <br />
+                        <Link href={featuredUpgradeUrl} className="font-medium text-[#ff5c00] underline">
+                          Ative o Premium para destacar produtos na vitrine.
+                        </Link>
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </label>
@@ -485,9 +501,21 @@ export default function SellerProductCreatePage() {
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <h4 className="text-sm font-semibold text-blue-800 mb-2">🔥 Produtos em Destaque</h4>
           <div className="text-xs text-blue-700 space-y-1">
-            <p>• Marque produtos como destaque (máximo 8 por banca)</p>
-            <p>• Produtos destacados aparecem na seção "Ofertas e Promoções"</p>
-            <p>• Gerencie os destaques na listagem de produtos</p>
+            {canFeature ? (
+              <>
+                <p>• Marque produtos como destaque (máximo 8 por banca)</p>
+                <p>• Produtos destacados aparecem na seção "Ofertas e Promoções"</p>
+                <p>• Gerencie os destaques na listagem de produtos</p>
+              </>
+            ) : (
+              <>
+                <p>• Destaque na vitrine é um recurso do plano Premium</p>
+                <p>• O Free continua liberado para cadastro manual, pedidos, estoque e venda via WhatsApp</p>
+                <p>
+                  • <Link href={featuredUpgradeUrl} className="font-semibold text-[#ff5c00] underline">Ative o Premium em Meu Plano</Link> para usar destaque editorial na plataforma
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>

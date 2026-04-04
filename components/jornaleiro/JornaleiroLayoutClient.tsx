@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import type { Route } from "next";
 import Image from "next/image";
 import ToastProvider from "@/components/admin/ToastProvider";
 import NotificationCenter from "@/components/admin/NotificationCenter";
@@ -170,6 +171,9 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   const hasPartnerDirectoryAccess = Boolean(
     banca?.entitlements?.can_access_partner_directory
   );
+  const planType = typeof banca?.entitlements?.plan_type === "string"
+    ? banca.entitlements.plan_type
+    : null;
 
   const menuSections = useMemo(() => {
     return buildJornaleiroMenuSections({
@@ -179,6 +183,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
       permissionsLoaded,
       isOwner,
       userPermissions,
+      planType,
     });
   }, [
     permissionsLoaded,
@@ -187,6 +192,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     hasCatalogAccess,
     hasPartnerDirectoryAccess,
     plansMenuEnabled,
+    planType,
   ]);
 
   const menuItems = useMemo(() => menuSections.flatMap((section) => section.items), [menuSections]);
@@ -684,11 +690,16 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
                       {section.items.map((item) => {
                         const IconComponent = journaleiroIconComponents[item.icon];
                         const isActive = isMenuItemActive(item);
+                        const showPremiumBadge = planType === "free" && item.premiumFeature === true;
+                        const effectiveHref =
+                          showPremiumBadge && item.upgradeSource
+                            ? (`/jornaleiro/meu-plano?source=${encodeURIComponent(item.upgradeSource)}` as Route)
+                            : item.href;
 
                         return (
                           <Link
                             key={item.href}
-                            href={item.href}
+                            href={effectiveHref}
                             onClick={() => setSidebarOpen(false)}
                             className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
                               isActive
@@ -704,6 +715,11 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
                               <IconComponent size={20} stroke={1.7} />
                             </span>
                             <span className="min-w-0 flex-1 font-medium">{item.label}</span>
+                            {showPremiumBadge ? (
+                              <span className="inline-flex shrink-0 items-center rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
+                                Premium
+                              </span>
+                            ) : null}
                           </Link>
                         );
                       })}

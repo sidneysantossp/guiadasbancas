@@ -37,6 +37,10 @@ export async function loadJornaleiroStats(userId: string) {
         pedidosHoje: 0,
         pedidosPendentes: 0,
         faturamentoHoje: 0,
+        isCotista: false,
+        partnerLinked: false,
+        canAccessDistributorCatalog: false,
+        partnerCatalogAccess: false,
       },
     };
   }
@@ -108,7 +112,9 @@ export async function loadJornaleiroStats(userId: string) {
       pedidosPendentes,
       faturamentoHoje,
       isCotista: entitlements.isLegacyCotistaLinked,
+      partnerLinked: entitlements.isLegacyCotistaLinked,
       canAccessDistributorCatalog: entitlements.canAccessDistributorCatalog,
+      partnerCatalogAccess: entitlements.canAccessDistributorCatalog,
       planType: entitlements.planType,
     },
   };

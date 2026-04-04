@@ -34,6 +34,10 @@ async function ensureDistributorReportAccess(userId: string) {
 }
 
 export async function loadJornaleiroCotistaReport(userId: string) {
+  return loadJornaleiroPartnerCatalogReport(userId);
+}
+
+export async function loadJornaleiroPartnerCatalogReport(userId: string) {
   const { banca, entitlements } = await ensureDistributorReportAccess(userId);
 
   const [{ data: produtosProprios, error: produtosPropriosError }, { data: produtosDistribuidor, error: produtosDistribuidorError }] =
@@ -102,15 +106,19 @@ export async function loadJornaleiroCotistaReport(userId: string) {
 
   return {
     success: true,
+    partner_linked: entitlements.isLegacyCotistaLinked,
+    partner_catalog_access: entitlements.canAccessDistributorCatalog,
     plan: {
       type: entitlements.planType,
       name: entitlements.plan?.name || "Free",
       can_access_distributor_catalog: entitlements.canAccessDistributorCatalog,
+      partner_catalog_access: entitlements.canAccessDistributorCatalog,
     },
     stats: {
       total_produtos: (produtosProprios?.length || 0) + produtosHabilitados.length,
       produtos_proprios: produtosProprios?.length || 0,
       produtos_distribuidores: produtosHabilitados.length,
+      produtos_parceiros: produtosHabilitados.length,
       produtos_customizados: produtosCustomizados.length,
       produtos_desabilitados: produtosDesabilitados.length,
       produtos_estoque_proprio: produtosEstoqueProprio.length,

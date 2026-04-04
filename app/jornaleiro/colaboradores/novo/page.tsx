@@ -6,6 +6,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { IconAlertCircle, IconCheck, IconEye, IconEyeOff } from "@tabler/icons-react";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { usePremiumRouteGuard } from "@/components/jornaleiro/usePremiumRouteGuard";
 
 type Banca = {
   id: string;
@@ -31,6 +32,10 @@ const MODULES = [
 export default function NovoColaboradorPage() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { guarding, allowed } = usePremiumRouteGuard({
+    entitlementKey: "can_manage_collaborators",
+    source: "colaboradores",
+  });
   const [bancas, setBancas] = useState<Banca[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -118,6 +123,10 @@ export default function NovoColaboradorPage() {
   );
 
   useEffect(() => {
+    if (guarding || !allowed) {
+      return;
+    }
+
     const loadBancas = async () => {
       try {
         const res = await fetch("/api/jornaleiro/bancas", { credentials: "include" });
@@ -132,7 +141,7 @@ export default function NovoColaboradorPage() {
       }
     };
     loadBancas();
-  }, []);
+  }, [guarding, allowed]);
 
   const toggleBanca = (bancaId: string) => {
     setSelectedBancas((prev) =>
@@ -214,6 +223,18 @@ export default function NovoColaboradorPage() {
       setSaving(false);
     }
   };
+
+  if (guarding) {
+    return (
+      <div className="flex items-center justify-center py-12 text-sm text-gray-500">
+        Validando acesso ao módulo de colaboradores...
+      </div>
+    );
+  }
+
+  if (!allowed) {
+    return null;
+  }
 
   return (
     <div className="space-y-4">

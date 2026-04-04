@@ -27,6 +27,17 @@ function mapCollaboratorByIdError(error: any, operation: "read" | "write") {
     );
   }
 
+  if (message === "PREMIUM_REQUIRED_COLLABORATORS") {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Colaboradores fazem parte do plano Premium",
+        code: "PREMIUM_REQUIRED_COLLABORATORS",
+      },
+      { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
   if (message === "FORBIDDEN_PROMOTE_ADMIN") {
     return NextResponse.json(
       {

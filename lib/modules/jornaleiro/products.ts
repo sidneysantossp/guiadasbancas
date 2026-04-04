@@ -150,6 +150,20 @@ function buildDistributorCatalogProductsError(
   });
 }
 
+function buildFeaturedPlacementLockedError() {
+  const payload = {
+    success: false,
+    error: 'Destacar produtos na vitrine é um recurso do plano Premium.',
+    code: "PLAN_FEATURED_PLACEMENT_LOCKED",
+    upgrade_url: "/jornaleiro/meu-plano?source=destaque",
+  };
+
+  return Object.assign(new Error(String(payload.code)), {
+    status: 403,
+    payload,
+  });
+}
+
 function normalizeBooleanFilter(value: string | null) {
   if (value === "true") return true;
   if (value === "false") return false;
@@ -168,6 +182,10 @@ export async function listJornaleiroProducts(params: {
       success: true,
       items: [],
       total: 0,
+      partner_linked: false,
+      partner_catalog_access: false,
+      is_cotista: false,
+      has_catalog_access: false,
       banca_lifecycle: bancaLifecycle,
       message: "Cadastre sua banca para ver seus produtos",
     };
@@ -229,7 +247,9 @@ export async function listJornaleiroProducts(params: {
     total: allItems.length,
     totalReal,
     is_cotista: entitlements.isLegacyCotistaLinked,
+    partner_linked: entitlements.isLegacyCotistaLinked,
     has_catalog_access: entitlements.canAccessDistributorCatalog,
+    partner_catalog_access: entitlements.canAccessDistributorCatalog,
     plan: entitlements.plan,
     requested_plan: entitlements.requestedPlan,
     subscription: entitlements.subscription,
@@ -293,6 +313,10 @@ export async function createJornaleiroProduct(params: {
       imageLimit: entitlements.maxImagesPerProduct,
       currentCount: incomingImages.length,
     });
+  }
+
+  if (body.featured === true && !entitlements.canAccessFeaturedPlacement) {
+    throw buildFeaturedPlacementLockedError();
   }
 
   const novo: Record<string, any> = {
@@ -501,6 +525,14 @@ export async function updateJornaleiroProduct(params: {
       imageLimit: entitlements.maxImagesPerProduct,
       currentCount: updateData.images.length,
     });
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(updateData, "featured") &&
+    updateData.featured === true &&
+    !entitlements.canAccessFeaturedPlacement
+  ) {
+    throw buildFeaturedPlacementLockedError();
   }
 
   if (

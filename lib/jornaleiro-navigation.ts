@@ -41,7 +41,10 @@ export type JornaleiroMenuItem = {
   aliases?: string[];
   requiresCatalogAccess?: boolean;
   requiresPartnerDirectoryAccess?: boolean;
+  premiumFeature?: boolean;
+  upgradeSource?: string;
   hideWhenPlansDisabled?: boolean;
+  visibleInFree?: boolean;
 };
 
 export type JornaleiroMenuSection = {
@@ -62,6 +65,7 @@ export type JornaleiroMenuContext = {
   permissionsLoaded: boolean;
   isOwner: boolean | null;
   userPermissions: string[];
+  planType: string | null;
 };
 
 const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
@@ -75,6 +79,7 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         icon: "dashboard",
         description: "Centro de comando da operação diária com prioridade, status e atalhos.",
         permissionKey: "dashboard",
+        visibleInFree: true,
       },
       {
         label: "Central de Inteligência",
@@ -82,7 +87,13 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         icon: "intelligence",
         description: "Cruza pedidos, catálogo, demanda e vitrine para orientar as decisões da banca.",
         permissionKey: "relatorios",
-        aliases: ["/jornaleiro/relatorios", "/jornaleiro/relatorios/analytics", "/jornaleiro/relatorios/cotista"],
+        aliases: [
+          "/jornaleiro/relatorios",
+          "/jornaleiro/relatorios/analytics",
+          "/jornaleiro/relatorios/cotista",
+          "/jornaleiro/relatorios/rede-parceira",
+        ],
+        visibleInFree: true,
       },
     ],
   },
@@ -97,6 +108,7 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         description: "Dados da banca, identidade visual, horários, contato e publicação.",
         permissionKey: "bancas",
         aliases: ["/jornaleiro/banca", "/jornaleiro/banca-v2"],
+        visibleInFree: true,
       },
       {
         label: "Pedidos",
@@ -104,6 +116,7 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         icon: "orders",
         description: "Acompanhe pedidos, priorize atendimento e avance os status da operação.",
         permissionKey: "pedidos",
+        visibleInFree: true,
       },
       {
         label: "Produtos",
@@ -111,6 +124,7 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         icon: "products",
         description: "Catálogo próprio da banca com controle de oferta, estoque e qualidade.",
         permissionKey: "produtos",
+        visibleInFree: true,
       },
       {
         label: "Notificações",
@@ -118,6 +132,7 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         icon: "notifications",
         description: "Avisos operacionais, atualizações de pedidos e comunicações da plataforma.",
         permissionKey: "notificacoes",
+        visibleInFree: true,
       },
     ],
   },
@@ -131,6 +146,7 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         icon: "banca",
         description: "Troque de banca, acompanhe o portfólio vinculado e acesse o cadastro.",
         permissionKey: "bancas",
+        visibleInFree: true,
       },
       {
         label: "Colaboradores",
@@ -138,6 +154,9 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         icon: "users",
         description: "Permissões e acessos da equipe que opera a banca no dia a dia.",
         permissionKey: "colaboradores",
+        premiumFeature: true,
+        upgradeSource: "colaboradores",
+        visibleInFree: true,
       },
       {
         label: "Configurações",
@@ -145,6 +164,7 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         icon: "settings",
         description: "Entrega, pagamento, canais de contato e parâmetros gerais da banca.",
         permissionKey: "configuracoes",
+        visibleInFree: true,
       },
     ],
   },
@@ -160,6 +180,9 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         permissionKey: "catalogo",
         aliases: ["/jornaleiro/catalogo-distribuidor"],
         requiresCatalogAccess: true,
+        premiumFeature: true,
+        upgradeSource: "catalogo-distribuidor",
+        visibleInFree: true,
       },
       {
         label: "Rede de Distribuidores",
@@ -168,6 +191,9 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         description: "Acesso a parceiros de abastecimento e fornecedores integrados ao marketplace.",
         permissionKey: "distribuidores",
         requiresPartnerDirectoryAccess: true,
+        premiumFeature: true,
+        upgradeSource: "distribuidores",
+        visibleInFree: true,
       },
       {
         label: "Campanhas",
@@ -175,6 +201,9 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         icon: "campaigns",
         description: "Promoções patrocinadas e visibilidade extra para os produtos da banca.",
         permissionKey: "campanhas",
+        premiumFeature: true,
+        upgradeSource: "campanhas",
+        visibleInFree: true,
       },
       {
         label: "Cupons",
@@ -182,6 +211,7 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         icon: "coupons",
         description: "Mecânica promocional para ativar demanda e recompras da base de clientes.",
         permissionKey: "cupons",
+        visibleInFree: true,
       },
     ],
   },
@@ -196,6 +226,7 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         description: "Status do plano, cobranças, limites e acessos da banca.",
         permissionKey: "plano",
         hideWhenPlansDisabled: true,
+        visibleInFree: true,
       },
       {
         label: "Academy",
@@ -203,6 +234,7 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         icon: "academy",
         description: "Conteúdos para ajudar o jornaleiro a usar melhor a plataforma.",
         permissionKey: "academy",
+        visibleInFree: true,
       },
     ],
   },
@@ -216,8 +248,7 @@ export const JOURNALEIRO_MOBILE_QUICK_LINKS = [
 ] as const;
 
 function itemVisible(item: JornaleiroMenuItem, context: JornaleiroMenuContext) {
-  if (item.requiresCatalogAccess && !context.hasCatalogAccess) return false;
-  if (item.requiresPartnerDirectoryAccess && !context.hasPartnerDirectoryAccess) return false;
+  if (context.planType === "free" && !item.visibleInFree) return false;
   if (item.hideWhenPlansDisabled && !context.plansMenuEnabled) return false;
 
   if (!context.permissionsLoaded) {

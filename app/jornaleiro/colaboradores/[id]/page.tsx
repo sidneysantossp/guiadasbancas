@@ -6,6 +6,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { IconAlertCircle, IconArrowLeft } from "@tabler/icons-react";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { usePremiumRouteGuard } from "@/components/jornaleiro/usePremiumRouteGuard";
 
 type Banca = {
   id: string;
@@ -32,6 +33,10 @@ export default function EditarColaboradorPage() {
   const router = useRouter();
   const params = useParams();
   const { profile } = useAuth();
+  const { guarding, allowed } = usePremiumRouteGuard({
+    entitlementKey: "can_manage_collaborators",
+    source: "colaboradores",
+  });
   const colaboradorId = params.id as string;
 
   const [bancas, setBancas] = useState<Banca[]>([]);
@@ -51,6 +56,10 @@ export default function EditarColaboradorPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (guarding || !allowed) {
+      return;
+    }
+
     const loadData = async () => {
       try {
         // Carregar bancas disponíveis
@@ -93,7 +102,7 @@ export default function EditarColaboradorPage() {
     };
 
     loadData();
-  }, [colaboradorId]);
+  }, [colaboradorId, guarding, allowed]);
 
   const toggleBanca = (bancaId: string) => {
     setSelectedBancas((prev) =>
@@ -166,6 +175,18 @@ export default function EditarColaboradorPage() {
       setSaving(false);
     }
   };
+
+  if (guarding) {
+    return (
+      <div className="flex items-center justify-center py-12 text-sm text-gray-500">
+        Validando acesso ao módulo de colaboradores...
+      </div>
+    );
+  }
+
+  if (!allowed) {
+    return null;
+  }
 
   if (loading) {
     return (

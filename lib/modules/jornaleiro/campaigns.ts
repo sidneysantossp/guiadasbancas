@@ -1,5 +1,6 @@
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
 import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
 async function ensureJornaleiroWithBanca(userId: string) {
@@ -15,11 +16,21 @@ async function ensureJornaleiroWithBanca(userId: string) {
 
   const banca = await loadActiveJornaleiroBancaRow({
     userId,
-    select: "id, user_id",
+    select: "id, user_id, is_cotista, cotista_id",
   });
 
   if (!banca) {
     throw new Error("BANCA_NOT_FOUND");
+  }
+
+  const entitlements = await resolveBancaPlanEntitlements({
+    id: banca.id,
+    is_cotista: (banca as any).is_cotista,
+    cotista_id: (banca as any).cotista_id,
+  });
+
+  if (!entitlements.canAccessCampaigns) {
+    throw new Error("PREMIUM_REQUIRED_CAMPAIGNS");
   }
 
   return banca;

@@ -2,6 +2,7 @@ import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
 import { supabaseAdmin } from "@/lib/supabase";
 
 type PlanType = "free" | "start" | "premium" | string;
+type NormalizedPlanType = "free" | "premium";
 
 type SubscriptionPlan = {
   id: string;
@@ -44,8 +45,21 @@ export type BancaPlanEntitlements = {
   planType: PlanType;
   productLimit: number | null;
   maxImagesPerProduct: number | null;
+  canManageManualProducts: boolean;
+  canManageOrders: boolean;
+  canUseCoupons: boolean;
+  canAccessIntelligence: boolean;
+  canAccessAcademy: boolean;
+  canAccessSupport: boolean;
+  canSellViaWhatsapp: boolean;
+  canManageInventory: boolean;
+  canAccessCampaigns: boolean;
+  canManageCollaborators: boolean;
+  canAccessEditorial: boolean;
+  canAccessFeaturedPlacement: boolean;
   canAccessDistributorCatalog: boolean;
   canAccessPartnerDirectory: boolean;
+  hasPrioritySupport: boolean;
   isLegacyCotistaLinked: boolean;
   paidFeaturesLockedUntilPayment: boolean;
   overdueFeaturesLocked: boolean;
@@ -83,6 +97,43 @@ function readNumericLimit(limits: Record<string, any>, key: string): number | nu
 
 function hasFeature(features: string[], patterns: RegExp[]): boolean {
   return features.some((feature) => patterns.some((pattern) => pattern.test(feature)));
+}
+
+function normalizePlanType(planType: PlanType | null | undefined): NormalizedPlanType {
+  return planType === "premium" || planType === "start" ? "premium" : "free";
+}
+
+function resolveBooleanAccess(params: {
+  planType: PlanType;
+  limits: Record<string, any>;
+  features: string[];
+  premiumPatterns?: RegExp[];
+  freePatterns?: RegExp[];
+  defaultFree: boolean;
+}) {
+  const { planType, limits, features, premiumPatterns = [], freePatterns = [], defaultFree } = params;
+  const normalizedPlanType = normalizePlanType(planType);
+
+  if (normalizedPlanType === "premium") {
+    return true;
+  }
+
+  if (normalizedPlanType === "free") {
+    if (freePatterns.length > 0 && hasFeature(features, freePatterns)) {
+      return true;
+    }
+    return defaultFree;
+  }
+
+  if (premiumPatterns.length > 0 && hasFeature(features, premiumPatterns)) {
+    return true;
+  }
+
+  if (freePatterns.length > 0 && hasFeature(features, freePatterns)) {
+    return true;
+  }
+
+  return defaultFree;
 }
 
 async function readCurrentSubscription(bancaId: string): Promise<SubscriptionRow | null> {
@@ -262,8 +313,10 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
   const requestedPlan = paidFeaturesLockedUntilPayment ? subscriptionPlan : null;
   const features = plan?.features || [];
   const limits = plan?.limits || {};
-  const planType = (plan?.type || "free") as PlanType;
+  const planType = normalizePlanType((plan?.type || "free") as PlanType);
   const isLegacyCotistaLinked = banca.is_cotista === true || Boolean(banca.cotista_id);
+  const productLimit =
+    readNumericLimit(limits, "max_products") || (planType === "free" ? 10 : null);
 
   const planIncludesPartnerDirectory =
     planType === "premium" ||
@@ -275,15 +328,69 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
     Boolean(limits.distributor_catalog) ||
     hasFeature(features, [/cat[aá]logo/i, /distribuidor/i, /fornecedor/i]);
 
+  const canAccessCampaigns = resolveBooleanAccess({
+    planType,
+    limits,
+    features,
+    premiumPatterns: [/campanh/i],
+    defaultFree: false,
+  });
+
+  const canManageCollaborators = resolveBooleanAccess({
+    planType,
+    limits,
+    features,
+    premiumPatterns: [/colaborad/i, /equipe/i],
+    defaultFree: false,
+  });
+
+  const canAccessEditorial = resolveBooleanAccess({
+    planType,
+    limits,
+    features,
+    premiumPatterns: [/editorial/i, /publ/i],
+    defaultFree: false,
+  });
+
+  const canAccessFeaturedPlacement = resolveBooleanAccess({
+    planType,
+    limits,
+    features,
+    premiumPatterns: [/destaque/i, /featured/i],
+    defaultFree: false,
+  });
+
+  const hasPrioritySupport = resolveBooleanAccess({
+    planType,
+    limits,
+    features,
+    premiumPatterns: [/suporte priorit[áa]rio/i, /priority support/i],
+    freePatterns: [/suporte/i],
+    defaultFree: false,
+  });
+
   return {
     subscription,
     plan,
     requestedPlan,
     planType,
-    productLimit: readNumericLimit(limits, "max_products"),
+    productLimit,
     maxImagesPerProduct: readNumericLimit(limits, "max_images_per_product"),
+    canManageManualProducts: true,
+    canManageOrders: true,
+    canUseCoupons: true,
+    canAccessIntelligence: true,
+    canAccessAcademy: true,
+    canAccessSupport: true,
+    canSellViaWhatsapp: true,
+    canManageInventory: true,
+    canAccessCampaigns,
+    canManageCollaborators,
+    canAccessEditorial,
+    canAccessFeaturedPlacement,
     canAccessPartnerDirectory: planIncludesPartnerDirectory,
     canAccessDistributorCatalog: planIncludesDistributorCatalog || isLegacyCotistaLinked,
+    hasPrioritySupport,
     isLegacyCotistaLinked,
     paidFeaturesLockedUntilPayment,
     overdueFeaturesLocked,

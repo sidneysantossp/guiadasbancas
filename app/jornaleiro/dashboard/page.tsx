@@ -9,7 +9,6 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
 import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
-import PlanEntryGuide from "@/components/jornaleiro/PlanEntryGuide";
 
 const BILLING_CYCLES: Record<string, string> = {
   monthly: "mês",
@@ -322,7 +321,8 @@ export default function JornaleiroDashboardPage() {
     );
   }
 
-  const needsTpuAlert = banca && !banca.is_cotista && !banca.tpu_url;
+  const partnerLinked = banca?.partner_linked === true || banca?.is_cotista === true;
+  const needsTpuAlert = banca && !partnerLinked && !banca.tpu_url;
 
   return (
     <div className="space-y-4 overflow-x-hidden px-3 sm:px-0 max-w-full">
@@ -455,7 +455,9 @@ export default function JornaleiroDashboardPage() {
             <span className="pb-1 text-sm text-gray-500">{currentPlanPriceLabel}</span>
           </div>
           <p className="mt-2 text-sm text-gray-600">
-            O plano sustenta os recursos da banca, mas a prioridade continua sendo operação, catálogo e publicação. O upgrade entra quando resolver uma necessidade concreta.
+            {currentPlanType === "free"
+              ? `Sua banca já opera no Free com até ${currentPlanLimit || 10} produtos próprios, gestão de vendas, cupons, inteligência, academy, suporte, estoque e vendas pelo WhatsApp.`
+              : "Sua banca está no Premium com campanhas, colaboradores, publi editorial, destaque na plataforma, distribuidores e suporte prioritário liberados."}
           </p>
           {currentSubscriptionStatus === "pending" && requestedPlanName ? (
             <div className="mt-3">
@@ -489,18 +491,20 @@ export default function JornaleiroDashboardPage() {
                 {currentPlanLimit ? `Até ${currentPlanLimit} produtos próprios` : "Sem limite configurado"}
               </div>
               <p className="mt-1 text-sm text-gray-600">
-                Hoje sua banca tem {memoizedMetrics.produtosAtivos} produtos ativos na vitrine.
+                {currentPlanType === "free"
+                  ? `No Free, sua banca publica até ${currentPlanLimit || 10} produtos próprios e continua operando estoque, pedidos e vendas. Hoje a vitrine tem ${memoizedMetrics.produtosAtivos} produtos ativos.`
+                  : `Hoje sua banca tem ${memoizedMetrics.produtosAtivos} produtos ativos na vitrine.`}
               </p>
             </div>
             <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Rede parceira</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Recursos premium</div>
               <div className="mt-2 text-lg font-semibold text-gray-900">
-                {banca?.entitlements?.can_access_distributor_catalog ? "Acesso liberado" : "Ainda bloqueado"}
+                {banca?.entitlements?.can_access_distributor_catalog ? "Premium liberado" : "Upgrade opcional"}
               </div>
               <p className="mt-1 text-sm text-gray-600">
                 {banca?.entitlements?.can_access_distributor_catalog
-                  ? "Sua banca já pode navegar pelo catálogo parceiro dentro do painel."
-                  : "Quando fizer sentido para sua operação, você pode liberar distribuidores e catálogo parceiro no upgrade."}
+                  ? "Distribuidores, campanhas, publi editorial, destaque e suporte prioritário já estão disponíveis para sua banca."
+                  : "Distribuidores, campanhas, publi editorial, destaque na plataforma, colaboradores e suporte prioritário entram no Premium quando fizer sentido escalar."}
               </p>
             </div>
           </div>
@@ -532,14 +536,51 @@ export default function JornaleiroDashboardPage() {
             <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
               <div className="font-semibold">Checklist inicial concluído</div>
               <p className="mt-1">
-                Sua banca já passou pelo básico. Continue operando normalmente no {currentPlanName} e deixe o upgrade para quando a operação realmente pedir mais capacidade.
+                Sua banca já passou pelo básico. Continue operando normalmente no {currentPlanName} e só ative o Premium quando quiser destravar aquisição, distribuidores e mais visibilidade.
               </p>
             </div>
           ) : null}
         </div>
 
         {currentPlanType === "free" ? (
-          <PlanEntryGuide compact className="bg-white" />
+          <div className="rounded-2xl border border-orange-200 bg-white p-5 shadow-sm">
+            <div className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#ff5c00]">
+              Regras do seu plano atual
+            </div>
+            <h3 className="mt-3 text-lg font-semibold text-gray-900">Seu plano atual: Free</h3>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              Sua banca já pode operar no plano Free com até <strong>{currentPlanLimit || 10} produtos próprios</strong>. Isso já cobre operação básica, vendas, estoque, cupons, inteligência, academy, exposição nas redes sociais e suporte sem cobrança.
+            </p>
+            <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+              <div className="font-semibold text-gray-900">O que fica liberado agora</div>
+              <ul className="mt-2 space-y-2">
+                <li>• Até {currentPlanLimit || 10} produtos próprios publicados</li>
+                <li>• Gestão de vendas e pedidos</li>
+                <li>• Venda pelo WhatsApp</li>
+                <li>• Gestão de estoque</li>
+                <li>• Cupons, inteligência e academy</li>
+                <li>• Exposição nas redes sociais da plataforma</li>
+                <li>• Suporte e publicação básica da banca</li>
+              </ul>
+            </div>
+            <div className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+              <div className="font-semibold text-gray-900">O que o Premium destrava</div>
+              <ul className="mt-2 space-y-2">
+                <li>• Campanhas e colaboradores</li>
+                <li>• Publi editorial e destaque na plataforma</li>
+                <li>• Distribuidores e catálogo parceiro</li>
+                <li>• Suporte prioritário</li>
+              </ul>
+            </div>
+            <div className="mt-4">
+              <Link
+                href={("/jornaleiro/meu-plano" as Route)}
+                className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Ver como ativar o Premium
+              </Link>
+            </div>
+          </div>
         ) : (
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-700">
@@ -547,10 +588,10 @@ export default function JornaleiroDashboardPage() {
             </div>
             <h3 className="mt-3 text-lg font-semibold text-gray-900">{currentPlanName}</h3>
             <p className="mt-2 text-sm leading-6 text-gray-600">
-              Sua banca já está acima do plano inicial. Continue usando o painel normalmente e só revise upgrade quando surgir uma necessidade real da operação.
+              Sua banca já está no Premium. Use campanhas, colaboradores, publi editorial, destaque e distribuidores para acelerar aquisição e abastecimento.
             </p>
             <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-              Produtos, distribuidores e limites mais avançados continuam sendo liberados por contexto, sem transformar o painel numa vitrine de planos logo de saída.
+              O Premium mantém tudo do Free e adiciona campanhas, colaboradores, publi editorial, destaque na plataforma, distribuidores e suporte prioritário.
             </div>
           </div>
         )}

@@ -46,8 +46,15 @@ export async function GET(request: NextRequest) {
         ])
       : [0, true];
 
+    const preferredPlans = (data || []).filter((plan) => {
+      const normalizedType = String(plan.type || "").toLowerCase();
+      return normalizedType === "free" || normalizedType === "premium";
+    });
+
+    const plansForJourneyman = preferredPlans.length > 0 ? preferredPlans : data || [];
+
     const plansWithPricing = await Promise.all(
-      (data || []).map(async (plan) => {
+      plansForJourneyman.map(async (plan) => {
         const pricing = banca?.id
           ? await resolvePlanPricing(plan as any, banca.id)
           : {

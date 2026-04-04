@@ -13,11 +13,7 @@ export default function JornaleiroOnboardingPage() {
   const [status, setStatus] = useState<"loading" | "creating" | "success" | "error">("loading");
   const [message, setMessage] = useState("Configurando sua conta...");
 
-  const resolvePostOnboardingTarget = (preferredPlanType?: string | null) => {
-    return preferredPlanType === "premium"
-      ? ("/jornaleiro/meu-plano?source=signup&target=premium&trial=1&autostart=1" as Route)
-      : ("/jornaleiro/dashboard" as Route);
-  };
+  const resolvePostOnboardingTarget = () => "/jornaleiro/dashboard" as Route;
 
   useEffect(() => {
     let cancelled = false;
@@ -42,14 +38,7 @@ export default function JornaleiroOnboardingPage() {
             setMessage("Você já possui uma banca cadastrada. Vamos abrir a próxima etapa do seu painel.");
             setTimeout(() => {
               if (!cancelled) {
-                const preferredPlanType = typeof json?.data?.requested_plan?.type === "string"
-                  ? json.data.requested_plan.type
-                  : typeof json?.data?.plan?.type === "string"
-                    ? json.data.plan.type
-                    : typeof json?.data?.entitlements?.plan_type === "string"
-                      ? json.data.entitlements.plan_type
-                      : null;
-                router.push(resolvePostOnboardingTarget(preferredPlanType));
+                router.push(resolvePostOnboardingTarget());
               }
             }, 1000);
             return;
@@ -227,8 +216,7 @@ export default function JornaleiroOnboardingPage() {
         facebook: saved.facebook || (wizard?.facebookHas === 'yes' ? (wizard?.facebookUrl || '').replace(/^@/, '') : null),
         cep: addressObj.cep, // CEP obrigatório
         address: normalizedAddress || 'Endereço a configurar',
-        // Salvar também o objeto estruturado (temporariamente desabilitado até migração)
-        // ...(addressObj.street ? { addressObj: addressObj } : {}),
+        ...(addressObj.street ? { addressObj } : {}),
         lat: finalLat,
         lng: finalLng,
         tpu_url: saved.tpu_url || wizard?.bankTpuUrl || null,
@@ -244,7 +232,6 @@ export default function JornaleiroOnboardingPage() {
         cotista_codigo: saved.cotista_codigo ?? null,
         cotista_razao_social: saved.cotista_razao_social ?? null,
         cotista_cnpj_cpf: saved.cotista_cnpj_cpf ?? null,
-        preferred_plan_type: saved.preferred_plan_type || null,
       } as any;
       
       logger.log('[Onboarding] 🏢 Preparando dados da banca - partner_linked:', partnerLinked);
@@ -275,7 +262,6 @@ export default function JornaleiroOnboardingPage() {
         body: JSON.stringify({
           banca: bancaData,
           profile: profileUpdates,
-          preferred_plan_type: bancaData.preferred_plan_type || null,
         }),
       });
 
@@ -319,7 +305,7 @@ export default function JornaleiroOnboardingPage() {
       
       logger.log('[Onboarding] 🎉 Sucesso! Redirecionando para a próxima etapa...');
 
-      const nextTarget = resolvePostOnboardingTarget(saved.preferred_plan_type || null);
+      const nextTarget = resolvePostOnboardingTarget();
 
       // Redirecionar com hard reload para garantir que o layout detecte a banca
       setTimeout(() => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { validateProductUpdate } from "@/lib/validators/product";
 import ProductImageUploader from "@/components/admin/ProductImageUploader";
 import RichTextEditor from "@/components/admin/RichTextEditor";
@@ -70,6 +71,7 @@ export default function SellerProductEditPage() {
   const [priceOriginal, setPriceOriginal] = useState("");
   const [discountPercent, setDiscountPercent] = useState(0);
   const isDistributorProduct = Boolean(product?.distribuidor_id);
+  const featuredUpgradeUrl = "/jornaleiro/meu-plano?source=destaque";
 
   // Estados para contexto da IA
   const [productName, setProductName] = useState("");
@@ -193,6 +195,20 @@ export default function SellerProductEditPage() {
     loadCategories();
   }, [toast]);
 
+  useEffect(() => {
+    const loadBancaEntitlements = async () => {
+      try {
+        const res = await fetch("/api/jornaleiro/banca", { cache: "no-store" });
+        const json = await res.json();
+        setCanFeature(json?.data?.entitlements?.can_access_featured_placement === true);
+      } catch {
+        setCanFeature(false);
+      }
+    };
+
+    loadBancaEntitlements();
+  }, []);
+
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
@@ -285,6 +301,9 @@ export default function SellerProductEditPage() {
       const responseData = await res.json();
 
       if (!res.ok) {
+        if (responseData?.code === "PLAN_FEATURED_PLACEMENT_LOCKED") {
+          setCanFeature(false);
+        }
         throw new Error(responseData?.error || "Falha ao salvar produto.");
       }
 
@@ -648,12 +667,23 @@ export default function SellerProductEditPage() {
                   <div className="text-xs text-gray-600 mt-1">
                     Produto aparecerá na seção especial da vitrine da banca.
                     <br />
-                    <span className={`font-medium ${canFeature || product.featured ? 'text-green-600' : 'text-amber-600'}`}>
-                      {canFeature || product.featured
-                        ? `✅ ${8 - featuredCount} vagas disponíveis de 8` 
-                        : '⚠️ Limite de 8 produtos atingido! Desative algum produto abaixo.'
-                      }
-                    </span>
+                    {canFeature || product.featured ? (
+                      <span className="font-medium text-green-600">
+                        {`✅ ${8 - featuredCount} vagas disponíveis de 8`}
+                      </span>
+                    ) : (
+                      <span className="font-medium text-amber-600">
+                        Recurso disponível apenas no Premium.
+                      </span>
+                    )}
+                    {!canFeature && !product.featured ? (
+                      <>
+                        <br />
+                        <Link href={featuredUpgradeUrl} className="font-medium text-[#ff5c00] underline">
+                          Ative o Premium para destacar produtos na vitrine.
+                        </Link>
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </label>

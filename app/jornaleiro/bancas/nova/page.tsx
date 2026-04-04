@@ -129,6 +129,36 @@ export default function JornaleiroNovaBancaPage() {
     }
   }, [cep]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    async function enforceLicenseForAdditionalBanca() {
+      try {
+        const response = await fetch("/api/jornaleiro/bancas", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        const payload = await response.json().catch(() => null);
+
+        if (!mounted || !response.ok || !payload?.success) {
+          return;
+        }
+
+        if (Array.isArray(payload.items) && payload.items.length > 0) {
+          router.replace("/jornaleiro/meu-plano?source=multiplas-bancas" as Route);
+        }
+      } catch {
+        // noop: if the precheck fails, backend still blocks the creation request
+      }
+    }
+
+    enforceLicenseForAdditionalBanca();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);

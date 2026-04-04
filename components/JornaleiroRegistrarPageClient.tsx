@@ -19,7 +19,7 @@ export default function JornaleiroRegistrarPageClient() {
   const router = useRouter();
 
   // Steps (Cota Ativa movido para step 2, mas oculto por enquanto)
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [loadingCep, setLoadingCep] = useState(false);
@@ -28,7 +28,6 @@ export default function JornaleiroRegistrarPageClient() {
   const cepInputRef = useRef<HTMLInputElement | null>(null);
   const numberInputRef = useRef<HTMLInputElement | null>(null);
   const [socialsSkipped, setSocialsSkipped] = useState<boolean>(false);
-  const [selectedPlanType, setSelectedPlanType] = useState<"free" | "premium">("free");
 
   // Step 1: Seller
   const [name, setName] = useState("");
@@ -524,11 +523,11 @@ export default function JornaleiroRegistrarPageClient() {
       setStep(5);
       return;
     }
-    // Step 5: Funcionamento - vai direto para conclusão (step 6)
+    // Step 5: Funcionamento - conclusão do cadastro
     if (step === 5) {
       const err = validateStep3();
       if (err) { setError(err); return; }
-      setStep(6);
+      onFinish();
       return;
     }
   };
@@ -539,7 +538,6 @@ export default function JornaleiroRegistrarPageClient() {
     if (step === 3) setStep(2);
     if (step === 4) setStep(3);
     if (step === 5) setStep(4);
-    if (step === 6) setStep(5);
   };
 
   const { signUp, signIn, profile, isJornaleiro } = useAuth();
@@ -637,7 +635,6 @@ export default function JornaleiroRegistrarPageClient() {
         cotista_codigo: selectedCotaAtiva?.codigo || null,
         cotista_razao_social: selectedCotaAtiva?.razao_social || null,
         cotista_cnpj_cpf: selectedCotaAtiva?.cnpj_cpf || null,
-        preferred_plan_type: selectedPlanType || "free",
       };
 
       logger.log('[Wizard] 📦 Dados da banca preparados:', bancaData);
@@ -856,7 +853,7 @@ export default function JornaleiroRegistrarPageClient() {
           <div className="h-1 w-full rounded-full bg-gray-200" />
           <div
             className="absolute left-0 top-0 h-1 rounded-full bg-[#ff5c00] transition-all duration-500"
-            style={{ width: `${((step - 1) / 5) * 100}%` }}
+            style={{ width: `${((step - 1) / 4) * 100}%` }}
           />
         </div>
         <div className="mt-3 flex items-center justify-between">
@@ -875,9 +872,6 @@ export default function JornaleiroRegistrarPageClient() {
             )},
             { n: 5, label: 'Funcionamento', icon: (
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-            )},
-            { n: 6, label: 'Plano', icon: (
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M7 12h10M9 18h6"/></svg>
             )},
           ].map(({ n, label, icon }) => {
             const isDone = step > n;
@@ -905,7 +899,7 @@ export default function JornaleiroRegistrarPageClient() {
       <div className="max-w-3xl mx-auto rounded-2xl border border-[#ff5c00] bg-white p-6 shadow-lg">
         <div className="flex flex-col items-center gap-2">
           <div className="text-center">
-            <h1 className="text-xl font-semibold">{step === 2 ? 'Dados de Acesso da Banca' : step === 3 ? 'Informações da Banca' : step === 4 ? 'Imagens da Banca' : step === 5 ? 'Funcionamento da Banca' : step === 6 ? 'Como você quer ativar sua banca?' : 'Cadastro do Jornaleiro'}</h1>
+            <h1 className="text-xl font-semibold">{step === 2 ? 'Dados de Acesso da Banca' : step === 3 ? 'Informações da Banca' : step === 4 ? 'Imagens da Banca' : step === 5 ? 'Funcionamento da Banca' : 'Cadastro do Jornaleiro'}</h1>
             {step === 1 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Informe seu nome completo, CPF ou CNPJ e WhatsApp para começarmos seu cadastro gratuito na plataforma.</p>
             ) : step === 2 ? (
@@ -916,8 +910,6 @@ export default function JornaleiroRegistrarPageClient() {
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Adicione as imagens da sua banca para criar uma identidade visual atrativa. O banner aparece no topo e a foto de perfil identifica sua banca.</p>
             ) : step === 5 ? (
               <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Defina os horários em que a banca atende. Essas informações aparecem para os clientes na plataforma.</p>
-            ) : step === 6 ? (
-              <p className="mt-1 text-sm text-gray-600 px-4 md:px-8">Você pode começar grátis ou ativar 7 dias grátis do Premium com cartão. Se cancelar antes do prazo, nenhuma cobrança será feita.</p>
             ) : null}
           </div>
         </div>
@@ -1465,141 +1457,12 @@ export default function JornaleiroRegistrarPageClient() {
           </div>
         )}
 
-        {step === 6 && (
-          <div className="mt-4 space-y-5">
-            <div className="grid gap-5 xl:grid-cols-[1.1fr,0.9fr]">
-              <div className="space-y-5">
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-                  <div className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#ff5c00]">
-                    Ativação da banca
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-gray-600">
-                    Seu cadastro já está pronto. Escolha agora se a banca entra no plano gratuito ou se ativa 7 dias grátis do Premium antes da primeira cobrança.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPlanType("free")}
-                    className={`rounded-2xl border p-5 text-left transition-all ${
-                      selectedPlanType === "free"
-                        ? "border-[#ff5c00] bg-orange-50 shadow-sm"
-                        : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-lg font-semibold text-gray-900">Free</div>
-                        <div className="mt-1 text-sm text-gray-600">Cadastro gratuito para começar agora.</div>
-                      </div>
-                      {selectedPlanType === "free" ? (
-                        <span className="grid h-6 w-6 place-items-center rounded-full bg-[#ff5c00] text-white">
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M20 6L9 17l-5-5" />
-                          </svg>
-                        </span>
-                      ) : null}
-                    </div>
-                    <ul className="mt-4 space-y-2 text-sm text-gray-700">
-                      <li>• Até 10 produtos manuais</li>
-                      <li>• Gestão de produtos e pedidos</li>
-                      <li>• Venda pelo WhatsApp</li>
-                      <li>• Exposição da banca nas redes sociais da plataforma</li>
-                      <li>• Suporte</li>
-                    </ul>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPlanType("premium")}
-                    className={`rounded-2xl border p-5 text-left transition-all ${
-                      selectedPlanType === "premium"
-                        ? "border-[#ff5c00] bg-orange-50 shadow-sm"
-                        : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-lg font-semibold text-gray-900">Premium</div>
-                        <div className="mt-1 text-sm text-gray-600">Todos os recursos liberados por 7 dias grátis.</div>
-                      </div>
-                      {selectedPlanType === "premium" ? (
-                        <span className="grid h-6 w-6 place-items-center rounded-full bg-[#ff5c00] text-white">
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M20 6L9 17l-5-5" />
-                          </svg>
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="mt-3 inline-flex items-center rounded-full bg-purple-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-purple-700">
-                      7 dias grátis
-                    </div>
-                    <ul className="mt-4 space-y-2 text-sm text-gray-700">
-                      <li>• Catálogo dos distribuidores</li>
-                      <li>• Cadastro manual ampliado de produtos</li>
-                      <li>• Todos os recursos premium do painel</li>
-                      <li>• Cartão obrigatório para ativação do teste</li>
-                    </ul>
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                <div className="inline-flex items-center rounded-full bg-[#fff0e6] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#ff5c00]">
-                  Ativação segura
-                </div>
-                <h3 className="mt-3 text-xl font-semibold text-gray-900">
-                  {selectedPlanType === "free" ? "Comece sem cobrança" : "7 dias grátis do Premium"}
-                </h3>
-                <p className="mt-3 text-sm leading-6 text-gray-600">
-                  {selectedPlanType === "free"
-                    ? "Você conclui o cadastro agora e entra direto no plano gratuito. O Premium pode ser ativado depois no painel."
-                    : "Na próxima tela você ativa o teste grátis em um ambiente seguro. O cartão só será usado se você decidir continuar após os 7 dias."}
-                </p>
-
-                <div className="mt-5 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4">
-                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                    {selectedPlanType === "free" ? "O que acontece agora" : "Gateway de pagamento"}
-                  </div>
-                  {selectedPlanType === "free" ? (
-                    <ul className="mt-3 space-y-2 text-sm text-gray-700">
-                      <li>• Sua banca entra no Free imediatamente</li>
-                      <li>• Sem cobrança ou cartão nesta etapa</li>
-                      <li>• Upgrade para Premium disponível no painel</li>
-                    </ul>
-                  ) : (
-                    <ul className="mt-3 space-y-2 text-sm text-gray-700">
-                      <li>• Ativação segura via Asaas</li>
-                      <li>• Cartão obrigatório para iniciar o teste</li>
-                      <li>• Cancelamento sem cobrança até o 7º dia</li>
-                      <li>• Cobrança automática no 8º dia se não cancelar</li>
-                    </ul>
-                  )}
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-                  {selectedPlanType === "free" ? (
-                    <p>
-                      A banca será criada no <strong>Free</strong> com os recursos básicos liberados.
-                    </p>
-                  ) : (
-                    <p>
-                      A banca será criada com intenção de <strong>Premium</strong>. Você seguirá para a ativação do teste grátis com cartão antes da cobrança automática.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="mt-6 flex items-center justify-end">
           <div className="flex items-center gap-2">
             {step > 1 && (
               <button onClick={onBack} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50">Voltar</button>
             )}
-            {step < 6 ? (
+            {step < 5 ? (
               <button 
                 onClick={onNext} 
                 disabled={checkingCpf || isBusy || checkingEmail}
@@ -1613,7 +1476,7 @@ export default function JornaleiroRegistrarPageClient() {
                 )}
                 {checkingCpf ? 'Verificando...' : checkingEmail ? 'Validando email...' : isBusy ? 'Aguarde...' : 'Avançar'}
               </button>
-            ) : step === 6 ? (
+            ) : step === 5 ? (
               <button
                 onClick={onFinish}
                 disabled={isBusy}
@@ -1625,7 +1488,7 @@ export default function JornaleiroRegistrarPageClient() {
                     <path d="M12 2a10 10 0 0 1 10 10" opacity="0.75"/>
                   </svg>
                 )}
-                {isBusy ? 'Concluindo...' : selectedPlanType === 'premium' ? 'Continuar para ativação segura' : 'Concluir cadastro grátis'}
+                {isBusy ? 'Concluindo...' : 'Concluir cadastro'}
               </button>
             ) : null}
           </div>

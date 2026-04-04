@@ -36,6 +36,7 @@ type CheckoutResult = {
 type Props = {
   open: boolean;
   targetPlanType?: string | null;
+  bancaName?: string | null;
   onClose: () => void;
   onSuccess?: () => void | Promise<void>;
 };
@@ -51,7 +52,7 @@ function formatCurrency(value: number) {
   return `R$ ${value.toFixed(2).replace(".", ",")}`;
 }
 
-export default function PlanCheckoutModal({ open, targetPlanType, onClose, onSuccess }: Props) {
+export default function PlanCheckoutModal({ open, targetPlanType, bancaName, onClose, onSuccess }: Props) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [billingType, setBillingType] = useState<"PIX" | "BOLETO">("PIX");
@@ -79,7 +80,11 @@ export default function PlanCheckoutModal({ open, targetPlanType, onClose, onSuc
         if (!res.ok || json?.success === false) {
           throw new Error(json?.error || "Não foi possível carregar os planos");
         }
-        setPlans((json.data || []).filter((plan: Plan) => plan?.type && Number(plan.effective_price ?? plan.price ?? 0) > 0));
+        setPlans(
+          (json.data || []).filter(
+            (plan: Plan) => plan?.type && Number(plan.effective_price ?? plan.price ?? 0) > 0
+          )
+        );
       } catch (loadError: any) {
         setError(loadError?.message || "Não foi possível carregar os planos");
       } finally {
@@ -97,6 +102,9 @@ export default function PlanCheckoutModal({ open, targetPlanType, onClose, onSuc
       const byType = plans.find((plan) => plan.type === targetPlanType);
       if (byType) return byType;
     }
+
+    const premiumPlan = plans.find((plan) => plan.type === "premium");
+    if (premiumPlan) return premiumPlan;
 
     return plans[0] || null;
   }, [plans, targetPlanType]);
@@ -148,14 +156,14 @@ export default function PlanCheckoutModal({ open, targetPlanType, onClose, onSuc
         <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-6">
           <div>
             <h2 className="text-xl font-bold text-gray-900">
-              {checkoutResult ? "Assinatura criada" : "Ativar novo plano"}
+              {checkoutResult ? "Licença criada" : "Ativar Premium desta banca"}
             </h2>
             <p className="mt-1 text-sm text-gray-600">
               {checkoutResult
                 ? checkoutResult.trial_days_applied
-                  ? "Sua degustação já começou e a primeira cobrança ficou agendada para o fim desse período."
-                  : "A primeira cobrança já foi gerada. Conclua o pagamento para confirmar sua assinatura."
-                : "Escolha a forma de pagamento para gerar sua assinatura recorrente."}
+                  ? "O período grátis desta banca já começou e a primeira cobrança ficou agendada para o fim desse prazo."
+                  : "A primeira cobrança desta licença já foi gerada. Conclua o pagamento para confirmar o Premium."
+                : "Escolha como quer ativar a licença Premium desta banca no Asaas."}
             </p>
           </div>
           <button
@@ -207,11 +215,16 @@ export default function PlanCheckoutModal({ open, targetPlanType, onClose, onSuc
             <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-700">
-                  Plano selecionado
+                  Licença selecionada
                 </span>
                 <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#ff5c00]">
                   {selectedPlan.name}
                 </span>
+                {bancaName ? (
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-700">
+                    {bancaName}
+                  </span>
+                ) : null}
               </div>
               <div className="mt-3 flex flex-wrap items-end gap-2">
                 {selectedPlan.original_price ? (
@@ -236,18 +249,18 @@ export default function PlanCheckoutModal({ open, targetPlanType, onClose, onSuc
               ) : null}
               {selectedPlan.trial_available && Number(selectedPlan.trial_days || 0) > 0 ? (
                 <div className="mt-3 rounded-xl bg-blue-50 px-3 py-2 text-sm text-blue-700">
-                  Você terá <strong>{selectedPlan.trial_days} dias de degustação</strong> antes do vencimento da primeira cobrança.
+                  Você terá <strong>{selectedPlan.trial_days} dias grátis</strong> antes do vencimento da primeira cobrança.
                 </div>
               ) : null}
               <p className="mt-3 text-sm text-gray-600">
                 {selectedPlan.trial_available && Number(selectedPlan.trial_days || 0) > 0
-                  ? "A cobrança já fica programada, mas o vencimento só chega depois do período de degustação."
-                  : "A primeira cobrança é gerada agora. Depois disso, o Asaas seguirá com a recorrência do plano."}
+                  ? "A cobrança já fica programada no Asaas, mas o vencimento só chega depois do período grátis."
+                  : "A primeira cobrança é gerada agora. Depois disso, o Asaas passa a gerir a recorrência desta licença."}
               </p>
             </div>
 
             <div>
-              <label className="mb-3 block text-sm font-medium text-gray-700">Forma de pagamento da primeira cobrança</label>
+              <label className="mb-3 block text-sm font-medium text-gray-700">Como ativar a primeira cobrança</label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -260,7 +273,7 @@ export default function PlanCheckoutModal({ open, targetPlanType, onClose, onSuc
                 >
                   <div className="text-2xl">📱</div>
                   <div className="mt-2 font-semibold text-gray-900">PIX</div>
-                  <div className="mt-1 text-xs text-gray-500">Mais rápido para ativar</div>
+                  <div className="mt-1 text-xs text-gray-500">Mais rápido para confirmar a licença</div>
                 </button>
                 <button
                   type="button"
@@ -278,6 +291,15 @@ export default function PlanCheckoutModal({ open, targetPlanType, onClose, onSuc
               </div>
             </div>
 
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-700">
+              <div className="font-semibold text-gray-900">Regra desta ativação</div>
+              <ul className="mt-3 space-y-2">
+                <li>• 1 banca = 1 licença. Esta ativação vale só para a unidade atual.</li>
+                <li>• O Free continua liberando operação básica enquanto você decide o upgrade.</li>
+                <li>• Distribuidores, campanhas, publi editorial, destaque e colaboradores entram no Premium.</li>
+              </ul>
+            </div>
+
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
@@ -292,7 +314,7 @@ export default function PlanCheckoutModal({ open, targetPlanType, onClose, onSuc
                 disabled={processing}
                 className="rounded-xl bg-[#ff5c00] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#ff7a33] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {processing ? "Gerando assinatura..." : "Gerar assinatura"}
+                {processing ? "Gerando ativação..." : "Gerar ativação no Asaas"}
               </button>
             </div>
           </div>
@@ -300,8 +322,8 @@ export default function PlanCheckoutModal({ open, targetPlanType, onClose, onSuc
           <div className="space-y-6 p-6">
             <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
               {checkoutResult.trial_days_applied
-                ? `Sua assinatura recorrente foi criada e a degustação vai até ${new Date(checkoutResult.trial_ends_at || checkoutResult.due_date).toLocaleDateString("pt-BR")}.`
-                : "Sua assinatura recorrente foi criada. Falta apenas pagar a primeira cobrança para confirmar o novo plano."}
+                ? `A licença Premium foi criada e o período grátis vai até ${new Date(checkoutResult.trial_ends_at || checkoutResult.due_date).toLocaleDateString("pt-BR")}.`
+                : "A licença Premium foi criada. Falta apenas pagar a primeira cobrança para confirmar o novo plano."}
             </div>
 
             {billingType === "PIX" && checkoutResult.pix_qrcode ? (
@@ -315,7 +337,7 @@ export default function PlanCheckoutModal({ open, targetPlanType, onClose, onSuc
                     />
                   </div>
                   <p className="mt-4 text-sm text-gray-600">
-                    Escaneie o QR Code ou copie o código abaixo para pagar a primeira cobrança.
+                    Escaneie o QR Code ou copie o código abaixo para pagar a primeira cobrança desta licença.
                   </p>
                 </div>
                 {checkoutResult.promotion_label ? (
@@ -372,7 +394,7 @@ export default function PlanCheckoutModal({ open, targetPlanType, onClose, onSuc
                 href="/jornaleiro/meu-plano"
                 className="rounded-xl bg-[#ff5c00] px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-[#ff7a33]"
               >
-                Ver detalhes do plano
+                Ver detalhes da licença
               </a>
             </div>
           </div>

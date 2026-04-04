@@ -1,34 +1,29 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
+import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
+import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
 
-type PlanType = "free" | "start" | "premium";
-
-const PLAN_TYPE_META: Record<PlanType, { label: string; className: string }> = {
-  free: { label: "Gratuito", className: "bg-green-100 text-green-700" },
-  start: { label: "Start", className: "bg-blue-100 text-blue-700" },
-  premium: { label: "Premium", className: "bg-purple-100 text-purple-700" },
-};
+type PlanType = "free" | "premium" | string;
 
 type Plan = {
   id: string;
   name: string;
-  slug: string;
-  description: string;
+  slug: string | null;
+  description: string | null;
   type: PlanType;
   price: number;
-  billing_cycle: string;
+  billing_cycle: string | null;
   features: string[];
-  limits: Record<string, number>;
+  limits: Record<string, number | null>;
   is_active: boolean;
   effective_price?: number;
   original_price?: number | null;
   promotion_label?: string | null;
   promo_applied?: boolean;
-  remaining_launch_slots?: number;
-  launch_offer_available?: boolean;
   trial_days?: number;
   trial_available?: boolean;
 };
@@ -37,814 +32,927 @@ type Subscription = {
   id: string;
   plan_id: string;
   status: string;
-  current_period_start: string;
+  current_period_start: string | null;
   current_period_end: string | null;
-  plan: Plan;
+  trial_ends_at?: string | null;
+  plan: Plan | null;
 };
 
 type Payment = {
   id: string;
   amount: number;
   status: string;
-  payment_method: string;
-  due_date: string;
+  payment_method: string | null;
+  due_date: string | null;
   paid_at: string | null;
   asaas_invoice_url: string | null;
-  asaas_bank_slip_url: string | null;
-  asaas_pix_qrcode: string | null;
-  asaas_pix_code: string | null;
+  bank_slip_url?: string | null;
+  asaas_bank_slip_url?: string | null;
   created_at: string;
 };
 
-type CheckoutResult = {
-  id: string | null;
-  asaas_id: string | null;
-  asaas_subscription_id: string | null;
-  invoice_url: string | null;
-  bank_slip_url: string | null;
-  pix_qrcode: string | null;
-  pix_code: string | null;
-  due_date: string;
-  amount: number;
-  recurring: boolean;
-  original_amount?: number | null;
-  promotion_label?: string | null;
-  trial_days_applied?: number;
-  trial_ends_at?: string | null;
-};
-
 type BillingEntitlements = {
-  plan_type: string;
+  plan_type: "free" | "premium" | string;
+  product_limit?: number | null;
   paid_features_locked_until_payment?: boolean;
   overdue_features_locked?: boolean;
   overdue_in_grace_period?: boolean;
   overdue_grace_ends_at?: string | null;
 };
 
-const BILLING_CYCLES: Record<string, string> = {
+type BancaSummary = {
+  id: string;
+  name: string;
+  email?: string | null;
+  whatsapp?: string | null;
+  cep?: string | null;
+  address_obj?: {
+    street?: string | null;
+    number?: string | null;
+    neighborhood?: string | null;
+    city?: string | null;
+    uf?: string | null;
+    complement?: string | null;
+    cep?: string | null;
+  } | null;
+};
+
+type RequesterProfile = {
+  full_name?: string | null;
+  phone?: string | null;
+  cpf?: string | null;
+};
+
+type SubscriptionPayload = {
+  success: boolean;
+  subscription: Subscription | null;
+  effective_plan: Plan | null;
+  requested_plan: Plan | null;
+  entitlements: BillingEntitlements | null;
+  payments: Payment[];
+  banca: BancaSummary | null;
+  requester_profile?: RequesterProfile | null;
+  error?: string;
+};
+
+type PlansPayload = {
+  success: boolean;
+  data: Plan[];
+  error?: string;
+};
+
+const STATUS_LABELS: Record<string, { label: string; className: string; message: string }> = {
+  active: {
+    label: "Ativo",
+    className: "bg-green-100 text-green-700",
+    message: "Sua licença desta banca está ativa e com os recursos pagos liberados.",
+  },
+  trial: {
+    label: "Teste",
+    className: "bg-blue-100 text-blue-700",
+    message: "Esta banca está usando o período de teste do Premium.",
+  },
+  pending: {
+    label: "Aguardando ativação",
+    className: "bg-amber-100 text-amber-700",
+    message: "A assinatura já foi iniciada, mas a primeira cobrança ainda não foi confirmada.",
+  },
+  overdue: {
+    label: "Pagamento em aberto",
+    className: "bg-red-100 text-red-700",
+    message: "Existe uma cobrança em aberto para esta banca. Os recursos pagos podem ser limitados.",
+  },
+  cancelled: {
+    label: "Cancelado",
+    className: "bg-gray-100 text-gray-700",
+    message: "A assinatura paga foi cancelada e a banca opera no plano base.",
+  },
+};
+
+const PAYMENT_STATUS: Record<string, { label: string; className: string }> = {
+  pending: { label: "Pendente", className: "bg-amber-100 text-amber-700" },
+  confirmed: { label: "Confirmado", className: "bg-green-100 text-green-700" },
+  received: { label: "Recebido", className: "bg-green-100 text-green-700" },
+  overdue: { label: "Vencido", className: "bg-red-100 text-red-700" },
+  refunded: { label: "Estornado", className: "bg-gray-100 text-gray-700" },
+  cancelled: { label: "Cancelado", className: "bg-gray-100 text-gray-700" },
+  failed: { label: "Falhou", className: "bg-red-100 text-red-700" },
+};
+
+const BILLING_CYCLE_LABELS: Record<string, string> = {
   monthly: "mês",
   quarterly: "trimestre",
   semiannual: "semestre",
   annual: "ano",
 };
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  active: { label: "Ativo", color: "bg-green-100 text-green-700" },
-  pending: { label: "Aguardando Pagamento", color: "bg-yellow-100 text-yellow-700" },
-  overdue: { label: "Vencido", color: "bg-red-100 text-red-700" },
-  trial: { label: "Período de Teste", color: "bg-blue-100 text-blue-700" },
-  cancelled: { label: "Cancelado", color: "bg-gray-100 text-gray-700" },
-  expired: { label: "Expirado", color: "bg-gray-100 text-gray-700" },
+const FREE_FEATURES = [
+  "Até 10 produtos manuais",
+  "Gestão de vendas e pedidos",
+  "Cupons",
+  "Central de inteligência",
+  "Academy",
+  "Venda pelo WhatsApp",
+  "Gestão de estoque",
+  "Exposição nas redes sociais da plataforma",
+  "Suporte",
+];
+
+const PREMIUM_FEATURES = [
+  "Tudo do Free",
+  "Campanhas",
+  "Colaboradores",
+  "Publi editorial",
+  "Destaque na plataforma",
+  "Distribuidores",
+  "Suporte prioritário",
+];
+
+type ActivationFormState = {
+  holderName: string;
+  holderCpfCnpj: string;
+  holderEmail: string;
+  holderPhone: string;
+  number: string;
+  expiryMonth: string;
+  expiryYear: string;
+  ccv: string;
+  holderAddressNumber: string;
+  holderAddressComplement: string;
 };
 
-const PAYMENT_STATUS: Record<string, { label: string; color: string }> = {
-  pending: { label: "Pendente", color: "bg-yellow-100 text-yellow-700" },
-  confirmed: { label: "Confirmado", color: "bg-green-100 text-green-700" },
-  received: { label: "Recebido", color: "bg-green-100 text-green-700" },
-  overdue: { label: "Vencido", color: "bg-red-100 text-red-700" },
-  refunded: { label: "Estornado", color: "bg-gray-100 text-gray-700" },
-  cancelled: { label: "Cancelado", color: "bg-gray-100 text-gray-700" },
-  failed: { label: "Falhou", color: "bg-red-100 text-red-700" },
-};
+function formatCurrency(value: number) {
+  return `R$ ${Number(value || 0).toFixed(2).replace(".", ",")}`;
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("pt-BR");
+}
+
+function getPlanDisplayPrice(plan: Plan | null | undefined) {
+  return Number(plan?.effective_price ?? plan?.price ?? 0);
+}
+
+function getBillingLabel(plan: Plan | null | undefined) {
+  const cycle = plan?.billing_cycle || "monthly";
+  return BILLING_CYCLE_LABELS[cycle] || "mês";
+}
+
+function digitsOnly(value: string | null | undefined) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function formatCpfCnpj(value: string) {
+  const digits = digitsOnly(value).slice(0, 14);
+  if (digits.length <= 11) {
+    return digits
+      .replace(/^(\d{3})(\d)/, "$1.$2")
+      .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+      .replace(/\.(\d{3})(\d)/, ".$1-$2");
+  }
+
+  return digits
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2");
+}
+
+function formatPhone(value: string) {
+  const digits = digitsOnly(value).slice(0, 11);
+  if (digits.length <= 10) {
+    return digits
+      .replace(/^(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{4})(\d)/, "$1-$2");
+  }
+
+  return digits
+    .replace(/^(\d{2})(\d)/, "($1) $2")
+    .replace(/(\d{5})(\d)/, "$1-$2");
+}
+
+function formatCardNumber(value: string) {
+  return digitsOnly(value)
+    .slice(0, 16)
+    .replace(/(\d{4})(?=\d)/g, "$1 ")
+    .trim();
+}
+
+function formatExpiry(value: string) {
+  const digits = digitsOnly(value).slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+}
+
+function getSourceCopy(source: string | null) {
+  switch (source) {
+    case "distribuidores":
+    case "catalogo-distribuidor":
+      return {
+        eyebrow: "Upgrade orientado por distribuidor",
+        title: "Ative o Premium para liberar os distribuidores",
+        description:
+          "Seu plano atual mantém a operação básica da banca. O Premium libera catálogo parceiro e rede de distribuidores para ampliar o mix sem cadastrar tudo manualmente.",
+      };
+    case "campanhas":
+      return {
+        eyebrow: "Upgrade orientado por campanha",
+        title: "Ative o Premium para rodar campanhas",
+        description:
+          "Campanhas fazem parte do pacote de crescimento. Ao ativar o Premium, sua banca passa a acessar essa camada de visibilidade e promoção.",
+      };
+    case "colaboradores":
+      return {
+        eyebrow: "Upgrade orientado por equipe",
+        title: "Ative o Premium para operar com colaboradores",
+        description:
+          "O Premium libera gestão de equipe para dividir operação, atendimento e execução diária com mais controle.",
+      };
+    case "destaque":
+      return {
+        eyebrow: "Upgrade orientado por visibilidade",
+        title: "Ative o Premium para destacar sua banca e seus produtos",
+        description:
+          "Destaque na plataforma e publi editorial são recursos pagos. O Premium libera essa camada de exposição para acelerar aquisição de clientes.",
+      };
+    case "multiplas-bancas":
+      return {
+        eyebrow: "Licença por banca",
+        title: "Ative uma nova licença para cadastrar outra banca",
+        description:
+          "Sua conta pode administrar várias bancas, mas cada unidade precisa da própria licença. Ative o Premium da nova banca para abrir outra operação sem misturar assinaturas.",
+      };
+    default:
+      return {
+        eyebrow: "Plano por banca",
+        title: "Escolha como quer fazer esta banca crescer",
+        description:
+          "Cada banca tem sua própria licença. O plano Free libera a operação básica; o Premium destrava visibilidade, distribuidores e ferramentas de crescimento.",
+      };
+  }
+}
+
+function FeatureList({ items }: { items: string[] }) {
+  return (
+    <ul className="mt-5 space-y-3 text-sm text-gray-700">
+      {items.map((item) => (
+        <li key={item} className="flex items-start gap-3">
+          <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#ff5c00]" />
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function MeuPlanoPage() {
   const searchParams = useSearchParams();
+  const source = searchParams.get("source");
+  const sourceCopy = getSourceCopy(source);
+
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [effectivePlan, setEffectivePlan] = useState<Plan | null>(null);
   const [requestedPlan, setRequestedPlan] = useState<Plan | null>(null);
   const [billingEntitlements, setBillingEntitlements] = useState<BillingEntitlements | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-  const [billingType, setBillingType] = useState<"PIX" | "BOLETO">("PIX");
-  const [processing, setProcessing] = useState(false);
-  const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [autostartConsumed, setAutostartConsumed] = useState(false);
-  const signupSource = searchParams.get("source") === "signup";
-  const signupTargetPremium = searchParams.get("target") === "premium";
-  const signupTrialRequested = searchParams.get("trial") === "1";
-  const signupAutostart = searchParams.get("autostart") === "1";
+  const [banca, setBanca] = useState<BancaSummary | null>(null);
+  const [requesterProfile, setRequesterProfile] = useState<RequesterProfile | null>(null);
+  const [activatingPremium, setActivatingPremium] = useState(false);
+  const [cancellingPremium, setCancellingPremium] = useState(false);
+  const [activationError, setActivationError] = useState<string | null>(null);
+  const [activationSuccess, setActivationSuccess] = useState<string | null>(null);
+  const [activationForm, setActivationForm] = useState<ActivationFormState>({
+    holderName: "",
+    holderCpfCnpj: "",
+    holderEmail: "",
+    holderPhone: "",
+    number: "",
+    expiryMonth: "",
+    expiryYear: "",
+    ccv: "",
+    holderAddressNumber: "",
+    holderAddressComplement: "",
+  });
 
-  const getPlanDisplayPrice = (plan: Plan | null | undefined) =>
-    Number(plan?.effective_price ?? plan?.price ?? 0);
+  const loadData = useCallback(
+    async (cancelled = false) => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  const formatCurrency = (value: number) =>
-    `R$ ${value.toFixed(2).replace(".", ",")}`;
-  const currentPlan = effectivePlan || subscription?.plan || null;
-  const contractedPlan = subscription?.plan || null;
-  const currentStatusMeta = subscription?.status ? STATUS_LABELS[subscription.status] : null;
+        const [subscriptionRes, plansRes] = await Promise.all([
+          fetch("/api/jornaleiro/subscription", { cache: "no-store", credentials: "include" }),
+          fetch("/api/jornaleiro/plans", { cache: "no-store", credentials: "include" }),
+        ]);
+
+        const subscriptionJson = (await subscriptionRes.json().catch(() => ({}))) as SubscriptionPayload;
+        const plansJson = (await plansRes.json().catch(() => ({}))) as PlansPayload;
+
+        if (!subscriptionRes.ok || !subscriptionJson.success) {
+          throw new Error(subscriptionJson.error || "Erro ao carregar assinatura");
+        }
+
+        if (!plansRes.ok || !plansJson.success) {
+          throw new Error(plansJson.error || "Erro ao carregar planos");
+        }
+
+        if (cancelled) return;
+
+        setSubscription(subscriptionJson.subscription || null);
+        setEffectivePlan(subscriptionJson.effective_plan || null);
+        setRequestedPlan(subscriptionJson.requested_plan || null);
+        setBillingEntitlements(subscriptionJson.entitlements || null);
+        setPayments(subscriptionJson.payments || []);
+        setPlans((plansJson.data || []).filter((plan) => plan.is_active));
+        setBanca(subscriptionJson.banca || null);
+        setRequesterProfile(subscriptionJson.requester_profile || null);
+      } catch (loadError: any) {
+        if (cancelled) return;
+        setError(loadError?.message || "Erro ao carregar plano");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    loadData(cancelled);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadData]);
+
+  const freePlan = useMemo(
+    () => plans.find((plan) => (plan.type || "").toLowerCase() === "free" || getPlanDisplayPrice(plan) === 0) || null,
+    [plans]
+  );
+  const premiumPlan = useMemo(
+    () => plans.find((plan) => (plan.type || "").toLowerCase() !== "free" && getPlanDisplayPrice(plan) > 0) || null,
+    [plans]
+  );
+
+  const currentPlan = effectivePlan || subscription?.plan || freePlan;
+  const currentPlanType = billingEntitlements?.plan_type || currentPlan?.type || "free";
+  const currentPlanPrice = getPlanDisplayPrice(currentPlan);
+  const currentPlanStatusMeta = STATUS_LABELS[subscription?.status || "active"] || STATUS_LABELS.active;
   const pendingPayments = payments.filter((payment) => ["pending", "overdue"].includes(payment.status)).length;
-  const confirmedPayments = payments.filter((payment) => ["confirmed", "received"].includes(payment.status)).length;
-  const isOnboardingActivation = signupSource && signupTargetPremium;
-  const visiblePlans = useMemo(() => {
-    const priority: Record<string, number> = { free: 0, premium: 1 };
-    return [...plans]
-      .filter((plan) => plan.type === "free" || plan.type === "premium")
-      .sort((a, b) => (priority[a.type] ?? 99) - (priority[b.type] ?? 99));
-  }, [plans]);
-
-  const loadData = async () => {
-    try {
-      const [subRes, plansRes] = await Promise.all([
-        fetch("/api/jornaleiro/subscription"),
-        fetch("/api/jornaleiro/plans"),
-      ]);
-
-      const subData = await subRes.json();
-      const plansData = await plansRes.json();
-
-      if (subData.success) {
-        setSubscription(subData.subscription);
-        setEffectivePlan(subData.effective_plan || null);
-        setRequestedPlan(subData.requested_plan || null);
-        setBillingEntitlements(subData.entitlements || null);
-        setPayments(subData.payments || []);
-      }
-
-      if (plansData.success) {
-        setPlans(plansData.data?.filter((p: Plan) => p.is_active) || []);
-      }
-    } catch (error) {
-      console.error("Erro ao carregar dados:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const lastPayment = payments[0] || null;
+  const isPremiumActive = currentPlanType === "premium";
+  const structuredAddress = banca?.address_obj || null;
+  const premiumTrialDays = Number(premiumPlan?.trial_days || 7);
+  const premiumCtaLabel = source === "multiplas-bancas" ? "Ativar licença desta banca" : `Ativar ${premiumTrialDays} dias grátis`;
 
   useEffect(() => {
-    loadData();
-  }, []);
+    setActivationForm((current) => ({
+      ...current,
+      holderName: current.holderName || requesterProfile?.full_name || banca?.name || "",
+      holderCpfCnpj: current.holderCpfCnpj || formatCpfCnpj(requesterProfile?.cpf || ""),
+      holderEmail: current.holderEmail || banca?.email || "",
+      holderPhone: current.holderPhone || formatPhone(requesterProfile?.phone || banca?.whatsapp || ""),
+      holderAddressNumber: current.holderAddressNumber || structuredAddress?.number || "",
+      holderAddressComplement: current.holderAddressComplement || structuredAddress?.complement || "",
+    }));
+  }, [banca?.email, banca?.name, banca?.whatsapp, requesterProfile?.cpf, requesterProfile?.full_name, requesterProfile?.phone, structuredAddress?.complement, structuredAddress?.number]);
 
-  useEffect(() => {
-    if (!isOnboardingActivation || !signupAutostart || autostartConsumed || !visiblePlans.length) return;
-    const premiumPlan = visiblePlans.find((plan) => plan.type === "premium");
+  const updateActivationForm = useCallback(
+    <K extends keyof ActivationFormState>(field: K, value: ActivationFormState[K]) => {
+      setActivationForm((current) => ({ ...current, [field]: value }));
+    },
+    []
+  );
+
+  const handleActivatePremium = useCallback(async () => {
     if (!premiumPlan) return;
 
-    setSelectedPlan(premiumPlan);
-    setCheckoutResult(null);
-    setShowPaymentModal(true);
-    setAutostartConsumed(true);
-  }, [autostartConsumed, isOnboardingActivation, signupAutostart, visiblePlans]);
-
-  const handleSelectPlan = async (plan: Plan) => {
-    const planPrice = getPlanDisplayPrice(plan);
-
-    if (plan.type === "free" || planPrice === 0) {
-      setProcessing(true);
-      try {
-        const res = await fetch("/api/jornaleiro/subscription", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ plan_id: plan.id }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert("Plano ativado com sucesso!");
-          loadData();
-        } else {
-          alert(data.error || "Erro ao ativar plano");
-        }
-      } catch (error) {
-        alert("Erro ao processar");
-      } finally {
-        setProcessing(false);
-      }
-      return;
-    }
-
-    setCheckoutResult(null);
-    setSelectedPlan(plan);
-    setShowPaymentModal(true);
-  };
-
-  const handleCheckout = async () => {
-    if (!selectedPlan) return;
-
-    setProcessing(true);
     try {
+      setActivatingPremium(true);
+      setActivationError(null);
+      setActivationSuccess(null);
+
       const res = await fetch("/api/jornaleiro/subscription", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          plan_id: selectedPlan.id,
-          billing_type: billingType,
+          plan_id: premiumPlan.id,
+          billing_type: "CREDIT_CARD",
+          card: {
+            holderName: activationForm.holderName,
+            holderCpfCnpj: activationForm.holderCpfCnpj,
+            holderEmail: activationForm.holderEmail,
+            holderPhone: activationForm.holderPhone,
+            number: activationForm.number,
+            expiryMonth: activationForm.expiryMonth,
+            expiryYear: activationForm.expiryYear,
+            ccv: activationForm.ccv,
+            holderAddressNumber: activationForm.holderAddressNumber,
+            holderAddressComplement: activationForm.holderAddressComplement,
+          },
         }),
       });
 
-      const data = await res.json();
-      if (data.success) {
-        setCheckoutResult(data.payment);
-        loadData();
-      } else {
-        alert(data.error || "Erro ao processar pagamento");
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.error || "Não foi possível ativar o Premium.");
       }
-    } catch (error) {
-      alert("Erro ao processar");
-    } finally {
-      setProcessing(false);
-    }
-  };
 
-  const copyPixCode = () => {
-    if (checkoutResult?.pix_code) {
-      navigator.clipboard.writeText(checkoutResult.pix_code);
-      alert("Código PIX copiado!");
+      const trialEndsAt = json?.payment?.trial_ends_at || json?.subscription?.trial_ends_at || null;
+      setActivationSuccess(
+        trialEndsAt
+          ? `Premium ativado. Seu período grátis vai até ${formatDate(trialEndsAt)}. Se cancelar antes dessa data, não haverá cobrança.`
+          : json?.message || "Premium ativado com sucesso."
+      );
+      await loadData(false);
+    } catch (activateError: any) {
+      setActivationError(activateError?.message || "Não foi possível ativar o Premium.");
+    } finally {
+      setActivatingPremium(false);
     }
-  };
+  }, [activationForm, loadData, premiumPlan]);
+
+  const handleCancelPremium = useCallback(async () => {
+    try {
+      setCancellingPremium(true);
+      setActivationError(null);
+      setActivationSuccess(null);
+
+      const res = await fetch("/api/jornaleiro/subscription", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.error || "Não foi possível cancelar o Premium.");
+      }
+
+      setActivationSuccess(json?.message || "Premium cancelado. Esta banca voltou para o plano Free.");
+      await loadData(false);
+    } catch (cancelError: any) {
+      setActivationError(cancelError?.message || "Não foi possível cancelar o Premium.");
+    } finally {
+      setCancellingPremium(false);
+    }
+  }, [loadData]);
 
   if (loading) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-48"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+          <div className="h-8 w-48 rounded bg-gray-200" />
+          <div className="h-56 rounded-2xl bg-gray-200" />
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="h-56 rounded-2xl bg-gray-200" />
+            <div className="h-56 rounded-2xl bg-gray-200" />
+            <div className="h-56 rounded-2xl bg-gray-200" />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <JornaleiroPageHeading title="Meu plano" className="mb-6" />
+    <div className="p-6 max-w-7xl mx-auto">
+      <JornaleiroPageHeading
+        title={sourceCopy.title}
+        description={sourceCopy.description}
+        eyebrow={sourceCopy.eyebrow}
+        note={
+          banca ? (
+            <span>
+              Licença atual da banca <strong>{banca.name}</strong>. Cada banca da sua conta precisa da própria assinatura para acessar recursos pagos.
+            </span>
+          ) : null
+        }
+        className="mb-6"
+      />
 
-      {isOnboardingActivation ? (
-        <div className="mb-8 overflow-hidden rounded-[28px] border border-[#eadfd2] bg-gradient-to-br from-white via-[#fff9f5] to-[#fff1e7] shadow-sm">
-          <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr,0.8fr] lg:p-8">
-            <div>
-              <span className="inline-flex rounded-full bg-[#fff0e6] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
-                Ativação da banca
-              </span>
-              <h2 className="mt-4 text-3xl font-bold tracking-tight text-gray-900">
-                Sua conta já está criada. Agora escolha como quer começar.
-              </h2>
-              <p className="mt-4 max-w-3xl text-lg leading-8 text-gray-600">
-                Você pode seguir no plano gratuito ou ativar <strong>7 dias grátis do Premium</strong>. Se cancelar
-                antes do prazo, a banca volta automaticamente para o plano Free e nenhuma cobrança será feita.
-              </p>
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Free</div>
-                  <h3 className="mt-2 text-xl font-semibold text-gray-900">Cadastro gratuito para operar já</h3>
-                  <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                    <li>Até 10 produtos manuais</li>
-                    <li>Gestão de produtos e pedidos</li>
-                    <li>Venda pelo WhatsApp</li>
-                    <li>Exposição nas redes sociais da plataforma</li>
-                    <li>Suporte</li>
-                  </ul>
-                </div>
-                <div className="rounded-2xl border border-[#ffcfb3] bg-[#fff7f2] p-5">
-                  <div className="inline-flex rounded-full bg-[#ff5c00] px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-white">
-                    7 dias grátis
-                  </div>
-                  <h3 className="mt-2 text-xl font-semibold text-gray-900">Premium completo durante o teste</h3>
-                  <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                    <li>Catálogo dos distribuidores liberado</li>
-                    <li>Cadastro ampliado de produtos manuais</li>
-                    <li>Todos os módulos premium do painel</li>
-                    <li>Cancelamento automático para Free se não quiser continuar</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-gray-200 bg-white p-6">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Como funciona</div>
-              <h3 className="mt-3 text-2xl font-semibold text-gray-900">Teste premium com downgrade automático</h3>
-              <ol className="mt-5 space-y-4 text-sm text-gray-600">
-                <li>
-                  <strong className="text-gray-900">1.</strong> Você pode continuar no Free sem cobrança.
-                </li>
-                <li>
-                  <strong className="text-gray-900">2.</strong> Se ativar o Premium, o período de degustação libera todos os recursos por 7 dias.
-                </li>
-                <li>
-                  <strong className="text-gray-900">3.</strong> Se cancelar antes da primeira cobrança, a banca permanece no Free com os recursos básicos.
-                </li>
-              </ol>
-              {signupTrialRequested ? (
-                <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                  O fluxo de ativação premium foi solicitado no cadastro. Conclua essa etapa agora ou siga com o plano gratuito.
-                </div>
-              ) : null}
-            </div>
-          </div>
+      {error ? (
+        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
         </div>
       ) : null}
 
       <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Plano liberado</div>
-          <div className="mt-3 text-2xl font-semibold text-gray-900">{currentPlan?.name || "Free"}</div>
-          <p className="mt-1 text-sm text-gray-500">Plano que hoje governa os acessos da banca.</p>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">{currentPlan?.name || "Gratuito"}</div>
+          <p className="mt-1 text-sm text-gray-500">Plano que hoje governa os acessos desta banca.</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Plano contratado</div>
-          <div className="mt-3 text-2xl font-semibold text-gray-900">{contractedPlan?.name || currentPlan?.name || "Free"}</div>
-          <p className="mt-1 text-sm text-gray-500">Plano comercial atualmente vinculado à assinatura.</p>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">
+            {subscription?.plan?.name || requestedPlan?.name || currentPlan?.name || "Gratuito"}
+          </div>
+          <p className="mt-1 text-sm text-gray-500">Plano comercial vinculado à assinatura desta banca.</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Status da assinatura</div>
           <div className="mt-3">
-            <span className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${currentStatusMeta?.color || "bg-gray-100 text-gray-700"}`}>
-              {currentStatusMeta?.label || "Sem assinatura"}
+            <span className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${currentPlanStatusMeta.className}`}>
+              {subscription ? currentPlanStatusMeta.label : "Sem assinatura paga"}
             </span>
           </div>
-          <p className="mt-2 text-sm text-gray-500">Situação atual de cobrança e ativação do plano.</p>
+          <p className="mt-2 text-sm text-gray-500">{subscription ? currentPlanStatusMeta.message : "A banca está operando no plano Free."}</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Cobranças</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Cobranças em aberto</div>
           <div className="mt-3 text-2xl font-semibold text-gray-900">{pendingPayments}</div>
           <p className="mt-1 text-sm text-gray-500">
-            {confirmedPayments > 0 ? `${confirmedPayments} já confirmada(s) neste histórico.` : "Nenhuma cobrança confirmada ainda."}
+            {lastPayment ? `Última cobrança em ${formatDate(lastPayment.due_date || lastPayment.created_at)}.` : "Nenhum histórico de cobrança desta banca."}
           </p>
         </div>
       </div>
 
       {billingEntitlements?.paid_features_locked_until_payment && requestedPlan ? (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <div className="font-semibold">Upgrade aguardando pagamento</div>
-          <p className="mt-1">
-            Seu upgrade para <strong>{requestedPlan.name}</strong> já foi criado. Os novos recursos serão liberados depois que a primeira cobrança for confirmada.
-          </p>
-        </div>
+        <PlanPendingActivationCard requestedPlanName={requestedPlan.name} className="mb-6" showSupportAction />
       ) : null}
 
       {billingEntitlements?.overdue_features_locked && subscription?.plan ? (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-          <div className="font-semibold">Recursos do plano pagos estão pausados</div>
-          <p className="mt-1">
-            O plano <strong>{subscription.plan.name}</strong> está com cobrança em aberto e saiu do período de carência. Enquanto isso, sua banca opera com o plano base liberado.
-          </p>
-        </div>
+        <PlanOverdueCard
+          planName={subscription.plan.name}
+          className="mb-6"
+          accessSuspended
+          showSupportAction
+        />
       ) : null}
 
-      {billingEntitlements?.overdue_in_grace_period && billingEntitlements?.overdue_grace_ends_at ? (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <div className="font-semibold">Cobrança em aberto com carência ativa</div>
-          <p className="mt-1">
-            Sua assinatura está vencida, mas os recursos seguem liberados até{" "}
-            <strong>{new Date(billingEntitlements.overdue_grace_ends_at).toLocaleDateString("pt-BR")}</strong>.
-            Regularize antes dessa data para evitar a suspensão dos recursos pagos.
-          </p>
-        </div>
+      {!billingEntitlements?.overdue_features_locked && billingEntitlements?.overdue_in_grace_period && subscription?.plan ? (
+        <PlanOverdueCard
+          planName={subscription.plan.name}
+          className="mb-6"
+          graceEndsAt={billingEntitlements.overdue_grace_ends_at}
+          showSupportAction
+        />
       ) : null}
 
-      {/* Plano Atual */}
-      {subscription?.plan && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl font-bold">{subscription.plan.name}</h2>
-                <span className={`text-xs font-medium px-2 py-1 rounded ${STATUS_LABELS[subscription.status]?.color || "bg-gray-100"}`}>
-                  {STATUS_LABELS[subscription.status]?.label || subscription.status}
-                </span>
-              </div>
-              {getPlanDisplayPrice(subscription.plan) > 0 ? (
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-gray-600">
-                  {subscription.plan.original_price ? (
-                    <span className="text-sm line-through text-gray-400">
-                      {formatCurrency(subscription.plan.original_price)}
-                    </span>
-                  ) : null}
-                  <p>
-                    {formatCurrency(getPlanDisplayPrice(subscription.plan))}/{BILLING_CYCLES[subscription.plan.billing_cycle]}
-                  </p>
-                  {subscription.plan.promotion_label ? (
-                    <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700">
-                      {subscription.plan.promotion_label}
-                    </span>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="text-gray-600 mt-1">Plano gratuito ativo</p>
-              )}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_380px]">
+        <section className="space-y-6">
+          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-[#ffeddc] bg-[#fff7f1] p-5">
+              <p className="inline-flex rounded-full bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
+                Plano por banca
+              </p>
+              <p className="mt-4 text-lg text-gray-700">
+                O cadastro da banca já está concluído. Agora a decisão é simples: seguir operando no <strong>Free</strong> ou ativar o
+                <strong> Premium</strong> quando fizer sentido destravar distribuidores, visibilidade e recursos de crescimento.
+              </p>
             </div>
-            {subscription.current_period_end && (
-              <div className="text-right">
-                <p className="text-sm text-gray-500">
-                  {subscription.status === "trial" ? "Fim do período de degustação" : "Próximo vencimento"}
-                </p>
-                <p className="font-medium">{new Date(subscription.current_period_end).toLocaleDateString("pt-BR")}</p>
-              </div>
-            )}
           </div>
 
-          {effectivePlan && effectivePlan.id !== subscription.plan.id ? (
-            <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-              Plano efetivamente liberado no painel hoje: <strong>{effectivePlan.name}</strong>.
+          <div className="grid gap-6 lg:grid-cols-2">
+            <article className={`rounded-3xl border bg-white p-7 shadow-sm ${currentPlanType === "free" ? "border-green-300 ring-2 ring-green-100" : "border-gray-200"}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-green-700">
+                    Free
+                  </span>
+                  <h2 className="mt-4 text-3xl font-semibold text-gray-900">Grátis</h2>
+                </div>
+                {currentPlanType === "free" ? (
+                  <span className="rounded-full bg-green-50 px-3 py-1 text-sm font-semibold text-green-700">Plano atual</span>
+                ) : null}
+              </div>
+
+              <p className="mt-4 text-base leading-7 text-gray-600">
+                Base operacional da banca para vender, organizar o catálogo manual e atender clientes sem cobrança recorrente.
+              </p>
+
+              <FeatureList items={FREE_FEATURES} />
+
+              <div className="mt-6 rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
+                <strong className="text-gray-900">Limite atual:</strong> até {billingEntitlements?.plan_type === "free" ? billingEntitlements?.product_limit || 10 : freePlan?.limits?.max_products || 10} produtos manuais.
+              </div>
+            </article>
+
+            <article className={`rounded-3xl border bg-white p-7 shadow-sm ${isPremiumActive ? "border-[#ffb27f] ring-2 ring-[#fff0e3]" : "border-gray-200"}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex rounded-full bg-[#fff0e3] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#ff5c00]">
+                      Premium
+                    </span>
+                    <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">
+                      {premiumTrialDays} dias grátis
+                    </span>
+                  </div>
+                  <h2 className="mt-4 text-3xl font-semibold text-gray-900">
+                    {premiumPlan ? formatCurrency(getPlanDisplayPrice(premiumPlan)) : "Premium"}
+                  </h2>
+                  {premiumPlan ? (
+                    <p className="mt-1 text-sm text-gray-500">por {getBillingLabel(premiumPlan)} desta banca</p>
+                  ) : null}
+                </div>
+                {isPremiumActive ? (
+                  <span className="rounded-full bg-[#fff0e3] px-3 py-1 text-sm font-semibold text-[#ff5c00]">Plano atual</span>
+                ) : null}
+              </div>
+
+              <p className="mt-4 text-base leading-7 text-gray-600">
+                Libera aquisição, visibilidade e abastecimento para a banca crescer sem depender só de cadastro manual.
+              </p>
+
+              <FeatureList items={PREMIUM_FEATURES} />
+
+              <div className="mt-6 rounded-2xl border border-[#ffe0c7] bg-[#fff8f2] p-4 text-sm text-gray-700">
+                <div className="font-semibold text-gray-900">Quando o Premium faz sentido</div>
+                <p className="mt-1">
+                  Quando a banca precisa ampliar o mix com distribuidores, ganhar destaque na plataforma, rodar campanhas e operar com apoio de equipe.
+                </p>
+              </div>
+            </article>
+          </div>
+
+          {payments.length > 0 ? (
+            <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Histórico de cobranças</h2>
+                  <p className="mt-1 text-sm text-gray-500">Leitura financeira da licença desta banca.</p>
+                </div>
+              </div>
+
+              <div className="mt-5 overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+                      <th className="py-3 pr-4">Vencimento</th>
+                      <th className="py-3 pr-4">Valor</th>
+                      <th className="py-3 pr-4">Método</th>
+                      <th className="py-3 pr-4">Status</th>
+                      <th className="py-3">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {payments.map((payment) => {
+                      const statusMeta = PAYMENT_STATUS[payment.status] || {
+                        label: payment.status,
+                        className: "bg-gray-100 text-gray-700",
+                      };
+                      const invoiceUrl = payment.asaas_invoice_url || payment.asaas_bank_slip_url || payment.bank_slip_url;
+
+                      return (
+                        <tr key={payment.id}>
+                          <td className="py-4 pr-4 text-gray-700">{formatDate(payment.due_date || payment.created_at)}</td>
+                          <td className="py-4 pr-4 font-medium text-gray-900">{formatCurrency(Number(payment.amount || 0))}</td>
+                          <td className="py-4 pr-4 text-gray-600">{payment.payment_method || "—"}</td>
+                          <td className="py-4 pr-4">
+                            <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusMeta.className}`}>
+                              {statusMeta.label}
+                            </span>
+                          </td>
+                          <td className="py-4">
+                            {invoiceUrl ? (
+                              <a
+                                href={invoiceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-semibold text-[#ff5c00] hover:text-[#ff7a33]"
+                              >
+                                Abrir cobrança
+                              </a>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : null}
+        </section>
 
-          {subscription.plan.features && subscription.plan.features.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-sm font-medium text-gray-700 mb-2">Recursos inclusos:</p>
-              <ul className="grid gap-1 sm:grid-cols-2">
-                {subscription.plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                    <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    {feature}
-                  </li>
-                ))}
+        <aside className="space-y-6">
+          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm xl:sticky xl:top-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#ff5c00]">Ativação Premium</p>
+                <h2 className="mt-2 text-2xl font-semibold text-gray-900">Ative o Premium com 7 dias grátis</h2>
+              </div>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">Asaas</span>
+            </div>
+
+            <p className="mt-4 text-sm leading-7 text-gray-600">
+              Use o Asaas para ativar o Premium desta banca em ambiente seguro. O cartão entra agora, mas a primeira cobrança só acontece depois do período grátis se você não cancelar antes.
+            </p>
+
+            <div className="mt-5 space-y-3 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
+              <div className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-[#ff5c00]" />
+                <span>1 banca = 1 licença. Se você operar mais de uma banca, cada unidade precisa da própria assinatura.</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-[#ff5c00]" />
+                <span>O plano Free mantém a operação com até 10 produtos, pedidos, estoque, cupons, inteligência, academy, exposição nas redes sociais, suporte e vendas pelo WhatsApp.</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-[#ff5c00]" />
+                <span>Ao ativar o Premium, a cobrança e o histórico desta banca passam a ser geridos pelo Asaas.</span>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-[#ffe0c7] bg-[#fff8f2] p-4">
+              <div className="text-sm font-semibold text-gray-900">O que destrava no Premium</div>
+              <ul className="mt-3 space-y-2 text-sm text-gray-700">
+                <li>• Distribuidores e catálogo parceiro</li>
+                <li>• Destaque na plataforma</li>
+                <li>• Publi editorial e campanhas</li>
+                <li>• Operação com colaboradores</li>
+                <li>• Suporte prioritário</li>
               </ul>
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Planos Disponíveis */}
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">
-        {isOnboardingActivation ? "Escolha como ativar sua banca" : subscription ? "Alterar Plano" : "Escolha um Plano"}
-      </h2>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-        {visiblePlans.map((plan) => {
-          const isCurrentPlan = subscription?.plan_id === plan.id;
-          const planTypeMeta = PLAN_TYPE_META[plan.type] || PLAN_TYPE_META.premium;
-          const displayPrice = getPlanDisplayPrice(plan);
-          const isPremiumTrialOption = isOnboardingActivation && plan.type === "premium";
-          const featureList =
-            isOnboardingActivation && plan.type === "free"
-              ? [
-                  "Até 10 produtos manuais",
-                  "Gestão de produtos",
-                  "Gestão de pedidos",
-                  "Venda pelo WhatsApp",
-                  "Exposição nas redes sociais da plataforma",
-                  "Suporte",
-                ]
-              : isOnboardingActivation && plan.type === "premium"
-                ? [
-                    "Catálogo dos distribuidores",
-                    "Cadastro ampliado de produtos",
-                    "Todos os recursos premium do painel",
-                    "7 dias grátis antes da primeira cobrança",
-                  ]
-                : plan.features?.slice(0, 4) || [];
-
-          return (
-            <div
-              key={plan.id}
-              className={`bg-white rounded-xl border-2 p-6 relative ${
-                isCurrentPlan ? "border-green-500 ring-2 ring-green-100" : "border-gray-200"
-              }`}
-            >
-              {isPremiumTrialOption ? (
-                <span className="absolute -top-3 left-4 rounded-full bg-[#7c3aed] px-3 py-1 text-xs font-semibold text-white">
-                  Recomendado
-                </span>
-              ) : null}
-              {isCurrentPlan && (
-                <span className="absolute -top-3 left-4 bg-green-500 text-white text-xs px-2 py-1 rounded">
-                  Plano Atual
-                </span>
-              )}
-
-              <div className="flex items-center gap-2 mb-2">
-                <span className={`text-xs font-medium px-2 py-0.5 rounded ${planTypeMeta.className}`}>
-                  {planTypeMeta.label}
-                </span>
+            {activationError ? (
+              <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {activationError}
               </div>
+            ) : null}
 
-              <h3 className="text-xl font-bold">{plan.name}</h3>
-
-              <div className="mt-3">
-                {plan.original_price ? (
-                  <div className="text-sm text-gray-400 line-through">
-                    {formatCurrency(plan.original_price)}
-                  </div>
-                ) : null}
-                <span className="text-3xl font-bold">
-                  {displayPrice === 0 ? "Grátis" : formatCurrency(displayPrice)}
-                </span>
-                {displayPrice > 0 && (
-                  <span className="text-gray-500 text-sm">/{BILLING_CYCLES[plan.billing_cycle]}</span>
-                )}
+            {activationSuccess ? (
+              <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                {activationSuccess}
               </div>
+            ) : null}
 
-              {plan.description && !isOnboardingActivation && (
-                <p className="text-gray-600 text-sm mt-2">{plan.description}</p>
-              )}
-
-              {plan.promotion_label ? (
-                <div className="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-700">
-                  <p className="font-medium">{plan.promotion_label}</p>
-                  {typeof plan.remaining_launch_slots === "number" ? (
-                    <p className="mt-1 text-xs text-orange-600">
-                      Restam {plan.remaining_launch_slots} vagas promocionais.
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {plan.trial_available && Number(plan.trial_days || 0) > 0 ? (
-                <div className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">
-                  {plan.trial_days} dias de degustação antes da primeira cobrança.
-                </div>
-              ) : null}
-
-              <ul className="mt-4 space-y-2">
-                {featureList.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-gray-700">
-                    <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={() => !isCurrentPlan && handleSelectPlan(plan)}
-                disabled={isCurrentPlan || processing}
-                className={`w-full mt-6 py-2.5 px-4 rounded-lg font-medium transition ${
-                  isCurrentPlan
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-[#ff5c00] text-white hover:bg-[#ff7a33]"
-                }`}
-              >
-                {isCurrentPlan
-                  ? "Plano Atual"
-                  : displayPrice === 0
-                    ? isOnboardingActivation
-                      ? "Continuar grátis"
-                      : "Ativar grátis"
-                    : isOnboardingActivation
-                      ? "Ativar 7 dias grátis"
-                      : "Assinar"}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Histórico de Pagamentos */}
-      {payments.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="font-semibold text-gray-900">Histórico de Pagamentos</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Data</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Valor</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Método</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {payments.map((payment) => (
-                  <tr key={payment.id}>
-                    <td className="px-4 py-3 text-gray-700">
-                      {new Date(payment.created_at).toLocaleDateString("pt-BR")}
-                    </td>
-                    <td className="px-4 py-3 font-medium">R$ {payment.amount.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-gray-600 uppercase">{payment.payment_method}</td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs font-medium px-2 py-1 rounded ${PAYMENT_STATUS[payment.status]?.color || "bg-gray-100"}`}>
-                        {PAYMENT_STATUS[payment.status]?.label || payment.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {payment.status === "pending" && (
-                        <div className="flex gap-2">
-                          {payment.asaas_pix_code && (
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(payment.asaas_pix_code!);
-                                alert("Código PIX copiado!");
-                              }}
-                              className="text-xs text-green-600 hover:underline"
-                            >
-                              Copiar PIX
-                            </button>
-                          )}
-                          {payment.asaas_bank_slip_url && (
-                            <a
-                              href={payment.asaas_bank_slip_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-600 hover:underline"
-                            >
-                              Ver Boleto
-                            </a>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Pagamento */}
-      {showPaymentModal && selectedPlan && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold">
-                {isOnboardingActivation && selectedPlan.type === "premium"
-                  ? "Ativar 7 dias grátis do Premium"
-                  : "Finalizar assinatura"}
-              </h2>
-            </div>
-
-            {!checkoutResult ? (
-              <div className="p-6 space-y-6">
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-sm text-gray-600">Plano selecionado</p>
-                  <p className="font-bold text-lg">{selectedPlan.name}</p>
-                  <div className="mt-1 flex flex-wrap items-end gap-2">
-                    {selectedPlan.original_price ? (
-                      <span className="text-sm text-gray-400 line-through">
-                        {formatCurrency(selectedPlan.original_price)}
-                      </span>
-                    ) : null}
-                    <p className="text-2xl font-bold text-[#ff5c00]">
-                      {formatCurrency(getPlanDisplayPrice(selectedPlan))}
-                      <span className="text-sm text-gray-500 font-normal">/{BILLING_CYCLES[selectedPlan.billing_cycle]}</span>
-                    </p>
-                  </div>
-                  <p className="mt-2 text-sm text-gray-600">
-                    {selectedPlan.trial_available && Number(selectedPlan.trial_days || 0) > 0
-                      ? `A primeira cobrança fica programada para daqui a ${selectedPlan.trial_days} dias e as próximas seguem de forma recorrente pelo Asaas.`
-                      : "A primeira cobrança será gerada agora e as próximas serão recorrentes pelo Asaas."}
-                  </p>
-                  {selectedPlan.promotion_label ? (
-                    <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-700">
-                      {selectedPlan.promotion_label}
-                    </p>
-                  ) : null}
-                  {selectedPlan.trial_available && Number(selectedPlan.trial_days || 0) > 0 ? (
-                    <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">
-                      A degustação é liberada uma única vez por banca.
-                    </p>
-                  ) : null}
-                  {isOnboardingActivation && selectedPlan.type === "premium" ? (
-                    <p className="mt-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-sm text-purple-700">
-                      Essa é a etapa de ativação do Premium após o cadastro. Se preferir, você pode fechar e seguir no plano gratuito.
-                    </p>
-                  ) : null}
-                </div>
-
+            <div className="mt-6 space-y-4">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Forma de cobrança
-                  </label>
-                  {isOnboardingActivation && selectedPlan.type === "premium" ? (
-                    <p className="mb-3 text-sm text-gray-500">
-                      Esta assinatura será criada no Asaas. Se a degustação for cancelada antes do prazo, a banca volta automaticamente para o plano gratuito.
-                    </p>
-                  ) : null}
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setBillingType("PIX")}
-                      className={`p-4 rounded-xl border-2 text-center transition ${
-                        billingType === "PIX"
-                          ? "border-green-500 bg-green-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="text-2xl mb-1">📱</div>
-                      <div className="font-medium">PIX</div>
-                      <div className="text-xs text-gray-500">Aprovação imediata</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBillingType("BOLETO")}
-                      className={`p-4 rounded-xl border-2 text-center transition ${
-                        billingType === "BOLETO"
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="text-2xl mb-1">📄</div>
-                      <div className="font-medium">Boleto</div>
-                      <div className="text-xs text-gray-500">1-3 dias úteis</div>
-                    </button>
-                  </div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Nome do titular</label>
+                  <input
+                    type="text"
+                    value={activationForm.holderName}
+                    onChange={(event) => updateActivationForm("holderName", event.target.value)}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#ff5c00]"
+                    placeholder="Nome como está no cartão"
+                    disabled={isPremiumActive}
+                  />
                 </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">CPF/CNPJ do titular</label>
+                  <input
+                    type="text"
+                    value={activationForm.holderCpfCnpj}
+                    onChange={(event) => updateActivationForm("holderCpfCnpj", formatCpfCnpj(event.target.value))}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#ff5c00]"
+                    placeholder="000.000.000-00"
+                    disabled={isPremiumActive}
+                  />
+                </div>
+              </div>
 
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setShowPaymentModal(false);
-                      setSelectedPlan(null);
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Email de cobrança</label>
+                  <input
+                    type="email"
+                    value={activationForm.holderEmail}
+                    onChange={(event) => updateActivationForm("holderEmail", event.target.value.trim())}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#ff5c00]"
+                    placeholder="email@banca.com.br"
+                    disabled={isPremiumActive}
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Telefone do titular</label>
+                  <input
+                    type="text"
+                    value={activationForm.holderPhone}
+                    onChange={(event) => updateActivationForm("holderPhone", formatPhone(event.target.value))}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#ff5c00]"
+                    placeholder="(11) 99999-9999"
+                    disabled={isPremiumActive}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Número do cartão</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={activationForm.number}
+                  onChange={(event) => updateActivationForm("number", formatCardNumber(event.target.value))}
+                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#ff5c00]"
+                  placeholder="0000 0000 0000 0000"
+                  disabled={isPremiumActive}
+                />
+              </div>
+
+              <div className="grid gap-4 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Validade</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatExpiry(`${activationForm.expiryMonth}${activationForm.expiryYear}`)}
+                    onChange={(event) => {
+                      const digits = digitsOnly(event.target.value);
+                      updateActivationForm("expiryMonth", digits.slice(0, 2));
+                      updateActivationForm("expiryYear", digits.slice(2, 4));
                     }}
-                    className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleCheckout}
-                    disabled={processing}
-                    className="flex-1 py-3 bg-[#ff5c00] text-white font-semibold rounded-lg hover:bg-[#ff7a33] transition disabled:opacity-50"
-                  >
-                    {processing
-                      ? "Processando..."
-                      : isOnboardingActivation && selectedPlan.type === "premium"
-                        ? "Criar assinatura de teste"
-                        : "Gerar assinatura"}
-                  </button>
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#ff5c00]"
+                    placeholder="MM/AA"
+                    disabled={isPremiumActive}
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">CVV</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={activationForm.ccv}
+                    onChange={(event) => updateActivationForm("ccv", digitsOnly(event.target.value).slice(0, 4))}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#ff5c00]"
+                    placeholder="123"
+                    disabled={isPremiumActive}
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Número do endereço</label>
+                  <input
+                    type="text"
+                    value={activationForm.holderAddressNumber}
+                    onChange={(event) => updateActivationForm("holderAddressNumber", event.target.value)}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#ff5c00]"
+                    placeholder="123"
+                    disabled={isPremiumActive}
+                  />
                 </div>
               </div>
-            ) : (
-              <div className="p-6 space-y-6">
-                <div className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
-                  {checkoutResult.trial_days_applied
-                    ? `A assinatura recorrente foi criada e a degustação vai até ${new Date(checkoutResult.trial_ends_at || checkoutResult.due_date).toLocaleDateString("pt-BR")}.`
-                    : "A assinatura recorrente foi criada com sucesso. Agora basta quitar a primeira cobrança para ativar o plano."}
-                </div>
 
-                {billingType === "PIX" && checkoutResult.pix_qrcode ? (
-                  <>
-                    <div className="text-center">
-                      <p className="text-green-600 font-medium mb-4">Primeira cobrança PIX gerada!</p>
-                      <div className="bg-white border border-gray-200 rounded-xl p-4 inline-block">
-                        <img
-                          src={`data:image/png;base64,${checkoutResult.pix_qrcode}`}
-                          alt="QR Code PIX"
-                          className="w-48 h-48 mx-auto"
-                        />
-                      </div>
-                      <p className="text-sm text-gray-600 mt-4">
-                        Escaneie o QR Code acima ou copie o código abaixo para pagar a primeira recorrência
-                      </p>
-                    </div>
-                    {checkoutResult.promotion_label ? (
-                      <div className="rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-700">
-                        {checkoutResult.promotion_label}
-                      </div>
-                    ) : null}
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-500 mb-1">Código PIX (Copia e Cola)</p>
-                      <p className="text-xs font-mono break-all text-gray-700">{checkoutResult.pix_code?.substring(0, 80)}...</p>
-                      <button
-                        onClick={copyPixCode}
-                        className="mt-2 w-full py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition"
-                      >
-                        Copiar Código PIX
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center">
-                    <p className="text-blue-600 font-medium mb-4">Primeira cobrança por boleto gerada!</p>
-                    {checkoutResult.bank_slip_url || checkoutResult.invoice_url ? (
-                      <a
-                        href={checkoutResult.bank_slip_url || checkoutResult.invoice_url || undefined}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
-                      >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Visualizar Boleto
-                      </a>
-                    ) : (
-                      <p className="text-sm text-gray-500">
-                        O link do boleto ainda está sendo sincronizado. Atualize a página em instantes.
-                      </p>
-                    )}
-                    <p className="text-sm text-gray-500 mt-4">
-                      Vencimento: {new Date(checkoutResult.due_date).toLocaleDateString("pt-BR")}
-                    </p>
-                    {checkoutResult.promotion_label ? (
-                      <p className="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-700">
-                        {checkoutResult.promotion_label}
-                      </p>
-                    ) : null}
-                  </div>
-                )}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Complemento do endereço</label>
+                <input
+                  type="text"
+                  value={activationForm.holderAddressComplement}
+                  onChange={(event) => updateActivationForm("holderAddressComplement", event.target.value)}
+                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#ff5c00]"
+                  placeholder="Sala, bloco ou referência"
+                  disabled={isPremiumActive}
+                />
+              </div>
 
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                <div className="font-semibold text-gray-900">Endereço de cobrança desta banca</div>
+                <p className="mt-2 leading-6">
+                  {structuredAddress?.street || "Endereço ainda não cadastrado"}{structuredAddress?.number ? `, ${structuredAddress.number}` : ""}
+                  {structuredAddress?.neighborhood ? ` • ${structuredAddress.neighborhood}` : ""}
+                  {structuredAddress?.city ? ` • ${structuredAddress.city}` : ""}
+                  {structuredAddress?.uf ? `/${structuredAddress.uf}` : ""}
+                  {structuredAddress?.cep ? ` • CEP ${structuredAddress.cep}` : ""}
+                </p>
+                {!structuredAddress?.street || !structuredAddress?.cep ? (
+                  <p className="mt-2 text-xs text-red-600">
+                    Atualize o cadastro da banca com um endereço completo antes de ativar o Premium.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3">
+              {isPremiumActive ? (
                 <button
-                  onClick={() => {
-                    setShowPaymentModal(false);
-                    setSelectedPlan(null);
-                    setCheckoutResult(null);
-                  }}
-                  className="w-full py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                  type="button"
+                  onClick={handleCancelPremium}
+                  disabled={cancellingPremium}
+                  className="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Fechar
+                  {cancellingPremium ? "Cancelando..." : "Cancelar Premium e voltar para o Free"}
                 </button>
-              </div>
-            )}
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleActivatePremium}
+                  disabled={!premiumPlan || activatingPremium || !structuredAddress?.street || !structuredAddress?.cep}
+                  className="inline-flex items-center justify-center rounded-2xl bg-[#ff5c00] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#ff7a33] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {activatingPremium ? "Ativando Premium..." : premiumCtaLabel}
+                </button>
+              )}
+
+              <Link
+                href="/jornaleiro/dashboard"
+                className="inline-flex items-center justify-center rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+              >
+                Voltar para o dashboard
+              </Link>
+            </div>
           </div>
-        </div>
-      )}
+        </aside>
+      </div>
     </div>
   );
 }

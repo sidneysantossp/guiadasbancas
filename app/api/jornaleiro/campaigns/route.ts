@@ -26,6 +26,17 @@ function mapCampaignError(error: any) {
     );
   }
 
+  if (message === "PREMIUM_REQUIRED_CAMPAIGNS") {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Campanhas fazem parte do plano Premium",
+        code: "PREMIUM_REQUIRED_CAMPAIGNS",
+      },
+      { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+    );
+  }
+
   if (message === "INVALID_PRODUCT_REQUIRED") {
     return NextResponse.json(
       { success: false, error: "Produto é obrigatório" },

@@ -22,6 +22,29 @@ export type AsaasCustomer = {
   state?: string;
 };
 
+export type AsaasCreditCard = {
+  holderName: string;
+  number: string;
+  expiryMonth: string;
+  expiryYear: string;
+  ccv: string;
+};
+
+export type AsaasCreditCardHolderInfo = {
+  name: string;
+  email: string;
+  cpfCnpj: string;
+  postalCode: string;
+  addressNumber: string;
+  addressComplement?: string | null;
+  phone?: string | null;
+  mobilePhone?: string | null;
+  address?: string | null;
+  province?: string | null;
+  city?: string | null;
+  state?: string | null;
+};
+
 export type AsaasPayment = {
   id: string;
   customer: string;
@@ -102,6 +125,13 @@ export async function createCustomer(customer: {
   cpfCnpj?: string;
   phone?: string;
   externalReference?: string;
+  postalCode?: string;
+  address?: string;
+  addressNumber?: string;
+  complement?: string;
+  province?: string;
+  city?: string;
+  state?: string;
 }): Promise<AsaasCustomer> {
   return asaasRequest("/customers", {
     method: "POST",
@@ -120,6 +150,13 @@ export async function findOrCreateCustomer(customer: {
   cpfCnpj?: string;
   phone?: string;
   externalReference?: string;
+  postalCode?: string;
+  address?: string;
+  addressNumber?: string;
+  complement?: string;
+  province?: string;
+  city?: string;
+  state?: string;
 }): Promise<AsaasCustomer> {
   const existing = await findCustomerByEmail(customer.email);
   if (existing) return existing;
@@ -167,6 +204,9 @@ export async function createSubscription(subscription: {
   nextDueDate: string;
   description?: string;
   externalReference?: string;
+  creditCard?: AsaasCreditCard;
+  creditCardHolderInfo?: AsaasCreditCardHolderInfo;
+  remoteIp?: string;
 }): Promise<AsaasSubscription> {
   return asaasRequest("/subscriptions", {
     method: "POST",

@@ -85,6 +85,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (message === "ADDITIONAL_BANCA_REQUIRES_LICENSE") {
+      return NextResponse.json(
+        { success: false, error: "Para cadastrar outra banca, ative uma nova licença em Meu Plano." },
+        { status: 403, headers: privateNoStoreHeaders }
+      );
+    }
+
     if (message === "INVALID_BANCA_NAME") {
       return NextResponse.json(
         { success: false, error: "Nome da banca é obrigatório" },

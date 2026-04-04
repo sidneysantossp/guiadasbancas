@@ -398,7 +398,7 @@ export async function loadJornaleiroIntelligence(params: {
           "/jornaleiro/meu-plano"
         )
       : null,
-    !banca.is_cotista && !banca.tpu_url
+    !entitlements.isLegacyCotistaLinked && !banca.tpu_url
       ? buildAlert(
           "missing-tpu",
           "warning",

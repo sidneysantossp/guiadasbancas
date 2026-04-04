@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useEffect, useState, useMemo } from "react";
 import { IconPlus, IconEdit, IconTrash, IconCheck, IconX } from "@tabler/icons-react";
 import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
+import { usePremiumRouteGuard } from "@/components/jornaleiro/usePremiumRouteGuard";
 
 type Colaborador = {
   id: string;
@@ -22,6 +23,10 @@ export default function ColaboradoresPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { guarding, allowed } = usePremiumRouteGuard({
+    entitlementKey: "can_manage_collaborators",
+    source: "colaboradores",
+  });
 
   const tabs = useMemo(
     () => [
@@ -62,6 +67,10 @@ export default function ColaboradoresPage() {
       sessionStorage.setItem('gb:colaboradores:lastChecked', lastUpdate);
     }
     
+    if (guarding || !allowed) {
+      return;
+    }
+
     load();
     
     // Recarregar quando a janela receber foco (usuário voltou da página de cadastro)
@@ -110,7 +119,7 @@ export default function ColaboradoresPage() {
       window.removeEventListener("storage", handleStorageChange);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [guarding, allowed]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja remover este colaborador?")) return;
@@ -135,6 +144,18 @@ export default function ColaboradoresPage() {
       setDeletingId(null);
     }
   };
+
+  if (guarding) {
+    return (
+      <div className="flex items-center justify-center py-12 text-sm text-gray-500">
+        Validando acesso ao módulo de colaboradores...
+      </div>
+    );
+  }
+
+  if (!allowed) {
+    return null;
+  }
 
   return (
     <div className="space-y-4">

@@ -1,4 +1,5 @@
 import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const NOTIFICATION_READS_TABLE = "notification_reads";
@@ -84,6 +85,8 @@ export async function buildJornaleiroNotifications(userId: string) {
     return { banca: null, notifications: [] as JornaleiroNotification[] };
   }
 
+  const entitlements = await resolveBancaPlanEntitlements(banca);
+
   const notifications: InternalNotification[] = [];
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -122,7 +125,7 @@ export async function buildJornaleiroNotifications(userId: string) {
     });
   });
 
-  if (banca.is_cotista && banca.cotista_id) {
+  if (entitlements.canAccessDistributorCatalog) {
     const { data: novosProdutos } = await supabaseAdmin
       .from("products")
       .select("id, name, created_at, distribuidor_id")

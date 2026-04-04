@@ -8,6 +8,7 @@ import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActiva
 import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
 import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 import { getPlanUpgradeHint } from "@/lib/plan-messaging";
+import { usePremiumRouteGuard } from "@/components/jornaleiro/usePremiumRouteGuard";
 
 type Distribuidor = {
   id: string;
@@ -36,6 +37,10 @@ const DISTRIBUIDORES: Distribuidor[] = [
 ];
 
 export default function DistribuidoresPage() {
+  const { guarding, allowed } = usePremiumRouteGuard({
+    entitlementKey: "can_access_partner_directory",
+    source: "distribuidores",
+  });
   const [loadingAccess, setLoadingAccess] = useState(true);
   const [hasPartnerAccess, setHasPartnerAccess] = useState(false);
   const [planName, setPlanName] = useState("Free");
@@ -49,6 +54,10 @@ export default function DistribuidoresPage() {
   const [contractedPlanName, setContractedPlanName] = useState<string | null>(null);
 
   useEffect(() => {
+    if (guarding || !allowed) {
+      return;
+    }
+
     const loadAccess = async () => {
       try {
         const res = await fetch("/api/jornaleiro/banca", {
@@ -75,7 +84,7 @@ export default function DistribuidoresPage() {
     };
 
     loadAccess();
-  }, []);
+  }, [guarding, allowed]);
 
   const partnerUpgradeHint = getPlanUpgradeHint({
     currentPlanType: planType,
@@ -88,6 +97,18 @@ export default function DistribuidoresPage() {
   const nextOperationalStep = hasPartnerAccess
     ? "Abrir um parceiro e começar a montar a reposição da banca."
     : "Ativar o acesso parceiro para incluir distribuidores na rotina da banca.";
+
+  if (guarding) {
+    return (
+      <div className="flex items-center justify-center py-12 text-sm text-gray-500">
+        Validando acesso à rede de distribuidores...
+      </div>
+    );
+  }
+
+  if (!allowed) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">

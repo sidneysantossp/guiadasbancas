@@ -1,5 +1,6 @@
 import { listOwnedBancas, loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
 import { doesPlatformEmailExist } from "@/lib/modules/jornaleiro/email";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
 function parsePermissions(value: unknown): string[] {
@@ -36,9 +37,14 @@ async function loadCollaboratorManager(userId: string) {
 }
 
 async function loadOwnedBancaCatalog(userId: string) {
-  const { data, error } = await listOwnedBancas({
+  const { data, error } = await listOwnedBancas<{
+    id: string;
+    name?: string | null;
+    is_cotista?: boolean | null;
+    cotista_id?: string | null;
+  }>({
     userId,
-    select: "id, name",
+    select: "id, name, is_cotista, cotista_id",
   });
 
   if (error) {
@@ -46,6 +52,34 @@ async function loadOwnedBancaCatalog(userId: string) {
   }
 
   return data;
+}
+
+async function loadCollaboratorEligibleBancas(userId: string) {
+  const ownedBancas = await loadOwnedBancaCatalog(userId);
+
+  if (ownedBancas.length === 0) {
+    return ownedBancas;
+  }
+
+  const eligibleBancas = [];
+
+  for (const banca of ownedBancas) {
+    const entitlements = await resolveBancaPlanEntitlements({
+      id: banca.id,
+      is_cotista: banca.is_cotista === true,
+      cotista_id: banca.cotista_id,
+    });
+
+    if (entitlements.canManageCollaborators) {
+      eligibleBancas.push(banca);
+    }
+  }
+
+  if (eligibleBancas.length === 0) {
+    throw new Error("PREMIUM_REQUIRED_COLLABORATORS");
+  }
+
+  return eligibleBancas;
 }
 
 async function loadScopedCollaboratorMemberships(params: {
@@ -76,9 +110,9 @@ async function loadScopedCollaboratorMemberships(params: {
 }
 
 export async function listManagedCollaborators(userId: string) {
-  const actor = await loadCollaboratorManager(userId);
-  const ownedBancas = await loadOwnedBancaCatalog(userId);
-  const bancaIds = actor.ownedBancaIds;
+  await loadCollaboratorManager(userId);
+  const ownedBancas = await loadCollaboratorEligibleBancas(userId);
+  const bancaIds = ownedBancas.map((banca) => banca.id);
 
   if (bancaIds.length === 0) {
     return { success: true, colaboradores: [] as any[] };
@@ -141,6 +175,7 @@ export async function createManagedCollaborator(params: {
   input: any;
 }) {
   const actor = await loadCollaboratorManager(params.userId);
+  const eligibleBancas = await loadCollaboratorEligibleBancas(params.userId);
   const { full_name, email, whatsapp, password, access_level, banca_ids, permissions } = params.input || {};
 
   if (access_level === "admin" && actor.accessLevel !== "admin") {
@@ -155,7 +190,7 @@ export async function createManagedCollaborator(params: {
     throw new Error("INVALID_BANCA_SELECTION");
   }
 
-  const allowedBancaIds = new Set(actor.ownedBancaIds);
+  const allowedBancaIds = new Set(eligibleBancas.map((banca) => banca.id));
   const requestedBancaIds = Array.isArray(banca_ids)
     ? banca_ids.filter((id: unknown): id is string => typeof id === "string")
     : [];
@@ -242,11 +277,11 @@ export async function getManagedCollaborator(params: {
   userId: string;
   collaboratorId: string;
 }) {
-  const actor = await loadCollaboratorManager(params.userId);
-  const ownedBancas = await loadOwnedBancaCatalog(params.userId);
+  await loadCollaboratorManager(params.userId);
+  const ownedBancas = await loadCollaboratorEligibleBancas(params.userId);
   const memberships = await loadScopedCollaboratorMemberships({
     collaboratorId: params.collaboratorId,
-    bancaIds: actor.ownedBancaIds,
+    bancaIds: ownedBancas.map((banca) => banca.id),
   });
 
   const { data: userProfile } = await supabaseAdmin
@@ -295,6 +330,8 @@ export async function updateManagedCollaborator(params: {
   input: any;
 }) {
   const actor = await loadCollaboratorManager(params.userId);
+  const eligibleBancas = await loadCollaboratorEligibleBancas(params.userId);
+  const eligibleBancaIds = eligibleBancas.map((banca) => banca.id);
   const { full_name, access_level, banca_ids, permissions } = params.input || {};
 
   if (access_level === "admin" && actor.accessLevel !== "admin") {
@@ -303,7 +340,7 @@ export async function updateManagedCollaborator(params: {
 
   const existingMemberships = await loadScopedCollaboratorMemberships({
     collaboratorId: params.collaboratorId,
-    bancaIds: actor.ownedBancaIds,
+    bancaIds: eligibleBancaIds,
   });
 
   if (full_name !== undefined) {
@@ -315,7 +352,7 @@ export async function updateManagedCollaborator(params: {
 
   const targetBancaIds =
     Array.isArray(banca_ids) && banca_ids.length > 0
-      ? banca_ids.filter((id: string) => actor.ownedBancaIds.includes(id))
+      ? banca_ids.filter((id: string) => eligibleBancaIds.includes(id))
       : existingMemberships.map((membership: any) => membership.banca_id);
 
   const existingBancaIds = existingMemberships.map((membership: any) => membership.banca_id);
@@ -378,17 +415,19 @@ export async function deleteManagedCollaborator(params: {
   userId: string;
   collaboratorId: string;
 }) {
-  const actor = await loadCollaboratorManager(params.userId);
+  await loadCollaboratorManager(params.userId);
+  const eligibleBancas = await loadCollaboratorEligibleBancas(params.userId);
+  const eligibleBancaIds = eligibleBancas.map((banca) => banca.id);
   await loadScopedCollaboratorMemberships({
     collaboratorId: params.collaboratorId,
-    bancaIds: actor.ownedBancaIds,
+    bancaIds: eligibleBancaIds,
   });
 
   const { error: deleteError } = await supabaseAdmin
     .from("banca_members")
     .delete()
     .eq("user_id", params.collaboratorId)
-    .in("banca_id", actor.ownedBancaIds);
+    .in("banca_id", eligibleBancaIds);
 
   if (deleteError) {
     throw new Error(deleteError.message || "Erro ao remover colaborador");

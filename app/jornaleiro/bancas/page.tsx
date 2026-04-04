@@ -47,13 +47,15 @@ export default function JornaleiroBancasPage() {
   const partnerLinkedCount = items.filter(
     (item) => item.partner_linked === true || item.is_cotista === true
   ).length;
+  const additionalBancaUpgradeHref = "/jornaleiro/meu-plano?source=multiplas-bancas" as Route;
+  const createBancaHref = items.length > 0 ? additionalBancaUpgradeHref : ("/jornaleiro/bancas/nova" as Route);
 
   const tabs = useMemo(
     () => [
       { label: "Ver todas", href: "/jornaleiro/bancas" as Route, active: true },
-      { label: "Cadastrar", href: "/jornaleiro/bancas/nova" as Route, active: false },
+      { label: "Cadastrar", href: createBancaHref, active: false },
     ],
-    []
+    [createBancaHref]
   );
 
   const load = async () => {
@@ -119,10 +121,10 @@ export default function JornaleiroBancasPage() {
         actions={
           canManageBancas ? (
             <Link
-              href={("/jornaleiro/bancas/nova" as Route)}
+              href={createBancaHref}
               className="inline-flex rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
             >
-              + Nova banca
+              {items.length > 0 ? "Ativar nova licença" : "+ Nova banca"}
             </Link>
           ) : null
         }
@@ -173,6 +175,15 @@ export default function JornaleiroBancasPage() {
           <p className="mt-2 text-blue-800">
             Se você opera mais de uma banca, escolha aqui qual unidade fica ativa no painel. Isso evita editar catálogo, pedidos e configurações na banca errada.
           </p>
+          {canManageBancas ? (
+            <p className="mt-2 text-blue-800">
+              Para abrir uma nova unidade, cada banca precisa da própria licença. Use o fluxo de ativação em{" "}
+              <Link href={additionalBancaUpgradeHref} className="font-semibold underline underline-offset-2">
+                Meu Plano
+              </Link>
+              .
+            </p>
+          ) : null}
         </div>
       )}
 

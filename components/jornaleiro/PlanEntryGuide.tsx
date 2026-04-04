@@ -16,12 +16,11 @@ export default function PlanEntryGuide({ compact = false, className = "" }: Prop
         </div>
           {!compact ? (
             <h3 className="mt-3 text-lg font-semibold text-gray-900">
-              Defina o plano inicial do seu cadastro
+              Seu cadastro começa no plano Free
             </h3>
           ) : null}
           <p className={`${compact ? "mt-0 text-sm" : "mt-2 text-sm sm:text-base"} text-gray-600`}>
-            Você pode indicar o plano ideal agora para orientar seu onboarding. A cobrança só acontece quando confirmar
-            o upgrade no painel, então dá para começar sem pressão.
+            Sua banca entra sem cobrança no plano Free, com espaço para publicar até 10 produtos próprios e organizar a operação inicial.
           </p>
       </div>
 
@@ -33,7 +32,7 @@ export default function PlanEntryGuide({ compact = false, className = "" }: Prop
           <ul className="mt-3 space-y-2 text-sm leading-6">
             <li className="flex items-start gap-2">
               <span className="mt-2 h-1.5 w-1.5 rounded-full bg-current opacity-70" />
-              <span>Você escolhe o plano por referência e pode começar no Free sem cobrança.</span>
+              <span>O plano Free libera o cadastro da banca, a página pública e até 10 produtos próprios.</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="mt-2 h-1.5 w-1.5 rounded-full bg-current opacity-70" />
@@ -41,7 +40,7 @@ export default function PlanEntryGuide({ compact = false, className = "" }: Prop
             </li>
             <li className="flex items-start gap-2">
               <span className="mt-2 h-1.5 w-1.5 rounded-full bg-current opacity-70" />
-              <span>Quando decidir pelo upgrade, a cobrança é ativada e os recursos extras são liberados.</span>
+              <span>Para ativar o catálogo dos distribuidores e ampliar o cadastro manual de produtos, a banca precisa assinar o plano Premium.</span>
             </li>
           </ul>
         </div>

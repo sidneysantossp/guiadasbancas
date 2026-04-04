@@ -8,6 +8,7 @@ import PlanOverdueCard from '@/components/jornaleiro/PlanOverdueCard';
 import PlanPendingActivationCard from '@/components/jornaleiro/PlanPendingActivationCard';
 import PlanUpgradeCard from '@/components/jornaleiro/PlanUpgradeCard';
 import { getPlanUpgradeHint } from '@/lib/plan-messaging';
+import { usePremiumRouteGuard } from '@/components/jornaleiro/usePremiumRouteGuard';
 
 interface ProdutoDistribuidor {
   id: string;
@@ -39,6 +40,10 @@ interface ProdutoDistribuidor {
 
 export default function CatalogoDistribuidorPage() {
   const fetchAuth = useFetchAuth();
+  const { guarding, allowed } = usePremiumRouteGuard({
+    entitlementKey: "can_access_distributor_catalog",
+    source: "catalogo-distribuidor",
+  });
   const [produtos, setProdutos] = useState<ProdutoDistribuidor[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,8 +60,10 @@ export default function CatalogoDistribuidorPage() {
   const [contractedPlanName, setContractedPlanName] = useState<string | null>(null);
 
   useEffect(() => {
-    loadProdutos();
-  }, []);
+    if (!guarding && allowed) {
+      loadProdutos();
+    }
+  }, [guarding, allowed]);
 
   const loadProdutos = async () => {
     try {
@@ -65,7 +72,9 @@ export default function CatalogoDistribuidorPage() {
 
       if (data.success) {
         setProdutos(data.data || data.products || []);
-        setHasCatalogAccess(data.has_catalog_access === true);
+        setHasCatalogAccess(
+          data.partner_catalog_access === true || data.has_catalog_access === true
+        );
         setPlanType(data.entitlements?.plan_type || data.plan?.type || 'free');
         setPlanName(data.plan?.name || 'Free');
         setPaidFeaturesLockedUntilPayment(data.entitlements?.paid_features_locked_until_payment === true);
@@ -149,6 +158,20 @@ export default function CatalogoDistribuidorPage() {
     context: "partner-network",
   });
   const canInlineUpgrade = Boolean(partnerUpgradeHint.targetPlanType);
+
+  if (guarding) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center text-sm text-gray-500">
+          Validando acesso ao catálogo parceiro...
+        </div>
+      </div>
+    );
+  }
+
+  if (!allowed) {
+    return null;
+  }
 
   if (loading) {
     return (

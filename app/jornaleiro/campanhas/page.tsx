@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/admin/ToastProvider";
 import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
+import { usePremiumRouteGuard } from "@/components/jornaleiro/usePremiumRouteGuard";
 
 interface Campaign {
   id: string;
@@ -48,6 +49,10 @@ export default function JornaleiroCampaignsPage() {
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<Campaign[]>([]);
   const toast = useToast();
+  const { guarding, allowed } = usePremiumRouteGuard({
+    entitlementKey: "can_access_campaigns",
+    source: "campanhas",
+  });
 
   const fetchCampaigns = async () => {
     try {
@@ -74,8 +79,10 @@ export default function JornaleiroCampaignsPage() {
   };
 
   useEffect(() => {
-    fetchCampaigns();
-  }, []);
+    if (!guarding && allowed) {
+      fetchCampaigns();
+    }
+  }, [guarding, allowed]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -104,6 +111,18 @@ export default function JornaleiroCampaignsPage() {
   const totalImpressions = useMemo(() => campaigns.reduce((sum, campaign) => sum + Number(campaign.impressions || 0), 0), [campaigns]);
   const totalClicks = useMemo(() => campaigns.reduce((sum, campaign) => sum + Number(campaign.clicks || 0), 0), [campaigns]);
   const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+
+  if (guarding) {
+    return (
+      <div className="flex items-center justify-center py-12 text-sm text-gray-500">
+        Validando acesso ao módulo de campanhas...
+      </div>
+    );
+  }
+
+  if (!allowed) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
