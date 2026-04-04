@@ -10,6 +10,10 @@ import { getNextPlanType } from "@/lib/plan-messaging";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
+const CATALOG_UPGRADE_URL = "/jornaleiro/meu-plano?source=catalogo-distribuidor";
+const CATALOG_MANAGE_UPGRADE_URL =
+  "/jornaleiro/meu-plano?source=catalogo-distribuidor-gerenciar";
+
 function buildLockedCatalogPayload(entitlements: Awaited<ReturnType<typeof resolveBancaPlanEntitlements>>) {
   const overdueLockMessage =
     entitlements.overdueFeaturesLocked && entitlements.subscription?.plan
@@ -43,7 +47,7 @@ function buildLockedCatalogPayload(entitlements: Awaited<ReturnType<typeof resol
     },
     message: overdueLockMessage || pendingUpgradeMessage,
     recommended_plan_type: entitlements.planType === "premium" ? null : "premium",
-    upgrade_url: "/jornaleiro/meu-plano",
+    upgrade_url: CATALOG_UPGRADE_URL,
     next_plan_type: getNextPlanType(entitlements.planType),
   };
 }
@@ -58,7 +62,7 @@ function buildCatalogAccessError(entitlements: Awaited<ReturnType<typeof resolve
           plan: entitlements.plan,
           contracted_plan: entitlements.subscription.plan,
           overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
-          upgrade_url: "/jornaleiro/meu-plano",
+          upgrade_url: CATALOG_MANAGE_UPGRADE_URL,
         }
       : entitlements.paidFeaturesLockedUntilPayment && entitlements.requestedPlan
         ? {
@@ -67,7 +71,7 @@ function buildCatalogAccessError(entitlements: Awaited<ReturnType<typeof resolve
             code: "PLAN_PENDING_PAYMENT",
             plan: entitlements.plan,
             requested_plan: entitlements.requestedPlan,
-            upgrade_url: "/jornaleiro/meu-plano",
+            upgrade_url: CATALOG_MANAGE_UPGRADE_URL,
           }
         : {
             success: false,
@@ -75,7 +79,7 @@ function buildCatalogAccessError(entitlements: Awaited<ReturnType<typeof resolve
             code: "PLAN_DISTRIBUTOR_CATALOG_LOCKED",
             plan: entitlements.plan,
             recommended_plan_type: "premium",
-            upgrade_url: "/jornaleiro/meu-plano",
+            upgrade_url: CATALOG_MANAGE_UPGRADE_URL,
           };
 
   return Object.assign(new Error(String(payload.code)), {

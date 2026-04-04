@@ -19,6 +19,11 @@ import { getNextPlanType } from "@/lib/plan-messaging";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
+const PRODUCT_LIMIT_UPGRADE_URL = "/jornaleiro/meu-plano?source=product-limit";
+const DISTRIBUTOR_CATALOG_UPGRADE_URL = "/jornaleiro/meu-plano?source=catalogo-distribuidor";
+const DISTRIBUTOR_CATALOG_MANAGE_UPGRADE_URL =
+  "/jornaleiro/meu-plano?source=catalogo-distribuidor-gerenciar";
+
 async function ensureJornaleiroProductContext(
   userId: string,
   select = "id, user_id, is_cotista, cotista_id"
@@ -58,7 +63,7 @@ function buildPlanLimitError(params: {
           plan: entitlements.plan,
           contracted_plan: entitlements.subscription.plan,
           overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
-          upgrade_url: "/jornaleiro/meu-plano",
+          upgrade_url: PRODUCT_LIMIT_UPGRADE_URL,
         }
       : entitlements.paidFeaturesLockedUntilPayment && entitlements.requestedPlan
         ? {
@@ -69,7 +74,7 @@ function buildPlanLimitError(params: {
             currentCount,
             plan: entitlements.plan,
             requested_plan: entitlements.requestedPlan,
-            upgrade_url: "/jornaleiro/meu-plano",
+            upgrade_url: PRODUCT_LIMIT_UPGRADE_URL,
           }
         : {
             success: false,
@@ -79,7 +84,7 @@ function buildPlanLimitError(params: {
             currentCount,
             plan: entitlements.plan,
             recommended_plan_type: getNextPlanType(entitlements.planType),
-            upgrade_url: "/jornaleiro/meu-plano",
+            upgrade_url: PRODUCT_LIMIT_UPGRADE_URL,
           };
 
   return Object.assign(new Error(String(payload.code)), {
@@ -105,7 +110,7 @@ function buildPlanImageLimitError(params: {
           plan: entitlements.plan,
           contracted_plan: entitlements.subscription.plan,
           overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
-          upgrade_url: "/jornaleiro/meu-plano",
+          upgrade_url: PRODUCT_LIMIT_UPGRADE_URL,
         }
       : entitlements.paidFeaturesLockedUntilPayment && entitlements.requestedPlan
         ? {
@@ -116,7 +121,7 @@ function buildPlanImageLimitError(params: {
             currentCount,
             plan: entitlements.plan,
             requested_plan: entitlements.requestedPlan,
-            upgrade_url: "/jornaleiro/meu-plano",
+            upgrade_url: PRODUCT_LIMIT_UPGRADE_URL,
           }
         : {
             success: false,
@@ -126,7 +131,7 @@ function buildPlanImageLimitError(params: {
             currentCount,
             plan: entitlements.plan,
             recommended_plan_type: getNextPlanType(entitlements.planType),
-            upgrade_url: "/jornaleiro/meu-plano",
+            upgrade_url: PRODUCT_LIMIT_UPGRADE_URL,
           };
 
   return Object.assign(new Error(String(payload.code)), {
@@ -141,8 +146,20 @@ function buildDistributorCatalogProductsError(
 ) {
   const payload =
     mode === "read"
-      ? { success: false, error: "Seu plano atual não permite acessar produtos do catálogo de distribuidores." }
-      : { success: false, error: "Seu plano atual não permite editar produtos do catálogo de distribuidores." };
+      ? {
+          success: false,
+          error: "Seu plano atual não permite acessar produtos do catálogo de distribuidores.",
+          code: "PLAN_DISTRIBUTOR_CATALOG_LOCKED",
+          recommended_plan_type: "premium",
+          upgrade_url: DISTRIBUTOR_CATALOG_UPGRADE_URL,
+        }
+      : {
+          success: false,
+          error: "Seu plano atual não permite editar produtos do catálogo de distribuidores.",
+          code: "PLAN_DISTRIBUTOR_CATALOG_LOCKED",
+          recommended_plan_type: "premium",
+          upgrade_url: DISTRIBUTOR_CATALOG_MANAGE_UPGRADE_URL,
+        };
 
   return Object.assign(new Error("PLAN_DISTRIBUTOR_CATALOG_LOCKED"), {
     status: 403,

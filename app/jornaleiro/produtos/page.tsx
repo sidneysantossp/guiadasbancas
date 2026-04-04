@@ -279,7 +279,7 @@ export default function JornaleiroProdutosPage() {
         actions={
           paidFeaturesLockedUntilPayment || overdueFeaturesLocked ? (
             <Link
-              href={"/jornaleiro/meu-plano" as Route}
+              href={productUpgradeHref}
               className="inline-flex w-full items-center justify-center rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 sm:w-auto"
             >
               Ver cobrança do plano

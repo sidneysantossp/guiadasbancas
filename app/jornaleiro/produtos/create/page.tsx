@@ -66,6 +66,7 @@ export default function SellerProductCreatePage() {
   const [overdueGraceEndsAt, setOverdueGraceEndsAt] = useState<string | null>(null);
   const [contractedPlanName, setContractedPlanName] = useState<string | null>(null);
   const featuredUpgradeUrl = "/jornaleiro/meu-plano?source=destaque";
+  const productUpgradeUrl = "/jornaleiro/meu-plano?source=product-limit";
   
   // Estados para contexto da IA
   const [productName, setProductName] = useState("");
@@ -242,7 +243,7 @@ export default function SellerProductCreatePage() {
           <div className="font-semibold">Limite do {planName}</div>
           <p className="mt-1">
             Este plano permite até <strong>{productLimit} produtos próprios cadastrados</strong>. Se sua banca crescer além disso, o próximo passo é fazer upgrade em{" "}
-            <Link href="/jornaleiro/meu-plano" className="font-semibold text-[#ff5c00] underline">
+            <Link href={productUpgradeUrl} className="font-semibold text-[#ff5c00] underline">
               Meu Plano
             </Link>.
           </p>
