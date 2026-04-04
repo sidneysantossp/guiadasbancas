@@ -40,7 +40,12 @@ export async function GET(req: NextRequest) {
 
     if (error?.message === "FORBIDDEN_DISTRIBUTOR_PLAN_ONLY") {
       return NextResponse.json(
-        { success: false, error: "Seu plano atual nao libera este relatorio do catalogo parceiro" },
+        {
+          success: false,
+          error: "Seu plano atual nao libera este relatorio do catalogo parceiro",
+          code: "FORBIDDEN_DISTRIBUTOR_PLAN_ONLY",
+          upgrade_url: "/jornaleiro/meu-plano?source=relatorio-rede-parceira",
+        },
         { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
       );
     }

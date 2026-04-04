@@ -32,6 +32,7 @@ function mapCampaignError(error: any) {
         success: false,
         error: "Campanhas fazem parte do plano Premium",
         code: "PREMIUM_REQUIRED_CAMPAIGNS",
+        upgrade_url: "/jornaleiro/meu-plano?source=campanhas",
       },
       { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );

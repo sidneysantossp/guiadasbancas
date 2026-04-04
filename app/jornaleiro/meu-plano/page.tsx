@@ -271,6 +271,13 @@ function getSourceCopy(source: string | null) {
         description:
           "Campanhas fazem parte do pacote de crescimento. Ao ativar o Premium, sua banca passa a acessar essa camada de visibilidade e promoção.",
       };
+    case "relatorio-rede-parceira":
+      return {
+        eyebrow: "Upgrade orientado por relatório premium",
+        title: "Ative o Premium para analisar o catálogo parceiro",
+        description:
+          "O relatório da rede parceira mostra onde o catálogo dos distribuidores pode ampliar seu mix e acelerar vendas. Ative o Premium para liberar essa leitura estratégica.",
+      };
     case "product-limit":
       return {
         eyebrow: "Upgrade orientado por capacidade",

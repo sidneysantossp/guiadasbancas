@@ -449,10 +449,25 @@ export async function loadJornaleiroIntelligence(params: {
     activeOwnProducts.length >= 5 && activeCampaigns === 0
       ? buildRecommendation(
           "create-campaign",
-          "Experimente sua primeira campanha",
-          "Com catalogo minimamente estruturado, campanhas podem aumentar descoberta dos melhores itens.",
-          "/jornaleiro/campanhas",
+          entitlements.canAccessCampaigns
+            ? "Experimente sua primeira campanha"
+            : "Ative o Premium para rodar campanhas",
+          entitlements.canAccessCampaigns
+            ? "Com catalogo minimamente estruturado, campanhas podem aumentar descoberta dos melhores itens."
+            : "Sua banca ja tem base suficiente para escalar descoberta. O Premium libera campanhas para acelerar alcance e venda.",
+          entitlements.canAccessCampaigns
+            ? "/jornaleiro/campanhas"
+            : "/jornaleiro/meu-plano?source=campanhas",
           5
+        )
+      : null,
+    !entitlements.canAccessDistributorCatalog && activeOwnProducts.length >= 5
+      ? buildRecommendation(
+          "unlock-distributors",
+          "Ative o Premium para liberar distribuidores",
+          "Com a operação básica organizada, o próximo ganho de mix vem do catálogo dos distribuidores e da ativação em massa de produtos na banca.",
+          "/jornaleiro/meu-plano?source=distribuidores",
+          6
         )
       : null,
     entitlements.canAccessDistributorCatalog
@@ -461,7 +476,7 @@ export async function loadJornaleiroIntelligence(params: {
           "Revisite o catalogo parceiro",
           "A rede parceira pode complementar sua oferta e aprofundar o mix da banca.",
           "/jornaleiro/catalogo-distribuidor/gerenciar",
-          6
+          7
         )
       : null,
   ]

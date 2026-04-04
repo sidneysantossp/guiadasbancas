@@ -35,6 +35,7 @@ function mapCollaboratorError(error: any) {
         success: false,
         error: "Colaboradores fazem parte do plano Premium",
         code: "PREMIUM_REQUIRED_COLLABORATORS",
+        upgrade_url: "/jornaleiro/meu-plano?source=colaboradores",
       },
       { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
