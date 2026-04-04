@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import type { Route } from "next";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
@@ -46,9 +47,11 @@ const SUBSCRIPTION_STATUS_META: Record<string, { label: string; className: strin
 };
 
 export default function JornaleiroDashboardPage() {
+  const searchParams = useSearchParams();
   const { user, profile, isJornaleiro } = useAuth();
   const [banca, setBanca] = useState<any>(null);
   const [loadingBanca, setLoadingBanca] = useState(true);
+  const [bancaLoadMessage, setBancaLoadMessage] = useState("Carregando o painel da sua banca...");
   const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [metrics, setMetrics] = useState({
     pedidosHoje: 0,
@@ -65,19 +68,35 @@ export default function JornaleiroDashboardPage() {
   }, [user, isJornaleiro]);
 
   const loadBancaData = async () => {
+    const isWelcomeFlow = searchParams?.get("welcome") === "1" || searchParams?.get("trial") === "1";
+    const retryDelays = isWelcomeFlow ? [600, 1200, 1800, 2500] : [0];
+
     try {
       setLoadingBanca(true);
-      const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}`, {
-        cache: "no-store",
-        credentials: "include",
-      });
-      const text = await res.text();
-      const json = JSON.parse(text);
-      if (!res.ok || !json?.success || !json?.data) {
-        throw new Error(json?.error || `HTTP ${res.status}`);
-      }
 
-      setBanca(json.data);
+      for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
+        if (attempt > 0) {
+          setBancaLoadMessage("Estamos finalizando a vinculação da sua banca e ativando o teste premium...");
+          await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
+        }
+
+        const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}`, {
+          cache: "no-store",
+          credentials: "include",
+        });
+        const text = await res.text();
+        const json = text ? JSON.parse(text) : null;
+
+        if (res.ok && json?.success && json?.data) {
+          setBanca(json.data);
+          setBancaLoadMessage("Carregando o painel da sua banca...");
+          return;
+        }
+
+        if (attempt === retryDelays.length - 1) {
+          throw new Error(json?.error || `HTTP ${res.status}`);
+        }
+      }
     } catch (error) {
       console.error('[Dashboard] Erro ao carregar banca:', error);
       setBanca(null);
@@ -135,6 +154,7 @@ export default function JornaleiroDashboardPage() {
   const sellerName = profile?.full_name || user?.email?.split('@')[0] || 'Jornaleiro';
   const sellerEmail = user?.email || '';
   const sellerPhone = profile?.phone || '';
+  const isWelcomeFlow = searchParams?.get("welcome") === "1" || searchParams?.get("trial") === "1";
   const bancaLifecycle = resolveBancaLifecycle(banca);
 
   // Memoizar cálculos pesados
@@ -291,6 +311,35 @@ export default function JornaleiroDashboardPage() {
 
   // Sem banca vinculada, orientar o jornaleiro para iniciar o cadastro.
   if (!loadingBanca && !banca) {
+    if (isWelcomeFlow) {
+      return (
+        <div className="min-h-[60vh] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-lg w-full text-center">
+            <div className="text-6xl mb-4">🚀</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Estamos finalizando a ativação da sua banca</h1>
+            <p className="text-gray-600 mb-6">
+              Seu cadastro foi concluído e o teste premium está sendo liberado. Recarregue o painel em alguns instantes se esta tela persistir.
+            </p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => loadBancaData()}
+                className="inline-flex items-center bg-[#ff5c00] text-white px-6 py-3 rounded-md hover:opacity-90 font-semibold"
+              >
+                Atualizar painel
+              </button>
+              <Link
+                href="/jornaleiro/meu-plano?source=dashboard-trial"
+                className="inline-flex items-center border border-gray-200 bg-white px-6 py-3 rounded-md hover:bg-gray-50 font-semibold text-gray-700"
+              >
+                Ver detalhes do trial
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
@@ -315,7 +364,7 @@ export default function JornaleiroDashboardPage() {
       <div className="min-h-[50vh] flex items-center justify-center p-4">
         <div className="rounded-2xl border border-gray-200 bg-white px-6 py-8 text-center shadow-sm">
           <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-[#ff5c00]" />
-          <p className="mt-4 text-sm text-gray-600">Carregando o painel da sua banca...</p>
+          <p className="mt-4 text-sm text-gray-600">{bancaLoadMessage}</p>
         </div>
       </div>
     );
@@ -323,9 +372,39 @@ export default function JornaleiroDashboardPage() {
 
   const partnerLinked = banca?.partner_linked === true || banca?.is_cotista === true;
   const needsTpuAlert = banca && !partnerLinked && !banca.tpu_url;
+  const shouldShowTrialBanner = currentSubscriptionStatus === "trial" || isWelcomeFlow;
+  const trialEndsLabel = banca?.subscription?.trial_ends_at
+    ? new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(
+        new Date(banca.subscription.trial_ends_at)
+      )
+    : null;
 
   return (
     <div className="space-y-4 overflow-x-hidden px-3 sm:px-0 max-w-full">
+      {shouldShowTrialBanner ? (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4 shadow-sm">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Teste premium ativo</div>
+              <div className="mt-1 text-lg font-semibold text-blue-900">
+                Sua banca já entrou com todos os recursos premium liberados
+              </div>
+              <p className="mt-1 text-sm text-blue-800">
+                {trialEndsLabel
+                  ? `O período grátis vai até ${trialEndsLabel}. Aproveite para configurar distribuidores, campanhas, colaboradores e o crescimento da sua operação antes da primeira cobrança.`
+                  : "Aproveite estes primeiros dias para configurar distribuidores, campanhas, colaboradores e o crescimento da sua operação antes da primeira cobrança."}
+              </p>
+            </div>
+            <Link
+              href="/jornaleiro/meu-plano?source=dashboard-trial"
+              className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 shadow-sm ring-1 ring-inset ring-blue-200 hover:bg-blue-100/40"
+            >
+              Ver detalhes do Premium
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       <div className="rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 via-white to-white p-4 sm:p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">

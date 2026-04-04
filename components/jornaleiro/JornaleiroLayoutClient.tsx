@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
 import Image from "next/image";
@@ -54,6 +54,7 @@ const journaleiroIconComponents = {
 export default function JornaleiroLayoutClient({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [banca, setBanca] = useState<any>(null);
   const [bancaValidated, setBancaValidated] = useState(false);
@@ -68,6 +69,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
+  const isWelcomeTrialFlow = searchParams?.get("welcome") === "1" || searchParams?.get("trial") === "1";
 
   const logout = async () => {
     if (user?.id) {
@@ -375,34 +377,53 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
 
       // Verificar se tem banca (apenas se não tiver cache)
       try {
-        const response = await fetch('/api/jornaleiro/banca', {
-          method: 'GET',
-          cache: 'no-store',
-        });
-
-        const responseText = await response.text();
+        const retryDelays = isWelcomeTrialFlow ? [0, 600, 1200, 1800, 2500] : [0];
         let parsed: any = null;
-        try {
-          parsed = JSON.parse(responseText);
-        } catch (parseErr) {
-          logger.error('[Layout] Resposta inválida da API /jornaleiro/banca:', responseText);
+        let response: Response | null = null;
+
+        for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
+          if (retryDelays[attempt] > 0) {
+            await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
+          }
+
+          response = await fetch('/api/jornaleiro/banca', {
+            method: 'GET',
+            cache: 'no-store',
+          });
+
+          const responseText = await response.text();
+          try {
+            parsed = responseText ? JSON.parse(responseText) : null;
+          } catch (parseErr) {
+            logger.error('[Layout] Resposta inválida da API /jornaleiro/banca:', responseText);
+            parsed = null;
+          }
+
+          if (response.ok && parsed?.success && parsed?.data) {
+            break;
+          }
+
+          const missingBanca = response.status === 404 && parsed?.error === "Banca não encontrada para este usuário";
+          if (!missingBanca || attempt === retryDelays.length - 1) {
+            break;
+          }
         }
 
-        const missingBanca = response.status === 404 && parsed?.error === "Banca não encontrada para este usuário";
+        const missingBanca = response?.status === 404 && parsed?.error === "Banca não encontrada para este usuário";
 
         if (missingBanca) {
           logger.warn("[Layout] Conta sem banca principal vinculada");
           setBanca(null);
           setBancaValidated(true);
 
-          if (!pathname?.startsWith('/jornaleiro/registrar')) {
+          if (!isWelcomeTrialFlow && !pathname?.startsWith('/jornaleiro/registrar')) {
             router.push('/jornaleiro/registrar');
           }
           return;
         }
 
-        if (!response.ok || !parsed?.success || !parsed?.data) {
-          const apiError = parsed?.error || `HTTP ${response.status}`;
+        if (!response?.ok || !parsed?.success || !parsed?.data) {
+          const apiError = parsed?.error || `HTTP ${response?.status || 500}`;
           logger.error('[Layout] Erro ao validar contexto da banca:', apiError);
           setBanca(null);
           setBancaValidated(true);
@@ -443,7 +464,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     };
 
     validateUserAccess();
-  }, [user?.id, profile?.role, (profile as any)?.jornaleiro_access_level, (profile as any)?.banca_id, authLoading, isAuthRoute]);
+  }, [user?.id, profile?.role, (profile as any)?.jornaleiro_access_level, (profile as any)?.banca_id, authLoading, isAuthRoute, isWelcomeTrialFlow, pathname, router, signOut]);
 
   // Listener para atualizar a banca quando houver alteração (ex: mudança de imagem)
   useEffect(() => {

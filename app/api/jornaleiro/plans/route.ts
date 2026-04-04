@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import { loadPrimaryOwnedBanca } from "@/lib/modules/jornaleiro/access";
+import { ensureDefaultPremiumPlan } from "@/lib/banca-subscription";
 import {
   hasBancaUsedPaidPlanTrial,
   readPaidPlanTrialDays,
@@ -21,6 +22,8 @@ export async function GET(request: NextRequest) {
         { status: 401, headers: buildNoStoreHeaders({ isPrivate: true }) }
       );
     }
+
+    await ensureDefaultPremiumPlan();
 
     const { data, error } = await supabaseAdmin
       .from("plans")

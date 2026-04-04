@@ -13,7 +13,7 @@ export default function JornaleiroOnboardingPage() {
   const [status, setStatus] = useState<"loading" | "creating" | "success" | "error">("loading");
   const [message, setMessage] = useState("Configurando sua conta...");
 
-  const resolvePostOnboardingTarget = () => "/jornaleiro/dashboard" as Route;
+  const resolvePostOnboardingTarget = () => "/jornaleiro/dashboard?welcome=1&trial=1" as Route;
 
   useEffect(() => {
     let cancelled = false;
@@ -262,6 +262,7 @@ export default function JornaleiroOnboardingPage() {
         body: JSON.stringify({
           banca: bancaData,
           profile: profileUpdates,
+          activate_premium_trial: true,
         }),
       });
 
@@ -299,8 +300,8 @@ export default function JornaleiroOnboardingPage() {
       setStatus("success");
       setMessage(
         alreadyExists
-          ? "Sua banca já estava cadastrada. Vamos abrir o painel para você continuar a configuração."
-          : "Banca criada com sucesso! Estamos liberando o painel para você continuar a configuração."
+          ? "Sua banca já estava cadastrada. Estamos liberando o painel premium com o teste ativo."
+          : "Banca criada com sucesso! Seu teste premium já está ativo e o painel será aberto em seguida."
       );
       
       logger.log('[Onboarding] 🎉 Sucesso! Redirecionando para a próxima etapa...');
@@ -383,11 +384,11 @@ export default function JornaleiroOnboardingPage() {
               </li>
               <li className="flex items-start gap-3">
                 <span className="mt-1 h-2 w-2 rounded-full bg-[#ff5c00]" />
-                <span>O painel será aberto para você continuar a configuração operacional da banca.</span>
+                <span>O painel será aberto já com os recursos premium liberados durante o período de teste.</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="mt-1 h-2 w-2 rounded-full bg-[#ff5c00]" />
-                <span>As próximas ações são revisar dados, publicar os produtos e deixar o atendimento pronto.</span>
+                <span>As próximas ações são revisar dados, publicar produtos, validar o estoque e acompanhar o prazo do teste premium.</span>
               </li>
             </ul>
           </div>
