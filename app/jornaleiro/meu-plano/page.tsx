@@ -257,12 +257,26 @@ function getSourceCopy(source: string | null) {
         description:
           "Seu plano atual mantém a operação básica da banca. O Premium libera catálogo parceiro e rede de distribuidores para ampliar o mix sem cadastrar tudo manualmente.",
       };
+    case "catalogo-distribuidor-gerenciar":
+      return {
+        eyebrow: "Upgrade orientado por catálogo parceiro",
+        title: "Ative o Premium para gerenciar produtos dos distribuidores",
+        description:
+          "O gerenciamento do catálogo parceiro faz parte da operação premium. Ative o plano para editar preços, habilitar itens dos distribuidores e ampliar o sortimento da banca.",
+      };
     case "campanhas":
       return {
         eyebrow: "Upgrade orientado por campanha",
         title: "Ative o Premium para rodar campanhas",
         description:
           "Campanhas fazem parte do pacote de crescimento. Ao ativar o Premium, sua banca passa a acessar essa camada de visibilidade e promoção.",
+      };
+    case "product-limit":
+      return {
+        eyebrow: "Upgrade orientado por capacidade",
+        title: "Ative o Premium para ampliar o catálogo da banca",
+        description:
+          "O Free mantém a operação básica com até 10 produtos manuais. O Premium libera capacidade ampliada, distribuidores e ferramentas de crescimento para escalar o mix da banca.",
       };
     case "colaboradores":
       return {

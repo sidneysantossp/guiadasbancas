@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 // Removido next/image - usando img nativo para evitar falhas em produção
 import Link from "next/link";
 import { useToast } from "@/components/admin/ToastProvider";
-import PlanCheckoutModal from "@/components/jornaleiro/PlanCheckoutModal";
 import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
 import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
 import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
@@ -51,7 +50,6 @@ export default function GerenciarCatalogoPage() {
   const [hasCatalogAccess, setHasCatalogAccess] = useState<boolean | null>(null); // null = carregando
   const [planType, setPlanType] = useState<string>("free");
   const [planName, setPlanName] = useState<string>("Free");
-  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [paidFeaturesLockedUntilPayment, setPaidFeaturesLockedUntilPayment] = useState(false);
   const [requestedPlanName, setRequestedPlanName] = useState<string | null>(null);
   const [overdueFeaturesLocked, setOverdueFeaturesLocked] = useState(false);
@@ -153,7 +151,7 @@ export default function GerenciarCatalogoPage() {
     currentPlanName: planName,
     context: "partner-network",
   });
-  const canInlineUpgrade = Boolean(partnerUpgradeHint.targetPlanType);
+  const catalogManageUpgradeHref = "/jornaleiro/meu-plano?source=catalogo-distribuidor-gerenciar";
 
   // Removido modal: redirecionamento direto para edição do produto
 
@@ -203,7 +201,7 @@ export default function GerenciarCatalogoPage() {
                 context="partner-network"
                 showSupportAction
                 className="bg-white"
-                onPrimaryAction={canInlineUpgrade ? () => setUpgradeModalOpen(true) : undefined}
+                primaryHref={catalogManageUpgradeHref}
               />
             )}
           </div>
@@ -282,13 +280,6 @@ export default function GerenciarCatalogoPage() {
           </div>
         )}
       </div>
-
-      <PlanCheckoutModal
-        open={upgradeModalOpen}
-        targetPlanType={partnerUpgradeHint.targetPlanType}
-        onClose={() => setUpgradeModalOpen(false)}
-        onSuccess={fetchProducts}
-      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

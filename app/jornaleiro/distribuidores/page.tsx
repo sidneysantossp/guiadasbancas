@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import PlanCheckoutModal from "@/components/jornaleiro/PlanCheckoutModal";
 import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
 import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
 import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
@@ -45,7 +44,6 @@ export default function DistribuidoresPage() {
   const [hasPartnerAccess, setHasPartnerAccess] = useState(false);
   const [planName, setPlanName] = useState("Free");
   const [planType, setPlanType] = useState("free");
-  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [paidFeaturesLockedUntilPayment, setPaidFeaturesLockedUntilPayment] = useState(false);
   const [requestedPlanName, setRequestedPlanName] = useState<string | null>(null);
   const [overdueFeaturesLocked, setOverdueFeaturesLocked] = useState(false);
@@ -91,7 +89,7 @@ export default function DistribuidoresPage() {
     currentPlanName: planName,
     context: "partner-network",
   });
-  const canInlineUpgrade = Boolean(partnerUpgradeHint.targetPlanType);
+  const partnerUpgradeHref = "/jornaleiro/meu-plano?source=distribuidores";
   const availablePartners = DISTRIBUIDORES.length;
   const currentAccessLabel = hasPartnerAccess ? "Liberado" : paidFeaturesLockedUntilPayment ? "Aguardando pagamento" : "Bloqueado pelo plano";
   const nextOperationalStep = hasPartnerAccess
@@ -155,7 +153,7 @@ export default function DistribuidoresPage() {
           currentPlanName={planName}
           context="partner-network"
           showSupportAction
-          onPrimaryAction={canInlineUpgrade ? () => setUpgradeModalOpen(true) : undefined}
+          primaryHref={partnerUpgradeHref}
         />
       ) : (
         <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
@@ -205,16 +203,10 @@ export default function DistribuidoresPage() {
                     </Link>
                   ) : (
                     <Link
-                      href="/jornaleiro/meu-plano"
-                      onClick={(event) => {
-                        if (!paidFeaturesLockedUntilPayment && canInlineUpgrade) {
-                          event.preventDefault();
-                          setUpgradeModalOpen(true);
-                        }
-                      }}
+                      href={partnerUpgradeHref}
                       className="flex-1 rounded-lg bg-gray-900 px-4 py-2 text-center text-sm font-medium text-white hover:opacity-90 transition-opacity"
                     >
-                      {paidFeaturesLockedUntilPayment || overdueFeaturesLocked ? "Ver cobrança do plano" : canInlineUpgrade ? "Ativar acesso parceiro" : "Ver planos"}
+                      {paidFeaturesLockedUntilPayment || overdueFeaturesLocked ? "Ver cobrança do plano" : "Ativar acesso parceiro"}
                     </Link>
                   )}
                   
@@ -266,26 +258,6 @@ export default function DistribuidoresPage() {
           </div>
         </div>
       </div>
-
-      <PlanCheckoutModal
-        open={upgradeModalOpen}
-        targetPlanType={partnerUpgradeHint.targetPlanType}
-        onClose={() => setUpgradeModalOpen(false)}
-        onSuccess={async () => {
-          const res = await fetch("/api/jornaleiro/banca", {
-            cache: "no-store",
-            credentials: "include",
-          });
-          const json = await res.json();
-          if (json?.success && json?.data) {
-            setHasPartnerAccess(Boolean(json.data?.entitlements?.can_access_partner_directory));
-            setPlanName(json.data?.plan?.name || "Free");
-            setPlanType(json.data?.entitlements?.plan_type || json.data?.plan?.type || "free");
-            setPaidFeaturesLockedUntilPayment(json.data?.entitlements?.paid_features_locked_until_payment === true);
-            setRequestedPlanName(json.data?.requested_plan?.name || null);
-          }
-        }}
-      />
     </div>
   );
 }

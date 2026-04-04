@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useFetchAuth } from '@/lib/hooks/useFetchAuth';
-import PlanCheckoutModal from '@/components/jornaleiro/PlanCheckoutModal';
 import PlanOverdueCard from '@/components/jornaleiro/PlanOverdueCard';
 import PlanPendingActivationCard from '@/components/jornaleiro/PlanPendingActivationCard';
 import PlanUpgradeCard from '@/components/jornaleiro/PlanUpgradeCard';
@@ -51,7 +50,6 @@ export default function CatalogoDistribuidorPage() {
   const [hasCatalogAccess, setHasCatalogAccess] = useState(false);
   const [planType, setPlanType] = useState<string>('free');
   const [planName, setPlanName] = useState<string>('Free');
-  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [paidFeaturesLockedUntilPayment, setPaidFeaturesLockedUntilPayment] = useState(false);
   const [requestedPlanName, setRequestedPlanName] = useState<string | null>(null);
   const [overdueFeaturesLocked, setOverdueFeaturesLocked] = useState(false);
@@ -157,7 +155,7 @@ export default function CatalogoDistribuidorPage() {
     currentPlanName: planName,
     context: "partner-network",
   });
-  const canInlineUpgrade = Boolean(partnerUpgradeHint.targetPlanType);
+  const catalogUpgradeHref = "/jornaleiro/meu-plano?source=catalogo-distribuidor";
 
   if (guarding) {
     return (
@@ -237,7 +235,7 @@ export default function CatalogoDistribuidorPage() {
             currentPlanName={planName}
             context="partner-network"
             showSupportAction
-            onPrimaryAction={canInlineUpgrade ? () => setUpgradeModalOpen(true) : undefined}
+            primaryHref={catalogUpgradeHref}
           />
         )}
       </div>
@@ -299,16 +297,10 @@ export default function CatalogoDistribuidorPage() {
               </Link>
             ) : (
               <Link
-                href="/jornaleiro/meu-plano"
-                onClick={(event) => {
-                  if (!paidFeaturesLockedUntilPayment && canInlineUpgrade) {
-                    event.preventDefault();
-                    setUpgradeModalOpen(true);
-                  }
-                }}
+                href={catalogUpgradeHref}
                 className="mt-4 inline-flex items-center rounded-md border border-transparent bg-[#ff5c00] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#ff6a1a]"
               >
-                {paidFeaturesLockedUntilPayment || overdueFeaturesLocked ? "Ver cobrança do plano" : canInlineUpgrade ? "Ativar acesso parceiro" : "Ver planos"}
+                {paidFeaturesLockedUntilPayment || overdueFeaturesLocked ? "Ver cobrança do plano" : "Ativar acesso parceiro"}
               </Link>
             )
           )}
@@ -477,13 +469,6 @@ export default function CatalogoDistribuidorPage() {
           </div>
         </div>
       </div>
-
-      <PlanCheckoutModal
-        open={upgradeModalOpen}
-        targetPlanType={partnerUpgradeHint.targetPlanType}
-        onClose={() => setUpgradeModalOpen(false)}
-        onSuccess={loadProdutos}
-      />
     </div>
   );
 }

@@ -8,7 +8,6 @@ import FiltersBar from "@/components/admin/FiltersBar";
 import DataTable, { type Column } from "@/components/admin/DataTable";
 import StatusBadge from "@/components/admin/StatusBadge";
 import { useToast } from "@/components/admin/ToastProvider";
-import PlanCheckoutModal from "@/components/jornaleiro/PlanCheckoutModal";
 import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
 import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
 import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
@@ -49,7 +48,6 @@ export default function JornaleiroProdutosPage() {
   const [planType, setPlanType] = useState("free");
   const [productLimit, setProductLimit] = useState<number | null>(null);
   const [ownProductsCount, setOwnProductsCount] = useState(0);
-  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [paidFeaturesLockedUntilPayment, setPaidFeaturesLockedUntilPayment] = useState(false);
   const [requestedPlanName, setRequestedPlanName] = useState<string | null>(null);
   const [overdueFeaturesLocked, setOverdueFeaturesLocked] = useState(false);
@@ -164,7 +162,7 @@ export default function JornaleiroProdutosPage() {
     productLimit,
     currentCount: ownProductsCount,
   });
-  const canInlineUpgrade = Boolean(productUpgradeHint.targetPlanType);
+  const productUpgradeHref = "/jornaleiro/meu-plano?source=product-limit" as Route;
 
   const toggleActive = async (row: ProdutoListItem) => {
     try {
@@ -286,17 +284,16 @@ export default function JornaleiroProdutosPage() {
             >
               Ver cobrança do plano
             </Link>
-          ) : limitReached && canInlineUpgrade ? (
-            <button
-              type="button"
-              onClick={() => setUpgradeModalOpen(true)}
+          ) : limitReached ? (
+            <Link
+              href={productUpgradeHref}
               className="inline-flex w-full items-center justify-center rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 sm:w-auto"
             >
               Fazer upgrade do plano
-            </button>
+            </Link>
           ) : (
             <Link
-              href={(limitReached ? "/jornaleiro/meu-plano" : "/jornaleiro/produtos/create") as Route}
+              href={(limitReached ? productUpgradeHref : "/jornaleiro/produtos/create") as Route}
               className="inline-flex w-full items-center justify-center rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 sm:w-auto"
             >
               {limitReached ? "Ver meu plano" : "Novo produto"}
@@ -414,7 +411,7 @@ export default function JornaleiroProdutosPage() {
           context="product-limit"
           productLimit={productLimit}
           currentCount={ownProductsCount}
-          onPrimaryAction={canInlineUpgrade ? () => setUpgradeModalOpen(true) : undefined}
+          primaryHref={productUpgradeHref}
         />
       ) : null}
 
@@ -519,15 +516,6 @@ export default function JornaleiroProdutosPage() {
             </button>
           </div>
         )}
-      />
-
-      <PlanCheckoutModal
-        open={upgradeModalOpen}
-        targetPlanType={productUpgradeHint.targetPlanType}
-        onClose={() => setUpgradeModalOpen(false)}
-        onSuccess={async () => {
-          await Promise.all([loadPlanUsage(), fetchRows()]);
-        }}
       />
     </div>
   );
