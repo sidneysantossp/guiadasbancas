@@ -754,13 +754,16 @@ export default function MeuPlanoPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#ff5c00]">Ativação Premium</p>
-                <h2 className="mt-2 text-2xl font-semibold text-gray-900">Ative o Premium com 7 dias grátis</h2>
+                <h2 className="mt-2 text-2xl font-semibold text-gray-900">
+                  Ative o Premium com {premiumTrialDays} dias grátis
+                </h2>
               </div>
               <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">Asaas</span>
             </div>
 
             <p className="mt-4 text-sm leading-7 text-gray-600">
-              Use o Asaas para ativar o Premium desta banca em ambiente seguro. O cartão entra agora, mas a primeira cobrança só acontece depois do período grátis se você não cancelar antes.
+              Use o Asaas para ativar o Premium desta banca em ambiente seguro. O cartão entra agora, mas a
+              primeira cobrança só acontece depois de {premiumTrialDays} dias se você não cancelar antes.
             </p>
 
             <div className="mt-5 space-y-3 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">

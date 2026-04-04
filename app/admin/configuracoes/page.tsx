@@ -30,7 +30,7 @@ const SETTINGS_METADATA = {
   subscription_trial_days_paid: {
     description: "Dias de degustação liberados uma única vez para a primeira assinatura paga da banca",
     is_secret: false,
-    defaultValue: "0",
+    defaultValue: "7",
   },
   paid_plan_trial_claimed_bancas_v1: {
     description: "Lista interna de bancas que já utilizaram o período de degustação dos planos pagos",

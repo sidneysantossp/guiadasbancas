@@ -10,7 +10,7 @@ const SUBSCRIPTION_PRICING_OVERRIDES_KEY = "banca_subscription_pricing_overrides
 
 const DEFAULT_PREMIUM_LAUNCH_PRICE = 99.9;
 const DEFAULT_PREMIUM_LAUNCH_SLOTS = 100;
-const DEFAULT_PAID_PLAN_TRIAL_DAYS = 0;
+const DEFAULT_PAID_PLAN_TRIAL_DAYS = 7;
 
 type SubscriptionBinding = {
   localSubscriptionId: string;
@@ -163,6 +163,10 @@ async function readPremiumLaunchConfig(): Promise<{ launchPrice: number; launchS
 
 export async function readPaidPlanTrialDays(): Promise<number> {
   const raw = await readSetting(PAID_PLAN_TRIAL_DAYS_KEY);
+  if (raw == null || String(raw).trim() === "") {
+    return DEFAULT_PAID_PLAN_TRIAL_DAYS;
+  }
+
   const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed < 0) {
     return DEFAULT_PAID_PLAN_TRIAL_DAYS;
