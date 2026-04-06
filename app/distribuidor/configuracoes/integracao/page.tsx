@@ -315,7 +315,7 @@ export default function IntegracaoMercosPage() {
               <ul className="text-sm text-blue-800 space-y-1.5">
                 <li className="flex items-start gap-2">
                   <IconCheck size={16} className="mt-0.5 flex-shrink-0" />
-                  <span>Seus produtos são sincronizados automaticamente a cada 6 horas</span>
+                  <span>Seus produtos são sincronizados automaticamente uma vez por dia</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <IconCheck size={16} className="mt-0.5 flex-shrink-0" />
