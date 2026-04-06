@@ -22,7 +22,7 @@ async function handler(request: NextRequest) {
   const supabase = supabaseAdmin;
   const { data: distribuidores, error } = await supabase
     .from('distribuidores')
-    .select('id, nome, application_token, company_token, base_url, ativo')
+    .select('id, nome, application_token, company_token, mercos_application_token, mercos_company_token, base_url, ativo')
     .eq('ativo', true);
 
   if (error || !distribuidores) {
@@ -32,9 +32,12 @@ async function handler(request: NextRequest) {
   const results: any[] = [];
 
   for (const dist of distribuidores) {
+    const applicationToken = (dist as any).mercos_application_token || dist.application_token;
+    const companyToken = (dist as any).mercos_company_token || dist.company_token;
+
     const mercosApi = new MercosAPI({
-      applicationToken: dist.application_token,
-      companyToken: dist.company_token,
+      applicationToken,
+      companyToken,
       baseUrl: dist.base_url || 'https://app.mercos.com/api/v1',
     });
 

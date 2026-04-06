@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
+import {
+  chooseDistribuidorProductCategoryId,
+  loadDistribuidorCategorySyncState,
+  type DistribuidorCategorySyncState,
+} from '@/lib/modules/distribuidor/category-mapping';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -8,7 +13,7 @@ export const maxDuration = 300;
 const CRON_BUDGET_MS = 260_000;
 const LOCK_STALE_MS = 10 * 60 * 1000;
 const DEFAULT_MAX_DISTRIBUIDORES = 5;
-const DEFAULT_BATCHES_PER_DISTRIBUIDOR = 2;
+const DEFAULT_BATCHES_PER_DISTRIBUIDOR = 4;
 const DEFAULT_BATCH_SIZE = 200;
 const SYNC_STATUS_ID_PREFIX = 'sync_';
 
@@ -162,52 +167,10 @@ async function saveStatus(
   }
 }
 
-async function buildCategoryMap(distribuidorId: string): Promise<Map<number, string>> {
-  const { data: distRows, error: distError } = await supabaseAdmin
-    .from('distribuidor_categories')
-    .select('mercos_id')
-    .eq('distribuidor_id', distribuidorId)
-    .eq('ativo', true);
-
-  if (distError) {
-    throw new Error(`Falha ao carregar categorias do distribuidor (${distribuidorId}): ${distError.message}`);
-  }
-
-  const mercosIds = Array.from(
-    new Set(
-      (distRows || [])
-        .map((row: any) => Number(row?.mercos_id))
-        .filter((mercosId) => Number.isFinite(mercosId))
-    )
-  );
-
-  if (mercosIds.length === 0) {
-    return new Map<number, string>();
-  }
-
-  const { data: globalRows, error: globalError } = await supabaseAdmin
-    .from('categories')
-    .select('id, mercos_id')
-    .eq('active', true)
-    .in('mercos_id', mercosIds);
-
-  if (globalError) {
-    throw new Error(`Falha ao carregar categorias globais (${distribuidorId}): ${globalError.message}`);
-  }
-
-  const map = new Map<number, string>();
-  for (const row of globalRows || []) {
-    if (row?.mercos_id !== null && row?.mercos_id !== undefined && row?.id) {
-      map.set(Number(row.mercos_id), row.id as string);
-    }
-  }
-  return map;
-}
-
 async function processOneMercosBatch(
   mercosApi: MercosAPI,
   distribuidor: DistribuidorRow,
-  categoryMap: Map<number, string>,
+  categoryState: DistribuidorCategorySyncState,
   cursorDate: string | null,
   cursorId: number | null,
   batchSize: number
@@ -262,10 +225,14 @@ async function processOneMercosBatch(
       continue;
     }
 
-    const mappedCategoryId = produto.categoria_id ? categoryMap.get(Number(produto.categoria_id)) || null : null;
     const existingImages = existing?.images;
     const hasExistingImages = Array.isArray(existingImages) && existingImages.length > 0;
-    const finalCategoryId = mappedCategoryId || null;
+    const finalCategoryId = chooseDistribuidorProductCategoryId({
+      mercosCategoryId: produto.categoria_id,
+      categoryMap: categoryState.categoryMap,
+      existingCategoryId: existing?.category_id,
+      validCategoryIds: categoryState.validCategoryIds,
+    });
     const isActive = !produto.excluido && produto.ativo !== false;
 
     const payload = {
@@ -411,7 +378,7 @@ async function runDistribuidorChunk(
 
   const statusRow = lock.row;
   const previousErrors = toStringErrors(statusRow.errors);
-  const categoryMap = await buildCategoryMap(distribuidor.id);
+  const categoryState = await loadDistribuidorCategorySyncState(distribuidor.id);
 
   const appToken = distribuidor.mercos_application_token || distribuidor.application_token;
   const companyToken = distribuidor.mercos_company_token || distribuidor.company_token;
@@ -466,7 +433,7 @@ async function runDistribuidorChunk(
       const batch = await processOneMercosBatch(
         mercosApi,
         distribuidor,
-        categoryMap,
+        categoryState,
         cursorDate,
         cursorId,
         options.batchSize
@@ -494,23 +461,28 @@ async function runDistribuidorChunk(
       last_processed_date: cursorDate,
       last_processed_id: cursorId,
       total_processed: totalProcessed,
-      errors: previousErrors,
+      errors: [],
       last_run_at: isoNow(),
     });
 
-    if (!hasMore && latestTimestamp) {
-      const { count: totalAtivos } = await supabaseAdmin
-        .from('products')
-        .select('*', { head: true, count: 'exact' })
-        .eq('distribuidor_id', distribuidor.id)
-        .eq('active', true);
+    if (latestTimestamp) {
+      const distribuidorPatch: Record<string, unknown> = {
+        ultima_sincronizacao: latestTimestamp,
+      };
+
+      if (!hasMore) {
+        const { count: totalAtivos } = await supabaseAdmin
+          .from('products')
+          .select('*', { head: true, count: 'exact' })
+          .eq('distribuidor_id', distribuidor.id)
+          .eq('active', true);
+
+        distribuidorPatch.total_produtos = totalAtivos || 0;
+      }
 
       await supabaseAdmin
         .from('distribuidores')
-        .update({
-          ultima_sincronizacao: latestTimestamp,
-          total_produtos: totalAtivos || 0,
-        })
+        .update(distribuidorPatch)
         .eq('id', distribuidor.id);
     }
 
@@ -526,7 +498,7 @@ async function runDistribuidorChunk(
       has_more: hasMore,
       cursor_date: cursorDate,
       cursor_id: cursorId,
-      categorias_mapeadas: categoryMap.size,
+      categorias_mapeadas: categoryState.categoryMap.size,
     };
   } catch (error: any) {
     const errMsg = error?.message || 'Erro desconhecido durante sync chunk';

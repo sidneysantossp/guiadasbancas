@@ -1,5 +1,9 @@
 import logger from "@/lib/logger";
 import { MercosAPI } from "@/lib/mercos-api";
+import {
+  chooseDistribuidorProductCategoryId,
+  loadDistribuidorCategorySyncState,
+} from "@/lib/modules/distribuidor/category-mapping";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const DEFAULT_MERCOS_BASE_URL = "https://app.mercos.com/api/v1";
@@ -10,6 +14,8 @@ type DistribuidorMercosRow = {
   ativo: boolean | null;
   application_token: string | null;
   company_token: string | null;
+  mercos_application_token?: string | null;
+  mercos_company_token?: string | null;
   base_url: string | null;
   ultima_sincronizacao?: string | null;
 };
@@ -63,7 +69,9 @@ type SyncResponse =
 async function getDistribuidorMercosState(distribuidorId: string): Promise<DistribuidorIntegrationState> {
   const { data, error } = await supabaseAdmin
     .from("distribuidores")
-    .select("id, nome, ativo, application_token, company_token, base_url, ultima_sincronizacao")
+    .select(
+      "id, nome, ativo, application_token, company_token, mercos_application_token, mercos_company_token, base_url, ultima_sincronizacao"
+    )
     .eq("id", distribuidorId)
     .maybeSingle();
 
@@ -75,7 +83,10 @@ async function getDistribuidorMercosState(distribuidorId: string): Promise<Distr
     return { kind: "disabled", distribuidor: data };
   }
 
-  if (!data.application_token || !data.company_token) {
+  const applicationToken = data.mercos_application_token || data.application_token;
+  const companyToken = data.mercos_company_token || data.company_token;
+
+  if (!applicationToken || !companyToken) {
     return { kind: "needs_setup", distribuidor: data };
   }
 
@@ -84,8 +95,8 @@ async function getDistribuidorMercosState(distribuidorId: string): Promise<Distr
     distribuidor: {
       ...data,
       baseUrl: data.base_url?.trim() || DEFAULT_MERCOS_BASE_URL,
-      applicationToken: data.application_token,
-      companyToken: data.company_token,
+      applicationToken,
+      companyToken,
     },
   };
 }
@@ -404,17 +415,7 @@ export async function runDistribuidorMercosSync(params: {
     }
   }
 
-  const { data: distCategories } = await supabaseAdmin
-    .from("distribuidor_categories")
-    .select("id, mercos_id")
-    .eq("distribuidor_id", params.distribuidorId);
-
-  const categoryMap = new Map<number, string>();
-  for (const category of distCategories || []) {
-    if (category.mercos_id) {
-      categoryMap.set(category.mercos_id, category.id);
-    }
-  }
+  const categoryState = await loadDistribuidorCategorySyncState(params.distribuidorId);
 
   const now = new Date().toISOString();
   let latestMercosTimestamp: string | null = null;
@@ -451,11 +452,6 @@ export async function runDistribuidorMercosSync(params: {
 
     const existingImages = existing?.images || [];
     const hasExistingImages = Array.isArray(existingImages) && existingImages.length > 0;
-    const resolvedCategoryId =
-      produto.categoria_id && categoryMap.has(produto.categoria_id)
-        ? categoryMap.get(produto.categoria_id)!
-        : null;
-
     if (produto.ultima_alteracao) {
       const timestamp = produto.ultima_alteracao.toString();
       if (!latestMercosTimestamp || timestamp > latestMercosTimestamp) {
@@ -478,7 +474,13 @@ export async function runDistribuidorMercosSync(params: {
       sob_encomenda: false,
       pre_venda: false,
       pronta_entrega: true,
-      category_id: resolvedCategoryId || existing?.category_id || null,
+      category_id: chooseDistribuidorProductCategoryId({
+        mercosCategoryId: produto.categoria_id,
+        categoryMap: categoryState.categoryMap,
+        existingCategoryId: existing?.category_id,
+        validCategoryIds: categoryState.validCategoryIds,
+      }),
+      categoria_mercos: produto.categoria_id ? String(produto.categoria_id) : null,
     };
 
     if (existing) {
