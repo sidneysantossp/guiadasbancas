@@ -31,10 +31,29 @@ type UploadResult = {
   total: number;
 };
 
+type SimilarProduct = {
+  codigo_mercos: string | null;
+  name?: string | null;
+};
+
+function normalizeCodigo(value: string | null | undefined) {
+  return (value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function splitCodigoParts(value: string) {
+  const normalized = normalizeCodigo(value);
+  const match = normalized.match(/^([A-Z]+)(\d+)$/);
+  return {
+    normalized,
+    alphaPrefix: match?.[1] || normalized,
+    numericSuffix: match?.[2] ? parseInt(match[2], 10) : null,
+  };
+}
+
 function extractImageIdentifiers(fileName: string) {
   const baseName = fileName.replace(/\.[^.]+$/, "");
   const primaryToken = baseName.split(/[\s._-]/)[0];
-  const codigoMercos = (primaryToken || baseName).toUpperCase();
+  const codigoMercos = normalizeCodigo(primaryToken || baseName);
   const numericIdMatch = baseName.match(/\b(\d{3,})\b/);
   const possibleMercosId = numericIdMatch ? parseInt(numericIdMatch[1], 10) : null;
   const directNumericId = /^\d+$/.test(codigoMercos) ? parseInt(codigoMercos, 10) : null;
@@ -138,23 +157,24 @@ async function lookupDistribuidorProduct(params: {
 }
 
 async function lookupSimilarProductCodes(distribuidorId: string, codigoMercos: string) {
-  const codeFragment = codigoMercos.substring(0, 4);
+  const target = splitCodigoParts(codigoMercos);
+  const searchPrefix = target.alphaPrefix.substring(0, Math.max(4, Math.min(target.alphaPrefix.length, 6)));
 
   const [{ data: similares }, { data: similaresGlobal }] = await Promise.all([
     supabaseAdmin
       .from("products")
       .select("codigo_mercos, name")
       .eq("distribuidor_id", distribuidorId)
-      .ilike("codigo_mercos", `%${codeFragment}%`)
-      .limit(3),
+      .ilike("codigo_mercos", `${searchPrefix}%`)
+      .limit(50),
     supabaseAdmin
       .from("products")
       .select("codigo_mercos, name")
-      .ilike("codigo_mercos", `%${codeFragment}%`)
-      .limit(3),
+      .ilike("codigo_mercos", `${searchPrefix}%`)
+      .limit(50),
   ]);
 
-  return [
+  const deduped = [
     ...new Map(
       [...(similares || []), ...(similaresGlobal || [])].map((product) => [
         product.codigo_mercos,
@@ -162,6 +182,31 @@ async function lookupSimilarProductCodes(distribuidorId: string, codigoMercos: s
       ])
     ).values(),
   ];
+
+  const ranked = deduped
+    .filter((product) => Boolean(product.codigo_mercos))
+    .map((product) => product as SimilarProduct & { codigo_mercos: string })
+    .sort((a, b) => {
+      const aParts = splitCodigoParts(a.codigo_mercos);
+      const bParts = splitCodigoParts(b.codigo_mercos);
+      const aSamePrefix = aParts.alphaPrefix === target.alphaPrefix ? 0 : 1;
+      const bSamePrefix = bParts.alphaPrefix === target.alphaPrefix ? 0 : 1;
+      if (aSamePrefix !== bSamePrefix) return aSamePrefix - bSamePrefix;
+
+      const aDistance =
+        target.numericSuffix !== null && aParts.numericSuffix !== null
+          ? Math.abs(aParts.numericSuffix - target.numericSuffix)
+          : Number.MAX_SAFE_INTEGER;
+      const bDistance =
+        target.numericSuffix !== null && bParts.numericSuffix !== null
+          ? Math.abs(bParts.numericSuffix - target.numericSuffix)
+          : Number.MAX_SAFE_INTEGER;
+      if (aDistance !== bDistance) return aDistance - bDistance;
+
+      return a.codigo_mercos.localeCompare(b.codigo_mercos);
+    });
+
+  return ranked.slice(0, 5);
 }
 
 export function validateDistribuidorUploadFiles(files: File[]) {
@@ -212,11 +257,10 @@ export async function processDistribuidorImageUploads(params: {
         results.errors.push({
           file: file.name,
           codigo: codigoMercos,
-          error: "Produto não encontrado",
+          error: "Produto não encontrado no catálogo sincronizado",
           sugestao:
             similares.length > 0
               ? `Produtos similares: ${similares
-                  .slice(0, 5)
                   .map((product) => product.codigo_mercos)
                   .join(", ")}`
               : "Verifique se o código do arquivo corresponde ao código Mercos do produto",
