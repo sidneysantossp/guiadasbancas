@@ -101,6 +101,118 @@ async function getDistribuidorMercosState(distribuidorId: string): Promise<Distr
   };
 }
 
+async function loadExistingDistribuidorProducts(distribuidorId: string) {
+  const pageSize = 1000;
+  const allRows: Array<{
+    id: string;
+    mercos_id: number;
+    images: any;
+    category_id: string | null;
+  }> = [];
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabaseAdmin
+      .from("products")
+      .select("id, mercos_id, images, category_id")
+      .eq("distribuidor_id", distribuidorId)
+      .not("mercos_id", "is", null)
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      break;
+    }
+
+    allRows.push(...(data as any));
+
+    if (data.length < pageSize) {
+      break;
+    }
+  }
+
+  return allRows;
+}
+
+async function persistNewProductsBatch(batch: any[]) {
+  if (batch.length === 0) {
+    return { inserted: 0, updated: 0, errors: 0 };
+  }
+
+  const { error } = await supabaseAdmin.from("products").insert(batch);
+
+  if (!error) {
+    return { inserted: batch.length, updated: 0, errors: 0 };
+  }
+
+  logger.error("[Sync] Erro ao inserir batch de produtos, executando fallback item a item:", error.message);
+
+  let inserted = 0;
+  let updated = 0;
+  let errors = 0;
+
+  for (const row of batch) {
+    const { error: itemInsertError } = await supabaseAdmin.from("products").insert(row);
+
+    if (!itemInsertError) {
+      inserted++;
+      continue;
+    }
+
+    const isDuplicate =
+      itemInsertError.code === "23505" ||
+      itemInsertError.message?.includes("idx_products_distribuidor_mercos_id") ||
+      itemInsertError.message?.toLowerCase().includes("duplicate key value");
+
+    if (!isDuplicate) {
+      logger.error("[Sync] Erro ao inserir produto individual:", itemInsertError.message);
+      errors++;
+      continue;
+    }
+
+    const { data: existingRow, error: existingLookupError } = await supabaseAdmin
+      .from("products")
+      .select("id, images")
+      .eq("distribuidor_id", row.distribuidor_id)
+      .eq("mercos_id", row.mercos_id)
+      .maybeSingle();
+
+    if (existingLookupError || !existingRow?.id) {
+      logger.error(
+        "[Sync] Não foi possível localizar produto existente após conflito de chave única:",
+        existingLookupError?.message || `mercos_id=${row.mercos_id}`
+      );
+      errors++;
+      continue;
+    }
+
+    const mergedImages =
+      Array.isArray(existingRow.images) && existingRow.images.length > 0
+        ? existingRow.images
+        : row.images;
+
+    const { error: updateError } = await supabaseAdmin
+      .from("products")
+      .update({
+        ...row,
+        images: mergedImages,
+      })
+      .eq("id", existingRow.id);
+
+    if (updateError) {
+      logger.error("[Sync] Erro ao atualizar produto existente após conflito:", updateError.message);
+      errors++;
+      continue;
+    }
+
+    updated++;
+  }
+
+  return { inserted, updated, errors };
+}
+
 export async function getDistribuidorMercosHealth(distribuidorId: string): Promise<MercosHealthResponse> {
   const state = await getDistribuidorMercosState(distribuidorId);
 
@@ -320,75 +432,52 @@ export async function runDistribuidorMercosSync(params: {
 
   const batchSize = 200;
   const maxPages = 100;
+  const mercosApi = new MercosAPI({
+    applicationToken: distribuidor.applicationToken,
+    companyToken: distribuidor.companyToken,
+    baseUrl: distribuidor.baseUrl,
+  });
   const allProdutos: any[] = [];
+  const seenMercosIds = new Set<number>();
+  const bumpIsoSecond = (iso: string) => {
+    try {
+      const date = new Date(iso);
+      if (!Number.isNaN(date.getTime())) {
+        return new Date(date.getTime() + 1000).toISOString();
+      }
+    } catch {}
+    return iso;
+  };
+
   let alteradoApos =
     !params.full && distribuidor.ultima_sincronizacao
       ? distribuidor.ultima_sincronizacao
       : "2020-01-01T00:00:00";
+  let afterId: number | null = null;
   let hasMore = true;
   let pageCount = 0;
+  let lastSeenKey: string | null = null;
+  let repeatCount = 0;
 
   while (hasMore && pageCount < maxPages) {
     pageCount++;
 
-    const queryParams = new URLSearchParams();
-    queryParams.append("alterado_apos", alteradoApos);
-    queryParams.append("limit", batchSize.toString());
-    queryParams.append("order_by", "ultima_alteracao");
-    queryParams.append("order_direction", "asc");
-
-    const mercosRes = await fetch(`${distribuidor.baseUrl}/produtos?${queryParams.toString()}`, {
-      headers: {
-        ApplicationToken: distribuidor.applicationToken,
-        CompanyToken: distribuidor.companyToken,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (mercosRes.status === 429) {
-      const throttleData = await mercosRes
-        .json()
-        .catch(() => ({ tempo_ate_permitir_novamente: 5 }));
-      const waitTime = (throttleData.tempo_ate_permitir_novamente || 5) * 1000;
-      await new Promise((resolve) => setTimeout(resolve, waitTime));
-      pageCount--;
-      continue;
-    }
-
-    if (!mercosRes.ok) {
-      return {
-        success: false,
-        error: `Erro na API Mercos: ${mercosRes.status} ${mercosRes.statusText}`,
-      };
-    }
-
-    const limitouRegistros = mercosRes.headers.get("MEUSPEDIDOS_LIMITOU_REGISTROS") === "1";
-    const contentType = mercosRes.headers.get("content-type") || "";
-    let produtosPage: any;
+    let produtosPage: any[] = [];
+    let limitouRegistros = false;
 
     try {
-      if (contentType.includes("application/json")) {
-        const raw = await mercosRes.text();
-        const parsed = JSON.parse(raw);
-        produtosPage =
-          parsed && typeof parsed === "object" && "data" in parsed && Array.isArray(parsed.data)
-            ? parsed.data
-            : parsed;
-      } else {
-        const text = await mercosRes.text();
-        throw new Error(`Resposta não-JSON da Mercos: ${text.slice(0, 200)}`);
-      }
+      const batch = await mercosApi.getBatchProdutosByAlteracao({
+        alteradoApos,
+        afterId,
+        limit: batchSize,
+        orderDirection: "asc",
+      });
+      produtosPage = Array.isArray(batch.produtos) ? batch.produtos : [];
+      limitouRegistros = batch.limited;
     } catch (error: any) {
       return {
         success: false,
-        error: `Resposta inválida da API Mercos (page ${pageCount}): ${error?.message || error}`,
-      };
-    }
-
-    if (!Array.isArray(produtosPage)) {
-      return {
-        success: false,
-        error: `Resposta inválida da API Mercos (page ${pageCount})`,
+        error: `Erro na API Mercos (page ${pageCount}): ${error?.message || error}`,
       };
     }
 
@@ -397,21 +486,53 @@ export async function runDistribuidorMercosSync(params: {
       break;
     }
 
-    allProdutos.push(...produtosPage);
+    produtosPage.sort((a: any, b: any) => {
+      const ta = (a.ultima_alteracao || "").toString();
+      const tb = (b.ultima_alteracao || "").toString();
+      if (ta < tb) return -1;
+      if (ta > tb) return 1;
+      return Number(a.id || 0) - Number(b.id || 0);
+    });
 
-    if (limitouRegistros && produtosPage.length > 0) {
-      produtosPage.sort((a: any, b: any) =>
-        (a.ultima_alteracao || "").toString().localeCompare((b.ultima_alteracao || "").toString())
-      );
-      const ultimoProduto = produtosPage[produtosPage.length - 1];
-
-      if (ultimoProduto?.ultima_alteracao) {
-        alteradoApos = ultimoProduto.ultima_alteracao;
-      } else {
-        hasMore = false;
+    for (const produto of produtosPage) {
+      const mercosId = Number(produto?.id);
+      if (Number.isFinite(mercosId) && seenMercosIds.has(mercosId)) {
+        continue;
       }
-    } else {
+      if (Number.isFinite(mercosId)) {
+        seenMercosIds.add(mercosId);
+      }
+      allProdutos.push(produto);
+    }
+
+    const ultimoProduto = produtosPage[produtosPage.length - 1];
+    const ultimaAlteracao = ultimoProduto?.ultima_alteracao?.toString() || null;
+    const ultimoMercosId = Number(ultimoProduto?.id || 0) || null;
+
+    if (!limitouRegistros || !ultimaAlteracao) {
       hasMore = false;
+      break;
+    }
+
+    const currentKey = `${ultimaAlteracao}#${ultimoMercosId || 0}`;
+    if (currentKey === lastSeenKey) {
+      repeatCount++;
+      alteradoApos = bumpIsoSecond(ultimaAlteracao);
+      afterId = null;
+    } else {
+      repeatCount = 0;
+      if (ultimaAlteracao === alteradoApos && ultimoMercosId) {
+        afterId = ultimoMercosId;
+      } else {
+        alteradoApos = ultimaAlteracao;
+        afterId = null;
+      }
+    }
+    lastSeenKey = currentKey;
+
+    if (repeatCount >= 3) {
+      hasMore = false;
+      break;
     }
   }
 
@@ -423,11 +544,7 @@ export async function runDistribuidorMercosSync(params: {
   let produtosAtualizados = 0;
   let erros = 0;
 
-  const { data: existingProducts } = await supabaseAdmin
-    .from("products")
-    .select("id, mercos_id, images, category_id")
-    .eq("distribuidor_id", params.distribuidorId)
-    .not("mercos_id", "is", null);
+  const existingProducts = await loadExistingDistribuidorProducts(params.distribuidorId);
 
   const existentes = new Map<number, { id: string; images: any; category_id: string | null }>(
     (existingProducts || []).map((record: any) => [
@@ -497,13 +614,10 @@ export async function runDistribuidorMercosSync(params: {
   const insertBatchSize = 200;
   for (let index = 0; index < novosPayload.length; index += insertBatchSize) {
     const batch = novosPayload.slice(index, index + insertBatchSize);
-    const { error } = await supabaseAdmin.from("products").insert(batch);
-    if (error) {
-      logger.error("[Sync] Erro ao inserir batch de produtos:", error.message);
-      erros += batch.length;
-    } else {
-      produtosNovos += batch.length;
-    }
+    const batchResult = await persistNewProductsBatch(batch);
+    produtosNovos += batchResult.inserted;
+    produtosAtualizados += batchResult.updated;
+    erros += batchResult.errors;
   }
 
   const updateConcurrency = 10;
