@@ -29,7 +29,7 @@ export default async function Copa2026HubPage() {
     <WorldCupSeoPage
       title="As figurinhas da Copa 2026 em São Paulo passam pelas bancas certas"
       description="O Guia das Bancas foi desenhado para quem quer encontrar bancas paulistas perto de casa, localizar álbum e figurinhas com mais agilidade e falar direto com quem realmente tem operação local. Neste momento, a campanha da Copa 2026 está concentrada nas bancas cadastradas em São Paulo."
-      eyebrow="Especial Copa 2026 em São Paulo"
+      eyebrow="Especial Copa 2026"
       breadcrumbs={[
         { name: "Início", href: buildAbsoluteSiteUrl("/") },
         { name: "Copa 2026", href: buildAbsoluteSiteUrl("/copa-2026") },
@@ -51,8 +51,7 @@ export default async function Copa2026HubPage() {
           detail: "A plataforma cruza geolocalização, perfil de banca e catálogo para levar o usuário até o ponto de venda mais próximo da sua rotina.",
         },
       ]}
-      primaryCta={{ href: "/copa-2026/onde-comprar/sao-paulo-sp", label: "Encontrar bancas em São Paulo" }}
-      secondaryCta={{ href: "/bancas-perto-de-mim", label: "Ver bancas perto de mim" }}
+      primaryCta={{ href: "/copa-2026/onde-comprar/sao-paulo-sp", label: "Encontrar bancas perto de mim" }}
       sectionBlocks={[
         {
           title: "Quem procura figurinha em São Paulo não precisa rodar a cidade inteira",

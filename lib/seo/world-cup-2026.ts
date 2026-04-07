@@ -35,6 +35,14 @@ export type WorldCupBancaLink = {
   href: string;
 };
 
+type PublicBancaRow = {
+  id: string;
+  name: string;
+  address: string;
+  createdAt: string | null;
+  hasPremiumOrTrial: boolean;
+};
+
 export type WorldCupProductLink = {
   id: string;
   name: string;
@@ -388,20 +396,83 @@ export function findWorldCupCityByAddress(address?: string | null) {
   );
 }
 
-async function readPublicBancas(limit = 200): Promise<Array<{ id: string; name: string; address: string }>> {
+function isRecentWorldCupTrial(createdAt: string | null, now = new Date()) {
+  if (!createdAt) return false;
+  const createdAtTime = new Date(createdAt).getTime();
+  if (!Number.isFinite(createdAtTime)) return false;
+  const diff = now.getTime() - createdAtTime;
+  return diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000;
+}
+
+function isPaidPlanRecord(plan: { type?: string | null; slug?: string | null; price?: number | null } | null) {
+  if (!plan) return false;
+  const normalizedType = String(plan.type || "").trim().toLowerCase();
+  const normalizedSlug = String(plan.slug || "").trim().toLowerCase();
+  const price = Number(plan.price || 0);
+  return normalizedType === "premium" || normalizedSlug === "premium" || price > 0;
+}
+
+async function readPublicBancas(limit = 200): Promise<PublicBancaRow[]> {
   const { data, error } = await supabaseAdmin
     .from("bancas")
-    .select("id,name,address,active")
+    .select("id,name,address,active,created_at")
     .eq("active", true)
     .order("name")
     .limit(limit);
 
   if (error || !Array.isArray(data)) return [];
 
-  return data.map((item: any) => ({
+  const bancaRows = data.map((item: any) => ({
     id: String(item.id),
     name: String(item.name || "Banca"),
     address: String(item.address || ""),
+    createdAt: item.created_at ? String(item.created_at) : null,
+  }));
+
+  const bancaIds = bancaRows.map((item) => item.id).filter(Boolean);
+  if (bancaIds.length === 0) {
+    return [];
+  }
+
+  const { data: subscriptions, error: subscriptionsError } = await supabaseAdmin
+    .from("subscriptions")
+    .select(`
+      banca_id,
+      status,
+      trial_ends_at,
+      current_period_end,
+      plan:plans(type,slug,price)
+    `)
+    .in("banca_id", bancaIds)
+    .in("status", ["active", "trial"]);
+
+  if (subscriptionsError || !Array.isArray(subscriptions)) {
+    return bancaRows.map((item) => ({
+      ...item,
+      hasPremiumOrTrial: false,
+    }));
+  }
+
+  const now = new Date();
+  const qualifiedBancaIds = new Set(
+    subscriptions
+      .filter((row: any) => {
+        const status = String(row.status || "").toLowerCase();
+        const plan = Array.isArray(row.plan) ? row.plan[0] || null : row.plan || null;
+        if (!isPaidPlanRecord(plan)) return false;
+        if (status === "active") return true;
+        if (status === "trial") {
+          const trialEndsAt = row.trial_ends_at ? new Date(String(row.trial_ends_at)).getTime() : Number.NaN;
+          return Number.isFinite(trialEndsAt) ? trialEndsAt >= now.getTime() : true;
+        }
+        return false;
+      })
+      .map((row: any) => String(row.banca_id))
+  );
+
+  return bancaRows.map((item) => ({
+    ...item,
+    hasPremiumOrTrial: qualifiedBancaIds.has(item.id),
   }));
 }
 
@@ -428,6 +499,9 @@ export async function getWorldCupCityBancas(citySlug: string, limit = 8): Promis
 
   const bancas = await readPublicBancas(300);
   const matched = bancas.filter((banca) => {
+    if (!banca.hasPremiumOrTrial && !isRecentWorldCupTrial(banca.createdAt)) {
+      return false;
+    }
     const address = normalizeText(banca.address);
     if (!address) return false;
     const cityMatch = city.aliases.some((alias) => address.includes(normalizeText(alias)));
@@ -449,6 +523,9 @@ export async function getWorldCupNeighborhoodBancas(
 
   const bancas = await readPublicBancas(300);
   const matched = bancas.filter((banca) => {
+    if (!banca.hasPremiumOrTrial && !isRecentWorldCupTrial(banca.createdAt)) {
+      return false;
+    }
     const address = normalizeText(banca.address);
     if (!address) return false;
     const cityMatch = city.aliases.some((alias) => address.includes(normalizeText(alias)));

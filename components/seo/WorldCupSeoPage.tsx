@@ -177,7 +177,7 @@ export default function WorldCupSeoPage({
 
       <main className="min-h-screen bg-slate-50">
         <section className="bg-[#0f172a] text-white">
-          <div className="container-max py-14 md:py-18">
+          <div className="container-max pb-14 pt-20 md:py-18">
             <div className="max-w-4xl space-y-6">
               <div className="space-y-3">
                 <span className="inline-flex rounded-full border border-white/15 bg-white/5 px-4 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300">
@@ -188,11 +188,11 @@ export default function WorldCupSeoPage({
               </div>
 
               {(primaryCta || secondaryCta) ? (
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   {primaryCta ? (
                     <Link
                       href={primaryCta.href}
-                      className="inline-flex rounded-full bg-[#ff5c00] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#e65300]"
+                      className="inline-flex w-full justify-center rounded-full bg-[#ff5c00] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#e65300] sm:w-auto"
                     >
                       {primaryCta.label}
                     </Link>
@@ -200,7 +200,7 @@ export default function WorldCupSeoPage({
                   {secondaryCta ? (
                     <Link
                       href={secondaryCta.href}
-                      className="inline-flex rounded-full border border-white/20 px-6 py-3 font-semibold text-white transition-colors hover:bg-white/5"
+                      className="inline-flex w-full justify-center rounded-full border border-white/20 px-6 py-3 font-semibold text-white transition-colors hover:bg-white/5 sm:w-auto"
                     >
                       {secondaryCta.label}
                     </Link>
