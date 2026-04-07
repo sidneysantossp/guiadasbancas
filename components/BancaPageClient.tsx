@@ -916,6 +916,25 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     );
   }, [allCategories, dynamicOrderedCategories]);
 
+  const activeCategoryStorageKey = useMemo(
+    () => `gdb_activeCategory:${banca?.id || bancaId}`,
+    [banca?.id, bancaId]
+  );
+
+  const validCategoryNames = useMemo(() => {
+    const names = new Set<string>(["Todos"]);
+    for (const [groupName, subcats] of Object.entries(groupedCategories)) {
+      if (groupName) names.add(groupName);
+      for (const subcat of subcats) {
+        if (subcat) names.add(subcat);
+      }
+    }
+    for (const categoryName of standaloneCategories) {
+      if (categoryName) names.add(categoryName);
+    }
+    return names;
+  }, [groupedCategories, standaloneCategories]);
+
   const orderedSidebarItems = useMemo(() => {
     const groupedEntries = Object.entries(groupedCategories);
     const groupedMap = new Map<string, string[]>(groupedEntries);
@@ -1110,13 +1129,11 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     } catch {}
   }, []);
 
-  // Persistência simples de preferências (ofertas e categoria)
+  // Persistência simples de preferências (ofertas)
   useEffect(() => {
     try {
       const s = localStorage.getItem("gdb_offerSort");
       if (s === "discount" || s === "price" || s === "rating") setOfferSort(s);
-      const c = localStorage.getItem("gdb_activeCategory");
-      setActiveCategory(c || 'Todos');
     } catch {}
   }, []);
   useEffect(() => { 
@@ -1125,20 +1142,44 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     }
   }, [offerSort]);
   
-  useEffect(() => { 
-    if (typeof window !== 'undefined') {
-      try { localStorage.setItem("gdb_activeCategory", activeCategory); } catch {} 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const storedCategory = localStorage.getItem(activeCategoryStorageKey);
+      if (storedCategory && validCategoryNames.has(storedCategory)) {
+        setActiveCategory(storedCategory);
+        return;
+      }
+    } catch {}
+    setActiveCategory('Todos');
+  }, [activeCategoryStorageKey, validCategoryNames]);
+
+  useEffect(() => {
+    if (!validCategoryNames.has(activeCategory)) {
+      if (activeCategory !== 'Todos') setActiveCategory('Todos');
+      return;
     }
-  }, [activeCategory]);
+    if (typeof window !== 'undefined') {
+      try { localStorage.setItem(activeCategoryStorageKey, activeCategory); } catch {}
+    }
+  }, [activeCategory, activeCategoryStorageKey, validCategoryNames]);
+
   const produtosFiltrados = useMemo(() => {
     let filtered = [...produtos];
     
     // 1. Filtrar por categoria ativa PRIMEIRO (se não for 'Todos')
     // Isso é feito antes da busca fuzzy para reduzir o universo de busca
     if (activeCategory && activeCategory !== 'Todos') {
+      const allowedCategories = new Set(
+        [activeCategory, ...(groupedCategories[activeCategory] || [])]
+          .map((categoryName) => categoryName.trim().toLowerCase())
+          .filter(Boolean)
+      );
+
       filtered = filtered.filter(p => {
         const pCatName = (p.category || '').trim();
-        return pCatName.toLowerCase() === activeCategory.toLowerCase();
+        if (!pCatName) return false;
+        return allowedCategories.has(pCatName.toLowerCase());
       });
     }
     
@@ -1150,7 +1191,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     
     // 3. Ordenar por disponibilidade
     return filtered.sort((a, b) => (b.ready ? 1 : 0) - (a.ready ? 1 : 0));
-  }, [produtos, activeCategory, searchTerm]);
+  }, [produtos, activeCategory, groupedCategories, searchTerm]);
 
   // Paginação no padrão solicitado: 12 linhas x 4 colunas (desktop) = 48 itens/página
   const pageSize = 48;
