@@ -30,6 +30,7 @@ type BancaPlanContext = {
   id: string;
   is_cotista?: boolean | null;
   cotista_id?: string | null;
+  created_at?: string | null;
 };
 
 type PendingPaymentRow = {
@@ -65,9 +66,12 @@ export type BancaPlanEntitlements = {
   overdueFeaturesLocked: boolean;
   overdueInGracePeriod: boolean;
   overdueGraceEndsAt: string | null;
+  hasOnboardingPremiumAccess: boolean;
+  onboardingPremiumEndsAt: string | null;
 };
 
 const DEFAULT_OVERDUE_GRACE_DAYS = 5;
+const DEFAULT_ONBOARDING_PREMIUM_DAYS = 7;
 
 function normalizeFeatures(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -258,6 +262,47 @@ async function readLatestOpenPayment(subscriptionId: string): Promise<PendingPay
   return (data as PendingPaymentRow | null) || null;
 }
 
+async function readBancaCreatedAt(bancaId: string): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from("bancas")
+    .select("created_at")
+    .eq("id", bancaId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data?.created_at || null;
+}
+
+async function bancaHasPaidSubscriptionHistory(bancaId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("subscriptions")
+    .select(`
+      id,
+      plan:plans(
+        id,
+        type,
+        price
+      )
+    `)
+    .eq("banca_id", bancaId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data || []).some((row: any) => {
+    const plan = Array.isArray(row?.plan) ? row.plan[0] : row?.plan;
+    const planType = String(plan?.type || "free").toLowerCase();
+    const planPrice = Number(plan?.price || 0);
+    return planType !== "free" && planPrice > 0;
+  });
+}
+
 function addDaysToIso(isoDate: string, days: number): string {
   const date = new Date(isoDate);
   date.setDate(date.getDate() + days);
@@ -314,22 +359,38 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
   const features = plan?.features || [];
   const limits = plan?.limits || {};
   const planType = normalizePlanType((plan?.type || "free") as PlanType);
+
+  let hasOnboardingPremiumAccess = false;
+  let onboardingPremiumEndsAt: string | null = null;
+  const bancaCreatedAt = banca.created_at ?? (await readBancaCreatedAt(banca.id));
+
+  if (planType === "free" && bancaCreatedAt) {
+    onboardingPremiumEndsAt = addDaysToIso(bancaCreatedAt, DEFAULT_ONBOARDING_PREMIUM_DAYS);
+    const stillInsideOnboardingWindow = new Date() <= new Date(onboardingPremiumEndsAt);
+
+    if (stillInsideOnboardingWindow) {
+      const hasPaidHistory = await bancaHasPaidSubscriptionHistory(banca.id);
+      hasOnboardingPremiumAccess = !hasPaidHistory;
+    }
+  }
+
+  const accessPlanType: PlanType = hasOnboardingPremiumAccess ? "premium" : planType;
   const isLegacyCotistaLinked = banca.is_cotista === true || Boolean(banca.cotista_id);
   const productLimit =
     readNumericLimit(limits, "max_products") || (planType === "free" ? 10 : null);
 
   const planIncludesPartnerDirectory =
-    planType === "premium" ||
+    accessPlanType === "premium" ||
     Boolean(limits.partner_directory) ||
     hasFeature(features, [/distribuidor/i, /parceir/i]);
 
   const planIncludesDistributorCatalog =
-    planType === "premium" ||
+    accessPlanType === "premium" ||
     Boolean(limits.distributor_catalog) ||
     hasFeature(features, [/cat[aá]logo/i, /distribuidor/i, /fornecedor/i]);
 
   const canAccessCampaigns = resolveBooleanAccess({
-    planType,
+    planType: accessPlanType,
     limits,
     features,
     premiumPatterns: [/campanh/i],
@@ -337,7 +398,7 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
   });
 
   const canManageCollaborators = resolveBooleanAccess({
-    planType,
+    planType: accessPlanType,
     limits,
     features,
     premiumPatterns: [/colaborad/i, /equipe/i],
@@ -345,7 +406,7 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
   });
 
   const canAccessEditorial = resolveBooleanAccess({
-    planType,
+    planType: accessPlanType,
     limits,
     features,
     premiumPatterns: [/editorial/i, /publ/i],
@@ -353,7 +414,7 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
   });
 
   const canAccessFeaturedPlacement = resolveBooleanAccess({
-    planType,
+    planType: accessPlanType,
     limits,
     features,
     premiumPatterns: [/destaque/i, /featured/i],
@@ -361,7 +422,7 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
   });
 
   const hasPrioritySupport = resolveBooleanAccess({
-    planType,
+    planType: accessPlanType,
     limits,
     features,
     premiumPatterns: [/suporte priorit[áa]rio/i, /priority support/i],
@@ -396,5 +457,7 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
     overdueFeaturesLocked,
     overdueInGracePeriod,
     overdueGraceEndsAt,
+    hasOnboardingPremiumAccess,
+    onboardingPremiumEndsAt,
   };
 }
