@@ -21,16 +21,16 @@ export default function WorldCupHomeSpotlight() {
                   A campanha da Copa 2026 está concentrada em São Paulo. Use a plataforma para descobrir bancas paulistas perto de você e chegar mais rápido ao álbum ou às figurinhas que está procurando.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
                   href="/copa-2026"
-                  className="inline-flex rounded-full bg-[#ff5c00] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#e65300]"
+                  className="inline-flex w-full justify-center rounded-full bg-[#ff5c00] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#e65300] sm:w-auto"
                 >
                   Ver hub da Copa 2026
                 </Link>
                 <Link
                   href="/copa-2026/onde-comprar"
-                  className="inline-flex rounded-full border border-white/15 px-6 py-3 font-semibold text-white transition-colors hover:bg-white/5"
+                  className="inline-flex w-full justify-center rounded-full border border-white/15 px-6 py-3 font-semibold text-white transition-colors hover:bg-white/5 sm:w-auto"
                 >
                   Onde comprar
                 </Link>
