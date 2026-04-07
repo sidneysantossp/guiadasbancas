@@ -21,26 +21,17 @@ type StoreBanca = {
 async function fetchPublishedBancas() {
   if (!supabaseAdmin) return [] as any[];
 
-  const baseQuery = () =>
-    supabaseAdmin
-      .from('bancas')
-      .select('*')
-      .eq('active', true);
-
-  const approvedResult = await baseQuery()
-    .eq('approved', true)
+  const { data: activeBancas, error: bancasError } = await supabaseAdmin
+    .from('bancas')
+    .select('*')
+    .eq('active', true)
     .order('name');
 
-  if (!approvedResult.error && approvedResult.data && approvedResult.data.length > 0) {
-    return approvedResult.data as any[];
-  }
-
-  const fallbackResult = await baseQuery().order('name');
-  if (fallbackResult.error || !fallbackResult.data) {
+  if (bancasError || !Array.isArray(activeBancas) || activeBancas.length === 0) {
     return [];
   }
 
-  return fallbackResult.data as any[];
+  return activeBancas as any[];
 }
 
 async function readStore(): Promise<StoreBanca[]> {

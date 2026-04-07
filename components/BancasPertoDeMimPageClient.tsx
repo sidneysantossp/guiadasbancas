@@ -195,20 +195,16 @@ export default function BancasPertoDeMimPageClient({
     return () => window.removeEventListener('gdb:location-updated', handleLocationUpdate);
   }, []);
 
-  // Buscar bancas reais do Admin CMS; se tiver localização, usar endpoint com lat/lng para reduzir payload
+  // Buscar bancas reais do Admin CMS.
+  // Não aplicar raio na origem: o slider precisa operar sobre a lista completa.
   useEffect(() => {
-    if (!loc && hasInitialBancas) {
+    if (hasInitialBancas) {
       setApiBancas(initialBancasSafe ?? []);
       return;
     }
     (async () => {
       try {
-        let res: Response;
-        if (loc && typeof loc.lat === 'number' && typeof loc.lng === 'number') {
-          res = await fetch(`/api/bancas?lat=${encodeURIComponent(String(loc.lat))}&lng=${encodeURIComponent(String(loc.lng))}&radiusKm=${encodeURIComponent(String(Math.max(1, Math.min(50, maxKm || 50))))}`, { cache: 'no-store' });
-        } else {
-          res = await fetch('/api/bancas', { cache: 'no-store' });
-        }
+        const res = await fetch('/api/bancas', { cache: 'no-store' });
         if (!res.ok) throw new Error('fail');
         const j = await res.json();
         const list = Array.isArray(j?.data) ? j.data : [];
@@ -217,7 +213,7 @@ export default function BancasPertoDeMimPageClient({
         setApiBancas([]);
       }
     })();
-  }, [loc, hasInitialBancas, initialBancasSafe]);
+  }, [hasInitialBancas, initialBancasSafe]);
 
   // Fallback: geocodificar endereço de bancas sem coordenadas para obter lat/lng aproximados
   useEffect(() => {
@@ -565,9 +561,9 @@ export default function BancasPertoDeMimPageClient({
         </div>
       )}
 
-      {loc && ordered.filter((b)=>b.distance <= 3).length === 0 && (
+      {loc && maxKm < 5 && ordered.some((b) => isFinite(b.distance)) && visible.length === 0 && (
         <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
-          Nenhuma banca encontrada dentro de 3 km. Mostrando outras próximas.
+          Nenhuma banca encontrada dentro de {maxKm} km.
           <button
             type="button"
             onClick={refreshGeo}
