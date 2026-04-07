@@ -299,6 +299,13 @@ function getSourceCopy(source: string | null) {
         description:
           "Destaque na plataforma e publi editorial são recursos pagos. O Premium libera essa camada de exposição para acelerar aquisição de clientes.",
       };
+    case "dashboard":
+      return {
+        eyebrow: "Próximo passo da operação",
+        title: "Ative o Premium quando quiser escalar sua banca",
+        description:
+          "Sua banca já pode operar no Free. Quando quiser ampliar catálogo, distribuidores, visibilidade e ferramentas de crescimento, ative o Premium desta unidade.",
+      };
     case "multiplas-bancas":
       return {
         eyebrow: "Licença por banca",

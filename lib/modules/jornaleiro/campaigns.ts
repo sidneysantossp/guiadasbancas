@@ -142,7 +142,7 @@ export async function createJornaleiroCampaign(params: {
       end_date: endDate.toISOString(),
       duration_days: duration,
       status: "pending",
-      plan_type: "free",
+      plan_type: "premium",
     })
     .select()
     .single();

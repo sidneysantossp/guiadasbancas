@@ -68,7 +68,7 @@ export default function JornaleiroDashboardPage() {
   }, [user, isJornaleiro]);
 
   const loadBancaData = async () => {
-    const isWelcomeFlow = searchParams?.get("welcome") === "1" || searchParams?.get("trial") === "1";
+    const isWelcomeFlow = searchParams?.get("welcome") === "1";
     const retryDelays = isWelcomeFlow ? [600, 1200, 1800, 2500] : [0];
 
     try {
@@ -76,7 +76,7 @@ export default function JornaleiroDashboardPage() {
 
       for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
         if (attempt > 0) {
-          setBancaLoadMessage("Estamos finalizando a vinculação da sua banca e ativando o teste premium...");
+          setBancaLoadMessage("Estamos finalizando a vinculação da sua banca ao painel...");
           await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
         }
 
@@ -154,7 +154,7 @@ export default function JornaleiroDashboardPage() {
   const sellerName = profile?.full_name || user?.email?.split('@')[0] || 'Jornaleiro';
   const sellerEmail = user?.email || '';
   const sellerPhone = profile?.phone || '';
-  const isWelcomeFlow = searchParams?.get("welcome") === "1" || searchParams?.get("trial") === "1";
+  const isWelcomeFlow = searchParams?.get("welcome") === "1";
   const bancaLifecycle = resolveBancaLifecycle(banca);
 
   // Memoizar cálculos pesados
@@ -318,7 +318,7 @@ export default function JornaleiroDashboardPage() {
             <div className="text-6xl mb-4">🚀</div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Estamos finalizando a ativação da sua banca</h1>
             <p className="text-gray-600 mb-6">
-              Seu cadastro foi concluído e o teste premium está sendo liberado. Recarregue o painel em alguns instantes se esta tela persistir.
+              Seu cadastro foi concluído e a sua banca está sendo vinculada ao painel. Recarregue em alguns instantes se esta tela persistir.
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <button
@@ -328,12 +328,6 @@ export default function JornaleiroDashboardPage() {
               >
                 Atualizar painel
               </button>
-              <Link
-                href="/jornaleiro/meu-plano?source=dashboard-trial"
-                className="inline-flex items-center border border-gray-200 bg-white px-6 py-3 rounded-md hover:bg-gray-50 font-semibold text-gray-700"
-              >
-                Ver detalhes do trial
-              </Link>
             </div>
           </div>
         </div>
@@ -372,7 +366,7 @@ export default function JornaleiroDashboardPage() {
 
   const partnerLinked = banca?.partner_linked === true || banca?.is_cotista === true;
   const needsTpuAlert = banca && !partnerLinked && !banca.tpu_url;
-  const shouldShowTrialBanner = currentSubscriptionStatus === "trial" || isWelcomeFlow;
+  const shouldShowTrialBanner = currentSubscriptionStatus === "trial";
   const trialEndsLabel = banca?.subscription?.trial_ends_at
     ? new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(
         new Date(banca.subscription.trial_ends_at)
@@ -387,7 +381,7 @@ export default function JornaleiroDashboardPage() {
             <div className="min-w-0">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Teste premium ativo</div>
               <div className="mt-1 text-lg font-semibold text-blue-900">
-                Sua banca já entrou com todos os recursos premium liberados
+                Seu plano Premium está em período de teste
               </div>
               <p className="mt-1 text-sm text-blue-800">
                 {trialEndsLabel
@@ -396,7 +390,7 @@ export default function JornaleiroDashboardPage() {
               </p>
             </div>
             <Link
-              href="/jornaleiro/meu-plano?source=dashboard-trial"
+              href="/jornaleiro/meu-plano?source=dashboard"
               className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 shadow-sm ring-1 ring-inset ring-blue-200 hover:bg-blue-100/40"
             >
               Ver detalhes do Premium
