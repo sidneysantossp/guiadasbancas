@@ -10,7 +10,6 @@ import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import { shippingConfig } from "@/components/shippingConfig";
-import CategoryCarousel from "@/components/CategoryCarousel";
 import CatalogSidebar from "@/components/CatalogSidebar";
 import { FALLBACK_CATEGORY_GROUPS } from "@/lib/catalog/fallbackCategories";
 
@@ -153,8 +152,13 @@ function ProductCard({ p, km }: { p: Product; km: number | null }) {
       href={productHref}
       className="block rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition cursor-pointer"
     >
-      <div className="relative h-40 sm:h-44 lg:h-36 w-full group">
-        <img src={p.image} alt={p.name} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+      <div className="relative h-40 sm:h-44 lg:h-36 w-full group bg-white">
+        <img
+          src={p.image}
+          alt={p.name}
+          className="absolute inset-0 w-full h-full object-contain p-2"
+          loading="lazy"
+        />
         {/* Efeito hover sutil sobre a imagem */}
         <div className="pointer-events-none absolute inset-0 rounded-[14px] bg-black/0 group-hover:bg-black/5 transition" />
       </div>
@@ -1047,12 +1051,6 @@ export default function CategoryResultsClient({ slug, sub, title, initialCategor
 
   return (
     <section className="container-max pt-3 pb-32">
-      
-      {/* Carrossel de Categorias - sem initialItems para buscar da API com imagens */}
-      <div className="mb-4">
-        <CategoryCarousel />
-      </div>
-      
       {loading && (
         <div className="flex items-center justify-center py-12">
           <div className="text-gray-600">Carregando produtos...</div>
