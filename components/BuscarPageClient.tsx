@@ -8,7 +8,6 @@ import { useCategories, type UICategory } from "@/lib/useCategories";
 import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import { IconFilter, IconX, IconChevronDown, IconChevronUp } from "@tabler/icons-react";
-import CategoryCarousel from "@/components/CategoryCarousel";
 import BankCard from "@/components/BankCard";
 import { filterProductsFuzzy, normalizeForSearch } from "@/lib/fuzzySearch";
 import { buildPublicProductPath } from "@/lib/product-url";
@@ -461,11 +460,6 @@ export default function BuscarPageClient({
         ) : (
           <p className="text-gray-600 mt-1">Use a busca para encontrar produtos e bancas.</p>
         )}
-      </div>
-
-      {/* Carrossel de Categorias - sem initialItems para buscar da API com imagens */}
-      <div className="mb-6">
-        <CategoryCarousel initialItems={initialCategories} />
       </div>
 
       {/* Botão de filtros mobile */}
