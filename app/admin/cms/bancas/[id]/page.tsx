@@ -370,6 +370,7 @@ export default function EditBancaPage() {
         featured,
         active,
         gallery,
+        ownerEmail: ownerEmail.trim() || null,
         is_cotista: isCotista,
         cotista_id: selectedCotista?.id || null,
         cotista_codigo: selectedCotista?.codigo || null,
@@ -468,11 +469,14 @@ export default function EditBancaPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Responsável</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">E-mail do Jornaleiro</label>
                 <input
-                  type="text"
+                  type="email"
                   value={ownerEmail}
-                  disabled
+                  onChange={(e) => {
+                    setOwnerEmail(e.target.value);
+                    setHasChanges(true);
+                  }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
@@ -497,8 +501,11 @@ export default function EditBancaPage() {
                 <input
                   type="email"
                   value={ownerEmail}
-                  disabled
-                  className="w-full px-4 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg cursor-not-allowed"
+                  onChange={(e) => {
+                    setOwnerEmail(e.target.value);
+                    setHasChanges(true);
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                 />
                 <p className="text-xs text-gray-500 mt-2">
                   E-mail utilizado pelo jornaleiro para acessar o painel.

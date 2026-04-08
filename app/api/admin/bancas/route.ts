@@ -75,6 +75,17 @@ function buildOpeningHours(hours?: Array<{ key: string; open: boolean; start: st
   }, {});
 }
 
+function normalizeEmail(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  return normalized;
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 async function readBancas(): Promise<AdminBanca[]> {
   try {
     // Buscar bancas
@@ -189,6 +200,13 @@ export async function GET(request: NextRequest) {
         const { data: userData, error: getErr } = await supabaseAdmin.auth.admin.getUserById(ownerId);
         if (!getErr && userData?.user?.email) {
           ownerEmail = userData.user.email;
+        } else {
+          const { data: ownerProfile } = await supabaseAdmin
+            .from('user_profiles')
+            .select('email')
+            .eq('id', ownerId)
+            .single();
+          if (ownerProfile?.email) ownerEmail = ownerProfile.email;
         }
       }
     } catch {}
@@ -268,6 +286,43 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Dados inválidos" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
+    const requestedOwnerEmail = normalizeEmail(data.ownerEmail);
+    if (requestedOwnerEmail && !isValidEmail(requestedOwnerEmail)) {
+      return NextResponse.json(
+        { success: false, error: 'Informe um e-mail válido para o jornaleiro.' },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    const { data: existingBanca, error: existingBancaError } = await supabaseAdmin
+      .from('bancas')
+      .select('id, user_id')
+      .eq('id', data.id)
+      .single();
+
+    if (existingBancaError || !existingBanca) {
+      return NextResponse.json(
+        { success: false, error: 'Banca não encontrada.' },
+        { status: 404, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    if (requestedOwnerEmail && existingBanca.user_id) {
+      const { data: duplicateProfile } = await supabaseAdmin
+        .from('user_profiles')
+        .select('id')
+        .eq('email', requestedOwnerEmail)
+        .neq('id', existingBanca.user_id)
+        .limit(1);
+
+      if ((duplicateProfile || []).length > 0) {
+        return NextResponse.json(
+          { success: false, error: 'Este e-mail já está em uso por outro usuário.' },
+          { status: 400, headers: NO_STORE_HEADERS }
+        );
+      }
+    }
+
     // Preparar dados para atualização
     const updateData: any = {
       name: data.name,
@@ -320,6 +375,57 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Update banca error:', error);
       return NextResponse.json({ success: false, error: 'Erro ao atualizar banca' }, { status: 500, headers: NO_STORE_HEADERS });
+    }
+
+    if (requestedOwnerEmail && existingBanca.user_id) {
+      const { data: currentAuthUser, error: currentAuthUserError } = await supabaseAdmin.auth.admin.getUserById(existingBanca.user_id);
+
+      if (currentAuthUserError) {
+        console.error('Get auth user error:', currentAuthUserError);
+        return NextResponse.json(
+          { success: false, error: 'Erro ao carregar o usuário do jornaleiro.' },
+          { status: 500, headers: NO_STORE_HEADERS }
+        );
+      }
+
+      const currentOwnerEmail = currentAuthUser.user?.email?.trim().toLowerCase() || null;
+
+      if (requestedOwnerEmail !== currentOwnerEmail) {
+        const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(existingBanca.user_id, {
+          email: requestedOwnerEmail,
+          email_confirm: true,
+        });
+
+        if (authUpdateError) {
+          console.error('Auth email update error:', authUpdateError);
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                authUpdateError.message === 'A user with this email address has already been registered'
+                  ? 'Este e-mail já está em uso por outro usuário.'
+                  : 'Não foi possível atualizar o e-mail de acesso do jornaleiro.',
+            },
+            { status: 400, headers: NO_STORE_HEADERS }
+          );
+        }
+      }
+
+      const { error: profileUpdateError } = await supabaseAdmin
+        .from('user_profiles')
+        .update({
+          email: requestedOwnerEmail,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingBanca.user_id);
+
+      if (profileUpdateError) {
+        console.error('Profile email update error:', profileUpdateError);
+        return NextResponse.json(
+          { success: false, error: 'Não foi possível sincronizar o e-mail do jornaleiro no perfil.' },
+          { status: 500, headers: NO_STORE_HEADERS }
+        );
+      }
     }
 
     return NextResponse.json({ success: true, data: updatedData }, { headers: NO_STORE_HEADERS });
