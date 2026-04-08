@@ -198,9 +198,8 @@ export default function BancasPertoDeMimPageClient({
   // Buscar bancas reais do Admin CMS.
   // Não aplicar raio na origem: o slider precisa operar sobre a lista completa.
   useEffect(() => {
-    if (hasInitialBancas) {
-      setApiBancas(initialBancasSafe ?? []);
-      return;
+    if (hasInitialBancas && initialBancasSafe) {
+      setApiBancas(initialBancasSafe);
     }
     (async () => {
       try {
@@ -210,7 +209,9 @@ export default function BancasPertoDeMimPageClient({
         const list = Array.isArray(j?.data) ? j.data : [];
         setApiBancas(list.filter((b: any) => b?.active));
       } catch {
-        setApiBancas([]);
+        if (!hasInitialBancas) {
+          setApiBancas([]);
+        }
       }
     })();
   }, [hasInitialBancas, initialBancasSafe]);
@@ -527,7 +528,7 @@ export default function BancasPertoDeMimPageClient({
                 <span>2</span>
                 <span>3</span>
                 <span>4</span>
-                <span>+5Km</span>
+                <span>5+ / todas</span>
               </div>
             </div>
           </div>
@@ -585,7 +586,7 @@ export default function BancasPertoDeMimPageClient({
                 <span>2</span>
                 <span>3</span>
                 <span>4</span>
-                <span>+5Km</span>
+                <span>5+ / todas</span>
               </div>
             </div>
           </div>
