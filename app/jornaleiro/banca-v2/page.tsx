@@ -10,6 +10,7 @@ import { useSearchParams } from 'next/navigation';
 import ImageUploader from '@/components/admin/ImageUploader';
 import FileUploadDragDrop from '@/components/common/FileUploadDragDrop';
 import JornaleiroPageHeading from '@/components/jornaleiro/JornaleiroPageHeading';
+import MarkdownEditor from '@/components/admin/MarkdownEditor';
 import { IconUser, IconClock, IconBuilding, IconLink } from '@tabler/icons-react';
 import { maskCPFOrCNPJ } from '@/lib/masks';
 import {
@@ -193,6 +194,21 @@ export default function BancaV2Page() {
     return (div.textContent || div.innerText || '').trim();
   };
 
+  const normalizeDescriptionHtml = (value?: string) => {
+    const source = String(value || '').trim();
+    if (!source) return '';
+    if (/<[a-z][\s\S]*>/i.test(source)) {
+      return source;
+    }
+
+    return source
+      .split(/\n{2,}/)
+      .map((paragraph) => paragraph.trim())
+      .filter(Boolean)
+      .map((paragraph) => `<p>${paragraph.replace(/\n/g, '<br />')}</p>`)
+      .join('');
+  };
+
   const { data: bancaData, isLoading, error, refetch: refetchBanca } = useQuery({
     queryKey: ['banca', session?.user?.id, bancaIdParam || 'active'],
     queryFn: async () => {
@@ -355,7 +371,7 @@ export default function BancaV2Page() {
 
       reset({
         name: bancaData.name || '',
-        description: stripHtml(bancaData.description) || fallbackDescription || '',
+        description: normalizeDescriptionHtml(bancaData.description || fallbackDescription || ''),
         tpu_url: bancaData.tpu_url || '',
         contact: { whatsapp: bancaData.contact?.whatsapp || bancaData.whatsapp || '' },
         socials: {
@@ -537,7 +553,7 @@ export default function BancaV2Page() {
         body: JSON.stringify({
           data: {
             name: data.name,
-            description: stripHtml(data.description) || '',
+            description: normalizeDescriptionHtml(data.description) || '',
             tpu_url: data.tpu_url || '',
             contact: data.contact,
             socials: data.socials,
@@ -802,13 +818,20 @@ export default function BancaV2Page() {
               <label className="block text-sm font-medium text-gray-700">
                 Descrição
               </label>
-              <textarea
-                {...register('description')}
-                rows={4}
-                autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                placeholder="Conte um pouco sobre sua banca..."
-              />
+              <div className="mt-1">
+                <Controller
+                  name="description"
+                  control={control}
+                  render={({ field }) => (
+                    <MarkdownEditor
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                      placeholder="Conte um pouco sobre sua banca..."
+                      height={300}
+                    />
+                  )}
+                />
+              </div>
             </div>
           </div>
         </div>
