@@ -63,6 +63,34 @@ function formatAcceptLabel(accept: string): string {
   return labels.join(", ");
 }
 
+function detectPreviewKind(url: string, accept: string): "image" | "pdf" | "file" {
+  const value = String(url || "").toLowerCase();
+  const tokens = parseAcceptTokens(accept);
+  const allowsPdf = tokens.some((token) => token === "application/pdf" || token === ".pdf");
+  const allowsImage = tokens.some(
+    (token) =>
+      token === "image/*" ||
+      token.startsWith("image/") ||
+      [".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".bmp", ".svg"].includes(token)
+  );
+
+  if (allowsPdf && allowsImage) {
+    return "file";
+  }
+
+  if (value.startsWith("data:application/pdf")) return "pdf";
+  if (value.startsWith("data:image/")) return "image";
+
+  const cleanValue = value.split("?")[0].split("#")[0];
+  if (/\.(pdf)$/.test(cleanValue)) return "pdf";
+  if (/\.(jpg|jpeg|png|gif|webp|avif|bmp|svg)$/.test(cleanValue)) return "image";
+
+  if (allowsPdf && !allowsImage) return "pdf";
+  if (allowsImage && !allowsPdf) return "image";
+
+  return "file";
+}
+
 export default function FileUploadDragDrop({
   label,
   value,
@@ -278,11 +306,10 @@ export default function FileUploadDragDrop({
 
   const renderPreview = () => {
     if (!primaryValue) return null;
-    
-    const isPdf = primaryValue.toLowerCase().endsWith('.pdf') || accept.includes('pdf');
-    const isImage = accept.includes('image') || primaryValue.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-    
-    if (isImage) {
+
+    const previewKind = detectPreviewKind(primaryValue, accept);
+
+    if (previewKind === "image") {
       return (
         <div className="rounded-md border p-3 bg-white">
           <img 
@@ -296,18 +323,20 @@ export default function FileUploadDragDrop({
         </div>
       );
     }
-    
-    if (isPdf) {
+
+    if (previewKind === "pdf" || previewKind === "file") {
       const isDataUrl = primaryValue.startsWith('data:');
       const rawName = isDataUrl ? 'TPU.pdf' : (primaryValue.split('/').pop() || 'Arquivo.pdf');
       const name = rawName.length > 80 ? `${rawName.slice(0, 40)}...${rawName.slice(-30)}` : rawName;
       return (
         <div className="flex items-center justify-between rounded-md border p-3 bg-white max-w-full overflow-hidden">
           <div className="flex items-center gap-3 min-w-0">
-            <svg className="h-6 w-6 text-red-600" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path d="M14 2v6h6" fill="#fff" opacity=".3"/></svg>
+            <svg className={`h-6 w-6 ${previewKind === "pdf" ? "text-red-600" : "text-gray-600"}`} viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path d="M14 2v6h6" fill="#fff" opacity=".3"/></svg>
             <div className="min-w-0">
               <div className="text-sm font-medium break-all">{name}</div>
-              <a href={primaryValue} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline break-all">Abrir documento</a>
+              <a href={primaryValue} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline break-all">
+                {previewKind === "pdf" ? "Abrir documento" : "Abrir arquivo"}
+              </a>
             </div>
           </div>
           {uploading && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500"></div>}

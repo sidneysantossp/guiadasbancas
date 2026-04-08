@@ -161,6 +161,7 @@ export default function BancaV2Page() {
   const [coverImages, setCoverImages] = useState<string[]>([]);
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
   const [imagesChanged, setImagesChanged] = useState(false);
+  const [tpuUploadMessage, setTpuUploadMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'jornaleiro' | 'banca' | 'func' | 'social'>(
     bancaIdParam ? 'banca' : 'jornaleiro'
   );
@@ -174,6 +175,16 @@ export default function BancaV2Page() {
       setActiveTab('banca');
     }
   }, [tabParam, bancaIdParam]);
+
+  useEffect(() => {
+    if (!tpuUploadMessage) return;
+
+    const timeout = window.setTimeout(() => {
+      setTpuUploadMessage('');
+    }, 4000);
+
+    return () => window.clearTimeout(timeout);
+  }, [tpuUploadMessage]);
   const [addressFieldsEnabled, setAddressFieldsEnabled] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
@@ -768,12 +779,25 @@ export default function BancaV2Page() {
         <p className="mb-4 text-sm text-gray-600">
           Envie o documento de registro da banca para manter o cadastro comercial completo. Aceitamos PDF, JPG, PNG e WebP.
         </p>
+        {tpuUploadMessage ? (
+          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+            {tpuUploadMessage}
+          </div>
+        ) : null}
         <FileUploadDragDrop
           label="Upload do documento TPU"
           value={watch('tpu_url') as any}
-          onChange={(url) => setValue('tpu_url', url, { shouldDirty: true })}
+          onChange={(url) => {
+            setValue('tpu_url', url, { shouldDirty: true });
+            if (url) {
+              setTpuUploadMessage('Documento carregado com sucesso.');
+            } else {
+              setTpuUploadMessage('');
+            }
+          }}
           accept="application/pdf,image/*"
           role="jornaleiro"
+          disableManualEntry
           className="h-32 w-full"
         />
       </div>
