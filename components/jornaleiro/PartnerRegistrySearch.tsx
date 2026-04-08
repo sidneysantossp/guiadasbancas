@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { GUIDE_SUPPORT_WHATSAPP_NUMBER } from "@/lib/jornaleiro-marketing";
 
 export type PartnerRegistryEntry = {
   id: string;
@@ -38,7 +39,11 @@ export default function PartnerRegistrySearch({
   const [selected, setSelected] = useState<PartnerRegistryEntry | null>(null);
   const [notFound, setNotFound] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const supportNumber = (supportWhatsapp || (process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP as string) || "").trim();
+  const supportNumber = (
+    supportWhatsapp ||
+    (process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP as string) ||
+    GUIDE_SUPPORT_WHATSAPP_NUMBER
+  ).trim();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
