@@ -9,7 +9,6 @@ import { maskCEP, maskPhoneBR } from "@/lib/masks";
 import { fetchViaCEP } from "@/lib/viacep";
 import ImageUploadDragDrop from "@/components/admin/ImageUploadDragDrop";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
-import CotistaSearch from "@/components/CotistaSearch";
 
 export default function EditBancaPage() {
   const router = useRouter();
@@ -76,14 +75,6 @@ export default function EditBancaPage() {
   const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState<string>("");
 
-  // Estados para cotista
-  const [isCotista, setIsCotista] = useState<boolean>(false);
-  const [selectedCotista, setSelectedCotista] = useState<{
-    id: string;
-    codigo: string;
-    razao_social: string;
-    cnpj_cpf: string;
-  } | null>(null);
   const selectAllCategoriesRef = useRef<HTMLInputElement | null>(null);
 
   // Estados brasileiros
@@ -178,16 +169,6 @@ export default function EditBancaPage() {
           if (banca.tpu_url) setTpuUrl(banca.tpu_url);
           // Email do jornaleiro (proprietário) quando disponível
           if (banca.ownerEmail) setOwnerEmail(String(banca.ownerEmail));
-          // Dados do cotista
-          setIsCotista(banca.is_cotista || false);
-          if (banca.cotista_id) {
-            setSelectedCotista({
-              id: banca.cotista_id,
-              codigo: banca.cotista_codigo || '',
-              razao_social: banca.cotista_razao_social || '',
-              cnpj_cpf: banca.cotista_cnpj_cpf || '',
-            });
-          }
         } else {
           setError("Banca não encontrada");
         }
@@ -371,11 +352,6 @@ export default function EditBancaPage() {
         active,
         gallery,
         ownerEmail: ownerEmail.trim() || null,
-        is_cotista: isCotista,
-        cotista_id: selectedCotista?.id || null,
-        cotista_codigo: selectedCotista?.codigo || null,
-        cotista_razao_social: selectedCotista?.razao_social || null,
-        cotista_cnpj_cpf: selectedCotista?.cnpj_cpf || null,
       };
 
       const res = await fetchAdminWithDevFallback('/api/admin/bancas', {
@@ -669,68 +645,28 @@ export default function EditBancaPage() {
             </div>
           </div>
 
-          {/* COTISTA / TPU */}
+          {/* TPU */}
           <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Vínculo de Cotista (TPU)</h2>
-                <p className="text-sm text-gray-500">Vincule esta banca a um cotista para uso do PDV.</p>
+                <h2 className="text-lg font-semibold text-gray-900">Documento TPU</h2>
+                <p className="text-sm text-gray-500">Faça o upload do TPU da banca em PDF ou imagem para manter o cadastro documental atualizado.</p>
               </div>
-              <label className="flex items-center cursor-pointer">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={isCotista}
-                    onChange={(e) => setIsCotista(e.target.checked)}
-                  />
-                  <div className={`block w-10 h-6 rounded-full transition-colors ${isCotista ? 'bg-primary' : 'bg-gray-300'}`}></div>
-                  <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isCotista ? 'transform translate-x-4' : ''}`}></div>
-                </div>
-                <span className="ml-3 text-sm font-medium text-gray-700">É Banca Cotista</span>
-              </label>
             </div>
-
-            {isCotista && (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-4">
-                <CotistaSearch
-                  onSelect={(c) => setSelectedCotista(c ? { id: c.id, codigo: c.codigo, razao_social: c.razao_social, cnpj_cpf: c.cnpj_cpf } : null)}
-                  initialValue={selectedCotista?.codigo}
-                  disabled={false}
-                />
-
-                {selectedCotista && (
-                  <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium text-gray-900">Cotista Selecionado</h4>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedCotista(null)}
-                        className="text-xs text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded border border-red-200 hover:bg-red-50 transition-colors"
-                      >
-                        Remover
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-500 block text-xs mb-1">Código TPU</span>
-                        <span className="font-medium font-mono text-primary bg-primary/5 px-2 py-0.5 rounded">
-                          {selectedCotista.codigo}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 block text-xs mb-1">CNPJ/CPF</span>
-                        <span className="font-medium">{selectedCotista.cnpj_cpf}</span>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="text-gray-500 block text-xs mb-1">Razão Social / Nome</span>
-                        <span className="font-medium">{selectedCotista.razao_social}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <FileUploadDragDrop
+                label="Upload do documento TPU"
+                value={tpuUrl}
+                onChange={(url) => {
+                  setTpuUrl(url);
+                  setHasChanges(true);
+                }}
+                accept="application/pdf,image/*"
+                role="admin"
+                disableManualEntry
+                className="h-32 w-full"
+              />
+            </div>
           </div>
 
           {/* HORÁRIOS */}
