@@ -1458,6 +1458,7 @@ export default function JornaleiroRegistrarPageClient() {
                     }}
                     accept="image/*"
                     disableManualEntry
+                    uploadEndpoint="/api/upload/onboarding"
                     role="jornaleiro"
                     className="h-32 w-full"
                   />
@@ -1477,6 +1478,7 @@ export default function JornaleiroRegistrarPageClient() {
                     }}
                     accept="image/*"
                     disableManualEntry
+                    uploadEndpoint="/api/upload/onboarding"
                     role="jornaleiro"
                     className="h-32 w-full"
                   />

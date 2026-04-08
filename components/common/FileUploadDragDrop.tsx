@@ -17,6 +17,7 @@ interface FileUploadDragDropProps {
   role?: 'admin' | 'jornaleiro';
   maxDisplayLength?: number; // limite visual no input
   disableManualEntry?: boolean;
+  uploadEndpoint?: string;
 }
 
 export default function FileUploadDragDrop({
@@ -32,6 +33,7 @@ export default function FileUploadDragDrop({
   accept = 'application/pdf',
   maxDisplayLength = 80,
   disableManualEntry = false,
+  uploadEndpoint = '/api/upload',
 }: FileUploadDragDropProps) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -148,7 +150,7 @@ export default function FileUploadDragDrop({
       const formData = new FormData();
       formData.append('file', fileToUpload);
 
-      const response = await fetch('/api/upload', {
+      const response = await fetch(uploadEndpoint, {
         method: 'POST',
         body: formData,
       });
