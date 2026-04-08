@@ -1,4 +1,7 @@
-import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
+import {
+  ensureBancaHasOnboardingPlan,
+  ensureBancaHasPremiumTrialAccess,
+} from "@/lib/banca-subscription";
 import { isSameBancaIdentity, pickCanonicalBanca, resolveCanonicalBancaRowById, resolveCanonicalOwnedBancaId } from "@/lib/banca-canonical";
 import { getBrazilianDocumentVariants } from "@/lib/documents";
 import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
@@ -7,6 +10,7 @@ import { loadAccessibleBancaForJornaleiro } from "@/lib/modules/jornaleiro/acces
 import { loadUserProfileById } from "@/lib/modules/auth/user-profiles";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
+import { getSupabaseServiceClient } from "@/lib/server/supabase-admin";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const BANCA_LIST_SELECT =
@@ -137,8 +141,10 @@ function buildJornaleiroBancaUpdateData(input: any) {
   if (data?.whatsapp) updateData.whatsapp = data.whatsapp;
   if (data?.socials?.instagram) updateData.instagram = data.socials.instagram;
   if (data?.socials?.facebook) updateData.facebook = data.socials.facebook;
+  if (data?.socials?.gmb !== undefined) updateData.gmb = data.socials.gmb || null;
   if (data?.instagram !== undefined) updateData.instagram = data.instagram;
   if (data?.facebook !== undefined) updateData.facebook = data.facebook;
+  if (data?.gmb !== undefined) updateData.gmb = data.gmb || null;
   if (data?.delivery_enabled !== undefined) updateData.delivery_enabled = data.delivery_enabled;
   if (data?.free_shipping_threshold !== undefined) updateData.free_shipping_threshold = data.free_shipping_threshold;
   if (data?.origin_cep !== undefined) updateData.origin_cep = data.origin_cep || null;
@@ -470,7 +476,7 @@ async function formatBancaResponse(params: {
     socials: {
       instagram: params.banca.instagram || "",
       facebook: params.banca.facebook || "",
-      gmb: "",
+      gmb: params.banca.gmb || "",
     },
     payments: params.banca.payment_methods || [],
     hours: parseHours(params.banca),
@@ -720,6 +726,7 @@ export async function createJornaleiroBanca(params: {
     email: banca.email || params.requesterEmail || null,
     instagram: banca.instagram || null,
     facebook: banca.facebook || null,
+    gmb: banca.gmb || null,
     cep: banca.cep || "",
     address: banca.address || "",
     lat: banca.lat ?? banca.location?.lat ?? -23.5505,
@@ -877,6 +884,7 @@ export async function createPrimaryJornaleiroBanca(params: {
   requesterEmail?: string | null;
   input: any;
 }) {
+  const serviceSupabase = getSupabaseServiceClient();
   const requester = await loadRequesterProfile(params.userId);
 
   if (requester.role !== "jornaleiro") {
@@ -886,6 +894,7 @@ export async function createPrimaryJornaleiroBanca(params: {
   const body = params.input;
   const banca = body?.banca || body;
   const profile = body?.profile || {};
+  const activatePremiumTrial = body?.activate_premium_trial === true;
 
   if (!banca?.name) {
     throw new Error("INVALID_BANCA_NAME");
@@ -894,7 +903,11 @@ export async function createPrimaryJornaleiroBanca(params: {
   const existing = await loadActiveJornaleiroBanca(params.userId);
   if (existing) {
     try {
-      await ensureBancaHasOnboardingPlan(existing.id);
+      if (activatePremiumTrial) {
+        await ensureBancaHasPremiumTrialAccess(existing.id);
+      } else {
+        await ensureBancaHasOnboardingPlan(existing.id);
+      }
     } catch (error: any) {
       console.warn("[JornaleiroBancas] Falha ao garantir plano inicial da banca existente:", error?.message || error);
     }
@@ -918,6 +931,7 @@ export async function createPrimaryJornaleiroBanca(params: {
     email: banca.email || params.requesterEmail || null,
     instagram: banca.instagram || null,
     facebook: banca.facebook || null,
+    gmb: banca.gmb || null,
     cep: banca.cep || "",
     address: banca.address || "",
     lat: banca.lat ?? banca.location?.lat ?? null,
@@ -957,13 +971,21 @@ export async function createPrimaryJornaleiroBanca(params: {
     updated_at: now,
   };
 
-  const { data: created, error: createError } = await supabaseAdmin
+  const { data: created, error: createError } = await serviceSupabase
     .from("bancas")
     .insert(insertData)
     .select()
     .single();
 
   if (createError || !created) {
+    console.error("[JornaleiroBancas] Erro ao criar banca primária:", {
+      code: createError?.code || null,
+      details: createError?.details || null,
+      hint: createError?.hint || null,
+      message: createError?.message || "Erro ao criar banca",
+      userId: params.userId,
+      bancaName: banca?.name || null,
+    });
     throw new Error(createError?.message || "Erro ao criar banca");
   }
 
@@ -972,7 +994,7 @@ export async function createPrimaryJornaleiroBanca(params: {
   if (profile?.cpf) profileUpdates.cpf = profile.cpf;
   if (profile?.full_name) profileUpdates.full_name = profile.full_name;
 
-  const { error: profileError } = await supabaseAdmin
+  const { error: profileError } = await serviceSupabase
     .from("user_profiles")
     .update(profileUpdates)
     .eq("id", params.userId);
@@ -981,8 +1003,29 @@ export async function createPrimaryJornaleiroBanca(params: {
     throw new Error(profileError.message || "Erro ao atualizar perfil do jornaleiro");
   }
 
+  const { error: memberError } = await serviceSupabase
+    .from("banca_members")
+    .upsert(
+      {
+        banca_id: created.id,
+        user_id: params.userId,
+        access_level: "admin",
+        created_at: now,
+        updated_at: now,
+      },
+      { onConflict: "banca_id,user_id" }
+    );
+
+  if (memberError) {
+    console.warn("[JornaleiroBancas] Falha ao vincular dono da banca em banca_members:", memberError.message);
+  }
+
   try {
-    await ensureBancaHasOnboardingPlan(created.id);
+    if (activatePremiumTrial) {
+      await ensureBancaHasPremiumTrialAccess(created.id);
+    } else {
+      await ensureBancaHasOnboardingPlan(created.id);
+    }
   } catch (error: any) {
     console.warn("[JornaleiroBancas] Falha ao garantir plano inicial da nova banca:", error?.message || error);
   }
