@@ -20,6 +20,49 @@ interface FileUploadDragDropProps {
   uploadEndpoint?: string;
 }
 
+function parseAcceptTokens(accept: string): string[] {
+  return String(accept || "")
+    .split(",")
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function matchAcceptToken(file: File, token: string): boolean {
+  const fileType = String(file.type || "").toLowerCase();
+  const fileName = String(file.name || "").toLowerCase();
+
+  if (!token) return true;
+
+  if (token.startsWith(".")) {
+    return fileName.endsWith(token);
+  }
+
+  if (token.endsWith("/*")) {
+    const prefix = token.slice(0, -1);
+    return fileType.startsWith(prefix);
+  }
+
+  return fileType === token;
+}
+
+function fileMatchesAccept(file: File, accept: string): boolean {
+  const tokens = parseAcceptTokens(accept);
+  if (tokens.length === 0) return true;
+  return tokens.some((token) => matchAcceptToken(file, token));
+}
+
+function formatAcceptLabel(accept: string): string {
+  const tokens = parseAcceptTokens(accept);
+  const labels = tokens.map((token) => {
+    if (token === "image/*") return "JPG, PNG, WEBP, GIF";
+    if (token === "application/pdf") return "PDF";
+    if (token.startsWith(".")) return token.toUpperCase();
+    return token;
+  });
+
+  return labels.join(", ");
+}
+
 export default function FileUploadDragDrop({
   label,
   value,
@@ -129,8 +172,8 @@ export default function FileUploadDragDrop({
 
   const uploadSingleFile = async (file: File): Promise<string | null> => {
     try {
-      if (accept && file.type && !file.type.match(accept.replace('*', '.*'))) {
-        alert(`Tipo de arquivo inválido. Esperado: ${accept}`);
+      if (accept && !fileMatchesAccept(file, accept)) {
+        alert(`Tipo de arquivo inválido. Esperado: ${formatAcceptLabel(accept)}`);
         return null;
       }
 
@@ -153,6 +196,7 @@ export default function FileUploadDragDrop({
       const response = await fetch(uploadEndpoint, {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
 
       // Verificar erro 413 especificamente
@@ -396,7 +440,7 @@ export default function FileUploadDragDrop({
       />
 
       <p className="text-xs text-gray-500">
-        Formato aceito: {accept === 'image/*' ? 'JPG, PNG, JPEG' : accept === 'application/pdf' ? 'PDF' : accept}. Máximo 5MB.
+        Formato aceito: {formatAcceptLabel(accept)}. Máximo 5MB.
       </p>
     </div>
   );
