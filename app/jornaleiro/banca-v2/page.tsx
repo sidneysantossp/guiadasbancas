@@ -12,6 +12,10 @@ import FileUploadDragDrop from '@/components/common/FileUploadDragDrop';
 import JornaleiroPageHeading from '@/components/jornaleiro/JornaleiroPageHeading';
 import { IconUser, IconClock, IconBuilding, IconLink } from '@tabler/icons-react';
 import { maskCPFOrCNPJ } from '@/lib/masks';
+import {
+  DEFAULT_BANCA_ABOUT_TEMPLATE,
+  renderBancaAboutTemplate,
+} from '@/lib/banca-about-template';
 
 // Constantes auxiliares
 const ESTADOS = [
@@ -33,6 +37,62 @@ const PAYMENT_OPTIONS = [
   { value: 'debito', label: 'Cartão de débito' },
   { value: 'online', label: 'Pagamento online' },
 ] as const;
+
+function formatListPtBr(values: string[]): string {
+  const items = values.map((v) => String(v || '').trim()).filter(Boolean);
+  if (items.length === 0) return '';
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} e ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
+}
+
+function buildAboutLocationSnippet(bancaData: any): string {
+  const adr = bancaData?.addressObj || {};
+  const parts = [
+    adr.neighborhood,
+    adr.city,
+    adr.uf,
+  ]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean);
+
+  if (parts.length > 0) {
+    return parts.join(', ');
+  }
+
+  if (typeof bancaData?.address === 'string' && bancaData.address.trim()) {
+    return bancaData.address
+      .split('|')
+      .map((part: string) => part.trim())
+      .filter(Boolean)[0] || '';
+  }
+
+  return '';
+}
+
+function buildBancaDescriptionFallback(bancaData: any, aboutTemplate: string): string {
+  if (!bancaData) return '';
+
+  const categories = Array.isArray(bancaData?.categories)
+    ? bancaData.categories
+        .map((item: unknown) => String(item || '').trim())
+        .filter(Boolean)
+        .slice(0, 4)
+    : [];
+
+  return renderBancaAboutTemplate(aboutTemplate, {
+    banca_nome: String(bancaData?.name || 'sua banca'),
+    regiao: buildAboutLocationSnippet(bancaData)
+      ? `na região de ${buildAboutLocationSnippet(bancaData)}`
+      : 'na sua região',
+    categorias: categories.length > 0
+      ? formatListPtBr(categories)
+      : 'produtos para o dia a dia',
+    entrega: bancaData?.delivery_enabled
+      ? 'com opção de entrega conforme disponibilidade da banca'
+      : 'com retirada combinada diretamente com a banca',
+  }).trim();
+}
 
 // Schema de validação (aninhado, compatível com a API)
 const bancaSchema = z.object({
@@ -116,6 +176,7 @@ export default function BancaV2Page() {
   const [addressFieldsEnabled, setAddressFieldsEnabled] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [aboutTemplate, setAboutTemplate] = useState<string>(DEFAULT_BANCA_ABOUT_TEMPLATE);
   const lastAppliedSnapshotRef = useRef<string>('');
 
   const withCacheBust = (url?: string, seed?: number | string) => {
@@ -160,6 +221,33 @@ export default function BancaV2Page() {
     window.addEventListener('banca-updated', handleBancaUpdated);
     return () => window.removeEventListener('banca-updated', handleBancaUpdated);
   }, [refetchBanca]);
+
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      try {
+        const res = await fetch('/api/settings/banca-about-template', { cache: 'no-store' });
+        const json = await res.json();
+        const templateValue =
+          typeof json?.data?.value === 'string' && json.data.value.trim()
+            ? json.data.value
+            : DEFAULT_BANCA_ABOUT_TEMPLATE;
+
+        if (active) {
+          setAboutTemplate(templateValue);
+        }
+      } catch {
+        if (active) {
+          setAboutTemplate(DEFAULT_BANCA_ABOUT_TEMPLATE);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // React Query - categorias
   const { data: categoriesData } = useQuery({
@@ -263,10 +351,11 @@ export default function BancaV2Page() {
     if (bancaData && bancaSnapshot && lastAppliedSnapshotRef.current !== bancaSnapshot && !justSaved) {
       const adr = bancaData.addressObj || {};
       const prof = (profileResp?.profile) ?? (bancaData?.profile) ?? {};
+      const fallbackDescription = buildBancaDescriptionFallback(bancaData, aboutTemplate);
 
       reset({
         name: bancaData.name || '',
-        description: stripHtml(bancaData.description) || '',
+        description: stripHtml(bancaData.description) || fallbackDescription || '',
         tpu_url: bancaData.tpu_url || '',
         contact: { whatsapp: bancaData.contact?.whatsapp || bancaData.whatsapp || '' },
         socials: {
@@ -310,7 +399,7 @@ export default function BancaV2Page() {
 
       lastAppliedSnapshotRef.current = bancaSnapshot;
     }
-  }, [bancaData, justSaved, profileResp, reset, session?.user?.email]);
+  }, [aboutTemplate, bancaData, justSaved, profileResp, reset, session?.user?.email]);
 
   // Função para comprimir imagem antes do upload (evita erro 413 na Vercel)
   const compressImage = async (dataUrl: string, maxSizeMB: number = 2): Promise<Blob> => {
