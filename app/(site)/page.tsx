@@ -37,6 +37,7 @@ type HomeBanca = {
   lng?: number;
   cover: string;
   profile_image?: string;
+  created_at?: string;
   rating?: number;
   featured?: boolean;
   active: boolean;
@@ -222,7 +223,7 @@ async function getFeaturedBancas(limit = 50): Promise<HomeBanca[]> {
   try {
     const { data, error } = await supabaseAdmin
       .from("bancas")
-      .select("id, name, address, lat, lng, cover_image, profile_image, rating, featured, active")
+      .select("id, name, address, lat, lng, cover_image, profile_image, rating, featured, active, created_at")
       .eq("active", true)
       .order("featured", { ascending: false, nullsFirst: false })
       .order("rating", { ascending: false, nullsFirst: false })
@@ -242,6 +243,7 @@ async function getFeaturedBancas(limit = 50): Promise<HomeBanca[]> {
       lng: banca.lng,
       cover: banca.cover_image || "",
       profile_image: banca.profile_image || "",
+      created_at: banca.created_at || null,
       rating: banca.rating ?? 4.7,
       featured: banca.featured === true,
       active: true,
@@ -249,6 +251,40 @@ async function getFeaturedBancas(limit = 50): Promise<HomeBanca[]> {
     }));
   } catch (error) {
     console.error("[home] Exception ao buscar bancas:", error);
+    return [];
+  }
+}
+
+async function getRecentBancas(limit = 12): Promise<HomeBanca[]> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("bancas")
+      .select("id, name, address, lat, lng, cover_image, profile_image, rating, featured, active, created_at")
+      .eq("active", true)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("[home] Erro ao buscar bancas recentes:", error);
+      return [];
+    }
+
+    return (data || []).map((banca: any) => ({
+      id: banca.id,
+      name: banca.name,
+      address: banca.address,
+      lat: banca.lat,
+      lng: banca.lng,
+      cover: banca.cover_image || "",
+      profile_image: banca.profile_image || "",
+      created_at: banca.created_at || null,
+      rating: banca.rating ?? 4.7,
+      featured: banca.featured === true,
+      active: true,
+      order: 0,
+    }));
+  } catch (error) {
+    console.error("[home] Exception ao buscar bancas recentes:", error);
     return [];
   }
 }
@@ -284,9 +320,10 @@ async function getCategories(): Promise<HomeCategory[]> {
 }
 
 export default async function HomePage() {
-  const [hero, initialBancas, initialCategories] = await Promise.all([
+  const [hero, initialBancas, initialRecentBancas, initialCategories] = await Promise.all([
     getHeroSlides(),
     getFeaturedBancas(50),
+    getRecentBancas(12),
     getCategories(),
   ]);
   const { document: jornaleiroMarketingDocument } = await loadJornaleiroPartnerLandingDocument();
@@ -312,7 +349,7 @@ export default async function HomePage() {
       </Suspense>
 
       <Suspense fallback={null}>
-        <BancasSections initialBancas={initialBancas} />
+        <BancasSections initialBancas={initialBancas} initialRecentBancas={initialRecentBancas} />
       </Suspense>
 
       <WorldCupHomeSpotlight />

@@ -11,6 +11,8 @@ type ApiBanca = {
   lat?: number; 
   lng?: number; 
   cover: string; 
+  profile_image?: string;
+  created_at?: string;
   rating?: number; 
   featured?: boolean; 
   active: boolean; 
@@ -19,9 +21,10 @@ type ApiBanca = {
 
 type BancasSectionsProps = {
   initialBancas?: ApiBanca[];
+  initialRecentBancas?: ApiBanca[];
 };
 
-export default function BancasSections({ initialBancas }: BancasSectionsProps) {
+export default function BancasSections({ initialBancas, initialRecentBancas }: BancasSectionsProps) {
   const hasInitial = Array.isArray(initialBancas) && initialBancas.length > 0;
   // Usa initialBancas como fonte principal para evitar refetch imediato na home
   const [apiBancas, setApiBancas] = useState<ApiBanca[] | null>(
@@ -58,6 +61,17 @@ export default function BancasSections({ initialBancas }: BancasSectionsProps) {
       
       {/* Seção 2: Bancas em Destaque (ordenadas por rating) */}
       <FeaturedBancas bancas={apiBancas} />
+
+      {/* Seção 3: Bancas recém-chegadas */}
+      {Array.isArray(initialRecentBancas) && initialRecentBancas.length > 0 ? (
+        <FeaturedBancas
+          bancas={initialRecentBancas}
+          title="Bancas Recém Chegadas"
+          subtitle="As bancas mais novas que acabaram de entrar na plataforma"
+          viewAllHref="/bancas-perto-de-mim"
+          sortBy="recent"
+        />
+      ) : null}
     </>
   );
 }

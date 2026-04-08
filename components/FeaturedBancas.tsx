@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { buildBancaHref } from "@/lib/slug";
+import { formatBancaName } from "@/lib/format-banca-name";
 import { useEffect, useMemo, useState } from "react";
 import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
 import type { Route } from "next";
@@ -17,12 +18,18 @@ type ApiBanca = {
   profile_image?: string;
   rating?: number; 
   featured?: boolean; 
+  created_at?: string;
   active: boolean; 
   order: number;
 };
 
 interface FeaturedBancasProps {
   bancas?: ApiBanca[] | null;
+  title?: string;
+  subtitle?: string;
+  viewAllHref?: string | null;
+  viewAllLabel?: string;
+  sortBy?: "rating" | "recent";
 }
 
 function Stars({ value }: { value: number }) {
@@ -71,6 +78,7 @@ function BancaCard({
 }) {
   const normalizedProfileImage = profileImage?.trim() || "";
   const normalizedCoverImage = cover?.trim() || "";
+  const displayName = formatBancaName(name);
   const [avatarSrc, setAvatarSrc] = useState<string>(
     normalizedProfileImage || normalizedCoverImage || "/placeholder/banca-avatar.svg"
   );
@@ -102,7 +110,7 @@ function BancaCard({
           {cover ? (
             <Image 
               src={cover} 
-              alt={name} 
+              alt={displayName} 
               fill 
               sizes="(max-width: 640px) 88vw, (max-width: 1024px) 45vw, 30vw"
               className="object-cover" 
@@ -150,7 +158,7 @@ function BancaCard({
             {avatarSrc && avatarSrc !== "/placeholder/banca-avatar.svg" ? (
               <Image
                 src={avatarSrc}
-                alt={name}
+                alt={displayName}
                 fill
                 className="object-cover"
                 sizes="36px"
@@ -171,7 +179,7 @@ function BancaCard({
               </div>
             )}
           </div>
-          <h3 className="text-base font-semibold leading-snug line-clamp-2">{name}</h3>
+          <h3 className="text-base font-semibold leading-snug line-clamp-2">{displayName}</h3>
         </div>
 
         {/* Endereço */}
@@ -185,7 +193,7 @@ function BancaCard({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${address}`)}`, '_blank');
+              window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${displayName} ${address}`)}`, '_blank');
             }}
             className="inline-flex items-center gap-1 text-[12px] text-black hover:underline cursor-pointer"
           >
@@ -203,7 +211,14 @@ function BancaCard({
   );
 }
 
-export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasProps) {
+export default function FeaturedBancas({
+  bancas: propBancas,
+  title = "Bancas em Destaque",
+  subtitle = "As melhores avaliadas pelos clientes",
+  viewAllHref = "/bancas-perto-de-mim?sort=rating",
+  viewAllLabel = "Ver todas",
+  sortBy = "rating",
+}: FeaturedBancasProps) {
   const [loc, setLoc] = useState<UserLocation | null>(null);
   
   // Carregar localização inicial e escutar atualizações
@@ -241,15 +256,25 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
         profileImage: b.profile_image,
         rating: typeof b.rating === 'number' ? b.rating : 4.7, 
         featured: Boolean(b.featured), 
+        createdAt: b.created_at || null,
         categories: [] 
       };
     });
 
-    // Ordenar por rating (melhor avaliação primeiro)
+    if (sortBy === "recent") {
+      return mapped
+        .sort((a, b) => {
+          const right = a.createdAt ? Date.parse(a.createdAt) : 0;
+          const left = b.createdAt ? Date.parse(b.createdAt) : 0;
+          return left - right;
+        })
+        .slice(0, 12);
+    }
+
     return mapped
       .sort((a, b) => (b.rating || 0) - (a.rating || 0))
       .slice(0, 12);
-  }, [apiBancas, loc]);
+  }, [apiBancas, loc, sortBy]);
 
   // Slider responsivo: 1/2/3 por view
   const [w, setW] = useState<number>(1200);
@@ -294,10 +319,14 @@ export default function FeaturedBancas({ bancas: propBancas }: FeaturedBancasPro
       <div className="container-max relative px-3 sm:px-6 md:px-8 py-10">
         <div className="relative z-10 mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg sm:text-xl font-semibold">Bancas em Destaque</h2>
-            <p className="text-sm text-gray-600">As melhores avaliadas pelos clientes</p>
+            <h2 className="text-lg sm:text-xl font-semibold">{title}</h2>
+            <p className="text-sm text-gray-600">{subtitle}</p>
           </div>
-          <Link href="/bancas-perto-de-mim?sort=rating" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todas</Link>
+          {viewAllHref ? (
+            <Link href={viewAllHref} className="text-[var(--color-primary)] text-sm font-medium hover:underline">
+              {viewAllLabel}
+            </Link>
+          ) : null}
         </div>
         {/* Carrossel: mobile scroll-snap manual, desktop slider com setas */}
         {isMobile ? (
