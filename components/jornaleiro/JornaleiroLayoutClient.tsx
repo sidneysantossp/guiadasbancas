@@ -711,9 +711,9 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
                       {section.items.map((item) => {
                         const IconComponent = journaleiroIconComponents[item.icon];
                         const isActive = isMenuItemActive(item);
-                        const showPremiumBadge = planType === "free" && item.premiumFeature === true;
+                        const shouldRedirectToPlan = planType === "free" && item.premiumFeature === true;
                         const effectiveHref =
-                          showPremiumBadge && item.upgradeSource
+                          shouldRedirectToPlan && item.upgradeSource
                             ? (`/jornaleiro/meu-plano?source=${encodeURIComponent(item.upgradeSource)}` as Route)
                             : item.href;
 
@@ -736,11 +736,6 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
                               <IconComponent size={20} stroke={1.7} />
                             </span>
                             <span className="min-w-0 flex-1 font-medium">{item.label}</span>
-                            {showPremiumBadge ? (
-                              <span className="inline-flex shrink-0 items-center rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
-                                Premium
-                              </span>
-                            ) : null}
                           </Link>
                         );
                       })}
