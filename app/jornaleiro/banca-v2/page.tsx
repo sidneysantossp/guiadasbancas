@@ -11,7 +11,7 @@ import ImageUploader from '@/components/admin/ImageUploader';
 import FileUploadDragDrop from '@/components/common/FileUploadDragDrop';
 import JornaleiroPageHeading from '@/components/jornaleiro/JornaleiroPageHeading';
 import { IconUser, IconClock, IconBuilding, IconLink } from '@tabler/icons-react';
-import PartnerRegistrySearch from '@/components/jornaleiro/PartnerRegistrySearch';
+import { maskCPFOrCNPJ } from '@/lib/masks';
 
 // Constantes auxiliares
 const ESTADOS = [
@@ -33,16 +33,6 @@ const PAYMENT_OPTIONS = [
   { value: 'debito', label: 'Cartão de débito' },
   { value: 'online', label: 'Pagamento online' },
 ] as const;
-
-type SelectedCotistaInfo = {
-  id: string;
-  codigo: string;
-  razao_social: string;
-  cnpj_cpf: string;
-  telefone?: string;
-  cidade?: string;
-  estado?: string;
-};
 
 // Schema de validação (aninhado, compatível com a API)
 const bancaSchema = z.object({
@@ -123,9 +113,6 @@ export default function BancaV2Page() {
       setActiveTab('banca');
     }
   }, [tabParam, bancaIdParam]);
-  const [isCotista, setIsCotista] = useState(false);
-  const [selectedCotista, setSelectedCotista] = useState<SelectedCotistaInfo | null>(null);
-  const [cotistaDirty, setCotistaDirty] = useState(false);
   const [addressFieldsEnabled, setAddressFieldsEnabled] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
@@ -238,7 +225,7 @@ export default function BancaV2Page() {
   useEffect(() => {
     if (bancaData?.profile || profileResp?.profile) {
       const phoneValue = profileResp?.profile?.phone || bancaData?.profile?.phone || '';
-      const cpfValue = profileResp?.profile?.cpf || bancaData?.profile?.cpf || '';
+      const cpfValue = maskCPFOrCNPJ(profileResp?.profile?.cpf || bancaData?.profile?.cpf || '');
 
       if (phoneRef.current && phoneValue) {
         phoneRef.current.value = phoneValue;
@@ -311,22 +298,6 @@ export default function BancaV2Page() {
           avatar_url: prof.avatar_url || '',
         },
       });
-
-      try {
-        const isCotistaValue = bancaData.partner_linked === true || bancaData.is_cotista === true;
-        setIsCotista(isCotistaValue);
-        if (isCotistaValue && bancaData.cotista_razao_social) {
-          setSelectedCotista({
-            id: bancaData.cotista_id || null,
-            codigo: bancaData.cotista_codigo || '',
-            razao_social: bancaData.cotista_razao_social || '',
-            cnpj_cpf: bancaData.cotista_cnpj_cpf || '',
-          });
-        } else {
-          setSelectedCotista(null);
-      }
-      setCotistaDirty(false);
-      } catch {}
 
       try {
         const seed = bancaData.updated_at || Date.now();
@@ -497,12 +468,6 @@ export default function BancaV2Page() {
               cover: uploadedCover?.[0] ?? null,
               avatar: uploadedAvatar?.[0] ?? null,
             },
-            // Cotista info
-            is_cotista: isCotista,
-            cotista_id: selectedCotista?.id || null,
-            cotista_codigo: selectedCotista?.codigo || null,
-            cotista_razao_social: selectedCotista?.razao_social || null,
-            cotista_cnpj_cpf: selectedCotista?.cnpj_cpf || null,
           }
         }),
       });
@@ -674,179 +639,38 @@ export default function BancaV2Page() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">CPF</label>
+            <label className="block text-sm font-medium text-gray-700">CPF ou CNPJ</label>
             <input
               ref={cpfRef}
               key={`seller-cpf-${bancaData?.profile?.updated_at || profileResp?.profile?.updated_at || formKey}`}
               defaultValue=""
               onChange={(e) => {
-                // Aplicar máscara de CPF: 000.000.000-00
-                let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é dígito
-                if (value.length > 11) value = value.slice(0, 11); // Limita a 11 dígitos
-                
-                // Aplica a máscara
-                if (value.length > 9) {
-                  value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
-                } else if (value.length > 6) {
-                  value = value.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
-                } else if (value.length > 3) {
-                  value = value.replace(/(\d{3})(\d{1,3})/, '$1.$2');
-                }
-                
+                const value = maskCPFOrCNPJ(e.target.value);
                 e.target.value = value;
                 setValue('profile.cpf', value, { shouldDirty: true });
               }}
               autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-              placeholder="000.000.000-00"
-              maxLength={14}
+              placeholder="000.000.000-00 ou 00.000.000/0000-00"
+              maxLength={18}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
           </div>
         </div>
       </div>
 
-      {/* Partner / commercial linkage */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 mt-6">
-        <h2 className="mb-4 text-lg font-semibold">Programa parceiro e cadastro comercial</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Use esta seção para indicar se a banca participa de uma rede parceira. Esse vínculo ajuda a manter o cadastro comercial consistente. O acesso ao catálogo de distribuidores continua sendo definido pelo plano ativo da banca.
+      <div className={`${activeTab === 'jornaleiro' ? 'block' : 'hidden'} rounded-xl border border-gray-200 bg-white p-6 mt-6`}>
+        <h2 className="mb-2 text-lg font-semibold">Termo de Permissão de Uso (TPU)</h2>
+        <p className="mb-4 text-sm text-gray-600">
+          Envie o documento de registro da banca para manter o cadastro comercial completo. Aceitamos PDF, JPG, PNG e WebP.
         </p>
-        
-        <div className="space-y-4">
-          {/* Partner linkage choice */}
-          <div className="flex items-start gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                checked={!isCotista}
-                onChange={() => {
-                  setIsCotista(false);
-                  setSelectedCotista(null);
-                  setCotistaDirty(true);
-                }}
-                className="h-4 w-4 text-[#ff5c00] focus:ring-[#ff5c00]"
-              />
-              <span className="text-sm text-gray-700">Minha banca não participa da rede parceira</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                checked={isCotista}
-                onChange={() => setIsCotista(true)}
-                className="h-4 w-4 text-[#ff5c00] focus:ring-[#ff5c00]"
-              />
-              <span className="text-sm text-gray-700">Minha banca participa da rede parceira</span>
-            </label>
-          </div>
-
-          {/* Partner search */}
-          {isCotista && (
-            <div className="space-y-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Buscar rede vinculada
-                </label>
-                <PartnerRegistrySearch
-                  mode="public"
-                  onSelect={(cotista) => {
-                    setSelectedCotista(cotista);
-                    // Forçar form como dirty para habilitar botão salvar
-                    setValue('name', watch('name'), { shouldDirty: true });
-                    setCotistaDirty(true);
-                  }}
-                  onInputChange={(value) => {
-                    // Marcar form como dirty quando usuário digita CPF/CNPJ
-                    if (value.trim()) {
-                      setValue('name', watch('name'), { shouldDirty: true });
-                      setCotistaDirty(true);
-                    } else {
-                      setCotistaDirty(false);
-                    }
-                  }}
-                  selectedCnpjCpf={selectedCotista?.cnpj_cpf}
-                />
-              </div>
-
-              {/* Selected partner info */}
-              {selectedCotista && (
-                <div className="bg-white rounded-lg border border-orange-300 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-900">✓ Rede vinculada selecionada</h3>
-                    <span className="text-xs font-semibold text-[#ff5c00] bg-orange-100 px-2 py-1 rounded">
-                      #{selectedCotista.codigo}
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-gray-600">Razão Social:</span>
-                      <p className="font-medium text-gray-900">{selectedCotista.razao_social}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">CNPJ/CPF:</span>
-                      <p className="font-medium text-gray-900 font-mono">
-                        {selectedCotista.cnpj_cpf.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')}
-                      </p>
-                    </div>
-                    {selectedCotista.telefone && (
-                      <div>
-                        <span className="text-gray-600">Telefone:</span>
-                        <p className="font-medium text-gray-900">{selectedCotista.telefone}</p>
-                      </div>
-                    )}
-                    {(selectedCotista.cidade || selectedCotista.estado) && (
-                      <div>
-                        <span className="text-gray-600">Localização:</span>
-                        <p className="font-medium text-gray-900">
-                          {selectedCotista.cidade && selectedCotista.estado
-                            ? `${selectedCotista.cidade}/${selectedCotista.estado}`
-                            : selectedCotista.cidade || selectedCotista.estado}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="bg-green-50 border border-green-200 rounded p-3 mt-3">
-                    <p className="text-xs text-green-800">
-                      ✅ Esse vinculo identifica sua operacao na rede. O acesso ao catalogo de distribuidores depende do plano ativo da banca.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Warning if no partner selected */}
-              {isCotista && !selectedCotista && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                  <p className="text-xs text-yellow-800">
-                    ⚠️ Selecione a rede vinculada da sua banca para manter o cadastro comercial consistente. A liberação do catálogo parceiro continua vindo do plano ativo.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* No partner warning */}
-          {!isCotista && (
-            <div className="space-y-3">
-              <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                <p className="text-xs text-blue-800">
-                  ℹ️ Se a banca não faz parte de uma rede parceira, você pode seguir com produtos próprios normalmente pelo painel de produtos.
-                </p>
-              </div>
-              <a
-                href="https://wa.me/5511994683425?text=Olá!%20Gostaria%20de%20entender%20como%20funciona%20o%20programa%20parceiro%20do%20Guia%20das%20Bancas."
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                </svg>
-                Falar com a equipe sobre o programa parceiro
-              </a>
-            </div>
-          )}
-        </div>
+        <FileUploadDragDrop
+          label="Upload do documento TPU"
+          value={watch('tpu_url') as any}
+          onChange={(url) => setValue('tpu_url', url, { shouldDirty: true })}
+          accept="application/pdf,image/*"
+          role="jornaleiro"
+          className="h-32 w-full"
+        />
       </div>
 
       </div>
@@ -930,16 +754,6 @@ export default function BancaV2Page() {
               />
             </div>
           </div>
-          <div className="mt-6">
-            <FileUploadDragDrop
-              label="Termo de Permissão de Uso (TPU) - PDF"
-              value={watch('tpu_url') as any}
-              onChange={(url) => setValue('tpu_url', url, { shouldDirty: true })}
-              accept="application/pdf"
-              role="jornaleiro"
-              className="h-24 w-full"
-            />
-          </div>
         </div>
 
         {/* Contato */}
@@ -984,19 +798,16 @@ export default function BancaV2Page() {
               />
             </div>
 
-            {/* Google Maps / GMB - OCULTO PARA JORNALEIROS */}
-            {false && (
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">Google Maps / GMB</label>
-                <input
-                  {...register('socials.gmb')}
-                  key={`gmb-${bancaData?.updated_at || formKey}`}
-                  autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                  placeholder="https://maps.google.com/..."
-                />
-              </div>
-            )}
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">Google Meu Negócio</label>
+              <input
+                {...register('socials.gmb')}
+                key={`gmb-${bancaData?.updated_at || formKey}`}
+                autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                placeholder="https://maps.google.com/... ou https://g.page/..."
+              />
+            </div>
           </div>
         </div>
 
@@ -1255,7 +1066,7 @@ export default function BancaV2Page() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={() => { reset(); setCotistaDirty(false); }}
+              onClick={() => { reset(); }}
               disabled={(!isDirty && !imagesChanged) || saveMutation.isPending}
               className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
@@ -1264,7 +1075,7 @@ export default function BancaV2Page() {
 
             <button
               type="submit"
-              disabled={(!isDirty && !imagesChanged && !cotistaDirty) || saveMutation.isPending}
+              disabled={(!isDirty && !imagesChanged) || saveMutation.isPending}
               className="rounded-md bg-purple-600 px-6 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
             >
               {saveMutation.isPending ? 'Salvando...' : 'Salvar alterações'}
