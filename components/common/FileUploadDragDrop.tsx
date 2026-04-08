@@ -16,6 +16,7 @@ interface FileUploadDragDropProps {
   accept?: string; // e.g. 'application/pdf'
   role?: 'admin' | 'jornaleiro';
   maxDisplayLength?: number; // limite visual no input
+  disableManualEntry?: boolean;
 }
 
 export default function FileUploadDragDrop({
@@ -30,6 +31,7 @@ export default function FileUploadDragDrop({
   className = "h-28 w-full",
   accept = 'application/pdf',
   maxDisplayLength = 80,
+  disableManualEntry = false,
 }: FileUploadDragDropProps) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -302,40 +304,61 @@ export default function FileUploadDragDrop({
     <div className="space-y-3 max-w-full">
       <label className="text-sm font-medium">{label}</label>
 
-      <div className="flex items-center gap-2 min-w-0">
-        <input
-          type="text"
-          value={displayValue}
-          onChange={(e) => {
-            if (!isDataUrl && !isMultiMode && onChange) {
-              onChange(e.target.value);
-            }
-          }}
-          readOnly={isDataUrl || isMultiMode || !onChange}
-          title={primaryValue}
-          placeholder={placeholder}
-          maxLength={256}
-          className="min-w-0 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500 whitespace-nowrap overflow-hidden text-ellipsis"
-        />
-        {primaryValue && (
-          <button
-            type="button"
-            onClick={() => {
-              if (isMultiMode && onRemoveAction) {
-                filesValue.forEach((url) => onRemoveAction(url));
-                return;
+      {!disableManualEntry && (
+        <div className="flex items-center gap-2 min-w-0">
+          <input
+            type="text"
+            value={displayValue}
+            onChange={(e) => {
+              if (!isDataUrl && !isMultiMode && onChange) {
+                onChange(e.target.value);
               }
-              if (onChange) onChange('');
             }}
-            className="text-xs text-gray-600 hover:text-red-600 shrink-0 px-2 py-1 border rounded"
-          >
-            Limpar
-          </button>
-        )}
-      </div>
+            readOnly={isDataUrl || isMultiMode || !onChange}
+            title={primaryValue}
+            placeholder={placeholder}
+            maxLength={256}
+            className="min-w-0 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500 whitespace-nowrap overflow-hidden text-ellipsis"
+          />
+          {primaryValue && (
+            <button
+              type="button"
+              onClick={() => {
+                if (isMultiMode && onRemoveAction) {
+                  filesValue.forEach((url) => onRemoveAction(url));
+                  return;
+                }
+                if (onChange) onChange('');
+              }}
+              className="text-xs text-gray-600 hover:text-red-600 shrink-0 px-2 py-1 border rounded"
+            >
+              Limpar
+            </button>
+          )}
+        </div>
+      )}
 
       {(isMultiMode ? filesValue.length > 0 : Boolean(primaryValue)) ? (
-        isMultiMode ? renderMultiPreview() : renderPreview()
+        <div className="space-y-2">
+          {isMultiMode ? renderMultiPreview() : renderPreview()}
+          {disableManualEntry && primaryValue && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isMultiMode && onRemoveAction) {
+                    filesValue.forEach((url) => onRemoveAction(url));
+                    return;
+                  }
+                  if (onChange) onChange('');
+                }}
+                className="text-xs text-gray-600 hover:text-red-600 shrink-0 px-2 py-1 border rounded"
+              >
+                Limpar
+              </button>
+            </div>
+          )}
+        </div>
       ) : (
         <div
           onDragOver={handleDragOver}

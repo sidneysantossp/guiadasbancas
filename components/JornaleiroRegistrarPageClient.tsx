@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatCep, isValidCep, resolveCepToLocation } from "@/lib/location";
-import { maskCPF, maskCPFOrCNPJ, maskPhoneBR } from "@/lib/masks";
+import { maskCPFOrCNPJ, maskPhoneBR } from "@/lib/masks";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   isValidBrazilianDocument,
@@ -162,6 +162,23 @@ export default function JornaleiroRegistrarPageClient() {
     return meta[Math.max(0, Math.min(4, n))];
   };
 
+  const normalizeExternalUrl = (value: string) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  };
+
+  const isValidExternalUrl = (value: string) => {
+    try {
+      const normalized = normalizeExternalUrl(value);
+      if (!normalized) return false;
+      const parsed = new URL(normalized);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+
   // Step 2: Bank
   const [cep, setCep] = useState("");
   const [street, setStreet] = useState("");
@@ -210,7 +227,7 @@ export default function JornaleiroRegistrarPageClient() {
   ];
   const [hours, setHours] = useState<Day[]>(defaultHours);
   // Lista acumulada de bancas no wizard
-  type Bank = { name: string; whatsapp: string; images: { cover: string; profile: string }; address: { cep: string; street: string; number: string; complement: string; neighborhood: string; city: string; uf: string }; socials: { gmb: string; facebook: string; instagram: string }; hours: Day[]; tpu_url?: string; meta?: { socialsSkipped?: boolean; socialsLinks?: { facebook?: string; instagram?: string }; location?: { lat?: number; lng?: number } } };
+  type Bank = { name: string; whatsapp: string; images: { cover: string; profile: string }; address: { cep: string; street: string; number: string; complement: string; neighborhood: string; city: string; uf: string }; socials: { gmb: string; facebook: string; instagram: string }; hours: Day[]; tpu_url?: string; meta?: { socialsSkipped?: boolean; socialsLinks?: { gmb?: string; facebook?: string; instagram?: string }; location?: { lat?: number; lng?: number } } };
   const [banks, setBanks] = useState<Bank[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
@@ -423,6 +440,10 @@ export default function JornaleiroRegistrarPageClient() {
   const validateStep2 = () => {
     // Sem lista de múltiplas bancas: exigir os campos mínimos do formulário atual
     if (!cep || !number || !bankName) return "Informe CEP, número e nome da banca.";
+    if (gmbHas === 'yes') {
+      if (!gmbUrl || !gmbUrl.trim()) return 'Informe o link do seu perfil no Google Meu Negócio.';
+      if (!isValidExternalUrl(gmbUrl)) return 'O link do Google Meu Negócio é inválido.';
+    }
     return null;
   };
 
@@ -573,17 +594,18 @@ export default function JornaleiroRegistrarPageClient() {
         images: { cover: bankCoverPreview || bankCoverUrl, profile: bankProfilePreview || bankProfileUrl },
         address: { cep, street, number, complement, neighborhood, city, uf },
         socials: {
-          gmb: '',
-          facebook: facebookHas === 'yes' ? facebookUrl : '',
-          instagram: instagramHas === 'yes' ? instagramUrl : '',
+          gmb: gmbHas === 'yes' ? normalizeExternalUrl(gmbUrl) : '',
+          facebook: facebookHas === 'yes' ? normalizeExternalUrl(facebookUrl) : '',
+          instagram: instagramHas === 'yes' ? normalizeExternalUrl(instagramUrl) : '',
         },
         hours,
         tpu_url: bankTpuUrl || undefined,
         meta: {
           socialsSkipped,
           socialsLinks: {
-            facebook: (facebookHas === 'yes' && facebookUrl) ? (facebookUrl.startsWith('http') ? facebookUrl : `https://facebook.com/${facebookUrl.replace(/^@/, '')}`) : undefined,
-            instagram: (instagramHas === 'yes' && instagramUrl) ? (instagramUrl.startsWith('http') ? instagramUrl : `https://instagram.com/${instagramUrl.replace(/^@/, '')}`) : undefined,
+            gmb: (gmbHas === 'yes' && gmbUrl) ? normalizeExternalUrl(gmbUrl) : undefined,
+            facebook: (facebookHas === 'yes' && facebookUrl) ? normalizeExternalUrl(facebookUrl) : undefined,
+            instagram: (instagramHas === 'yes' && instagramUrl) ? normalizeExternalUrl(instagramUrl) : undefined,
           },
           location: {
             lat: lat2 ? Number(lat2) : undefined,
@@ -611,6 +633,7 @@ export default function JornaleiroRegistrarPageClient() {
         phone: phone,
         whatsapp: allBanks[0].whatsapp,
         email: email,
+        gmb: allBanks[0].socials.gmb || null,
         instagram: allBanks[0].socials.instagram || null,
         facebook: allBanks[0].socials.facebook || null,
         cep: allBanks[0].address.cep,
@@ -1322,6 +1345,47 @@ export default function JornaleiroRegistrarPageClient() {
               <input className="input mt-1 w-full" placeholder="(00) 00000-0000" value={servicePhone} onChange={(e)=>setServicePhone(maskPhoneBR(e.target.value))} />
             </div>
 
+            <div className="md:col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <div className="text-sm font-semibold text-gray-900">Google Meu Negócio</div>
+              <p className="mt-1 text-[12px] text-gray-600">
+                Se sua banca já está cadastrada no Google Meu Negócio, informe o link do perfil para reforçar a presença local da operação.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-4">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="radio"
+                    name="gmb-has"
+                    checked={gmbHas === 'no'}
+                    onChange={() => {
+                      setGmbHas('no');
+                      setGmbUrl('');
+                    }}
+                  />
+                  Ainda não tenho
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="radio"
+                    name="gmb-has"
+                    checked={gmbHas === 'yes'}
+                    onChange={() => setGmbHas('yes')}
+                  />
+                  Já tenho cadastro
+                </label>
+              </div>
+              {gmbHas === 'yes' && (
+                <div className="mt-3">
+                  <label className="text-[12px] text-gray-700">Link do perfil no Google Meu Negócio</label>
+                  <input
+                    className="input mt-1 w-full"
+                    value={gmbUrl}
+                    onChange={(e) => setGmbUrl(e.target.value)}
+                    placeholder="https://g.page/... ou https://maps.google.com/..."
+                  />
+                </div>
+              )}
+            </div>
+
 
             {/* Geolocalização oculta nesta etapa (mantida apenas em memória) */}
             
@@ -1393,7 +1457,7 @@ export default function JornaleiroRegistrarPageClient() {
                       setBankCoverPreview(url);
                     }}
                     accept="image/*"
-                    placeholder="https://exemplo.com/banner.jpg"
+                    disableManualEntry
                     role="jornaleiro"
                     className="h-32 w-full"
                   />
@@ -1412,7 +1476,7 @@ export default function JornaleiroRegistrarPageClient() {
                       setBankProfilePreview(url);
                     }}
                     accept="image/*"
-                    placeholder="https://exemplo.com/perfil.jpg"
+                    disableManualEntry
                     role="jornaleiro"
                     className="h-32 w-full"
                   />
