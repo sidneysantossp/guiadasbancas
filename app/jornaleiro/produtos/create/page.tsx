@@ -65,7 +65,6 @@ export default function SellerProductCreatePage() {
   const [overdueInGracePeriod, setOverdueInGracePeriod] = useState(false);
   const [overdueGraceEndsAt, setOverdueGraceEndsAt] = useState<string | null>(null);
   const [contractedPlanName, setContractedPlanName] = useState<string | null>(null);
-  const featuredUpgradeUrl = "/jornaleiro/meu-plano?source=destaque";
   const productUpgradeUrl = "/jornaleiro/meu-plano?source=product-limit";
   
   // Estados para contexto da IA
@@ -174,7 +173,6 @@ export default function SellerProductCreatePage() {
         sob_encomenda: Boolean(fd.get("sob_encomenda")),
         pre_venda: Boolean(fd.get("pre_venda")),
         pronta_entrega: Boolean(fd.get("pronta_entrega")),
-        coupon_code: (fd.get("coupon_code") as string)?.trim() || undefined,
         description_full: descriptionFull,
         specifications,
         gallery_images: [],
@@ -381,14 +379,6 @@ export default function SellerProductCreatePage() {
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>
-              <div>
-                <label className="text-sm font-medium">Cupom</label>
-                <input
-                  name="coupon_code"
-                  placeholder="EX: BANCAX10"
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                />
-              </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
@@ -459,18 +449,10 @@ export default function SellerProductCreatePage() {
                         {`✅ ${8 - featuredCount} vagas disponíveis de 8`}
                       </span>
                     ) : (
-                      <span className="font-medium text-amber-600">
-                        Recurso disponível apenas no Premium.
+                      <span className="font-medium text-gray-500">
+                        Destaque indisponível para este plano no momento.
                       </span>
                     )}
-                    {!canFeature ? (
-                      <>
-                        <br />
-                        <Link href={featuredUpgradeUrl} className="font-medium text-[#ff5c00] underline">
-                          Ative o Premium para destacar produtos na vitrine.
-                        </Link>
-                      </>
-                    ) : null}
                   </div>
                 </div>
               </label>
@@ -510,11 +492,8 @@ export default function SellerProductCreatePage() {
               </>
             ) : (
               <>
-                <p>• Destaque na vitrine é um recurso do plano Premium</p>
-                <p>• O Free continua liberado para cadastro manual, pedidos, estoque e venda via WhatsApp</p>
-                <p>
-                  • <Link href={featuredUpgradeUrl} className="font-semibold text-[#ff5c00] underline">Ative o Premium em Meu Plano</Link> para usar destaque editorial na plataforma
-                </p>
+                <p>• A seção de destaque depende da disponibilidade do plano da banca</p>
+                <p>• O cadastro manual, pedidos, estoque e venda via WhatsApp continuam funcionando normalmente</p>
               </>
             )}
           </div>

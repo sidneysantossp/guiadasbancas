@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { validateProductUpdate } from "@/lib/validators/product";
 import ProductImageUploader from "@/components/admin/ProductImageUploader";
 import RichTextEditor from "@/components/admin/RichTextEditor";
@@ -71,8 +70,6 @@ export default function SellerProductEditPage() {
   const [priceOriginal, setPriceOriginal] = useState("");
   const [discountPercent, setDiscountPercent] = useState(0);
   const isDistributorProduct = Boolean(product?.distribuidor_id);
-  const featuredUpgradeUrl = "/jornaleiro/meu-plano?source=destaque";
-
   // Estados para contexto da IA
   const [productName, setProductName] = useState("");
   const [productMiniDesc, setProductMiniDesc] = useState("");
@@ -125,7 +122,6 @@ export default function SellerProductEditPage() {
           price: p.price ?? 0,
           price_original: p.price_original ?? "",
           discount_percent: p.discount_percent ?? "",
-          coupon_code: p.coupon_code || "",
           category_id: p.category_id || "",
           stock_qty: p.stock_qty ?? 0,
           track_stock: Boolean(p.track_stock),
@@ -255,7 +251,6 @@ export default function SellerProductEditPage() {
           sob_encomenda: Boolean(fd.get("sob_encomenda")),
           pre_venda: Boolean(fd.get("pre_venda")),
           pronta_entrega: Boolean(fd.get("pronta_entrega")),
-          coupon_code: (fd.get("coupon_code") as string)?.trim() || undefined,
           description_full: descriptionFull,
           specifications,
         };
@@ -283,7 +278,6 @@ export default function SellerProductEditPage() {
           sob_encomenda: Boolean(fd.get("sob_encomenda")),
           pre_venda: Boolean(fd.get("pre_venda")),
           pronta_entrega: Boolean(fd.get("pronta_entrega")),
-          coupon_code: (fd.get("coupon_code") as string)?.trim() || undefined,
           description_full: descriptionFull,
           specifications,
         };
@@ -564,15 +558,6 @@ export default function SellerProductEditPage() {
                       className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                     />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">Cupom</label>
-                    <input
-                      defaultValue={product.coupon_code}
-                      name="coupon_code"
-                      placeholder="EX: BANCAX10"
-                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                    />
-                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -672,18 +657,10 @@ export default function SellerProductEditPage() {
                         {`✅ ${8 - featuredCount} vagas disponíveis de 8`}
                       </span>
                     ) : (
-                      <span className="font-medium text-amber-600">
-                        Recurso disponível apenas no Premium.
+                      <span className="font-medium text-gray-500">
+                        Destaque indisponível para este plano no momento.
                       </span>
                     )}
-                    {!canFeature && !product.featured ? (
-                      <>
-                        <br />
-                        <Link href={featuredUpgradeUrl} className="font-medium text-[#ff5c00] underline">
-                          Ative o Premium para destacar produtos na vitrine.
-                        </Link>
-                      </>
-                    ) : null}
                   </div>
                 </div>
               </label>

@@ -357,7 +357,6 @@ export async function createJornaleiroProduct(params: {
     sob_encomenda: body.sob_encomenda ?? false,
     pre_venda: body.pre_venda ?? false,
     pronta_entrega: body.pronta_entrega ?? false,
-    coupon_code: body.coupon_code || null,
   };
 
   const { data: created, error } = await supabaseAdmin
