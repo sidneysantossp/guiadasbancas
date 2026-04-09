@@ -3,6 +3,7 @@ import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
 import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 import {
   buildDistributorProductCustomizationInput,
+  getEffectiveDistributorStock,
   loadDistributorPricingContext,
   saveDistributorProductCustomization,
 } from "@/lib/modules/products/service";
@@ -278,7 +279,16 @@ export async function loadJornaleiroDistributorCatalog(params: {
     }),
   ]);
 
-  const items = productRows.map((produto) => {
+  const items = productRows
+    .filter((produto) => {
+      const custom = pricingContext.customMap.get(produto.id);
+      if (custom?.enabled === false) return false;
+
+      const effectiveStock = getEffectiveDistributorStock(produto, custom);
+      if (effectiveStock == null) return true;
+      return effectiveStock > 0;
+    })
+    .map((produto) => {
     const custom = pricingContext.customMap.get(produto.id);
     const precoBase = Number(produto.price || 0);
     const precoComMarkup = pricingContext.calculateDistributorPrice(produto);
@@ -286,27 +296,27 @@ export async function loadJornaleiroDistributorCatalog(params: {
       custom?.custom_price != null ? Number(custom.custom_price) : precoComMarkup;
     const distribuidor = pricingContext.distribuidorMap.get(produto.distribuidor_id);
 
-    return {
-      ...produto,
-      distribuidor_nome: distribuidor?.nome || null,
-      category_name: categoryMap.get(produto.category_id) || null,
-      enabled: custom?.enabled ?? true,
-      custom_price: custom?.custom_price ?? null,
-      custom_description: custom?.custom_description || null,
-      custom_status: custom?.custom_status || "available",
-      custom_pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,
-      custom_sob_encomenda: custom?.custom_sob_encomenda ?? produto.sob_encomenda,
-      custom_pre_venda: custom?.custom_pre_venda ?? produto.pre_venda,
-      custom_stock_enabled: custom?.custom_stock_enabled ?? false,
-      custom_stock_qty: custom?.custom_stock_qty ?? null,
-      custom_featured: custom?.custom_featured ?? false,
-      modificado_em: custom?.modificado_em || null,
-      customizacao_id: custom?.id || null,
-      preco_base: precoBase,
-      distribuidor_price: precoComMarkup,
-      effective_price: effectivePrice,
-    };
-  });
+      return {
+        ...produto,
+        distribuidor_nome: distribuidor?.nome || null,
+        category_name: categoryMap.get(produto.category_id) || null,
+        enabled: custom?.enabled ?? true,
+        custom_price: custom?.custom_price ?? null,
+        custom_description: custom?.custom_description || null,
+        custom_status: custom?.custom_status || "available",
+        custom_pronta_entrega: custom?.custom_pronta_entrega ?? produto.pronta_entrega,
+        custom_sob_encomenda: custom?.custom_sob_encomenda ?? produto.sob_encomenda,
+        custom_pre_venda: custom?.custom_pre_venda ?? produto.pre_venda,
+        custom_stock_enabled: custom?.custom_stock_enabled ?? false,
+        custom_stock_qty: custom?.custom_stock_qty ?? null,
+        custom_featured: custom?.custom_featured ?? false,
+        modificado_em: custom?.modificado_em || null,
+        customizacao_id: custom?.id || null,
+        preco_base: precoBase,
+        distribuidor_price: precoComMarkup,
+        effective_price: effectivePrice,
+      };
+    });
 
   return {
     success: true,

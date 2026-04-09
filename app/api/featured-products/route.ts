@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
-import { loadDistributorPricingContext } from "@/lib/modules/products/service";
+import { isDistributorProductOutOfStock, loadDistributorPricingContext } from "@/lib/modules/products/service";
 import { sortItemsByDistance } from "@/lib/modules/products/public-catalog";
 
 export const dynamic = 'force-dynamic';
@@ -133,6 +133,7 @@ export async function GET(req: NextRequest) {
     const byId: Record<string, any> = Object.fromEntries(
       (prods || [])
         .filter((p: any) => {
+          if (isDistributorProductOutOfStock(p)) return false;
           const banca = p?.banca_id ? bancaMap.get(p.banca_id) : null;
           // Permitir produtos sem banca vinculada (catálogo de distribuidor)
           if (!p?.banca_id || p.distribuidor_id) return true;

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import Fuse, { IFuseOptions } from 'fuse.js';
-import { loadDistributorPricingContext } from "@/lib/modules/products/service";
+import { isDistributorProductOutOfStock, loadDistributorPricingContext } from "@/lib/modules/products/service";
 import {
   calculateDistance,
   interleaveItemsByGroup,
@@ -287,6 +287,10 @@ export async function GET(req: NextRequest) {
     };
 
     const data = (items || []).map((p: any) => {
+      if (isDistributorProductOutOfStock(p)) {
+        return null;
+      }
+
       const fallbackBanca = p?.banca_id ? bancaMap.get(p.banca_id) : null;
       let bancaData = fallbackBanca;
 

@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import {
   applyDistributorProductCustomization,
   calculateDistributorProductMarkup,
+  isDistributorProductOutOfStock,
   loadDistributorProductCustomization,
 } from "@/lib/modules/products/service";
 
@@ -50,6 +51,10 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
 
     // Produtos de distribuidor: aplicar markup completo antes de retornar
     if (data.distribuidor_id) {
+      if (isDistributorProductOutOfStock(data)) {
+        return NextResponse.json({ error: "Produto indisponível" }, { status: 404 });
+      }
+
       const precoBase = data.price || 0;
       const precoFinal = await calculateDistributorProductMarkup({
         productId,

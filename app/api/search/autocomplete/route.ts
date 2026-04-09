@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
-import { loadDistributorPricingContext } from "@/lib/modules/products/service";
+import { isDistributorProductOutOfStock, loadDistributorPricingContext } from "@/lib/modules/products/service";
 import { calculateDistance } from "@/lib/modules/products/public-catalog";
 import Fuse, { IFuseOptions } from 'fuse.js';
 import { normalizeForSearch } from "@/lib/fuzzySearch";
@@ -154,6 +154,7 @@ export async function GET(req: NextRequest) {
       category_id,
       distribuidor_id,
       codigo_mercos,
+      stock_qty,
       bancas(name, lat, lng, active, approved)
     `;
 
@@ -248,6 +249,7 @@ export async function GET(req: NextRequest) {
     if (productsData) {
       for (const p of productsData) {
         if (p.distribuidor_id) {
+          if (isDistributorProductOutOfStock(p)) continue;
           produtosDistribuidor.push(p);
         } else {
           const banca = Array.isArray(p.bancas) ? p.bancas[0] : p.bancas;

@@ -1,3 +1,4 @@
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const DISTRIBUIDOR_PRODUCTS_CATEGORY_ID = "aaaaaaaa-0000-0000-0000-000000000001";
@@ -103,6 +104,33 @@ function ensureProductImages(images: unknown, fallbackImageUrl?: string | null):
   }
 
   return [];
+}
+
+export function isDistributorProductOutOfStock(product: {
+  distribuidor_id?: string | null;
+  stock_qty?: unknown;
+}): boolean {
+  if (!product?.distribuidor_id) return false;
+  const stock = Number(product.stock_qty);
+  return Number.isFinite(stock) && stock <= 0;
+}
+
+export function getEffectiveDistributorStock(
+  product: {
+    stock_qty?: unknown;
+  },
+  customization?: {
+    custom_stock_enabled?: boolean | null;
+    custom_stock_qty?: number | null;
+  } | null
+): number | null {
+  if (customization?.custom_stock_enabled) {
+    const customStock = Number(customization.custom_stock_qty);
+    return Number.isFinite(customStock) ? customStock : 0;
+  }
+
+  const stock = Number(product?.stock_qty);
+  return Number.isFinite(stock) ? stock : null;
 }
 
 function applyProductFilters<TQuery>(query: any, filters: ProductCatalogFilters): TQuery {
@@ -568,10 +596,10 @@ export async function listOwnedCatalogProducts(params: {
   return (data || []) as any[];
 }
 
-export async function bancaHasLegacyDistributorCatalogAccess(bancaId: string): Promise<boolean> {
+export async function bancaHasPartnerCatalogAccess(bancaId: string): Promise<boolean> {
   const { data, error } = await supabaseAdmin
     .from("bancas")
-    .select("is_cotista")
+    .select("id, is_cotista, cotista_id")
     .eq("id", bancaId)
     .maybeSingle();
 
@@ -579,7 +607,19 @@ export async function bancaHasLegacyDistributorCatalogAccess(bancaId: string): P
     throw new Error(error.message || "Erro ao validar acesso da banca");
   }
 
-  return data?.is_cotista === true;
+  if (!data?.id) return false;
+
+  const entitlements = await resolveBancaPlanEntitlements({
+    id: data.id,
+    is_cotista: data.is_cotista,
+    cotista_id: data.cotista_id,
+  });
+
+  return entitlements.canAccessDistributorCatalog;
+}
+
+export async function bancaHasLegacyDistributorCatalogAccess(bancaId: string): Promise<boolean> {
+  return bancaHasPartnerCatalogAccess(bancaId);
 }
 
 export async function listDistributorCatalogForBanca(params: {
@@ -589,6 +629,7 @@ export async function listDistributorCatalogForBanca(params: {
   includeTotalCount?: boolean;
   fallbackImageUrl?: string | null;
   distributorCategoryId?: string | null;
+  includeOutOfStock?: boolean;
 }): Promise<DistributorCatalogResult> {
   if (!params.canAccessCatalog) {
     return { items: [], totalAvailable: 0 };
@@ -654,7 +695,7 @@ export async function listDistributorCatalogForBanca(params: {
     supabaseAdmin
       .from("banca_produtos_distribuidor")
       .select(
-        "product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda"
+        "product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty"
       )
       .eq("banca_id", params.bancaId),
     distribuidorIds.length > 0
@@ -698,7 +739,12 @@ export async function listDistributorCatalogForBanca(params: {
   const items = productRows
     .filter((product) => {
       const customizacao = customMap.get(product.id);
-      return !customizacao || customizacao.enabled !== false;
+      if (customizacao && customizacao.enabled === false) return false;
+      if (params.includeOutOfStock === true) return true;
+
+      const effectiveStock = getEffectiveDistributorStock(product, customizacao);
+      if (effectiveStock == null) return true;
+      return effectiveStock > 0;
     })
     .map((product) => {
       const customizacao = customMap.get(product.id);

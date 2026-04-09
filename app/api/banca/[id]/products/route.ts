@@ -5,7 +5,7 @@ import { canPreviewMarketplaceBanca, isPublishedMarketplaceBanca } from "@/lib/p
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { resolveCanonicalBancaRowById } from "@/lib/banca-canonical";
 import { supabaseAdmin } from "@/lib/supabase";
-import { loadDistributorPricingContext } from "@/lib/modules/products/service";
+import { getEffectiveDistributorStock, isDistributorProductOutOfStock, loadDistributorPricingContext } from "@/lib/modules/products/service";
 
 // Sem cache para garantir dados atualizados
 export const revalidate = 0;
@@ -151,6 +151,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const dedupMap = new Map<string, any>();
     for (const p of ownProductsResult.rows) dedupMap.set(p.id, p);
     for (const p of distributorProductsResult.rows) {
+      if (isDistributorProductOutOfStock(p)) continue;
       if (!dedupMap.has(p.id)) dedupMap.set(p.id, p);
     }
 
@@ -247,6 +248,13 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       const effectiveStock = custom?.custom_stock_enabled 
           ? (custom?.custom_stock_qty ?? 0)
           : produto.stock_qty;
+
+      if (produto.distribuidor_id) {
+        const distributorEffectiveStock = getEffectiveDistributorStock(produto, custom);
+        if (distributorEffectiveStock != null && distributorEffectiveStock <= 0) {
+          return null;
+        }
+      }
         
       // Se customizado para usar estoque próprio e acabou, filtrar?
       // A lógica original filtrava. Vamos manter.

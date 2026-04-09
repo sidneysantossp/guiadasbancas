@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
+import { isDistributorProductOutOfStock } from "@/lib/modules/products/service";
 import { supabaseAdmin } from "@/lib/supabase";
 import { buildFriendlyProductPath, parseProductParam, slugifyProductName } from "@/lib/product-url";
 import { toBancaSlug } from "@/lib/slug";
@@ -22,6 +23,7 @@ type ProductRow = {
   codigo_mercos?: string | null;
   distribuidor_id?: string | null;
   banca_id?: string | null;
+  stock_qty?: number | null;
   bancas?: BancaRow | BancaRow[] | null;
 };
 
@@ -62,8 +64,12 @@ export async function getActiveDistributorCatalogBancas(): Promise<PublicBanca[]
     });
 }
 
-export async function getActiveCotistaBancas(): Promise<PublicBanca[]> {
+export async function getActivePartnerCatalogBancas(): Promise<PublicBanca[]> {
   return getActiveDistributorCatalogBancas();
+}
+
+export async function getActiveCotistaBancas(): Promise<PublicBanca[]> {
+  return getActivePartnerCatalogBancas();
 }
 
 export async function resolveBancaById(id?: string | null): Promise<PublicBanca | null> {
@@ -89,7 +95,9 @@ export async function resolveBancaBySlug(rawSlug: string): Promise<PublicBanca |
 }
 
 function isProductPublic(product: ProductRow): boolean {
-  if (product.distribuidor_id) return true;
+  if (product.distribuidor_id) {
+    return !isDistributorProductOutOfStock(product);
+  }
   return isPublicOwnProductBanca(extractBancaRow(product.bancas));
 }
 
@@ -109,6 +117,7 @@ async function getActiveProductsForPublicRoute(): Promise<ProductRow[]> {
         codigo_mercos,
         banca_id,
         distribuidor_id,
+        stock_qty,
         active,
         bancas(id,name,approved,is_cotista,cotista_id,active)
       `)
@@ -139,6 +148,7 @@ export async function resolveProductByRawParam(rawParam: string): Promise<Public
       codigo_mercos,
       banca_id,
       distribuidor_id,
+      stock_qty,
       active,
       bancas(id,name,approved,is_cotista,cotista_id,active)
     `)

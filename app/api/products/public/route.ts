@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
-import { loadDistributorPricingContext } from "@/lib/modules/products/service";
+import { isDistributorProductOutOfStock, loadDistributorPricingContext } from "@/lib/modules/products/service";
 import {
   calculateDistance,
   interleaveItemsByGroup,
@@ -70,6 +70,8 @@ export async function GET(req: NextRequest) {
         rating_avg,
         reviews_count,
         codigo_mercos,
+        stock_qty,
+        track_stock,
         pronta_entrega,
         sob_encomenda,
         pre_venda
@@ -153,6 +155,7 @@ export async function GET(req: NextRequest) {
     // Se buscando por categoria, incluir produtos de distribuidores.
     // Para produtos próprios, só entram bancas publicadas no marketplace.
     const filteredProducts = (products || []).filter((p: any) => {
+      if (isDistributorProductOutOfStock(p)) return false;
       if (p.distribuidor_id && includeDistribuidor) return true;
       return isPublishedMarketplaceBanca(bancaMap.get(p.banca_id));
     });

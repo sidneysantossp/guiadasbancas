@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
-import { loadDistributorPricingContext } from "@/lib/modules/products/service";
+import { isDistributorProductOutOfStock, loadDistributorPricingContext } from "@/lib/modules/products/service";
 
 export async function GET(
   request: NextRequest,
@@ -26,6 +26,7 @@ export async function GET(
         codigo_mercos,
         category_id,
         active,
+        stock_qty,
         distribuidor_id,
         banca_id
       `)
@@ -70,6 +71,7 @@ export async function GET(
     // Filtrar produtos com imagem (produtos de distribuidor ou de banca publicada)
     const filteredProducts = (data || [])
       .filter(product => product.images && product.images.length > 0)
+      .filter((product: any) => !isDistributorProductOutOfStock(product))
       .filter(product => product.distribuidor_id || isPublishedMarketplaceBanca(bancaMap.get(product.banca_id)))
       .filter((product: any) => {
         if (!product.distribuidor_id || !bancaId) return true;

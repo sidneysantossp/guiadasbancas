@@ -7,7 +7,7 @@ import { auth } from "@/lib/auth";
 import { readAuthenticatedUserClaims } from "@/lib/modules/auth/session";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import {
-  bancaHasLegacyDistributorCatalogAccess,
+  bancaHasPartnerCatalogAccess,
   DEFAULT_PRODUCT_IMAGE,
   DISTRIBUIDOR_PRODUCTS_CATEGORY_ID,
   formatLegacyProductListItems,
@@ -86,7 +86,8 @@ export async function GET(req: NextRequest) {
             category,
             limit,
           },
-          canAccessCatalog: await bancaHasLegacyDistributorCatalogAccess(bancaId),
+          canAccessCatalog: await bancaHasPartnerCatalogAccess(bancaId),
+          includeOutOfStock: userRole === "admin",
           fallbackImageUrl: DEFAULT_PRODUCT_IMAGE,
           distributorCategoryId: DISTRIBUIDOR_PRODUCTS_CATEGORY_ID,
         })
