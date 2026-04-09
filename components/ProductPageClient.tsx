@@ -139,16 +139,34 @@ function parseProductSpecifications(value: unknown): Record<string, string> | st
   return trimmed;
 }
 
+function stripHtmlToPlainText(value: unknown): string {
+  if (typeof value !== "string") return "";
+
+  return value
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<\/p>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function generateProductSchema(product: ProductDetail, reviews: any[], reviewStats: any) {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://guiadasbancas.com";
   const productUrl = `${baseUrl}${buildProductPath(product, product.vendor.name)}`;
+  const plainDescription = stripHtmlToPlainText(product.description);
   
   const schema = {
     "@context": "https://schema.org",
     "@type": "Product",
     "@id": productUrl,
     "name": product.name,
-    "description": product.description || `${product.name} disponível nas bancas próximas de você.`,
+    "description": plainDescription || `${product.name} disponível nas bancas próximas de você.`,
     "image": product.images.map(img => img.startsWith('http') ? img : `${baseUrl}${img}`),
     "url": productUrl,
     "sku": product.id,
@@ -533,6 +551,8 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
     return null;
   }
 
+  const descriptionPreview = stripHtmlToPlainText(product.description);
+
   const max = Math.max(1, product.images.length - 1);
   const { addToCart, items } = useCart();
   const { show } = useToast();
@@ -636,8 +656,8 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold">{product.name}</h1>
           <p className="mt-1 text-xs text-gray-500">Cód: {product.codigo_mercos || "-"}</p>
-          {product.description && (
-            <p className="mt-1 text-sm text-gray-700 line-clamp-2">{product.description}</p>
+          {descriptionPreview && (
+            <p className="mt-1 text-sm text-gray-700 line-clamp-2">{descriptionPreview}</p>
           )}
           <div className="mt-2 flex items-center gap-2">
             <Stars value={product.rating} />
