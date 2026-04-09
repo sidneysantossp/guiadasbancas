@@ -12,6 +12,7 @@ interface ImageUploadDragDropProps {
   onRemove?: () => void;
   placeholder?: string;
   className?: string;
+  disableManualEntry?: boolean;
 }
 
 export default function ImageUploadDragDrop({
@@ -22,7 +23,8 @@ export default function ImageUploadDragDrop({
   onUpload,
   onRemove,
   placeholder = "https://exemplo.com/imagem.jpg",
-  className = "h-32 w-32"
+  className = "h-32 w-32",
+  disableManualEntry = false,
 }: ImageUploadDragDropProps) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -99,14 +101,15 @@ export default function ImageUploadDragDrop({
     <div className="space-y-3">
       <label className="text-sm font-medium">{label}</label>
 
-      {/* URL Input */}
-      <input
-        type="url"
-        value={resolvedValue}
-        onChange={(e) => { void emitChange(e.target.value); }}
-        placeholder={placeholder}
-        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
-      />
+      {!disableManualEntry && (
+        <input
+          type="url"
+          value={resolvedValue}
+          onChange={(e) => { void emitChange(e.target.value); }}
+          placeholder={placeholder}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-orange-500"
+        />
+      )}
 
       {/* Drag & Drop Area */}
       <div

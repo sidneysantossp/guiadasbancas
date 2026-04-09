@@ -748,6 +748,7 @@ export default function EditBancaPage() {
                     onUpload={async (url) => handleAvatarChange(url)}
                     currentImage={avatar}
                     onRemove={() => handleAvatarChange('')}
+                    disableManualEntry
                   />
                   <p className="text-xs text-gray-500 mt-2 text-center">
                     Recomendado: Imagem quadrada (ex: 500x500px), formato JPG, PNG ou WebP. Máx 2MB.
@@ -763,6 +764,7 @@ export default function EditBancaPage() {
                     onUpload={async (url) => handleCoverChange(url)}
                     currentImage={cover}
                     onRemove={() => handleCoverChange('')}
+                    disableManualEntry
                   />
                   <p className="text-xs text-gray-500 mt-2 text-center">
                     Recomendado: Imagem retangular horizontal (ex: 1200x400px).
@@ -779,6 +781,7 @@ export default function EditBancaPage() {
                     currentFiles={gallery}
                     onRemoveAction={(url) => setGallery(prev => prev.filter(u => u !== url))}
                     maxFiles={5}
+                    disableManualEntry
                   />
                 </div>
               </div>
