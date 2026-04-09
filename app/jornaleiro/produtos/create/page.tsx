@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { validateProductCreate } from "@/lib/validators/product";
 import ProductImageUploader from "@/components/admin/ProductImageUploader";
 import VideoTutorial from "@/components/admin/VideoTutorial";
@@ -65,8 +64,7 @@ export default function SellerProductCreatePage() {
   const [overdueInGracePeriod, setOverdueInGracePeriod] = useState(false);
   const [overdueGraceEndsAt, setOverdueGraceEndsAt] = useState<string | null>(null);
   const [contractedPlanName, setContractedPlanName] = useState<string | null>(null);
-  const productUpgradeUrl = "/jornaleiro/meu-plano?source=product-limit";
-  
+
   // Estados para contexto da IA
   const [productName, setProductName] = useState("");
   const [productMiniDesc, setProductMiniDesc] = useState("");
@@ -235,18 +233,6 @@ export default function SellerProductCreatePage() {
         <h1 className="text-xl font-semibold">Novo produto</h1>
         <p className="text-sm text-gray-600">Cadastre um novo item na sua banca.</p>
       </div>
-
-      {productLimit ? (
-        <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
-          <div className="font-semibold">Limite do {planName}</div>
-          <p className="mt-1">
-            Este plano permite até <strong>{productLimit} produtos próprios cadastrados</strong>. Se sua banca crescer além disso, o próximo passo é fazer upgrade em{" "}
-            <Link href={productUpgradeUrl} className="font-semibold text-[#ff5c00] underline">
-              Meu Plano
-            </Link>.
-          </p>
-        </div>
-      ) : null}
 
       {overdueFeaturesLocked || overdueInGracePeriod ? (
         <PlanOverdueCard
