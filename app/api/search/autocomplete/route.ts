@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
+import { getPublishedDistributorCatalogBancas } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import { isDistributorProductOutOfStock, loadDistributorPricingContext } from "@/lib/modules/products/service";
 import { calculateDistance } from "@/lib/modules/products/public-catalog";
@@ -240,23 +240,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Erro na busca' }, { status: 500 });
     }
 
-    const isPublicBanca = (b: any) => isPublishedMarketplaceBanca(b);
-
-    // Separar produtos normais e produtos de distribuidores
-    const produtosNormais: any[] = [];
     const produtosDistribuidor: any[] = [];
     
     if (productsData) {
       for (const p of productsData) {
-        if (p.distribuidor_id) {
-          if (isDistributorProductOutOfStock(p)) continue;
-          produtosDistribuidor.push(p);
-        } else {
-          const banca = Array.isArray(p.bancas) ? p.bancas[0] : p.bancas;
-          if (isPublicBanca(banca)) {
-            produtosNormais.push(p);
-          }
-        }
+        if (!p.distribuidor_id) continue;
+        if (isDistributorProductOutOfStock(p)) continue;
+        produtosDistribuidor.push(p);
       }
     }
 
@@ -289,38 +279,6 @@ export async function GET(req: NextRequest) {
         calculateDistributorPrice = pricingContext.calculateDistributorPrice;
         customMap = pricingContext.customMap;
       }
-    }
-
-    // Processar produtos normais (não distribuidores)
-    for (const p of produtosNormais) {
-      if (bancaId && p.banca_id !== bancaId) continue;
-
-      const banca = Array.isArray(p.bancas) ? p.bancas[0] : p.bancas;
-      let distance: number | undefined;
-      if (userLat && userLng && banca?.lat && banca?.lng) {
-        distance = calculateDistance(userLat, userLng, parseFloat(banca.lat), parseFloat(banca.lng));
-      }
-
-      const finalPrice = p.distribuidor_id
-        ? calculateDistributorPrice(p)
-        : Number(p.price || 0);
-      const category = Array.isArray(p.categories) ? p.categories[0] : p.categories;
-      
-      results.push({
-        type: 'product',
-        id: p.id,
-        name: p.name,
-        image: p.images && p.images.length > 0 ? p.images[0] : null,
-        price: finalPrice,
-        codigo_mercos: p.codigo_mercos ?? null,
-        category: category?.name || 'Produto',
-        banca_name: banca?.name || 'Banca',
-        banca_id: p.banca_id,
-        distance,
-        search_rank: productSearchRank.get(p.id) ?? 9999,
-        banca_lat: banca?.lat ? parseFloat(banca.lat) : undefined,
-        banca_lng: banca?.lng ? parseFloat(banca.lng) : undefined
-      });
     }
 
     // Processar produtos de distribuidores - criar entrada para cada banca com acesso ao catálogo parceiro

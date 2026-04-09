@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
+import {
+  getPublishedDistributorCatalogBancas,
+  getPublishedMarketplaceBancas,
+  isPublishedMarketplaceBanca,
+} from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import {
   applyDistributorProductCustomization,
@@ -16,6 +20,10 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
   const bancaIdFromQuery = searchParams.get('banca');
 
   try {
+    const publishedMarketplaceBancaIds = new Set(
+      (await getPublishedMarketplaceBancas()).map((banca) => String(banca.id))
+    );
+
     const { data, error } = await supabaseAdmin
       .from('products')
       .select(`
@@ -44,7 +52,11 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
 
     // Produtos próprios só são públicos se a banca estiver publicada no marketplace
     if (!data.distribuidor_id) {
-      if (!isPublishedMarketplaceBanca(data.bancas)) {
+      const bancaIsPublished =
+        publishedMarketplaceBancaIds.has(String(data.banca_id || "")) ||
+        isPublishedMarketplaceBanca(data.bancas);
+
+      if (!bancaIsPublished) {
         return NextResponse.json({ error: "Produto não disponível" }, { status: 404 });
       }
     }

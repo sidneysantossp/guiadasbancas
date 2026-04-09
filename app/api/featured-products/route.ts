@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
+import { getPublishedDistributorCatalogBancas } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import { isDistributorProductOutOfStock, loadDistributorPricingContext } from "@/lib/modules/products/service";
 import { sortItemsByDistance } from "@/lib/modules/products/public-catalog";
@@ -133,12 +133,9 @@ export async function GET(req: NextRequest) {
     const byId: Record<string, any> = Object.fromEntries(
       (prods || [])
         .filter((p: any) => {
+          if (!p.distribuidor_id) return false;
           if (isDistributorProductOutOfStock(p)) return false;
-          const banca = p?.banca_id ? bancaMap.get(p.banca_id) : null;
-          // Permitir produtos sem banca vinculada (catálogo de distribuidor)
-          if (!p?.banca_id || p.distribuidor_id) return true;
-          // Se houver banca própria, exibir apenas se estiver publicada no marketplace
-          return isPublishedMarketplaceBanca(banca);
+          return true;
         })
         .map(p => [p.id, p])
     );
@@ -152,10 +149,6 @@ export async function GET(req: NextRequest) {
           ? pickDisplayBancaForDistributorProduct(p)
           : (p?.banca_id ? bancaMap.get(p.banca_id) : null);
         const resolvedBancaId = resolvedBanca?.id || p.banca_id || null;
-
-        if (resolvedBanca && !isPublishedMarketplaceBanca(resolvedBanca)) {
-          return null;
-        }
 
         if (p.distribuidor_id && bancaId) {
           const custom = customMap.get(`${resolvedBancaId}:${p.id}`);

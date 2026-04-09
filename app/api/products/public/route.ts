@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
+import { getPublishedDistributorCatalogBancas } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import { isDistributorProductOutOfStock, loadDistributorPricingContext } from "@/lib/modules/products/service";
 import {
@@ -46,7 +46,6 @@ export async function GET(req: NextRequest) {
       categoryIds,
       nameSearchTerms,
       categoryNameById,
-      includeDistribuidor,
     } = await resolvePublicCatalogCategoryFilters({
       category,
       categoryName,
@@ -78,10 +77,8 @@ export async function GET(req: NextRequest) {
       `)
       .eq('active', true);
     
-    // Se não for busca por categoria, excluir produtos de distribuidor
-    if (!includeDistribuidor) {
-      query = query.is('distribuidor_id', null);
-    }
+    // Catálogo público global exibe apenas produtos de distribuidores.
+    query = query.not('distribuidor_id', 'is', null);
 
     // Filtro combinado: category_id OR nome do produto
     // Usa OR para cobrir produtos COM e SEM category_id preenchido
@@ -123,7 +120,7 @@ export async function GET(req: NextRequest) {
 
     const { data: products, error } = await query;
 
-    console.log(`[API Public] Query retornou ${products?.length || 0} produtos brutos (categoryIds: ${categoryIds.length}, categoryId: ${categoryId || 'none'}, nameSearchTerms: ${nameSearchTerms.length}, includeDistribuidor: ${includeDistribuidor})`);
+    console.log(`[API Public] Query retornou ${products?.length || 0} produtos brutos (categoryIds: ${categoryIds.length}, categoryId: ${categoryId || 'none'}, nameSearchTerms: ${nameSearchTerms.length})`);
 
     if (error) {
       console.error('[API Public Products] Erro:', error);
@@ -152,12 +149,10 @@ export async function GET(req: NextRequest) {
       randomizeWhenNoLocation: true,
     });
 
-    // Se buscando por categoria, incluir produtos de distribuidores.
-    // Para produtos próprios, só entram bancas publicadas no marketplace.
     const filteredProducts = (products || []).filter((p: any) => {
+      if (!p.distribuidor_id) return false;
       if (isDistributorProductOutOfStock(p)) return false;
-      if (p.distribuidor_id && includeDistribuidor) return true;
-      return isPublishedMarketplaceBanca(bancaMap.get(p.banca_id));
+      return true;
     });
 
     const candidateBancaIds = bancaId
@@ -190,10 +185,6 @@ export async function GET(req: NextRequest) {
       if (p.distribuidor_id && !bancaId && sortedPartnerCatalogBancas.length > 0) {
         bancaData = sortedPartnerCatalogBancas[bancaRotationIndex % sortedPartnerCatalogBancas.length];
         bancaRotationIndex++;
-      }
-
-      if (bancaData && !isPublishedMarketplaceBanca(bancaData)) {
-        return null;
       }
 
       const resolvedBancaId = bancaId || bancaData?.id || p.banca_id || null;

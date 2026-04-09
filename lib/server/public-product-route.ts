@@ -1,6 +1,9 @@
 import "server-only";
 
-import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
+import {
+  getPublishedDistributorCatalogBancas,
+  getPublishedMarketplaceBancas,
+} from "@/lib/public-banca-access";
 import { isDistributorProductOutOfStock } from "@/lib/modules/products/service";
 import { supabaseAdmin } from "@/lib/supabase";
 import { buildFriendlyProductPath, parseProductParam, slugifyProductName } from "@/lib/product-url";
@@ -24,7 +27,6 @@ type ProductRow = {
   distribuidor_id?: string | null;
   banca_id?: string | null;
   stock_qty?: number | null;
-  bancas?: BancaRow | BancaRow[] | null;
 };
 
 export type PublicBanca = {
@@ -34,18 +36,21 @@ export type PublicBanca = {
 
 export type PublicProduct = ProductRow;
 
-function extractBancaRow(input: ProductRow["bancas"]): BancaRow | null {
-  if (!input) return null;
-  if (Array.isArray(input)) return (input[0] as BancaRow) || null;
-  return input as BancaRow;
-}
-
-function isPublicOwnProductBanca(b: BancaRow | null | undefined): boolean {
-  return isPublishedMarketplaceBanca(b);
-}
-
 function toPublicBanca(row: BancaRow): PublicBanca {
   return { id: row.id, name: row.name };
+}
+
+async function getPublishedMarketplaceBancaIdSet(): Promise<Set<string>> {
+  const bancas = await getPublishedMarketplaceBancas();
+  return new Set(bancas.map((banca) => String(banca.id)));
+}
+
+function isProductPublicForMarketplace(product: ProductRow, publishedMarketplaceBancaIds: Set<string>): boolean {
+  if (product.distribuidor_id) {
+    return !isDistributorProductOutOfStock(product);
+  }
+
+  return publishedMarketplaceBancaIds.has(String(product.banca_id || ""));
 }
 
 export function buildCanonicalProductPath(bancaName: string, productName: string): string {
@@ -76,7 +81,7 @@ export async function resolveBancaById(id?: string | null): Promise<PublicBanca 
   const bancaId = String(id || "").trim();
   if (!bancaId) return null;
 
-  const bancas = await getPublishedDistributorCatalogBancas();
+  const bancas = await getPublishedMarketplaceBancas();
   const banca = bancas.find((item) => item.id === bancaId);
 
   if (!banca) return null;
@@ -87,18 +92,11 @@ export async function resolveBancaBySlug(rawSlug: string): Promise<PublicBanca |
   const bancaSlug = toBancaSlug(rawSlug || "");
   if (!bancaSlug) return null;
 
-  const bancas = await getActiveDistributorCatalogBancas();
+  const bancas = await getPublishedMarketplaceBancas();
   const matches = bancas.filter((b) => toBancaSlug(b.name) === bancaSlug);
   if (matches.length === 0) return null;
 
   return matches.sort((a, b) => a.id.localeCompare(b.id))[0];
-}
-
-function isProductPublic(product: ProductRow): boolean {
-  if (product.distribuidor_id) {
-    return !isDistributorProductOutOfStock(product);
-  }
-  return isPublicOwnProductBanca(extractBancaRow(product.bancas));
 }
 
 async function getActiveProductsForPublicRoute(): Promise<ProductRow[]> {
@@ -118,8 +116,7 @@ async function getActiveProductsForPublicRoute(): Promise<ProductRow[]> {
         banca_id,
         distribuidor_id,
         stock_qty,
-        active,
-        bancas(id,name,approved,is_cotista,cotista_id,active)
+        active
       `)
       .eq("active", true)
       .range(from, from + pageSize - 1);
@@ -137,6 +134,7 @@ async function getActiveProductsForPublicRoute(): Promise<ProductRow[]> {
 
 export async function resolveProductByRawParam(rawParam: string): Promise<PublicProduct | null> {
   const parsed = parseProductParam(rawParam);
+  const publishedMarketplaceBancaIds = await getPublishedMarketplaceBancaIdSet();
 
   let query = supabaseAdmin
     .from("products")
@@ -149,8 +147,7 @@ export async function resolveProductByRawParam(rawParam: string): Promise<Public
       banca_id,
       distribuidor_id,
       stock_qty,
-      active,
-      bancas(id,name,approved,is_cotista,cotista_id,active)
+      active
     `)
     .eq("active", true);
 
@@ -164,7 +161,7 @@ export async function resolveProductByRawParam(rawParam: string): Promise<Public
   if (error || !data) return null;
 
   const product = data as ProductRow;
-  if (!isProductPublic(product)) return null;
+  if (!isProductPublicForMarketplace(product, publishedMarketplaceBancaIds)) return null;
   return product;
 }
 
@@ -176,9 +173,10 @@ export async function resolveProductBySlug(
   if (!productSlug) return null;
 
   const allProducts = await getActiveProductsForPublicRoute();
+  const publishedMarketplaceBancaIds = await getPublishedMarketplaceBancaIdSet();
   const candidates = allProducts
     .filter((p) => slugifyProductName(p.name || "") === productSlug)
-    .filter((p) => isProductPublic(p));
+    .filter((p) => isProductPublicForMarketplace(p, publishedMarketplaceBancaIds));
 
   if (candidates.length === 0) return null;
 
@@ -230,6 +228,6 @@ export async function resolveBancaForProduct(
   const fromProduct = await resolveBancaById(product.banca_id);
   if (fromProduct) return fromProduct;
 
-  const bancasElegiveis = await getActiveDistributorCatalogBancas();
+  const bancasElegiveis = await getPublishedMarketplaceBancas();
   return bancasElegiveis[0] || null;
 }

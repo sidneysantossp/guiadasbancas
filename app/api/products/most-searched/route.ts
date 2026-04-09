@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPublishedDistributorCatalogBancas, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
+import { getPublishedDistributorCatalogBancas } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import Fuse, { IFuseOptions } from 'fuse.js';
 import { isDistributorProductOutOfStock, loadDistributorPricingContext } from "@/lib/modules/products/service";
@@ -96,6 +96,7 @@ export async function GET(req: NextRequest) {
         codigo_mercos
       `)
       .eq('active', true)
+      .not('distribuidor_id', 'is', null)
       .order('created_at', { ascending: false }); // Produtos mais recentes primeiro
 
     // Aplicar filtros no banco se existirem
@@ -168,6 +169,7 @@ export async function GET(req: NextRequest) {
           stock_qty, track_stock, active, codigo_mercos
         `)
         .eq('active', true)
+        .not('distribuidor_id', 'is', null)
         .limit(1000);
       
       if (moreProducts && moreProducts.length > 0) {
@@ -256,8 +258,6 @@ export async function GET(req: NextRequest) {
     });
 
     // Map reduzido para o front com informações da banca/distribuidor resolvidas via Map
-    const isPublicBanca = (b: any) => isPublishedMarketplaceBanca(b);
-
     const pickDisplayBancaForDistributorProduct = (productId: string, fallbackBanca: any) => {
       if (sortedPartnerCatalogBancas.length === 0) return fallbackBanca;
 
@@ -287,6 +287,10 @@ export async function GET(req: NextRequest) {
     };
 
     const data = (items || []).map((p: any) => {
+      if (!p.distribuidor_id) {
+        return null;
+      }
+
       if (isDistributorProductOutOfStock(p)) {
         return null;
       }
@@ -296,11 +300,6 @@ export async function GET(req: NextRequest) {
 
       if (p.distribuidor_id) {
         bancaData = pickDisplayBancaForDistributorProduct(p.id, fallbackBanca);
-      }
-      
-      // Permitir produtos sem banca (catálogo parceiro) ou de bancas publicadas
-      if (bancaData && !isPublicBanca(bancaData)) {
-        return null;
       }
       
       const bancaName = bancaData?.name || 'Banca Local';

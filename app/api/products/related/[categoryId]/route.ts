@@ -1,5 +1,4 @@
 import { NextResponse, NextRequest } from "next/server";
-import { isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
 import { isDistributorProductOutOfStock, loadDistributorPricingContext } from "@/lib/modules/products/service";
 
@@ -46,16 +45,6 @@ export async function GET(
       return NextResponse.json({ error: "Erro ao buscar produtos" }, { status: 500 });
     }
 
-    const bancaIds = Array.from(new Set((data || []).map((p: any) => p.banca_id).filter(Boolean)));
-    const bancaMap = new Map<string, any>();
-    if (bancaIds.length > 0) {
-      const { data: bancas } = await supabaseAdmin
-        .from('bancas')
-        .select('id, active, approved')
-        .in('id', bancaIds);
-      (bancas || []).forEach((b: any) => bancaMap.set(b.id, b));
-    }
-
     // Resolver preço de venda para produtos de distribuidor
     const distribuidorProducts = (data || []).filter((p: any) => p.distribuidor_id);
     const { customMap, calculateDistributorPrice } = await loadDistributorPricingContext<{
@@ -71,8 +60,13 @@ export async function GET(
     // Filtrar produtos com imagem (produtos de distribuidor ou de banca publicada)
     const filteredProducts = (data || [])
       .filter(product => product.images && product.images.length > 0)
-      .filter((product: any) => !isDistributorProductOutOfStock(product))
-      .filter(product => product.distribuidor_id || isPublishedMarketplaceBanca(bancaMap.get(product.banca_id)))
+      .filter((product: any) => {
+        if (product.distribuidor_id) {
+          return !isDistributorProductOutOfStock(product);
+        }
+
+        return Boolean(bancaId) && String(product.banca_id || "") === bancaId;
+      })
       .filter((product: any) => {
         if (!product.distribuidor_id || !bancaId) return true;
         const custom = customMap.get(product.id);
