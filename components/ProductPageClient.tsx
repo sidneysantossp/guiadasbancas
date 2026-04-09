@@ -45,6 +45,24 @@ type RelatedProduct = {
   codigo_mercos?: string;
 };
 
+function mapRelatedProduct(input: any): RelatedProduct | null {
+  if (!input?.id || !input?.name) return null;
+
+  const image = Array.isArray(input.images) && input.images.length > 0
+    ? input.images[0]
+    : input.image || null;
+
+  if (!image) return null;
+
+  return {
+    id: input.id,
+    name: input.name,
+    image,
+    price: Number(input.price || 0),
+    codigo_mercos: input.codigo_mercos || undefined,
+  };
+}
+
 function Stars({ value = 5 }: { value?: number }) {
   const full = Math.floor(value);
   const half = value - full >= 0.5;
@@ -465,6 +483,12 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
         console.log("Produto carregado com sucesso:", mappedProduct.name);
         setProduct(mappedProduct);
         
+        const categoryName =
+          p?.categories?.name ||
+          p?.categories?.nome ||
+          "";
+        let resolvedRelated: RelatedProduct[] = [];
+
         // Buscar produtos relacionados da mesma categoria
         if (p.category_id) {
           try {
@@ -476,14 +500,39 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
               
               // Já vem filtrado da API
               const filtered = relatedList.slice(0, 8);
-              
-              setRelatedProducts(filtered);
-              console.log(`[ProductPage] Produtos relacionados carregados: ${filtered.length}`);
+
+              if (filtered.length > 0) {
+                resolvedRelated = filtered;
+                console.log(`[ProductPage] Produtos relacionados carregados: ${filtered.length}`);
+              } else if (categoryName) {
+                const publicRelatedRes = await fetch(
+                  `/api/products/public?categoryName=${encodeURIComponent(categoryName)}&limit=12`,
+                  { cache: "no-store" }
+                );
+
+                if (publicRelatedRes.ok) {
+                  const publicRelatedJson = await publicRelatedRes.json();
+                  const publicRelatedList = Array.isArray(publicRelatedJson?.data)
+                    ? publicRelatedJson.data
+                    : (Array.isArray(publicRelatedJson?.items) ? publicRelatedJson.items : []);
+
+                  const fallbackRelated = publicRelatedList
+                    .filter((rp: any) => rp.id !== productId)
+                    .map(mapRelatedProduct)
+                    .filter(Boolean)
+                    .slice(0, 8) as RelatedProduct[];
+
+                  resolvedRelated = fallbackRelated;
+                  console.log(`[ProductPage] Produtos relacionados (fallback categoria pública) carregados: ${fallbackRelated.length}`);
+                }
+              }
             }
           } catch (e) {
             console.error("Erro ao buscar produtos relacionados:", e);
           }
-        } else if (p.banca_id) {
+        }
+
+        if (resolvedRelated.length === 0 && p.banca_id) {
           // Fallback: buscar produtos da mesma banca se não tiver categoria
           try {
             const relatedRes = await fetch(`/api/bancas/${p.banca_id}/products?limit=12`);
@@ -503,13 +552,15 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
                   codigo_mercos: rp.codigo_mercos,
                 }));
               
-              setRelatedProducts(filtered);
+              resolvedRelated = filtered;
               console.log(`[ProductPage] Produtos relacionados (fallback banca) carregados: ${filtered.length}`);
             }
           } catch (e) {
             console.error("Erro ao buscar produtos relacionados (fallback banca):", e);
           }
         }
+
+        setRelatedProducts(resolvedRelated);
       } catch (e: any) {
         const errorMessage = e?.message || (typeof e === 'string' ? e : 'Erro desconhecido');
         console.error("Erro ao carregar produto:", errorMessage, "ProductId:", productId);
