@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { validateProductUpdate } from "@/lib/validators/product";
 import ProductImageUploader from "@/components/admin/ProductImageUploader";
+import VideoTutorial from "@/components/admin/VideoTutorial";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import SpecificationsEditor from "@/components/admin/SpecificationsEditor";
 import { useToast } from "@/components/admin/ToastProvider";
@@ -59,8 +60,6 @@ export default function SellerProductEditPage() {
   const [product, setProduct] = useState<any>(null);
   const [images, setImages] = useState<string[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [canFeature, setCanFeature] = useState(true);
-  const [featuredCount, setFeaturedCount] = useState(0);
   const [descriptionFull, setDescriptionFull] = useState("");
   const [specifications, setSpecifications] = useState("");
   const [saving, setSaving] = useState(false);
@@ -73,6 +72,7 @@ export default function SellerProductEditPage() {
   // Estados para contexto da IA
   const [productName, setProductName] = useState("");
   const [productMiniDesc, setProductMiniDesc] = useState("");
+  const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
 
   // Função para atualizar preço de venda baseado no desconto
   const updateSalePriceFromDiscount = (newDiscountPercent: number) => {
@@ -191,19 +191,38 @@ export default function SellerProductEditPage() {
     loadCategories();
   }, [toast]);
 
-  useEffect(() => {
-    const loadBancaEntitlements = async () => {
-      try {
-        const res = await fetch("/api/jornaleiro/banca", { cache: "no-store" });
-        const json = await res.json();
-        setCanFeature(json?.data?.entitlements?.can_access_featured_placement === true);
-      } catch {
-        setCanFeature(false);
-      }
-    };
+  const handleGenerateSeoDescription = async () => {
+    if (!productName.trim()) {
+      toast.error("Preencha o nome do produto para gerar a mini descrição.");
+      return;
+    }
 
-    loadBancaEntitlements();
-  }, []);
+    setIsGeneratingSeo(true);
+    try {
+      const res = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "seo_meta",
+          maxChars: 160,
+          productName: productName.trim(),
+          productDescription: productMiniDesc.trim(),
+        }),
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json?.success || !json?.text) {
+        throw new Error(json?.error || "Não foi possível gerar a mini descrição.");
+      }
+
+      setProductMiniDesc(String(json.text).slice(0, 160));
+      toast.success("Mini descrição SEO gerada com sucesso");
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao gerar mini descrição com IA");
+    } finally {
+      setIsGeneratingSeo(false);
+    }
+  };
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -295,9 +314,6 @@ export default function SellerProductEditPage() {
       const responseData = await res.json();
 
       if (!res.ok) {
-        if (responseData?.code === "PLAN_FEATURED_PLACEMENT_LOCKED") {
-          setCanFeature(false);
-        }
         throw new Error(responseData?.error || "Falha ao salvar produto.");
       }
 
@@ -396,15 +412,41 @@ export default function SellerProductEditPage() {
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Mini Descrição</label>
-            <textarea 
-              defaultValue={product.description} 
-              onChange={(e) => setProductMiniDesc(e.target.value)}
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-sm font-medium">Mini Descrição SEO</label>
+              <button
+                type="button"
+                onClick={handleGenerateSeoDescription}
+                disabled={isGeneratingSeo}
+                className={`inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm transition-colors ${
+                  isGeneratingSeo
+                    ? "cursor-wait border-gray-200 bg-gray-50 text-gray-400"
+                    : "border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
+                }`}
+              >
+                {isGeneratingSeo ? (
+                  <>
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <span>✨</span>
+                    Gerar com IA
+                  </>
+                )}
+              </button>
+            </div>
+            <textarea
+              value={productMiniDesc}
+              onChange={(e) => setProductMiniDesc(e.target.value.slice(0, 160))}
               name="description" 
               rows={3} 
-              placeholder="Descrição breve que aparece no card do produto" 
+              maxLength={160}
+              placeholder="Descrição breve, objetiva e otimizada para SEO com até 160 caracteres"
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" 
             />
+            <div className="mt-1 text-xs text-gray-500">{productMiniDesc.length}/160 caracteres</div>
           </div>
           
           <div>
@@ -437,6 +479,11 @@ export default function SellerProductEditPage() {
         </div>
 
         <div className="space-y-3">
+          <VideoTutorial
+            title="Como Editar um Produto"
+            videoId="dQw4w9WgXcQ"
+            description="Aprenda passo a passo como atualizar informações, mídia e disponibilidade do produto"
+          />
           <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
             {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
             <div>
@@ -645,22 +692,11 @@ export default function SellerProductEditPage() {
                   name="featured" 
                   type="checkbox" 
                   className="rounded mt-0.5"
-                  disabled={!product.featured && !canFeature}
                 />
                 <div>
                   <div className="font-medium text-gray-900">🔥 Destacar em "Ofertas e Promoções"</div>
                   <div className="text-xs text-gray-600 mt-1">
                     Produto aparecerá na seção especial da vitrine da banca.
-                    <br />
-                    {canFeature || product.featured ? (
-                      <span className="font-medium text-green-600">
-                        {`✅ ${8 - featuredCount} vagas disponíveis de 8`}
-                      </span>
-                    ) : (
-                      <span className="font-medium text-gray-500">
-                        Destaque indisponível para este plano no momento.
-                      </span>
-                    )}
                   </div>
                 </div>
               </label>

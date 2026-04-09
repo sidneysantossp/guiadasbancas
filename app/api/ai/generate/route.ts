@@ -3,6 +3,19 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 const DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant";
 
+function stripHtml(input: string) {
+  return input.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function clampText(input: string, maxChars: number) {
+  const normalized = stripHtml(input).replace(/^["']|["']$/g, "").trim();
+  if (normalized.length <= maxChars) return normalized;
+
+  const sliced = normalized.slice(0, maxChars);
+  const safeCut = sliced.lastIndexOf(" ");
+  return `${(safeCut > 80 ? sliced.slice(0, safeCut) : sliced).trim()}...`.slice(0, maxChars);
+}
+
 async function loadAiSettings() {
   const settingsMap = new Map<string, string>();
 
@@ -34,7 +47,7 @@ async function loadAiSettings() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { productName, productDescription } = await req.json();
+    const { productName, productDescription, mode, maxChars } = await req.json();
 
     if (!productName) {
       return NextResponse.json(
@@ -55,6 +68,19 @@ export async function POST(req: NextRequest) {
     // Se não tiver chave de API, retorna um texto simulado (ou erro, dependendo da preferência)
     if (!apiKey) {
       console.warn("Nenhuma chave de IA configurada. Retornando texto simulado.");
+
+      if (mode === "seo_meta") {
+        const simulatedSeo = clampText(
+          `${productName}${productDescription ? ` - ${stripHtml(productDescription)}` : ""}. Compre com preço justo e entrega prática na sua banca.`,
+          Number(maxChars) > 0 ? Number(maxChars) : 160
+        );
+
+        return NextResponse.json({
+          success: true,
+          text: simulatedSeo,
+          simulated: true,
+        });
+      }
       
       const simulacao = `
         <p><strong>${productName}</strong> é a escolha ideal para quem busca qualidade e eficiência.</p>
@@ -83,16 +109,30 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model,
-        messages: [
-          {
-            role: "system",
-            content: "Você é um especialista em copywriting e marketing digital. Sua tarefa é criar descrições de produtos atraentes e persuasivas para um e-commerce. Use formatação HTML simples (p, ul, li, strong, em) para o texto gerado, sem incluir tags <html> ou <body>."
-          },
-          {
-            role: "user",
-            content: `Crie uma descrição completa e vendedora para o produto: "${productName}". \n\nDetalhes adicionais: "${productDescription || ''}". \n\nDestaque os benefícios, crie desejo e incentive a compra.`
-          }
-        ],
+        messages:
+          mode === "seo_meta"
+            ? [
+                {
+                  role: "system",
+                  content:
+                    "Você é um especialista em SEO para e-commerce. Gere apenas uma meta description em português, sem HTML, sem aspas, objetiva, persuasiva, com até 160 caracteres.",
+                },
+                {
+                  role: "user",
+                  content: `Crie uma mini descrição SEO para o produto "${productName}". Considere também: "${productDescription || ""}". Limite máximo: ${Number(maxChars) > 0 ? Number(maxChars) : 160} caracteres.`,
+                },
+              ]
+            : [
+                {
+                  role: "system",
+                  content:
+                    "Você é um especialista em copywriting e marketing digital. Sua tarefa é criar descrições de produtos atraentes e persuasivas para um e-commerce. Use formatação HTML simples (p, ul, li, strong, em) para o texto gerado, sem incluir tags <html> ou <body>.",
+                },
+                {
+                  role: "user",
+                  content: `Crie uma descrição completa e vendedora para o produto: "${productName}". \n\nDetalhes adicionais: "${productDescription || ''}". \n\nDestaque os benefícios, crie desejo e incentive a compra.`,
+                },
+              ],
         temperature: 0.7,
         max_tokens: 1000,
       }),
@@ -106,6 +146,15 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
     const generatedText = data.choices[0]?.message?.content || "";
+
+    if (mode === "seo_meta") {
+      return NextResponse.json({
+        success: true,
+        text: clampText(generatedText, Number(maxChars) > 0 ? Number(maxChars) : 160),
+        provider,
+        model,
+      });
+    }
 
     return NextResponse.json({
       success: true,

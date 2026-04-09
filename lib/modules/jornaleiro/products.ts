@@ -544,14 +544,6 @@ export async function updateJornaleiroProduct(params: {
   }
 
   if (
-    Object.prototype.hasOwnProperty.call(updateData, "featured") &&
-    updateData.featured === true &&
-    !entitlements.canAccessFeaturedPlacement
-  ) {
-    throw buildFeaturedPlacementLockedError();
-  }
-
-  if (
     Object.prototype.hasOwnProperty.call(updateData, "stock_qty") &&
     Number(updateData.stock_qty) === 0
   ) {
