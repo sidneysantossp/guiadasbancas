@@ -13,6 +13,7 @@ import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActiva
 import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
 import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 import { getPlanUpgradeHint } from "@/lib/plan-messaging";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 type ProdutoListItem = {
   id: string;
@@ -36,6 +37,7 @@ const formatCurrency = (value: number) =>
 
 export default function JornaleiroProdutosPage() {
   const toast = useToast();
+  const [bancaName, setBancaName] = useState("");
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<string>("");
   const [status, setStatus] = useState<string>("");
@@ -69,6 +71,20 @@ export default function JornaleiroProdutosPage() {
     };
     loadCategories();
   }, [toast]);
+
+  useEffect(() => {
+    const loadBancaName = async () => {
+      try {
+        const res = await fetch("/api/jornaleiro/banca", { cache: "no-store" });
+        const json = await res.json();
+        setBancaName(String(json?.data?.name || "").trim());
+      } catch {
+        setBancaName("");
+      }
+    };
+
+    loadBancaName();
+  }, []);
 
   const categoryMap = useMemo(() => {
     return categories.reduce<Record<string, string>>((acc, item) => {
@@ -489,6 +505,18 @@ export default function JornaleiroProdutosPage() {
         getId={(row) => row.id}
         renderActions={(row) => (
           <div className="flex flex-col items-end justify-end gap-2 sm:flex-row sm:items-center">
+            <Link
+              href={buildPublicProductPath(row.name, bancaName, row.id, row.codigo_mercos) as Route}
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
+              title="Visualizar produto"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </Link>
             <Link
               href={( `/jornaleiro/produtos/${row.id}` ) as Route}
               className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
