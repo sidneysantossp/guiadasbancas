@@ -52,10 +52,19 @@ export function buildProductSlug(
   return `${slug}-${identifier}`;
 }
 
-export function buildFriendlyProductPath(bancaName: string, productName: string): string {
+export function buildFriendlyProductPath(
+  bancaName: string,
+  productName: string,
+  fallbackId?: string | null
+): string {
   const bancaSlug = toBancaSlug(bancaName || "banca");
-  const productSlug = slugifyProductName(productName || "produto");
+  const productSlug = buildProductSlug(productName || "produto", null, fallbackId);
   return `/${bancaSlug}/${productSlug}`;
+}
+
+export function buildLegacyProductPath(identifier: string | number): string {
+  const value = String(identifier ?? "").trim();
+  return `/produto/${encodeURIComponent(value || "produto")}`;
 }
 
 export function buildPublicProductPath(
@@ -66,6 +75,8 @@ export function buildPublicProductPath(
 ): string {
   const safeProductName = String(productName || "").trim() || "produto";
   const safeBancaName = String(bancaName || "").trim();
+  const safeIdentifier = String(fallbackId ?? codigoMercos ?? "").trim();
+  const safeFallbackId = String(fallbackId ?? "").trim();
   const normalizedBancaName = safeBancaName
     .toLowerCase()
     .normalize("NFD")
@@ -75,10 +86,12 @@ export function buildPublicProductPath(
   const invalidBancaNames = new Set(["banca", "banca local", "banca nao informada"]);
 
   if (safeBancaName && !invalidBancaNames.has(normalizedBancaName)) {
-    return buildFriendlyProductPath(safeBancaName, safeProductName);
+    return buildFriendlyProductPath(safeBancaName, safeProductName, safeFallbackId || safeIdentifier || null);
   }
 
-  void fallbackId;
-  void codigoMercos;
+  if (safeIdentifier) {
+    return buildLegacyProductPath(safeIdentifier);
+  }
+
   return buildFriendlyProductPath("banca", safeProductName);
 }

@@ -31,7 +31,9 @@ export async function generateMetadata({ params }: { params: ProductPageParams }
   const productImage = product?.images?.[0] || "/placeholder/product.svg";
   const banca = product ? await resolveBancaForProduct(product, undefined) : null;
   const canonicalPath =
-    product && banca ? buildCanonicalProductPath(banca.name, product.name) : `/produto/${params.id}`;
+    product && banca
+      ? buildCanonicalProductPath(banca.name, product.name, product.id)
+      : `/produto/${params.id}`;
   
   // Limpar descrição HTML para meta description
   const cleanDescription = productDescription.replace(/<[^>]*>/g, '').substring(0, 160);
@@ -110,7 +112,7 @@ export default async function ProdutoPage({
 
   const banca = await resolveBancaForProduct(product, bancaId);
   if (banca) {
-    const canonicalPath = buildCanonicalProductPath(banca.name, product.name);
+    const canonicalPath = buildCanonicalProductPath(banca.name, product.name, product.id);
     const redirectParams = new URLSearchParams();
     for (const [key, value] of Object.entries(searchParams || {})) {
       if (key === "banca") continue;

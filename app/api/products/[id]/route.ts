@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  getPublishedDistributorCatalogBancas,
-  getPublishedMarketplaceBancas,
+  getActiveDistributorCatalogBancas,
+  getActiveMarketplaceBancas,
   isPublishedMarketplaceBanca,
 } from "@/lib/public-banca-access";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -20,8 +20,8 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
   const bancaIdFromQuery = searchParams.get('banca');
 
   try {
-    const publishedMarketplaceBancaIds = new Set(
-      (await getPublishedMarketplaceBancas()).map((banca) => String(banca.id))
+    const activeMarketplaceBancaIds = new Set(
+      (await getActiveMarketplaceBancas()).map((banca) => String(banca.id))
     );
 
     const { data, error } = await supabaseAdmin
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
     // Produtos próprios só são públicos se a banca estiver publicada no marketplace
     if (!data.distribuidor_id) {
       const bancaIsPublished =
-        publishedMarketplaceBancaIds.has(String(data.banca_id || "")) ||
+        activeMarketplaceBancaIds.has(String(data.banca_id || "")) ||
         isPublishedMarketplaceBanca(data.bancas);
 
       if (!bancaIsPublished) {
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       
       // Para produtos de distribuidor, usar a banca especificada na query (se fornecida e válida)
       if (bancaIdFromQuery) {
-        const bancasElegiveis = await getPublishedDistributorCatalogBancas();
+        const bancasElegiveis = await getActiveDistributorCatalogBancas();
         const bancaOverride = bancasElegiveis.find((banca) => banca.id === bancaIdFromQuery) || null;
         
         if (bancaOverride) {

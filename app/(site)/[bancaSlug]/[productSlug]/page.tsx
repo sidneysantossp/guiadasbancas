@@ -92,7 +92,11 @@ export async function generateMetadata({
     };
   }
 
-  const canonicalPath = buildCanonicalProductPath(resolved.banca.name, resolved.product.name);
+  const canonicalPath = buildCanonicalProductPath(
+    resolved.banca.name,
+    resolved.product.name,
+    resolved.product.id
+  );
   const productName = resolved.product.name;
   const productDescription = sanitizeDescription(
     resolved.product.description || `Compre ${productName} com segurança nas bancas próximas de você.`
@@ -159,7 +163,11 @@ export default async function FriendlyProductPage({
     notFound();
   }
 
-  const canonicalPath = buildCanonicalProductPath(resolved.banca.name, resolved.product.name);
+  const canonicalPath = buildCanonicalProductPath(
+    resolved.banca.name,
+    resolved.product.name,
+    resolved.product.id
+  );
   const currentPath = currentPathFromParams(params);
   if (canonicalPath !== currentPath) {
     permanentRedirect(`${canonicalPath}${buildQueryString(searchParams)}`);

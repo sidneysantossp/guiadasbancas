@@ -83,3 +83,31 @@ export async function getPublishedMarketplaceBancas(): Promise<PublishedMarketpl
 
   return results;
 }
+
+export async function getActiveMarketplaceBancas(): Promise<PublishedMarketplaceBanca[]> {
+  const pageSize = 1000;
+  const results: PublishedMarketplaceBanca[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabaseAdmin
+      .from("bancas")
+      .select("id, name, user_id, address, cover_image, profile_image, whatsapp, lat, lng, active, approved, is_cotista, cotista_id")
+      .eq("active", true)
+      .range(from, from + pageSize - 1);
+
+    if (error || !Array.isArray(data) || data.length === 0) break;
+
+    results.push(...(data as PublishedMarketplaceBanca[]));
+
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return results;
+}
+
+export async function getActiveDistributorCatalogBancas(): Promise<DistribuidorAccessibleBanca[]> {
+  const bancas = await getDistribuidorAccessibleBancas();
+  return bancas.filter((banca) => banca.active !== false);
+}
