@@ -9,7 +9,7 @@ import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import SEOBreadcrumbs from "@/components/SEOBreadcrumbs";
 import { shippingConfig } from "@/components/shippingConfig";
-import { buildFriendlyProductPath } from "@/lib/product-url";
+import { buildPublicProductPath } from "@/lib/product-url";
 
 export type ProductDetail = {
   id: string;
@@ -30,7 +30,7 @@ export type ProductDetail = {
   };
   stock?: number;
   description?: string;
-  specs?: Record<string, string>;
+  specs?: Record<string, string> | string;
   codigo_mercos?: string;
 };
 
@@ -106,9 +106,37 @@ function buildProductPath(
   product: { name: string; id: string; codigo_mercos?: string | null },
   bancaName?: string
 ) {
-  void product.id;
-  void product.codigo_mercos;
-  return buildFriendlyProductPath(bancaName || "banca", product.name);
+  return buildPublicProductPath(product.name, bancaName, product.id, product.codigo_mercos);
+}
+
+function parseProductSpecifications(value: unknown): Record<string, string> | string {
+  if (!value) return {};
+
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, String(item ?? "")])
+    );
+  }
+
+  if (typeof value !== "string") return {};
+
+  const trimmed = value.trim();
+  if (!trimmed) return {};
+
+  if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return Object.fromEntries(
+          Object.entries(parsed as Record<string, unknown>).map(([key, item]) => [key, String(item ?? "")])
+        );
+      }
+    } catch {
+      return trimmed;
+    }
+  }
+
+  return trimmed;
 }
 
 function generateProductSchema(product: ProductDetail, reviews: any[], reviewStats: any) {
@@ -412,7 +440,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
           },
           stock: p.stock_qty || 0,
           description: p.description_full || p.description || "Descrição não disponível",
-          specs: p.specifications ? (typeof p.specifications === 'string' ? JSON.parse(p.specifications) : p.specifications) : {},
+          specs: parseProductSpecifications(p.specifications),
           codigo_mercos: p.codigo_mercos || undefined,
         };
         
@@ -758,14 +786,20 @@ function Tabs({ product }: { product: ProductDetail }) {
 
       {tab === "especificacoes" && (
         <div className="mt-4">
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {Object.entries(product.specs || {}).map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
-                <dt className="text-gray-600">{k}</dt>
-                <dd className="font-medium">{v}</dd>
-              </div>
-            ))}
-          </dl>
+          {typeof product.specs === "string" ? (
+            <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
+              {product.specs}
+            </div>
+          ) : (
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {Object.entries(product.specs || {}).map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                  <dt className="text-gray-600">{k}</dt>
+                  <dd className="font-medium">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </div>
       )}
 
