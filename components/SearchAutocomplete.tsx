@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { IconBuildingStore, IconSearch } from "@tabler/icons-react";
-import { buildFriendlyProductPath } from "@/lib/product-url";
+import { buildPublicProductPath } from "@/lib/product-url";
+import { buildBancaHref } from "@/lib/slug";
 
 type SearchResult = {
   type: 'product' | 'banca';
@@ -52,10 +52,11 @@ export default function SearchAutocomplete({
   const router = useRouter();
   const pathname = usePathname();
 
-  // 🎯 PRIORIDADE 1: Usar localização salva (CEP manual) - tem prioridade sobre geolocalização
+  // Usa apenas a localização já persistida pela camada central de geolocalização.
+  // Isso evita prompts duplicados e corridas entre componentes diferentes.
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('gdb_location'); // Chave correta do location.ts
+      const raw = localStorage.getItem('gdb_location');
       if (raw) {
         const parsed = JSON.parse(raw);
         const lat = typeof parsed?.lat === 'number' ? parsed.lat : parseFloat(parsed?.lat);
@@ -63,39 +64,7 @@ export default function SearchAutocomplete({
         if (Number.isFinite(lat) && Number.isFinite(lng)) {
           console.log('[SearchAutocomplete] 📍 Usando localização salva:', { lat, lng, source: parsed.source });
           setUserLocation({ lat, lng });
-          return; // Não buscar geolocalização se já tem localização salva
         }
-      }
-      
-      // 🎯 PRIORIDADE 2: Se não tem localização salva, tentar geolocalização do navegador
-      // 🔒 MAS APENAS se usuário não definiu CEP manual
-      const isManualLocation = sessionStorage.getItem('gdb_location_manual');
-      if (isManualLocation) {
-        console.log('[SearchAutocomplete] 🔒 Localização manual definida - ignorando geolocalização');
-        return;
-      }
-      
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            // 🔒 Verificar novamente antes de aplicar (race condition)
-            const stillManual = sessionStorage.getItem('gdb_location_manual');
-            if (stillManual) {
-              console.log('[SearchAutocomplete] 🔒 CEP manual foi definido durante geolocalização - ignorando');
-              return;
-            }
-            
-            console.log('[SearchAutocomplete] 📍 Usando geolocalização do navegador');
-            setUserLocation({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude
-            });
-          },
-          (error) => {
-            console.log('[SearchAutocomplete] ⚠️ Geolocalização não disponível:', error.message);
-          },
-          { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
-        );
       }
     } catch (e) {
       console.error('[SearchAutocomplete] Erro ao carregar localização:', e);
@@ -231,22 +200,33 @@ export default function SearchAutocomplete({
   };
 
   const handleSelect = (result: SearchResult) => {
+    const href = getResultHref(result);
     selectedQueryRef.current = result.name;
     onSelect(result);
     setResults([]);
     setIsOpen(false);
     setSelectedIndex(-1);
     setAllowOpen(false);
-    
-    if (result.type === 'banca') {
-      // Redirecionar para a página da banca
-      // Rota pública canônica: /bancas/[id]
-      router.push(`/bancas/${result.id}`);
-    } else {
-      // Redirecionar para a rota canônica com slug amigável
-      const productPath = buildFriendlyProductPath(result.banca_name, result.name);
-      router.push(productPath);
+
+    if (typeof window !== "undefined") {
+      window.location.assign(href);
+      return;
     }
+
+    router.push(href);
+  };
+
+  const getResultHref = (result: SearchResult) => {
+    if (result.type === 'banca') {
+      return buildBancaHref(result.name, result.id, result.address || undefined);
+    }
+
+    return buildPublicProductPath(
+      result.name,
+      result.banca_name,
+      result.id,
+      result.codigo_mercos
+    );
   };
 
   const getCategoryIcon = (category: string) => {
@@ -311,8 +291,9 @@ export default function SearchAutocomplete({
               {results.map((result, index) => (
                 <button
                   key={`${result.type}-${result.id}`}
-                  onClick={() => handleSelect(result)}
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleSelect(result)}
                   className={`w-full p-3 flex items-center gap-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 text-left transition-colors ${
                     selectedIndex === index ? 'bg-orange-50 border-orange-200' : ''
                   }`}
@@ -381,17 +362,27 @@ export default function SearchAutocomplete({
               ))}
 
               {/* Link para ver todos os resultados */}
-              <Link
-                href={`/buscar?q=${encodeURIComponent(query)}`}
-                className="block p-3 text-center text-[#ff5c00] hover:bg-orange-50 border-t border-gray-200 font-medium"
+              <button
+                type="button"
+                className="block w-full p-3 text-center text-[#ff5c00] hover:bg-orange-50 border-t border-gray-200 font-medium"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   setIsOpen(false);
                   setSelectedIndex(-1);
                   setAllowOpen(false);
+
+                  const href = `/buscar?q=${encodeURIComponent(query)}`;
+
+                  if (typeof window !== "undefined") {
+                    window.location.assign(href);
+                    return;
+                  }
+
+                  router.push(href);
                 }}
               >
                 Ver todos os resultados para "{query}"
-              </Link>
+              </button>
             </>
           )}
         </div>

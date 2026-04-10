@@ -1,8 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#ff5c00"/>
-  <g fill="#fff">
-    <rect x="14" y="18" width="36" height="6" rx="3"/>
-    <rect x="14" y="30" width="28" height="6" rx="3"/>
-    <rect x="14" y="42" width="20" height="6" rx="3"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Guia das Bancas favicon">
+  <rect width="512" height="512" fill="#ff7a14" />
+  <circle cx="256" cy="256" r="209" fill="none" stroke="#ffffff" stroke-width="28" />
+  <path
+    d="M339 135
+       A131 131 0 1 0 256 387
+       M340 256
+       H255
+       M340 256
+       V333
+       H275"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="42"
+    stroke-linecap="square"
+    stroke-linejoin="miter"
+  />
 </svg>

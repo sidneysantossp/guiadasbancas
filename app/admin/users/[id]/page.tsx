@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
 type UserDetail = {
@@ -96,26 +96,28 @@ function SummaryCard({
 
 export default function AdminUserDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const userId = params.id as string;
   const [data, setData] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingAction, setPendingAction] = useState<"unlink" | "delete" | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const response = await fetchAdminWithDevFallback(`/api/admin/users/${userId}`);
+      const json = await response.json();
+      if (json.success) {
+        setData(json.data);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar detalhe do usuário:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const response = await fetchAdminWithDevFallback(`/api/admin/users/${userId}`);
-        const json = await response.json();
-        if (json.success) {
-          setData(json.data);
-        }
-      } catch (error) {
-        console.error("Erro ao carregar detalhe do usuário:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (userId) load();
   }, [userId]);
 
@@ -129,6 +131,75 @@ export default function AdminUserDetailPage() {
 
   const normalizedRole = (data.profile.role || "cliente").toLowerCase();
   const isJornaleiro = ["jornaleiro", "seller"].includes(normalizedRole);
+  const canManageJornaleiroAccount = isJornaleiro;
+
+  const handleUnlinkBanca = async () => {
+    if (!data?.banca || !canManageJornaleiroAccount) return;
+
+    const confirmation = window.prompt(
+      `Você está prestes a remover o vínculo entre a conta "${data.profile.full_name || data.profile.email || data.profile.id}" e a banca "${data.banca.name || "Sem nome"}".\n\nDigite DESVINCULAR para confirmar.`
+    );
+
+    if ((confirmation || "").trim().toUpperCase() !== "DESVINCULAR") {
+      return;
+    }
+
+    setPendingAction("unlink");
+
+    try {
+      const response = await fetchAdminWithDevFallback(`/api/admin/jornaleiros/${data.profile.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "unlink_banca" }),
+      });
+
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        throw new Error(json.error || "Erro ao desvincular banca");
+      }
+
+      window.alert(json.message || "Vínculo com a banca removido com sucesso.");
+      await load();
+    } catch (error: any) {
+      console.error("Erro ao desvincular banca da conta:", error);
+      window.alert(error?.message || "Não foi possível remover o vínculo com a banca.");
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!canManageJornaleiroAccount) return;
+
+    const confirmation = window.prompt(
+      `Você está prestes a excluir permanentemente a conta "${data.profile.full_name || data.profile.email || data.profile.id}".\n\nIsso remove o login do jornaleiro e desfaz o vínculo com banca e equipe.\n\nDigite EXCLUIR CONTA para confirmar.`
+    );
+
+    if ((confirmation || "").trim().toUpperCase() !== "EXCLUIR CONTA") {
+      return;
+    }
+
+    setPendingAction("delete");
+
+    try {
+      const response = await fetchAdminWithDevFallback(`/api/admin/jornaleiros/${data.profile.id}`, {
+        method: "DELETE",
+      });
+
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        throw new Error(json.error || "Erro ao excluir conta");
+      }
+
+      window.alert(json.message || "Conta excluída com sucesso.");
+      router.push("/admin/users");
+      router.refresh();
+    } catch (error: any) {
+      console.error("Erro ao excluir conta do jornaleiro:", error);
+      window.alert(error?.message || "Não foi possível excluir a conta.");
+      setPendingAction(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -159,6 +230,26 @@ export default function AdminUserDetailPage() {
             >
               Abrir banca vinculada
             </Link>
+          ) : null}
+          {canManageJornaleiroAccount && data.banca ? (
+            <button
+              type="button"
+              onClick={handleUnlinkBanca}
+              disabled={pendingAction !== null}
+              className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-medium text-amber-700 hover:border-amber-500 hover:text-amber-800 disabled:opacity-60"
+            >
+              {pendingAction === "unlink" ? "Desvinculando..." : "Desvincular banca"}
+            </button>
+          ) : null}
+          {canManageJornaleiroAccount ? (
+            <button
+              type="button"
+              onClick={handleDeleteAccount}
+              disabled={pendingAction !== null}
+              className="rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:border-red-500 hover:text-red-800 disabled:opacity-60"
+            >
+              {pendingAction === "delete" ? "Excluindo..." : "Excluir conta"}
+            </button>
           ) : null}
         </div>
       </div>

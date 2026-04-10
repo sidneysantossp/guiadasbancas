@@ -120,7 +120,10 @@ export default function AdminJornaleirosPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [savingId, setSavingId] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<{
+    id: string;
+    type: "block" | "unblock" | "unlink" | "delete";
+  } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -159,7 +162,7 @@ export default function AdminJornaleirosPage() {
   }, [rows, query, statusFilter]);
 
   const handleToggleBlock = async (row: JornaleiroRow) => {
-    setSavingId(row.id);
+    setPendingAction({ id: row.id, type: row.blocked ? "unblock" : "block" });
     try {
       if (row.blocked) {
         await fetchAdminWithDevFallback(`/api/admin/users/block?userId=${encodeURIComponent(row.id)}`, {
@@ -178,8 +181,75 @@ export default function AdminJornaleirosPage() {
       await load();
     } catch (error) {
       console.error("Erro ao atualizar bloqueio do jornaleiro:", error);
+      window.alert("Não foi possível atualizar o bloqueio do jornaleiro.");
     } finally {
-      setSavingId(null);
+      setPendingAction(null);
+    }
+  };
+
+  const handleUnlinkBanca = async (row: JornaleiroRow) => {
+    if (!row.banca) return;
+
+    const confirmation = window.prompt(
+      `Você está prestes a remover o vínculo entre a conta "${row.full_name || row.email || row.id}" e a banca "${row.banca.name || "Sem nome"}".\n\nDigite DESVINCULAR para confirmar.`
+    );
+
+    if ((confirmation || "").trim().toUpperCase() !== "DESVINCULAR") {
+      return;
+    }
+
+    setPendingAction({ id: row.id, type: "unlink" });
+
+    try {
+      const response = await fetchAdminWithDevFallback(`/api/admin/jornaleiros/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "unlink_banca" }),
+      });
+
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        throw new Error(json.error || "Erro ao desvincular banca");
+      }
+
+      await load();
+      window.alert(json.message || "Vínculo com a banca removido com sucesso.");
+    } catch (error: any) {
+      console.error("Erro ao desvincular banca do jornaleiro:", error);
+      window.alert(error?.message || "Não foi possível remover o vínculo com a banca.");
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const handleDeleteAccount = async (row: JornaleiroRow) => {
+    const confirmation = window.prompt(
+      `Você está prestes a excluir permanentemente a conta "${row.full_name || row.email || row.id}".\n\nIsso remove o login do jornaleiro e desfaz o vínculo com banca e equipe.\n\nDigite EXCLUIR CONTA para confirmar.`
+    );
+
+    if ((confirmation || "").trim().toUpperCase() !== "EXCLUIR CONTA") {
+      return;
+    }
+
+    setPendingAction({ id: row.id, type: "delete" });
+
+    try {
+      const response = await fetchAdminWithDevFallback(`/api/admin/jornaleiros/${row.id}`, {
+        method: "DELETE",
+      });
+
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        throw new Error(json.error || "Erro ao excluir conta");
+      }
+
+      await load();
+      window.alert(json.message || "Conta excluída com sucesso.");
+    } catch (error: any) {
+      console.error("Erro ao excluir conta do jornaleiro:", error);
+      window.alert(error?.message || "Não foi possível excluir a conta do jornaleiro.");
+    } finally {
+      setPendingAction(null);
     }
   };
 
@@ -300,8 +370,11 @@ export default function AdminJornaleirosPage() {
             getId={(row) => row.id}
             initialPageSize={20}
             pageSizeOptions={[20, 50, 100]}
-            renderActions={(row) => (
-              <div className="flex items-center justify-end gap-2">
+            renderActions={(row) => {
+              const rowBusy = pendingAction?.id === row.id;
+
+              return (
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 <Link
                   href={`/admin/jornaleiros/${row.id}` as Route}
                   className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-[#ff5c00] hover:text-[#ff5c00]"
@@ -309,24 +382,44 @@ export default function AdminJornaleirosPage() {
                   Detalhes
                 </Link>
                 {row.banca?.id ? (
-                  <Link
-                    href={`/admin/bancas/${row.banca.id}` as Route}
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-[#ff5c00] hover:text-[#ff5c00]"
-                  >
-                    Ver banca
-                  </Link>
+                  <>
+                    <Link
+                      href={`/admin/bancas/${row.banca.id}` as Route}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-[#ff5c00] hover:text-[#ff5c00]"
+                    >
+                      Ver banca
+                    </Link>
+                    <button
+                      onClick={() => handleUnlinkBanca(row)}
+                      disabled={rowBusy}
+                      className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:border-amber-500 hover:text-amber-800 disabled:opacity-60"
+                    >
+                      {pendingAction?.id === row.id && pendingAction?.type === "unlink" ? "Desvinculando..." : "Desvincular"}
+                    </button>
+                  </>
                 ) : null}
                 <button
+                  onClick={() => handleDeleteAccount(row)}
+                  disabled={rowBusy}
+                  className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:border-red-500 hover:text-red-800 disabled:opacity-60"
+                >
+                  {pendingAction?.id === row.id && pendingAction?.type === "delete" ? "Excluindo..." : "Excluir conta"}
+                </button>
+                <button
                   onClick={() => handleToggleBlock(row)}
-                  disabled={savingId === row.id}
+                  disabled={rowBusy}
                   className={`rounded-lg px-3 py-1.5 text-xs font-medium text-white ${
                     row.blocked ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
                   } disabled:opacity-60`}
                 >
-                  {savingId === row.id ? "Salvando..." : row.blocked ? "Desbloquear" : "Bloquear"}
+                  {pendingAction?.id === row.id && (pendingAction?.type === "block" || pendingAction?.type === "unblock")
+                    ? "Salvando..."
+                    : row.blocked
+                      ? "Desbloquear"
+                      : "Bloquear"}
                 </button>
               </div>
-            )}
+            )}}
           />
         )}
       </div>
