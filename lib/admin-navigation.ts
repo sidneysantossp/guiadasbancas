@@ -74,6 +74,12 @@ export const ADMIN_MENU: AdminMenuSection[] = [
         description: "Cadastro, aprovacao, ativacao e tratamento operacional das bancas.",
       },
       {
+        label: "CRM Bancas",
+        href: "/admin/prospeccao",
+        icon: "clipboard",
+        description: "Kanban de prospeccao para cotistas, bancas cadastradas e leads fora da plataforma.",
+      },
+      {
         label: "Jornaleiros",
         href: "/admin/jornaleiros",
         icon: "users",
