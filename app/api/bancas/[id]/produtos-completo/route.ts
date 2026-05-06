@@ -1,10 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isPublishedMarketplaceBanca } from '@/lib/public-banca-access';
-import { resolveBancaPlanEntitlements } from '@/lib/plan-entitlements';
 import { supabaseAdmin } from '@/lib/supabase';
 import { loadDistributorPricingContext } from '@/lib/modules/products/service';
 
 const CATEGORIA_DISTRIBUIDORES_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
+const PRODUCT_FETCH_BATCH_SIZE = 1000;
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+async function fetchProductRows(buildQuery: () => any): Promise<any[]> {
+  const rows: any[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await buildQuery().range(
+      offset,
+      offset + PRODUCT_FETCH_BATCH_SIZE - 1
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    const batch = data || [];
+    rows.push(...batch);
+
+    if (batch.length < PRODUCT_FETCH_BATCH_SIZE) {
+      break;
+    }
+
+    offset += batch.length;
+  }
+
+  return rows;
+}
+
+function canShowMarketplaceCatalog(banca: { active?: boolean | null } | null | undefined) {
+  return Boolean(banca?.active !== false);
+}
 
 // GET /api/bancas/:id/produtos-completo
 // Retorna produtos próprios + produtos de distribuidor habilitados
@@ -30,9 +63,16 @@ export async function GET(
       );
     }
 
-    if (!isPublishedMarketplaceBanca(banca)) {
+    const partnerLinked = banca?.is_cotista === true || Boolean(banca?.cotista_id);
+
+    if (!canShowMarketplaceCatalog(banca)) {
       return NextResponse.json({
         success: true,
+        banca_id: bancaId,
+        is_cotista: partnerLinked,
+        partner_linked: partnerLinked,
+        can_access_distributor_catalog: false,
+        partner_catalog_access: false,
         data: [],
         total: 0,
         stats: {
@@ -42,42 +82,36 @@ export async function GET(
       });
     }
 
-    const entitlements = await resolveBancaPlanEntitlements({
-      id: banca.id,
-      is_cotista: banca.is_cotista,
-      cotista_id: banca.cotista_id,
-    });
-
     // 1. Buscar produtos próprios da banca
-    const { data: produtosProprios, error: propriosError } = await supabase
-      .from('products')
-      .select('*')
-      .eq('banca_id', bancaId)
-      .eq('active', true)
-      .is('distribuidor_id', null);
-
-    // 2. Buscar produtos de distribuidor habilitados para esta banca
-    // Primeiro buscar os IDs dos produtos habilitados
-    const { data: produtosHabilitados } = await supabase
-      .from('banca_produtos_distribuidor')
-      .select('product_id, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda')
-      .eq('banca_id', bancaId)
-      .eq('enabled', true);
-
-    let produtosDistribuidor: any[] = [];
-
-    if (entitlements.canAccessDistributorCatalog && produtosHabilitados && produtosHabilitados.length > 0) {
-      const productIds = produtosHabilitados.map(p => p.product_id);
-
-      // Buscar dados completos dos produtos
-      const { data: produtosBase } = await supabase
+    const produtosProprios = await fetchProductRows(() =>
+      supabase
         .from('products')
         .select('*')
-        .in('id', productIds)
-        .eq('active', true);
+        .eq('banca_id', bancaId)
+        .eq('active', true)
+        .is('distribuidor_id', null)
+        .order('name', { ascending: true })
+    );
 
+    const produtosPropriosExpostos = produtosProprios || [];
+
+    // 2. Buscar produtos de distribuidor para qualquer banca publicada.
+    let produtosDistribuidor: any[] = [];
+
+    const produtosBase = await fetchProductRows(() =>
+      supabase
+        .from('products')
+        .select('*')
+        .not('distribuidor_id', 'is', null)
+        .eq('active', true)
+        .gt('stock_qty', 0)
+        .order('name', { ascending: true })
+    );
+
+    if (produtosBase && produtosBase.length > 0) {
       const { customMap, calculateDistributorPrice } = await loadDistributorPricingContext<{
         product_id: string;
+        enabled: boolean | null;
         custom_price: number | null;
         custom_description: string | null;
         custom_status: string | null;
@@ -86,13 +120,15 @@ export async function GET(
         custom_pre_venda: boolean | null;
       }>({
         products: (produtosBase || []) as any[],
-        customFields: 'product_id, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda',
+        customFields: 'product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda',
         customBancaId: bancaId,
+        includeAllBancaCustomizationsWhenLarge: true,
       });
 
       // Combinar dados base com customizações
       produtosDistribuidor = (produtosBase || []).map(produto => {
         const custom = customMap.get(produto.id);
+        if (custom?.enabled === false) return null;
         const effectivePrice = custom?.custom_price != null
           ? Number(custom.custom_price)
           : calculateDistributorPrice(produto);
@@ -111,21 +147,26 @@ export async function GET(
           // Flag para identificar origem
           is_distribuidor: true,
         };
-      });
+      }).filter(Boolean);
     }
 
     // 4. Combinar todos os produtos
     const todosProdutos = [
-      ...(produtosProprios || []).map(p => ({ ...p, is_distribuidor: false })),
+      ...produtosPropriosExpostos.map(p => ({ ...p, is_distribuidor: false })),
       ...produtosDistribuidor,
     ];
 
     return NextResponse.json({
       success: true,
+      banca_id: bancaId,
+      is_cotista: partnerLinked,
+      partner_linked: partnerLinked,
+      can_access_distributor_catalog: true,
+      partner_catalog_access: true,
       data: todosProdutos,
       total: todosProdutos.length,
       stats: {
-        proprios: produtosProprios?.length || 0,
+        proprios: produtosPropriosExpostos.length,
         distribuidores: produtosDistribuidor.length,
       },
     });

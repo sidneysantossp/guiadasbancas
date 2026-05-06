@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { readAuthenticatedUserClaims } from "@/lib/modules/auth/session";
 import { canPreviewMarketplaceBanca, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
-import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { resolveCanonicalBancaRowById } from "@/lib/banca-canonical";
 import { supabaseAdmin } from "@/lib/supabase";
 import {
@@ -23,6 +22,13 @@ const SUPPORTED_DISTRIBUIDOR_IDS = new Set([
   BRANCALEONE_DISTRIBUIDOR_ID,
   BAMBINO_DISTRIBUIDOR_ID,
 ]);
+
+function canShowMarketplaceCatalog(
+  banca: { active?: boolean | null; approved?: boolean | null } | null | undefined,
+  canPreview: boolean
+) {
+  return Boolean(canPreview || banca?.active !== false);
+}
 
 type DistribuidorConfig = {
   id: string;
@@ -214,29 +220,9 @@ export async function GET(_request: NextRequest, context: { params: { id: string
       viewerRole: claims?.role,
     });
 
-    if (!isPublishedMarketplaceBanca(banca) && !canPreview) {
-      return NextResponse.json({
-        success: true,
-        banca_id: banca?.id || bancaId,
-        is_cotista: partnerLinked,
-        partner_linked: partnerLinked,
-        can_access_distributor_catalog: false,
-        partner_catalog_access: false,
-        categories: [],
-        hierarchy: {},
-        standalone: [],
-      });
-    }
+    const canShowCatalog = canShowMarketplaceCatalog(banca, canPreview);
 
-    const entitlements = banca
-      ? await resolveBancaPlanEntitlements({
-          id: banca.id,
-          is_cotista: banca.is_cotista,
-          cotista_id: banca.cotista_id,
-        })
-      : null;
-
-    if (!entitlements?.canAccessDistributorCatalog) {
+    if (!canShowCatalog) {
       return NextResponse.json({
         success: true,
         banca_id: banca?.id || bancaId,

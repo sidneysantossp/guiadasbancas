@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { readAuthenticatedUserClaims } from "@/lib/modules/auth/session";
 import { canPreviewMarketplaceBanca, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
-import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { resolveCanonicalBancaRowById } from "@/lib/banca-canonical";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getEffectiveDistributorStock, isDistributorProductOutOfStock, loadDistributorPricingContext } from "@/lib/modules/products/service";
+import { listPublicWholesaleProductsForBanca } from "@/lib/modules/atacado/service";
 
 // Sem cache para garantir dados atualizados
 export const revalidate = 0;
@@ -31,6 +31,13 @@ const PRODUCT_FIELDS_MINIMAL = `
   codigo_mercos
 `;
 
+function canShowMarketplaceCatalog(
+  banca: { active?: boolean | null; approved?: boolean | null } | null | undefined,
+  canPreview: boolean
+) {
+  return Boolean(canPreview || banca?.active !== false);
+}
+
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
     const bancaId = context.params.id;
@@ -41,7 +48,9 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const supabase = supabaseAdmin;
     const { searchParams } = new URL(request.url);
     const requestedLimit = parseInt(searchParams.get('limit') || '10000'); // Limite alto para buscar todos os produtos
+    const requestedOffset = Math.max(0, parseInt(searchParams.get('offset') || '0'));
     const fastMode = searchParams.get('fast') === 'true'; // Modo rápido sem markup/customizações
+    const fetchWindow = requestedOffset + requestedLimit;
 
     // 1. Buscar dados da banca pública (com resolução canônica para bancas duplicadas)
     const session = await auth();
@@ -70,7 +79,9 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       viewerRole: claims?.role,
     });
 
-    if (!isPublishedMarketplaceBanca(banca) && !canPreview) {
+    const canShowCatalog = canShowMarketplaceCatalog(banca, canPreview);
+
+    if (!canShowCatalog) {
       return NextResponse.json({
         success: true,
         banca_id: effectiveBancaId,
@@ -84,12 +95,6 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       });
     }
 
-    const entitlements = await resolveBancaPlanEntitlements({
-      id: banca.id,
-      is_cotista: banca.is_cotista,
-      cotista_id: banca.cotista_id,
-    });
-
     // 2. Buscar produtos sem OR em string para evitar inconsistências entre ambientes
     const fetchProducts = async (
       kind: 'own' | 'distributor',
@@ -98,13 +103,15 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       const baseQuery = () => {
         let q = supabase
           .from('products')
-          .select(PRODUCT_FIELDS_MINIMAL, { count: 'estimated' })
+          .select(PRODUCT_FIELDS_MINIMAL, { count: 'exact' })
           .eq('active', true);
 
         if (kind === 'own') {
-          q = q.eq('banca_id', effectiveBancaId);
+          q = q.eq('banca_id', effectiveBancaId).is('distribuidor_id', null);
         } else {
-          q = q.not('distribuidor_id', 'is', null);
+          q = q
+            .not('distribuidor_id', 'is', null)
+            .or('stock_qty.is.null,stock_qty.gt.0');
         }
         return q;
       };
@@ -141,29 +148,60 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       return { rows, count: total || rows.length };
     };
 
-    const [ownProductsResult, distributorProductsResult] = await Promise.all([
-      fetchProducts('own', requestedLimit),
-      entitlements.canAccessDistributorCatalog
-        ? fetchProducts('distributor', requestedLimit)
-        : Promise.resolve({ rows: [] as any[], count: 0 }),
+    const [ownProductsResult, distributorProductsResult, fornecedorProducts] = await Promise.all([
+      fetchProducts('own', fetchWindow),
+      fetchProducts('distributor', fetchWindow),
+      listPublicWholesaleProductsForBanca(effectiveBancaId, fetchWindow),
     ]);
 
+    const ownProductsForExposure = ownProductsResult.rows;
+    const ownProductsVisibleCount = ownProductsResult.count || ownProductsResult.rows.length;
+
     const dedupMap = new Map<string, any>();
-    for (const p of ownProductsResult.rows) dedupMap.set(p.id, p);
+    for (const p of ownProductsForExposure) dedupMap.set(p.id, p);
     for (const p of distributorProductsResult.rows) {
       if (isDistributorProductOutOfStock(p)) continue;
       if (!dedupMap.has(p.id)) dedupMap.set(p.id, p);
     }
+    for (const product of fornecedorProducts) {
+      const id = `fornecedor:${product.id}`;
+      if (dedupMap.has(id)) continue;
+
+      const images = product.images.length > 0
+        ? product.images
+        : product.image_url
+          ? [product.image_url]
+          : [];
+
+      dedupMap.set(id, {
+        id,
+        source_id: product.id,
+        source: 'fornecedor',
+        is_fornecedor: true,
+        name: product.name,
+        price: product.price,
+        price_original: product.compare_at_price,
+        images,
+        stock_qty: product.available_quantity,
+        category_id: product.category_id,
+        category_name: product.category_name || 'Fornecedor Guia',
+        distribuidor_id: null,
+        pronta_entrega: product.availability_status === 'in_stock',
+        sob_encomenda: product.availability_status === 'on_demand',
+        pre_venda: product.availability_status === 'quote',
+        codigo_mercos: product.sku || product.supplier_reference || '',
+      });
+    }
 
     const produtosCombinados = Array.from(dedupMap.values())
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR'))
-      .slice(0, requestedLimit);
+      .slice(requestedOffset, requestedOffset + requestedLimit);
 
     // 3. Produtos combinados para processamento de markup/customização
     let produtos: any[] = [];
     let totalCount = 0;
     produtos = produtosCombinados;
-    totalCount = (ownProductsResult.count || 0) + (distributorProductsResult.count || 0);
+    totalCount = ownProductsVisibleCount + (distributorProductsResult.count || 0) + fornecedorProducts.length;
 
     // 4. Modo rápido: retornar produtos sem processamento adicional
     if (fastMode) {
@@ -179,6 +217,9 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         pre_venda: p.pre_venda ?? false,
         status: 'available',
         is_distribuidor: !!p.distribuidor_id,
+        is_fornecedor: p.is_fornecedor === true,
+        source: p.source || (p.is_fornecedor ? 'fornecedor' : undefined),
+        source_id: p.source_id,
         codigo_mercos: p.codigo_mercos,
       }));
 
@@ -187,6 +228,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         banca_id: effectiveBancaId,
         total: totalCount || produtos.length,
         limit: requestedLimit,
+        offset: requestedOffset,
         products: fastProducts,
         fast_mode: true,
       });
@@ -194,6 +236,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     // 5. Modo completo: buscar customizações e markup
     const produtosCarregados = produtos || [];
+    const produtosParaPrecificacao = produtosCarregados.filter((produto) => produto.is_fornecedor !== true);
 
     // Coletar category_ids dos produtos de distribuidores para buscar nomes
     const distribuidorCategoryIds = [...new Set(
@@ -221,7 +264,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         custom_stock_enabled?: boolean | null;
         custom_stock_qty?: number | null;
       }>({
-        products: produtosCarregados,
+        products: produtosParaPrecificacao,
         customFields: 'product_id, enabled, custom_price, custom_description, custom_status, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty',
         customBancaId: effectiveBancaId,
         includeAllBancaCustomizationsWhenLarge: true,
@@ -277,7 +320,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         categoryName = bancaCategoryMap.get(produto.category_id);
       }
       if (!categoryName) {
-        categoryName = produto.distribuidor_id ? CATEGORIA_DISTRIBUIDORES_NOME : 'Geral';
+        categoryName = produto.is_fornecedor ? 'Fornecedor Guia' : produto.distribuidor_id ? CATEGORIA_DISTRIBUIDORES_NOME : 'Geral';
       }
       
       let images = produto.images || [];
@@ -319,6 +362,9 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         pre_venda: custom?.custom_pre_venda ?? produto.pre_venda ?? false,
         status: customStatus,
         is_distribuidor: !!produto.distribuidor_id,
+        is_fornecedor: produto.is_fornecedor === true,
+        source: produto.source || (produto.is_fornecedor ? 'fornecedor' : undefined),
+        source_id: produto.source_id,
         codigo_mercos: produto.codigo_mercos,
       };
     }).filter(Boolean); // Remove nulos (desabilitados)
@@ -328,10 +374,11 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       banca_id: effectiveBancaId,
       is_cotista: partnerLinked,
       partner_linked: partnerLinked,
-      can_access_distributor_catalog: entitlements.canAccessDistributorCatalog,
-      partner_catalog_access: entitlements.canAccessDistributorCatalog,
+      can_access_distributor_catalog: true,
+      partner_catalog_access: true,
       total: totalCount || produtos.length,
       limit: requestedLimit,
+      offset: requestedOffset,
       products: mappedProducts,
       preview_mode: canPreview && !isPublishedMarketplaceBanca(banca),
     }, {
