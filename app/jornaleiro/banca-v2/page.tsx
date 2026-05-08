@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,7 +12,7 @@ import ImageUploader from '@/components/admin/ImageUploader';
 import FileUploadDragDrop from '@/components/common/FileUploadDragDrop';
 import JornaleiroPageHeading from '@/components/jornaleiro/JornaleiroPageHeading';
 import MarkdownEditor from '@/components/admin/MarkdownEditor';
-import { IconUser, IconClock, IconBuilding, IconLink } from '@tabler/icons-react';
+import { IconUser, IconClock, IconBuilding, IconLink, IconClipboardCheck } from '@tabler/icons-react';
 import { maskCPFOrCNPJ } from '@/lib/masks';
 import {
   DEFAULT_BANCA_ABOUT_TEMPLATE,
@@ -144,11 +145,25 @@ const bancaSchema = z.object({
 });
 
 type BancaFormData = z.infer<typeof bancaSchema>;
+type ProfileTab = 'jornaleiro' | 'banca' | 'func' | 'social' | 'setup';
+
+const PROFILE_TABS: Array<{
+  id: ProfileTab;
+  label: string;
+  Icon: typeof IconUser;
+}> = [
+  { id: 'jornaleiro', label: 'Jornaleiro', Icon: IconUser },
+  { id: 'banca', label: 'Banca', Icon: IconBuilding },
+  { id: 'func', label: 'Funcionamento', Icon: IconClock },
+  { id: 'social', label: 'Social Mídia', Icon: IconLink },
+  { id: 'setup', label: 'Setup Operacional', Icon: IconClipboardCheck },
+];
 
 export default function BancaV2Page() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
-  const tabParam = searchParams?.get('tab') as 'jornaleiro' | 'banca' | 'func' | 'social' | null;
+  const rawTabParam = searchParams?.get('tab');
+  const tabParam = PROFILE_TABS.some((tab) => tab.id === rawTabParam) ? rawTabParam as ProfileTab : null;
   const bancaIdParam = (searchParams?.get('banca') || '').trim() || null;
   const queryClient = useQueryClient();
   const [formKey, setFormKey] = useState<number>(() => Date.now());
@@ -162,9 +177,7 @@ export default function BancaV2Page() {
   const [avatarImages, setAvatarImages] = useState<string[]>([]);
   const [imagesChanged, setImagesChanged] = useState(false);
   const [tpuUploadMessage, setTpuUploadMessage] = useState('');
-  const [activeTab, setActiveTab] = useState<'jornaleiro' | 'banca' | 'func' | 'social'>(
-    bancaIdParam ? 'banca' : 'jornaleiro'
-  );
+  const [activeTab, setActiveTab] = useState<ProfileTab>(bancaIdParam ? 'banca' : 'jornaleiro');
 
   useEffect(() => {
     if (tabParam) {
@@ -303,6 +316,23 @@ export default function BancaV2Page() {
       }
 
       return res.json();
+    },
+    staleTime: 0,
+    enabled: status === 'authenticated',
+  });
+
+  const { data: statsResp } = useQuery({
+    queryKey: ['jornaleiroStatsForSetup'],
+    queryFn: async () => {
+      const res = await fetch('/api/jornaleiro/stats', {
+        cache: 'no-store',
+        credentials: 'include',
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || 'Erro ao carregar estatísticas da banca');
+      }
+      return json.data as { produtosAtivos?: number; pedidosPendentes?: number };
     },
     staleTime: 0,
     enabled: status === 'authenticated',
@@ -624,6 +654,47 @@ export default function BancaV2Page() {
     saveMutation.mutate(data);
   };
 
+  const watchedHours = watch('hours') || [];
+  const hasBranding = coverImages.some(Boolean) || avatarImages.some(Boolean);
+  const hasOpeningHours = watchedHours.some((day: any) => day?.open);
+  const hasContactChannel = Boolean(watch('contact.whatsapp') || watch('profile.phone') || session?.user?.email);
+  const hasProducts = Number(statsResp?.produtosAtivos || 0) > 0;
+  const setupItems = [
+    {
+      id: 'branding',
+      title: 'Personalize a banca',
+      description: hasBranding ? 'Logo ou capa adicionadas.' : 'Adicione logo e capa para transmitir confiança.',
+      done: hasBranding,
+      actionLabel: hasBranding ? 'Revisar' : 'Adicionar',
+      onClick: () => setActiveTab('banca'),
+    },
+    {
+      id: 'hours',
+      title: 'Defina seu horário',
+      description: hasOpeningHours ? 'Horários configurados.' : 'Informe os dias e horários em que sua banca funciona.',
+      done: hasOpeningHours,
+      actionLabel: hasOpeningHours ? 'Ajustar' : 'Configurar',
+      onClick: () => setActiveTab('func'),
+    },
+    {
+      id: 'contact',
+      title: 'Confirme seu atendimento',
+      description: hasContactChannel ? 'Contato principal disponível.' : 'Cadastre WhatsApp ou telefone para receber pedidos.',
+      done: hasContactChannel,
+      actionLabel: hasContactChannel ? 'Atualizar' : 'Informar',
+      onClick: () => setActiveTab('social'),
+    },
+  ];
+  const completedSetupCount = setupItems.filter((item) => item.done).length + (hasProducts ? 1 : 0);
+  const setupPercent = Math.round((completedSetupCount / 4) * 100);
+  const lifecycle = bancaData?.lifecycle || {
+    label: bancaData?.approved && bancaData?.active !== false ? 'Banca publicada' : 'Cadastro em preparação',
+    description:
+      bancaData?.approved && bancaData?.active !== false
+        ? 'A banca está aprovada, ativa e visível para os clientes no marketplace.'
+        : 'Complete o setup operacional para avançar a publicação da banca.',
+  };
+
   if (status === 'loading' || isLoading) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -659,56 +730,45 @@ export default function BancaV2Page() {
         }
       />
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4 overflow-hidden relative z-30">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center max-w-full min-w-0 overflow-hidden items-stretch">
-          <button
-            type="button"
-            onClick={() => setActiveTab('jornaleiro')}
-            className={`min-w-0 flex flex-col items-center gap-2 p-3 rounded-md transition-colors ${activeTab === 'jornaleiro' ? 'text-[#ff5c00]' : 'text-gray-600 hover:text-[#ff5c00]'}`}
-          >
-            <span className={`shrink-0 h-10 w-10 rounded-full grid place-items-center border ${activeTab === 'jornaleiro' ? 'bg-[#ff5c00] text-white border-orange-200 ring-4 ring-orange-100' : 'bg-white text-gray-600 border-gray-300'}`}>
-              <IconUser size={18} />
-            </span>
-            <span className={`text-sm truncate max-w-[9rem] ${activeTab === 'jornaleiro' ? 'font-semibold' : ''}`}>Jornaleiro</span>
-          </button>
+      <div className="border-b border-gray-200">
+        <div
+          role="tablist"
+          aria-label="Seções do perfil e publicação"
+          className="-mb-px flex min-w-0 gap-2 overflow-x-auto"
+        >
+          {PROFILE_TABS.map(({ id, label, Icon }) => {
+            const isActive = activeTab === id;
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('banca')}
-            className={`min-w-0 flex flex-col items-center gap-2 p-3 rounded-md transition-colors ${activeTab === 'banca' ? 'text-[#ff5c00]' : 'text-gray-600 hover:text-[#ff5c00]'}`}
-          >
-            <span className={`shrink-0 h-10 w-10 rounded-full grid place-items-center border ${activeTab === 'banca' ? 'bg-[#ff5c00] text-white border-orange-200 ring-4 ring-orange-100' : 'bg-white text-gray-600 border-gray-300'}`}>
-              <IconBuilding size={18} />
-            </span>
-            <span className={`text-sm truncate max-w-[9rem] ${activeTab === 'banca' ? 'font-semibold' : ''}`}>Banca</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('func')}
-            className={`min-w-0 flex flex-col items-center gap-2 p-3 rounded-md transition-colors ${activeTab === 'func' ? 'text-[#ff5c00]' : 'text-gray-600 hover:text-[#ff5c00]'}`}
-          >
-            <span className={`shrink-0 h-10 w-10 rounded-full grid place-items-center border ${activeTab === 'func' ? 'bg-[#ff5c00] text-white border-orange-200 ring-4 ring-orange-100' : 'bg-white text-gray-600 border-gray-300'}`}>
-              <IconClock size={18} />
-            </span>
-            <span className={`text-sm truncate max-w-[9rem] ${activeTab === 'func' ? 'font-semibold' : ''}`}>Funcionamento</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('social')}
-            className={`min-w-0 flex flex-col items-center gap-2 p-3 rounded-md transition-colors ${activeTab === 'social' ? 'text-[#ff5c00]' : 'text-gray-600 hover:text-[#ff5c00]'}`}
-          >
-            <span className={`shrink-0 h-10 w-10 rounded-full grid place-items-center border ${activeTab === 'social' ? 'bg-[#ff5c00] text-white border-orange-200 ring-4 ring-orange-100' : 'bg-white text-gray-600 border-gray-300'}`}>
-              <IconLink size={18} />
-            </span>
-            <span className={`text-sm truncate max-w-[9rem] ${activeTab === 'social' ? 'font-semibold' : ''}`}>Social Midia</span>
-          </button>
+            return (
+              <button
+                key={id}
+                id={`profile-tab-${id}`}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                aria-controls={`profile-panel-${id}`}
+                onClick={() => setActiveTab(id)}
+                className={`inline-flex h-12 shrink-0 items-center gap-2 border-b-2 px-4 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5c00]/30 ${
+                  isActive
+                    ? 'border-[#ff5c00] text-[#ff5c00]'
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-900'
+                }`}
+              >
+                <Icon size={18} stroke={1.8} />
+                <span>{label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Panel: Jornaleiro */}
-      <div className={activeTab === 'jornaleiro' ? 'block' : 'hidden'}>
+      <div
+        id="profile-panel-jornaleiro"
+        role="tabpanel"
+        aria-labelledby="profile-tab-jornaleiro"
+        className={activeTab === 'jornaleiro' ? 'block' : 'hidden'}
+      >
       <div className="rounded-xl border border-gray-200 bg-white p-6">
         <h2 className="mb-4 text-lg font-semibold">Dados do Jornaleiro</h2>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -806,7 +866,12 @@ export default function BancaV2Page() {
 
       <form key={formKey} onSubmit={handleSubmit(onSubmit as any)} className="space-y-6 max-w-full overflow-x-hidden" autoComplete="off">
         {/* Nome da Banca */}
-        <div className={`${activeTab === 'banca' ? 'block' : 'hidden'} rounded-xl border border-gray-200 bg-white p-6`}>
+        <div
+          id="profile-panel-banca"
+          role="tabpanel"
+          aria-labelledby="profile-tab-banca"
+          className={`${activeTab === 'banca' ? 'block' : 'hidden'} rounded-xl border border-gray-200 bg-white p-6`}
+        >
           <h2 className="mb-4 text-lg font-semibold">Informações Básicas</h2>
           
           <div className="space-y-4">
@@ -893,7 +958,12 @@ export default function BancaV2Page() {
         </div>
 
         {/* Contato */}
-        <div className={`${activeTab === 'social' ? 'block' : 'hidden'} rounded-xl border border-gray-200 bg-white p-6`}>
+        <div
+          id="profile-panel-social"
+          role="tabpanel"
+          aria-labelledby="profile-tab-social"
+          className={`${activeTab === 'social' ? 'block' : 'hidden'} rounded-xl border border-gray-200 bg-white p-6`}
+        >
           <h2 className="mb-4 text-lg font-semibold">Contato e Redes Sociais</h2>
           
           <div className="grid gap-4 sm:grid-cols-2">
@@ -943,6 +1013,150 @@ export default function BancaV2Page() {
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 placeholder="https://maps.google.com/... ou https://g.page/..."
               />
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="profile-panel-setup"
+          role="tabpanel"
+          aria-labelledby="profile-tab-setup"
+          className={`${activeTab === 'setup' ? 'block' : 'hidden'} space-y-4`}
+        >
+          <div className="rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50 via-white to-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <div className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#ff5c00] shadow-sm">
+                  Setup operacional
+                </div>
+                <h2 className="mt-3 text-2xl font-semibold text-gray-900">Checklist inicial da banca</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+                  Revise os pontos básicos para manter a banca pronta para publicação, atendimento e vendas no marketplace.
+                </p>
+              </div>
+
+              <div className="w-full rounded-2xl border border-gray-200 bg-white p-4 shadow-sm lg:max-w-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Checklist inicial</span>
+                  <span className="text-sm font-semibold text-gray-700">{setupPercent}%</span>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
+                  <div className="h-full rounded-full bg-[#ff5c00]" style={{ width: `${setupPercent}%` }} />
+                </div>
+                <p className="mt-2 text-sm text-gray-600">
+                  {completedSetupCount}/4 passos concluídos para a base da banca.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {setupItems.map((item) => (
+                <div
+                  key={item.id}
+                  className={`rounded-2xl border p-4 shadow-sm ${
+                    item.done ? 'border-green-200 bg-green-50/70' : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                        item.done ? 'bg-green-600 text-white' : 'bg-orange-100 text-[#ff5c00]'
+                      }`}
+                    >
+                      {item.done ? (
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m5 13 4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <span className="text-sm font-semibold">
+                          {item.id === 'contact' ? '3' : item.id === 'hours' ? '2' : '1'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-semibold text-gray-900">{item.title}</h3>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
+                            item.done ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-[#ff5c00]'
+                          }`}
+                        >
+                          {item.done ? 'Concluído' : 'Pendente'}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-gray-600">{item.description}</p>
+                      <button
+                        type="button"
+                        onClick={item.onClick}
+                        className="mt-3 inline-flex items-center text-sm font-semibold text-[#ff5c00] hover:opacity-80"
+                      >
+                        {item.actionLabel}
+                        <svg className="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className={`rounded-2xl border p-4 shadow-sm ${hasProducts ? 'border-green-200 bg-green-50/70' : 'border-gray-200 bg-white'}`}>
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                      hasProducts ? 'bg-green-600 text-white' : 'bg-orange-100 text-[#ff5c00]'
+                    }`}
+                  >
+                    {hasProducts ? (
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m5 13 4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <span className="text-sm font-semibold">4</span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-semibold text-gray-900">Cadastre o primeiro produto</h3>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
+                          hasProducts ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-[#ff5c00]'
+                        }`}
+                      >
+                        {hasProducts ? 'Concluído' : 'Pendente'}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {hasProducts ? 'Sua vitrine já tem produtos.' : 'Crie pelo menos um item para começar a vender.'}
+                    </p>
+                    <Link
+                      href={hasProducts ? '/jornaleiro/produtos' : '/jornaleiro/produtos/create'}
+                      className="mt-3 inline-flex items-center text-sm font-semibold text-[#ff5c00] hover:opacity-80"
+                    >
+                      {hasProducts ? 'Ver produtos' : 'Cadastrar'}
+                      <svg className="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-900 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <h3 className="text-base font-semibold">{lifecycle.label}</h3>
+                  <p className="mt-1">{lifecycle.description}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('banca')}
+                  className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-4 py-2 font-semibold text-[#ff5c00] shadow-sm ring-1 ring-inset ring-current/10 hover:opacity-90"
+                >
+                  Revisar cadastro
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1110,7 +1324,12 @@ export default function BancaV2Page() {
         </div>
 
         {/* Horários */}
-        <div className={`${activeTab === 'func' ? 'block' : 'hidden'} rounded-xl border border-gray-200 bg-white p-6`}>
+        <div
+          id="profile-panel-func"
+          role="tabpanel"
+          aria-labelledby="profile-tab-func"
+          className={`${activeTab === 'func' ? 'block' : 'hidden'} rounded-xl border border-gray-200 bg-white p-6`}
+        >
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Horários de funcionamento</h2>
             <span className="text-xs text-gray-500">Informe horário de abertura e fechamento para cada dia</span>
@@ -1198,7 +1417,7 @@ export default function BancaV2Page() {
         )}
 
         {/* Botões */}
-        <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4">
+        <div className={`${activeTab === 'setup' ? 'hidden' : 'flex'} items-center justify-between rounded-xl border border-gray-200 bg-white p-4`}>
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"

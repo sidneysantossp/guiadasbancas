@@ -1,4 +1,4 @@
-import { getDistribuidorAccessibleBancas, type DistribuidorAccessibleBanca } from "@/lib/distribuidor-access";
+import type { DistribuidorAccessibleBanca } from "@/lib/distribuidor-access";
 import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -43,9 +43,37 @@ export function canPreviewMarketplaceBanca(input: MarketplaceBancaPreviewInput |
   return false;
 }
 
+function normalizeCoordinate(value: number | string | null | undefined) {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toDistributorCatalogBanca(banca: PublishedMarketplaceBanca): DistribuidorAccessibleBanca {
+  return {
+    id: banca.id,
+    name: banca.name,
+    address: banca.address ?? null,
+    whatsapp: banca.whatsapp ?? null,
+    phone: banca.phone ?? null,
+    cover_image: banca.cover_image ?? null,
+    active: banca.active ?? null,
+    approved: banca.approved ?? null,
+    created_at: banca.created_at ?? "",
+    lat: normalizeCoordinate(banca.lat),
+    lng: normalizeCoordinate(banca.lng),
+    is_cotista: banca.is_cotista ?? null,
+    cotista_id: banca.cotista_id ?? null,
+    contact_phone: banca.whatsapp ?? banca.phone ?? null,
+    can_access_distributor_catalog: true,
+    plan_type: null,
+    is_legacy_cotista_linked: isLegacyCotistaLinked(banca),
+  };
+}
+
 export async function getPublishedDistributorCatalogBancas(): Promise<DistribuidorAccessibleBanca[]> {
-  const bancas = await getDistribuidorAccessibleBancas();
-  return bancas.filter((banca) => isPublishedMarketplaceBanca(banca));
+  const bancas = await getPublishedMarketplaceBancas();
+  return bancas.map(toDistributorCatalogBanca);
 }
 
 export type PublishedMarketplaceBanca = PublicBancaVisibilityInput & {
@@ -55,9 +83,11 @@ export type PublishedMarketplaceBanca = PublicBancaVisibilityInput & {
   lng?: number | string | null;
   user_id?: string | null;
   address?: string | null;
+  phone?: string | null;
   cover_image?: string | null;
   profile_image?: string | null;
   whatsapp?: string | null;
+  created_at?: string | null;
 };
 
 export async function getPublishedMarketplaceBancas(): Promise<PublishedMarketplaceBanca[]> {
@@ -68,7 +98,7 @@ export async function getPublishedMarketplaceBancas(): Promise<PublishedMarketpl
   while (true) {
     const { data, error } = await supabaseAdmin
       .from("bancas")
-      .select("id, name, user_id, address, cover_image, profile_image, whatsapp, lat, lng, active, approved, is_cotista, cotista_id")
+      .select("id, name, user_id, address, phone, cover_image, profile_image, whatsapp, lat, lng, active, approved, is_cotista, cotista_id, created_at")
       .eq("active", true)
       .eq("approved", true)
       .range(from, from + pageSize - 1);
@@ -92,7 +122,7 @@ export async function getActiveMarketplaceBancas(): Promise<PublishedMarketplace
   while (true) {
     const { data, error } = await supabaseAdmin
       .from("bancas")
-      .select("id, name, user_id, address, cover_image, profile_image, whatsapp, lat, lng, active, approved, is_cotista, cotista_id")
+      .select("id, name, user_id, address, phone, cover_image, profile_image, whatsapp, lat, lng, active, approved, is_cotista, cotista_id, created_at")
       .eq("active", true)
       .range(from, from + pageSize - 1);
 
@@ -108,6 +138,6 @@ export async function getActiveMarketplaceBancas(): Promise<PublishedMarketplace
 }
 
 export async function getActiveDistributorCatalogBancas(): Promise<DistribuidorAccessibleBanca[]> {
-  const bancas = await getDistribuidorAccessibleBancas();
-  return bancas.filter((banca) => banca.active !== false);
+  const bancas = await getActiveMarketplaceBancas();
+  return bancas.map(toDistributorCatalogBanca);
 }

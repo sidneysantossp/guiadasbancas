@@ -3,8 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { buildBancaHref } from "@/lib/slug";
+import { formatBancaName } from "@/lib/format-banca-name";
 import { loadStoredLocation } from "@/lib/location";
 import { useEffect, useState } from "react";
+import { getOptimizedPublicImageUrl } from "@/lib/optimized-public-image-url";
 
 export type Props = {
   id: string;
@@ -19,28 +21,54 @@ export type Props = {
   featured?: boolean;
   closeTimeLabel?: string;
   description?: string;
+  ctaLabel?: string;
+  campaignVariant?: "default" | "worldCupStickers";
 };
 
-export default function BankCard({ id, name, address, distanceKm, rating = 4.8, imageUrl, profileImageUrl, openNow = true, categories = [], featured = false, closeTimeLabel, description }: Props) {
-  const badge = typeof distanceKm === "number"
-    ? (distanceKm! > 3 ? "+3Km" : `${Math.max(1, Math.round(distanceKm!))}Km`)
-    : undefined;
+export default function BankCard({
+  id,
+  name,
+  address,
+  distanceKm,
+  rating = 4.8,
+  imageUrl,
+  profileImageUrl,
+  openNow = true,
+  categories = [],
+  featured = false,
+  closeTimeLabel,
+  description,
+  ctaLabel,
+  campaignVariant = "default",
+}: Props) {
+  const displayName = formatBancaName(name);
+  const isWorldCupCampaign = campaignVariant === "worldCupStickers";
+  const actionLabel = ctaLabel ?? (isWorldCupCampaign ? "Falar com a banca agora" : "Ver Banca");
   const [loc, setLoc] = useState<any>(null);
   useEffect(() => {
     try { setLoc(loadStoredLocation()); } catch {}
   }, []);
-  const distanceLabel = typeof distanceKm === 'number' ? (distanceKm > 3 ? '+3Km' : `${Math.max(1, Math.round(distanceKm))}Km`) : undefined;
   // Usar placeholder se imageUrl for vazio, undefined ou string vazia
   const [coverSrc, setCoverSrc] = useState<string>(imageUrl && imageUrl.trim() ? imageUrl : "/placeholder/banca-cover.svg");
   const [avatarSrc, setAvatarSrc] = useState<string>(profileImageUrl && profileImageUrl.trim() ? profileImageUrl : "/placeholder/banca-avatar.svg");
+  const optimizedCoverSrc = getOptimizedPublicImageUrl(coverSrc, {
+    width: 520,
+    height: 340,
+    quality: 72,
+  });
+  const optimizedAvatarSrc = getOptimizedPublicImageUrl(avatarSrc, {
+    width: 96,
+    height: 96,
+    quality: 70,
+  });
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg transition-transform transition-shadow duration-200 hover:shadow-xl hover:-translate-y-0.5">
       <div className="relative h-44 w-full p-2">
         <div className="relative h-full w-full overflow-hidden rounded-xl">
           <Image
-            src={coverSrc || "/placeholder/banca-cover.svg"}
-            alt={name}
+            src={optimizedCoverSrc || coverSrc || "/placeholder/banca-cover.svg"}
+            alt={displayName}
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 700px"
@@ -78,18 +106,31 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
         }
         <div className="mt-2 flex items-center gap-2 min-w-0">
           <div className="relative h-9 w-9 overflow-hidden rounded-full bg-white ring-2 ring-gray-200 p-1">
-            <Image src={avatarSrc} alt={name} fill className="object-cover" sizes="36px" unoptimized onError={() => setAvatarSrc("/placeholder/banca-avatar.svg")} />
+            <Image src={optimizedAvatarSrc || avatarSrc} alt={displayName} fill className="object-cover" sizes="36px" unoptimized onError={() => setAvatarSrc("/placeholder/banca-avatar.svg")} />
           </div>
-          <h3 className="text-base font-semibold leading-snug line-clamp-2">{name}</h3>
+          <h3 className="text-base font-semibold leading-snug line-clamp-2">{displayName}</h3>
         </div>
         {/* Descrição curta logo abaixo do título */}
         {description && (
           <div className="mt-1 text-[12px] text-gray-700 line-clamp-2">{description}</div>
         )}
+        {isWorldCupCampaign && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+              Contato direto
+            </span>
+            <span className="inline-flex items-center rounded-md bg-[#fff3ec] px-2 py-1 text-[11px] font-semibold text-[#ff5c00]">
+              Alta procura
+            </span>
+            <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700">
+              Consulte estoque
+            </span>
+          </div>
+        )}
         {/* Ver no Mapa abaixo do nome, alinhado ao início dos badges de categorias (sem indent) */}
         <div className="mt-2 flex items-center">
           <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${address}`)}`}
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${displayName} ${address}`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-[12px] text-black hover:underline"
@@ -117,8 +158,8 @@ export default function BankCard({ id, name, address, distanceKm, rating = 4.8, 
 
         {/* Ações */}
         <div className="mt-3">
-          <Link href={(buildBancaHref(name, id, loc) as any)} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white hover:opacity-95">
-            Ver Banca
+          <Link href={(buildBancaHref(name, id, loc) as any)} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white hover:opacity-95">
+            {actionLabel}
           </Link>
         </div>
       </div>

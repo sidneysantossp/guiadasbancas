@@ -4,6 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
+import {
+  getOptimizedPublicImageSrcSet,
+  getOptimizedPublicImageUrl,
+} from "@/lib/optimized-public-image-url";
 // Removido next/image - usando img nativo para evitar falhas de otimização em produção
 
 type HeroSlide = {
@@ -290,32 +294,69 @@ export default function FullBanner({ bancaId, initialSlides, initialConfig }: Fu
 
   const safeIndex = effectiveSlides.length > 0 ? index % effectiveSlides.length : 0;
   const slide = effectiveSlides[safeIndex];
-  const currentImageUrl = slide?.imageUrl;
+  const currentImageUrl = getOptimizedPublicImageUrl(slide?.imageUrl, {
+    width: 1600,
+    height: config.heightDesktop || DEFAULT_CONFIG.heightDesktop,
+    quality: 78,
+  });
+  const currentImageSrcSet = getOptimizedPublicImageSrcSet(
+    slide?.imageUrl,
+    [768, 1200, 1600],
+    {
+      height: config.heightDesktop || DEFAULT_CONFIG.heightDesktop,
+      quality: 78,
+    }
+  );
   const nextImageUrl =
     effectiveSlides.length > 1
-      ? effectiveSlides[(safeIndex + 1) % effectiveSlides.length]?.imageUrl
+      ? getOptimizedPublicImageUrl(effectiveSlides[(safeIndex + 1) % effectiveSlides.length]?.imageUrl, {
+          width: 1200,
+          height: config.heightDesktop || DEFAULT_CONFIG.heightDesktop,
+          quality: 74,
+        })
       : null;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const preloadTargets = [currentImageUrl, nextImageUrl].filter(
-      (value): value is string => typeof value === "string" && value.length > 0
-    );
+    if (!currentImageUrl) return;
 
-    const preloaders = preloadTargets.map((src) => {
-      const image = new window.Image();
-      image.decoding = "sync";
-      image.fetchPriority = "high";
-      image.src = src;
-      return image;
-    });
+    const currentImage = new window.Image();
+    currentImage.decoding = "async";
+    currentImage.fetchPriority = "high";
+    currentImage.src = currentImageUrl;
+
+    let nextImage: HTMLImageElement | null = null;
+    let idleId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const preloadNext = () => {
+      if (!nextImageUrl) return;
+      nextImage = new window.Image();
+      nextImage.decoding = "async";
+      nextImage.fetchPriority = "low";
+      nextImage.src = nextImageUrl;
+    };
+
+    if ("requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(preloadNext, { timeout: 1800 });
+    } else {
+      timeoutId = globalThis.setTimeout(preloadNext, 1200);
+    }
 
     return () => {
-      preloaders.forEach((image) => {
-        image.onload = null;
-        image.onerror = null;
-      });
+      currentImage.onload = null;
+      currentImage.onerror = null;
+      if (nextImage) {
+        nextImage.onload = null;
+        nextImage.onerror = null;
+      }
+      if (idleId !== null && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId !== null) {
+        globalThis.clearTimeout(timeoutId);
+      }
     };
   }, [currentImageUrl, nextImageUrl]);
 
@@ -379,11 +420,13 @@ export default function FullBanner({ bancaId, initialSlides, initialConfig }: Fu
           />
           {/* Background image */}
           <img
-            src={slide.imageUrl}
+            src={currentImageUrl || slide.imageUrl}
+            srcSet={currentImageSrcSet}
+            sizes="100vw"
             alt={slide.imageAlt}
             loading="eager"
             fetchPriority="high"
-            decoding="sync"
+            decoding="async"
             draggable={false}
             className="absolute inset-0 w-full h-full object-cover"
           />

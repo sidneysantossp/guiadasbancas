@@ -3,9 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { buildBancaHref } from "@/lib/slug";
+import { formatBancaName } from "@/lib/format-banca-name";
 import { useEffect, useMemo, useState } from "react";
 import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
 import type { Route } from "next";
+import { getOptimizedPublicImageUrl } from "@/lib/optimized-public-image-url";
 
 function Stars({ value }: { value: number }) {
   const full = Math.floor(value);
@@ -47,7 +49,18 @@ function BancaCard({
   profileImage?: string;
   priority?: boolean;
 }) {
+  const displayName = formatBancaName(name);
   const href = buildBancaHref(name, id, uf) as Route;
+  const optimizedCover = getOptimizedPublicImageUrl(cover, {
+    width: 520,
+    height: 340,
+    quality: 72,
+  });
+  const optimizedProfileImage = getOptimizedPublicImageUrl(profileImage, {
+    width: 96,
+    height: 96,
+    quality: 70,
+  });
 
   // Formatar distância: arredondar para 1 casa decimal, vírgula como separador, "KM" maiúsculo
   // Ocultar distâncias > 100km (indica erro de localização)
@@ -70,14 +83,13 @@ function BancaCard({
       <div className="relative h-44 w-full p-2">
         <div className="relative h-full w-full overflow-hidden rounded-xl">
           {cover ? (
-            <Image 
-              src={cover} 
-              alt={name} 
-              fill 
+            <Image
+              src={optimizedCover || cover}
+              alt={displayName}
+              fill
               sizes="(max-width: 640px) 88vw, (max-width: 1024px) 45vw, 30vw"
-              className="object-cover" 
-              priority={priority}
-              loading={priority ? undefined : "lazy"}
+              className="object-cover"
+              loading="lazy"
               unoptimized
             />
           ) : (
@@ -112,7 +124,15 @@ function BancaCard({
         <div className="mt-2 flex items-center gap-2 min-w-0">
           <div className="relative h-9 w-9 overflow-hidden rounded-full bg-white ring-2 ring-gray-200 shrink-0">
             {profileImage ? (
-              <Image src={profileImage} alt={name} fill className="object-cover" sizes="36px" unoptimized />
+              <Image
+                src={optimizedProfileImage || profileImage}
+                alt={displayName}
+                fill
+                className="object-cover"
+                sizes="36px"
+                loading="lazy"
+                unoptimized
+              />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-orange-100">
                 <svg viewBox="0 0 24 24" className="h-5 w-5 text-orange-400" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -121,7 +141,7 @@ function BancaCard({
               </div>
             )}
           </div>
-          <h3 className="text-base font-semibold leading-snug line-clamp-2">{name}</h3>
+          <h3 className="text-base font-semibold leading-snug line-clamp-2">{displayName}</h3>
         </div>
 
         {/* Endereço */}
@@ -137,7 +157,7 @@ function BancaCard({
               e.preventDefault();
               e.stopPropagation();
               window.open(
-                `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${address}`)}`,
+                `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${displayName} ${address}`)}`,
                 "_blank"
               );
             }}
@@ -174,10 +194,12 @@ interface NearbyBancasProps {
 }
 
 export default function NearbyBancas({ bancas }: NearbyBancasProps) {
+  const [mounted, setMounted] = useState(false);
   const [loc, setLoc] = useState<UserLocation | null>(null);
   
   useEffect(() => {
     setLoc(loadStoredLocation());
+    setMounted(true);
     
     const handleLocationUpdate = (e: CustomEvent<UserLocation>) => {
       setLoc(e.detail);
@@ -189,7 +211,6 @@ export default function NearbyBancas({ bancas }: NearbyBancasProps) {
   
   const uf = (loc?.state || "SP").toLowerCase();
 
-  // Ordenar por distância (menor primeiro)
   const nearbyItems = useMemo(() => {
     if (!bancas || !bancas.length) return [];
     
@@ -208,15 +229,18 @@ export default function NearbyBancas({ bancas }: NearbyBancasProps) {
       };
     });
 
-    // Ordenar por distância (menor primeiro), depois por rating
+    if (!loc) {
+      return mapped
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+        .slice(0, 12);
+    }
+
     return mapped
-      .filter(b => b.distance !== null) // Só mostrar bancas com coordenadas
+      .filter(b => b.distance !== null)
       .sort((a, b) => {
-        // Primeiro por distância
         if (a.distance != null && b.distance != null) {
           return a.distance - b.distance;
         }
-        // Fallback por rating
         return (b.rating || 0) - (a.rating || 0);
       })
       .slice(0, 12);
@@ -254,8 +278,7 @@ export default function NearbyBancas({ bancas }: NearbyBancasProps) {
   const prev = () => setIndex((i) => Math.max(0, i - 1));
   const next = () => setIndex((i) => i + 1);
 
-  // Não renderizar se não houver bancas ou localização
-  if (!normalized.length || !loc) {
+  if (!mounted || !normalized.length) {
     return null;
   }
 
@@ -265,7 +288,9 @@ export default function NearbyBancas({ bancas }: NearbyBancasProps) {
         <div className="relative z-10 mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg sm:text-xl font-semibold">Bancas perto de você</h2>
-            <p className="text-sm text-gray-600">Ordenadas pela menor distância</p>
+            <p className="text-sm text-gray-600">
+              {loc ? "Ordenadas pela menor distância" : "Ative sua localização para ordenar pela menor distância"}
+            </p>
           </div>
           <Link href="/bancas-perto-de-mim" className="text-[var(--color-primary)] text-sm font-medium hover:underline">Ver todas</Link>
         </div>

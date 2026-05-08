@@ -810,9 +810,9 @@ export async function createJornaleiroBanca(params: {
   }
 
   try {
-    await ensureBancaHasOnboardingPlan(created.id);
+    await ensureBancaHasPremiumTrialAccess(created.id);
   } catch (error: any) {
-    console.warn("[JornaleiroBancas] Falha ao garantir plano inicial:", error?.message || error);
+    console.warn("[JornaleiroBancas] Falha ao garantir Premium inicial:", error?.message || error);
   }
 
   return {
@@ -894,7 +894,6 @@ export async function createPrimaryJornaleiroBanca(params: {
   const body = params.input;
   const banca = body?.banca || body;
   const profile = body?.profile || {};
-  const activatePremiumTrial = body?.activate_premium_trial === true;
 
   if (!banca?.name) {
     throw new Error("INVALID_BANCA_NAME");
@@ -903,11 +902,7 @@ export async function createPrimaryJornaleiroBanca(params: {
   const existing = await loadActiveJornaleiroBanca(params.userId);
   if (existing) {
     try {
-      if (activatePremiumTrial) {
-        await ensureBancaHasPremiumTrialAccess(existing.id);
-      } else {
-        await ensureBancaHasOnboardingPlan(existing.id);
-      }
+      await ensureBancaHasOnboardingPlan(existing.id);
     } catch (error: any) {
       console.warn("[JornaleiroBancas] Falha ao garantir plano inicial da banca existente:", error?.message || error);
     }
@@ -1021,13 +1016,9 @@ export async function createPrimaryJornaleiroBanca(params: {
   }
 
   try {
-    if (activatePremiumTrial) {
-      await ensureBancaHasPremiumTrialAccess(created.id);
-    } else {
-      await ensureBancaHasOnboardingPlan(created.id);
-    }
+    await ensureBancaHasPremiumTrialAccess(created.id);
   } catch (error: any) {
-    console.warn("[JornaleiroBancas] Falha ao garantir plano inicial da nova banca:", error?.message || error);
+    console.warn("[JornaleiroBancas] Falha ao garantir Premium inicial da nova banca:", error?.message || error);
   }
 
   return {

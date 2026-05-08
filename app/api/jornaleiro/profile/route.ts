@@ -100,6 +100,13 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    if (message === "INVALID_DOCUMENT") {
+      return NextResponse.json(
+        { error: "CPF ou CNPJ inválido" },
+        { status: 400, headers: privateNoStoreHeaders }
+      );
+    }
+
     console.error("Erro ao atualizar perfil:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },

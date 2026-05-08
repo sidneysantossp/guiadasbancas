@@ -3,6 +3,7 @@ import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
 import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
+import { RECURRING_BILLING_ENABLED } from "@/lib/jornaleiro-billing";
 
 export type TimelinePeriod = "7d" | "30d" | "90d" | "all";
 
@@ -376,26 +377,26 @@ export async function loadJornaleiroIntelligence(params: {
           "/jornaleiro/produtos"
         )
       : null,
-    entitlements.subscription?.status === "pending"
+    RECURRING_BILLING_ENABLED && entitlements.subscription?.status === "pending"
       ? buildAlert(
           "pending-plan",
           "info",
-          "Seu novo plano aguarda a primeira cobranca",
-          "O upgrade ja foi contratado, mas os novos recursos so liberam depois da confirmacao do pagamento.",
-          "/jornaleiro/meu-plano"
+          "Acesso em revisão",
+          "A cobrança recorrente por plano está pausada. Fale com a equipe para revisar a liberação da banca.",
+          "/jornaleiro/dashboard"
         )
       : null,
-    entitlements.subscription?.status === "overdue"
+    RECURRING_BILLING_ENABLED && entitlements.subscription?.status === "overdue"
       ? buildAlert(
           "overdue-plan",
           entitlements.overdueFeaturesLocked ? "critical" : "warning",
           entitlements.overdueFeaturesLocked
-            ? "Recursos pagos estao pausados"
-            : "Existe cobranca em aberto do plano",
+            ? "Acesso em revisão"
+            : "Acesso em revisão",
           entitlements.overdueFeaturesLocked
-            ? "Regularize a assinatura para recuperar os recursos pagos da banca."
-            : "Ainda existe carencia operacional, mas vale regularizar antes de perder recursos do plano.",
-          "/jornaleiro/meu-plano"
+            ? "Fale com a equipe do Guia das Bancas para revisar a liberação da banca."
+            : "Fale com a equipe do Guia das Bancas para revisar a liberação da banca.",
+          "/jornaleiro/dashboard"
         )
       : null,
     !entitlements.isLegacyCotistaLinked && !banca.tpu_url
@@ -451,22 +452,22 @@ export async function loadJornaleiroIntelligence(params: {
           "create-campaign",
           entitlements.canAccessCampaigns
             ? "Experimente sua primeira campanha"
-            : "Ative o Premium para rodar campanhas",
+            : "Fale com o suporte sobre divulgação",
           entitlements.canAccessCampaigns
             ? "Com catalogo minimamente estruturado, campanhas podem aumentar descoberta dos melhores itens."
-            : "Sua banca ja tem base suficiente para escalar descoberta. O Premium libera campanhas para acelerar alcance e venda.",
+            : "Campanhas e divulgações serão tratadas individualmente pelo suporte do Guia das Bancas.",
           entitlements.canAccessCampaigns
             ? "/jornaleiro/campanhas"
-            : "/jornaleiro/meu-plano?source=campanhas",
+            : "/jornaleiro/dashboard",
           5
         )
       : null,
     !entitlements.canAccessDistributorCatalog && activeOwnProducts.length >= 5
       ? buildRecommendation(
           "unlock-distributors",
-          "Ative o Premium para liberar distribuidores",
+          "Organize o acesso parceiro com a equipe",
           "Com a operação básica organizada, o próximo ganho de mix vem do catálogo dos distribuidores e da ativação em massa de produtos na banca.",
-          "/jornaleiro/meu-plano?source=distribuidores",
+          "/jornaleiro/dashboard",
           6
         )
       : null,

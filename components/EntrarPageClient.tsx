@@ -15,9 +15,25 @@ type EntrarPageClientProps = {
   audience?: "cliente" | "distribuidor";
 };
 
-function resolveDashboardByRole(role?: string): string {
-  if (role === "jornaleiro" || role === "seller") return "/jornaleiro/dashboard";
-  if (role === "admin") return "/admin/dashboard";
+function resolvePostLoginDestination(params: {
+  audience: "cliente" | "distribuidor";
+  redirectTarget: string | null | undefined;
+  fromCheckout: boolean;
+}) {
+  if (params.audience === "distribuidor") {
+    return "/distribuidor/dashboard";
+  }
+
+  if (params.redirectTarget) {
+    return params.redirectTarget;
+  }
+
+  if (params.fromCheckout) {
+    return "/checkout";
+  }
+
+  // Se o usuário escolheu explicitamente o acesso de cliente,
+  // mantemos o contexto comprador mesmo que a conta também tenha papel de jornaleiro.
   return "/minha-conta/inteligencia";
 }
 
@@ -80,29 +96,16 @@ function EntrarPageContent({ audience = "cliente" }: EntrarPageClientProps) {
     }
 
     if (status === "authenticated" && session?.user) {
-      const role = (session.user as any)?.role;
-
       // Se houver sessão NextAuth ativa, limpar autenticação antiga de distribuidor
       clearDistribuidorClientAuth();
-
-      // Cliente comum - respeitar redirect explicitamente
-      if (redirectTarget) {
-        router.replace(redirectTarget);
-      } else if (fromCheckout) {
-        router.replace("/checkout");
-      } else {
-        router.replace(resolveDashboardByRole(role));
-      }
+      router.replace(
+        resolvePostLoginDestination({
+          audience,
+          redirectTarget,
+          fromCheckout,
+        }),
+      );
       return;
-    }
-
-    // Sessão local do distribuidor (não usa NextAuth)
-    if (status === "unauthenticated") {
-      void hydrateDistribuidorClientAuth().then((distribuidor) => {
-        if (distribuidor?.id) {
-          router.replace("/distribuidor/dashboard");
-        }
-      });
     }
   }, [audience, status, session, router, redirectTarget, fromCheckout]);
 

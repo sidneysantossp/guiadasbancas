@@ -5,6 +5,9 @@ import { supabaseAdmin } from '@/lib/supabase';
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
+const MAX_IMAGE_SIZE = 4 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']);
+
 // POST /api/admin/produtos/upload-imagens-massa
 // Upload em massa de imagens com vinculação automática por código Mercos
 export async function POST(req: NextRequest) {
@@ -17,6 +20,29 @@ export async function POST(req: NextRequest) {
     
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'Nenhuma imagem enviada' }, { status: 400 });
+    }
+
+    const invalidFiles = files.filter((file) => !ALLOWED_IMAGE_TYPES.has(file.type));
+    if (invalidFiles.length > 0) {
+      return NextResponse.json(
+        {
+          error: `Tipo de imagem não suportado: ${invalidFiles.map((file) => file.name).join(', ')}. Envie JPG, PNG, WebP ou GIF.`,
+        },
+        { status: 415 }
+      );
+    }
+
+    const oversizedFiles = files.filter((file) => file.size > MAX_IMAGE_SIZE);
+    if (oversizedFiles.length > 0) {
+      return NextResponse.json(
+        {
+          error: `Imagem muito grande: ${oversizedFiles
+            .map((file) => `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`)
+            .join(', ')}. Máximo permitido: 4 MB por imagem.`,
+          oversizedFiles: oversizedFiles.map((file) => ({ name: file.name, size: file.size })),
+        },
+        { status: 413 }
+      );
     }
 
     const results = {

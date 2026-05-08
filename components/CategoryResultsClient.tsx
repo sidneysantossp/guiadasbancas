@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { buildBancaHref } from "@/lib/slug";
 import { buildPublicProductPath } from "@/lib/product-url";
+import { formatBancaName } from "@/lib/format-banca-name";
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
@@ -205,10 +206,11 @@ function ClosedBadge() {
 
 function BancaCard({ b, km, loc, description }: { b: Banca; km: number | null; loc: UserLocation | null; description?: string }) {
   const distanceLabel = km == null ? null : (km > 3 ? "+3Km" : `${Math.max(1, Math.round(km))}Km`);
+  const displayName = formatBancaName(b.name);
   return (
     <Link href={(buildBancaHref(b.name, b.id, loc) as Route)} className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition block">
       <div className="relative h-36 w-full">
-        <img src={b.cover} alt={b.name} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+        <img src={b.cover} alt={displayName} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
         <div className="absolute left-2 bottom-2">{b.open ? <OpenBadge /> : <ClosedBadge />}</div>
       </div>
       <div className="p-3">
@@ -220,9 +222,9 @@ function BancaCard({ b, km, loc, description }: { b: Banca; km: number | null; l
         {/* Avatar + nome */}
         <div className="mt-2 flex items-center gap-2">
           <div className="h-8 w-8 rounded-full bg-white p-1 shadow ring-1 ring-gray-200 overflow-hidden">
-            <img src={b.avatar || "https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=200&auto=format&fit=crop"} alt={b.name} className="h-full w-full object-cover rounded-full" loading="lazy" />
+            <img src={b.avatar || "https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=200&auto=format&fit=crop"} alt={displayName} className="h-full w-full object-cover rounded-full" loading="lazy" />
           </div>
-          <div className="text-[13px] font-semibold leading-snug line-clamp-2">{b.name}</div>
+          <div className="text-[13px] font-semibold leading-snug line-clamp-2">{displayName}</div>
         </div>
         {/* Descrição curta abaixo do título */}
         {description && (

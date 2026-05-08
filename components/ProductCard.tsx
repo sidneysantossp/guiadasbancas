@@ -2,6 +2,7 @@
 
 // Removido next/image - usando img nativo para evitar falhas em produção
 import Link from "next/link";
+import { buildWhatsAppUrl } from "@/lib/whatsapp-url";
 
 export type ProductCardProps = {
   id: string | number;
@@ -75,7 +76,7 @@ export default function ProductCard({ id, name, price, priceOriginal, image, hre
         <div className="mt-2 flex items-center justify-between">
           {phone ? (
             <a
-              href={`https://wa.me/${String(phone).replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Tenho interesse no produto: ${name} (R$ ${price.toFixed(2)}).`)}`}
+              href={buildWhatsAppUrl(phone, `Olá! Tenho interesse no produto: ${name} (R$ ${price.toFixed(2)}).`)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 rounded-md border border-[#25D366]/30 bg-[#25D366]/10 px-2 py-1 text-[11px] font-medium text-[#25D366] hover:bg-[#25D366]/15"

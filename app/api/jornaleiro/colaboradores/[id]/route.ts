@@ -31,9 +31,9 @@ function mapCollaboratorByIdError(error: any, operation: "read" | "write") {
     return NextResponse.json(
       {
         success: false,
-        error: "Colaboradores fazem parte do plano Premium",
+        error: "A gestão de colaboradores ainda não está liberada para esta banca.",
         code: "PREMIUM_REQUIRED_COLLABORATORS",
-        upgrade_url: "/jornaleiro/meu-plano?source=colaboradores",
+        upgrade_url: "/jornaleiro/dashboard",
       },
       { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );

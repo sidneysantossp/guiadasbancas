@@ -76,6 +76,18 @@ export type AsaasSubscription = {
 };
 
 async function getAsaasConfig(): Promise<{ apiKey: string; baseUrl: string; environment: AsaasEnvironment }> {
+  const envApiKey = process.env.ASAAS_API_KEY?.trim();
+  const envEnvironment = (process.env.ASAAS_ENVIRONMENT || process.env.ASAAS_ENV || "").trim() as AsaasEnvironment;
+
+  if (envApiKey) {
+    const environment: AsaasEnvironment = envEnvironment === "sandbox" ? "sandbox" : "production";
+    const baseUrl = environment === "production"
+      ? "https://api.asaas.com/v3"
+      : "https://sandbox.asaas.com/api/v3";
+
+    return { apiKey: envApiKey, baseUrl, environment };
+  }
+
   const { data: settings } = await supabaseAdmin
     .from("system_settings")
     .select("key, value")

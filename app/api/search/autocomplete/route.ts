@@ -118,6 +118,19 @@ export async function GET(req: NextRequest) {
 
     const results: SearchResultItem[] = [];
     const productSearchRank = new Map<string, number>();
+    const computeBancaSearchRank = (banca: any): number => {
+      const normalizedName = normalizeForSearch(String(banca?.name || ''));
+      const normalizedAddress = normalizeForSearch(String(banca?.address || ''));
+      const normalizedBlob = `${normalizedName} ${normalizedAddress}`.trim();
+
+      if (!normalizedQuery) return Number.POSITIVE_INFINITY;
+      if (normalizedName === normalizedQuery) return 0;
+      if (normalizedName.startsWith(normalizedQuery)) return 1;
+      if (normalizedBlob.split(/\s+/).some((w) => w.startsWith(normalizedQuery))) return 2;
+      if (tokenTerms.length > 1 && tokenTerms.every((t) => normalizedBlob.includes(t))) return 3;
+      if (normalizedBlob.includes(normalizedQuery)) return 4;
+      return 50000;
+    };
 
     // BUSCA FUZZY: SEMPRE aplicar Fuse.js para tolerância a erros de digitação
     // Ex: "amisterdam" encontra "amsterdam", "amyster" encontra "amsterdam"
@@ -320,19 +333,28 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Buscar bancas apenas se necessário
-    if (results.length < limit) {
-      const remainingLimit = limit - results.length;
-      const bancaOr = (searchVariants.length ? searchVariants : terms)
-        .map((t) => `name.ilike.%${t}%`)
-        .join(',');
+    // Buscar bancas sempre. Produtos de distribuidores geram uma entrada por banca
+    // elegível antes da deduplicação; se usarmos results.length aqui, bancas exatas
+    // podem ficar de fora mesmo quando o dropdown final mostra poucos itens.
+    const genericBancaTerms = new Set(['banca', 'bancas', 'jornaleiro', 'jornaleiros']);
+    const specificBancaTokenTerms = tokenTerms.filter((t) => t.length >= 3 && !genericBancaTerms.has(t));
+    const bancaSearchTerms = Array.from(new Set([
+      ...(searchVariants.length ? searchVariants : terms),
+      ...(specificBancaTokenTerms.length > 0 ? specificBancaTokenTerms : tokenTerms),
+    ]))
+      .map(sanitizeForIlike)
+      .filter((t) => t.length >= 2);
+    const bancaOr = bancaSearchTerms
+      .flatMap((t) => [`name.ilike.%${t}%`, `address.ilike.%${t}%`])
+      .join(',');
 
+    if (bancaOr) {
       let bancasSearchQuery = supabase
         .from('bancas')
         .select('id, name, cover_image, profile_image, address, lat, lng')
         .eq('active', true)
         .or(bancaOr)
-        .limit(remainingLimit);
+        .limit(Math.max(limit, 12));
 
       if (bancaId) {
         bancasSearchQuery = bancasSearchQuery.eq('id', bancaId);
@@ -358,7 +380,7 @@ export async function GET(req: NextRequest) {
             banca_id: b.id,
             address: b.address,
             distance,
-            search_rank: 50000,
+            search_rank: computeBancaSearchRank(b),
             banca_lat: b.lat ? parseFloat(b.lat) : undefined,
             banca_lng: b.lng ? parseFloat(b.lng) : undefined
           });
@@ -368,22 +390,23 @@ export async function GET(req: NextRequest) {
 
     // Ordenação e deduplicação - priorizar relevância textual, depois distância
     results.sort((a, b) => {
-      // Produtos primeiro, depois bancas
-      if (a.type !== b.type) {
-        return a.type === 'product' ? -1 : 1;
-      }
-
       // PRIORIDADE 1: Relevância textual (match exato acima de fuzzy)
       const ar = typeof a.search_rank === 'number' ? a.search_rank : Number.POSITIVE_INFINITY;
       const br = typeof b.search_rank === 'number' ? b.search_rank : Number.POSITIVE_INFINITY;
       if (ar !== br) return ar - br;
 
-      // PRIORIDADE 2: Distância (mais próximo primeiro)
+      // PRIORIDADE 2: Bancas antes de produtos em empate de relevância. Isso evita
+      // que consultas como "banca vitrine" sejam ofuscadas por produtos fuzzy.
+      if (a.type !== b.type) {
+        return a.type === 'banca' ? -1 : 1;
+      }
+
+      // PRIORIDADE 3: Distância (mais próximo primeiro)
       const ad = typeof a.distance === 'number' ? a.distance : Number.POSITIVE_INFINITY;
       const bd = typeof b.distance === 'number' ? b.distance : Number.POSITIVE_INFINITY;
       if (ad !== bd) return ad - bd;
 
-      // PRIORIDADE 3: Desempate por nome
+      // PRIORIDADE 4: Desempate por nome
       const nameCmp = a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
       if (nameCmp !== 0) return nameCmp;
 

@@ -9,6 +9,7 @@ import StatusBadge from "@/components/admin/StatusBadge";
 import { useToast } from "@/components/admin/ToastProvider";
 import { useAuth } from "@/lib/auth/AuthContext";
 import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
+import { buildWhatsAppUrl } from "@/lib/whatsapp-url";
 
 const STATUS_FLOW = ["novo","confirmado","em_preparo","saiu_para_entrega","parcialmente_retirado","entregue"] as const;
 
@@ -320,9 +321,7 @@ export default function JornaleiroPedidosPage() {
             return;
           }
           const message = `Olá ${row.customer_name}! Sobre seu pedido #${row.id}`;
-          const phone = (row.customer_phone || '').replace(/\D/g, '').replace(/^55/, '');
-          const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
-          window.open(url, '_blank');
+          window.open(buildWhatsAppUrl(row.customer_phone, message), '_blank');
         }}
         className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${row.customer_phone ? 'text-green-600 hover:bg-green-50 hover:text-green-800' : 'cursor-not-allowed text-gray-400'}`}
         title={row.customer_phone ? "Enviar WhatsApp" : "Sem telefone cadastrado"}

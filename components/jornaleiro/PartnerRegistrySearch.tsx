@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { GUIDE_SUPPORT_WHATSAPP_NUMBER } from "@/lib/jornaleiro-marketing";
+import { buildWhatsAppUrl } from "@/lib/whatsapp-url";
 
 export type PartnerRegistryEntry = {
   id: string;
@@ -265,9 +266,10 @@ export default function PartnerRegistrySearch({
               {" "}
               Se voce acredita que sua banca ja faz parte da rede parceira, fale com o suporte no{" "}
               <a
-                href={`https://wa.me/${supportNumber.replace(/\D/g, "")}?text=${encodeURIComponent(
+                href={buildWhatsAppUrl(
+                  supportNumber,
                   "Oi! Nao encontrei meu cadastro comercial na rede parceira e preciso de ajuda."
-                )}`}
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-semibold text-[#ff5c00] underline"

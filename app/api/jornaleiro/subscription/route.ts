@@ -28,6 +28,7 @@ import {
 import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import { loadPrimaryOwnedBanca } from "@/lib/modules/jornaleiro/access";
+import { RECURRING_BILLING_ENABLED } from "@/lib/jornaleiro-billing";
 import { supabaseAdmin } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -72,6 +73,98 @@ async function waitForFirstSubscriptionPayment(asaasSubscriptionId: string) {
   }
 
   return null;
+}
+
+async function createOrUpdateOpenSubscription(params: {
+  bancaId: string;
+  planId: string;
+  status: "trial" | "pending";
+  asaasCustomerId: string;
+  currentPeriodEnd: string | null;
+}) {
+  const now = new Date().toISOString();
+  const { data: existingSubscription, error: existingError } = await supabaseAdmin
+    .from("subscriptions")
+    .select("id")
+    .eq("banca_id", params.bancaId)
+    .in("status", ["active", "trial", "pending", "overdue"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  if (existingSubscription?.id) {
+    const { data, error } = await supabaseAdmin
+      .from("subscriptions")
+      .update({
+        plan_id: params.planId,
+        status: params.status,
+        asaas_customer_id: params.asaasCustomerId,
+        current_period_start: now,
+        current_period_end: params.currentPeriodEnd,
+        cancelled_at: null,
+        cancel_reason: null,
+      })
+      .eq("id", existingSubscription.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("subscriptions")
+    .insert({
+      banca_id: params.bancaId,
+      plan_id: params.planId,
+      status: params.status,
+      asaas_customer_id: params.asaasCustomerId,
+      current_period_start: now,
+      current_period_end: params.currentPeriodEnd,
+    })
+    .select()
+    .single();
+
+  if (!error) {
+    return data;
+  }
+
+  if (error.code !== "23505") {
+    throw error;
+  }
+
+  const { data: concurrentSubscription, error: concurrentError } = await supabaseAdmin
+    .from("subscriptions")
+    .select("id")
+    .eq("banca_id", params.bancaId)
+    .in("status", ["active", "trial", "pending", "overdue"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (concurrentError) throw concurrentError;
+
+  const { data: updated, error: updateError } = await supabaseAdmin
+    .from("subscriptions")
+    .update({
+      plan_id: params.planId,
+      status: params.status,
+      asaas_customer_id: params.asaasCustomerId,
+      current_period_start: now,
+      current_period_end: params.currentPeriodEnd,
+      cancelled_at: null,
+      cancel_reason: null,
+    })
+    .eq("id", concurrentSubscription.id)
+    .select()
+    .single();
+
+  if (updateError) throw updateError;
+  return updated;
 }
 
 // GET - Obter assinatura atual do jornaleiro
@@ -179,6 +272,8 @@ export async function GET(request: NextRequest) {
           overdue_features_locked: entitlements.overdueFeaturesLocked,
           overdue_in_grace_period: entitlements.overdueInGracePeriod,
           overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
+          has_onboarding_premium_access: entitlements.hasOnboardingPremiumAccess,
+          onboarding_premium_ends_at: entitlements.onboardingPremiumEndsAt,
         },
         payments: payments || [],
         banca: {
@@ -241,6 +336,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: "Plano não encontrado" },
         { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
+    if (!RECURRING_BILLING_ENABLED && Number(plan.price || 0) > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "A cobrança recorrente por plano está pausada neste momento. Campanhas e divulgações serão tratadas individualmente pelo suporte.",
+          code: "RECURRING_BILLING_DISABLED",
+          upgrade_url: "/jornaleiro/dashboard",
+        },
+        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
       );
     }
 
@@ -378,24 +485,15 @@ export async function POST(request: NextRequest) {
       await removeSubscriptionBindingByAsaasId(previousBinding.asaasSubscriptionId);
     }
 
-    // Criar assinatura local pendente
-    const { data: subscription, error: subError } = await supabaseAdmin
-      .from("subscriptions")
-      .upsert({
-        banca_id: banca.id,
-        plan_id: plan.id,
-        status: trialDaysApplied > 0 ? "trial" : "pending",
-        asaas_customer_id: customer.id,
-        current_period_start: new Date().toISOString(),
-        current_period_end: trialDaysApplied > 0 ? addDaysToIso(trialDaysApplied) : null,
-      }, { onConflict: "banca_id" })
-      .select()
-      .single();
-
-    if (subError) throw subError;
-
     const dueDate = formatDueDate(undefined, trialDaysApplied > 0 ? trialDaysApplied : 3);
     const trialEndsAt = trialDaysApplied > 0 ? addDaysToIso(trialDaysApplied) : null;
+    const subscription = await createOrUpdateOpenSubscription({
+      bancaId: banca.id,
+      planId: plan.id,
+      status: trialDaysApplied > 0 ? "trial" : "pending",
+      asaasCustomerId: customer.id,
+      currentPeriodEnd: trialEndsAt,
+    });
     const requestedBillingType = String(billing_type || "PIX").toUpperCase();
     const normalizedBillingType: "BOLETO" | "PIX" | "CREDIT_CARD" =
       requestedBillingType === "BOLETO"
@@ -479,7 +577,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      const { error: subscriptionSyncError } = await supabaseAdmin
+      const { data: syncedSubscription, error: subscriptionSyncError } = await supabaseAdmin
         .from("subscriptions")
         .update({
           asaas_subscription_id: asaasSubscription.id,
@@ -487,10 +585,16 @@ export async function POST(request: NextRequest) {
           current_period_end: trialEndsAt,
           status: trialDaysApplied > 0 ? "trial" : "pending",
         })
-        .eq("id", subscription.id);
+        .eq("id", subscription.id)
+        .select()
+        .single();
 
       if (subscriptionSyncError) {
         throw subscriptionSyncError;
+      }
+
+      if (syncedSubscription) {
+        Object.assign(subscription, syncedSubscription);
       }
 
       await saveSubscriptionBinding({
@@ -500,6 +604,8 @@ export async function POST(request: NextRequest) {
         planId: plan.id,
         effectivePrice: pricing.effectivePrice,
         billingType: normalizedBillingType,
+        asaasCustomerId: customer.id,
+        status: trialDaysApplied > 0 ? "trial" : "pending",
         createdAt: new Date().toISOString(),
       });
 

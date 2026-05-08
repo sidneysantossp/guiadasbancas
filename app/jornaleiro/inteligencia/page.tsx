@@ -193,6 +193,15 @@ export default function JornaleiroInteligenciaPage() {
               <p className="mt-2 text-sm text-gray-600">
                 {banca.checklist_completed}/{banca.checklist_total} passos concluídos para a base da banca.
               </p>
+              <Link
+                href="/jornaleiro/banca-v2?tab=setup"
+                className="mt-3 inline-flex items-center text-sm font-semibold text-[#ff5c00] hover:opacity-80"
+              >
+                Abrir setup operacional
+                <svg className="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </div>
           </div>
         </div>
@@ -327,12 +336,12 @@ export default function JornaleiroInteligenciaPage() {
             <h2 className="text-lg font-semibold text-gray-900">Estado atual da banca</h2>
             <div className="mt-4 space-y-3 text-sm">
               <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-                <span className="text-gray-600">Plano em uso</span>
-                <span className="font-semibold text-gray-900">{plan.name}</span>
+                <span className="text-gray-600">Produtos próprios</span>
+                <span className="font-semibold text-gray-900">{summary.active_own_products}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-                <span className="text-gray-600">Status da assinatura</span>
-                <span className="font-semibold capitalize text-gray-900">{plan.subscription_status}</span>
+                <span className="text-gray-600">Campanha atual</span>
+                <span className="font-semibold text-gray-900">Lançamento coletivo</span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
                 <span className="text-gray-600">Cobertura do catálogo</span>

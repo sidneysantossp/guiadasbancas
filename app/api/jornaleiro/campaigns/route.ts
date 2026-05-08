@@ -30,9 +30,9 @@ function mapCampaignError(error: any) {
     return NextResponse.json(
       {
         success: false,
-        error: "Campanhas fazem parte do plano Premium",
+        error: "Campanhas serão organizadas pela equipe do Guia das Bancas nesta rodada de lançamento.",
         code: "PREMIUM_REQUIRED_CAMPAIGNS",
-        upgrade_url: "/jornaleiro/meu-plano?source=campanhas",
+        upgrade_url: "/jornaleiro/dashboard",
       },
       { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
     );

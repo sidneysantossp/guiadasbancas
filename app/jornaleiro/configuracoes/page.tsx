@@ -4,6 +4,7 @@ import { useState, useEffect, memo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import WhatsAppTemplates from "@/components/admin/WhatsAppTemplates";
+import MarkdownEditor from "@/components/admin/MarkdownEditor";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useToast } from "@/components/admin/ToastProvider";
 import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
@@ -106,12 +107,11 @@ const GeneralSettingsForm = memo(({
 
       <div>
         <label className="block text-sm font-medium mb-1">Descrição da Banca</label>
-        <textarea
-          rows={3}
+        <MarkdownEditor
           value={generalConfig.description}
-          onChange={(e) => setGeneralConfig({ ...generalConfig, description: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm sm:text-base"
+          onChange={(description) => setGeneralConfig({ ...generalConfig, description })}
           placeholder="Descreva sua banca..."
+          height={260}
         />
       </div>
 

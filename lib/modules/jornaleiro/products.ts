@@ -1,4 +1,5 @@
 import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
+import { formatWholesaleProduct, hasWholesaleAccessForBanca } from "@/lib/modules/atacado/service";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
 import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 import {
@@ -19,10 +20,10 @@ import { getNextPlanType } from "@/lib/plan-messaging";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const PRODUCT_LIMIT_UPGRADE_URL = "/jornaleiro/meu-plano?source=product-limit";
-const DISTRIBUTOR_CATALOG_UPGRADE_URL = "/jornaleiro/meu-plano?source=catalogo-distribuidor";
+const PRODUCT_LIMIT_UPGRADE_URL = "/jornaleiro/dashboard";
+const DISTRIBUTOR_CATALOG_UPGRADE_URL = "/jornaleiro/dashboard";
 const DISTRIBUTOR_CATALOG_MANAGE_UPGRADE_URL =
-  "/jornaleiro/meu-plano?source=catalogo-distribuidor-gerenciar";
+  "/jornaleiro/dashboard";
 
 async function ensureJornaleiroProductContext(
   userId: string,
@@ -56,7 +57,7 @@ function buildPlanLimitError(params: {
     entitlements.overdueFeaturesLocked && entitlements.subscription?.plan
       ? {
           success: false,
-          error: `Seu plano ${entitlements.subscription.plan.name} está com cobrança em aberto e os recursos avançados foram pausados após o período de carência.`,
+          error: "Este acesso precisa ser revisado pela equipe do Guia das Bancas.",
           code: "PLAN_OVERDUE_SUSPENDED",
           limit: entitlements.productLimit,
           currentCount,
@@ -68,7 +69,7 @@ function buildPlanLimitError(params: {
       : entitlements.paidFeaturesLockedUntilPayment && entitlements.requestedPlan
         ? {
             success: false,
-            error: `Seu upgrade para ${entitlements.requestedPlan.name} já foi iniciado. Assim que a primeira cobrança for paga, o novo limite será liberado.`,
+            error: "Este acesso precisa ser revisado pela equipe do Guia das Bancas.",
             code: "PLAN_PENDING_PAYMENT",
             limit: entitlements.productLimit,
             currentCount,
@@ -78,7 +79,7 @@ function buildPlanLimitError(params: {
           }
         : {
             success: false,
-            error: `Seu plano ${entitlements.plan?.name || "atual"} permite até ${entitlements.productLimit} produtos. Faça upgrade para continuar cadastrando.`,
+            error: `O catálogo desta banca permite até ${entitlements.productLimit} produtos próprios. Fale com a equipe do Guia das Bancas para ajustar a capacidade.`,
             code: "PLAN_PRODUCT_LIMIT_REACHED",
             limit: entitlements.productLimit,
             currentCount,
@@ -103,7 +104,7 @@ function buildPlanImageLimitError(params: {
     entitlements.overdueFeaturesLocked && entitlements.subscription?.plan
       ? {
           success: false,
-          error: `Seu plano ${entitlements.subscription.plan.name} está com cobrança em aberto e os recursos avançados foram pausados após o período de carência.`,
+          error: "Este acesso precisa ser revisado pela equipe do Guia das Bancas.",
           code: "PLAN_OVERDUE_SUSPENDED",
           limit: imageLimit,
           currentCount,
@@ -115,7 +116,7 @@ function buildPlanImageLimitError(params: {
       : entitlements.paidFeaturesLockedUntilPayment && entitlements.requestedPlan
         ? {
             success: false,
-            error: `Seu upgrade para ${entitlements.requestedPlan.name} já foi iniciado. Assim que a primeira cobrança for paga, o novo limite será liberado.`,
+            error: "Este acesso precisa ser revisado pela equipe do Guia das Bancas.",
             code: "PLAN_PENDING_PAYMENT",
             limit: imageLimit,
             currentCount,
@@ -125,7 +126,7 @@ function buildPlanImageLimitError(params: {
           }
         : {
             success: false,
-            error: `Seu plano ${entitlements.plan?.name || "atual"} permite até ${imageLimit} imagens por produto. Faça upgrade para continuar.`,
+            error: `O cadastro desta banca permite até ${imageLimit} imagens por produto. Fale com a equipe do Guia das Bancas para ajustar essa capacidade.`,
             code: "PLAN_IMAGE_LIMIT_REACHED",
             limit: imageLimit,
             currentCount,
@@ -148,14 +149,14 @@ function buildDistributorCatalogProductsError(
     mode === "read"
       ? {
           success: false,
-          error: "Seu plano atual não permite acessar produtos do catálogo de distribuidores.",
+          error: "O catálogo de distribuidores ainda não está liberado para esta banca.",
           code: "PLAN_DISTRIBUTOR_CATALOG_LOCKED",
           recommended_plan_type: "premium",
           upgrade_url: DISTRIBUTOR_CATALOG_UPGRADE_URL,
         }
       : {
           success: false,
-          error: "Seu plano atual não permite editar produtos do catálogo de distribuidores.",
+          error: "A edição do catálogo de distribuidores ainda não está liberada para esta banca.",
           code: "PLAN_DISTRIBUTOR_CATALOG_LOCKED",
           recommended_plan_type: "premium",
           upgrade_url: DISTRIBUTOR_CATALOG_MANAGE_UPGRADE_URL,
@@ -170,9 +171,9 @@ function buildDistributorCatalogProductsError(
 function buildFeaturedPlacementLockedError() {
   const payload = {
     success: false,
-    error: 'Destacar produtos na vitrine é um recurso do plano Premium.',
+    error: "Destacar produtos na vitrine ainda não está liberado para esta banca.",
     code: "PLAN_FEATURED_PLACEMENT_LOCKED",
-    upgrade_url: "/jornaleiro/meu-plano?source=destaque",
+    upgrade_url: "/jornaleiro/dashboard",
   };
 
   return Object.assign(new Error(String(payload.code)), {
@@ -185,6 +186,76 @@ function normalizeBooleanFilter(value: string | null) {
   if (value === "true") return true;
   if (value === "false") return false;
   return null;
+}
+
+async function listFornecedorProductsForBanca(params: {
+  bancaId: string;
+  filters: {
+    q?: string;
+    category?: string;
+    active?: boolean | null;
+  };
+}) {
+  if (params.filters.active === false) return [];
+
+  const allowed = await hasWholesaleAccessForBanca(params.bancaId);
+  if (!allowed) return [];
+
+  let query = supabaseAdmin
+    .from("own_wholesale_products")
+    .select("*, category:categories(id, name)")
+    .eq("active", true)
+    .eq("visible", true)
+    .order("name", { ascending: true });
+
+  const normalizedQuery = String(params.filters.q || "").trim();
+  if (normalizedQuery) {
+    query = query.or(`name.ilike.%${normalizedQuery}%,sku.ilike.%${normalizedQuery}%,supplier_reference.ilike.%${normalizedQuery}%`);
+  }
+
+  if (params.filters.category) {
+    query = query.eq("category_id", params.filters.category);
+  }
+
+  const { data, error } = await query.limit(normalizedQuery ? 200 : 100);
+  if (error) {
+    throw new Error(error.message || "Erro ao buscar produtos do fornecedor");
+  }
+
+  return ((data || []) as any[])
+    .map((row) => formatWholesaleProduct(row))
+    .filter((product) => product.visible_jornaleiro !== false)
+    .map((product) => {
+      const imageList = product.images.length > 0
+        ? product.images
+        : product.image_url
+          ? [product.image_url]
+          : [];
+
+      return {
+        id: `fornecedor:${product.id}`,
+        source_id: product.id,
+        source: "fornecedor",
+        is_fornecedor: true,
+        is_distribuidor: false,
+        name: product.name,
+        description: product.description,
+        category_id: product.category_id,
+        category_name: product.category_name || "Fornecedor Guia",
+        price: product.price,
+        cost_price: product.cost_price,
+        price_original: product.compare_at_price,
+        stock_qty: product.available_quantity,
+        track_stock: product.track_stock,
+        active: true,
+        images: imageList,
+        codigo_mercos: product.sku || product.supplier_reference || "",
+        pronta_entrega: product.availability_status === "in_stock",
+        sob_encomenda: product.availability_status === "on_demand",
+        pre_venda: product.availability_status === "quote",
+        updated_at: product.updated_at,
+      };
+    });
 }
 
 export async function listJornaleiroProducts(params: {
@@ -216,7 +287,7 @@ export async function listJornaleiroProducts(params: {
   const priceFilter = searchParams.get("priceFilter") || "";
   const statsOnly = searchParams.get("stats") === "true";
 
-  const [produtosBanca, distributorCatalog] = await Promise.all([
+  const [produtosBanca, distributorCatalog, fornecedorProducts] = await Promise.all([
     listOwnedCatalogProducts({
       bancaId: banca.id,
       filters: {
@@ -236,10 +307,18 @@ export async function listJornaleiroProducts(params: {
       canAccessCatalog: entitlements.canAccessDistributorCatalog,
       includeTotalCount: statsOnly,
     }),
+    listFornecedorProductsForBanca({
+      bancaId: banca.id,
+      filters: {
+        q,
+        category,
+        active,
+      },
+    }),
   ]);
 
   const ownedProducts = (produtosBanca || []).map((product) => normalizeOwnedProductRecord(product));
-  let allItems = [...ownedProducts, ...distributorCatalog.items];
+  let allItems = [...ownedProducts, ...distributorCatalog.items, ...fornecedorProducts];
 
   if (priceFilter === "personalizado") {
     allItems = allItems.filter((product: any) => {
@@ -255,7 +334,7 @@ export async function listJornaleiroProducts(params: {
 
   const totalReal =
     entitlements.canAccessDistributorCatalog && statsOnly
-      ? ownedProducts.length + distributorCatalog.totalAvailable
+      ? ownedProducts.length + distributorCatalog.totalAvailable + fornecedorProducts.length
       : allItems.length;
 
   return {
@@ -286,6 +365,7 @@ export async function listJornaleiroProducts(params: {
         ? distributorCatalog.totalAvailable
         : distributorCatalog.items.length,
       distribuidoresTotal: distributorCatalog.totalAvailable,
+      fornecedor: fornecedorProducts.length,
     },
     timestamp: new Date().toISOString(),
   };
@@ -309,7 +389,7 @@ export async function createJornaleiroProduct(params: {
       .is("distribuidor_id", null);
 
     if (error) {
-      throw new Error(error.message || "Não foi possível validar o limite do plano");
+      throw new Error(error.message || "Não foi possível validar a capacidade do catálogo");
     }
 
     const currentCount = count || 0;

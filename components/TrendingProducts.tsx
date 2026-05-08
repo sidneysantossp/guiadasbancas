@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Route } from "next";
 import { buildPublicProductPath } from "@/lib/product-url";
+import { getOptimizedPublicImageUrl } from "@/lib/optimized-public-image-url";
 
 export type TrendProduct = {
   id: string;
@@ -41,7 +42,7 @@ function FireIcon() {
   );
 }
 
-function TrendCard({ p }: { p: TrendProduct }) {
+function TrendCard({ p, eager = false }: { p: TrendProduct; eager?: boolean }) {
   const price = p.price ?? 0;
   const baseDiscount = typeof p.discountPercent === 'number' ? Math.round(p.discountPercent) : undefined;
   const inferredDiscount = p.priceOriginal && p.priceOriginal > price ? Math.round((1 - price / p.priceOriginal) * 100) : 0;
@@ -54,6 +55,12 @@ function TrendCard({ p }: { p: TrendProduct }) {
     : 'Banca Local';
 
   const href = buildPublicProductPath(p.name, p.banca_name, p.id, p.codigoMercos) as Route;
+  const imageSrc = getOptimizedPublicImageUrl(p.image, {
+    width: 360,
+    height: 360,
+    quality: 72,
+    resize: "contain",
+  });
 
   return (
     <div className="h-full rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">
@@ -61,10 +68,11 @@ function TrendCard({ p }: { p: TrendProduct }) {
         <div className="absolute inset-0 p-2">
           <div className="relative h-full w-full rounded-[14px] overflow-hidden">
             <img
-              src={p.image}
+              src={imageSrc || p.image}
               alt={p.name}
               className="absolute inset-0 w-full h-full object-contain bg-gray-50"
-              loading="lazy"
+              loading={eager ? "eager" : "lazy"}
+              decoding="async"
             />
             <Link
               href={href}
@@ -142,7 +150,7 @@ export default function TrendingProducts() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  const perView = w < 640 ? 2 : w < 1024 ? 2 : 5;
+  const perView = w < 480 ? 1 : w < 768 ? 2 : w < 1100 ? 2 : w < 1536 ? 3 : 4;
 
   const [index, setIndex] = useState(0);
   const [animating, setAnimating] = useState(true);
@@ -262,8 +270,8 @@ export default function TrendingProducts() {
               }}
             >
               {track.map((p, i) => (
-                <div key={`${p.id}-${i}`} style={{ flex: `0 0 calc(${100 / perView}% - 1rem)` }} className="shrink-0">
-                  <TrendCard p={p} />
+                <div key={`${p.id}-${i}`} style={{ flex: `0 0 calc((100% - ${(perView - 1) * 1}rem) / ${perView})` }} className="shrink-0 min-w-0">
+                  <TrendCard p={p} eager={i < perView} />
                 </div>
               ))}
             </div>

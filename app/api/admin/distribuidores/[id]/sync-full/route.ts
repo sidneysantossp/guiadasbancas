@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
+import {
+  chooseDistribuidorProductCategoryId,
+  loadDistribuidorCategorySyncState,
+  type DistribuidorCategorySyncState,
+} from '@/lib/modules/distribuidor/category-mapping';
 
 // Aumentar timeout para 5 minutos (máximo no Vercel Pro)
 export const maxDuration = 300;
@@ -80,6 +85,8 @@ export async function POST(
       }]);
     }
 
+    const categoryState = await loadDistribuidorCategorySyncState(distribuidorId);
+
     // Inicializar API Mercos
     const mercosApi = new MercosAPI({
       applicationToken: distribuidor.application_token,
@@ -127,7 +134,7 @@ export async function POST(
 
         // Processar lote em paralelo (mais rápido)
         const batchResults = await Promise.allSettled(
-          produtos.map(produto => processProduct(supabase, produto, distribuidorId))
+          produtos.map(produto => processProduct(supabase, produto, distribuidorId, categoryState))
         );
 
         // Contar resultados
@@ -248,7 +255,8 @@ export async function POST(
 async function processProduct(
   supabase: any,
   produto: any,
-  distribuidorId: string
+  distribuidorId: string,
+  categoryState: DistribuidorCategorySyncState
 ): Promise<{ isNew: boolean }> {
   // Primeiro verificar se já existe para determinar se é novo ou atualização
   // IMPORTANTE: Buscar também as imagens para preservá-las
@@ -265,9 +273,13 @@ async function processProduct(
   const existingImages = existing?.images || [];
   const hasExistingImages = Array.isArray(existingImages) && existingImages.length > 0;
   
-  // PRESERVAR categoria existente - não sobrescrever se já tiver categoria definida
-  const existingCategory = existing?.category_id;
-  const hasValidCategory = existingCategory && existingCategory !== CATEGORIA_SEM_CATEGORIA_ID;
+  const finalCategoryId = chooseDistribuidorProductCategoryId({
+    mercosCategoryId: produto?.categoria_id,
+    categoryMap: categoryState.categoryMap,
+    existingCategoryId: existing?.category_id,
+    validCategoryIds: categoryState.validCategoryIds,
+    fallbackCategoryId: CATEGORIA_SEM_CATEGORIA_ID,
+  });
 
   const productData = {
     name: produto.nome,
@@ -280,8 +292,8 @@ async function processProduct(
     distribuidor_id: distribuidorId,
     mercos_id: produto.id,
     codigo_mercos: produto.codigo || null,
-    // PRESERVAR categoria: manter a existente se for válida
-    category_id: hasValidCategory ? existingCategory : CATEGORIA_SEM_CATEGORIA_ID,
+    category_id: finalCategoryId,
+    categoria_mercos: produto.categoria_id ? String(produto.categoria_id) : null,
     origem: 'mercos',
     sincronizado_em: new Date().toISOString(),
     track_stock: true,

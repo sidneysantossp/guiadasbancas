@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/sync-mercos",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/subscriptions/downgrade-expired",
+      "schedule": "30 3 * * *"
     }
   ],
   "functions": {

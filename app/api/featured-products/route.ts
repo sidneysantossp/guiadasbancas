@@ -133,8 +133,7 @@ export async function GET(req: NextRequest) {
     const byId: Record<string, any> = Object.fromEntries(
       (prods || [])
         .filter((p: any) => {
-          if (!p.distribuidor_id) return false;
-          if (isDistributorProductOutOfStock(p)) return false;
+          if (p.distribuidor_id && isDistributorProductOutOfStock(p)) return false;
           return true;
         })
         .map(p => [p.id, p])

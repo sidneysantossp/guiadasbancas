@@ -14,9 +14,12 @@ import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
 import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
 import { getPlanUpgradeHint } from "@/lib/plan-messaging";
 import { buildPublicProductPath } from "@/lib/product-url";
+import { RECURRING_BILLING_ENABLED } from "@/lib/jornaleiro-billing";
 
 type ProdutoListItem = {
   id: string;
+  source?: "banca" | "distribuidor" | "fornecedor";
+  source_id?: string;
   name: string;
   category_id: string;
   category_name?: string;
@@ -111,11 +114,13 @@ export default function JornaleiroProdutosPage() {
       setRows(
         items.map((p: any) => ({
           id: p.id,
+          source: p.source || (p.is_fornecedor ? "fornecedor" : p.is_distribuidor ? "distribuidor" : "banca"),
+          source_id: p.source_id,
           name: p.name,
           category_id: p.category_id,
-          category_name: categoryMap[p.category_id] || p.category_id,
+          category_name: p.category_name || categoryMap[p.category_id] || p.category_id,
           price: Number(p.price ?? 0),
-          cost_price: p.cost_price ? Number(p.cost_price) : undefined,
+          cost_price: p.cost_price != null ? Number(p.cost_price) : undefined,
           price_original: p.price_original ? Number(p.price_original) : undefined,
           stock_qty: Number(p.stock_qty ?? 0),
           active: Boolean(p.active),
@@ -136,7 +141,7 @@ export default function JornaleiroProdutosPage() {
       const res = await fetch("/api/jornaleiro/products?stats=true", { cache: "no-store" });
       const json = await res.json();
       if (!res.ok || json?.success === false) {
-        throw new Error(json?.error || "Erro ao carregar limites do plano");
+        throw new Error(json?.error || "Erro ao carregar a capacidade do catálogo");
       }
       setPlanName(json?.plan?.name || "Free");
       setPlanType(json?.entitlements?.plan_type || json?.plan?.type || "free");
@@ -149,7 +154,7 @@ export default function JornaleiroProdutosPage() {
       setOverdueGraceEndsAt(json?.entitlements?.overdue_grace_ends_at || null);
       setContractedPlanName(json?.subscription?.plan?.name || null);
     } catch (e: any) {
-      console.error("[Produtos] Erro ao carregar consumo do plano:", e);
+      console.error("[Produtos] Erro ao carregar capacidade do catálogo:", e);
     }
   };
 
@@ -167,6 +172,8 @@ export default function JornaleiroProdutosPage() {
   const usagePercent = productLimit && productLimit > 0 ? Math.min((ownProductsCount / productLimit) * 100, 100) : null;
   const shouldSuggestUpgrade = Boolean(productLimit && usagePercent && usagePercent >= 80);
   const limitReached = Boolean(productLimit && ownProductsCount >= productLimit);
+  const billingActionBlocked = RECURRING_BILLING_ENABLED && (paidFeaturesLockedUntilPayment || overdueFeaturesLocked);
+  const billingLimitReached = RECURRING_BILLING_ENABLED && limitReached;
   const activeProducts = useMemo(() => rows.filter((row) => row.active).length, [rows]);
   const inactiveProducts = useMemo(() => rows.filter((row) => !row.active).length, [rows]);
   const productsWithoutImage = useMemo(() => rows.filter((row) => !row.image).length, [rows]);
@@ -178,7 +185,7 @@ export default function JornaleiroProdutosPage() {
     productLimit,
     currentCount: ownProductsCount,
   });
-  const productUpgradeHref = "/jornaleiro/meu-plano?source=product-limit" as Route;
+  const productUpgradeHref = "/jornaleiro/dashboard" as Route;
 
   const toggleActive = async (row: ProdutoListItem) => {
     try {
@@ -223,6 +230,11 @@ export default function JornaleiroProdutosPage() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="font-medium leading-6 text-gray-900">{r.name}</div>
+            {r.source === "fornecedor" ? (
+              <div className="mt-1 inline-flex rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-700">
+                Marketplace
+              </div>
+            ) : null}
             {r.codigo_mercos && (
               <div className="mt-0.5 text-xs font-mono text-gray-500">{r.codigo_mercos}</div>
             )}
@@ -293,26 +305,26 @@ export default function JornaleiroProdutosPage() {
       <JornaleiroPageHeading
         title="Produtos"
         actions={
-          paidFeaturesLockedUntilPayment || overdueFeaturesLocked ? (
+          billingActionBlocked ? (
             <Link
               href={productUpgradeHref}
               className="inline-flex w-full items-center justify-center rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 sm:w-auto"
             >
-              Ver cobrança do plano
+              Voltar ao painel
             </Link>
-          ) : limitReached ? (
+          ) : billingLimitReached ? (
             <Link
               href={productUpgradeHref}
               className="inline-flex w-full items-center justify-center rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 sm:w-auto"
             >
-              Fazer upgrade do plano
+              Ver orientações
             </Link>
           ) : (
             <Link
-              href={(limitReached ? productUpgradeHref : "/jornaleiro/produtos/create") as Route}
+              href={(billingLimitReached ? productUpgradeHref : "/jornaleiro/produtos/create") as Route}
               className="inline-flex w-full items-center justify-center rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 sm:w-auto"
             >
-              {limitReached ? "Ver meu plano" : "Novo produto"}
+              {billingLimitReached ? "Ver orientações" : "Novo produto"}
             </Link>
           )
         }
@@ -341,12 +353,12 @@ export default function JornaleiroProdutosPage() {
           </p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Capacidade do plano</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Capacidade do catálogo</div>
           <div className="mt-3 text-2xl font-semibold text-gray-900">
             {productLimit ? `${ownProductsCount}/${productLimit}` : ownProductsCount}
           </div>
           <p className="mt-1 text-sm text-gray-500">
-            {productLimit ? "Uso atual do espaço do seu catálogo próprio." : "Seu plano atual não informou limite numérico."}
+            {productLimit ? "Uso atual do espaço do seu catálogo próprio." : "Nenhum limite operacional informado."}
           </p>
         </div>
       </div>
@@ -356,16 +368,13 @@ export default function JornaleiroProdutosPage() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-700">
-                Plano atual
-              </span>
-              <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#ff5c00]">
-                {planName}
+                Cadastro da banca
               </span>
             </div>
             <h2 className="mt-3 text-lg font-semibold text-gray-900">Saúde do catálogo próprio</h2>
             <p className="mt-1 text-sm text-gray-600">
-              Use este bloco para manter o catálogo publicável: produtos ativos, imagem, estoque e espaço disponível no
-              plano. O objetivo aqui não é só cadastrar item, é garantir que a banca consiga vender sem ruído.
+              Use este bloco para manter o catálogo publicável: produtos ativos, imagem, estoque e espaço disponível.
+              O objetivo aqui não é só cadastrar item, é garantir que a banca consiga vender sem ruído.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link
@@ -402,9 +411,9 @@ export default function JornaleiroProdutosPage() {
               </div>
               <p className="mt-2 text-xs text-gray-500">
                 {usagePercent && usagePercent >= 100
-                  ? "Seu plano chegou ao limite de produtos próprios."
+                  ? "O catálogo chegou ao limite operacional de produtos próprios."
                   : usagePercent && usagePercent >= 80
-                    ? "Você está perto do limite. Vale revisar o próximo plano."
+                    ? "Você está perto do limite operacional configurado."
                     : "Você ainda tem espaço para continuar cadastrando."}
               </p>
             </div>
@@ -412,15 +421,15 @@ export default function JornaleiroProdutosPage() {
         </div>
       </div>
 
-      {overdueFeaturesLocked || overdueInGracePeriod ? (
+      {RECURRING_BILLING_ENABLED && (overdueFeaturesLocked || overdueInGracePeriod) ? (
         <PlanOverdueCard
           planName={contractedPlanName || planName}
           graceEndsAt={overdueGraceEndsAt}
           accessSuspended={overdueFeaturesLocked}
         />
-      ) : paidFeaturesLockedUntilPayment && requestedPlanName ? (
+      ) : RECURRING_BILLING_ENABLED && paidFeaturesLockedUntilPayment && requestedPlanName ? (
         <PlanPendingActivationCard requestedPlanName={requestedPlanName} />
-      ) : shouldSuggestUpgrade ? (
+      ) : RECURRING_BILLING_ENABLED && shouldSuggestUpgrade ? (
         <PlanUpgradeCard
           currentPlanType={planType}
           currentPlanName={planName}
@@ -505,43 +514,55 @@ export default function JornaleiroProdutosPage() {
         getId={(row) => row.id}
         renderActions={(row) => (
           <div className="flex flex-col items-end justify-end gap-2 sm:flex-row sm:items-center">
-            <Link
-              href={buildPublicProductPath(row.name, bancaName, row.id, row.codigo_mercos) as Route}
-              target="_blank"
-              rel="noreferrer"
-              className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
-              title="Visualizar produto"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-            </Link>
-            <Link
-              href={( `/jornaleiro/produtos/${row.id}` ) as Route}
-              className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
-              title="Editar produto"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </Link>
-            <button
-              onClick={() => toggleActive(row)}
-              disabled={savingId === row.id}
-              className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              title={row.active ? "Desativar produto" : "Ativar produto"}
-            >
-              {row.active ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </button>
+            {row.source === "fornecedor" ? (
+              <Link
+                href={"/jornaleiro/fornecedor" as Route}
+                className="inline-flex h-10 items-center justify-center rounded-md border border-orange-200 px-3 text-xs font-medium text-orange-700 hover:bg-orange-50"
+                title="Abrir Marketplace"
+              >
+                Marketplace
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href={buildPublicProductPath(row.name, bancaName, row.id, row.codigo_mercos) as Route}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
+                  title="Visualizar produto"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </Link>
+                <Link
+                  href={( `/jornaleiro/produtos/${row.id}` ) as Route}
+                  className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
+                  title="Editar produto"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </Link>
+                <button
+                  onClick={() => toggleActive(row)}
+                  disabled={savingId === row.id}
+                  className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  title={row.active ? "Desativar produto" : "Ativar produto"}
+                >
+                  {row.active ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+              </>
+            )}
           </div>
         )}
       />

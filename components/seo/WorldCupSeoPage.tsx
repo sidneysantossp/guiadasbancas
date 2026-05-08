@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Newsletter from "@/components/Newsletter";
+import FeaturedBancas from "@/components/FeaturedBancas";
 
 type Breadcrumb = {
   name: string;
@@ -30,9 +31,16 @@ type FaqItem = {
 };
 
 type BancaCard = {
+  id: string;
   href: string;
   name: string;
   address: string;
+  lat?: number | null;
+  lng?: number | null;
+  cover?: string | null;
+  profileImage?: string | null;
+  rating?: number | null;
+  featured?: boolean;
 };
 
 type ProductCard = {
@@ -80,6 +88,10 @@ export default function WorldCupSeoPage({
   relatedLinksTitle = "Páginas do cluster",
   cityLinksTitle = "Cidades prioritárias",
   bancasTitle = "Bancas públicas relacionadas",
+  bancasSubtitle = "Bancas premium ou recém-chegadas com operação ativa na plataforma.",
+  bancasViewAllHref,
+  bancasViewAllLabel = "Ver todas",
+  bancasLayout = "list",
   productsTitle = "Coleções e ofertas esportivas já publicadas",
   productsDescription = "Esta camada aproxima o cluster da oferta real do marketplace. Em vez de depender só de páginas conceituais, ela passa a apontar para produtos e coleções esportivas que já ajudam a capturar a intenção do colecionador.",
   editorialTitle = "Conteúdo editorial que sustenta o cluster",
@@ -103,6 +115,10 @@ export default function WorldCupSeoPage({
   relatedLinksTitle?: string;
   cityLinksTitle?: string;
   bancasTitle?: string;
+  bancasSubtitle?: string;
+  bancasViewAllHref?: string;
+  bancasViewAllLabel?: string;
+  bancasLayout?: "list" | "showcase";
   productsTitle?: string;
   productsDescription?: string;
   editorialTitle?: string;
@@ -281,7 +297,7 @@ export default function WorldCupSeoPage({
                 </div>
               ) : null}
 
-              {bancas.length > 0 ? (
+              {bancas.length > 0 && bancasLayout === "list" ? (
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-xl font-bold text-slate-900">{bancasTitle}</h2>
                   <div className="mt-4 space-y-3">
@@ -301,6 +317,28 @@ export default function WorldCupSeoPage({
             </aside>
           </div>
         </section>
+
+        {bancas.length > 0 && bancasLayout === "showcase" ? (
+          <FeaturedBancas
+            bancas={bancas.map((banca) => ({
+              id: banca.id,
+              name: banca.name,
+              address: banca.address,
+              lat: banca.lat ?? undefined,
+              lng: banca.lng ?? undefined,
+              cover: banca.cover || "",
+              profile_image: banca.profileImage || "",
+              rating: typeof banca.rating === "number" ? banca.rating : 4.7,
+              featured: banca.featured === true,
+              active: true,
+              order: 0,
+            }))}
+            title={bancasTitle}
+            subtitle={bancasSubtitle}
+            viewAllHref={bancasViewAllHref || null}
+            viewAllLabel={bancasViewAllLabel}
+          />
+        ) : null}
 
         {products.length > 0 ? (
           <section className="container-max pb-8">

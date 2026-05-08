@@ -4,6 +4,29 @@ import { useEffect, useState } from 'react';
 import { JOURNALEIRO_MARKETING_PATH } from "@/lib/jornaleiro-marketing";
 import VendorBannerCard, { type VendorBannerData } from "@/components/VendorBannerCard";
 
+const HOME_VENDOR_BANNER_IMAGE = "/images/landing/jornaleiro-figurinhas-copa-2026.png";
+
+const hasRenderableBannerImage = (value: string | null | undefined) => {
+  if (!value) return false;
+
+  const imageUrl = value.trim().toLowerCase();
+
+  return (
+    imageUrl.includes(".jpg") ||
+    imageUrl.includes(".jpeg") ||
+    imageUrl.includes(".png") ||
+    imageUrl.includes(".webp")
+  );
+};
+
+const normalizeHomeBanner = (data: VendorBannerData): VendorBannerData => ({
+  ...data,
+  button_link: data.button_link || JOURNALEIRO_MARKETING_PATH,
+  image_url: hasRenderableBannerImage(data.image_url)
+    ? data.image_url.trim()
+    : HOME_VENDOR_BANNER_IMAGE,
+});
+
 export default function VendorBannerDynamic() {
   const [banner, setBanner] = useState<VendorBannerData>({
     title: "É jornaleiro?",
@@ -11,7 +34,7 @@ export default function VendorBannerDynamic() {
     description: "Anuncie seus produtos, receba pedidos pelo WhatsApp e alcance clientes perto de você com o Guia das Bancas.",
     button_text: "Quero me cadastrar",
     button_link: JOURNALEIRO_MARKETING_PATH,
-    image_url: "",
+    image_url: HOME_VENDOR_BANNER_IMAGE,
     background_color: "#000000",
     text_color: "#FFFFFF",
     button_color: "#FF5C00",
@@ -75,7 +98,7 @@ export default function VendorBannerDynamic() {
           console.log('🎯 Título:', data.data.title);
           console.log('🎯 Imagem:', data.data.image_url);
           
-          setBanner(data.data);
+          setBanner(normalizeHomeBanner(data.data));
         } else {
           console.log('🎯 ⚠️ Dados inválidos, usando padrão');
         }
@@ -94,7 +117,7 @@ export default function VendorBannerDynamic() {
     console.log('🎯 Renderizando loading...');
     return (
       <div className="py-6">
-        <div className="container-max">
+        <div className="w-full px-0 sm:px-6 lg:px-8">
           <div className="h-64 bg-gray-200 animate-pulse rounded-2xl"></div>
         </div>
       </div>
@@ -111,13 +134,13 @@ export default function VendorBannerDynamic() {
 
   return (
     <div className="py-6">
-      <div className="container-max">
+      <div className="w-full px-0 sm:px-6 lg:px-8">
         <a 
           href={banner.button_link}
           onClick={handleClick}
           className="block"
         >
-          <VendorBannerCard banner={banner} />
+          <VendorBannerCard banner={banner} layout="full" />
         </a>
       </div>
     </div>

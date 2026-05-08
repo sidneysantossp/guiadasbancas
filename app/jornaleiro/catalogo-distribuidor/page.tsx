@@ -155,7 +155,7 @@ export default function CatalogoDistribuidorPage() {
     currentPlanName: planName,
     context: "partner-network",
   });
-  const catalogUpgradeHref = "/jornaleiro/meu-plano?source=catalogo-distribuidor";
+  const catalogUpgradeHref = "/jornaleiro/dashboard";
 
   if (guarding) {
     return (
@@ -194,7 +194,7 @@ export default function CatalogoDistribuidorPage() {
         </p>
       </div>
 
-      {/* Alerta de status do plano para a rede parceira */}
+      {/* Alerta de status para a rede parceira */}
       <div className="mb-6">
         {hasCatalogAccess ? (
           <div className="rounded-lg border border-green-200 bg-green-50 p-4">
@@ -202,15 +202,15 @@ export default function CatalogoDistribuidorPage() {
               <span className="text-2xl text-green-600 shrink-0">✓</span>
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-green-900">
-                  Rede parceira liberada no seu plano
+                  Rede parceira liberada para sua banca
                 </h3>
                 <p className="mt-1 text-sm text-green-800">
                   Sua banca já pode navegar pelos produtos dos distribuidores e ajustar o catálogo parceiro sem sair do painel.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-3 text-xs">
                   <div className="rounded border border-green-300 bg-white px-3 py-2">
-                    <span className="text-green-700">Plano:</span>
-                    <span className="ml-2 font-semibold text-green-900">{planName}</span>
+                    <span className="text-green-700">Status:</span>
+                    <span className="ml-2 font-semibold text-green-900">Liberado</span>
                   </div>
                   <div className="rounded border border-green-300 bg-white px-3 py-2">
                     <span className="text-green-700">Produtos parceiros:</span>
@@ -283,9 +283,9 @@ export default function CatalogoDistribuidorPage() {
           <p className="mt-2 text-sm text-gray-500">
             {searchTerm
               ? 'Tente buscar por outro termo'
-              : hasCatalogAccess
-                ? 'Ainda não encontramos produtos parceiros para exibir nesta consulta.'
-                : 'Ative o acesso parceiro no seu plano para liberar o catálogo de distribuidores.'}
+                : hasCatalogAccess
+                  ? 'Ainda não encontramos produtos parceiros para exibir nesta consulta.'
+                : 'Fale com a equipe do Guia das Bancas para organizar o acesso ao catálogo de distribuidores.'}
           </p>
           {!searchTerm && (
             hasCatalogAccess ? (
@@ -300,7 +300,7 @@ export default function CatalogoDistribuidorPage() {
                 href={catalogUpgradeHref}
                 className="mt-4 inline-flex items-center rounded-md border border-transparent bg-[#ff5c00] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#ff6a1a]"
               >
-                {paidFeaturesLockedUntilPayment || overdueFeaturesLocked ? "Ver cobrança do plano" : "Ativar acesso parceiro"}
+                Falar com suporte
               </Link>
             )
           )}

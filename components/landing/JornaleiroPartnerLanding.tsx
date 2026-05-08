@@ -9,21 +9,16 @@ import {
   IconClockHour4,
   IconDeviceMobile,
   IconMapPinSearch,
-  IconPackageExport,
-  IconReceipt2,
   IconSearch,
   IconShoppingBag,
   IconStarFilled,
-  IconUsersGroup,
-  IconWorld,
 } from "@tabler/icons-react";
 import {
   JOURNALEIRO_SIGNUP_PATH,
   buildGuideSupportWhatsAppUrl,
 } from "@/lib/jornaleiro-marketing";
-import type { JournaleiroPartnerLandingDocument } from "@/lib/jornaleiro-partner-landing";
 
-const SIMPLICITY_ICONS = [IconBrandGoogle, IconShoppingBag, IconBrandWhatsapp] as const;
+const SIMPLICITY_ICONS = [IconShoppingBag, IconDeviceMobile, IconBrandWhatsapp] as const;
 
 const supportWhatsAppUrl = buildGuideSupportWhatsAppUrl(
   "Olá! Quero cadastrar minha banca no Guia das Bancas."
@@ -172,28 +167,133 @@ function PhoneMockups() {
   );
 }
 
-export default function JornaleiroPartnerLanding({
-  content,
-}: {
-  content: JournaleiroPartnerLandingDocument;
-}) {
+const pageCopy = {
+  hero: {
+    badge: "Cadastro gratuito para jornaleiros",
+    title: "Sua banca pronta para vender pelo WhatsApp hoje",
+    subtitle:
+      "Cadastre-se grátis e comece com 4.000+ produtos já disponíveis, sem configuração e sem complicação.",
+    ctaText: "Criar minha banca grátis",
+    supportText: "Sem custo para começar.",
+    highlights: [
+      "4.000+ produtos pré-carregados",
+      "Vendas diretas pelo WhatsApp",
+      "Pronta em minutos",
+    ],
+  },
+  problem: {
+    eyebrow: "Dor real",
+    title: "Se o cliente não encontra sua banca, ele compra de outro lugar.",
+    paragraphs: [
+      "Hoje o cliente procura no celular antes de sair. Ele digita o que quer, compara opções perto dele e chama quem responde mais rápido.",
+      "Se a sua banca não aparece nessa hora, você depende só de quem passa na calçada. O cliente que poderia comprar com você acaba falando com outra banca.",
+    ],
+  },
+  opportunity: {
+    eyebrow: "A virada",
+    title: "Agora sua banca pode vender além da calçada.",
+    paragraphs: [
+      "Você continua atendendo do jeito que já conhece, no balcão e pelo WhatsApp. A diferença é que mais clientes conseguem descobrir sua banca antes de chegar até ela.",
+      "O Guia das Bancas coloca sua banca em uma vitrine simples, feita para gerar conversa e pedido direto no seu WhatsApp.",
+    ],
+    highlightTitle: "Sua rotina não muda. Seu alcance aumenta.",
+    highlightDescription:
+      "O cliente encontra sua banca, vê o catálogo pronto e chama você para comprar, reservar ou tirar dúvidas.",
+  },
+  ready: {
+    eyebrow: "Tudo pronto",
+    title: "Você começa com tudo pronto.",
+    paragraphs: [
+      "O cadastro foi pensado para não tomar seu tempo. Você cria a banca, informa seus dados principais e já pode começar com milhares de produtos disponíveis no catálogo.",
+      "Não precisa subir produto por produto para começar. A ideia é tirar o peso da configuração e colocar sua banca online rapidamente.",
+    ],
+  },
+  readyCards: [
+    {
+      title: "4.000+ produtos pré-cadastrados",
+      description: "Sua banca já começa com um catálogo amplo para ativar e vender.",
+    },
+    {
+      title: "Sem configuração manual",
+      description: "Menos cadastro, menos etapa e mais velocidade para entrar no ar.",
+    },
+    {
+      title: "Uso imediato",
+      description: "O foco é colocar o cliente em contato com você pelo WhatsApp.",
+    },
+  ],
+  steps: [
+    {
+      title: "Crie sua banca",
+      description: "Faça o cadastro gratuito com os dados principais da sua banca.",
+    },
+    {
+      title: "Apareça para clientes próximos",
+      description: "Sua banca fica preparada para ser encontrada por quem está na sua região.",
+    },
+    {
+      title: "Receba mensagens pelo WhatsApp",
+      description: "O cliente chama direto, você conversa e combina a venda.",
+    },
+  ],
+  objections: [
+    {
+      question: "Não sou bom com tecnologia",
+      answer: "Você só precisa usar o WhatsApp, como já usa todos os dias.",
+    },
+    {
+      question: "Isso vai tomar meu tempo?",
+      answer: "Não. Os produtos já estão carregados para você começar sem montar tudo do zero.",
+    },
+    {
+      question: "Preciso pagar para entrar?",
+      answer: "Não. O cadastro é gratuito e você pode começar sem cartão.",
+    },
+  ],
+  urgency: {
+    eyebrow: "Comece antes",
+    title: "As primeiras bancas ganham mais visibilidade.",
+    paragraphs: [
+      "Quanto antes sua banca entra, antes ela começa a aparecer para clientes da região.",
+      "As primeiras bancas cadastradas saem na frente porque chegam primeiro na busca local e começam a receber interesse antes da concorrência.",
+    ],
+  },
+  future: {
+    eyebrow: "Próximo passo",
+    title: "Isso é só o começo.",
+    paragraphs: [
+      "O Guia das Bancas vai liberar novas formas de crescimento para quem já estiver dentro da plataforma.",
+      "Você não precisa entender tudo agora. O primeiro passo é simples: colocar sua banca online e começar a receber clientes pelo WhatsApp.",
+    ],
+  },
+  finalCta: {
+    eyebrow: "Cadastro gratuito",
+    title: "Coloque sua banca online em minutos.",
+    subtitle:
+      "Crie sua banca grátis, comece com catálogo pronto e receba clientes direto pelo WhatsApp.",
+    ctaText: "Criar minha banca grátis",
+    supportText: "Sem custo para começar. Sem cartão. Pelo celular.",
+  },
+};
+
+export default function JornaleiroPartnerLanding() {
   return (
     <>
       <section className="relative overflow-hidden bg-[#101010] text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,92,0,0.26),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(255,170,64,0.18),transparent_42%)]" />
-        <div className="container-max relative grid gap-12 py-16 sm:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-          <div>
+        <div className="container-max relative grid grid-cols-1 gap-12 py-16 sm:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div className="min-w-0">
             <div className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-orange-100">
-              {content.hero.badge}
+              {pageCopy.hero.badge}
             </div>
-            <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-tight sm:text-6xl">
-              {content.hero.title}
+            <h1 className="mt-6 max-w-3xl break-words text-4xl font-semibold tracking-tight sm:text-6xl">
+              {pageCopy.hero.title}
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/80 sm:text-xl">
-              {content.hero.subtitle}
+              {pageCopy.hero.subtitle}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              {content.hero.highlights.map((item) => (
+              {pageCopy.hero.highlights.map((item) => (
                 <span
                   key={item}
                   className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80"
@@ -207,11 +307,11 @@ export default function JornaleiroPartnerLanding({
                 href={JOURNALEIRO_SIGNUP_PATH}
                 className="inline-flex items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#ff5c00,#ff8742)] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_50px_rgba(255,92,0,0.35)] transition-transform hover:-translate-y-0.5"
               >
-                {content.hero.ctaText}
+                {pageCopy.hero.ctaText}
                 <IconArrowRight className="h-5 w-5" />
               </Link>
               <div className="mt-3 text-sm text-white/70">
-                {content.hero.supportText}
+                {pageCopy.hero.supportText}
               </div>
             </div>
           </div>
@@ -220,12 +320,12 @@ export default function JornaleiroPartnerLanding({
       </section>
 
       <SectionShell
-        eyebrow={content.sections.pain.eyebrow}
-        title={content.sections.pain.title}
+        eyebrow={pageCopy.problem.eyebrow}
+        title={pageCopy.problem.title}
       >
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-5 text-lg leading-8 text-slate-600">
-            {content.sections.pain.paragraphs.map((paragraph) => (
+            {pageCopy.problem.paragraphs.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
@@ -258,41 +358,41 @@ export default function JornaleiroPartnerLanding({
       </SectionShell>
 
       <SectionShell
-        eyebrow={content.sections.transformation.eyebrow}
-        title={content.sections.transformation.title}
+        eyebrow={pageCopy.opportunity.eyebrow}
+        title={pageCopy.opportunity.title}
         tone="muted"
       >
         <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr]">
           <div className="space-y-5 text-lg leading-8 text-slate-700">
-            {content.sections.transformation.paragraphs.map((paragraph) => (
+            {pageCopy.opportunity.paragraphs.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
           <div className="rounded-[2rem] bg-[#101010] p-7 text-white shadow-[0_24px_80px_rgba(16,16,16,0.18)]">
             <div className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-200">
-              Caixa de impacto
+              Alcance local
             </div>
             <p className="mt-5 text-2xl font-semibold leading-tight">
-              {content.transformationHighlight.title}
+              {pageCopy.opportunity.highlightTitle}
             </p>
             <p className="mt-4 text-base leading-7 text-white/75">
-              {content.transformationHighlight.description}
+              {pageCopy.opportunity.highlightDescription}
             </p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-sm font-semibold">Foto, nome e categoria</div>
-                <div className="mt-1 text-sm text-white/70">Catálogo pronto para ativar</div>
+                <div className="text-sm font-semibold">Balcão funcionando</div>
+                <div className="mt-1 text-sm text-white/70">Sua rotina continua igual</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-sm font-semibold">Preço sugerido</div>
-                <div className="mt-1 text-sm text-white/70">Você ajusta a margem e publica</div>
+                <div className="text-sm font-semibold">Demanda digital</div>
+                <div className="mt-1 text-sm text-white/70">Clientes chegam pelo WhatsApp</div>
               </div>
             </div>
             <Link
               href={JOURNALEIRO_SIGNUP_PATH}
               className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-[#101010] transition hover:bg-orange-50"
             >
-              {content.transformationHighlight.ctaText}
+              Criar minha banca grátis
               <IconArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -300,17 +400,17 @@ export default function JornaleiroPartnerLanding({
       </SectionShell>
 
       <SectionShell
-        eyebrow={content.sections.simplicity.eyebrow}
-        title={content.sections.simplicity.title}
+        eyebrow={pageCopy.ready.eyebrow}
+        title={pageCopy.ready.title}
       >
         <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
           <div className="space-y-5 text-lg leading-8 text-slate-600">
-            {content.sections.simplicity.paragraphs.map((paragraph) => (
+            {pageCopy.ready.paragraphs.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
           <div className="grid gap-4">
-            {content.simplicityCards.map((card, index) => {
+            {pageCopy.readyCards.map((card, index) => {
               const Icon = SIMPLICITY_ICONS[index % SIMPLICITY_ICONS.length];
               return (
                 <div
@@ -330,39 +430,38 @@ export default function JornaleiroPartnerLanding({
       </SectionShell>
 
       <SectionShell
-        eyebrow={content.sections.sales.eyebrow}
-        title={content.sections.sales.title}
+        eyebrow="Como funciona"
+        title="Três passos para começar."
         tone="dark"
       >
         <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
           <div className="space-y-5 text-lg leading-8 text-white/75">
-            {content.sections.sales.paragraphs.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
+            <p>
+              O fluxo foi feito para ser direto. Você cadastra a banca, aparece
+              para quem está perto e conversa com o cliente pelo WhatsApp.
+            </p>
             <Link
               href={JOURNALEIRO_SIGNUP_PATH}
               className="inline-flex items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#ff5c00,#ff8742)] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-95"
             >
-              Começar a vender pela internet agora
+              Criar minha banca grátis
               <IconArrowRight className="h-4 w-4" />
             </Link>
           </div>
           <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/5">
-            <div className="grid grid-cols-[1fr_1fr] border-b border-white/10 bg-white/5">
-              <div className="px-5 py-4 text-sm font-semibold uppercase tracking-[0.16em] text-white/55">
-                Sem o Guia das Bancas
-              </div>
-              <div className="border-l border-white/10 px-5 py-4 text-sm font-semibold uppercase tracking-[0.16em] text-orange-200">
-                Com o Guia das Bancas
-              </div>
-            </div>
-            {content.comparisonRows.map((row) => (
-              <div key={row.withGuide} className="grid grid-cols-[1fr_1fr]">
-                <div className="border-b border-white/10 px-5 py-4 text-sm leading-6 text-white/70">
-                  {row.withoutGuide}
+            {pageCopy.steps.map((step, index) => (
+              <div
+                key={step.title}
+                className="grid grid-cols-[72px_1fr] border-b border-white/10 last:border-b-0"
+              >
+                <div className="flex items-center justify-center border-r border-white/10 px-5 py-5 text-2xl font-semibold text-orange-200">
+                  {index + 1}
                 </div>
-                <div className="border-b border-l border-white/10 px-5 py-4 text-sm leading-6 text-white">
-                  {row.withGuide}
+                <div className="px-5 py-5">
+                  <div className="font-semibold text-white">{step.title}</div>
+                  <div className="mt-1 text-sm leading-6 text-white/70">
+                    {step.description}
+                  </div>
                 </div>
               </div>
             ))}
@@ -371,190 +470,46 @@ export default function JornaleiroPartnerLanding({
       </SectionShell>
 
       <SectionShell
-        eyebrow={content.sections.distributors.eyebrow}
-        title={content.sections.distributors.title}
+        eyebrow="Sem complicação"
+        title="As dúvidas mais comuns já estão resolvidas."
       >
-        <div className="grid gap-8 lg:grid-cols-[1fr_0.95fr]">
-          <div className="space-y-5 text-lg leading-8 text-slate-600">
-            {content.sections.distributors.paragraphs.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
-          </div>
-          <div className="rounded-[2rem] border border-emerald-200 bg-[linear-gradient(180deg,#f3fff7,#ffffff)] p-7">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-              <IconPackageExport className="h-7 w-7" />
+        <div className="grid gap-4 lg:grid-cols-3">
+          {pageCopy.objections.map((item) => (
+            <div
+              key={item.question}
+              className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff1e8] text-[#ff5c00]">
+                <IconCheck className="h-6 w-6" />
+              </div>
+              <h3 className="mt-4 text-xl font-semibold text-slate-900">{item.question}</h3>
+              <p className="mt-2 text-base leading-7 text-slate-600">{item.answer}</p>
             </div>
-            <p className="mt-5 text-2xl font-semibold text-slate-900">
-              {content.distributorHighlight.title}
-            </p>
-            <p className="mt-4 text-base leading-7 text-slate-600">
-              {content.distributorHighlight.description}
-            </p>
-          </div>
+          ))}
         </div>
       </SectionShell>
 
       <SectionShell
-        eyebrow={content.sections.differentiation.eyebrow}
-        title={content.sections.differentiation.title}
+        eyebrow={pageCopy.urgency.eyebrow}
+        title={pageCopy.urgency.title}
         tone="muted"
       >
         <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr]">
           <div className="space-y-5 text-lg leading-8 text-slate-700">
-            {content.sections.differentiation.paragraphs.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6">
-              <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Marketplaces genéricos
-              </div>
-              <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-                <li>Comissão alta</li>
-                <li>Concorrência com grandes sellers</li>
-                <li>Cliente não vira relacionamento seu</li>
-              </ul>
-            </div>
-            <div className="rounded-[1.75rem] border border-[#ffd8c4] bg-[#fff6ef] p-6">
-              <div className="text-sm font-semibold uppercase tracking-[0.18em] text-[#ff5c00]">
-                Guia das Bancas
-              </div>
-              <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
-                <li>Busca local por região</li>
-                <li>Pedido no seu WhatsApp</li>
-                <li>Catálogo feito para a realidade da banca</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </SectionShell>
-
-      <SectionShell
-        eyebrow={content.sections.coverage.eyebrow}
-        title={content.sections.coverage.title}
-      >
-        <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr]">
-          <div className="space-y-5 text-lg leading-8 text-slate-600">
-            {content.sections.coverage.paragraphs.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
-          </div>
-          <div className="rounded-[2rem] bg-[#101010] p-7 text-white">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                <IconWorld className="h-7 w-7 text-orange-300" />
-                <div className="mt-4 text-lg font-semibold">Presença nacional</div>
-                <div className="mt-2 text-sm leading-6 text-white/70">
-                  Sua banca vende com presença local em qualquer cidade.
-                </div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                <IconUsersGroup className="h-7 w-7 text-orange-300" />
-                <div className="mt-4 text-lg font-semibold">Rede em expansão</div>
-                <div className="mt-2 text-sm leading-6 text-white/70">
-                  Distribuidores parceiros entram por região e ampliam o catálogo.
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </SectionShell>
-
-      <SectionShell
-        eyebrow={content.sections.pricing.eyebrow}
-        title={content.sections.pricing.title}
-        tone="muted"
-      >
-        <div className="max-w-3xl text-lg leading-8 text-slate-700">
-          {content.sections.pricing.paragraphs.map((paragraph, index) => (
-            <p key={paragraph} className={index > 0 ? "mt-4" : ""}>
-              {paragraph}
-            </p>
-          ))}
-        </div>
-        <div className="mt-10 grid gap-6 xl:grid-cols-3">
-          {content.plans.map((plan) => (
-            <div
-              key={plan.name}
-              className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm"
-            >
-              <div className={`h-2 bg-gradient-to-r ${plan.accent}`} />
-              <div className="p-7">
-                {plan.badge ? (
-                  <div className="mb-4 inline-flex rounded-full bg-[#fff1e8] px-3 py-1 text-xs font-semibold text-[#ff5c00]">
-                    {plan.badge}
-                  </div>
-                ) : null}
-                <div className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">
-                  {plan.name}
-                </div>
-                <div className="mt-3 text-3xl font-semibold text-slate-900">{plan.price}</div>
-                <div className="mt-2 text-sm text-slate-600">{plan.subtitle}</div>
-                <ul className="mt-6 space-y-3">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
-                      <span className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                        <IconCheck className="h-3.5 w-3.5" />
-                      </span>
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href={JOURNALEIRO_SIGNUP_PATH}
-                  className="mt-8 inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:border-[#ff5c00] hover:text-[#ff5c00]"
-                >
-                  Começar grátis
-                  <IconArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
-      </SectionShell>
-
-      <SectionShell
-        eyebrow={content.sections.risk.eyebrow}
-        title={content.sections.risk.title}
-      >
-        <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr]">
-          <div className="space-y-5 text-lg leading-8 text-slate-600">
-            {content.sections.risk.paragraphs.map((paragraph) => (
+            {pageCopy.urgency.paragraphs.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
           <div className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm">
-            <div className="grid gap-4">
-              <div className="flex items-start gap-4 rounded-2xl bg-[#fff6ef] p-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#ff5c00]">
-                  <IconClockHour4 className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900">Cadastro em 3 minutos</div>
-                  <div className="mt-1 text-sm text-slate-600">Sem cartão e sem contrato.</div>
-                </div>
+            <div className="flex items-start gap-4 rounded-2xl bg-[#fff6ef] p-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#ff5c00]">
+                <IconClockHour4 className="h-6 w-6" />
               </div>
-              <div className="flex items-start gap-4 rounded-2xl bg-[#fff6ef] p-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#ff5c00]">
-                  <IconDeviceMobile className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900">Tudo no celular</div>
-                  <div className="mt-1 text-sm text-slate-600">
-                    Cadastro, vitrine, catálogo, pedido e pagamento.
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-start gap-4 rounded-2xl bg-[#fff6ef] p-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#ff5c00]">
-                  <IconReceipt2 className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900">Escala com plano certo</div>
-                  <div className="mt-1 text-sm text-slate-600">
-                    Você começa gratuito e evolui quando a venda pedir mais estrutura.
-                  </div>
+              <div>
+                <div className="font-semibold text-slate-900">Entrada antecipada</div>
+                <div className="mt-1 text-sm leading-6 text-slate-600">
+                  As bancas que chegam primeiro começam a formar presença antes no
+                  bairro.
                 </div>
               </div>
             </div>
@@ -563,29 +518,29 @@ export default function JornaleiroPartnerLanding({
       </SectionShell>
 
       <SectionShell
-        eyebrow={content.sections.future.eyebrow}
-        title={content.sections.future.title}
+        eyebrow={pageCopy.future.eyebrow}
+        title={pageCopy.future.title}
         tone="dark"
       >
         <div className="grid gap-8 lg:grid-cols-[1fr_0.85fr]">
           <div className="space-y-5 text-lg leading-8 text-white/75">
-            {content.sections.future.paragraphs.map((paragraph) => (
+            {pageCopy.future.paragraphs.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
           <div className="grid gap-4">
             <div className="rounded-[1.75rem] border border-white/10 bg-white/5 p-6">
               <IconBolt className="h-7 w-7 text-orange-300" />
-              <div className="mt-4 text-xl font-semibold">Busca, compra e conversa</div>
+              <div className="mt-4 text-xl font-semibold">Comece simples</div>
               <div className="mt-2 text-sm leading-6 text-white/70">
-                Google, Pix e WhatsApp já fazem parte da rotina do cliente.
+                Primeiro, sua banca online e WhatsApp funcionando.
               </div>
             </div>
             <div className="rounded-[1.75rem] border border-white/10 bg-white/5 p-6">
               <IconBuildingStore className="h-7 w-7 text-orange-300" />
-              <div className="mt-4 text-xl font-semibold">A calçada continua. O alcance cresce.</div>
+              <div className="mt-4 text-xl font-semibold">Depois, mais crescimento</div>
               <div className="mt-2 text-sm leading-6 text-white/70">
-                A vitrine digital complementa a banca física e multiplica a descoberta.
+                Novas oportunidades serão abertas para quem já estiver dentro.
               </div>
             </div>
           </div>
@@ -598,20 +553,20 @@ export default function JornaleiroPartnerLanding({
             <div className="grid gap-10 lg:grid-cols-[1fr_0.7fr] lg:items-center">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.22em] text-orange-200">
-                  {content.finalCta.eyebrow}
+                  {pageCopy.finalCta.eyebrow}
                 </div>
                 <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">
-                  {content.finalCta.title}
+                  {pageCopy.finalCta.title}
                 </h2>
                 <p className="mt-5 max-w-2xl text-lg leading-8 text-white/75">
-                  {content.finalCta.subtitle}
+                  {pageCopy.finalCta.subtitle}
                 </p>
                 <div className="mt-8 flex flex-wrap gap-4">
                   <Link
                   href={JOURNALEIRO_SIGNUP_PATH}
                   className="inline-flex items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#ff5c00,#ff8742)] px-7 py-4 text-base font-semibold text-white transition hover:opacity-95"
                 >
-                  {content.finalCta.ctaText}
+                  {pageCopy.finalCta.ctaText}
                   <IconArrowRight className="h-5 w-5" />
                 </Link>
                   <a
@@ -625,7 +580,7 @@ export default function JornaleiroPartnerLanding({
                   </a>
                 </div>
                 <div className="mt-4 text-sm text-white/65">
-                  {content.finalCta.supportText}
+                  {pageCopy.finalCta.supportText}
                 </div>
               </div>
               <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
@@ -636,8 +591,8 @@ export default function JornaleiroPartnerLanding({
                         <IconBrandGoogle className="h-6 w-6" />
                       </div>
                       <div>
-                        <div className="font-semibold">Presença no Google</div>
-                        <div className="text-sm text-white/65">Apareça na busca local.</div>
+                        <div className="font-semibold">Busca local</div>
+                        <div className="text-sm text-white/65">Prepare sua banca para ser encontrada.</div>
                       </div>
                     </div>
                   </div>
@@ -657,12 +612,12 @@ export default function JornaleiroPartnerLanding({
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-orange-200">
-                        <IconPackageExport className="h-6 w-6" />
+                        <IconShoppingBag className="h-6 w-6" />
                       </div>
                       <div>
-                        <div className="font-semibold">Catálogo parceiro integrado</div>
+                        <div className="font-semibold">Catálogo pronto</div>
                         <div className="text-sm text-white/65">
-                          Escala sem depender de estoque parado.
+                          Comece sem cadastrar tudo do zero.
                         </div>
                       </div>
                     </div>

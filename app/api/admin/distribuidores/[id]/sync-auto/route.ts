@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
 import { requireAdminAuth } from '@/lib/security/admin-auth';
+import {
+  chooseDistribuidorProductCategoryId,
+  loadDistribuidorCategorySyncState,
+} from '@/lib/modules/distribuidor/category-mapping';
 
 /**
  * Sincronização Automática Completa
@@ -66,18 +70,10 @@ export async function POST(
     const syncTimestamp = distribuidor.ultima_sincronizacao || null;
     console.log(`[SYNC-AUTO] Última sync: ${syncTimestamp || 'nunca'}`);
 
-    // Buscar mapa de categorias do distribuidor
-    const { data: distCategories } = await supabase
-      .from('distribuidor_categories')
-      .select('id, mercos_id')
-      .eq('distribuidor_id', distribuidorId);
-    const categoryMap = new Map<number, string>();
-    for (const cat of distCategories || []) {
-      if (cat.mercos_id) categoryMap.set(cat.mercos_id, cat.id);
-    }
-    console.log(`[SYNC-AUTO] ${categoryMap.size} categorias mapeadas`);
+    const categoryState = await loadDistribuidorCategorySyncState(distribuidorId);
+    console.log(`[SYNC-AUTO] ${categoryState.categoryMap.size} categorias mapeadas`);
 
-    if (categoryMap.size === 0 && !allowWithoutCategories) {
+    if (categoryState.categoryMap.size === 0 && !allowWithoutCategories) {
       return NextResponse.json(
         {
           success: false,
@@ -138,9 +134,12 @@ export async function POST(
         // Preservar imagens e categoria existentes
         const existingImages = existing?.images || [];
         const hasExistingImages = Array.isArray(existingImages) && existingImages.length > 0;
-        const mercosCatId = produtoMercos.categoria_id;
-        const mappedCategoryId = mercosCatId ? categoryMap.get(mercosCatId) : null;
-        const finalCategoryId = existing?.category_id || mappedCategoryId || null;
+        const finalCategoryId = chooseDistribuidorProductCategoryId({
+          mercosCategoryId: produtoMercos.categoria_id,
+          categoryMap: categoryState.categoryMap,
+          existingCategoryId: existing?.category_id,
+          validCategoryIds: categoryState.validCategoryIds,
+        });
 
         const produtoData: any = {
           name: produtoMercos.nome,
@@ -153,6 +152,7 @@ export async function POST(
           mercos_id: produtoMercos.id,
           codigo_mercos: produtoMercos.codigo || null,
           category_id: finalCategoryId,
+          categoria_mercos: produtoMercos.categoria_id ? String(produtoMercos.categoria_id) : null,
           origem: 'mercos' as const,
           sincronizado_em: new Date().toISOString(),
           track_stock: true,

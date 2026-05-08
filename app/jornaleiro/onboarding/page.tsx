@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Route } from "next";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
@@ -9,21 +9,35 @@ import logger from "@/lib/logger";
 
 export default function JornaleiroOnboardingPage() {
   const router = useRouter();
-  const { user, profile, loading, isJornaleiro } = useAuth();
+  const { user, loading } = useAuth();
   const [status, setStatus] = useState<"loading" | "creating" | "success" | "error">("loading");
   const [message, setMessage] = useState("Configurando sua conta...");
+  const creatingRef = useRef(false);
 
   const resolvePostOnboardingTarget = () => "/jornaleiro/dashboard?welcome=1" as Route;
+
+  const normalizeOptionalUrl = (value?: string | null) => {
+    const raw = String(value || "").trim();
+    if (!raw) return null;
+    return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  };
 
   useEffect(() => {
     let cancelled = false;
 
     const checkAndProceed = async () => {
       if (cancelled) return;
-      if (loading) return;
+      if (loading) {
+        setStatus("loading");
+        setMessage("Aguardando autenticação...");
+        return;
+      }
 
-      if (user && isJornaleiro) {
+      if (user) {
         try {
+          setStatus("loading");
+          setMessage("Validando sua banca...");
+
           const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}`, {
             method: "GET",
             cache: "no-store",
@@ -48,7 +62,11 @@ export default function JornaleiroOnboardingPage() {
             const apiError = json?.error || `HTTP ${res.status}`;
             logger.error('[Onboarding] Erro ao verificar contexto da banca:', apiError);
             setStatus("error");
-            setMessage("Não foi possível validar sua banca agora. Tente novamente em instantes.");
+            setMessage(
+              res.status === 403
+                ? "Sua conta foi autenticada, mas o perfil ainda não está liberado como jornaleiro. Entre novamente ou tente em instantes."
+                : "Não foi possível validar sua banca agora. Tente novamente em instantes."
+            );
             return;
           }
         } catch (error) {
@@ -59,19 +77,19 @@ export default function JornaleiroOnboardingPage() {
         }
 
         logger.log('[Onboarding] 📝 Banca não encontrada, iniciando criação');
-        if (!cancelled) {
+        if (!cancelled && !creatingRef.current) {
           createBanca();
         }
         return;
       }
 
       // Se não é jornaleiro ainda, aguarda ou timeout
-      if (!user || !profile) {
+      if (!user) {
         setStatus("loading");
         setMessage("Aguardando autenticação...");
         // Timeout de 5s (reduzido de 10s para melhor UX)
         setTimeout(() => {
-          if (!cancelled && (!user || !profile)) {
+          if (!cancelled && !user) {
             logger.warn('[Onboarding] Timeout de autenticação, redirecionando para login');
             router.push("/jornaleiro" as Route);
           }
@@ -81,9 +99,23 @@ export default function JornaleiroOnboardingPage() {
 
     checkAndProceed();
     return () => { cancelled = true; };
-  }, [user, profile, loading, isJornaleiro, router]);
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    if (status !== "loading") return;
+
+    const timer = window.setTimeout(() => {
+      setMessage("A autenticação demorou mais que o esperado. Tente novamente ou acesse o login do jornaleiro.");
+      setStatus("error");
+    }, 15000);
+
+    return () => window.clearTimeout(timer);
+  }, [status]);
 
   const createBanca = async () => {
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+
     try {
       setStatus("creating");
       setMessage("Criando sua banca...");
@@ -214,6 +246,7 @@ export default function JornaleiroOnboardingPage() {
         email: saved.email || null,
         instagram: saved.instagram || (wizard?.instagramHas === 'yes' ? (wizard?.instagramUrl || '').replace(/^@/, '') : null),
         facebook: saved.facebook || (wizard?.facebookHas === 'yes' ? (wizard?.facebookUrl || '').replace(/^@/, '') : null),
+        gmb: saved.gmb || (wizard?.gmbHas === 'yes' ? normalizeOptionalUrl(wizard?.gmbUrl) : null),
         cep: addressObj.cep, // CEP obrigatório
         address: normalizedAddress || 'Endereço a configurar',
         ...(addressObj.street ? { addressObj } : {}),
@@ -315,6 +348,7 @@ export default function JornaleiroOnboardingPage() {
 
     } catch (error: any) {
       logger.error("Erro ao criar banca:", error);
+      creatingRef.current = false;
       setStatus("error");
       const errorMsg = error?.message || error?.toString() || "Erro desconhecido";
       setMessage(`Erro ao criar banca: ${errorMsg}`);

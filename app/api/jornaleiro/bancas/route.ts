@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           code: "ADDITIONAL_BANCA_REQUIRES_LICENSE",
-          error: "Para cadastrar outra banca, ative uma nova licença em Meu Plano.",
-          upgrade_url: "/jornaleiro/meu-plano?source=multiplas-bancas",
+          error: "Para cadastrar outra banca, fale com a equipe do Guia das Bancas para organizar a liberação desta unidade.",
+          upgrade_url: "/jornaleiro/dashboard",
         },
         { status: 403, headers: privateNoStoreHeaders }
       );

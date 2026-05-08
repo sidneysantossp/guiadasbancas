@@ -7,6 +7,7 @@ export type JornaleiroIconKey =
   | "orders"
   | "products"
   | "catalog"
+  | "marketing"
   | "campaigns"
   | "distributors"
   | "users"
@@ -16,21 +17,24 @@ export type JornaleiroIconKey =
   | "settings"
   | "plan";
 
-export type JornaleiroPermissionKey =
-  | "dashboard"
-  | "bancas"
-  | "colaboradores"
-  | "notificacoes"
-  | "pedidos"
-  | "produtos"
-  | "catalogo"
-  | "campanhas"
-  | "distribuidores"
-  | "cupons"
-  | "relatorios"
-  | "academy"
-  | "configuracoes"
-  | "plano";
+export const JOURNALEIRO_ALL_PERMISSION_KEYS = [
+  "dashboard",
+  "relatorios",
+  "bancas",
+  "pedidos",
+  "produtos",
+  "notificacoes",
+  "colaboradores",
+  "configuracoes",
+  "catalogo",
+  "marketing",
+  "distribuidores",
+  "campanhas",
+  "cupons",
+  "academy",
+] as const;
+
+export type JornaleiroPermissionKey = (typeof JOURNALEIRO_ALL_PERMISSION_KEYS)[number];
 
 export type JornaleiroMenuItem = {
   label: string;
@@ -41,10 +45,13 @@ export type JornaleiroMenuItem = {
   aliases?: string[];
   requiresCatalogAccess?: boolean;
   requiresPartnerDirectoryAccess?: boolean;
+  requiresWholesaleAccess?: boolean;
   premiumFeature?: boolean;
   upgradeSource?: string;
   hideWhenPlansDisabled?: boolean;
   visibleInFree?: boolean;
+  isSubItem?: boolean;
+  children?: JornaleiroMenuItem[];
 };
 
 export type JornaleiroMenuSection = {
@@ -58,15 +65,37 @@ export type JornaleiroResolvedMenuContext = {
   item: JornaleiroMenuItem;
 };
 
-export type JornaleiroMenuContext = {
+export type JornaleiroPermissionModuleContext = {
   hasCatalogAccess: boolean;
   hasPartnerDirectoryAccess: boolean;
+  hasWholesaleAccess: boolean;
+  hasCampaignAccess: boolean;
   plansMenuEnabled: boolean;
+  planType: string | null;
+};
+
+export type JornaleiroMenuContext = JornaleiroPermissionModuleContext & {
   permissionsLoaded: boolean;
   isOwner: boolean | null;
   userPermissions: string[];
-  planType: string | null;
 };
+
+export type JornaleiroPermissionModule = {
+  key: JornaleiroPermissionKey;
+  label: string;
+  description: string;
+};
+
+export const DEFAULT_JORNALEIRO_PERMISSION_MODULE_CONTEXT: JornaleiroPermissionModuleContext = {
+  hasCatalogAccess: false,
+  hasPartnerDirectoryAccess: false,
+  hasWholesaleAccess: false,
+  hasCampaignAccess: false,
+  plansMenuEnabled: true,
+  planType: "free",
+};
+
+const JOURNALEIRO_PERMISSION_KEY_SET = new Set<string>(JOURNALEIRO_ALL_PERMISSION_KEYS);
 
 const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
   {
@@ -154,8 +183,6 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         icon: "users",
         description: "Permissões e acessos da equipe que opera a banca no dia a dia.",
         permissionKey: "colaboradores",
-        premiumFeature: true,
-        upgradeSource: "colaboradores",
         visibleInFree: true,
       },
       {
@@ -172,6 +199,22 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
     section: "Abastecimento e Crescimento",
     description: "Oferta complementar, relação com distribuidores e alavancas para vender mais.",
     items: [
+      {
+        label: "Marketplace",
+        href: "/jornaleiro/fornecedor" as Route,
+        icon: "catalog",
+        description: "Compra B2B de produtos liberados para sua banca.",
+        aliases: ["/jornaleiro/atacado"],
+        visibleInFree: true,
+      },
+      {
+        label: "Meus Pedidos",
+        href: "/jornaleiro/fornecedor/pedidos" as Route,
+        icon: "orders",
+        description: "Acompanhe pedidos do Marketplace por aprovação, envio e conclusão.",
+        visibleInFree: true,
+        isSubItem: true,
+      },
       {
         label: "Catálogo Parceiro",
         href: "/jornaleiro/catalogo-distribuidor/gerenciar" as Route,
@@ -196,6 +239,14 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         visibleInFree: true,
       },
       {
+        label: "Marketing",
+        href: "/jornaleiro/marketing" as Route,
+        icon: "marketing",
+        description: "Links, QR Code e mensagens prontas para divulgar a banca nos canais próprios.",
+        permissionKey: "marketing",
+        visibleInFree: true,
+      },
+      {
         label: "Campanhas",
         href: "/jornaleiro/campanhas" as Route,
         icon: "campaigns",
@@ -216,18 +267,9 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
     ],
   },
   {
-    section: "Plano e Aprendizado",
-    description: "Evolução comercial da banca, treinamento e configuração do plano contratado.",
+    section: "Aprendizado",
+    description: "Treinamento e conteúdos para operar melhor a banca.",
     items: [
-      {
-        label: "Meu Plano",
-        href: "/jornaleiro/meu-plano" as Route,
-        icon: "plan",
-        description: "Status do plano, cobranças, limites e acessos da banca.",
-        permissionKey: "plano",
-        hideWhenPlansDisabled: true,
-        visibleInFree: true,
-      },
       {
         label: "Academy",
         href: "/jornaleiro/academy" as Route,
@@ -247,9 +289,73 @@ export const JOURNALEIRO_MOBILE_QUICK_LINKS = [
   { key: "intelligence", label: "Dados", href: "/jornaleiro/inteligencia" as Route, icon: "intelligence" as JornaleiroIconKey },
 ] as const;
 
-function itemVisible(item: JornaleiroMenuItem, context: JornaleiroMenuContext) {
+const PERMISSION_MODULE_OVERRIDES: Partial<Record<JornaleiroPermissionKey, JornaleiroPermissionModule>> = {
+  bancas: {
+    key: "bancas",
+    label: "Perfil e publicação / Minhas Bancas",
+    description: "Dados da banca, publicação e gestão das bancas vinculadas.",
+  },
+  catalogo: {
+    key: "catalogo",
+    label: "Catálogo e abastecimento",
+    description: "Catálogo parceiro e compra B2B quando liberados para a banca.",
+  },
+  relatorios: {
+    key: "relatorios",
+    label: "Central de Inteligência",
+    description: "Ler sinais operacionais, demanda e performance da banca.",
+  },
+};
+
+export function normalizeJornaleiroPermissionKeys(value: unknown): JornaleiroPermissionKey[] {
+  let rawPermissions: unknown[] = [];
+
+  if (Array.isArray(value)) {
+    rawPermissions = value;
+  } else if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      rawPermissions = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      rawPermissions = [];
+    }
+  }
+
+  const seen = new Set<JornaleiroPermissionKey>();
+  const normalized: JornaleiroPermissionKey[] = [];
+
+  for (const permission of rawPermissions) {
+    if (typeof permission !== "string" || !JOURNALEIRO_PERMISSION_KEY_SET.has(permission)) {
+      continue;
+    }
+
+    const key = permission as JornaleiroPermissionKey;
+    if (!seen.has(key)) {
+      seen.add(key);
+      normalized.push(key);
+    }
+  }
+
+  return normalized;
+}
+
+export function isJornaleiroMenuItemOperational(
+  item: JornaleiroMenuItem,
+  context: JornaleiroPermissionModuleContext
+) {
   if (context.planType === "free" && !item.visibleInFree) return false;
   if (item.hideWhenPlansDisabled && !context.plansMenuEnabled) return false;
+  if (item.requiresWholesaleAccess && !context.hasWholesaleAccess) return false;
+  if (item.requiresCatalogAccess && !context.hasCatalogAccess) return false;
+  if (item.requiresPartnerDirectoryAccess && !context.hasPartnerDirectoryAccess) return false;
+  if (item.permissionKey === "campanhas" && context.hasCampaignAccess === false) return false;
+  if (item.premiumFeature && context.planType === "free") return false;
+
+  return true;
+}
+
+function itemSelfVisible(item: JornaleiroMenuItem, context: JornaleiroMenuContext) {
+  if (!isJornaleiroMenuItemOperational(item, context)) return false;
 
   if (!context.permissionsLoaded) {
     return item.href === ("/jornaleiro/dashboard" as Route);
@@ -262,24 +368,87 @@ function itemVisible(item: JornaleiroMenuItem, context: JornaleiroMenuContext) {
   return context.userPermissions.includes(item.permissionKey);
 }
 
+function filterVisibleMenuItem(item: JornaleiroMenuItem, context: JornaleiroMenuContext): JornaleiroMenuItem | null {
+  const children = (item.children || [])
+    .map((child) => filterVisibleMenuItem(child, context))
+    .filter((child): child is JornaleiroMenuItem => Boolean(child));
+
+  if (!itemSelfVisible(item, context) && children.length === 0) {
+    return null;
+  }
+
+  return {
+    ...item,
+    children: children.length > 0 ? children : undefined,
+  };
+}
+
 export function buildJornaleiroMenuSections(context: JornaleiroMenuContext): JornaleiroMenuSection[] {
   return JOURNALEIRO_MENU.map((section) => ({
     ...section,
-    items: section.items.filter((item) => itemVisible(item, context)),
+    items: section.items
+      .map((item) => filterVisibleMenuItem(item, context))
+      .filter((item): item is JornaleiroMenuItem => Boolean(item)),
   })).filter((section) => section.items.length > 0);
+}
+
+function walkJornaleiroMenuItems(items: JornaleiroMenuItem[]): JornaleiroMenuItem[] {
+  return items.flatMap((item) => [item, ...walkJornaleiroMenuItems(item.children || [])]);
+}
+
+export function buildJornaleiroPermissionModules(
+  context: JornaleiroPermissionModuleContext
+): JornaleiroPermissionModule[] {
+  const byPermissionKey = new Map<JornaleiroPermissionKey, JornaleiroPermissionModule>();
+
+  for (const section of JOURNALEIRO_MENU) {
+    for (const item of walkJornaleiroMenuItems(section.items)) {
+      if (!item.permissionKey || !isJornaleiroMenuItemOperational(item, context)) {
+        continue;
+      }
+
+      if (byPermissionKey.has(item.permissionKey)) {
+        continue;
+      }
+
+      byPermissionKey.set(
+        item.permissionKey,
+        PERMISSION_MODULE_OVERRIDES[item.permissionKey] || {
+          key: item.permissionKey,
+          label: item.label,
+          description: item.description,
+        }
+      );
+    }
+  }
+
+  return JOURNALEIRO_ALL_PERMISSION_KEYS.flatMap((key) => {
+    const module = byPermissionKey.get(key);
+    return module ? [module] : [];
+  });
 }
 
 export function findJornaleiroMenuContextByPathname(pathname?: string | null): JornaleiroResolvedMenuContext | null {
   if (!pathname) return null;
 
+  let bestMatch: JornaleiroResolvedMenuContext | null = null;
+  let bestMatchLength = -1;
+
   for (const section of JOURNALEIRO_MENU) {
-    for (const item of section.items) {
+    for (const item of walkJornaleiroMenuItems(section.items)) {
       const targets = [item.href, ...(item.aliases || [])];
-      if (targets.some((target) => pathname === target || pathname.startsWith(`${target}/`))) {
-        return { section, item };
+      for (const target of targets) {
+        if (pathname !== target && !pathname.startsWith(`${target}/`)) {
+          continue;
+        }
+
+        if (target.length > bestMatchLength) {
+          bestMatch = { section, item };
+          bestMatchLength = target.length;
+        }
       }
     }
   }
 
-  return null;
+  return bestMatch;
 }

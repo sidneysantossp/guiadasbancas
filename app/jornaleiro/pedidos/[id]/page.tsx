@@ -9,6 +9,7 @@ import OrderHistory from "@/components/admin/OrderHistory";
 import OrderReceipt from "@/components/admin/OrderReceipt";
 import { useToast } from "@/components/admin/ToastProvider";
 import { logStatusChange, logNote, logDeliveryUpdate } from "@/lib/orderHistory";
+import { buildWhatsAppUrl } from "@/lib/whatsapp-url";
 
 const STATUS_FLOW = ["novo","confirmado","em_preparo","saiu_para_entrega","parcialmente_retirado","entregue"] as const;
 
@@ -34,8 +35,8 @@ const formatDeliveryDate = (isoDate: string): string => {
 
 // Função para gerar mensagem do WhatsApp com formatação correta
 const buildWhatsAppMessage = (order: Order) => {
-  const phone = (order.customer_phone || '').replace(/\D/g, '').replace(/^55/, '');
-  if (!phone) return '#';
+  const phone = order.customer_phone || "";
+  if (!phone.replace(/\D/g, "")) return "#";
   
   const lines = [
     `Olá, ${order.customer_name}!`,
@@ -47,8 +48,7 @@ const buildWhatsAppMessage = (order: Order) => {
     `Que horário você consegue passar aqui?`
   ];
   
-  const message = lines.join('%0A');
-  return `https://wa.me/55${phone}?text=${message}`;
+  return buildWhatsAppUrl(phone, lines.join("\n"));
 };
 
 type ItemStatus = 'entregue' | 'a_entregar' | 'em_falta' | 'sob_encomenda';
@@ -365,10 +365,7 @@ export default function OrderDetailsPage() {
       return;
     }
     const message = `Olá ${order.customer_name}! Seu pedido #${order.order_number || order.id.substring(0, 8)} foi atualizado para: ${order.status}`;
-    // Garantir que o número tenha o código do país 55
-    const phone = (order.customer_phone || '').replace(/\D/g, '').replace(/^55/, '');
-    const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    window.open(buildWhatsAppUrl(order.customer_phone, message), '_blank');
   };
 
   if (loading) {

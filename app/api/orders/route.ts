@@ -16,6 +16,7 @@ import {
 import { supabaseAdmin } from "@/lib/supabase";
 import { normalizeEvolutionPhoneDigits, sendEvolutionTextMessage } from "@/lib/evolution-api";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config";
+import { buildWhatsAppUrl } from "@/lib/whatsapp-url";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -321,7 +322,7 @@ export async function POST(req: NextRequest) {
           // Formatar telefone do cliente para WhatsApp
           const customerCleanPhone = (customer.phone || '').replace(/\D/g, '');
           const customerWhatsAppLink = customerCleanPhone 
-            ? `https://wa.me/55${customerCleanPhone.replace(/^55/, '')}`
+            ? buildWhatsAppUrl(customerCleanPhone)
             : '';
 
           // Formatar mensagem

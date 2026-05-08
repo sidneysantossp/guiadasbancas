@@ -1,4 +1,4 @@
-import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
+import { downgradeBancaToFreePlan, ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
 import { supabaseAdmin } from "@/lib/supabase";
 
 type PlanType = "free" | "start" | "premium" | string;
@@ -23,6 +23,7 @@ type SubscriptionRow = {
   status: string;
   current_period_start: string | null;
   current_period_end: string | null;
+  trial_ends_at: string | null;
   plan: SubscriptionPlan | null;
 };
 
@@ -71,7 +72,7 @@ export type BancaPlanEntitlements = {
 };
 
 const DEFAULT_OVERDUE_GRACE_DAYS = 5;
-const DEFAULT_ONBOARDING_PREMIUM_DAYS = 7;
+const DEFAULT_ONBOARDING_PREMIUM_DAYS = 30;
 
 function normalizeFeatures(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -150,6 +151,7 @@ async function readCurrentSubscription(bancaId: string): Promise<SubscriptionRow
       status,
       current_period_start,
       current_period_end,
+      trial_ends_at,
       plan:plans(
         id,
         name,
@@ -309,6 +311,17 @@ function addDaysToIso(isoDate: string, days: number): string {
   return date.toISOString();
 }
 
+function isPaidSubscriptionPlan(plan: SubscriptionPlan | null | undefined): boolean {
+  return Boolean(plan) && (plan?.type || "free") !== "free" && Number(plan?.price || 0) > 0;
+}
+
+function isExpiredDate(isoDate: string | null | undefined): boolean {
+  if (!isoDate) return false;
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return false;
+  return new Date() > date;
+}
+
 export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Promise<BancaPlanEntitlements> {
   let subscription = await readCurrentSubscription(banca.id);
 
@@ -317,12 +330,26 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
     subscription = await readCurrentSubscription(banca.id);
   }
 
-  const subscriptionPlan = subscription?.plan || null;
+  let subscriptionPlan = subscription?.plan || null;
+
+  if (
+    subscription?.status === "trial" &&
+    isPaidSubscriptionPlan(subscriptionPlan) &&
+    isExpiredDate(subscription.trial_ends_at || subscription.current_period_end)
+  ) {
+    const expiredAt = subscription.trial_ends_at || subscription.current_period_end || new Date().toISOString();
+    await downgradeBancaToFreePlan(banca.id, {
+      cancelReason: "Trial Premium expirado. Banca retornou ao plano Free.",
+      cancelledAt: expiredAt,
+    });
+    subscription = await readCurrentSubscription(banca.id);
+    subscriptionPlan = subscription?.plan || null;
+  }
+
   const paidFeaturesLockedUntilPayment =
     subscription?.status === "pending" &&
     Boolean(subscriptionPlan) &&
-    (subscriptionPlan?.type || "free") !== "free" &&
-    Number(subscriptionPlan?.price || 0) > 0;
+    isPaidSubscriptionPlan(subscriptionPlan);
   let overdueFeaturesLocked = false;
   let overdueInGracePeriod = false;
   let overdueGraceEndsAt: string | null = null;
@@ -330,8 +357,7 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
   if (
     subscription?.status === "overdue" &&
     Boolean(subscriptionPlan) &&
-    (subscriptionPlan?.type || "free") !== "free" &&
-    Number(subscriptionPlan?.price || 0) > 0
+    isPaidSubscriptionPlan(subscriptionPlan)
   ) {
     const [graceDays, latestOpenPayment] = await Promise.all([
       readOverdueGraceDays(),
@@ -358,13 +384,13 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
   const requestedPlan = paidFeaturesLockedUntilPayment ? subscriptionPlan : null;
   const features = plan?.features || [];
   const limits = plan?.limits || {};
-  const planType = normalizePlanType((plan?.type || "free") as PlanType);
+  const basePlanType = normalizePlanType((plan?.type || "free") as PlanType);
 
   let hasOnboardingPremiumAccess = false;
   let onboardingPremiumEndsAt: string | null = null;
   const bancaCreatedAt = banca.created_at ?? (await readBancaCreatedAt(banca.id));
 
-  if (planType === "free" && bancaCreatedAt) {
+  if (basePlanType === "free" && bancaCreatedAt) {
     onboardingPremiumEndsAt = addDaysToIso(bancaCreatedAt, DEFAULT_ONBOARDING_PREMIUM_DAYS);
     const stillInsideOnboardingWindow = new Date() <= new Date(onboardingPremiumEndsAt);
 
@@ -374,10 +400,13 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
     }
   }
 
-  const accessPlanType: PlanType = hasOnboardingPremiumAccess ? "premium" : planType;
+  const accessPlanType: PlanType = hasOnboardingPremiumAccess ? "premium" : basePlanType;
+  const planType = normalizePlanType(accessPlanType);
   const isLegacyCotistaLinked = banca.is_cotista === true || Boolean(banca.cotista_id);
   const productLimit =
-    readNumericLimit(limits, "max_products") || (planType === "free" ? 10 : null);
+    hasOnboardingPremiumAccess
+      ? null
+      : readNumericLimit(limits, "max_products") || (planType === "free" ? 10 : null);
 
   const planIncludesPartnerDirectory =
     accessPlanType === "premium" ||
@@ -450,7 +479,7 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
     canAccessEditorial,
     canAccessFeaturedPlacement,
     canAccessPartnerDirectory: planIncludesPartnerDirectory,
-    canAccessDistributorCatalog: planIncludesDistributorCatalog || isLegacyCotistaLinked,
+    canAccessDistributorCatalog: planIncludesDistributorCatalog,
     hasPrioritySupport,
     isLegacyCotistaLinked,
     paidFeaturesLockedUntilPayment,

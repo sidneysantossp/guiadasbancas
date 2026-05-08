@@ -196,6 +196,7 @@ export function filterProductsFuzzy<T extends { name: string; codigo_mercos?: st
   
   // Primeiro, verificar match exato/substring (prioridade máxima)
   const normalizedTerm = normalizeForSearch(term);
+  const normalizedTokens = normalizedTerm.split(/\s+/).filter((token) => token.length >= 2);
   const exactMatches: T[] = [];
   const remainingProducts: T[] = [];
   
@@ -203,11 +204,13 @@ export function filterProductsFuzzy<T extends { name: string; codigo_mercos?: st
     const normalizedName = normalizeForSearch(product.name || '');
     const normalizedCode = normalizeForSearch(product.codigo_mercos || '');
     const normalizedCategory = normalizeForSearch(product.category || '');
+    const normalizedBlob = [normalizedName, normalizedCode, normalizedCategory].join(' ').trim();
     
     if (
       normalizedName.includes(normalizedTerm) ||
       normalizedCode.includes(normalizedTerm) ||
-      normalizedCategory.includes(normalizedTerm)
+      normalizedCategory.includes(normalizedTerm) ||
+      (normalizedTokens.length > 1 && normalizedTokens.every((token) => normalizedBlob.includes(token)))
     ) {
       exactMatches.push(product);
     } else {

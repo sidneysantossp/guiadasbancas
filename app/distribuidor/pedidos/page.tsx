@@ -21,6 +21,7 @@ import {
   getDistribuidorAuthHeaders,
 } from "@/lib/distribuidor-client-auth";
 import { useDistribuidorSession } from "@/lib/distribuidor-client-session";
+import { buildWhatsAppUrl } from "@/lib/whatsapp-url";
 
 type OrderItem = {
   id: string;
@@ -142,13 +143,12 @@ export default function DistribuidorPedidosPage() {
   };
 
   const openWhatsApp = (order: Order) => {
-    const phone = (order.banca_whatsapp || '').replace(/\D/g, '');
-    if (!phone) {
+    if (!order.banca_whatsapp) {
       alert('WhatsApp da banca não disponível');
       return;
     }
     const message = `Olá! Sobre o pedido #${order.id.slice(0, 8)} com ${order.total_itens_distribuidor} produto(s) nosso(s).`;
-    window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    window.open(buildWhatsAppUrl(order.banca_whatsapp, message), '_blank');
   };
 
   if (loading && !orders.length) {

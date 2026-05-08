@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { signOut as nextAuthSignOut, useSession } from "next-auth/react";
 import MinhaContaSidebar from "@/components/minha-conta/MinhaContaSidebar";
+import { buildWhatsAppUrl } from "@/lib/whatsapp-url";
 
 type OrderDetail = {
   id: string;
@@ -299,7 +300,7 @@ export default function MinhaContaPedidoPageClient() {
                   {order.banca_name ? <div className="font-medium text-gray-800">Banca: {order.banca_name}</div> : null}
                   {order.banca_whatsapp ? (
                     <a
-                      href={`https://wa.me/${order.banca_whatsapp.replace(/\D/g, "")}`}
+                      href={buildWhatsAppUrl(order.banca_whatsapp)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-emerald-700 hover:underline"

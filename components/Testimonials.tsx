@@ -12,62 +12,53 @@ type Testimonial = {
   timeAgo: string;
 };
 
-// Depoimentos reais de consumidores sobre a experiência de compra nas bancas
+// Depoimentos de consumidores sobre a experiência de compra nas bancas
 const TESTIMONIALS: Testimonial[] = [
   {
     id: "1",
-    name: "Maria Clara",
-    location: "Zona Sul, São Paulo",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
-    text: "Não sabia que as bancas de jornal estavam no digital! Achei incrível poder ver os produtos antes de ir até lá. Encomendei uma revista rara e o jornaleiro já separou pra mim.",
-    rating: 5,
-    timeAgo: "3 dias atrás",
-  },
-  {
-    id: "2",
-    name: "Roberto Santos",
-    location: "Zona Leste, São Paulo",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-    text: "Finalmente consegui encontrar as HQs que procurava há anos! A facilidade de poder encomendar direto com o jornaleiro e buscar perto de casa é sensacional.",
-    rating: 5,
-    timeAgo: "1 semana atrás",
-  },
-  {
-    id: "3",
     name: "Ana Paula Costa",
-    location: "Centro, São Paulo",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
-    text: "Comprei pelo WhatsApp direto com a banca do meu bairro. O jornaleiro super atencioso, separou tudo certinho. Experiência de compra muito melhor que qualquer grande loja!",
+    location: "Centro",
+    avatar: "/images/testimonials/ana-paula-costa.png",
+    text: "Eu sinceramente não imaginava que dava pra comprar figurinha direto pelo WhatsApp da banca. Sempre achei que tinha que sair rodando. Falei com o jornaleiro, ele já me disse o que tinha e deixou separado. Resolvi tudo em minutos. Muito mais prático e seguro.",
     rating: 5,
     timeAgo: "5 dias atrás",
   },
   {
-    id: "4",
+    id: "2",
     name: "Carlos Eduardo",
-    location: "Zona Norte, São Paulo",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face",
-    text: "Que descoberta! Moro longe de bancas e achava que tinha que comprar tudo online de fora. Agora encomendo da banca mais próxima e retiro no caminho do trabalho.",
+    location: "Zona Norte",
+    avatar: "/images/testimonials/carlos-eduardo.png",
+    text: "Achei que isso era só mais um site, mas quando vi que dava pra falar direto com a banca mudou tudo. Eu já pergunto antes, sei se tem e só vou lá pra buscar. Economiza tempo demais. Não volto mais pro jeito antigo.",
     rating: 4,
     timeAgo: "2 semanas atrás",
   },
   {
-    id: "5",
+    id: "3",
     name: "Fernanda Lima",
-    location: "Zona Oeste, São Paulo",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face",
-    text: "Meu filho é fã de figurinhas e sempre tinha que rodar várias bancas. Agora vejo o estoque de cada uma pelo app e já sei onde tem o que ele quer. Praticidade total!",
+    location: "Zona Oeste",
+    avatar: "/images/testimonials/fernanda-lima.png",
+    text: "Meu filho coleciona e antes era um caos, a gente ia em várias bancas sem saber se tinha. Agora eu vejo, falo direto e já vou certo. É uma evolução muito grande na forma de comprar, facilita demais.",
     rating: 5,
     timeAgo: "4 dias atrás",
   },
   {
-    id: "6",
-    name: "João Pedro",
-    location: "Pinheiros, São Paulo",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
-    text: "Colecionador de revistas antigas aqui! A plataforma me conectou com bancas que têm edições raras. Já fiz várias encomendas e todas chegaram perfeitas.",
+    id: "4",
+    name: "Rodrigo Martins",
+    location: "Vila Mariana",
+    avatar: "/images/testimonials/rodrigo-martins.png",
+    text: "Eu sempre comprava tudo online ou ficava rodando atrás de banca. Quando vi que dava pra falar direto com o jornaleiro pelo WhatsApp, mudou completamente. Perguntei, ele confirmou o que tinha e já fui buscar. Simples, rápido e sem erro. Não imaginava que isso já existia.",
+    rating: 5,
+    timeAgo: "3 dias atrás",
+  },
+  {
+    id: "5",
+    name: "Patrícia Souza",
+    location: "São Paulo",
+    avatar: "/images/testimonials/patricia-souza.png",
+    text: "Achei que era só mais um site, mas quando usei de verdade vi o quanto facilita. Você não precisa mais sair sem saber se vai encontrar. Fala direto com a banca, já sabe o que tem e resolve tudo muito mais rápido. É muito mais seguro comprar assim.",
     rating: 5,
     timeAgo: "1 semana atrás",
-  },
+  }
 ];
 
 function Stars({ value }: { value: number }) {
@@ -179,10 +170,10 @@ export default function Testimonials() {
             Depoimentos
           </span>
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            O que dizem os consumidores
+            O que as pessoas estão descobrindo agora
           </h2>
           <p className="mt-3 text-gray-600 max-w-2xl mx-auto">
-            Histórias reais de pessoas que descobriram a facilidade de comprar na banca de jornal pelo digital
+            Compras mais rápidas, diretas e sem sair procurando — direto com a banca
           </p>
         </div>
 

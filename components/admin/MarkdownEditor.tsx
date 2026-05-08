@@ -48,6 +48,7 @@ export default function MarkdownEditor({
   height = 500,
 }: RichTextEditorProps) {
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: {

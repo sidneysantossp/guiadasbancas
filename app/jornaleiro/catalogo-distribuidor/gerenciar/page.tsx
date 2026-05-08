@@ -83,7 +83,7 @@ export default function GerenciarCatalogoPage() {
       });
       const json = await res.json();
       
-      // Verificar se o plano libera o catálogo parceiro
+      // Verificar se a banca tem catálogo parceiro liberado
       setHasCatalogAccess(
         json.partner_catalog_access === true || json.has_catalog_access === true
       );
@@ -151,7 +151,7 @@ export default function GerenciarCatalogoPage() {
     currentPlanName: planName,
     context: "partner-network",
   });
-  const catalogManageUpgradeHref = "/jornaleiro/meu-plano?source=catalogo-distribuidor-gerenciar";
+  const catalogManageUpgradeHref = "/jornaleiro/dashboard";
 
   // Removido modal: redirecionamento direto para edição do produto
 
@@ -176,7 +176,7 @@ export default function GerenciarCatalogoPage() {
 
   return (
     <div className="space-y-6 relative">
-      {/* Overlay de bloqueio para planos sem catálogo parceiro - apenas no conteúdo central */}
+      {/* Overlay de bloqueio para bancas sem catálogo parceiro - apenas no conteúdo central */}
       {hasCatalogAccess === false && (
         <div className="absolute inset-0 z-40 flex items-center justify-center min-h-[500px]">
           {/* Backdrop com blur */}
@@ -373,10 +373,10 @@ export default function GerenciarCatalogoPage() {
                 </div>
 
                 <Link
-                  href={`/jornaleiro/produtos/${product.id}`}
+                  href={`/jornaleiro/catalogo-distribuidor/editar/${product.id}`}
                   className="w-full inline-flex items-center justify-center rounded-md bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-700 mt-auto"
                 >
-                  Ver Detalhes
+                  Editar
                 </Link>
               </div>
             </div>

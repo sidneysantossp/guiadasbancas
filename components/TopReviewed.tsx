@@ -106,8 +106,7 @@ export default function TopReviewed() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  // Mostrar 2 cards no mobile
-  const perView = w < 640 ? 2 : w < 1024 ? 2 : 4;
+  const perView = w < 480 ? 1 : w < 1100 ? 2 : w < 1536 ? 3 : 4;
   
   // Preferir vitrine curada pelo Admin (featured); fallback: categorias Eletrônicos/Informática
   type ApiProduct = {
@@ -275,7 +274,7 @@ export default function TopReviewed() {
               }}
             >
               {loopCards.map((s, i) => (
-                <div key={i} style={{ flex: `0 0 calc(${100 / perView}% - 1rem)` }} className="shrink-0">
+                <div key={i} style={{ flex: `0 0 calc((100% - ${(perView - 1) * 1}rem) / ${perView})` }} className="shrink-0 min-w-0">
                   <EnhancedCard p={s.p} />
                 </div>
               ))}

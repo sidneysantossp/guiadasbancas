@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import {
+  normalizeBrazilianDocument,
+  validateBrazilianDocument,
+} from "@/lib/documents";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -20,31 +24,9 @@ function normalizePhone(value: string | null | undefined) {
   return value.trim();
 }
 
-function normalizeCpf(value: string | null | undefined) {
+function normalizeDocument(value: string | null | undefined) {
   if (!value) return "";
-  return value.replace(/\D+/g, "").slice(0, 11);
-}
-
-function isValidCpf(cpf: string) {
-  if (!cpf || cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
-
-  let sum = 0;
-  for (let index = 0; index < 9; index += 1) {
-    sum += parseInt(cpf.charAt(index), 10) * (10 - index);
-  }
-
-  let remainder = 11 - (sum % 11);
-  if (remainder >= 10) remainder = 0;
-  if (remainder !== parseInt(cpf.charAt(9), 10)) return false;
-
-  sum = 0;
-  for (let index = 0; index < 10; index += 1) {
-    sum += parseInt(cpf.charAt(index), 10) * (11 - index);
-  }
-
-  remainder = 11 - (sum % 11);
-  if (remainder >= 10) remainder = 0;
-  return remainder === parseInt(cpf.charAt(10), 10);
+  return normalizeBrazilianDocument(value);
 }
 
 async function getAuthenticatedUser() {
@@ -67,7 +49,7 @@ function serializeProfile(profile: any, sessionUser: Awaited<ReturnType<typeof g
     email: profile?.email || sessionUser?.email || "",
     full_name: profile?.full_name || sessionUser?.name || "",
     phone: normalizePhone(profile?.phone),
-    cpf: normalizeCpf(profile?.cpf),
+    cpf: normalizeDocument(profile?.cpf),
     avatar_url: profile?.avatar_url || sessionUser?.avatarUrl || "",
     created_at: profile?.created_at || null,
     updated_at: profile?.updated_at || null,
@@ -131,15 +113,16 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const fullName = typeof body?.full_name === "string" ? body.full_name.trim() : "";
     const phone = normalizePhone(body?.phone);
-    const cpf = normalizeCpf(body?.cpf);
+    const cpf = normalizeDocument(body?.cpf);
     const avatarUrl = typeof body?.avatar_url === "string" ? body.avatar_url.trim() : "";
 
     if (!fullName) {
       return NextResponse.json({ error: "Nome é obrigatório" }, { status: 400 });
     }
 
-    if (cpf && !isValidCpf(cpf)) {
-      return NextResponse.json({ error: "CPF inválido" }, { status: 400 });
+    const documentValidation = validateBrazilianDocument(cpf);
+    if (cpf && documentValidation) {
+      return NextResponse.json({ error: documentValidation }, { status: 400 });
     }
 
     const { data: updatedProfile, error: updateError } = await supabaseAdmin

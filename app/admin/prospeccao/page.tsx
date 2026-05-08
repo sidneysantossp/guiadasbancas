@@ -15,6 +15,7 @@ import {
   IconUser,
 } from "@tabler/icons-react";
 import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
+import { buildWhatsAppUrl, normalizeBrazilianWhatsAppDigits } from "@/lib/whatsapp-url";
 
 type CrmStage = {
   id: string;
@@ -132,6 +133,11 @@ function formatDate(value?: string | null) {
   }).format(new Date(value));
 }
 
+function getWhatsAppHref(phone?: string | null) {
+  const normalized = normalizeBrazilianWhatsAppDigits(phone);
+  return normalized.length >= 12 ? buildWhatsAppUrl(normalized) : null;
+}
+
 function toDateInputValue(value?: string | null) {
   if (!value) return "";
   const date = new Date(value);
@@ -219,6 +225,27 @@ function segmentMatches(lead: CrmLead, segment: string) {
 function isFollowUpOverdue(value?: string | null) {
   if (!value) return false;
   return new Date(value).getTime() < Date.now();
+}
+
+function LeadPhoneLink({ lead }: { lead: CrmLead }) {
+  const primaryPhone = lead.phone || lead.phone_2;
+  const whatsappHref = getWhatsAppHref(primaryPhone);
+
+  if (!whatsappHref || !primaryPhone) {
+    return <span className="truncate">Telefone não informado</span>;
+  }
+
+  return (
+    <a
+      href={whatsappHref}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="truncate font-medium text-green-700 underline-offset-2 hover:text-green-800 hover:underline"
+      title="Abrir conversa no WhatsApp"
+    >
+      {primaryPhone}
+    </a>
+  );
 }
 
 export default function AdminProspeccaoPage() {
@@ -537,7 +564,7 @@ export default function AdminProspeccaoPage() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <IconPhone size={14} className="shrink-0 text-gray-400" />
-                                <span className="truncate">{lead.phone || lead.phone_2 || "Telefone não informado"}</span>
+                                <LeadPhoneLink lead={lead} />
                               </div>
                               <div className="flex items-center gap-2">
                                 <IconBuildingStore size={14} className="shrink-0 text-gray-400" />

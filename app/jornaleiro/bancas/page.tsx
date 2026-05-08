@@ -47,8 +47,7 @@ export default function JornaleiroBancasPage() {
   const partnerLinkedCount = items.filter(
     (item) => item.partner_linked === true || item.is_cotista === true
   ).length;
-  const additionalBancaUpgradeHref = "/jornaleiro/meu-plano?source=multiplas-bancas" as Route;
-  const createBancaHref = items.length > 0 ? additionalBancaUpgradeHref : ("/jornaleiro/bancas/nova" as Route);
+  const createBancaHref = "/jornaleiro/bancas/nova" as Route;
 
   const tabs = useMemo(
     () => [
@@ -124,7 +123,7 @@ export default function JornaleiroBancasPage() {
               href={createBancaHref}
               className="inline-flex rounded-md bg-gradient-to-r from-[#ff5c00] to-[#ff7a33] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
             >
-              {items.length > 0 ? "Ativar nova licença" : "+ Nova banca"}
+              + Nova banca
             </Link>
           ) : null
         }
@@ -177,11 +176,7 @@ export default function JornaleiroBancasPage() {
           </p>
           {canManageBancas ? (
             <p className="mt-2 text-blue-800">
-              Para abrir uma nova unidade, cada banca precisa da própria licença. Use o fluxo de ativação em{" "}
-              <Link href={additionalBancaUpgradeHref} className="font-semibold underline underline-offset-2">
-                Meu Plano
-              </Link>
-              .
+              Para abrir uma nova unidade, fale com a equipe do Guia das Bancas para organizar o cadastro e os próximos passos da operação.
             </p>
           ) : null}
         </div>

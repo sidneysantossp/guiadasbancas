@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import SafeImage from "./SafeImage";
 import { useCategories, type UICategory } from "@/lib/useCategories";
+import { getOptimizedPublicImageUrl } from "@/lib/optimized-public-image-url";
 
 function normalizeCategoryKey(value: string): string {
   return (value || "")
@@ -169,7 +170,14 @@ export default function CategoryCarousel({ initialItems }: CategoryCarouselProps
                     <div 
                       className="relative overflow-hidden shadow-sm group-hover:-translate-y-0.5 transition-transform h-14 w-14 sm:h-16 sm:w-16 md:h-16 md:w-16 rounded-[14px] sm:rounded-[16px]"
                     >
-                      <SafeImage src={c.image} alt={c.name} fill className="object-cover" />
+                      <SafeImage
+                        src={getOptimizedPublicImageUrl(c.image, { width: 128, height: 128, quality: 72 })}
+                        alt={c.name}
+                        fill
+                        className="object-cover"
+                        loading="lazy"
+                        sizes="64px"
+                      />
                     </div>
                     <div className="text-gray-800 font-medium text-center text-sm">
                       {c.name}

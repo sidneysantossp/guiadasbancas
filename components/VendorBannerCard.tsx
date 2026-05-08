@@ -23,12 +23,14 @@ type VendorBannerCardProps = {
   banner: VendorBannerData;
   className?: string;
   preview?: boolean;
+  layout?: "contained" | "full";
 };
 
 export default function VendorBannerCard({
   banner,
   className = "",
   preview = false,
+  layout = "contained",
 }: VendorBannerCardProps) {
   const isValidImageUrl =
     !!banner.image_url &&
@@ -38,10 +40,13 @@ export default function VendorBannerCard({
       banner.image_url.includes(".png") ||
       banner.image_url.includes(".webp"));
 
+  const widthClass = layout === "full" ? "w-full" : "mx-auto w-full max-w-4xl";
+  const roundedClass = layout === "full" ? "rounded-none sm:rounded-2xl" : "rounded-2xl";
+
   return (
-    <div className={`w-full max-w-4xl mx-auto ${className}`.trim()}>
-      <div className="relative w-full overflow-hidden rounded-2xl shadow-lg">
-        <div className="relative h-96 sm:h-64 md:h-72 w-full">
+    <div className={`${widthClass} ${className}`.trim()}>
+      <div className={`relative w-full overflow-hidden shadow-lg ${roundedClass}`}>
+        <div className="relative h-[280px] w-full sm:h-[320px] lg:h-[360px]">
           {isValidImageUrl ? (
             <div className="relative w-full h-full">
               <Image
@@ -70,16 +75,16 @@ export default function VendorBannerCard({
             </div>
           )}
           <div
-            className="absolute inset-0 bg-gradient-to-b from-black/45 to-black/25 px-3 sm:px-5 md:px-8 text-white flex flex-col items-start justify-end md:justify-center gap-2 sm:gap-3 pb-6 sm:pb-6 md:pb-8"
+            className="absolute inset-0 flex flex-col items-start justify-end gap-2 bg-gradient-to-b from-black/45 to-black/25 px-4 pb-6 text-white sm:px-6 sm:pb-7 md:justify-center md:px-8 md:pb-8"
             style={{ color: banner.text_color }}
           >
-            <h3 className="text-3xl sm:text-4xl md:text-5xl font-semibold leading-tight">
+            <h3 className="max-w-[18rem] text-[2.25rem] font-semibold leading-[0.95] sm:max-w-[24rem] sm:text-[2.75rem] md:max-w-[32rem] md:text-5xl">
               {banner.title}
             </h3>
-            <div className="text-lg sm:text-xl md:text-2xl font-semibold leading-tight">
+            <div className="max-w-[18rem] text-lg font-semibold leading-tight sm:max-w-[24rem] sm:text-xl md:max-w-[32rem] md:text-2xl">
               {banner.subtitle}
             </div>
-            <p className="text-sm sm:text-base max-w-2xl opacity-90">
+            <p className="max-w-[18rem] text-sm opacity-90 sm:max-w-[26rem] sm:text-base md:max-w-2xl">
               {banner.description}
             </p>
             {banner.active && (

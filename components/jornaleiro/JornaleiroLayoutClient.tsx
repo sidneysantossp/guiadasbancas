@@ -14,8 +14,11 @@ import logger from "@/lib/logger";
 import {
   JOURNALEIRO_MOBILE_QUICK_LINKS,
   buildJornaleiroMenuSections,
+  findJornaleiroMenuContextByPathname,
+  isJornaleiroMenuItemOperational,
   type JornaleiroMenuItem,
 } from "@/lib/jornaleiro-navigation";
+import { RECURRING_BILLING_ENABLED } from "@/lib/jornaleiro-billing";
 import { buildBancaHref } from "@/lib/slug";
 import {
   IconLayoutDashboard,
@@ -31,6 +34,7 @@ import {
   IconSettings,
   IconBell,
   IconCreditCard,
+  IconSpeakerphone,
 } from "@tabler/icons-react";
 
 const journaleiroIconComponents = {
@@ -40,6 +44,7 @@ const journaleiroIconComponents = {
   orders: IconClipboardList,
   products: IconPackage,
   catalog: IconFolderOpen,
+  marketing: IconSpeakerphone,
   campaigns: IconMessageDots,
   distributors: IconUsers,
   users: IconUsers,
@@ -65,7 +70,10 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [isOwner, setIsOwner] = useState<boolean | null>(null); // null = carregando
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
-  const [plansMenuEnabled, setPlansMenuEnabled] = useState(true);
+  const [plansMenuEnabled, setPlansMenuEnabled] = useState(RECURRING_BILLING_ENABLED);
+  const [hasWholesaleAccess, setHasWholesaleAccess] = useState(false);
+  const [wholesaleAccessLoaded, setWholesaleAccessLoaded] = useState(false);
+  const [wholesaleAccessBancaId, setWholesaleAccessBancaId] = useState<string | null>(null);
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
@@ -91,6 +99,11 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
 
   // Carregar configuração do menu de planos
   useEffect(() => {
+    if (!RECURRING_BILLING_ENABLED) {
+      setPlansMenuEnabled(false);
+      return;
+    }
+
     const loadPlansMenuSetting = async () => {
       try {
         const res = await fetch("/api/settings/plans-menu");
@@ -104,6 +117,37 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     };
     loadPlansMenuSetting();
   }, []);
+
+  useEffect(() => {
+    const loadWholesaleAccess = async () => {
+      if (!user?.id || isAuthRoute || !banca?.id) {
+        setHasWholesaleAccess(false);
+        setWholesaleAccessBancaId(null);
+        setWholesaleAccessLoaded(Boolean(isAuthRoute || !user?.id));
+        return;
+      }
+
+      try {
+        setWholesaleAccessLoaded(false);
+        setWholesaleAccessBancaId(null);
+        const res = await fetch("/api/jornaleiro/atacado/access", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const json = await res.json();
+        setHasWholesaleAccess(json?.success === true && json?.allowed === true);
+        setWholesaleAccessBancaId(banca.id);
+      } catch (error) {
+        logger.error("Erro ao validar acesso ao atacado:", error);
+        setHasWholesaleAccess(false);
+        setWholesaleAccessBancaId(banca.id);
+      } finally {
+        setWholesaleAccessLoaded(true);
+      }
+    };
+
+    loadWholesaleAccess();
+  }, [user?.id, isAuthRoute, banca?.id]);
 
   // Buscar permissões do usuário - IMPORTANTE: só busca quando banca está disponível
   useEffect(() => {
@@ -127,8 +171,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
         const json = await res.json();
 
         if (json?.success) {
-          const ownerOrAdmin = json.isOwner === true || json.accessLevel === "admin";
-          setIsOwner(ownerOrAdmin);
+          setIsOwner(json.isOwner === true);
           setUserPermissions(json.permissions || []);
           setPermissionsLoaded(true);
         }
@@ -173,6 +216,10 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   const hasPartnerDirectoryAccess = Boolean(
     banca?.entitlements?.can_access_partner_directory
   );
+  const hasCampaignAccess = Boolean(
+    banca?.entitlements?.can_access_campaigns
+  );
+  const entitlementsLoaded = Boolean(banca?.entitlements);
   const planType = typeof banca?.entitlements?.plan_type === "string"
     ? banca.entitlements.plan_type
     : null;
@@ -181,6 +228,8 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     return buildJornaleiroMenuSections({
       hasCatalogAccess,
       hasPartnerDirectoryAccess,
+      hasWholesaleAccess,
+      hasCampaignAccess,
       plansMenuEnabled,
       permissionsLoaded,
       isOwner,
@@ -193,11 +242,82 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     userPermissions,
     hasCatalogAccess,
     hasPartnerDirectoryAccess,
+    hasWholesaleAccess,
+    hasCampaignAccess,
     plansMenuEnabled,
     planType,
   ]);
 
   const menuItems = useMemo(() => menuSections.flatMap((section) => section.items), [menuSections]);
+  const isMarketplacePath =
+    pathname === "/jornaleiro/fornecedor" ||
+    pathname?.startsWith("/jornaleiro/fornecedor/") ||
+    pathname === "/jornaleiro/atacado" ||
+    pathname?.startsWith("/jornaleiro/atacado/");
+
+  useEffect(() => {
+    if (isAuthRoute || !pathname || !permissionsLoaded || isOwner === null) {
+      return;
+    }
+
+    if (isMarketplacePath) {
+      return;
+    }
+
+    const activeContext = findJornaleiroMenuContextByPathname(pathname);
+    if (!activeContext?.item.permissionKey) {
+      return;
+    }
+
+    const routeIsOperational = isJornaleiroMenuItemOperational(activeContext.item, {
+      hasCatalogAccess,
+      hasPartnerDirectoryAccess,
+      hasWholesaleAccess,
+      hasCampaignAccess,
+      plansMenuEnabled,
+      planType,
+    });
+
+    const wholesaleAccessCurrent =
+      wholesaleAccessLoaded && (!banca?.id || wholesaleAccessBancaId === banca.id);
+
+    if (activeContext.item.requiresWholesaleAccess && !wholesaleAccessCurrent) {
+      return;
+    }
+
+    if (activeContext.item.requiresWholesaleAccess && hasWholesaleAccess) {
+      return;
+    }
+
+    const hasRoutePermission = isOwner === true || userPermissions.includes(activeContext.item.permissionKey);
+
+    if (routeIsOperational && hasRoutePermission) {
+      return;
+    }
+
+    const fallbackHref = menuItems[0]?.href || ("/jornaleiro/dashboard" as Route);
+    if (pathname !== fallbackHref) {
+      router.replace(fallbackHref);
+    }
+  }, [
+    hasCatalogAccess,
+    hasPartnerDirectoryAccess,
+    hasWholesaleAccess,
+    hasCampaignAccess,
+    isAuthRoute,
+    isMarketplacePath,
+    isOwner,
+    menuItems,
+    pathname,
+    permissionsLoaded,
+    planType,
+    plansMenuEnabled,
+    router,
+    userPermissions,
+    banca?.id,
+    wholesaleAccessBancaId,
+    wholesaleAccessLoaded,
+  ]);
 
   const mobileQuickLinks = useMemo(() => {
     return JOURNALEIRO_MOBILE_QUICK_LINKS.flatMap((shortcut) => {
@@ -512,9 +632,29 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
 
   // Removido - banca já é carregada na validação de segurança
 
-  const isMenuItemActive = (item: JornaleiroMenuItem) => {
+  const isMenuItemSelfActive = (item: JornaleiroMenuItem) => {
     const targets = [item.href, ...(item.aliases || [])];
     return targets.some((target) => pathname === target || pathname?.startsWith(`${target}/`));
+  };
+
+  const isMenuItemActive = (item: JornaleiroMenuItem): boolean => {
+    return isMenuItemSelfActive(item) || Boolean(item.children?.some((child) => isMenuItemActive(child)));
+  };
+
+  const getEffectiveMenuHref = (item: JornaleiroMenuItem) => {
+    const lacksCatalogAccess =
+      entitlementsLoaded && item.requiresCatalogAccess === true && !hasCatalogAccess;
+    const lacksPartnerDirectoryAccess =
+      entitlementsLoaded && item.requiresPartnerDirectoryAccess === true && !hasPartnerDirectoryAccess;
+    const lacksPremiumAccess = planType === "free" && item.premiumFeature === true;
+    const shouldRedirectToPlan =
+      RECURRING_BILLING_ENABLED &&
+      Boolean(item.upgradeSource) &&
+      (lacksCatalogAccess || lacksPartnerDirectoryAccess || lacksPremiumAccess);
+
+    return shouldRedirectToPlan && item.upgradeSource
+      ? ("/jornaleiro/dashboard" as Route)
+      : item.href;
   };
 
   // TODOS os hooks foram declarados acima. Agora podemos fazer returns condicionais.
@@ -709,34 +849,64 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
 
                     <div className="space-y-1">
                       {section.items.map((item) => {
-                        const IconComponent = journaleiroIconComponents[item.icon];
+                        const IconComponent = journaleiroIconComponents[item.icon] || IconLayoutDashboard;
                         const isActive = isMenuItemActive(item);
-                        const shouldRedirectToPlan = planType === "free" && item.premiumFeature === true;
-                        const effectiveHref =
-                          shouldRedirectToPlan && item.upgradeSource
-                            ? (`/jornaleiro/meu-plano?source=${encodeURIComponent(item.upgradeSource)}` as Route)
-                            : item.href;
+                        const effectiveHref = getEffectiveMenuHref(item);
+                        const isSubItem = item.isSubItem === true;
 
                         return (
-                          <Link
-                            key={item.href}
-                            href={effectiveHref}
-                            onClick={() => setSidebarOpen(false)}
-                            className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                              isActive
-                                ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm"
-                                : "text-gray-100 hover:bg-white/10 hover:text-white"
-                            }`}
-                          >
-                            <span
-                              className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-                                isActive ? "bg-[#ff5c00]/10 text-[#ff5c00]" : "bg-white/5 text-white/80 group-hover:bg-white/10"
-                              }`}
+                          <div key={item.href} className="space-y-1">
+                            <Link
+                              href={effectiveHref}
+                              onClick={() => setSidebarOpen(false)}
+                              className={
+                                isSubItem
+                                  ? `ml-12 block rounded-lg border-l border-white/10 px-3 py-2 text-xs font-medium transition-colors ${
+                                      isActive
+                                        ? "bg-white/95 text-[#ff5c00]"
+                                        : "text-white/70 hover:bg-white/10 hover:text-white"
+                                    }`
+                                  : `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                                      isActive
+                                        ? "bg-[#fff7f2] text-[#ff5c00] shadow-sm"
+                                        : "text-gray-100 hover:bg-white/10 hover:text-white"
+                                    }`
+                              }
                             >
-                              <IconComponent size={20} stroke={1.7} />
-                            </span>
-                            <span className="min-w-0 flex-1 font-medium">{item.label}</span>
-                          </Link>
+                              {!isSubItem ? (
+                                <span
+                                  className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                                    isActive ? "bg-[#ff5c00]/10 text-[#ff5c00]" : "bg-white/5 text-white/80 group-hover:bg-white/10"
+                                  }`}
+                                >
+                                  <IconComponent size={20} stroke={1.7} />
+                                </span>
+                              ) : null}
+                              <span className="min-w-0 flex-1 font-medium">{item.label}</span>
+                            </Link>
+
+                            {item.children?.length ? (
+                              <div className="ml-12 space-y-1 border-l border-white/10 pl-3">
+                                {item.children.map((child) => {
+                                  const childIsActive = isMenuItemSelfActive(child);
+                                  return (
+                                    <Link
+                                      key={child.href}
+                                      href={getEffectiveMenuHref(child)}
+                                      onClick={() => setSidebarOpen(false)}
+                                      className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                                        childIsActive
+                                          ? "bg-white/95 text-[#ff5c00]"
+                                          : "text-white/70 hover:bg-white/10 hover:text-white"
+                                      }`}
+                                    >
+                                      {child.label}
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            ) : null}
+                          </div>
                         );
                       })}
                     </div>
@@ -788,7 +958,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
           >
             <div className="mx-auto flex max-w-md items-center justify-around gap-2 px-3 pt-2">
               {mobileQuickLinks.map((shortcut) => {
-                const IconComponent = journaleiroIconComponents[shortcut.icon];
+                const IconComponent = journaleiroIconComponents[shortcut.icon] || IconLayoutDashboard;
                 const isActive = pathname === shortcut.href || pathname?.startsWith(`${shortcut.href}/`);
 
                 return (

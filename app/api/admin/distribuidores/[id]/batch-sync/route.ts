@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
 import { MercosError, MercosProduto, MercosThrottleError } from '@/types/distribuidor';
+import {
+  chooseDistribuidorProductCategoryId,
+  loadDistribuidorCategorySyncState,
+  type DistribuidorCategorySyncState,
+} from '@/lib/modules/distribuidor/category-mapping';
 
 // Aumentar timeout para 5 minutos (máximo permitido pelo Vercel Pro)
 export const maxDuration = 300;
@@ -142,6 +147,7 @@ async function processBatch(
   supabase: any,
   mercosApi: MercosAPI,
   state: SyncState,
+  categoryState: DistribuidorCategorySyncState,
   batchSize: number
 ): Promise<SyncState> {
   const batchStartTime = Date.now();
@@ -173,7 +179,7 @@ async function processBatch(
     // Processar cada produto do lote
     const batchResults = await Promise.allSettled(
       produtos.map(produto => 
-        processSingleProduct(supabase, produto, distribuidorId)
+        processSingleProduct(supabase, produto, distribuidorId, categoryState)
       )
     );
 
@@ -229,7 +235,8 @@ async function processBatch(
 async function processSingleProduct(
   supabase: any,
   produto: MercosProduto,
-  distribuidorId: string
+  distribuidorId: string,
+  categoryState: DistribuidorCategorySyncState
 ): Promise<{ id: number }> {
   try {
     console.log(`[PROCESS-PRODUCT] Processando produto ${produto.id} - ${produto.nome}`);
@@ -253,9 +260,13 @@ async function processSingleProduct(
     const existingImages = existingProduct?.images || [];
     const hasExistingImages = Array.isArray(existingImages) && existingImages.length > 0;
     
-    // PRESERVAR categoria existente - não sobrescrever se já tiver categoria definida
-    const existingCategory = existingProduct?.category_id;
-    const hasValidCategory = existingCategory && existingCategory !== CATEGORIA_SEM_CATEGORIA_ID;
+    const finalCategoryId = chooseDistribuidorProductCategoryId({
+      mercosCategoryId: produto.categoria_id,
+      categoryMap: categoryState.categoryMap,
+      existingCategoryId: existingProduct?.category_id,
+      validCategoryIds: categoryState.validCategoryIds,
+      fallbackCategoryId: CATEGORIA_SEM_CATEGORIA_ID,
+    });
     
     const productData = {
       name: produto.nome,
@@ -267,8 +278,8 @@ async function processSingleProduct(
       banca_id: null,
       distribuidor_id: distribuidorId,
       mercos_id: produto.id,
-      // PRESERVAR categoria: manter a existente se for válida
-      category_id: hasValidCategory ? existingCategory : CATEGORIA_SEM_CATEGORIA_ID,
+      category_id: finalCategoryId,
+      categoria_mercos: produto.categoria_id ? String(produto.categoria_id) : null,
       origem: 'mercos',
       sincronizado_em: new Date().toISOString(),
       track_stock: true,
@@ -443,6 +454,7 @@ export async function POST(
     }
 
     console.log(`[BATCH-SYNC] ✓ Conexão com Mercos OK`);
+    const categoryState = await loadDistribuidorCategorySyncState(distribuidorId);
 
     // Processar lotes até terminar ou atingir o tempo limite
     let batchCount = 0;
@@ -459,6 +471,7 @@ export async function POST(
         supabase,
         mercosApi,
         state,
+        categoryState,
         SYNC_CONFIG.BATCH_SIZE
       );
       

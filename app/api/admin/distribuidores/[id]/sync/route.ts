@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
 import { requireAdminAuth } from '@/lib/security/admin-auth';
+import {
+  chooseDistribuidorProductCategoryId,
+  loadDistribuidorCategorySyncState,
+} from '@/lib/modules/distribuidor/category-mapping';
 
 // Aumentar timeout para 5 minutos (máximo no Vercel Pro)
 export const maxDuration = 300;
@@ -117,20 +121,10 @@ export async function POST(
 
     // Buscar mapa de categorias do distribuidor (mercos_id -> uuid)
     console.log(`[SYNC] Carregando categorias do distribuidor...`);
-    const { data: distCategories } = await supabase
-      .from('distribuidor_categories')
-      .select('id, mercos_id')
-      .eq('distribuidor_id', params.id);
-    
-    const categoryMap = new Map<number, string>();
-    for (const cat of distCategories || []) {
-      if (cat.mercos_id) {
-        categoryMap.set(cat.mercos_id, cat.id);
-      }
-    }
-    console.log(`[SYNC] ✓ ${categoryMap.size} categorias mapeadas`);
+    const categoryState = await loadDistribuidorCategorySyncState(params.id);
+    console.log(`[SYNC] ✓ ${categoryState.categoryMap.size} categorias mapeadas`);
 
-    if (categoryMap.size === 0 && !allowWithoutCategories) {
+    if (categoryState.categoryMap.size === 0 && !allowWithoutCategories) {
       return NextResponse.json(
         {
           success: false,
@@ -173,13 +167,18 @@ export async function POST(
       const mercosIds = lote.map(p => p.id);
       const { data: existentesRows, error: mapErr } = await supabase
         .from('products')
-        .select('id, mercos_id')
+        .select('id, mercos_id, category_id')
         .eq('distribuidor_id', params.id)
         .in('mercos_id', mercosIds);
       if (mapErr) {
         console.error('[SYNC] ❌ Erro ao buscar mapa de existentes:', mapErr);
       }
-      const existentes = new Map<number, string>((existentesRows || []).map(r => [r.mercos_id as number, r.id as string]));
+      const existentes = new Map<number, { id: string; category_id: string | null }>(
+        (existentesRows || []).map((r: any) => [
+          r.mercos_id as number,
+          { id: r.id as string, category_id: r.category_id as string | null },
+        ])
+      );
 
       // Preparar payloads
       const novosPayload: any[] = [];
@@ -205,12 +204,13 @@ export async function POST(
             }
           }
           // Mapear categoria Mercos → distribuidor_categories UUID
-          const resolvedCategoryId = (produtoMercos.categoria_id && categoryMap.has(produtoMercos.categoria_id))
-            ? categoryMap.get(produtoMercos.categoria_id)!
-            : null;
-          
-          // PRESERVAR imagens e categorias existentes ao atualizar
-          const existingId = existentes.get(produtoMercos.id);
+          const existingRecord = existentes.get(produtoMercos.id);
+          const finalCategoryId = chooseDistribuidorProductCategoryId({
+            mercosCategoryId: produtoMercos.categoria_id,
+            categoryMap: categoryState.categoryMap,
+            existingCategoryId: existingRecord?.category_id,
+            validCategoryIds: categoryState.validCategoryIds,
+          });
           
           const produtoData: any = {
             name: produtoMercos.nome,
@@ -228,16 +228,17 @@ export async function POST(
             pre_venda: false,
             pronta_entrega: true,
             active: !produtoMercos.excluido && produtoMercos.ativo !== false,
-            category_id: resolvedCategoryId,
+            category_id: finalCategoryId,
+            categoria_mercos: produtoMercos.categoria_id ? String(produtoMercos.categoria_id) : null,
           };
           
           // Só definir images para produtos NOVOS
-          if (!existingId) {
+          if (!existingRecord) {
             produtoData.images = [];
           }
 
-          if (existingId) {
-            updatesPayload.push({ id: existingId, data: produtoData, mercosId: produtoMercos.id, nome: produtoMercos.nome });
+          if (existingRecord) {
+            updatesPayload.push({ id: existingRecord.id, data: produtoData, mercosId: produtoMercos.id, nome: produtoMercos.nome });
           } else {
             novosPayload.push(produtoData);
           }

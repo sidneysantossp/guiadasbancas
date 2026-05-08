@@ -7,6 +7,7 @@ import { useCart } from "@/components/CartContext";
 import { useToast } from "@/components/ToastProvider";
 import { useEffect, useMemo, useState } from "react";
 import { buildPublicProductPath } from "@/lib/product-url";
+import { buildWhatsAppUrl } from "@/lib/whatsapp-url";
 
 type ApiProduct = {
   id: string;
@@ -92,8 +93,7 @@ function MonicaCard({ p }: { p: MonicaProduct }) {
     const codeText = p.codigo_mercos ? ` (cód. ${p.codigo_mercos})` : "";
     const message = `Olá! Tenho interesse no produto: ${p.name}${codeText} por R$ ${price.toFixed(2)}.\n\nVer produto: ${productUrl}`;
     if (typeof window !== "undefined") {
-      const base = p.bancaPhone ? `https://wa.me/${String(p.bancaPhone).replace(/\D/g, "")}` : "https://wa.me/";
-      window.location.href = `${base}?text=${encodeURIComponent(message)}`;
+      window.location.href = buildWhatsAppUrl(p.bancaPhone, message);
     }
   };
 

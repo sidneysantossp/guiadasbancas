@@ -17,6 +17,7 @@ import { ui } from "@/lib/ui";
 import homeCategories from "@/data/categories.json";
 import { trackEvent } from "@/lib/useAnalytics";
 import { buildPublicProductPath } from "@/lib/product-url";
+import { buildWhatsAppUrl } from "@/lib/whatsapp-url";
 import CatalogSidebar from "@/components/CatalogSidebar";
 import {
   DEFAULT_BANCA_ABOUT_TEMPLATE,
@@ -64,6 +65,9 @@ export type ProdutoResumo = {
   pronta_entrega?: boolean;
   status?: string; // 'available', 'unavailable', 'hidden'
   codigo_mercos?: string; // Código do produto (ex: ACBKA004)
+  source?: string;
+  sourceId?: string;
+  is_fornecedor?: boolean;
 };
 
 // Não usar mock de banca na interface pública.
@@ -174,12 +178,16 @@ function ProductCard({ p, bancaName }: { p: ProdutoResumo; bancaName?: string })
   // 2. Tem controle de estoque E estoque <= 0 E status NÃO é 'available'
   const outOfStock = p.status === 'unavailable' || 
     (p.status !== 'available' && Boolean(p.ready) && (p.stockQty != null) && (p.stockQty <= 0));
-  const productHref = buildPublicProductPath(
-    p.name,
-    bancaName,
-    p.id,
-    p.codigo_mercos
-  ) as Route;
+  const isFornecedor = p.is_fornecedor === true || p.source === 'fornecedor';
+  const productHref = isFornecedor
+    ? null
+    : buildPublicProductPath(
+        p.name,
+        bancaName,
+        p.id,
+        p.codigo_mercos
+      ) as Route;
+  const hasOpenPrice = Boolean(p.sob_encomenda) && Number(p.price || 0) <= 0;
   
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">
@@ -189,11 +197,13 @@ function ProductCard({ p, bancaName }: { p: ProdutoResumo; bancaName?: string })
           <div className="relative h-full w-full rounded-[14px] overflow-hidden">
             <ImagePlaceholder src={p.image} alt={p.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-contain bg-gray-50" />
             {/* Link absoluto cobrindo a imagem para ir à página do produto */}
-            <Link
-              href={productHref}
-              aria-label={`Ver detalhes de ${p.name}`}
-              className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5c00]"
-            />
+            {productHref ? (
+              <Link
+                href={productHref}
+                aria-label={`Ver detalhes de ${p.name}`}
+                className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5c00]"
+              />
+            ) : null}
             {/* Efeito hover sutil sobre a imagem */}
             <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/5 transition" />
             {/* Badge de desconto no canto superior esquerdo */}
@@ -217,7 +227,11 @@ function ProductCard({ p, bancaName }: { p: ProdutoResumo; bancaName?: string })
         </div>
       </div>
       <div className="p-2.5 flex flex-col flex-1">
-        <Link href={productHref} className="text-[13px] font-semibold hover:underline line-clamp-2">{p.name}</Link>
+        {productHref ? (
+          <Link href={productHref} className="text-[13px] font-semibold hover:underline line-clamp-2">{p.name}</Link>
+        ) : (
+          <div className="text-[13px] font-semibold line-clamp-2">{p.name}</div>
+        )}
         
         {/* Código do produto */}
         {(p as any).codigo_mercos && (
@@ -239,6 +253,11 @@ function ProductCard({ p, bancaName }: { p: ProdutoResumo; bancaName?: string })
               Pré-Venda
             </span>
           )}
+          {isFornecedor && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-[2px] text-[10px] font-semibold">
+              Fornecedor
+            </span>
+          )}
         </div>
         
         <div className="mt-1 flex items-center gap-2">
@@ -252,7 +271,9 @@ function ProductCard({ p, bancaName }: { p: ProdutoResumo; bancaName?: string })
         <div className="mt-auto pt-2 flex flex-col gap-1.5">
           {/* Preço com rótulos: 'De:' (antigo) e 'Por:' (atual) */}
           <div className="flex flex-col gap-0.5">
-            {typeof p.discountPercent === 'number' && p.discountPercent > 0 ? (
+            {hasOpenPrice ? (
+              <div className="text-[18px] text-[#ff5c00] font-extrabold">Valor a definir</div>
+            ) : typeof p.discountPercent === 'number' && p.discountPercent > 0 ? (
               <>
                 <div className="text-[12px] text-gray-600">
                   De: {(() => { const old = p.price / (1 - p.discountPercent / 100); return <span className="text-gray-400 line-through">R$ {old.toFixed(2)}</span>; })()}
@@ -581,6 +602,9 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         pronta_entrega: Boolean(item.pronta_entrega),
         status: item.status || 'available',
         codigo_mercos: item.codigo_mercos || '',
+        source: item.source || (item.is_fornecedor ? 'fornecedor' : undefined),
+        sourceId: item.source_id,
+        is_fornecedor: Boolean(item.is_fornecedor),
       } as any;
     }).filter(Boolean);
   };
@@ -591,26 +615,60 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
     const idForProducts = banca?.id || bancaId;
     
     (async () => {
+      let hasLoadedAnyProducts = false;
       try {
         setLoadingProdutos(true);
-        
-        // 1. Carregar primeiros 100 produtos rapidamente (sem fast mode para garantir preço correto)
-        const resInitial = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/products?limit=100&_t=${Date.now()}`, { cache: 'no-store' });
+
+        const initialLimit = 100;
+        const batchLimit = 1000;
+        const mergeById = (items: any[]) => {
+          const seen = new Map<string, any>();
+          for (const item of items) {
+            if (item?.id) seen.set(String(item.id), item);
+          }
+          return Array.from(seen.values());
+        };
+
+        // 1. Carregar primeiros produtos rapidamente
+        const resInitial = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/products?limit=${initialLimit}&offset=0&_t=${Date.now()}`, { cache: 'no-store' });
         const jsonInitial = await resInitial.json();
         
         if (resInitial.ok && jsonInitial.success && active) {
           const initialItems = Array.isArray(jsonInitial.products) ? jsonInitial.products : [];
-          setProdutos(mapProducts(initialItems) as ProdutoResumo[]);
+          const reportedTotal = Number(jsonInitial.total || 0);
+          let mergedItems = mergeById(initialItems);
+          hasLoadedAnyProducts = mergedItems.length > 0;
+          setProdutos(mapProducts(mergedItems) as ProdutoResumo[]);
           setLoadingProdutos(false);
           
-          // 2. Se há mais produtos, carregar o resto em background
-          if (jsonInitial.total > 100) {
-            const resAll = await fetch(`/api/banca/${encodeURIComponent(idForProducts)}/products?limit=10000&_t=${Date.now()}`, { cache: 'no-store' });
-            const jsonAll = await resAll.json();
-            
-            if (resAll.ok && jsonAll.success && active) {
-              const allItems = Array.isArray(jsonAll.products) ? jsonAll.products : [];
-              setProdutos(mapProducts(allItems) as ProdutoResumo[]);
+          // 2. Carregar o restante em lotes para evitar respostas gigantes
+          if (initialItems.length === initialLimit || reportedTotal > initialLimit) {
+            let offset = initialLimit;
+
+            while (active) {
+              const resBatch = await fetch(
+                `/api/banca/${encodeURIComponent(idForProducts)}/products?limit=${batchLimit}&offset=${offset}&_t=${Date.now()}`,
+                { cache: 'no-store' }
+              );
+              const jsonBatch = await resBatch.json();
+
+              if (!resBatch.ok || !jsonBatch.success) {
+                break;
+              }
+
+              const batchItems = Array.isArray(jsonBatch.products) ? jsonBatch.products : [];
+              const batchTotal = Number(jsonBatch.total || reportedTotal || 0);
+
+              mergedItems = mergeById([...mergedItems, ...batchItems]);
+              hasLoadedAnyProducts = mergedItems.length > 0;
+              setProdutos(mapProducts(mergedItems) as ProdutoResumo[]);
+
+              const nextOffset = offset + batchLimit;
+              if ((batchTotal > 0 && nextOffset >= batchTotal) || (batchTotal <= 0 && batchItems.length < batchLimit)) {
+                break;
+              }
+
+              offset = nextOffset;
             }
           }
         } else {
@@ -618,7 +676,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
           if (active) setLoadingProdutos(false);
         }
       } catch {
-        if (active) setProdutos([]);
+        if (active && !hasLoadedAnyProducts) setProdutos([]);
         if (active) setLoadingProdutos(false);
       }
     })();
@@ -1271,7 +1329,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         <div className="absolute right-2 top-2 md:right-3 md:top-3 z-10 flex flex-col gap-2">
           {banca.phone && (
             <a
-              href={`https://wa.me/${banca.phone.replace(/\D/g, "")}`}
+              href={buildWhatsAppUrl(banca.phone)}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="WhatsApp"
@@ -1416,7 +1474,7 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         <div className="hidden items-center gap-2 flex-wrap">
           {banca.phone && (
             <a
-              href={`https://wa.me/${banca.phone.replace(/\D/g, "")}`}
+              href={buildWhatsAppUrl(banca.phone)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-1.5 rounded-md border border-[#25D366] text-[#128C7E] font-semibold px-3 py-2 leading-tight hover:bg-emerald-50 text-xs"

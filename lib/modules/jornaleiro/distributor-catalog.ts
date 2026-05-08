@@ -11,19 +11,19 @@ import { getNextPlanType } from "@/lib/plan-messaging";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const CATALOG_UPGRADE_URL = "/jornaleiro/meu-plano?source=catalogo-distribuidor";
+const CATALOG_UPGRADE_URL = "/jornaleiro/dashboard";
 const CATALOG_MANAGE_UPGRADE_URL =
-  "/jornaleiro/meu-plano?source=catalogo-distribuidor-gerenciar";
+  "/jornaleiro/dashboard";
 
 function buildLockedCatalogPayload(entitlements: Awaited<ReturnType<typeof resolveBancaPlanEntitlements>>) {
   const overdueLockMessage =
     entitlements.overdueFeaturesLocked && entitlements.subscription?.plan
-      ? `Seu plano ${entitlements.subscription.plan.name} está com cobrança em aberto. O acesso à rede parceira foi pausado após o período de carência.`
+      ? "Este acesso precisa ser revisado pela equipe do Guia das Bancas."
       : null;
   const pendingUpgradeMessage =
     entitlements.paidFeaturesLockedUntilPayment && entitlements.requestedPlan
-      ? `Seu upgrade para ${entitlements.requestedPlan.name} foi iniciado, mas a rede de distribuidores só será liberada após o pagamento da primeira cobrança.`
-      : "O catálogo de distribuidores é liberado apenas para planos com acesso à rede parceira.";
+      ? "Este acesso precisa ser revisado pela equipe do Guia das Bancas."
+      : "O catálogo de distribuidores ainda não está liberado para esta banca.";
 
   return {
     success: true,
@@ -58,7 +58,7 @@ function buildCatalogAccessError(entitlements: Awaited<ReturnType<typeof resolve
     entitlements.overdueFeaturesLocked && entitlements.subscription?.plan
       ? {
           success: false,
-          error: `Seu plano ${entitlements.subscription.plan.name} está com cobrança em aberto e o acesso ao catálogo parceiro foi pausado após a carência.`,
+          error: "Este acesso precisa ser revisado pela equipe do Guia das Bancas.",
           code: "PLAN_OVERDUE_SUSPENDED",
           plan: entitlements.plan,
           contracted_plan: entitlements.subscription.plan,
@@ -68,7 +68,7 @@ function buildCatalogAccessError(entitlements: Awaited<ReturnType<typeof resolve
       : entitlements.paidFeaturesLockedUntilPayment && entitlements.requestedPlan
         ? {
             success: false,
-            error: `Seu upgrade para ${entitlements.requestedPlan.name} está aguardando o pagamento da primeira cobrança. Assim que confirmar, o catálogo parceiro será liberado.`,
+            error: "Este acesso precisa ser revisado pela equipe do Guia das Bancas.",
             code: "PLAN_PENDING_PAYMENT",
             plan: entitlements.plan,
             requested_plan: entitlements.requestedPlan,
@@ -76,7 +76,7 @@ function buildCatalogAccessError(entitlements: Awaited<ReturnType<typeof resolve
           }
         : {
             success: false,
-            error: "Seu plano atual não permite customizar o catálogo de distribuidores.",
+            error: "A customização do catálogo de distribuidores ainda não está liberada para esta banca.",
             code: "PLAN_DISTRIBUTOR_CATALOG_LOCKED",
             plan: entitlements.plan,
             recommended_plan_type: "premium",

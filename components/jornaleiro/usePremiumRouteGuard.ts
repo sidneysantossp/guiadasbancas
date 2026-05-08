@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { RECURRING_BILLING_ENABLED } from "@/lib/jornaleiro-billing";
 
 type BancaEntitlementsPayload = {
   can_access_campaigns?: boolean;
@@ -24,6 +25,14 @@ type UsePremiumRouteGuardParams = {
   source: string;
 };
 
+function getBlockedDestination(source: string) {
+  if (RECURRING_BILLING_ENABLED) {
+    return "/jornaleiro/dashboard";
+  }
+
+  return "/jornaleiro/dashboard";
+}
+
 export function usePremiumRouteGuard({ entitlementKey, source }: UsePremiumRouteGuardParams) {
   const router = useRouter();
   const [guarding, setGuarding] = useState(true);
@@ -45,7 +54,7 @@ export function usePremiumRouteGuard({ entitlementKey, source }: UsePremiumRoute
             setAllowed(false);
             setGuarding(false);
           }
-          router.replace(`/jornaleiro/meu-plano?source=${encodeURIComponent(source)}`);
+          router.replace(getBlockedDestination(source));
           return;
         }
 
@@ -57,14 +66,14 @@ export function usePremiumRouteGuard({ entitlementKey, source }: UsePremiumRoute
         }
 
         if (!hasAccess) {
-          router.replace(`/jornaleiro/meu-plano?source=${encodeURIComponent(source)}`);
+          router.replace(getBlockedDestination(source));
         }
       } catch {
         if (!cancelled) {
           setAllowed(false);
           setGuarding(false);
         }
-        router.replace(`/jornaleiro/meu-plano?source=${encodeURIComponent(source)}`);
+        router.replace(getBlockedDestination(source));
       }
     }
 

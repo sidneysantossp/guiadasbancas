@@ -120,7 +120,7 @@ export default function SearchAutocomplete({
           url += `&lat=${userLocation.lat}&lng=${userLocation.lng}`;
         }
         
-        const response = await fetch(url);
+        const response = await fetch(url, { cache: 'no-store' });
         const data = await response.json();
         
         if (!active) return;

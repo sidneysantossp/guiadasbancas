@@ -1,5 +1,5 @@
 import {
-  bancaHasLegacyDistributorCatalogAccess,
+  bancaHasPartnerCatalogAccess,
   calculateDistributorProductMarkup,
   listDistributorCatalogForBanca,
   listOwnedCatalogProducts,
@@ -82,7 +82,7 @@ export class ProductService {
     bancaId: string,
     filters: ProductFilters
   ): Promise<ProductSearchResult[]> {
-    const canAccessCatalog = await bancaHasLegacyDistributorCatalogAccess(bancaId);
+    const canAccessCatalog = await bancaHasPartnerCatalogAccess(bancaId);
     const result = await listDistributorCatalogForBanca({
       bancaId,
       canAccessCatalog,

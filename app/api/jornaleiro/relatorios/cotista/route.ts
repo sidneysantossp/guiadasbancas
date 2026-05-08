@@ -42,9 +42,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Seu plano atual nao libera este relatorio do catalogo parceiro",
+          error: "Este relatório do catálogo parceiro ainda não está liberado para esta banca.",
           code: "FORBIDDEN_DISTRIBUTOR_PLAN_ONLY",
-          upgrade_url: "/jornaleiro/meu-plano?source=relatorio-rede-parceira",
+          upgrade_url: "/jornaleiro/dashboard",
         },
         { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
       );

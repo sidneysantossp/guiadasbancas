@@ -1,53 +1,12 @@
+import {
+  JOURNALEIRO_ALL_PERMISSION_KEYS,
+  normalizeJornaleiroPermissionKeys,
+} from "@/lib/jornaleiro-navigation";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const OWNER_PERMISSIONS = [
-  "dashboard",
-  "pedidos",
-  "produtos",
-  "catalogo",
-  "campanhas",
-  "distribuidores",
-  "cupons",
-  "relatorios",
-  "configuracoes",
-  "notificacoes",
-  "colaboradores",
-  "bancas",
-  "academy",
-] as const;
-
-const MEMBER_ADMIN_PERMISSIONS = [
-  "dashboard",
-  "pedidos",
-  "produtos",
-  "catalogo",
-  "campanhas",
-  "distribuidores",
-  "cupons",
-  "relatorios",
-  "configuracoes",
-  "notificacoes",
-] as const;
-
-function parseMembershipPermissions(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.filter((permission): permission is string => typeof permission === "string");
-  }
-
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed)
-        ? parsed.filter((permission): permission is string => typeof permission === "string")
-        : [];
-    } catch {
-      return [];
-    }
-  }
-
-  return [];
-}
+const OWNER_PERMISSIONS = [...JOURNALEIRO_ALL_PERMISSION_KEYS];
+const MEMBER_ADMIN_PERMISSIONS = [...JOURNALEIRO_ALL_PERMISSION_KEYS];
 
 export async function resolveJornaleiroPermissions(params: {
   userId: string;
@@ -121,6 +80,6 @@ export async function resolveJornaleiroPermissions(params: {
     success: true,
     isOwner: false,
     accessLevel: "collaborator",
-    permissions: parseMembershipPermissions(targetMembership.permissions),
+    permissions: normalizeJornaleiroPermissionKeys(targetMembership.permissions),
   };
 }

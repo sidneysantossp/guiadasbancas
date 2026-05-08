@@ -23,7 +23,7 @@ export const metadata = buildWorldCupMetadata({
 export const revalidate = 3600;
 
 export default async function Copa2026HubPage() {
-  const bancas = await getWorldCupCityBancas("sao-paulo-sp", 6);
+  const bancas = await getWorldCupCityBancas("sao-paulo-sp", 8);
 
   return (
     <WorldCupSeoPage
@@ -105,6 +105,9 @@ export default async function Copa2026HubPage() {
       ]}
       relatedLinksTitle="Entradas para quem quer encontrar figurinhas"
       bancasTitle="Bancas paulistas em destaque"
+      bancasSubtitle="Somente bancas premium ou recém-cadastradas dentro da janela inicial de 30 dias aparecem neste bloco."
+      bancasViewAllHref="/copa-2026/onde-comprar/sao-paulo-sp"
+      bancasLayout="showcase"
       bancas={bancas}
       faqs={[
         {

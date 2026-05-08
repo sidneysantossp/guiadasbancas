@@ -11,7 +11,8 @@ export default function UploadImagensMassaPage() {
   const [uploading, setUploading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; batch: number; batches: number } | null>(null);
-  const BATCH_SIZE = 8;
+  const BATCH_SIZE = 1;
+  const MAX_FILE_SIZE = 4 * 1024 * 1024;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -39,6 +40,16 @@ export default function UploadImagensMassaPage() {
   const startUpload = async (selected: File[]) => {
     if (selected.length === 0) {
       alert('Selecione pelo menos uma imagem');
+      return;
+    }
+
+    const oversizedFiles = selected.filter(file => file.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      const fileList = oversizedFiles
+        .map(file => `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`)
+        .join('\n');
+
+      alert(`Arquivos muito grandes:\n\n${fileList}\n\nMáximo permitido: 4 MB por imagem.`);
       return;
     }
 
@@ -185,7 +196,7 @@ export default function UploadImagensMassaPage() {
             Arraste as imagens aqui ou clique para selecionar
           </p>
           <p className="text-sm text-gray-500 mt-2">
-            Suporta múltiplos arquivos (JPG, PNG, WebP)
+            Suporta múltiplos arquivos (JPG, PNG, WebP) até 4 MB cada
           </p>
         </label>
       </div>

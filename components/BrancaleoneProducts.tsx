@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, useRef } from "react";
 import type { Route } from "next";
 import { buildPublicProductPath } from "@/lib/product-url";
+import { getOptimizedPublicImageUrl } from "@/lib/optimized-public-image-url";
 
 type BrancaleoneProduct = {
   id: string;
@@ -21,6 +22,25 @@ type BrancaleoneProduct = {
   pre_venda?: boolean;
   banca_name?: string;
 };
+
+type ApiProduct = {
+  id: string;
+  name: string;
+  image?: string;
+  images?: string[];
+  price?: number;
+  price_original?: number | null;
+  discount_percent?: number | null;
+  codigo_mercos?: string;
+  rating_avg?: number | null;
+  reviews_count?: number | null;
+  pronta_entrega?: boolean;
+  sob_encomenda?: boolean;
+  pre_venda?: boolean;
+  banca_name?: string | null;
+};
+
+const BRANCALEONE_DISTRIBUIDOR_ID = '1511df09-1f4a-4e68-9f8c-05cd06be6269';
 
 function Stars({ value }: { value: number }) {
   const v = Math.max(0, Math.min(5, value));
@@ -43,26 +63,33 @@ function Stars({ value }: { value: number }) {
   );
 }
 
-function ProductCard({ p }: { p: BrancaleoneProduct }) {
+function ProductCard({ p, eager = false }: { p: BrancaleoneProduct; eager?: boolean }) {
   const price = p.price ?? 0;
   const discount = p.discountPercent || 0;
   const productHref = buildPublicProductPath(p.name, p.banca_name, p.id, p.codigo_mercos) as Route;
+  const imageSrc = getOptimizedPublicImageUrl(p.image, {
+    width: 360,
+    height: 450,
+    quality: 72,
+    resize: "contain",
+  });
   const bancaDisplay = p.banca_name
     ? (/^banca\b/i.test(p.banca_name) ? p.banca_name : `Banca ${p.banca_name}`)
     : 'Banca Local';
 
   return (
-    <div className="flex flex-col rounded-[12px] border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow min-w-[220px] overflow-hidden">
+    <div className="flex w-[72vw] min-w-[180px] max-w-[240px] flex-col overflow-hidden rounded-[12px] border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md sm:w-[220px] sm:min-w-[220px]">
       {/* Imagem */}
       <div className="relative">
         <Link href={productHref}>
           <div className="relative aspect-[4/5] bg-gray-50 overflow-hidden">
             <Image
-              src={p.image}
+              src={imageSrc || p.image}
               alt={p.name}
               fill
               sizes="220px"
               className="object-contain p-2"
+              loading={eager ? "eager" : "lazy"}
             />
           </div>
         </Link>
@@ -152,7 +179,7 @@ export default function BrancaleoneProducts() {
           }
         } catch {}
         
-        const prodRes = await fetch(`/api/products/public?limit=96&sort=created_at&order=desc${locationQuery}`);
+        const prodRes = await fetch(`/api/products/public?distribuidor=${BRANCALEONE_DISTRIBUIDOR_ID}&limit=96&sort=created_at&order=desc${locationQuery}`);
         
         if (!prodRes.ok) {
           console.error('Erro ao buscar produtos Brancaleone:', prodRes.status);
@@ -165,31 +192,15 @@ export default function BrancaleoneProducts() {
         
         console.log('Produtos encontrados:', items.length);
         
-        const marvelPatterns = [
-          /marvel/i,
-          /homem-?aranha/i,
-          /spider[- ]?man/i,
-          /x[- ]?men/i,
-          /deadpool/i,
-          /vingadores/i,
-          /avengers/i,
-          /wolverine/i,
-          /thor/i,
-          /hulk/i,
-          /homem de ferro/i,
-          /iron man/i,
-        ];
-
         const mapped: BrancaleoneProduct[] = items
-          .filter((p: any) => {
-            if (!p?.id || typeof p.price !== 'number' || p.price <= 0 || !p.images || !p.images[0]) return false;
-            const name = String(p.name || "");
-            return marvelPatterns.some((re) => re.test(name));
+          .filter((p: ApiProduct) => {
+            if (!p?.id || typeof p.price !== 'number' || p.price <= 0) return false;
+            return Boolean((p.images && p.images[0]) || p.image);
           })
-          .map((p: any) => ({
+          .map((p: ApiProduct) => ({
             id: p.id,
             name: p.name || 'Produto',
-            image: p.images[0],
+            image: (p.images && p.images[0]) || p.image || '',
             price: Number(p.price || 0),
             priceOriginal: p.price_original != null ? Number(p.price_original) : null,
             discountPercent: p.discount_percent != null ? Number(p.discount_percent) : null,
@@ -268,7 +279,7 @@ export default function BrancaleoneProducts() {
         {/* Título */}
         <div className="mb-6">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-            Mundo Marvel
+            Brancaleone
           </h2>
         </div>
 
@@ -293,8 +304,8 @@ export default function BrancaleoneProducts() {
             className="flex gap-4 overflow-x-auto no-scrollbar scroll-smooth pb-2"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {products.map((product) => (
-              <ProductCard key={product.id} p={product} />
+            {products.map((product, index) => (
+              <ProductCard key={product.id} p={product} eager={index < 5} />
             ))}
           </div>
 

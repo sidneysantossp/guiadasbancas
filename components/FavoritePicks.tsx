@@ -97,7 +97,7 @@ function Stars({ value, count }: { value?: number | null; count?: number | null 
   const full = Math.floor(v);
   const half = v - full >= 0.5;
   return (
-    <span className="inline-flex items-center gap-[2px] text-[#f59e0b]">
+    <span className="inline-flex max-w-full items-center gap-[2px] overflow-hidden text-[#f59e0b]">
       {Array.from({ length: 5 }).map((_, i) => (
         <svg key={i} viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden>
           {i < full ? (
@@ -109,7 +109,7 @@ function Stars({ value, count }: { value?: number | null; count?: number | null 
           )}
         </svg>
       ))}
-      <span className="ml-1 text-[11px] text-gray-500">{Number(count ?? 0)} avaliação{Number(count ?? 0) === 1 ? '' : 's'}</span>
+      <span className="ml-1 min-w-0 truncate text-[11px] text-gray-500">{Number(count ?? 0)} avaliação{Number(count ?? 0) === 1 ? '' : 's'}</span>
     </span>
   );
 }
@@ -201,66 +201,59 @@ function FavCard({ item }: { item: FavItem }) {
   };
 
   return (
-    <div className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex items-center gap-3 p-3">
-        {/* Imagem à esquerda com padding e badge - clicável */}
-        <Link href={productHref} className="relative w-28 h-24 rounded-xl overflow-hidden shrink-0">
-          <img src={image} alt={name} className="absolute inset-0 w-full h-full object-contain bg-gray-50" />
-          <DiscountBadge percent={discountPercent} />
+    <div className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      <div className="relative h-40 w-full sm:h-44 lg:h-48">
+        <Link href={productHref} className="absolute inset-0 m-2 overflow-hidden rounded-xl bg-gray-50">
+          <img src={image} alt={name} className="absolute inset-0 h-full w-full object-contain" />
         </Link>
-        {/* Conteúdo + coluna de ícones à direita */}
-        <div className="flex-1 min-w-0 flex gap-2 items-center">
-          {/* Bloco de textos/preços - clicável */}
-          <Link href={productHref} className="flex-1 min-w-0">
-            <div className="min-w-0">
-              <div className="text-[12px] font-semibold leading-[1.2] text-gray-900 line-clamp-2 break-words hover:underline sm:text-[13px] lg:text-[14px]">
-                {name}
-              </div>
-              {codigo_mercos && <div className="mt-0.5 text-[9px] font-mono text-gray-500 sm:text-[10px]">Cód: {codigo_mercos}</div>}
-              <div className="text-[11px] text-gray-600 line-clamp-1 sm:text-[12px]">Entregue por: {bancaDisplay}</div>
-              <div className="mt-1.5"><Stars value={ratingAvg} count={reviewsCount} /></div>
-            </div>
-
-            {typeof discountPercent === 'number' && discountPercent > 0 ? (
-              <div className="mt-2">
-                <div className="text-[11px] text-gray-600 sm:text-[12px]">
-                  De: <span className="text-gray-400 line-through">R$ {((price) / (1 - (discountPercent || 0) / 100)).toFixed(2)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[18px] font-extrabold text-[#ff5c00] sm:text-[20px]">R$ {price.toFixed(2)}</span>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-[18px] font-extrabold text-[#ff5c00] sm:text-[20px]">R$ {price.toFixed(2)}</span>
-                {typeof priceOriginal === 'number' && priceOriginal > price && (
-                  <span className="text-[11px] text-gray-400 line-through sm:text-[12px]">R$ {Number(priceOriginal).toFixed(2)}</span>
-                )}
-              </div>
-            )}
+        <DiscountBadge percent={discountPercent} />
+        <div className="absolute right-3 top-3 z-10 flex flex-col gap-2">
+          {user && (
+            <button
+              onClick={handleFavorite}
+              disabled={isLoading}
+              aria-label={isFavorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+              className={`grid h-8 w-8 place-items-center rounded-md border bg-white/95 shadow-sm transition-all sm:h-9 sm:w-9 ${
+                isFavorite
+                  ? 'border-red-500 bg-red-50 hover:bg-red-100'
+                  : 'border-gray-300 hover:bg-gray-50 hover:border-[#ff5c00]'
+              } ${isLoading ? 'cursor-not-allowed opacity-50' : ''}`}
+            >
+              <HeartOutline filled={isFavorite} />
+            </button>
+          )}
+          <Link href={productHref} aria-label="Visualizar produto" className="grid h-8 w-8 place-items-center rounded-md border border-gray-300 bg-white/95 shadow-sm hover:bg-gray-50 sm:h-9 sm:w-9">
+            <EyeIcon />
           </Link>
-          {/* Coluna de ícones alinhados verticalmente */}
-          <div className="flex flex-col items-center justify-center gap-2 py-1 self-stretch">
-            {user && (
-              <button 
-                onClick={handleFavorite}
-                disabled={isLoading}
-                aria-label={isFavorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-                className={`w-9 h-9 grid place-items-center rounded-md border transition-all ${
-                  isFavorite 
-                    ? 'border-red-500 bg-red-50 hover:bg-red-100' 
-                    : 'border-gray-300 hover:bg-gray-50 hover:border-[#ff5c00]'
-                } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <HeartOutline filled={isFavorite} />
-              </button>
-            )}
-            <Link href={productHref} aria-label="Visualizar produto" className="w-9 h-9 grid place-items-center rounded-md border border-gray-300 hover:bg-gray-50">
-              <EyeIcon />
-            </Link>
-          </div>
         </div>
       </div>
+
+      <Link href={productHref} className="flex min-w-0 flex-1 flex-col p-3">
+        <div className="min-w-0">
+          <div className="line-clamp-2 min-h-[2.2rem] break-words text-[12px] font-semibold leading-[1.2] text-gray-900 hover:underline sm:min-h-[2.35rem] sm:text-[14px]">
+            {name}
+          </div>
+          {codigo_mercos && <div className="mt-0.5 truncate font-mono text-[10px] text-gray-500">Cód: {codigo_mercos}</div>}
+          <div className="mt-0.5 line-clamp-1 text-[11px] text-gray-600 sm:text-[12px]">Entregue por: {bancaDisplay}</div>
+          <div className="mt-1.5 overflow-hidden"><Stars value={ratingAvg} count={reviewsCount} /></div>
+        </div>
+
+        {typeof discountPercent === 'number' && discountPercent > 0 ? (
+          <div className="mt-auto pt-2">
+            <div className="text-[11px] text-gray-600 sm:text-[12px]">
+              De: <span className="text-gray-400 line-through">R$ {((price) / (1 - (discountPercent || 0) / 100)).toFixed(2)}</span>
+            </div>
+            <span className="text-[17px] font-extrabold text-[#ff5c00] sm:text-[20px]">R$ {price.toFixed(2)}</span>
+          </div>
+        ) : (
+          <div className="mt-auto flex flex-wrap items-baseline gap-x-2 gap-y-0.5 pt-2">
+            <span className="text-[17px] font-extrabold text-[#ff5c00] sm:text-[20px]">R$ {price.toFixed(2)}</span>
+            {typeof priceOriginal === 'number' && priceOriginal > price && (
+              <span className="text-[11px] text-gray-400 line-through sm:text-[12px]">R$ {Number(priceOriginal).toFixed(2)}</span>
+            )}
+          </div>
+        )}
+      </Link>
       
       {/* Modal de login necessário */}
       <LoginRequiredModal 
@@ -275,7 +268,7 @@ function FavCard({ item }: { item: FavItem }) {
 const BEBIDAS_ID = 'c230ed83-b08a-4b7a-8f19-7c8230f36c86'; // Bebidas
 const HOME_FETCH_PRODUCTS_LIMIT = 96;
 const HOME_MOBILE_PRODUCTS_LIMIT = 12;
-const HOME_GRID_MAX_ROWS = 4;
+const HOME_GRID_MAX_ROWS = 2;
 
 export default function FavoritePicks() {
   const [loading, setLoading] = useState(true);
@@ -373,7 +366,7 @@ export default function FavoritePicks() {
   }, []);
 
   const isMobile = viewport < 640;
-  const desktopColumns = viewport >= 1024 ? 4 : viewport >= 640 ? 2 : 1;
+  const desktopColumns = viewport >= 1536 ? 4 : viewport >= 1024 ? 3 : viewport >= 640 ? 2 : 1;
   const desktopGridLimit = desktopColumns * HOME_GRID_MAX_ROWS;
 
   const data = useMemo(() => {
@@ -551,7 +544,7 @@ export default function FavoritePicks() {
             </div>
 
             {/* Desktop/Tablet: Grid */}
-            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
               {data.map((f) => (
                 <FavCard key={f.id} item={f} />
               ))}

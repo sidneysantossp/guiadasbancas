@@ -89,12 +89,12 @@ export default function DistribuidoresPage() {
     currentPlanName: planName,
     context: "partner-network",
   });
-  const partnerUpgradeHref = "/jornaleiro/meu-plano?source=distribuidores";
+  const partnerUpgradeHref = "/jornaleiro/dashboard";
   const availablePartners = DISTRIBUIDORES.length;
-  const currentAccessLabel = hasPartnerAccess ? "Liberado" : paidFeaturesLockedUntilPayment ? "Aguardando pagamento" : "Bloqueado pelo plano";
+  const currentAccessLabel = hasPartnerAccess ? "Liberado" : paidFeaturesLockedUntilPayment ? "Em revisão" : "Em organização";
   const nextOperationalStep = hasPartnerAccess
     ? "Abrir um parceiro e começar a montar a reposição da banca."
-    : "Ativar o acesso parceiro para incluir distribuidores na rotina da banca.";
+    : "Falar com a equipe para organizar a participação na campanha e a liberação da rede parceira.";
 
   if (guarding) {
     return (
@@ -119,14 +119,14 @@ export default function DistribuidoresPage() {
           <p className="mt-1 text-sm text-gray-500">Distribuidores já preparados para atender a banca.</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Acesso do plano</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Acesso parceiro</div>
           <div className="mt-3 text-2xl font-semibold text-gray-900">{currentAccessLabel}</div>
-          <p className="mt-1 text-sm text-gray-500">Situação atual da sua rede parceira dentro do plano.</p>
+          <p className="mt-1 text-sm text-gray-500">Situação atual da sua rede parceira.</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Plano atual</div>
-          <div className="mt-3 text-2xl font-semibold text-gray-900">{planName}</div>
-          <p className="mt-1 text-sm text-gray-500">Base que define o alcance da banca na rede de supply.</p>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Campanha atual</div>
+          <div className="mt-3 text-2xl font-semibold text-gray-900">Lançamento</div>
+          <p className="mt-1 text-sm text-gray-500">Ação coletiva de divulgação das bancas participantes.</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Próximo passo</div>
@@ -136,7 +136,7 @@ export default function DistribuidoresPage() {
 
       {loadingAccess ? (
         <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
-          Validando os acessos do seu plano...
+          Validando os acessos da sua banca...
         </div>
       ) : overdueFeaturesLocked || overdueInGracePeriod ? (
         <PlanOverdueCard
@@ -159,7 +159,7 @@ export default function DistribuidoresPage() {
         <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
           <div className="font-semibold">Rede parceira liberada</div>
           <p className="mt-1">
-            Seu plano já permite navegar pelos distribuidores disponíveis na plataforma. Escolha um parceiro abaixo para continuar.
+            Sua banca já pode navegar pelos distribuidores disponíveis na plataforma. Escolha um parceiro abaixo para continuar.
           </p>
         </div>
       )}
@@ -198,7 +198,7 @@ export default function DistribuidoresPage() {
                       href={partnerUpgradeHref}
                       className="flex-1 rounded-lg bg-gray-900 px-4 py-2 text-center text-sm font-medium text-white hover:opacity-90 transition-opacity"
                     >
-                      {paidFeaturesLockedUntilPayment || overdueFeaturesLocked ? "Ver cobrança do plano" : "Ativar acesso parceiro"}
+                      Falar com suporte
                     </Link>
                   )}
                 </div>
@@ -231,7 +231,7 @@ export default function DistribuidoresPage() {
             <p className="text-sm text-blue-700">
               {hasPartnerAccess
                 ? 'Abra o parceiro, avalie o sortimento que falta na sua banca e use a rede como ferramenta de abastecimento, não só como navegação. O ideal é revisar mix, ruptura e oportunidade antes de cada pedido.'
-                : 'A rede parceira é liberada conforme o plano da banca. Assim que o acesso for ativado, esta área vira uma central de abastecimento para ampliar mix e reduzir falta de produto.'}
+                : 'A rede parceira será organizada individualmente pelo suporte. Assim que o acesso for liberado, esta área vira uma central de abastecimento para ampliar mix e reduzir falta de produto.'}
             </p>
           </div>
         </div>

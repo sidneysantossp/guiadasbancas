@@ -5,13 +5,16 @@ import { loadUserProfileById } from "@/lib/modules/auth/user-profiles";
 import { isJornaleiroRole } from "@/lib/modules/auth/session";
 import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 import { supabaseAdmin } from "@/lib/supabase";
-import { normalizeBrazilianDocument } from "@/lib/documents";
 
 const LOCAL_DEV_ADMIN_EMAIL = "admin@guiadasbancas.com";
 const LOCAL_DEV_ADMIN_PASSWORD = "admin123";
 
 function normalizeAdminIdentifier(value: string) {
   return value.trim().toLowerCase();
+}
+
+function normalizeBrazilianDocument(value: string) {
+  return (value || "").replace(/\D/g, "");
 }
 
 function buildAdminLoginAliases(email: string) {

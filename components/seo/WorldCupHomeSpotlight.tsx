@@ -1,9 +1,6 @@
 import Link from "next/link";
-import { WORLD_CUP_CITY_PAGES } from "@/lib/seo/world-cup-2026";
 
 export default function WorldCupHomeSpotlight() {
-  const cities = WORLD_CUP_CITY_PAGES.slice(0, 1);
-
   return (
     <section className="container-max py-8">
       <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#1f2937] p-[1px] shadow-xl">
@@ -11,47 +8,48 @@ export default function WorldCupHomeSpotlight() {
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)]">
             <div className="space-y-5">
               <span className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300">
-                Especial Copa 2026
+                ESPECIAL COPA 2026
               </span>
               <div className="space-y-3">
                 <h2 className="text-3xl font-bold leading-tight md:text-4xl">
-                  Figurinhas da Copa 2026 com foco nas bancas de São Paulo
+                  Encontre figurinhas da Copa 2026 perto de você
                 </h2>
                 <p className="max-w-2xl text-base leading-8 text-slate-200">
-                  A campanha da Copa 2026 está concentrada em São Paulo. Use a plataforma para descobrir bancas paulistas perto de você e chegar mais rápido ao álbum ou às figurinhas que está procurando.
+                  Descubra bancas com figurinhas disponíveis e fale direto antes de sair de casa
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
-                  href="/copa-2026"
+                  href="/figurinhas-copa-2026#bancas-da-copa"
                   className="inline-flex w-full justify-center rounded-full bg-[#ff5c00] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#e65300] sm:w-auto"
                 >
-                  Ver hub da Copa 2026
+                  Ver bancas com figurinhas agora
                 </Link>
                 <Link
-                  href="/copa-2026/onde-comprar"
+                  href="/figurinhas-copa-2026#bancas-da-copa"
                   className="inline-flex w-full justify-center rounded-full border border-white/15 px-6 py-3 font-semibold text-white transition-colors hover:bg-white/5 sm:w-auto"
                 >
-                  Onde comprar
+                  Buscar perto de mim
                 </Link>
               </div>
             </div>
 
             <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
-              <h3 className="text-lg font-semibold text-white">Cidade ativa da campanha</h3>
+              <h3 className="text-lg font-semibold text-white">Bancas ativas na sua região</h3>
               <div className="mt-4 grid gap-3 sm:grid-cols-1">
-                {cities.map((city) => (
-                  <Link
-                    key={city.slug}
-                    href={`/copa-2026/onde-comprar/${city.slug}`}
-                    className="rounded-2xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-emerald-400/30 hover:bg-white/10"
-                  >
-                    <div className="font-semibold text-white">{city.label}</div>
-                    <p className="mt-1 text-sm leading-6 text-slate-300">
-                      Operação local ativa para encontrar bancas, álbum e figurinhas da Copa 2026.
-                    </p>
-                  </Link>
-                ))}
+                <Link
+                  href="/figurinhas-copa-2026#bancas-da-copa"
+                  className="rounded-2xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-emerald-400/30 hover:bg-white/10"
+                >
+                  <p className="text-sm leading-6 text-slate-300">
+                    Já existem bancas com figurinhas disponíveis perto de você
+                  </p>
+                  <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
+                    <li>Atualizado em tempo real</li>
+                    <li>Contato direto com a banca</li>
+                    <li>Consulte antes de ir</li>
+                  </ul>
+                </Link>
               </div>
             </div>
           </div>

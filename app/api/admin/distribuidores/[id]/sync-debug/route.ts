@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
+import {
+  chooseDistribuidorProductCategoryId,
+  loadDistribuidorCategorySyncState,
+} from '@/lib/modules/distribuidor/category-mapping';
 
 /**
  * Endpoint para debug da sincronização
@@ -107,6 +111,14 @@ export async function POST(
     const isNew = !existing;
     console.log(`[SYNC-DEBUG] Produto ${isNew ? 'NÃO' : 'JÁ'} existe no banco`);
 
+    const categoryState = await loadDistribuidorCategorySyncState(distribuidorId);
+    const finalCategoryId = chooseDistribuidorProductCategoryId({
+      mercosCategoryId: produtoTeste.categoria_id,
+      categoryMap: categoryState.categoryMap,
+      validCategoryIds: categoryState.validCategoryIds,
+      fallbackCategoryId: CATEGORIA_SEM_CATEGORIA_ID,
+    });
+
     // Preparar dados do produto
     const produtoData = {
       name: produtoTeste.nome,
@@ -117,7 +129,8 @@ export async function POST(
       banca_id: null,
       distribuidor_id: distribuidorId,
       mercos_id: produtoTeste.id,
-      category_id: CATEGORIA_SEM_CATEGORIA_ID,
+      category_id: finalCategoryId,
+      categoria_mercos: produtoTeste.categoria_id ? String(produtoTeste.categoria_id) : null,
       origem: 'mercos',
       sincronizado_em: new Date().toISOString(),
       track_stock: true,

@@ -23,9 +23,9 @@ interface Product {
 }
 
 const durationOptions = [
-  { days: 7, label: '7 dias', price: 'Plano Premium' },
-  { days: 15, label: '15 dias', price: 'Plano Premium' },
-  { days: 30, label: '30 dias', price: 'Plano Premium' }
+  { days: 7, label: '7 dias', price: 'Campanha liberada' },
+  { days: 15, label: '15 dias', price: 'Campanha liberada' },
+  { days: 30, label: '30 dias', price: 'Campanha liberada' }
 ];
 
 export default function CreateCampaignPage() {

@@ -10,6 +10,8 @@ import { useToast } from "@/components/ToastProvider";
 import SEOBreadcrumbs from "@/components/SEOBreadcrumbs";
 import { shippingConfig } from "@/components/shippingConfig";
 import { buildPublicProductPath } from "@/lib/product-url";
+import { buildBancaHref } from "@/lib/slug";
+import { buildWhatsAppUrl } from "@/lib/whatsapp-url";
 
 export type ProductDetail = {
   id: string;
@@ -602,6 +604,10 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
     return null;
   }
 
+  const vendorHref =
+    product.vendor.id && product.vendor.id !== "banca-unknown"
+      ? buildBancaHref(product.vendor.name || "banca", product.vendor.id)
+      : "/bancas-perto-de-mim";
   const descriptionPreview = stripHtmlToPlainText(product.description);
 
   const max = Math.max(1, product.images.length - 1);
@@ -610,14 +616,9 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
 
   const handleWhatsAppMain = () => {
     if (typeof window === "undefined") return;
-    const rawPhone = product.vendor.phone;
-    const digits = rawPhone ? rawPhone.replace(/\D/g, "") : "";
     const productUrl = window.location.href;
     const text = `Olá! Tenho interesse no produto: ${product.name} (R$ ${product.price.toFixed(2)}).\n\nVer produto: ${productUrl}`;
-    const msg = encodeURIComponent(text);
-    const base = digits ? `https://wa.me/${digits}` : "https://wa.me";
-    const url = `${base}?text=${msg}`;
-    window.location.href = url;
+    window.location.href = buildWhatsAppUrl(product.vendor.phone, text);
   };
 
   // Gerar dados estruturados
@@ -758,7 +759,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Link 
-                  href={`/banca/${product.vendor.id}` as Route}
+                  href={vendorHref as Route}
                   className="h-10 w-10 rounded-full overflow-hidden ring-1 ring-black/5 hover:ring-2 hover:ring-[#ff5c00] transition-all"
                   title={`Ver perfil de ${product.vendor.name}`}
                 >
@@ -766,7 +767,7 @@ export default function ProductPageClient({ productId, bancaIdOverride }: { prod
                 </Link>
                 <div>
                   <Link 
-                    href={`/banca/${product.vendor.id}` as Route}
+                    href={vendorHref as Route}
                     className="text-sm font-semibold leading-tight hover:text-[#ff5c00] transition-colors"
                   >
                     {product.vendor.name}

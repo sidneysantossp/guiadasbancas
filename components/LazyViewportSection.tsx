@@ -14,7 +14,7 @@ type LazyViewportSectionProps = {
 export default function LazyViewportSection({
   children,
   className,
-  rootMargin = "400px 0px",
+  rootMargin = "900px 0px",
   minHeight = 0,
   fallback = null,
   eager = false,
@@ -58,4 +58,3 @@ export default function LazyViewportSection({
     </div>
   );
 }
-

@@ -6,6 +6,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signOut as nextAuthSignOut, useSession } from "next-auth/react";
 import MinhaContaSidebar from "@/components/minha-conta/MinhaContaSidebar";
+import {
+  isValidBrazilianDocument,
+  normalizeBrazilianDocument,
+} from "@/lib/documents";
+import { maskCPFOrCNPJ, maskPhoneBR } from "@/lib/masks";
 
 type AccountOrder = {
   id: string;
@@ -176,14 +181,14 @@ function MinhaContaPageContent() {
           setProfileName(profile?.full_name || session.user.name || "");
           setProfileEmail(profile?.email || session.user.email || "");
           setProfilePhone(profile?.phone || "");
-          setProfileCPF(maskCPF(profile?.cpf || ""));
+          setProfileCPF(maskCPFOrCNPJ(profile?.cpf || ""));
           setProfileAvatar(profile?.avatar_url || sessionUser?.avatar || "");
           setUserCreatedAt(profile?.created_at || null);
         } else {
           setProfileName(session.user.name || "");
           setProfileEmail(session.user.email || "");
           setProfilePhone(localProfileFallback?.phone || "");
-          setProfileCPF(maskCPF(localProfileFallback?.cpf || ""));
+          setProfileCPF(maskCPFOrCNPJ(localProfileFallback?.cpf || ""));
           setProfileAvatar(sessionUser?.avatar || localProfileFallback?.avatar || "");
         }
 
@@ -239,9 +244,9 @@ function MinhaContaPageContent() {
     setProfileErr(null);
     setProfileMsg(null);
 
-    const cpfDigits = (profileCPF || "").replace(/\D+/g, "");
-    if (cpfDigits && !isValidCPF(cpfDigits)) {
-      setProfileErr("CPF invalido");
+    const cpfDigits = normalizeBrazilianDocument(profileCPF || "");
+    if (cpfDigits && !isValidBrazilianDocument(cpfDigits)) {
+      setProfileErr("CPF ou CNPJ inválido");
       return;
     }
 
@@ -269,7 +274,7 @@ function MinhaContaPageContent() {
       setProfileName(nextProfile?.full_name || profileName);
       setProfileEmail(nextProfile?.email || profileEmail);
       setProfilePhone(nextProfile?.phone || profilePhone);
-      setProfileCPF(maskCPF(nextProfile?.cpf || cpfDigits));
+      setProfileCPF(maskCPFOrCNPJ(nextProfile?.cpf || cpfDigits));
       setProfileAvatar(nextProfile?.avatar_url || profileAvatar);
       setUserCreatedAt(nextProfile?.created_at || userCreatedAt);
 
@@ -369,7 +374,7 @@ function MinhaContaPageContent() {
                 <InfoPill label="Nome" value={profileName || "-"} />
                 <InfoPill label="Telefone" value={profilePhone || "-"} />
                 <InfoPill label="E-mail" value={profileEmail || "-"} full />
-                <InfoPill label="CPF" value={profileCPF || "-"} />
+                <InfoPill label="CPF/CNPJ" value={profileCPF || "-"} />
                 <InfoPill label="Enderecos salvos" value={addressesLoading ? "..." : String(addresses.length)} />
               </div>
             ) : (
@@ -429,15 +434,15 @@ function MinhaContaPageContent() {
                   </div>
                   <div>
                     <label className="text-sm text-gray-700">Telefone</label>
-                    <input className="input mt-1" value={profilePhone} onChange={(event) => setProfilePhone(maskPhone(event.target.value))} placeholder="(11) 99999-9999" />
+                    <input className="input mt-1" value={profilePhone} onChange={(event) => setProfilePhone(maskPhoneBR(event.target.value))} placeholder="(11) 99999-9999" />
                   </div>
                   <div>
                     <label className="text-sm text-gray-700">E-mail da conta</label>
                     <input className="input mt-1 bg-gray-50 text-gray-500" type="email" value={profileEmail} readOnly disabled />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="text-sm text-gray-700">CPF</label>
-                    <input className="input mt-1" value={profileCPF} onChange={(event) => setProfileCPF(maskCPF(event.target.value))} placeholder="000.000.000-00" />
+                    <label className="text-sm text-gray-700">CPF ou CNPJ</label>
+                    <input className="input mt-1" value={profileCPF} onChange={(event) => setProfileCPF(maskCPFOrCNPJ(event.target.value))} placeholder="000.000.000-00 ou 00.000.000/0000-00" />
                   </div>
                   <div className="sm:col-span-2 text-xs text-gray-500">
                     O e-mail da conta continua sendo o identificador principal de acesso. Alteracoes cadastrais mais sensiveis ficam fora deste modulo.
@@ -596,37 +601,6 @@ function InfoPill({ label, value, full = false }: { label: string; value: string
       <span className="truncate font-medium">{value}</span>
     </div>
   );
-}
-
-function maskCPF(value: string) {
-  const digits = (value || "").replace(/\D+/g, "").slice(0, 11);
-  return digits.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-}
-
-function isValidCPF(cpf: string) {
-  const digits = (cpf || "").replace(/\D+/g, "");
-  if (!digits || digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
-
-  let sum = 0;
-  for (let index = 0; index < 9; index += 1) sum += parseInt(digits.charAt(index), 10) * (10 - index);
-  let remainder = 11 - (sum % 11);
-  if (remainder >= 10) remainder = 0;
-  if (remainder !== parseInt(digits.charAt(9), 10)) return false;
-
-  sum = 0;
-  for (let index = 0; index < 10; index += 1) sum += parseInt(digits.charAt(index), 10) * (11 - index);
-  remainder = 11 - (sum % 11);
-  if (remainder >= 10) remainder = 0;
-
-  return remainder === parseInt(digits.charAt(10), 10);
-}
-
-function maskPhone(value: string) {
-  const digits = (value || "").replace(/\D+/g, "").slice(0, 11);
-  if (digits.length <= 10) {
-    return digits.replace(/(\d{2})(\d{4})(\d{0,4})/, (match, area, start, end) => (end ? `(${area}) ${start}-${end}` : `(${area}) ${start}`));
-  }
-  return digits.replace(/(\d{2})(\d{5})(\d{0,4})/, (match, area, start, end) => (end ? `(${area}) ${start}-${end}` : `(${area}) ${start}`));
 }
 
 function formatJoined(dateStr: string) {

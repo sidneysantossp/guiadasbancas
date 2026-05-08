@@ -11,6 +11,7 @@ import { useToast } from "@/components/admin/ToastProvider";
 import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
 import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
 import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
+import { RECURRING_BILLING_ENABLED } from "@/lib/jornaleiro-billing";
 
 interface CategoryOption {
   id: string;
@@ -203,7 +204,13 @@ export default function SellerProductCreatePage() {
           setContractedPlanName(errorData?.contracted_plan?.name || contractedPlanName || "Plano contratado");
           setOverdueGraceEndsAt(errorData?.overdue_grace_ends_at || overdueGraceEndsAt || null);
         }
-        throw new Error(errorData.error || "Falha ao criar produto.");
+        const fallbackMessage =
+          !RECURRING_BILLING_ENABLED && errorData?.code === "PLAN_PRODUCT_LIMIT_REACHED"
+            ? "O catálogo chegou ao limite operacional configurado. Fale com a equipe do Guia das Bancas para ajustar a capacidade da sua banca."
+            : !RECURRING_BILLING_ENABLED && (errorData?.code === "PLAN_PENDING_PAYMENT" || errorData?.code === "PLAN_OVERDUE_SUSPENDED")
+              ? "Este acesso precisa ser revisado pela equipe do Guia das Bancas."
+              : errorData.error || "Falha ao criar produto.";
+        throw new Error(fallbackMessage);
       }
       setLimitReachedInfo(null);
       toast.success("Produto criado com sucesso");
@@ -234,15 +241,15 @@ export default function SellerProductCreatePage() {
         <p className="text-sm text-gray-600">Cadastre um novo item na sua banca.</p>
       </div>
 
-      {overdueFeaturesLocked || overdueInGracePeriod ? (
+      {RECURRING_BILLING_ENABLED && (overdueFeaturesLocked || overdueInGracePeriod) ? (
         <PlanOverdueCard
           planName={contractedPlanName || planName}
           graceEndsAt={overdueGraceEndsAt}
           accessSuspended={overdueFeaturesLocked}
         />
-      ) : paidFeaturesLockedUntilPayment && pendingPlanName ? (
+      ) : RECURRING_BILLING_ENABLED && paidFeaturesLockedUntilPayment && pendingPlanName ? (
         <PlanPendingActivationCard requestedPlanName={pendingPlanName} />
-      ) : limitReachedInfo ? (
+      ) : RECURRING_BILLING_ENABLED && limitReachedInfo ? (
         <PlanUpgradeCard
           currentPlanType={limitReachedInfo.planType}
           currentPlanName={limitReachedInfo.planName}
@@ -436,7 +443,7 @@ export default function SellerProductCreatePage() {
                       </span>
                     ) : (
                       <span className="font-medium text-gray-500">
-                        Destaque indisponível para este plano no momento.
+                        Destaque indisponível no momento.
                       </span>
                     )}
                   </div>
@@ -446,17 +453,17 @@ export default function SellerProductCreatePage() {
             
             <div className="pt-2">
               <button
-                disabled={saving || Boolean(limitReachedInfo) || paidFeaturesLockedUntilPayment || overdueFeaturesLocked}
+                disabled={saving || (RECURRING_BILLING_ENABLED && (Boolean(limitReachedInfo) || paidFeaturesLockedUntilPayment || overdueFeaturesLocked))}
                 className="w-full rounded-md bg-[#ff5c00] px-3 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {saving
                   ? "Salvando..."
-                  : overdueFeaturesLocked
-                    ? "Cobrança do plano em aberto"
-                  : paidFeaturesLockedUntilPayment
-                    ? "Aguardando pagamento do upgrade"
-                    : limitReachedInfo
-                      ? "Limite do plano atingido"
+                  : RECURRING_BILLING_ENABLED && overdueFeaturesLocked
+                    ? "Acesso em revisão"
+                  : RECURRING_BILLING_ENABLED && paidFeaturesLockedUntilPayment
+                    ? "Acesso em revisão"
+                    : RECURRING_BILLING_ENABLED && limitReachedInfo
+                      ? "Limite operacional atingido"
                       : "Salvar"}
               </button>
             </div>
@@ -478,7 +485,7 @@ export default function SellerProductCreatePage() {
               </>
             ) : (
               <>
-                <p>• A seção de destaque depende da disponibilidade do plano da banca</p>
+                <p>• A seção de destaque está indisponível no momento</p>
                 <p>• O cadastro manual, pedidos, estoque e venda via WhatsApp continuam funcionando normalmente</p>
               </>
             )}

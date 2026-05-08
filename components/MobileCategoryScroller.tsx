@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { sanitizePublicImageUrl } from "@/lib/sanitizePublicImageUrl";
 import { buildFallbackPublicRootCategories, curatePublicRootCategories } from "@/lib/catalog/publicCategories";
+import { getOptimizedPublicImageUrl } from "@/lib/optimized-public-image-url";
 
 type PublicCategory = {
   id: string;
@@ -139,7 +140,14 @@ export default function MobileCategoryScroller({ initialCategories }: MobileCate
                 >
                   <div className={`relative h-16 w-16 rounded-2xl overflow-hidden shadow-lg shadow-black/10 transition-transform group-hover:-translate-y-0.5`}>
                     {c.image ? (
-                      <Image src={c.image} alt={c.name} fill sizes="64px" className="object-cover" />
+                      <Image
+                        src={getOptimizedPublicImageUrl(c.image, { width: 128, height: 128, quality: 72 })}
+                        alt={c.name}
+                        fill
+                        sizes="64px"
+                        className="object-cover"
+                        loading="lazy"
+                      />
                     ) : (
                       <div className="grid place-items-center h-full w-full bg-white">
                         <span className="text-xs text-[#ff5c00] font-semibold">{c.name[0]}</span>

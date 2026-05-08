@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
+import {
+  chooseDistribuidorProductCategoryId,
+  loadDistribuidorCategorySyncState,
+} from '@/lib/modules/distribuidor/category-mapping';
 
 // Timeout máximo: 5 minutos
 export const maxDuration = 300;
@@ -55,6 +59,8 @@ export async function POST(
         order: 998
       }]);
     }
+
+    const categoryState = await loadDistribuidorCategorySyncState(distribuidorId);
 
     // Inicializar API Mercos
     const mercosApi = new MercosAPI({
@@ -160,8 +166,13 @@ export async function POST(
           const existingData = existingId ? existingDataMap.get(existingId) : null;
           const existingImages = existingData?.images || [];
           const hasExistingImages = Array.isArray(existingImages) && existingImages.length > 0;
-          const existingCategory = existingData?.category_id;
-          const hasValidCategory = existingCategory && existingCategory !== CATEGORIA_SEM_CATEGORIA_ID;
+          const finalCategoryId = chooseDistribuidorProductCategoryId({
+            mercosCategoryId: produto.categoria_id,
+            categoryMap: categoryState.categoryMap,
+            existingCategoryId: existingData?.category_id,
+            validCategoryIds: categoryState.validCategoryIds,
+            fallbackCategoryId: CATEGORIA_SEM_CATEGORIA_ID,
+          });
           
           const productData = {
             name: produto.nome,
@@ -173,8 +184,8 @@ export async function POST(
             banca_id: null,
             distribuidor_id: distribuidorId,
             mercos_id: produto.id,
-            // PRESERVAR categoria: manter a existente se for válida
-            category_id: hasValidCategory ? existingCategory : CATEGORIA_SEM_CATEGORIA_ID,
+            category_id: finalCategoryId,
+            categoria_mercos: produto.categoria_id ? String(produto.categoria_id) : null,
             origem: 'mercos',
             sincronizado_em: new Date().toISOString(),
             track_stock: true,

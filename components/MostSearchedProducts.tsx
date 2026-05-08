@@ -404,7 +404,7 @@ export default function MostSearchedProducts() {
   }, []);
 
   const isMobile = viewport < 640;
-  const desktopColumns = viewport >= 1024 ? 5 : viewport >= 768 ? 3 : 2;
+  const desktopColumns = viewport >= 1536 ? 5 : viewport >= 1280 ? 4 : viewport >= 1024 ? 3 : viewport >= 768 ? 2 : 2;
   const desktopGridLimit = desktopColumns * HOME_GRID_MAX_ROWS;
 
   const items = useMemo(() => {
@@ -467,7 +467,7 @@ export default function MostSearchedProducts() {
           isMobile ? (
             <div className="rounded-2xl bg-gray-100 h-[420px] animate-pulse" />
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 auto-rows-fr">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4 auto-rows-fr">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="rounded-2xl bg-gray-100 animate-pulse h-80"></div>
               ))}
@@ -519,7 +519,7 @@ export default function MostSearchedProducts() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 auto-rows-fr">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4 auto-rows-fr">
             {items.map((p) => (
               <SmallCard key={p.id} p={p} />
             ))}

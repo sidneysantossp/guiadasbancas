@@ -1,4 +1,8 @@
 import { ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
+import {
+  isValidBrazilianDocument,
+  normalizeBrazilianDocument,
+} from "@/lib/documents";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
 import {
   createPrimaryJornaleiroBanca,
@@ -23,6 +27,7 @@ type JornaleiroBancaPayload = {
   email?: string | null;
   instagram?: string | null;
   facebook?: string | null;
+  gmb?: string | null;
   cep?: string | null;
   address?: string | null;
   lat?: number | null;
@@ -110,10 +115,16 @@ export async function saveJornaleiroProfileBundle(params: {
   const actor = await ensureJornaleiroActor(params.userId);
 
   if (params.profileUpdates) {
+    const normalizedDocument = normalizeBrazilianDocument(params.profileUpdates.cpf || "");
+
+    if (normalizedDocument && !isValidBrazilianDocument(normalizedDocument)) {
+      throw new Error("INVALID_DOCUMENT");
+    }
+
     const profilePayload = pickDefinedEntries<JornaleiroProfilePayload>({
       full_name: params.profileUpdates.full_name,
       phone: params.profileUpdates.phone,
-      cpf: params.profileUpdates.cpf,
+      cpf: normalizedDocument || null,
       avatar_url: params.profileUpdates.avatar_url,
     });
 
@@ -143,6 +154,7 @@ export async function saveJornaleiroProfileBundle(params: {
       email: params.bancaUpdates.email,
       instagram: params.bancaUpdates.instagram,
       facebook: params.bancaUpdates.facebook,
+      gmb: params.bancaUpdates.gmb,
       cep: params.bancaUpdates.cep,
       address: params.bancaUpdates.address,
       lat: params.bancaUpdates.lat,

@@ -21,7 +21,7 @@ export default function DistribuidorUploadImagensPage() {
   const [uploading, setUploading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; batch: number; batches: number } | null>(null);
-  const BATCH_SIZE = 5; // Reduzido de 8 para 5 para evitar rate limiting
+  const BATCH_SIZE = 1;
   const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4 MB
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

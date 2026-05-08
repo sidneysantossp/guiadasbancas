@@ -11,6 +11,7 @@ import { IconFilter, IconX, IconChevronDown, IconChevronUp } from "@tabler/icons
 import BankCard from "@/components/BankCard";
 import { filterProductsFuzzy, normalizeForSearch } from "@/lib/fuzzySearch";
 import { buildPublicProductPath } from "@/lib/product-url";
+import { loadStoredLocation } from "@/lib/location";
 
 type Banca = {
   id: string;
@@ -95,8 +96,10 @@ export default function BuscarPageClient({
   const { show } = useToast();
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("gb:userLocation");
-      if (raw) setLoc(JSON.parse(raw));
+      const stored = loadStoredLocation();
+      if (stored?.lat && stored?.lng) {
+        setLoc({ lat: stored.lat, lng: stored.lng, state: stored.state });
+      }
     } catch {}
   }, []);
 
@@ -295,6 +298,7 @@ export default function BuscarPageClient({
   const [priceRange, setPriceRange] = useState<{ min: number; max: number } | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [productPage, setProductPage] = useState(1);
+  const prioritizeBancas = qTerm.length > 0 && filtered.length > 0;
 
   // Filtrar produtos com faixa de preço
   const filteredProductsWithPrice = useMemo(() => {
@@ -534,6 +538,32 @@ export default function BuscarPageClient({
                 </p>
               </div>
 
+              {prioritizeBancas && filtered.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-semibold mb-4">{filtered.length} banca{filtered.length !== 1 ? 's' : ''}</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filtered.map((b) => {
+                      const open = isOpenNow(b.hours || []);
+                      return (
+                        <BankCard
+                          key={b.id}
+                          id={b.id}
+                          name={b.name}
+                          address={b.address || ''}
+                          rating={b.rating ?? 4.7}
+                          openNow={open}
+                          imageUrl={b.cover}
+                          profileImageUrl={b.avatar}
+                          categories={b.categories || []}
+                          featured={b.featured}
+                          description={b.address || ''}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Produtos */}
               {filteredProductsWithPrice.length > 0 && (
                 <div>
@@ -546,8 +576,6 @@ export default function BuscarPageClient({
                         product.id,
                         product.codigo_mercos
                       );
-                      const bancaPhone = product.banca?.phone || product.banca?.whatsapp;
-                      // IMPORTANTE: Nunca mostrar nome de distribuidor
                       const bancaName = product.banca?.name || 'Banca Local';
                       
                       return (
@@ -687,8 +715,7 @@ export default function BuscarPageClient({
                 </div>
               )}
 
-              {/* Bancas */}
-              {filtered.length > 0 && (
+              {!prioritizeBancas && filtered.length > 0 && (
                 <div>
                   <h2 className="text-lg font-semibold mb-4">{filtered.length} banca{filtered.length !== 1 ? 's' : ''}</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

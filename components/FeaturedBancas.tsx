@@ -7,6 +7,7 @@ import { formatBancaName } from "@/lib/format-banca-name";
 import { useEffect, useMemo, useState } from "react";
 import { haversineKm, loadStoredLocation, UserLocation } from "@/lib/location";
 import type { Route } from "next";
+import { getOptimizedPublicImageUrl } from "@/lib/optimized-public-image-url";
 
 type ApiBanca = { 
   id: string; 
@@ -78,10 +79,20 @@ function BancaCard({
 }) {
   const normalizedProfileImage = profileImage?.trim() || "";
   const normalizedCoverImage = cover?.trim() || "";
+  const optimizedCoverImage = getOptimizedPublicImageUrl(normalizedCoverImage, {
+    width: 520,
+    height: 340,
+    quality: 72,
+  });
   const displayName = formatBancaName(name);
   const [avatarSrc, setAvatarSrc] = useState<string>(
     normalizedProfileImage || normalizedCoverImage || "/placeholder/banca-avatar.svg"
   );
+  const optimizedAvatarSrc = getOptimizedPublicImageUrl(avatarSrc, {
+    width: 96,
+    height: 96,
+    quality: 70,
+  });
 
   useEffect(() => {
     setAvatarSrc(normalizedProfileImage || normalizedCoverImage || "/placeholder/banca-avatar.svg");
@@ -109,13 +120,12 @@ function BancaCard({
         <div className="relative h-full w-full overflow-hidden rounded-xl">
           {cover ? (
             <Image 
-              src={cover} 
+              src={optimizedCoverImage || cover}
               alt={displayName} 
               fill 
               sizes="(max-width: 640px) 88vw, (max-width: 1024px) 45vw, 30vw"
               className="object-cover" 
-              priority={priority}
-              loading={priority ? undefined : "lazy"}
+              loading="lazy"
               unoptimized
             />
           ) : (
@@ -157,11 +167,12 @@ function BancaCard({
           <div className="relative h-9 w-9 overflow-hidden rounded-full bg-white ring-2 ring-gray-200 shrink-0">
             {avatarSrc && avatarSrc !== "/placeholder/banca-avatar.svg" ? (
               <Image
-                src={avatarSrc}
+                src={optimizedAvatarSrc}
                 alt={displayName}
                 fill
                 className="object-cover"
                 sizes="36px"
+                loading="lazy"
                 unoptimized
                 onError={() => {
                   if (avatarSrc !== normalizedCoverImage && normalizedCoverImage) {

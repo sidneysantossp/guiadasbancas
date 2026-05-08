@@ -6,36 +6,38 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { IconAlertCircle, IconCheck, IconEye, IconEyeOff } from "@tabler/icons-react";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { usePremiumRouteGuard } from "@/components/jornaleiro/usePremiumRouteGuard";
+import {
+  DEFAULT_JORNALEIRO_PERMISSION_MODULE_CONTEXT,
+  JOURNALEIRO_ALL_PERMISSION_KEYS,
+  buildJornaleiroPermissionModules,
+  type JornaleiroPermissionModule,
+} from "@/lib/jornaleiro-navigation";
 
 type Banca = {
   id: string;
   name: string;
 };
 
-const MODULES = [
-  { key: "dashboard", label: "Dashboard", description: "Visualizar estatísticas gerais" },
-  { key: "bancas", label: "Minhas Bancas", description: "Gerenciar bancas" },
-  { key: "colaboradores", label: "Colaboradores", description: "Gerenciar colaboradores" },
-  { key: "notificacoes", label: "Notificações", description: "Ver notificações" },
-  { key: "pedidos", label: "Pedidos", description: "Gerenciar pedidos da banca" },
-  { key: "produtos", label: "Produtos", description: "Gerenciar catálogo de produtos" },
-  { key: "catalogo", label: "Catálogo Parceiro", description: "Acessar o catálogo parceiro da rede" },
-  { key: "campanhas", label: "Campanhas", description: "Criar e gerenciar campanhas" },
-  { key: "distribuidores", label: "Rede de Distribuidores", description: "Acessar a rede parceira de abastecimento" },
-  { key: "cupons", label: "Cupons", description: "Criar e gerenciar cupons" },
-  { key: "relatorios", label: "Central de Inteligência", description: "Ler sinais operacionais, demanda e performance da banca" },
-  { key: "academy", label: "Academy", description: "Acessar conteúdos educacionais" },
-  { key: "configuracoes", label: "Configurações", description: "Alterar configurações da banca" },
-];
+const DEFAULT_PERMISSION_MODULES = buildJornaleiroPermissionModules(
+  DEFAULT_JORNALEIRO_PERMISSION_MODULE_CONTEXT
+);
+
+function buildPermissionModulesFromAccess(activeBanca: any, hasWholesaleAccess: boolean): JornaleiroPermissionModule[] {
+  const entitlements = activeBanca?.entitlements || {};
+
+  return buildJornaleiroPermissionModules({
+    hasCatalogAccess: entitlements.can_access_distributor_catalog === true,
+    hasPartnerDirectoryAccess: entitlements.can_access_partner_directory === true,
+    hasWholesaleAccess,
+    hasCampaignAccess: entitlements.can_access_campaigns === true,
+    plansMenuEnabled: true,
+    planType: typeof entitlements.plan_type === "string" ? entitlements.plan_type : "free",
+  });
+}
 
 export default function NovoColaboradorPage() {
   const router = useRouter();
   const { profile } = useAuth();
-  const { guarding, allowed } = usePremiumRouteGuard({
-    entitlementKey: "can_manage_collaborators",
-    source: "colaboradores",
-  });
   const [bancas, setBancas] = useState<Banca[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,7 +54,9 @@ export default function NovoColaboradorPage() {
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [accessLevel, setAccessLevel] = useState<"admin" | "collaborator">("collaborator");
   const [selectedBancas, setSelectedBancas] = useState<string[]>([]);
-  const [permissions, setPermissions] = useState<string[]>(MODULES.map((m) => m.key));
+  const [permissionModules, setPermissionModules] = useState<JornaleiroPermissionModule[]>(DEFAULT_PERMISSION_MODULES);
+  const [permissions, setPermissions] = useState<string[]>(() => DEFAULT_PERMISSION_MODULES.map((m) => m.key));
+  const permissionKeys = useMemo(() => permissionModules.map((m) => m.key), [permissionModules]);
 
   // Estado para verificação de email
   const [emailChecking, setEmailChecking] = useState(false);
@@ -123,17 +127,29 @@ export default function NovoColaboradorPage() {
   );
 
   useEffect(() => {
-    if (guarding || !allowed) {
-      return;
-    }
-
     const loadBancas = async () => {
       try {
-        const res = await fetch("/api/jornaleiro/bancas", { credentials: "include" });
-        const json = await res.json();
-        if (json?.success && json?.items) {
-          setBancas(json.items.map((b: any) => ({ id: b.id, name: b.name || "Sem nome" })));
+        const [bancasRes, activeBancaRes, atacadoRes] = await Promise.all([
+          fetch("/api/jornaleiro/bancas", { credentials: "include", cache: "no-store" }),
+          fetch("/api/jornaleiro/banca", { credentials: "include", cache: "no-store" }),
+          fetch("/api/jornaleiro/atacado/access", { credentials: "include", cache: "no-store" }),
+        ]);
+
+        const bancasJson = await bancasRes.json();
+        if (bancasJson?.success && bancasJson?.items) {
+          setBancas(bancasJson.items.map((b: any) => ({ id: b.id, name: b.name || "Sem nome" })));
         }
+
+        const activeBancaJson = await activeBancaRes.json().catch(() => null);
+        const atacadoJson = await atacadoRes.json().catch(() => null);
+        const nextModules = buildPermissionModulesFromAccess(
+          activeBancaJson?.data,
+          atacadoJson?.success === true && atacadoJson?.allowed === true
+        );
+        const nextKeys = nextModules.map((module) => module.key);
+
+        setPermissionModules(nextModules);
+        setPermissions(nextKeys);
       } catch (e) {
         console.error("Erro ao carregar bancas:", e);
       } finally {
@@ -141,7 +157,7 @@ export default function NovoColaboradorPage() {
       }
     };
     loadBancas();
-  }, [guarding, allowed]);
+  }, []);
 
   const toggleBanca = (bancaId: string) => {
     setSelectedBancas((prev) =>
@@ -197,7 +213,10 @@ export default function NovoColaboradorPage() {
           password,
           access_level: accessLevel,
           banca_ids: selectedBancas,
-          permissions: accessLevel === "admin" ? MODULES.map((m) => m.key) : permissions,
+          permissions:
+            accessLevel === "admin"
+              ? [...JOURNALEIRO_ALL_PERMISSION_KEYS]
+              : permissions.filter((permission) => permissionKeys.includes(permission as any)),
         }),
       });
 
@@ -223,18 +242,6 @@ export default function NovoColaboradorPage() {
       setSaving(false);
     }
   };
-
-  if (guarding) {
-    return (
-      <div className="flex items-center justify-center py-12 text-sm text-gray-500">
-        Validando acesso ao módulo de colaboradores...
-      </div>
-    );
-  }
-
-  if (!allowed) {
-    return null;
-  }
 
   return (
     <div className="space-y-4">
@@ -390,13 +397,13 @@ export default function NovoColaboradorPage() {
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold">Permissões</div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setPermissions(MODULES.map((m) => m.key))} className="text-xs text-[#ff5c00] hover:underline">Marcar todos</button>
+                  <button type="button" onClick={() => setPermissions(permissionKeys)} className="text-xs text-[#ff5c00] hover:underline">Marcar todos</button>
                   <button type="button" onClick={() => setPermissions([])} className="text-xs text-gray-500 hover:underline">Desmarcar todos</button>
                 </div>
               </div>
               <p className="text-xs text-gray-500">Selecione os módulos que o colaborador terá acesso.</p>
               <div className="space-y-2">
-                {MODULES.map((m) => (
+                {permissionModules.map((m) => (
                   <label key={m.key} className="flex items-start gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
                     <input type="checkbox" checked={permissions.includes(m.key)} onChange={() => togglePermission(m.key)} className="mt-0.5 rounded border-gray-300 text-[#ff5c00] focus:ring-[#ff5c00]" />
                     <div>

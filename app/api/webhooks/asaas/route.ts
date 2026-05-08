@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createHash } from "crypto";
 import { downgradeBancaToFreePlan } from "@/lib/banca-subscription";
+import { syncWholesaleOrderPaymentFromAsaas } from "@/lib/modules/atacado/service";
 import {
   clearBancaPricingOverride,
   findSubscriptionBindingByAsaasId,
@@ -12,6 +14,9 @@ const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type LocalSubscriptionContext = {
   id: string;
@@ -102,6 +107,142 @@ function isSubscriptionCancellationEvent(event: string): boolean {
   return ["SUBSCRIPTION_DELETED", "SUBSCRIPTION_INACTIVATED"].includes(event);
 }
 
+function hasValidWebhookToken(request: NextRequest): boolean {
+  const expectedToken =
+    process.env.ASAAS_WEBHOOK_TOKEN ||
+    process.env.ASAAS_WEBHOOK_ACCESS_TOKEN ||
+    process.env.SAAS_WEBHOOK_TOKEN;
+
+  if (!expectedToken) {
+    return process.env.NODE_ENV !== "production";
+  }
+
+  const receivedToken =
+    request.headers.get("asaas-access-token") ||
+    request.headers.get("x-asaas-access-token") ||
+    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+
+  return receivedToken === expectedToken;
+}
+
+function buildWebhookEventKey(body: any, event: string, payment: any, subscriptionPayload: any): string {
+  if (typeof body?.id === "string" && body.id.trim()) {
+    return body.id.trim();
+  }
+
+  const stableParts = [
+    event,
+    payment?.id || "",
+    payment?.status || "",
+    payment?.dueDate || "",
+    payment?.paymentDate || "",
+    payment?.clientPaymentDate || "",
+    typeof payment?.subscription === "string" ? payment.subscription : payment?.subscription?.id || "",
+    typeof body?.subscription === "string" ? body.subscription : body?.subscription?.id || subscriptionPayload?.id || "",
+    subscriptionPayload?.status || "",
+    subscriptionPayload?.nextDueDate || "",
+  ];
+
+  return createHash("sha256")
+    .update(stableParts.join("|") || JSON.stringify(body || {}))
+    .digest("hex");
+}
+
+async function registerWebhookEvent(params: {
+  eventKey: string;
+  eventType: string;
+  providerPaymentId: string | null;
+  providerSubscriptionId: string | null;
+  payload: any;
+}): Promise<{ id: string | null; duplicateProcessed: boolean }> {
+  const { data, error } = await supabaseAdmin
+    .from("billing_webhook_events")
+    .insert({
+      provider: "asaas",
+      event_key: params.eventKey,
+      event_type: params.eventType,
+      provider_payment_id: params.providerPaymentId,
+      provider_subscription_id: params.providerSubscriptionId,
+      payload: params.payload || {},
+      processing_status: "processing",
+    })
+    .select("id, processing_status")
+    .single();
+
+  if (!error) {
+    return { id: data.id, duplicateProcessed: false };
+  }
+
+  if (error.code === "23505") {
+    const { data: existing } = await supabaseAdmin
+      .from("billing_webhook_events")
+      .select("id, processing_status")
+      .eq("provider", "asaas")
+      .eq("event_key", params.eventKey)
+      .maybeSingle();
+
+    if (existing?.processing_status === "processed") {
+      return { id: existing.id, duplicateProcessed: true };
+    }
+
+    if (existing?.id) {
+      await supabaseAdmin
+        .from("billing_webhook_events")
+        .update({
+          processing_status: "processing",
+          error_message: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id);
+
+      return { id: existing.id, duplicateProcessed: false };
+    }
+  }
+
+  const missingTable =
+    error.code === "42P01" ||
+    error.code === "PGRST205" ||
+    /relation .* does not exist/i.test(error.message || "") ||
+    /Could not find the table/i.test(error.message || "");
+
+  if (missingTable) {
+    return { id: null, duplicateProcessed: false };
+  }
+
+  throw new Error(error.message);
+}
+
+async function markWebhookEventProcessed(
+  webhookEventId: string | null,
+  context: { subscriptionId?: string | null; bancaId?: string | null } = {}
+) {
+  if (!webhookEventId) return;
+
+  await supabaseAdmin
+    .from("billing_webhook_events")
+    .update({
+      processing_status: "processed",
+      processed_at: new Date().toISOString(),
+      subscription_id: context.subscriptionId || null,
+      banca_id: context.bancaId || null,
+      error_message: null,
+    })
+    .eq("id", webhookEventId);
+}
+
+async function markWebhookEventFailed(webhookEventId: string | null, error: any) {
+  if (!webhookEventId) return;
+
+  await supabaseAdmin
+    .from("billing_webhook_events")
+    .update({
+      processing_status: "failed",
+      error_message: error?.message || "Erro desconhecido",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", webhookEventId);
+}
+
 async function loadLocalSubscriptionById(id: string): Promise<LocalSubscriptionContext | null> {
   const { data, error } = await supabaseAdmin
     .from("subscriptions")
@@ -181,7 +322,16 @@ async function resolveLocalSubscriptionContext(params: {
 }
 
 export async function POST(request: NextRequest) {
+  let webhookEventId: string | null = null;
+
   try {
+    if (!hasValidWebhookToken(request)) {
+      return NextResponse.json(
+        { received: false, error: "Invalid Asaas webhook token" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const event = String(body?.event || "").toUpperCase();
     const payment = body?.payment && typeof body.payment === "object" ? body.payment : null;
@@ -192,6 +342,46 @@ export async function POST(request: NextRequest) {
     const asaasPaymentId = typeof payment?.id === "string" ? payment.id : null;
     const asaasSubscriptionId = extractAsaasSubscriptionId(body, payment);
     const externalReference = extractExternalReference(body, payment);
+    const eventKey = buildWebhookEventKey(body, event, payment, subscriptionPayload);
+    const registeredEvent = await registerWebhookEvent({
+      eventKey,
+      eventType: event,
+      providerPaymentId: asaasPaymentId,
+      providerSubscriptionId: asaasSubscriptionId,
+      payload: body,
+    });
+
+    webhookEventId = registeredEvent.id;
+
+    if (registeredEvent.duplicateProcessed) {
+      return NextResponse.json({
+        received: true,
+        processed: true,
+        duplicate: true,
+        source: "webhook-idempotency",
+      });
+    }
+
+    const wholesaleOrder = payment
+      ? await syncWholesaleOrderPaymentFromAsaas({
+          asaasPaymentId,
+          externalReference,
+          payment,
+          event,
+        })
+      : null;
+
+    if (wholesaleOrder) {
+      await markWebhookEventProcessed(webhookEventId, {
+        bancaId: wholesaleOrder.banca_id,
+      });
+
+      return NextResponse.json({
+        received: true,
+        processed: true,
+        source: "own-wholesale-order",
+      });
+    }
 
     let binding = asaasSubscriptionId ? await findSubscriptionBindingByAsaasId(asaasSubscriptionId) : null;
     let localSubscription = await resolveLocalSubscriptionContext({
@@ -225,6 +415,13 @@ export async function POST(request: NextRequest) {
           planId: localSubscription.plan_id,
           effectivePrice: Number(payment?.value || subscriptionPayload?.value || 0),
           billingType: String(payment?.billingType || subscriptionPayload?.billingType || "CREDIT_CARD").toUpperCase(),
+          asaasCustomerId:
+            typeof payment?.customer === "string"
+              ? payment.customer
+              : typeof subscriptionPayload?.customer === "string"
+                ? subscriptionPayload.customer
+                : null,
+          status: localSubscription.status,
           createdAt: new Date().toISOString(),
         });
         binding = await findSubscriptionBindingByAsaasId(asaasSubscriptionId);
@@ -303,6 +500,11 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      await markWebhookEventProcessed(webhookEventId, {
+        subscriptionId: localSubscription?.id || binding?.localSubscriptionId || null,
+        bancaId,
+      });
+
       return NextResponse.json({ received: true, processed: true, source: "subscription-cancel" });
     }
 
@@ -319,10 +521,20 @@ export async function POST(request: NextRequest) {
         })
         .eq("id", localSubscription.id);
 
+      await markWebhookEventProcessed(webhookEventId, {
+        subscriptionId: localSubscription.id,
+        bancaId: localSubscription.banca_id,
+      });
+
       return NextResponse.json({ received: true, processed: true, source: "subscription-sync" });
     }
 
     if (!paymentRecord) {
+      await markWebhookEventProcessed(webhookEventId, {
+        subscriptionId: localSubscription?.id || null,
+        bancaId,
+      });
+
       return NextResponse.json({ received: true, processed: false, message: "No matching local payment" });
     }
 
@@ -396,8 +608,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    await markWebhookEventProcessed(webhookEventId, {
+      subscriptionId: localSubscription?.id || paymentRecord?.subscription_id || null,
+      bancaId,
+    });
+
     return NextResponse.json({ received: true, processed: true, source: "payment" });
   } catch (error: any) {
+    try {
+      await markWebhookEventFailed(webhookEventId, error);
+    } catch (eventError) {
+      console.warn("[WEBHOOK/ASAAS] Falha ao registrar erro do evento:", eventError);
+    }
     console.error("[WEBHOOK/ASAAS] Erro:", error);
     return NextResponse.json(
       { received: true, error: error.message },

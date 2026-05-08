@@ -134,6 +134,12 @@ export const ADMIN_MENU: AdminMenuSection[] = [
         description: "Operacao dos parceiros de supply e integracao com Mercos.",
       },
       {
+        label: "Fornecedor Guia",
+        href: "/admin/fornecedor",
+        icon: "box",
+        description: "Fornecedor proprio da plataforma: catalogo, visibilidade, pedidos e estoque sem Mercos.",
+      },
+      {
         label: "Relacionamentos Comerciais",
         href: "/admin/cotistas",
         icon: "userCheck",

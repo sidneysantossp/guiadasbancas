@@ -109,7 +109,7 @@ export default function PartnerCatalogReportPage() {
           <span className="text-2xl text-green-600">✓</span>
           <div>
             <h3 className="text-sm font-semibold text-green-900">
-              Catalogo parceiro liberado neste plano
+              Catálogo parceiro liberado para sua banca
             </h3>
             <p className="mt-1 text-xs text-green-700">
               Acesso atual a {partnerProductsCount} produtos da rede parceira
@@ -134,7 +134,7 @@ export default function PartnerCatalogReportPage() {
         <div className="rounded-lg border border-green-200 bg-green-50 p-6">
           <p className="text-sm text-green-700">De Distribuidores</p>
           <p className="mt-2 text-3xl font-bold text-green-900">{partnerProductsCount}</p>
-          <p className="mt-1 text-xs text-green-600">Disponiveis no plano</p>
+          <p className="mt-1 text-xs text-green-600">Disponíveis para sua banca</p>
         </div>
 
         <div className="rounded-lg border border-orange-200 bg-orange-50 p-6">
@@ -288,7 +288,7 @@ export default function PartnerCatalogReportPage() {
             <span className="text-2xl">👤</span>
             <div>
               <p className="text-sm font-medium text-gray-900">Minha Conta</p>
-              <p className="text-xs text-gray-500">Dados da banca e do plano</p>
+              <p className="text-xs text-gray-500">Dados da banca</p>
             </div>
           </Link>
         </div>

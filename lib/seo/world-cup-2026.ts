@@ -33,6 +33,12 @@ export type WorldCupBancaLink = {
   name: string;
   address: string;
   href: string;
+  lat?: number | null;
+  lng?: number | null;
+  cover?: string | null;
+  profileImage?: string | null;
+  rating?: number | null;
+  featured?: boolean;
 };
 
 type PublicBancaRow = {
@@ -41,6 +47,12 @@ type PublicBancaRow = {
   address: string;
   createdAt: string | null;
   hasPremiumOrTrial: boolean;
+  lat: number | null;
+  lng: number | null;
+  cover: string | null;
+  profileImage: string | null;
+  rating: number | null;
+  featured: boolean;
 };
 
 export type WorldCupProductLink = {
@@ -147,6 +159,11 @@ const WORLD_CUP_FALLBACK_CATEGORY_LINKS: WorldCupHubLink[] = [
 ];
 
 export const WORLD_CUP_SUBHUBS: WorldCupHubLink[] = [
+  {
+    href: "/copa-2026/pre-venda-album-figurinhas",
+    title: "Pré-venda de álbum e figurinhas",
+    description: "Landing de campanha para encontrar bancas cadastradas e encomendar produtos da Copa direto com jornaleiros.",
+  },
   {
     href: "/copa-2026/album-da-copa-2026",
     title: "Álbum da Copa 2026",
@@ -415,7 +432,7 @@ function isPaidPlanRecord(plan: { type?: string | null; slug?: string | null; pr
 async function readPublicBancas(limit = 200): Promise<PublicBancaRow[]> {
   const { data, error } = await supabaseAdmin
     .from("bancas")
-    .select("id,name,address,active,created_at")
+    .select("id,name,address,active,created_at,lat,lng,cover_image,profile_image,rating,featured")
     .eq("active", true)
     .order("name")
     .limit(limit);
@@ -427,6 +444,12 @@ async function readPublicBancas(limit = 200): Promise<PublicBancaRow[]> {
     name: String(item.name || "Banca"),
     address: String(item.address || ""),
     createdAt: item.created_at ? String(item.created_at) : null,
+    lat: typeof item.lat === "number" ? item.lat : null,
+    lng: typeof item.lng === "number" ? item.lng : null,
+    cover: item.cover_image ? String(item.cover_image) : null,
+    profileImage: item.profile_image ? String(item.profile_image) : null,
+    rating: typeof item.rating === "number" ? item.rating : null,
+    featured: item.featured === true,
   }));
 
   const bancaIds = bancaRows.map((item) => item.id).filter(Boolean);
@@ -477,7 +500,17 @@ async function readPublicBancas(limit = 200): Promise<PublicBancaRow[]> {
 }
 
 function toWorldCupBancaLink(
-  banca: { id: string; name: string; address: string },
+  banca: {
+    id: string;
+    name: string;
+    address: string;
+    lat?: number | null;
+    lng?: number | null;
+    cover?: string | null;
+    profileImage?: string | null;
+    rating?: number | null;
+    featured?: boolean;
+  },
   forcedState?: string
 ): WorldCupBancaLink {
   const href = buildBancaHref(banca.name, banca.id, forcedState || getUf(banca.address));
@@ -486,6 +519,12 @@ function toWorldCupBancaLink(
     name: banca.name,
     address: banca.address,
     href,
+    lat: banca.lat ?? null,
+    lng: banca.lng ?? null,
+    cover: banca.cover ?? null,
+    profileImage: banca.profileImage ?? null,
+    rating: banca.rating ?? null,
+    featured: Boolean(banca.featured),
   };
 }
 

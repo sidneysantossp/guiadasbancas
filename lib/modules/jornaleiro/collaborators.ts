@@ -1,25 +1,13 @@
+import {
+  JOURNALEIRO_ALL_PERMISSION_KEYS,
+  normalizeJornaleiroPermissionKeys,
+} from "@/lib/jornaleiro-navigation";
 import { listOwnedBancas, loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
 import { doesPlatformEmailExist } from "@/lib/modules/jornaleiro/email";
-import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
 
 function parsePermissions(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.filter((permission): permission is string => typeof permission === "string");
-  }
-
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed)
-        ? parsed.filter((permission): permission is string => typeof permission === "string")
-        : [];
-    } catch {
-      return [];
-    }
-  }
-
-  return [];
+  return normalizeJornaleiroPermissionKeys(value);
 }
 
 async function loadCollaboratorManager(userId: string) {
@@ -55,31 +43,7 @@ async function loadOwnedBancaCatalog(userId: string) {
 }
 
 async function loadCollaboratorEligibleBancas(userId: string) {
-  const ownedBancas = await loadOwnedBancaCatalog(userId);
-
-  if (ownedBancas.length === 0) {
-    return ownedBancas;
-  }
-
-  const eligibleBancas = [];
-
-  for (const banca of ownedBancas) {
-    const entitlements = await resolveBancaPlanEntitlements({
-      id: banca.id,
-      is_cotista: banca.is_cotista === true,
-      cotista_id: banca.cotista_id,
-    });
-
-    if (entitlements.canManageCollaborators) {
-      eligibleBancas.push(banca);
-    }
-  }
-
-  if (eligibleBancas.length === 0) {
-    throw new Error("PREMIUM_REQUIRED_COLLABORATORS");
-  }
-
-  return eligibleBancas;
+  return loadOwnedBancaCatalog(userId);
 }
 
 async function loadScopedCollaboratorMemberships(params: {
@@ -204,6 +168,12 @@ export async function createManagedCollaborator(params: {
     throw new Error("EMAIL_ALREADY_EXISTS");
   }
 
+  const normalizedAccessLevel = access_level === "admin" ? "admin" : "collaborator";
+  const normalizedPermissions =
+    normalizedAccessLevel === "admin"
+      ? [...JOURNALEIRO_ALL_PERMISSION_KEYS]
+      : normalizeJornaleiroPermissionKeys(permissions);
+
   const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
     email: String(email).toLowerCase(),
     password: String(password),
@@ -226,7 +196,7 @@ export async function createManagedCollaborator(params: {
     email: String(email).toLowerCase(),
     whatsapp: whatsapp || null,
     role: "jornaleiro",
-    jornaleiro_access_level: access_level || "collaborator",
+    jornaleiro_access_level: normalizedAccessLevel,
     banca_id: requestedBancaIds[0],
     active: true,
     email_verified: true,
@@ -244,8 +214,8 @@ export async function createManagedCollaborator(params: {
       .upsert({
         user_id: newUserId,
         banca_id: bancaId,
-        access_level: access_level || "collaborator",
-        permissions: permissions || [],
+        access_level: normalizedAccessLevel,
+        permissions: normalizedPermissions,
       });
 
     if (membershipError) {
@@ -264,7 +234,7 @@ export async function createManagedCollaborator(params: {
       id: newUserId,
       email: String(email).toLowerCase(),
       full_name,
-      access_level,
+      access_level: normalizedAccessLevel,
     },
     debug: {
       membershipErrors: membershipErrors.length > 0 ? membershipErrors : null,
@@ -338,6 +308,8 @@ export async function updateManagedCollaborator(params: {
     throw new Error("FORBIDDEN_PROMOTE_ADMIN");
   }
 
+  const normalizedAccessLevel = access_level === "admin" ? "admin" : "collaborator";
+
   const existingMemberships = await loadScopedCollaboratorMemberships({
     collaboratorId: params.collaboratorId,
     bancaIds: eligibleBancaIds,
@@ -346,7 +318,7 @@ export async function updateManagedCollaborator(params: {
   if (full_name !== undefined) {
     await supabaseAdmin
       .from("user_profiles")
-      .update({ full_name, jornaleiro_access_level: access_level })
+      .update({ full_name, jornaleiro_access_level: normalizedAccessLevel })
       .eq("id", params.collaboratorId);
   }
 
@@ -356,13 +328,16 @@ export async function updateManagedCollaborator(params: {
       : existingMemberships.map((membership: any) => membership.banca_id);
 
   const existingBancaIds = existingMemberships.map((membership: any) => membership.banca_id);
-  const normalizedPermissions = permissions || [];
+  const normalizedPermissions =
+    normalizedAccessLevel === "admin"
+      ? [...JOURNALEIRO_ALL_PERMISSION_KEYS]
+      : normalizeJornaleiroPermissionKeys(permissions);
 
   for (const bancaId of targetBancaIds) {
     const { error: updateError } = await supabaseAdmin
       .from("banca_members")
       .update({
-        access_level: access_level || "collaborator",
+        access_level: normalizedAccessLevel,
         permissions: normalizedPermissions,
       })
       .eq("user_id", params.collaboratorId)
@@ -377,7 +352,7 @@ export async function updateManagedCollaborator(params: {
     const { error: insertError } = await supabaseAdmin.from("banca_members").insert({
       user_id: params.collaboratorId,
       banca_id: bancaId,
-      access_level: access_level || "collaborator",
+      access_level: normalizedAccessLevel,
       permissions: normalizedPermissions,
     });
 

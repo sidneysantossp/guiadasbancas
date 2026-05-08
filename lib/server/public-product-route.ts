@@ -136,6 +136,31 @@ async function getActiveProductsForPublicRoute(): Promise<ProductRow[]> {
   return results;
 }
 
+async function getActiveProductById(productId: string): Promise<ProductRow | null> {
+  const id = String(productId || "").trim();
+  if (!id) return null;
+
+  const { data, error } = await supabaseAdmin
+    .from("products")
+    .select(`
+      id,
+      name,
+      description,
+      images,
+      codigo_mercos,
+      banca_id,
+      distribuidor_id,
+      stock_qty,
+      active
+    `)
+    .eq("active", true)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data as ProductRow;
+}
+
 export async function resolveProductByRawParam(rawParam: string): Promise<PublicProduct | null> {
   const parsed = parseProductParam(rawParam);
   const publishedMarketplaceBancaIds = await getPublishedMarketplaceBancaIdSet();
@@ -180,20 +205,26 @@ export async function resolveProductBySlug(
   const productSlug = slugifyProductName(rawSlug || "");
   if (!productSlug && parsed.kind !== "id") return null;
 
-  const allProducts = await getActiveProductsForPublicRoute();
   const publishedMarketplaceBancaIds = await getPublishedMarketplaceBancaIdSet();
+  const bancaIdNorm = String(bancaId || "").trim();
+
+  if (parsed.kind === "id") {
+    const product = await getActiveProductById(parsed.value);
+    if (!product) return null;
+    if (!isProductPublicForMarketplace(product, publishedMarketplaceBancaIds)) return null;
+    if (bancaIdNorm && !product.distribuidor_id && product.banca_id !== bancaIdNorm) return null;
+    return product;
+  }
+
+  const allProducts = await getActiveProductsForPublicRoute();
   const candidates = allProducts
     .filter((p) => {
-      if (parsed.kind === "id") {
-        return String(p.id) === parsed.value;
-      }
       return slugifyProductName(p.name || "") === productSlug;
     })
     .filter((p) => isProductPublicForMarketplace(p, publishedMarketplaceBancaIds));
 
   if (candidates.length === 0) return null;
 
-  const bancaIdNorm = String(bancaId || "").trim();
   const ranked = [...candidates].sort((a, b) => {
     const aBancaMatch = bancaIdNorm && a.banca_id === bancaIdNorm ? 0 : 1;
     const bBancaMatch = bancaIdNorm && b.banca_id === bancaIdNorm ? 0 : 1;

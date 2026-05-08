@@ -338,7 +338,6 @@ export default async function HomePage() {
       <div>
         <FullBanner initialSlides={hero.slides} initialConfig={hero.config} />
       </div>
-      <JornaleiroPartnerPromoStrip content={jornaleiroMarketingDocument.promoStrip} />
       <MobileCategoryScroller initialCategories={initialCategories} />
       <MiniCategoryBar initialItems={initialCategoryItems} />
       {/* PRIORIDADE ALTA: Primeiro scroll */}
@@ -347,6 +346,7 @@ export default async function HomePage() {
           <CategoryCarousel initialItems={initialCategoryItems} />
         </div>
       </Suspense>
+      <JornaleiroPartnerPromoStrip content={jornaleiroMarketingDocument.promoStrip} />
 
       <Suspense fallback={null}>
         <BancasSections initialBancas={initialBancas} initialRecentBancas={initialRecentBancas} />

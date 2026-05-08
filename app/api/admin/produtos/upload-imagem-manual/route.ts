@@ -5,6 +5,9 @@ import { requireAdminAuth } from '@/lib/security/admin-auth';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+const MAX_IMAGE_SIZE = 4 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']);
+
 /**
  * POST /api/admin/produtos/upload-imagem-manual
  * Upload manual de imagem para um produto específico (por ID)
@@ -28,6 +31,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+      return NextResponse.json(
+        { error: 'Tipo de imagem não suportado. Envie JPG, PNG, WebP ou GIF.' },
+        { status: 415 }
+      );
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      return NextResponse.json(
+        { error: 'Imagem muito grande. O máximo permitido é 4 MB.' },
+        { status: 413 }
+      );
+    }
+
     // Buscar produto
     const { data: produto, error: produtoError } = await supabaseAdmin
       .from('products')
@@ -45,14 +62,16 @@ export async function POST(req: NextRequest) {
     // Fazer upload da imagem para o Supabase Storage
     const timestamp = Date.now();
     const ext = file.name.split('.').pop() || 'jpg';
-    const fileName = `produto_${produto.mercos_id}_${timestamp}.${ext}`;
+    const productCode = produto.codigo_mercos || produto.mercos_id || produto.id;
+    const safeProductCode = String(productCode).replace(/[^A-Za-z0-9_-]/g, '');
+    const fileName = `produto_${safeProductCode}_${timestamp}.${ext}`;
     const filePath = `products/${fileName}`;
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-      .from('products')
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('images')
       .upload(filePath, buffer, {
         contentType: file.type,
         upsert: false,
@@ -68,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     // Obter URL pública
     const { data: urlData } = supabaseAdmin.storage
-      .from('products')
+      .from('images')
       .getPublicUrl(filePath);
 
     const imageUrl = urlData.publicUrl;
@@ -79,7 +98,7 @@ export async function POST(req: NextRequest) {
 
     const { error: updateError } = await supabaseAdmin
       .from('products')
-      .update({ images: updatedImages })
+      .update({ images: updatedImages, updated_at: new Date().toISOString() })
       .eq('id', produtoId);
 
     if (updateError) {

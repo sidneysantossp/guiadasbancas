@@ -38,7 +38,6 @@ export default function JornaleiroRegistrarPageClient() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [existingAccountEmail, setExistingAccountEmail] = useState<string | null>(null);
   
   // Estado específico para validação de email no blur
   const [checkingEmail, setCheckingEmail] = useState(false);
@@ -513,11 +512,9 @@ export default function JornaleiroRegistrarPageClient() {
         
         if (data.exists) {
           setEmailExists(true);
-          setExistingAccountEmail(email);
           setErrorField('email');
         } else {
           setEmailExists(false);
-          setExistingAccountEmail(null);
         }
       } catch (err) {
         console.error('Erro ao verificar email:', err);
@@ -708,11 +705,23 @@ export default function JornaleiroRegistrarPageClient() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
-              body: JSON.stringify({ banca_data: bancaData }),
+              body: JSON.stringify({
+                banca_data: bancaData,
+                profile: {
+                  full_name: name,
+                  cpf,
+                  phone,
+                },
+              }),
             });
 
             if (response.ok) {
-              logger.log('[Wizard] ✅ Banca pendente salva após autenticar conta existente', { attempt: attempt + 1 });
+              logger.log('[Wizard] ✅ Banca pendente salva e perfil convertido para jornaleiro', { attempt: attempt + 1 });
+              try {
+                await signIn(email, password);
+              } catch (sessionRefreshError) {
+                logger.warn('[Wizard] Não foi possível atualizar a sessão após converter perfil:', sessionRefreshError);
+              }
               return true;
             }
 
@@ -729,11 +738,9 @@ export default function JornaleiroRegistrarPageClient() {
       };
 
       setToast('Verificando acesso...');
-      setExistingAccountEmail(null);
       const existingLogin = await signIn(email, password);
       if (!existingLogin?.error) {
         logger.log('[Wizard] ✅ Conta existente autenticada antes do signup.');
-        setExistingAccountEmail(email);
 
         const sessionReady = await waitForAuthenticatedSession();
         if (!sessionReady) {
@@ -789,7 +796,6 @@ export default function JornaleiroRegistrarPageClient() {
         }
         // Se já existe, tentar autenticar com a senha informada
         setToast('Conta já existe. Verificando credenciais...');
-        setExistingAccountEmail(email);
         const login = await signIn(email, password);
         if (login?.error) {
           setError("Este e-mail já possui uma conta. Entre com a senha já cadastrada ou redefina a senha para continuar o cadastro da banca.");
@@ -940,22 +946,6 @@ export default function JornaleiroRegistrarPageClient() {
         {error && (
           <div className="mt-3 rounded-md border border-rose-300 bg-rose-50 px-3 py-3 text-sm text-rose-700">
             <div>{error}</div>
-            {existingAccountEmail ? (
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <Link
-                  href={`/jornaleiro/esqueci-senha?email=${encodeURIComponent(existingAccountEmail)}`}
-                  className="inline-flex items-center rounded-md border border-rose-200 bg-white px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100"
-                >
-                  Redefinir senha
-                </Link>
-                <Link
-                  href="/jornaleiro"
-                  className="inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  Ir para login
-                </Link>
-              </div>
-            ) : null}
           </div>
         )}
 
@@ -1108,7 +1098,6 @@ export default function JornaleiroRegistrarPageClient() {
                     if (fieldErrors.email) setErrorField('email');
                     if (emailExists) {
                       setEmailExists(false);
-                      setExistingAccountEmail(null);
                     }
                   }}
                   onBlur={async () => {
@@ -1127,11 +1116,9 @@ export default function JornaleiroRegistrarPageClient() {
                         const data = await res.json();
                         if (data.exists) {
                           setEmailExists(true);
-                          setExistingAccountEmail(email);
                           setErrorField('email');
                         } else {
                           setEmailExists(false);
-                          setExistingAccountEmail(null);
                         }
                       } catch (err) {
                         console.error('Erro ao verificar email:', err);

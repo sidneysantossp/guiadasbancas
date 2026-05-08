@@ -18,6 +18,10 @@ export function formatCep(cep: string) {
 }
 
 export async function reverseGeocodeByCoords(lat: number, lng: number) {
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timeoutId = controller
+    ? setTimeout(() => controller.abort(), 4500)
+    : null;
   const url = new URL('https://nominatim.openstreetmap.org/reverse');
   url.searchParams.set('format', 'json');
   url.searchParams.set('lat', String(lat));
@@ -25,21 +29,29 @@ export async function reverseGeocodeByCoords(lat: number, lng: number) {
   // Zoom maior para tentar obter número e bairro
   url.searchParams.set('zoom', '18');
   url.searchParams.set('addressdetails', '1');
-  const res = await fetch(url.toString(), {
-    headers: { "Accept-Language": "pt-BR", "User-Agent": "guiadasbancas/0.1" },
-    cache: 'no-store'
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  const addr = data?.address || {};
-  return {
-    street: addr.road || addr.pedestrian || addr.residential || addr.cycleway || undefined,
-    houseNumber: addr.house_number || undefined,
-    neighborhood: addr.suburb || addr.neighbourhood || addr.quarter || addr.city_district || addr.village || addr.town || undefined,
-    city: addr.city || addr.town || addr.village || undefined,
-    state: addr.state || addr.region || undefined,
-    cep: addr.postcode || undefined,
-  } as Partial<UserLocation>;
+  try {
+    const res = await fetch(url.toString(), {
+      headers: { "Accept-Language": "pt-BR", "User-Agent": "guiadasbancas/0.1" },
+      cache: 'no-store',
+      signal: controller?.signal,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const addr = data?.address || {};
+    return {
+      street: addr.road || addr.pedestrian || addr.residential || addr.cycleway || undefined,
+      houseNumber: addr.house_number || undefined,
+      neighborhood: addr.suburb || addr.neighbourhood || addr.quarter || addr.city_district || addr.village || addr.town || undefined,
+      city: addr.city || addr.town || addr.village || undefined,
+      state: addr.state || addr.region || undefined,
+      cep: addr.postcode || undefined,
+    } as Partial<UserLocation>;
+  } catch (error) {
+    console.warn('[Location] Reverse geocode por coordenadas falhou; usando fallback de lat/lng', error);
+    return null;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 export async function buildLocationFromCoords(lat: number, lng: number): Promise<UserLocation> {
@@ -58,6 +70,18 @@ export async function buildLocationFromCoords(lat: number, lng: number): Promise
 }
 
 export async function saveCoordsAsLocation(lat: number, lng: number): Promise<UserLocation> {
+  const fallbackLoc: UserLocation = {
+    cep: "",
+    lat,
+    lng,
+    source: "geolocation",
+    accuracy: "precise",
+  };
+
+  // Persiste imediatamente a localização bruta para que a UI reaja
+  // mesmo se o reverse geocode externo falhar ou demorar.
+  saveStoredLocation(fallbackLoc);
+
   const loc = await buildLocationFromCoords(lat, lng);
   saveStoredLocation(loc);
   return loc;

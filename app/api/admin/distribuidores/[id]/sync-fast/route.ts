@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MercosAPI } from '@/lib/mercos-api';
 import { requireAdminAuth } from '@/lib/security/admin-auth';
+import {
+  chooseDistribuidorProductCategoryId,
+  loadDistribuidorCategorySyncState,
+} from '@/lib/modules/distribuidor/category-mapping';
 
 // Timeout máximo: 5 minutos
 export const maxDuration = 300;
@@ -153,20 +157,10 @@ export async function POST(
     }
 
     // PASSO 2: Criar mapeamento de categorias Mercos -> Supabase
-    const { data: categoriasDb } = await supabase
-      .from('distribuidor_categories')
-      .select('id, mercos_id')
-      .eq('distribuidor_id', distribuidorId);
-    
-    const categoriasMap = new Map<number, string>();
-    if (categoriasDb) {
-      categoriasDb.forEach(cat => {
-        categoriasMap.set(cat.mercos_id, cat.id);
-      });
-    }
-    console.log(`[SYNC-FAST] ${categoriasMap.size} categorias mapeadas`);
+    const categoryState = await loadDistribuidorCategorySyncState(distribuidorId);
+    console.log(`[SYNC-FAST] ${categoryState.categoryMap.size} categorias mapeadas`);
 
-    if (categoriasMap.size === 0 && !allowWithoutCategories) {
+    if (categoryState.categoryMap.size === 0 && !allowWithoutCategories) {
       return NextResponse.json(
         {
           success: false,
@@ -303,21 +297,25 @@ export async function POST(
 
         // Adicionar ao buffer
         novos.forEach((produto: any, idx: number) => {
-          // Buscar categoria correta do produto
-          let categoryId = CATEGORIA_SEM_CATEGORIA_ID;
-          if (produto.categoria_id && categoriasMap.has(produto.categoria_id)) {
-            categoryId = categoriasMap.get(produto.categoria_id)!;
-            
-            // Log apenas dos primeiros 3 produtos para não poluir
-            if (idx < 3) {
-              console.log(`[SYNC-FAST] Produto "${produto.nome}" - Mercos categoria_id: ${produto.categoria_id} → UUID: ${categoryId}`);
-            }
-          } else {
-            if (idx < 3) {
-              console.log(`[SYNC-FAST] ⚠️ Produto "${produto.nome}" - categoria_id da Mercos: ${produto.categoria_id} (não encontrado no mapa)`);
+          const finalCategoryId = chooseDistribuidorProductCategoryId({
+            mercosCategoryId: produto.categoria_id,
+            categoryMap: categoryState.categoryMap,
+            validCategoryIds: categoryState.validCategoryIds,
+            fallbackCategoryId: CATEGORIA_SEM_CATEGORIA_ID,
+          });
+
+          if (idx < 3) {
+            if (produto.categoria_id && finalCategoryId && finalCategoryId !== CATEGORIA_SEM_CATEGORIA_ID) {
+              console.log(
+                `[SYNC-FAST] Produto "${produto.nome}" - Mercos categoria_id: ${produto.categoria_id} → UUID: ${finalCategoryId}`
+              );
+            } else {
+              console.log(
+                `[SYNC-FAST] ⚠️ Produto "${produto.nome}" - categoria_id da Mercos: ${produto.categoria_id} (sem mapeamento válido, usando fallback)`
+              );
             }
           }
-          
+
           toInsertBuffer.push({
             name: produto.nome,
             description: produto.observacoes || '',
@@ -328,7 +326,8 @@ export async function POST(
             distribuidor_id: distribuidorId,
             mercos_id: produto.id,
             codigo_mercos: produto.codigo || null,
-            category_id: categoryId,
+            category_id: finalCategoryId,
+            categoria_mercos: produto.categoria_id ? String(produto.categoria_id) : null,
             origem: 'mercos',
             sincronizado_em: new Date().toISOString(),
             track_stock: true,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 // BANCAS_MOCK removido - dados vêm exclusivamente da API
 import homeCategories from "@/data/categories.json";
 import { haversineKm, loadStoredLocation, saveStoredLocation, UserLocation, formatCep, isValidCep, resolveCepToLocation, saveCoordsAsLocation, geocodeByAddressNominatim } from "@/lib/location";
@@ -78,9 +78,20 @@ const toTitleCase = (str: string): string => {
 };
 
 type CategoryItem = { id?: string; name?: string };
+type SortBy = "featured" | "distance" | "rating" | "az";
+
 type BancasPertoDeMimPageClientProps = {
   initialBancas?: any[];
   initialCategories?: CategoryItem[];
+  title?: string | null;
+  subtitle?: ReactNode;
+  headingLevel?: "h1" | "h2";
+  className?: string;
+  defaultSortBy?: SortBy;
+  inlineDistanceFilter?: boolean;
+  showCategoryFilters?: boolean;
+  showRatingFilter?: boolean;
+  campaignVariant?: "default" | "worldCupStickers";
 };
 
 function buildCategoriesMap(list?: CategoryItem[]) {
@@ -97,6 +108,15 @@ function buildCategoriesMap(list?: CategoryItem[]) {
 export default function BancasPertoDeMimPageClient({
   initialBancas,
   initialCategories,
+  title,
+  subtitle,
+  headingLevel = "h1",
+  className = "container-max pt-0 md:pt-5 pb-6",
+  defaultSortBy = "featured",
+  inlineDistanceFilter = false,
+  showCategoryFilters = true,
+  showRatingFilter = true,
+  campaignVariant = "default",
 }: BancasPertoDeMimPageClientProps) {
   const initialBancasSafe = Array.isArray(initialBancas) ? initialBancas : null;
   const hasInitialBancas = Array.isArray(initialBancas);
@@ -110,13 +130,13 @@ export default function BancasPertoDeMimPageClient({
   const [maxKm, setMaxKm] = useState<number>(5); // 0..5 (5 = 5+)
   const [minStars, setMinStars] = useState<number>(0); // 0..5 (0 = qualquer)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<"featured" | "distance" | "rating" | "az">("featured");
+  const [sortBy, setSortBy] = useState<SortBy>(defaultSortBy);
   const [filtersOpen, setFiltersOpen] = useState<boolean>(false); // mobile painel
   const [cep, setCep] = useState<string>("");
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState<string | null>(null);
 
-  // Carregar categorias (públicas + admin como fallback) para cobrir todos os IDs
+  // Carregar categorias publicas para cobrir todos os IDs sem depender de rota admin no frontend.
   useEffect(() => {
     if (hasInitialCategories) {
       setCategoriesMap(buildCategoriesMap(initialCategories));
@@ -124,13 +144,8 @@ export default function BancasPertoDeMimPageClient({
     }
     (async () => {
       try {
-        const [pubRes, admRes] = await Promise.all([
-          fetch('/api/categories', { cache: 'no-store' }).catch(() => null),
-          fetch('/api/admin/categories?all=true', { cache: 'no-store' }).catch(() => null),
-        ]);
-
+        const pubRes = await fetch('/api/categories', { cache: 'no-store' }).catch(() => null);
         const pubJson = pubRes && pubRes.ok ? await pubRes.json() : { success: false, data: [] };
-        const admJson = admRes && admRes.ok ? await admRes.json() : { success: false, data: [] };
 
         const map = new Map<string, string>();
         const add = (list: any[]) => {
@@ -141,7 +156,6 @@ export default function BancasPertoDeMimPageClient({
           }
         };
         add(pubJson.data);
-        add(admJson.data);
 
         if (map.size > 0) {
           setCategoriesMap(map);
@@ -434,10 +448,12 @@ export default function BancasPertoDeMimPageClient({
       return d <= maxKm + 1e-9;
     };
     const applyStars = (r?: number) => {
+      if (!showRatingFilter) return true;
       const rv = r ?? 0;
       return rv >= minStars;
     };
     const applyCategories = (b: any) => {
+      if (!showCategoryFilters) return true;
       if (!selectedCategories.length) return true;
       const bcats: string[] = Array.isArray(b.categories) ? b.categories : [];
       return selectedCategories.every((c) => bcats.includes(c));
@@ -449,13 +465,17 @@ export default function BancasPertoDeMimPageClient({
     if (sortBy === 'rating') filtered = filtered.sort((a:any,b:any)=> (b.rating ?? 0) - (a.rating ?? 0));
     if (sortBy === 'az') filtered = filtered.sort((a:any,b:any)=> a.name.localeCompare(b.name));
     return filtered;
-  }, [ordered, maxKm, minStars, selectedCategories, sortBy]);
+  }, [ordered, maxKm, minStars, selectedCategories, sortBy, showCategoryFilters, showRatingFilter]);
 
   // paginação incremental
   const PAGE_SIZE = 12;
   const [page, setPage] = useState(1);
   useEffect(()=>{ setPage(1); }, [maxKm, minStars, selectedCategories, sortBy, loc]);
   const visiblePage = useMemo(()=> visible.slice(0, page * PAGE_SIZE), [visible, page]);
+  const resolvedTitle = title === undefined ? "Bancas perto de mim" : title;
+  const HeadingTag = headingLevel === "h2" ? "h2" : "h1";
+  const hasSidebarFilters = !inlineDistanceFilter || showCategoryFilters || showRatingFilter;
+  const canOpenMobileFilters = !inlineDistanceFilter || showCategoryFilters || showRatingFilter;
 
   const availableCategories = useMemo(() => {
     const set = new Set<string>();
@@ -473,30 +493,69 @@ export default function BancasPertoDeMimPageClient({
     return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
   }, [ordered, categoriesMap]);
 
+  const DistanceFilter = ({ compact = false }: { compact?: boolean }) => (
+    <div className={compact ? "min-w-[230px] max-w-[300px] flex-1" : undefined}>
+      <div className={compact ? "mb-1 text-xs font-semibold text-gray-600" : "text-sm font-semibold"}>
+        Distância
+      </div>
+      <div className={compact ? "" : "mt-2"}>
+        <input
+          type="range"
+          min={0}
+          max={5}
+          step={1}
+          value={maxKm}
+          onChange={(e)=>setMaxKm(Number(e.target.value))}
+          className="w-full accent-[#ff5c00] range-orange"
+        />
+        <div className={`${compact ? "mt-0.5 text-[11px]" : "mt-1 text-xs"} flex justify-between text-gray-500 px-0.5`}>
+          <span>0</span>
+          <span>1</span>
+          <span>2</span>
+          <span>3</span>
+          <span>4</span>
+          <span>5+ / todas</span>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <section className="container-max pt-0 md:pt-5 pb-6">
-      <h1 className="text-xl font-semibold">Bancas perto de mim</h1>
+    <section className={className}>
+      {resolvedTitle && (
+        <HeadingTag className="text-xl font-semibold">{resolvedTitle}</HeadingTag>
+      )}
+      {subtitle && (
+        <div className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">{subtitle}</div>
+      )}
 
       {/* Cabeçalho e filtros (mobile) */}
-      <div className="mt-1 md:mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+      <div className={`${resolvedTitle || subtitle ? "mt-3" : "mt-1"} md:mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2`}>
         <div className="text-gray-700 text-sm">
           Resultados — <span className="font-medium">{visible.length}</span> bancas encontradas
           {(() => {
-            const activeCount = (maxKm < 5 ? 1 : 0) + (minStars > 0 ? 1 : 0) + (selectedCategories.length > 0 ? 1 : 0);
+            const activeCount =
+              (maxKm < 5 ? 1 : 0) +
+              (showRatingFilter && minStars > 0 ? 1 : 0) +
+              (showCategoryFilters && selectedCategories.length > 0 ? 1 : 0);
             if (!activeCount) return null;
             return <span className="ml-2 inline-flex items-center rounded-full bg-[#fff3ec] text-[#ff5c00] px-2 py-[2px] text-[12px]">{activeCount} filtro(s)</span>;
           })()}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center">
+          {inlineDistanceFilter && <DistanceFilter compact />}
           {/* Ordenação */}
-          <label className="text-sm text-gray-600 hidden md:block">Ordenar:</label>
-          <select value={sortBy} onChange={(e)=>setSortBy(e.target.value as any)} className="rounded-md border border-gray-300 bg-white text-sm px-2 py-2">
-            <option value="featured">Destaque</option>
-            <option value="distance">Distância</option>
-            <option value="rating">Avaliação</option>
-            <option value="az">A–Z</option>
-          </select>
+          <div className="flex items-center gap-2 md:self-start">
+            <label className="text-sm text-gray-600 hidden md:block">Ordenar:</label>
+            <select value={sortBy} onChange={(e)=>setSortBy(e.target.value as any)} className="rounded-md border border-gray-300 bg-white text-sm px-2 py-2">
+              <option value="featured">Destaque</option>
+              <option value="distance">Mais próximas</option>
+              <option value="rating">Avaliação</option>
+              <option value="az">A–Z</option>
+            </select>
+          </div>
           {/* Toggle filtros mobile */}
+          {canOpenMobileFilters && (
           <div className="md:hidden">
             <button
               type="button"
@@ -507,8 +566,9 @@ export default function BancasPertoDeMimPageClient({
               Filtros
             </button>
           </div>
+          )}
           {/* Limpar tudo */}
-          {((maxKm < 5) || (minStars > 0) || selectedCategories.length > 0) && (
+          {((maxKm < 5) || (showRatingFilter && minStars > 0) || (showCategoryFilters && selectedCategories.length > 0)) && (
             <button type="button" onClick={()=>{ setMaxKm(5); setMinStars(0); setSelectedCategories([]); }} className="hidden md:inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-black shadow-sm">Limpar tudo</button>
           )}
         </div>
@@ -518,21 +578,9 @@ export default function BancasPertoDeMimPageClient({
       {filtersOpen && (
         <div className="md:hidden mt-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
           {/* Distância */}
-          <div>
-            <div className="text-sm font-semibold">Distância</div>
-            <div className="mt-2">
-              <input type="range" min={0} max={5} step={1} value={maxKm} onChange={(e)=>setMaxKm(Number(e.target.value))} className="w-full accent-[#ff5c00] range-orange" />
-              <div className="flex justify-between text-xs text-gray-500 mt-1 px-0.5">
-                <span>0</span>
-                <span>1</span>
-                <span>2</span>
-                <span>3</span>
-                <span>4</span>
-                <span>5+ / todas</span>
-              </div>
-            </div>
-          </div>
+          {!inlineDistanceFilter && <DistanceFilter />}
           {/* Categorias */}
+          {showCategoryFilters && (
           <div className="mt-3">
             <div className="text-sm font-semibold">Categorias</div>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -544,7 +592,9 @@ export default function BancasPertoDeMimPageClient({
               })}
             </div>
           </div>
+          )}
           {/* Estrelas */}
+          {showRatingFilter && (
           <div className="mt-3">
             <div className="text-sm font-semibold">Avaliação mínima</div>
             <div className="mt-2 flex items-center gap-2">
@@ -555,6 +605,7 @@ export default function BancasPertoDeMimPageClient({
               ))}
             </div>
           </div>
+          )}
           {/* Limpar filtros */}
           <div className="mt-3">
             <button type="button" onClick={()=>{ setMaxKm(5); setMinStars(0); setSelectedCategories([]); }} className="text-sm text-gray-700 underline hover:text-black">Limpar filtros</button>
@@ -573,24 +624,13 @@ export default function BancasPertoDeMimPageClient({
         </div>
       )}
 
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 items-start">
+      <div className={hasSidebarFilters ? "mt-4 grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 items-start" : "mt-4"}>
         {/* Sidebar (desktop) — Left side */}
+        {hasSidebarFilters && (
         <aside className="hidden md:block rounded-2xl border border-gray-200 bg-white p-4 md:sticky top-20 md:self-start md:h-full md:min-h-full">
-          <div>
-            <div className="text-sm font-semibold">Distância</div>
-            <div className="mt-2">
-              <input type="range" min={0} max={5} step={1} value={maxKm} onChange={(e)=>setMaxKm(Number(e.target.value))} className="w-full accent-[#ff5c00] range-orange" />
-              <div className="flex justify-between text-xs text-gray-500 mt-1 px-0.5">
-                <span>0</span>
-                <span>1</span>
-                <span>2</span>
-                <span>3</span>
-                <span>4</span>
-                <span>5+ / todas</span>
-              </div>
-            </div>
-          </div>
-          <div className="mt-4">
+          {!inlineDistanceFilter && <DistanceFilter />}
+          {showCategoryFilters && (
+          <div className={!inlineDistanceFilter ? "mt-4" : ""}>
             <div className="text-sm font-semibold">Categorias</div>
             <div className="mt-2 flex flex-wrap gap-2">
               {availableCategories.map((c)=>{
@@ -601,6 +641,8 @@ export default function BancasPertoDeMimPageClient({
               })}
             </div>
           </div>
+          )}
+          {showRatingFilter && (
           <div className="mt-4">
             <div className="text-sm font-semibold">Avaliação mínima</div>
             <div className="mt-2 grid grid-cols-3 gap-2">
@@ -611,12 +653,14 @@ export default function BancasPertoDeMimPageClient({
               ))}
             </div>
           </div>
+          )}
           <div className="mt-4">
             <button type="button" onClick={()=>{ setMaxKm(5); setMinStars(0); setSelectedCategories([]); }} className="text-sm text-gray-700 underline hover:text-black">Limpar filtros</button>
           </div>
         </aside>
+        )}
         {/* Grid de resultados */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-3 gap-4">
+        <div className={hasSidebarFilters ? "grid grid-cols-2 md:grid-cols-3 xl:grid-cols-3 gap-4" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"}>
           {visiblePage.map((b, idx) => {
             // As categorias já vêm mapeadas do 'ordered', não precisa mapear novamente
             const categories = Array.isArray((b as any).categories) ? (b as any).categories : [];
@@ -635,6 +679,8 @@ export default function BancasPertoDeMimPageClient({
                 categories={categories}
                 description={(b as any).description || DESCRIPTIONS[b.id as keyof typeof DESCRIPTIONS] || "Banca de jornal com variedades de revistas, jornais, recargas e snacks."}
                 featured={Boolean((b as any).featured)}
+                campaignVariant={campaignVariant}
+                ctaLabel={campaignVariant === "worldCupStickers" ? "Falar com a banca agora" : undefined}
               />
             );
           })}

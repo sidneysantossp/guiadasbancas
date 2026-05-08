@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useFetchAuth } from '@/lib/hooks/useFetchAuth';
-import Image from 'next/image';
 import { useToast } from '@/components/admin/ToastProvider';
 import { usePremiumRouteGuard } from '@/components/jornaleiro/usePremiumRouteGuard';
 
@@ -61,32 +60,33 @@ export default function EditarProdutoDistribuidorPage() {
 
   const loadProduto = async () => {
     try {
-      const response = await fetchAuth('/api/jornaleiro/catalogo-distribuidor');
+      const productId = String(params?.id || '');
+      if (!productId) {
+        throw new Error('Produto inválido');
+      }
+
+      const response = await fetchAuth(`/api/jornaleiro/products/${productId}`);
       const data = await response.json();
 
       if (data.success) {
-        const prod = data.data.find((p: Product) => p.id === params.id);
-        if (prod) {
-          console.log('[DEBUG] Produto carregado:', {
-            name: prod.name,
-            price: prod.price,
-            distribuidor_price: prod.distribuidor_price,
-            custom_price: prod.custom_price
-          });
-          
-          setProduto(prod);
-          const priceToUse = prod.custom_price?.toString() || prod.distribuidor_price.toString();
-          console.log('[DEBUG] Preço a usar:', priceToUse);
-          setCustomPrice(priceToUse);
-          setCustomDescription(prod.custom_description || '');
-          setCustomStatus(prod.custom_status);
-          setCustomProntaEntrega(prod.custom_pronta_entrega);
-          setCustomSobEncomenda(prod.custom_sob_encomenda);
-          setCustomPreVenda(prod.custom_pre_venda);
-          setCustomStockEnabled(prod.custom_stock_enabled || false);
-          setCustomStockQty(prod.custom_stock_qty?.toString() || '0');
-          setCustomFeatured(prod.custom_featured || false);
+        const prod = data.data as Product | undefined;
+        if (!prod?.id) {
+          throw new Error('Produto não encontrado');
         }
+
+        setProduto(prod);
+        const priceToUse = prod.custom_price?.toString() || prod.distribuidor_price.toString();
+        setCustomPrice(priceToUse);
+        setCustomDescription(prod.custom_description || '');
+        setCustomStatus(prod.custom_status);
+        setCustomProntaEntrega(prod.custom_pronta_entrega);
+        setCustomSobEncomenda(prod.custom_sob_encomenda);
+        setCustomPreVenda(prod.custom_pre_venda);
+        setCustomStockEnabled(prod.custom_stock_enabled || false);
+        setCustomStockQty(prod.custom_stock_qty?.toString() || '0');
+        setCustomFeatured(prod.custom_featured || false);
+      } else {
+        throw new Error(data.error || 'Produto não encontrado');
       }
     } catch (error) {
       console.error('Erro ao carregar produto:', error);
@@ -120,7 +120,7 @@ export default function EditarProdutoDistribuidorPage() {
       if (data.success) {
         toast.success('Produto atualizado com sucesso!');
         setTimeout(() => {
-          router.push('/jornaleiro/catalogo-distribuidor');
+          router.push('/jornaleiro/catalogo-distribuidor/gerenciar');
         }, 1500);
       } else {
         toast.error('Erro ao salvar: ' + data.error);
@@ -153,7 +153,7 @@ export default function EditarProdutoDistribuidorPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900">Produto não encontrado</h2>
-          <Link href="/jornaleiro/catalogo-distribuidor" className="text-[#ff5c00] hover:underline mt-4 inline-block">
+          <Link href="/jornaleiro/catalogo-distribuidor/gerenciar" className="text-[#ff5c00] hover:underline mt-4 inline-block">
             Voltar ao catálogo
           </Link>
         </div>
@@ -165,7 +165,7 @@ export default function EditarProdutoDistribuidorPage() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
         <Link
-          href="/jornaleiro/catalogo-distribuidor"
+          href="/jornaleiro/catalogo-distribuidor/gerenciar"
           className="text-[#ff5c00] hover:underline flex items-center gap-2 mb-4"
         >
           ← Voltar ao Catálogo
@@ -477,7 +477,7 @@ export default function EditarProdutoDistribuidorPage() {
               {saving ? 'Salvando...' : 'Salvar Alterações'}
             </button>
             <Link
-              href="/jornaleiro/catalogo-distribuidor"
+              href="/jornaleiro/catalogo-distribuidor/gerenciar"
               className="flex-1 text-center border border-gray-300 px-6 py-3 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
             >
               Cancelar

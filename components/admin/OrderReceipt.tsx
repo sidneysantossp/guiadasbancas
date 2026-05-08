@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { buildWhatsAppUrl } from "@/lib/whatsapp-url";
 
 type OrderItem = {
   id: string;
@@ -185,9 +186,7 @@ ${order.items.map(item => `• ${item.quantity}x ${item.product_name} - R$ ${ite
 Obrigado pela preferência! 🙏`;
 
     // Abrir WhatsApp Web com mensagem pré-preenchida
-    const phone = order.customer_phone.replace(/\D/g, '');
-    const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    window.open(buildWhatsAppUrl(order.customer_phone, message), '_blank');
   };
 
   return (

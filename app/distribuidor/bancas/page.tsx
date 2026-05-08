@@ -7,6 +7,7 @@ import {
   getDistribuidorAuthHeaders,
 } from "@/lib/distribuidor-client-auth";
 import { useDistribuidorSession } from "@/lib/distribuidor-client-session";
+import { buildWhatsAppUrl } from "@/lib/whatsapp-url";
 import {
   IconSearch,
   IconBuildingStore,
@@ -131,9 +132,8 @@ export default function DistribuidorBancasPage() {
       alert('WhatsApp não disponível');
       return;
     }
-    const phone = whatsapp.replace(/\D/g, '');
     const message = `Olá! Somos da ${distribuidor?.nome || 'distribuidora'}. Gostaríamos de conversar sobre parceria.`;
-    window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    window.open(buildWhatsAppUrl(whatsapp, message), '_blank');
   };
 
   if (loading && !bancas.length) {
