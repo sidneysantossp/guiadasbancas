@@ -606,25 +606,28 @@ export default function JornaleiroMarketingPage() {
                   id="marketing-print-card"
                   className="w-full max-w-[440px] overflow-hidden rounded-[26px] border border-gray-200 bg-white text-gray-950 shadow-sm"
                 >
-                  <div className="relative overflow-hidden bg-orange-50 px-5 pb-5 pt-6">
-                    <div className="relative">
-                      <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#ff5c00]">Compre pelo WhatsApp</div>
-                      <h3 className="mt-4 text-2xl font-black leading-[1.05] text-slate-950">
+                  <div className="relative overflow-hidden bg-orange-50">
+                    <div className="relative overflow-hidden bg-white">
+                      {featuredImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={featuredImage} alt={`Imagem de destaque da ${bancaName}`} className="h-36 w-full object-cover" />
+                      ) : (
+                        <div className="flex h-36 w-full items-center justify-center bg-white px-5 text-center text-sm font-semibold text-slate-400">
+                          Imagem de destaque da banca
+                        </div>
+                      )}
+                      <div className="absolute left-4 top-4 rounded-full bg-[#ff5c00] px-3.5 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-lg shadow-orange-950/20">
+                        Compre pelo WhatsApp
+                      </div>
+                    </div>
+
+                    <div className="px-5 pb-5 pt-4">
+                      <h3 className="text-2xl font-black leading-[1.05] text-slate-950">
                         Escaneie e faça suas compras online.
                       </h3>
                       <p className="mt-2 text-[13px] leading-5 text-slate-600">
                         Conheça nosso catálogo de produtos e faça seus pedidos pelo WhatsApp.
                       </p>
-                      <div className="mt-4 overflow-hidden rounded-2xl border border-orange-100 bg-white">
-                        {featuredImage ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={featuredImage} alt={`Imagem de destaque da ${bancaName}`} className="h-28 w-full object-cover" />
-                        ) : (
-                          <div className="flex h-28 w-full items-center justify-center bg-white px-5 text-center text-sm font-semibold text-slate-400">
-                            Imagem de destaque da banca
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </div>
 

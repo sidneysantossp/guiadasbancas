@@ -1,0 +1,4 @@
+.playwright-cli
+*.png
+*.log
+tsconfig.tsbuildinfo
