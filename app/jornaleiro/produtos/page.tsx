@@ -59,6 +59,7 @@ export default function JornaleiroProdutosPage() {
   const [overdueInGracePeriod, setOverdueInGracePeriod] = useState(false);
   const [overdueGraceEndsAt, setOverdueGraceEndsAt] = useState<string | null>(null);
   const [contractedPlanName, setContractedPlanName] = useState<string | null>(null);
+  const [marketplaceModuleEnabled, setMarketplaceModuleEnabled] = useState(false);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -87,6 +88,23 @@ export default function JornaleiroProdutosPage() {
     };
 
     loadBancaName();
+  }, []);
+
+  useEffect(() => {
+    const loadJornaleiroModules = async () => {
+      try {
+        const res = await fetch("/api/settings/jornaleiro-modules", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        const json = await res.json();
+        setMarketplaceModuleEnabled(json?.success === true && json?.modules?.marketplace?.enabled === true);
+      } catch {
+        setMarketplaceModuleEnabled(false);
+      }
+    };
+
+    loadJornaleiroModules();
   }, []);
 
   const categoryMap = useMemo(() => {
@@ -230,7 +248,7 @@ export default function JornaleiroProdutosPage() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="font-medium leading-6 text-gray-900">{r.name}</div>
-            {r.source === "fornecedor" ? (
+            {r.source === "fornecedor" && marketplaceModuleEnabled ? (
               <div className="mt-1 inline-flex rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-700">
                 Marketplace
               </div>
@@ -515,13 +533,15 @@ export default function JornaleiroProdutosPage() {
         renderActions={(row) => (
           <div className="flex flex-col items-end justify-end gap-2 sm:flex-row sm:items-center">
             {row.source === "fornecedor" ? (
-              <Link
-                href={"/jornaleiro/fornecedor" as Route}
-                className="inline-flex h-10 items-center justify-center rounded-md border border-orange-200 px-3 text-xs font-medium text-orange-700 hover:bg-orange-50"
-                title="Abrir Marketplace"
-              >
-                Marketplace
-              </Link>
+              marketplaceModuleEnabled ? (
+                <Link
+                  href={"/jornaleiro/fornecedor" as Route}
+                  className="inline-flex h-10 items-center justify-center rounded-md border border-orange-200 px-3 text-xs font-medium text-orange-700 hover:bg-orange-50"
+                  title="Abrir Marketplace"
+                >
+                  Marketplace
+                </Link>
+              ) : null
             ) : (
               <>
                 <Link

@@ -5,6 +5,7 @@ import {
   listJornaleiroWholesaleOrders,
 } from "@/lib/modules/atacado/service";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { loadJornaleiroMarketplaceModuleEnabled } from "@/lib/jornaleiro-modules";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,9 +20,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const marketplaceEnabled = await loadJornaleiroMarketplaceModuleEnabled();
+    if (!marketplaceEnabled) {
+      return NextResponse.json(
+        { success: false, error: "Marketplace indisponível no momento", module_enabled: false },
+        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
     const data = await listJornaleiroWholesaleOrders(user.id);
     return NextResponse.json(
-      { success: true, data },
+      { success: true, module_enabled: true, data },
       { headers: buildNoStoreHeaders({ isPrivate: true }) }
     );
   } catch (error: any) {
@@ -42,6 +51,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const marketplaceEnabled = await loadJornaleiroMarketplaceModuleEnabled();
+    if (!marketplaceEnabled) {
+      return NextResponse.json(
+        { success: false, error: "Marketplace indisponível no momento", module_enabled: false },
+        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
     const body = await request.json();
     const data = await createJornaleiroWholesaleOrder({
       userId: user.id,

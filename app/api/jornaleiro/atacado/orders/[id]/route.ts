@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
 import { getJornaleiroWholesaleOrder } from "@/lib/modules/atacado/service";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
+import { loadJornaleiroMarketplaceModuleEnabled } from "@/lib/jornaleiro-modules";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -21,6 +22,14 @@ export async function GET(
   const { id } = await params;
 
   try {
+    const marketplaceEnabled = await loadJornaleiroMarketplaceModuleEnabled();
+    if (!marketplaceEnabled) {
+      return NextResponse.json(
+        { success: false, error: "Marketplace indisponível no momento", module_enabled: false },
+        { status: 403, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
     const data = await getJornaleiroWholesaleOrder(user.id, id);
     if (!data) {
       return NextResponse.json(

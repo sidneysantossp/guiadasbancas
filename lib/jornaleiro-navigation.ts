@@ -46,6 +46,7 @@ export type JornaleiroMenuItem = {
   requiresCatalogAccess?: boolean;
   requiresPartnerDirectoryAccess?: boolean;
   requiresWholesaleAccess?: boolean;
+  requiresMarketplaceModule?: boolean;
   premiumFeature?: boolean;
   upgradeSource?: string;
   hideWhenPlansDisabled?: boolean;
@@ -70,6 +71,7 @@ export type JornaleiroPermissionModuleContext = {
   hasPartnerDirectoryAccess: boolean;
   hasWholesaleAccess: boolean;
   hasCampaignAccess: boolean;
+  marketplaceModuleEnabled?: boolean;
   plansMenuEnabled: boolean;
   planType: string | null;
 };
@@ -91,6 +93,7 @@ export const DEFAULT_JORNALEIRO_PERMISSION_MODULE_CONTEXT: JornaleiroPermissionM
   hasPartnerDirectoryAccess: false,
   hasWholesaleAccess: false,
   hasCampaignAccess: false,
+  marketplaceModuleEnabled: false,
   plansMenuEnabled: true,
   planType: "free",
 };
@@ -205,6 +208,7 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         icon: "catalog",
         description: "Compra B2B de produtos liberados para sua banca.",
         aliases: ["/jornaleiro/atacado"],
+        requiresMarketplaceModule: true,
         visibleInFree: true,
       },
       {
@@ -212,6 +216,7 @@ const JOURNALEIRO_MENU: JornaleiroMenuSection[] = [
         href: "/jornaleiro/fornecedor/pedidos" as Route,
         icon: "orders",
         description: "Acompanhe pedidos do Marketplace por aprovação, envio e conclusão.",
+        requiresMarketplaceModule: true,
         visibleInFree: true,
         isSubItem: true,
       },
@@ -345,6 +350,7 @@ export function isJornaleiroMenuItemOperational(
 ) {
   if (context.planType === "free" && !item.visibleInFree) return false;
   if (item.hideWhenPlansDisabled && !context.plansMenuEnabled) return false;
+  if (item.requiresMarketplaceModule && context.marketplaceModuleEnabled !== true) return false;
   if (item.requiresWholesaleAccess && !context.hasWholesaleAccess) return false;
   if (item.requiresCatalogAccess && !context.hasCatalogAccess) return false;
   if (item.requiresPartnerDirectoryAccess && !context.hasPartnerDirectoryAccess) return false;

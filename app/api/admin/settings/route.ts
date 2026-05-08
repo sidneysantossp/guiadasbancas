@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import { supabaseAdmin } from "@/lib/supabase";
+import { JORNALEIRO_MARKETPLACE_MODULE_SETTING_KEY } from "@/lib/jornaleiro-modules";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -70,6 +71,10 @@ export async function POST(request: NextRequest) {
     }
 
     let normalizedValue = value;
+
+    if (key === JORNALEIRO_MARKETPLACE_MODULE_SETTING_KEY) {
+      normalizedValue = String(value).trim().toLowerCase() === "true" ? "true" : "false";
+    }
 
     if (
       key === "subscription_overdue_grace_days" ||

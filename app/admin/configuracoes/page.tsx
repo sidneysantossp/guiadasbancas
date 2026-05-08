@@ -11,7 +11,14 @@ type Setting = {
   is_secret: boolean;
 };
 
+const JORNALEIRO_MARKETPLACE_SETTING_KEY = "jornaleiro_marketplace_enabled";
+
 const SETTINGS_METADATA = {
+  [JORNALEIRO_MARKETPLACE_SETTING_KEY]: {
+    description: "Controla a disponibilidade do módulo Marketplace no painel do jornaleiro",
+    is_secret: false,
+    defaultValue: "false",
+  },
   asaas_api_key: {
     description: "API Key do Asaas",
     is_secret: true,
@@ -136,14 +143,15 @@ export default function AdminConfiguracoesPage() {
       claimedLaunchBancas,
     0
   );
+  const marketplaceEnabled = editValues[JORNALEIRO_MARKETPLACE_SETTING_KEY] === "true";
 
-  const handleSave = async (key: string) => {
-    if (!editValues[key] && settings.find(s => s.key === key)?.is_secret) {
+  const handleSave = async (key: string, overrideValue?: string) => {
+    if (overrideValue === undefined && !editValues[key] && settings.find(s => s.key === key)?.is_secret) {
       alert("Por favor, insira um valor para salvar");
       return;
     }
 
-    let valueToSave = editValues[key] ?? "";
+    let valueToSave = overrideValue ?? editValues[key] ?? "";
 
     if (key === "subscription_overdue_grace_days" || key === "subscription_trial_days_paid") {
       const parsed = Number(valueToSave);
@@ -249,6 +257,62 @@ export default function AdminConfiguracoesPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Assinaturas e Cobrança</h1>
         <p className="text-gray-600 mt-1">Controle gateway, carência, degustação e ofertas comerciais dos planos</p>
+      </div>
+
+      <div className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <div className="border-b border-gray-200 bg-gradient-to-r from-slate-50 to-gray-50 p-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h10" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Módulos do Jornaleiro</h2>
+              <p className="text-sm text-gray-600">Ative ou pause recursos operacionais liberados no painel das bancas</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6">
+          <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-base font-semibold text-gray-900">Marketplace</h3>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    marketplaceEnabled
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-gray-200 text-gray-700"
+                  }`}
+                >
+                  {marketplaceEnabled ? "Ativo" : "Inativo"}
+                </span>
+              </div>
+              <p className="mt-1 max-w-2xl text-sm text-gray-600">
+                Quando inativo, o menu Marketplace e os pedidos B2B ficam ocultos para o jornaleiro e as rotas diretas são bloqueadas.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                handleSave(JORNALEIRO_MARKETPLACE_SETTING_KEY, marketplaceEnabled ? "false" : "true")
+              }
+              disabled={saving === JORNALEIRO_MARKETPLACE_SETTING_KEY}
+              className={`inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-50 ${
+                marketplaceEnabled
+                  ? "bg-gray-700 hover:bg-gray-800"
+                  : "bg-[#ff5c00] hover:bg-[#e65300]"
+              }`}
+            >
+              {saving === JORNALEIRO_MARKETPLACE_SETTING_KEY
+                ? "Salvando..."
+                : marketplaceEnabled
+                ? "Desativar módulo"
+                : "Ativar módulo"}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Asaas Config */}

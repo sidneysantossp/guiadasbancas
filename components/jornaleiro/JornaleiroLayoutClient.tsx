@@ -71,6 +71,8 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   const [isOwner, setIsOwner] = useState<boolean | null>(null); // null = carregando
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const [plansMenuEnabled, setPlansMenuEnabled] = useState(RECURRING_BILLING_ENABLED);
+  const [marketplaceModuleEnabled, setMarketplaceModuleEnabled] = useState(false);
+  const [jornaleiroModulesLoaded, setJornaleiroModulesLoaded] = useState(false);
   const [hasWholesaleAccess, setHasWholesaleAccess] = useState(false);
   const [wholesaleAccessLoaded, setWholesaleAccessLoaded] = useState(false);
   const [wholesaleAccessBancaId, setWholesaleAccessBancaId] = useState<string | null>(null);
@@ -116,6 +118,26 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
       }
     };
     loadPlansMenuSetting();
+  }, []);
+
+  useEffect(() => {
+    const loadJornaleiroModules = async () => {
+      try {
+        const res = await fetch("/api/settings/jornaleiro-modules", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        const data = await res.json();
+        setMarketplaceModuleEnabled(data?.success === true && data?.modules?.marketplace?.enabled === true);
+      } catch (error) {
+        logger.error("Erro ao carregar módulos do jornaleiro:", error);
+        setMarketplaceModuleEnabled(false);
+      } finally {
+        setJornaleiroModulesLoaded(true);
+      }
+    };
+
+    loadJornaleiroModules();
   }, []);
 
   useEffect(() => {
@@ -230,6 +252,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
       hasPartnerDirectoryAccess,
       hasWholesaleAccess,
       hasCampaignAccess,
+      marketplaceModuleEnabled,
       plansMenuEnabled,
       permissionsLoaded,
       isOwner,
@@ -244,28 +267,24 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     hasPartnerDirectoryAccess,
     hasWholesaleAccess,
     hasCampaignAccess,
+    marketplaceModuleEnabled,
     plansMenuEnabled,
     planType,
   ]);
 
   const menuItems = useMemo(() => menuSections.flatMap((section) => section.items), [menuSections]);
-  const isMarketplacePath =
-    pathname === "/jornaleiro/fornecedor" ||
-    pathname?.startsWith("/jornaleiro/fornecedor/") ||
-    pathname === "/jornaleiro/atacado" ||
-    pathname?.startsWith("/jornaleiro/atacado/");
 
   useEffect(() => {
     if (isAuthRoute || !pathname || !permissionsLoaded || isOwner === null) {
       return;
     }
 
-    if (isMarketplacePath) {
+    const activeContext = findJornaleiroMenuContextByPathname(pathname);
+    if (!activeContext) {
       return;
     }
 
-    const activeContext = findJornaleiroMenuContextByPathname(pathname);
-    if (!activeContext?.item.permissionKey) {
+    if (activeContext.item.requiresMarketplaceModule && !jornaleiroModulesLoaded) {
       return;
     }
 
@@ -274,6 +293,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
       hasPartnerDirectoryAccess,
       hasWholesaleAccess,
       hasCampaignAccess,
+      marketplaceModuleEnabled,
       plansMenuEnabled,
       planType,
     });
@@ -289,9 +309,21 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
       return;
     }
 
+    if (!routeIsOperational) {
+      const fallbackHref = menuItems[0]?.href || ("/jornaleiro/dashboard" as Route);
+      if (pathname !== fallbackHref) {
+        router.replace(fallbackHref);
+      }
+      return;
+    }
+
+    if (!activeContext.item.permissionKey) {
+      return;
+    }
+
     const hasRoutePermission = isOwner === true || userPermissions.includes(activeContext.item.permissionKey);
 
-    if (routeIsOperational && hasRoutePermission) {
+    if (hasRoutePermission) {
       return;
     }
 
@@ -305,8 +337,9 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
     hasWholesaleAccess,
     hasCampaignAccess,
     isAuthRoute,
-    isMarketplacePath,
     isOwner,
+    jornaleiroModulesLoaded,
+    marketplaceModuleEnabled,
     menuItems,
     pathname,
     permissionsLoaded,
