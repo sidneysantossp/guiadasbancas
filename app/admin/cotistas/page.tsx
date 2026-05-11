@@ -76,6 +76,7 @@ export default function AdminCotistasPage() {
   const [stats, setStats] = useState({ active: 0, inactive: 0 });
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [form, setForm] = useState<RelationshipForm | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -234,6 +235,36 @@ export default function AdminCotistasPage() {
     }
   };
 
+  const exportCsv = async () => {
+    try {
+      setExporting(true);
+      const params = new URLSearchParams();
+      if (search.trim()) params.set("search", search.trim());
+      if (statusFilter) params.set("status", statusFilter);
+
+      const response = await fetchAdminWithDevFallback(`/api/admin/cotistas/export?${params.toString()}`);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || "Erro ao exportar cotistas");
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `cotistas-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error: any) {
+      console.error("Erro ao exportar cotistas:", error);
+      alert(error?.message || "Erro ao exportar cotistas");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
 
   const columns: Column<RelationshipRow>[] = [
@@ -295,6 +326,14 @@ export default function AdminCotistasPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={exporting}
+            className="rounded-xl border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 hover:border-[#ff5c00] hover:text-[#ff5c00] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {exporting ? "Exportando..." : "Exportar CSV"}
+          </button>
           <Link
             href="/admin/cotistas/import"
             className="rounded-xl border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 hover:border-[#ff5c00] hover:text-[#ff5c00]"
