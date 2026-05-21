@@ -61,13 +61,12 @@ function fallbackVisualByName(name: string) {
 
 function isPortableRootImage(value: unknown): boolean {
   const image = sanitizePublicImageUrl(value);
-  if (!image) return false;
-  return !image.startsWith("/uploads/");
+  return Boolean(image);
 }
 
 function resolveRootImage(value: unknown, fallbackImage: string): string {
   const image = sanitizePublicImageUrl(value);
-  if (!image || image.startsWith("/uploads/")) {
+  if (!image) {
     return sanitizePublicImageUrl(fallbackImage);
   }
   return image;
