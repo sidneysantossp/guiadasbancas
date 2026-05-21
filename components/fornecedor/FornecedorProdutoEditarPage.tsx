@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { IconAlertTriangle, IconArrowLeft, IconCheck, IconLoader2, IconPhoto } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowLeft, IconCheck, IconLoader2 } from "@tabler/icons-react";
+import ProductImageUploader from "@/components/admin/ProductImageUploader";
 import { useToast } from "@/components/admin/ToastProvider";
 import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
@@ -52,7 +53,7 @@ function formatInputNumber(value: number | null | undefined) {
 
 function availabilityLabel(value: Product["availability_status"]) {
   if (value === "on_demand") return "Sob encomenda";
-  if (value === "quote") return "Consulta";
+  if (value === "quote") return "Pré-venda";
   return "Pronta entrega";
 }
 
@@ -65,6 +66,31 @@ function formatDeliveryLeadTime(daysInput: string) {
 function extractDeliveryDays(value: string | null | undefined) {
   const match = String(value || "").match(/\d+/);
   return match?.[0] || "";
+}
+
+async function uploadProductImages(images: string[]) {
+  const uploadedUrls: string[] = [];
+
+  for (const src of images) {
+    if (src.startsWith("data:")) {
+      const blob = await (await fetch(src)).blob();
+      const form = new FormData();
+      form.append("file", blob, `fornecedor-${Date.now()}.png`);
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: form,
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.ok || !json?.url) {
+        throw new Error("Falha no upload de imagem");
+      }
+      uploadedUrls.push(json.url);
+    } else if (src.trim()) {
+      uploadedUrls.push(src.trim());
+    }
+  }
+
+  return uploadedUrls;
 }
 
 export default function FornecedorProdutoEditarPage() {
@@ -94,7 +120,7 @@ export default function FornecedorProdutoEditarPage() {
     min_order_quantity: "1",
     pack_size: "1",
     delivery_lead_time: "",
-    images: "",
+    images: [] as string[],
   });
 
   useEffect(() => {
@@ -132,7 +158,7 @@ export default function FornecedorProdutoEditarPage() {
           min_order_quantity: formatInputNumber(data.min_order_quantity || 1),
           pack_size: formatInputNumber(data.pack_size || 1),
           delivery_lead_time: data.delivery_lead_time || "",
-          images: (Array.isArray(data.images) && data.images.length ? data.images : data.image_url ? [data.image_url] : []).join("\n"),
+          images: Array.isArray(data.images) && data.images.length ? data.images : data.image_url ? [data.image_url] : [],
         });
 
         const categoriesJson = await categoriesResponse.json().catch(() => null);
@@ -147,20 +173,16 @@ export default function FornecedorProdutoEditarPage() {
     load();
   }, [productId, toast]);
 
-  const imageUrls = useMemo(
-    () =>
-      formData.images
-        .split(/[\n,]/)
-        .map((image) => image.trim())
-        .filter(Boolean),
-    [formData.images]
-  );
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
 
     try {
+      const uploadedImageUrls = await uploadProductImages(formData.images);
+      const allowsOpenPrice = formData.availability_status === "on_demand" || formData.availability_status === "quote";
+      const parsedPrice = formData.price.trim() ? Number(formData.price) : 0;
+      const finalPrice = Number.isFinite(parsedPrice) ? parsedPrice : 0;
+
       const response = await fetchAdminWithDevFallback(`/api/admin/atacado/products/${productId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -170,8 +192,8 @@ export default function FornecedorProdutoEditarPage() {
           category_id: formData.category_id || null,
           sku: formData.sku || null,
           supplier_reference: formData.sku || null,
-          cost_price: Number(formData.cost_price),
-          price: Number(formData.price),
+          cost_price: allowsOpenPrice && finalPrice <= 0 ? 0 : Number(formData.cost_price || finalPrice || 0),
+          price: allowsOpenPrice && finalPrice <= 0 ? 0 : finalPrice,
           stock_quantity: Number(formData.stock_quantity),
           track_stock: formData.track_stock,
           active: formData.active,
@@ -182,8 +204,8 @@ export default function FornecedorProdutoEditarPage() {
           min_order_quantity: Number(formData.min_order_quantity),
           pack_size: Number(formData.pack_size),
           delivery_lead_time: formData.delivery_lead_time,
-          image_url: imageUrls[0] || null,
-          images: imageUrls,
+          image_url: uploadedImageUrls[0] || null,
+          images: uploadedImageUrls,
         }),
       });
 
@@ -322,7 +344,7 @@ export default function FornecedorProdutoEditarPage() {
                         ...current,
                         availability_status: event.target.value as Product["availability_status"],
                         price:
-                          event.target.value === "on_demand" && !current.price
+                          (event.target.value === "on_demand" || event.target.value === "quote") && !current.price
                             ? "0"
                             : current.price,
                       }))
@@ -331,7 +353,7 @@ export default function FornecedorProdutoEditarPage() {
                   >
                     <option value="in_stock">Disponível</option>
                     <option value="on_demand">Sob Encomenda</option>
-                    <option value="quote">Consulta</option>
+                    <option value="quote">Pré-venda</option>
                   </select>
                 </div>
                 <div>
@@ -439,26 +461,10 @@ export default function FornecedorProdutoEditarPage() {
           <div className="space-y-6">
             <div className="rounded-lg bg-white p-6 shadow">
               <h2 className="mb-4 text-lg font-semibold text-gray-900">Imagens</h2>
-              {imageUrls.length > 0 ? (
-                <div className="mb-4 grid grid-cols-2 gap-3">
-                  {imageUrls.slice(0, 4).map((image, index) => (
-                    <div key={`${image}-${index}`} className="relative aspect-square overflow-hidden rounded-lg border">
-                      <img src={image} alt={`Imagem ${index + 1}`} className="h-full w-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="mb-4 flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm text-gray-500">
-                  <IconPhoto className="mb-2 h-6 w-6 text-gray-400" />
-                  Nenhuma imagem cadastrada
-                </div>
-              )}
-              <textarea
-                value={formData.images}
-                onChange={(event) => setFormData((current) => ({ ...current, images: event.target.value }))}
-                rows={4}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#ff5c00] focus:outline-none focus:ring-1 focus:ring-[#ff5c00]"
-                placeholder="Uma URL por linha ou separadas por vírgula"
+              <ProductImageUploader
+                images={formData.images}
+                onChange={(images) => setFormData((current) => ({ ...current, images }))}
+                maxImages={4}
               />
             </div>
 
@@ -482,7 +488,7 @@ export default function FornecedorProdutoEditarPage() {
                 <p className="text-sm font-medium text-gray-700">Preço personalizado</p>
                 <input
                   type="number"
-                  min={formData.availability_status === "on_demand" ? "0" : "0.01"}
+                  min={formData.availability_status === "on_demand" || formData.availability_status === "quote" ? "0" : "0.01"}
                   step="0.01"
                   value={formData.price}
                   onChange={(event) => setFormData((current) => ({ ...current, price: event.target.value }))}
@@ -490,9 +496,9 @@ export default function FornecedorProdutoEditarPage() {
                   placeholder="0,00"
                 />
                 <p className="text-xs text-gray-500">
-                  {formData.availability_status === "on_demand"
-                    ? "Sob encomenda pode ficar com valor 0 para compra com preço a definir."
-                    : "Pronta entrega e consulta precisam de valor maior que zero."}
+                  {formData.availability_status === "on_demand" || formData.availability_status === "quote"
+                    ? "Sob encomenda e pré-venda podem ficar com valor 0 para compra com preço a definir."
+                    : "Pronta entrega precisa de valor maior que zero."}
                 </p>
               </div>
 
@@ -500,7 +506,7 @@ export default function FornecedorProdutoEditarPage() {
                 <div className="flex items-center justify-between">
                   <span>Preço final exibido</span>
                   <span className="font-semibold">
-                    {formData.availability_status === "on_demand" && Number(formData.price || 0) <= 0
+                    {(formData.availability_status === "on_demand" || formData.availability_status === "quote") && Number(formData.price || 0) <= 0
                       ? "Valor a definir"
                       : formatCurrency(Number(formData.price))}
                   </span>

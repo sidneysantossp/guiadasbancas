@@ -46,6 +46,29 @@ type WholesaleProductRow = {
   category?: { id: string; name: string | null } | { id: string; name: string | null }[] | null;
 };
 
+type WholesaleProductCustomizationRow = {
+  id: string;
+  banca_id: string;
+  product_id: string;
+  enabled: boolean | null;
+  custom_name: string | null;
+  custom_description: string | null;
+  custom_category_id: string | null;
+  custom_image_url: string | null;
+  custom_images: unknown;
+  custom_price: number | string | null;
+  custom_stock_enabled: boolean | null;
+  custom_stock_qty: number | null;
+  custom_track_stock: boolean | null;
+  custom_availability_status: WholesaleAvailabilityStatus | null;
+  custom_delivery_lead_time: string | null;
+  custom_min_order_quantity: number | null;
+  custom_pack_size: number | null;
+  custom_featured: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 type WholesaleOrderRow = {
   id: string;
   order_number: string;
@@ -82,6 +105,29 @@ type WholesaleOrderRow = {
   items?: Array<Record<string, unknown>>;
 };
 
+const WHOLESALE_PRODUCT_CUSTOMIZATION_SELECT = [
+  "id",
+  "banca_id",
+  "product_id",
+  "enabled",
+  "custom_name",
+  "custom_description",
+  "custom_category_id",
+  "custom_image_url",
+  "custom_images",
+  "custom_price",
+  "custom_stock_enabled",
+  "custom_stock_qty",
+  "custom_track_stock",
+  "custom_availability_status",
+  "custom_delivery_lead_time",
+  "custom_min_order_quantity",
+  "custom_pack_size",
+  "custom_featured",
+  "created_at",
+  "updated_at",
+].join(", ");
+
 type WholesaleVisibilityBancaRow = CanonicalBancaCandidate & {
   name: string | null;
   address: string | null;
@@ -110,6 +156,16 @@ function normalizeText(value: unknown): string | null {
   return trimmed || null;
 }
 
+function hasOwnValue(input: Record<string, unknown>, key: string) {
+  return Object.prototype.hasOwnProperty.call(input, key);
+}
+
+function normalizeOptionalNumber(value: unknown): number | null {
+  if (value === "" || value == null) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function normalizeImages(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.map((image) => String(image).trim()).filter(Boolean);
@@ -134,9 +190,13 @@ function validateWholesaleProductPrice(price: number, availabilityStatus: Wholes
     throw new Error("Preço de venda não pode ser negativo");
   }
 
-  if (availabilityStatus !== "on_demand" && price <= 0) {
-    throw new Error("Preço de venda deve ser maior que zero, exceto para produtos sob encomenda");
+  if (!isWholesaleOpenPriceStatus(availabilityStatus) && price <= 0) {
+    throw new Error("Preço de venda deve ser maior que zero, exceto para produtos sob encomenda ou pré-venda");
   }
+}
+
+export function isWholesaleOpenPriceStatus(status: WholesaleAvailabilityStatus | string | null | undefined) {
+  return status === "on_demand" || status === "quote";
 }
 
 function collapseWholesaleVisibilityBancas(rows: WholesaleVisibilityBancaRow[]) {
@@ -271,6 +331,69 @@ export function formatWholesaleProduct(row: WholesaleProductRow) {
   };
 }
 
+export function applyWholesaleProductCustomization(
+  product: ReturnType<typeof formatWholesaleProduct>,
+  customization?: WholesaleProductCustomizationRow | null
+) {
+  const availabilityStatus = customization?.custom_availability_status || product.availability_status;
+  const customImages = normalizeImages(customization?.custom_images);
+  const hasCustomPrice = customization?.custom_price != null;
+  const priceHidden = !hasCustomPrice && isWholesaleOpenPriceStatus(availabilityStatus);
+  const customStockEnabled = customization?.custom_stock_enabled === true;
+  const stockQuantity = customStockEnabled
+    ? Math.max(0, Math.floor(toNumber(customization?.custom_stock_qty)))
+    : product.stock_quantity;
+  const reservedQuantity = customStockEnabled ? 0 : product.reserved_quantity;
+  const trackStock =
+    customization?.custom_track_stock == null
+      ? product.track_stock
+      : customization.custom_track_stock === true;
+  const images = customImages.length > 0 ? customImages : product.images;
+  const imageUrl = customization?.custom_image_url || images[0] || product.image_url;
+  const price = hasCustomPrice
+    ? toNumber(customization?.custom_price)
+    : priceHidden
+      ? 0
+      : product.price;
+
+  return {
+    ...product,
+    name: customization?.custom_name || product.name,
+    description:
+      customization?.custom_description == null
+        ? product.description
+        : customization.custom_description,
+    category_id: customization?.custom_category_id || product.category_id,
+    image_url: imageUrl,
+    images,
+    price,
+    supplier_price: product.price,
+    supplier_current_price: product.price,
+    supplier_cost_price: product.cost_price,
+    has_customization: Boolean(customization?.id),
+    has_custom_price: hasCustomPrice,
+    price_hidden: priceHidden,
+    stock_quantity: stockQuantity,
+    reserved_quantity: reservedQuantity,
+    available_quantity: Math.max(0, stockQuantity - reservedQuantity),
+    track_stock: trackStock,
+    stock_customized: customStockEnabled,
+    availability_status: availabilityStatus,
+    min_order_quantity: customization?.custom_min_order_quantity || product.min_order_quantity,
+    pack_size: customization?.custom_pack_size || product.pack_size,
+    delivery_lead_time:
+      customization?.custom_delivery_lead_time == null
+        ? product.delivery_lead_time
+        : customization.custom_delivery_lead_time,
+    active: product.active && customization?.enabled !== false,
+    visible_jornaleiro: product.visible_jornaleiro !== false && customization?.enabled !== false,
+    visible_banca: product.visible_banca === true && customization?.enabled !== false,
+    featured: customization?.custom_featured === true,
+    customization_id: customization?.id || null,
+    customization_updated_at: customization?.updated_at || null,
+  };
+}
+
 export function formatWholesaleOrder(row: WholesaleOrderRow) {
   return {
     id: row.id,
@@ -316,11 +439,11 @@ function mapMissingTableError(error: { code?: string | null; message?: string | 
     error.code === "PGRST205" ||
     (
       error.code === "PGRST204" &&
-      /(own_wholesale_products|visible_jornaleiro|visible_banca)/i.test(error.message || "")
+      /(own_wholesale_products|banca_produtos_fornecedor|visible_jornaleiro|visible_banca)/i.test(error.message || "")
     ) ||
     /relation .* does not exist/i.test(error.message || "") ||
     /Could not find the table/i.test(error.message || "") ||
-    /visible_jornaleiro|visible_banca/i.test(error.message || "");
+    /banca_produtos_fornecedor|visible_jornaleiro|visible_banca/i.test(error.message || "");
 
   if (!missing) return null;
 
@@ -748,6 +871,136 @@ export async function hasWholesaleAccessForBanca(bancaId: string) {
   return allRuleResponse.data?.enabled === true;
 }
 
+export function buildWholesaleProductCustomizationInput(
+  input: Record<string, unknown>,
+  options: { defaultEnabled?: boolean; useProductEditorAliases?: boolean } = {}
+) {
+  const payload: Record<string, unknown> = {};
+
+  if (hasOwnValue(input, "enabled")) payload.enabled = input.enabled === true;
+  if (hasOwnValue(input, "active")) payload.enabled = input.active !== false;
+  if (!hasOwnValue(payload, "enabled") && options.defaultEnabled !== undefined) {
+    payload.enabled = options.defaultEnabled;
+  }
+
+  const alias = options.useProductEditorAliases;
+  const nameKey = alias ? "name" : "custom_name";
+  const descriptionKey = alias ? "description" : "custom_description";
+  const categoryKey = alias ? "category_id" : "custom_category_id";
+  const imageUrlKey = alias ? "image_url" : "custom_image_url";
+  const imagesKey = alias ? "images" : "custom_images";
+  const priceKey = alias ? "price" : "custom_price";
+  const stockQtyKey = alias ? "stock_qty" : "custom_stock_qty";
+  const trackStockKey = alias ? "track_stock" : "custom_track_stock";
+  const statusKey = alias ? "availability_status" : "custom_availability_status";
+  const deliveryKey = alias ? "delivery_lead_time" : "custom_delivery_lead_time";
+  const minOrderKey = alias ? "min_order_quantity" : "custom_min_order_quantity";
+  const packSizeKey = alias ? "pack_size" : "custom_pack_size";
+  const featuredKey = alias ? "featured" : "custom_featured";
+
+  if (hasOwnValue(input, nameKey)) payload.custom_name = normalizeText(input[nameKey]);
+  if (hasOwnValue(input, descriptionKey)) payload.custom_description = normalizeText(input[descriptionKey]);
+  if (hasOwnValue(input, categoryKey)) payload.custom_category_id = normalizeText(input[categoryKey]);
+  if (hasOwnValue(input, imageUrlKey)) payload.custom_image_url = normalizeText(input[imageUrlKey]);
+  if (hasOwnValue(input, imagesKey)) {
+    const images = normalizeImages(input[imagesKey]);
+    payload.custom_images = images;
+    if (!hasOwnValue(input, imageUrlKey)) payload.custom_image_url = images[0] || null;
+  }
+  if (hasOwnValue(input, priceKey)) payload.custom_price = normalizeOptionalNumber(input[priceKey]);
+  if (hasOwnValue(input, stockQtyKey)) {
+    payload.custom_stock_enabled = true;
+    payload.custom_stock_qty = Math.max(0, Math.floor(toNumber(input[stockQtyKey])));
+  }
+  if (hasOwnValue(input, "custom_stock_enabled")) {
+    payload.custom_stock_enabled = input.custom_stock_enabled === true;
+  }
+  if (hasOwnValue(input, trackStockKey)) payload.custom_track_stock = input[trackStockKey] === true;
+  if (hasOwnValue(input, statusKey)) {
+    const status = normalizeText(input[statusKey]) || "in_stock";
+    if (!["in_stock", "on_demand", "quote"].includes(status)) throw new Error("Disponibilidade inválida");
+    payload.custom_availability_status = status;
+  } else if (alias) {
+    if (input.sob_encomenda === true) payload.custom_availability_status = "on_demand";
+    else if (input.pre_venda === true) payload.custom_availability_status = "quote";
+    else if (input.pronta_entrega === true) payload.custom_availability_status = "in_stock";
+  }
+  if (hasOwnValue(input, deliveryKey)) payload.custom_delivery_lead_time = normalizeText(input[deliveryKey]);
+  if (hasOwnValue(input, minOrderKey)) payload.custom_min_order_quantity = toPositiveInt(input[minOrderKey], 1);
+  if (hasOwnValue(input, packSizeKey)) payload.custom_pack_size = toPositiveInt(input[packSizeKey], 1);
+  if (hasOwnValue(input, featuredKey)) payload.custom_featured = input[featuredKey] === true;
+
+  const nextStatus = (normalizeText(payload.custom_availability_status) || "in_stock") as WholesaleAvailabilityStatus;
+  if (payload.custom_price != null) {
+    validateWholesaleProductPrice(toNumber(payload.custom_price), nextStatus);
+  }
+
+  return payload;
+}
+
+export async function loadWholesaleProductCustomization(params: {
+  bancaId: string;
+  productId: string;
+}) {
+  const { data, error } = await supabaseAdmin
+    .from("banca_produtos_fornecedor")
+    .select(WHOLESALE_PRODUCT_CUSTOMIZATION_SELECT)
+    .eq("banca_id", params.bancaId)
+    .eq("product_id", params.productId)
+    .maybeSingle();
+
+  const migrationError = mapMissingTableError(error);
+  if (migrationError) return null;
+  if (error) throw new Error(error.message || "Erro ao buscar customização do fornecedor");
+  return (data || null) as WholesaleProductCustomizationRow | null;
+}
+
+export async function listWholesaleProductCustomizationsForBanca(params: {
+  bancaId: string;
+  productIds: string[];
+}) {
+  const productIds = Array.from(new Set(params.productIds.filter(Boolean)));
+  if (productIds.length === 0) return new Map<string, WholesaleProductCustomizationRow>();
+
+  const { data, error } = await supabaseAdmin
+    .from("banca_produtos_fornecedor")
+    .select(WHOLESALE_PRODUCT_CUSTOMIZATION_SELECT)
+    .eq("banca_id", params.bancaId)
+    .in("product_id", productIds);
+
+  const migrationError = mapMissingTableError(error);
+  if (migrationError) return new Map<string, WholesaleProductCustomizationRow>();
+  if (error) throw new Error(error.message || "Erro ao buscar customizações do fornecedor");
+
+  return new Map(
+    (((data || []) as unknown) as WholesaleProductCustomizationRow[]).map((row) => [row.product_id, row])
+  );
+}
+
+export async function saveWholesaleProductCustomization(params: {
+  bancaId: string;
+  productId: string;
+  input: Record<string, unknown>;
+}) {
+  const payload = {
+    ...params.input,
+    banca_id: params.bancaId,
+    product_id: params.productId,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabaseAdmin
+    .from("banca_produtos_fornecedor")
+    .upsert(payload, { onConflict: "banca_id,product_id" })
+    .select(WHOLESALE_PRODUCT_CUSTOMIZATION_SELECT)
+    .single();
+
+  const migrationError = mapMissingTableError(error);
+  if (migrationError) throw migrationError;
+  if (error) throw new Error(error.message || "Erro ao salvar customização do fornecedor");
+  return data as unknown as WholesaleProductCustomizationRow;
+}
+
 export async function getJornaleiroWholesaleAccess(userId: string) {
   const banca = await loadActiveJornaleiroBancaRow<{
     id: string;
@@ -785,11 +1038,17 @@ export async function listJornaleiroWholesaleProducts(userId: string) {
   if (migrationError) return { allowed: false, banca: access.banca, items: [] };
   if (error) throw new Error(error.message);
 
+  const products = ((data || []) as WholesaleProductRow[]).map(formatWholesaleProduct);
+  const customizations = await listWholesaleProductCustomizationsForBanca({
+    bancaId: access.banca.id,
+    productIds: products.map((product) => product.id),
+  });
+
   return {
     allowed: true,
     banca: access.banca,
-    items: ((data || []) as WholesaleProductRow[])
-      .map(formatWholesaleProduct)
+    items: products
+      .map((product) => applyWholesaleProductCustomization(product, customizations.get(product.id)))
       .filter((product) => product.visible_jornaleiro !== false),
   };
 }
@@ -810,8 +1069,14 @@ export async function listPublicWholesaleProductsForBanca(bancaId: string, limit
   if (migrationError) return [];
   if (error) throw new Error(error.message);
 
-  return ((data || []) as WholesaleProductRow[])
-    .map(formatWholesaleProduct)
+  const products = ((data || []) as WholesaleProductRow[]).map(formatWholesaleProduct);
+  const customizations = await listWholesaleProductCustomizationsForBanca({
+    bancaId,
+    productIds: products.map((product) => product.id),
+  });
+
+  return products
+    .map((product) => applyWholesaleProductCustomization(product, customizations.get(product.id)))
     .filter((product) => product.visible_banca === true);
 }
 
@@ -866,9 +1131,15 @@ export async function createJornaleiroWholesaleOrder(params: {
 
   if (productsError) throw new Error(productsError.message);
 
+  const formattedProducts = ((productRows || []) as WholesaleProductRow[]).map(formatWholesaleProduct);
+  const customizations = await listWholesaleProductCustomizationsForBanca({
+    bancaId: access.banca.id,
+    productIds: formattedProducts.map((product) => product.id),
+  });
   const productsById = new Map(
-    ((productRows || []) as WholesaleProductRow[])
-      .filter((product) => formatWholesaleProduct(product).visible_jornaleiro !== false)
+    formattedProducts
+      .map((product) => applyWholesaleProductCustomization(product, customizations.get(product.id)))
+      .filter((product) => product.visible_jornaleiro !== false)
       .map((product) => [product.id, product])
   );
   const items = rawItems.map((item: any) => {
@@ -877,7 +1148,6 @@ export async function createJornaleiroWholesaleOrder(params: {
 
     const product = productsById.get(productId);
     if (!product) throw new Error("Produto indisponível");
-    if (product.availability_status === "quote") throw new Error(`${product.name} exige confirmação antes da compra`);
 
     const quantity = toPositiveInt(item.quantity || item.qty, Number(product.min_order_quantity || 1));
     const minOrder = Number(product.min_order_quantity || 1);
@@ -970,7 +1240,7 @@ export async function createJornaleiroWholesaleOrder(params: {
 
   for (const item of items) {
     const trackStock = item.product.track_stock !== false;
-    if (trackStock && item.product.availability_status === "in_stock") {
+    if (trackStock && item.product.availability_status === "in_stock" && item.product.stock_customized !== true) {
       await supabaseAdmin
         .from("own_wholesale_products")
         .update({

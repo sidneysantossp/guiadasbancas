@@ -26,6 +26,8 @@ type WholesaleProduct = {
   images?: string[];
   cost_price?: number;
   price: number;
+  price_hidden?: boolean;
+  has_custom_price?: boolean;
   available_quantity: number;
   availability_status: "in_stock" | "on_demand" | "quote";
   min_order_quantity: number;
@@ -110,12 +112,12 @@ function formatDate(value?: string | null) {
 
 function availabilityLabel(value: WholesaleProduct["availability_status"]) {
   if (value === "on_demand") return "Sob encomenda";
-  if (value === "quote") return "Consulta";
+  if (value === "quote") return "Pré-venda";
   return "Pronta entrega";
 }
 
 function formatWholesaleDisplayPrice(product: Pick<WholesaleProduct, "price" | "availability_status">) {
-  if (product.availability_status === "on_demand" && Number(product.price || 0) <= 0) {
+  if ((product.availability_status === "on_demand" || product.availability_status === "quote") && Number(product.price || 0) <= 0) {
     return "Valor a definir";
   }
 
@@ -142,7 +144,7 @@ function productImage(product: WholesaleProduct) {
 }
 
 function productHasOpenPrice(product: Pick<WholesaleProduct, "price" | "availability_status">) {
-  return product.availability_status === "on_demand" && Number(product.price || 0) <= 0;
+  return (product.availability_status === "on_demand" || product.availability_status === "quote") && Number(product.price || 0) <= 0;
 }
 
 function scrollToTop() {
@@ -304,11 +306,6 @@ export default function JornaleiroAtacadoPage() {
   };
 
   const addToCart = (product: WholesaleProduct, quantity?: number) => {
-    if (product.availability_status === "quote") {
-      toast.info("Produto de consulta precisa de confirmação comercial");
-      return;
-    }
-
     const minQuantity = Math.max(1, product.min_order_quantity || 1);
     const nextQuantity = Math.max(minQuantity, quantity || minQuantity);
     setCart((prev) => {
@@ -812,8 +809,12 @@ function ProductCard({ product, onOpen }: { product: WholesaleProduct; onOpen: (
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-2 text-gray-500">
             <span>Estoque:</span>
-            <span className={`font-black ${product.available_quantity > 0 || product.availability_status === "on_demand" ? "text-green-600" : "text-red-500"}`}>
-              {product.availability_status === "on_demand" ? "Sob encomenda" : product.available_quantity}
+            <span className={`font-black ${product.available_quantity > 0 || product.availability_status === "on_demand" || product.availability_status === "quote" ? "text-green-600" : "text-red-500"}`}>
+              {product.availability_status === "on_demand"
+                ? "Sob encomenda"
+                : product.availability_status === "quote"
+                  ? "Pré-venda"
+                  : product.available_quantity}
             </span>
           </div>
         </div>
@@ -836,7 +837,6 @@ function ProductDetail({
   onAddToCart: () => void;
 }) {
   const imageUrl = productImage(product);
-  const blocked = product.availability_status === "quote";
   const minQuantity = Math.max(1, product.min_order_quantity || 1);
   const packSize = Math.max(1, product.pack_size || 1);
 
@@ -881,7 +881,11 @@ function ProductDetail({
             <div className="rounded-[16px] bg-gray-50 p-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500">Estoque</div>
               <div className="mt-1.5 text-sm font-black text-green-600">
-                {product.availability_status === "on_demand" ? "Sob encomenda" : product.available_quantity}
+                {product.availability_status === "on_demand"
+                  ? "Sob encomenda"
+                  : product.availability_status === "quote"
+                    ? "Pré-venda"
+                    : product.available_quantity}
               </div>
             </div>
             <div className="rounded-[16px] bg-gray-50 p-3">
@@ -918,10 +922,9 @@ function ProductDetail({
               <button
                 type="button"
                 onClick={onAddToCart}
-                disabled={blocked}
-                className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-lime-300 px-5 text-sm font-black text-gray-950 shadow-sm transition hover:bg-lime-200 disabled:bg-gray-200 disabled:text-gray-500"
+                className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-lime-300 px-5 text-sm font-black text-gray-950 shadow-sm transition hover:bg-lime-200"
               >
-                {blocked ? "Consulta comercial" : "Adicionar à sacola"}
+                Adicionar à sacola
               </button>
             </div>
             <p className="mt-2 text-[11px] font-medium text-gray-500">Mínimo {minQuantity}. Pacote de {packSize} unidade(s).</p>

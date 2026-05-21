@@ -35,7 +35,9 @@ const formatCurrency = (value: string | number) => {
 
 const parseCurrency = (value: string): number => {
   const numbers = value.replace(/\D/g, '');
-  return parseFloat(numbers) / 100;
+  if (!numbers) return 0;
+  const parsed = parseFloat(numbers) / 100;
+  return Number.isFinite(parsed) ? parsed : 0;
 };
 
 // Função para calcular desconto baseado nos preços
@@ -69,6 +71,7 @@ export default function SellerProductEditPage() {
   const [priceOriginal, setPriceOriginal] = useState("");
   const [discountPercent, setDiscountPercent] = useState(0);
   const isDistributorProduct = Boolean(product?.distribuidor_id);
+  const isFornecedorProduct = product?.source === "fornecedor" || product?.is_fornecedor === true;
   // Estados para contexto da IA
   const [productName, setProductName] = useState("");
   const [productMiniDesc, setProductMiniDesc] = useState("");
@@ -126,6 +129,11 @@ export default function SellerProductEditPage() {
           stock_qty: p.stock_qty ?? 0,
           track_stock: Boolean(p.track_stock),
           origem: p.origem || null, // Origem do produto (admin, mercos, etc)
+          source: p.source || null,
+          is_fornecedor: Boolean(p.is_fornecedor),
+          supplier_price: p.supplier_current_price ?? p.supplier_price ?? p.cost_price ?? 0,
+          has_custom_price: Boolean(p.has_custom_price),
+          price_hidden: Boolean(p.price_hidden),
           featured: Boolean(p.featured),
           active: Boolean(p.active),
           sob_encomenda: Boolean(p.sob_encomenda),
@@ -136,7 +144,14 @@ export default function SellerProductEditPage() {
         setProductMiniDesc(p.description || "");
         setImages(Array.isArray(p.images) ? p.images : []);
 
-        if (p.distribuidor_id) {
+        if (p.source === "fornecedor" || p.is_fornecedor === true) {
+          const supplierPriceInCents = Math.round((p.supplier_current_price || p.supplier_price || 0) * 100).toString();
+          const salePriceInCents = Math.round((p.has_custom_price ? p.price : 0) * 100).toString();
+
+          setPrice(supplierPriceInCents);
+          setPriceOriginal(salePriceInCents);
+          setDiscountPercent(0);
+        } else if (p.distribuidor_id) {
           const suggestedPriceInCents = Math.round((p.price_original || p.price || 0) * 100).toString();
           const salePriceInCents = Math.round((p.price || 0) * 100).toString();
 
@@ -255,10 +270,31 @@ export default function SellerProductEditPage() {
 
       let body: Record<string, any>;
 
-      if (isDistributorProduct) {
+      const hasOpenAvailability = Boolean(fd.get("sob_encomenda")) || Boolean(fd.get("pre_venda"));
+
+      if (isFornecedorProduct) {
         body = {
           name: (fd.get("name") as string)?.trim(),
           description: (fd.get("description") as string) || "",
+          category_id: fd.get("category") || null,
+          price: hasOpenAvailability && salePrice <= 0 ? null : salePrice,
+          stock_qty: fd.get("stock") ? Number(fd.get("stock")) : 0,
+          track_stock: Boolean(fd.get("track_stock")),
+          featured: Boolean(fd.get("featured")),
+          images: uploadedUrls,
+          active: Boolean(fd.get("active")),
+          sob_encomenda: Boolean(fd.get("sob_encomenda")),
+          pre_venda: Boolean(fd.get("pre_venda")),
+          pronta_entrega: Boolean(fd.get("pronta_entrega")),
+          delivery_lead_time: fd.get("delivery_lead_time") || null,
+          description_full: descriptionFull,
+          specifications,
+        };
+      } else if (isDistributorProduct) {
+        body = {
+          name: (fd.get("name") as string)?.trim(),
+          description: (fd.get("description") as string) || "",
+          category_id: fd.get("category") || null,
           price: salePrice > 0 ? salePrice : referencePrice,
           price_original: referencePrice > 0 ? referencePrice : null,
           discount_percent: normalizedDiscount,
@@ -285,6 +321,7 @@ export default function SellerProductEditPage() {
         body = {
           name: (fd.get("name") as string)?.trim(),
           description: (fd.get("description") as string) || "",
+          category_id: fd.get("category") || null,
           price: finalPrice,
           price_original: finalPriceOriginal,
           cost_price: referencePrice > 0 ? referencePrice : undefined,
@@ -495,7 +532,77 @@ export default function SellerProductEditPage() {
                 ))}
               </select>
             </div>
-            {isDistributorProduct ? (
+            {isFornecedorProduct ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium">Preço atual do fornecedor</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
+                      <input
+                        type="text"
+                        value={formatCurrency(price)}
+                        readOnly
+                        disabled
+                        className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-600 cursor-not-allowed"
+                        placeholder="0,00"
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Referência atual do fornecedor. Sua edição não muda se o fornecedor alterar esse valor depois.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Preço de venda da minha banca</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 mt-0.5">R$</span>
+                      <input
+                        type="text"
+                        value={formatCurrency(priceOriginal)}
+                        onChange={(e) => setPriceOriginal(formatCurrency(e.target.value))}
+                        className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
+                        placeholder="0,00"
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Deixe 0,00 para produtos sob encomenda ou pré-venda sem preço definido.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium">Estoque</label>
+                    <input
+                      defaultValue={product.stock_qty}
+                      type="number"
+                      name="stock"
+                      min={0}
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Prazo médio de entrega</label>
+                    <input
+                      defaultValue={product.delivery_lead_time || ""}
+                      name="delivery_lead_time"
+                      placeholder="Ex.: 7 dias úteis"
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      defaultChecked={product.track_stock}
+                      name="track_stock"
+                      type="checkbox"
+                      className="rounded"
+                    />
+                    Controlar estoque
+                  </label>
+                </div>
+              </>
+            ) : isDistributorProduct ? (
               <>
                 <div className="grid grid-cols-2 gap-2">
                   <div>

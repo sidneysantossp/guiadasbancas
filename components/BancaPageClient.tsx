@@ -63,6 +63,8 @@ export type ProdutoResumo = {
   sob_encomenda?: boolean;
   pre_venda?: boolean;
   pronta_entrega?: boolean;
+  price_hidden?: boolean;
+  has_custom_price?: boolean;
   status?: string; // 'available', 'unavailable', 'hidden'
   codigo_mercos?: string; // Código do produto (ex: ACBKA004)
   source?: string;
@@ -187,7 +189,9 @@ function ProductCard({ p, bancaName }: { p: ProdutoResumo; bancaName?: string })
         p.id,
         p.codigo_mercos
       ) as Route;
-  const hasOpenPrice = Boolean(p.sob_encomenda) && Number(p.price || 0) <= 0;
+  const hasOpenPrice =
+    (Boolean(p.sob_encomenda) || Boolean(p.pre_venda)) &&
+    (Boolean((p as any).price_hidden) || Number(p.price || 0) <= 0);
   
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition flex flex-col">
@@ -600,6 +604,8 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
         sob_encomenda: Boolean(item.sob_encomenda),
         pre_venda: Boolean(item.pre_venda),
         pronta_entrega: Boolean(item.pronta_entrega),
+        price_hidden: Boolean(item.price_hidden),
+        has_custom_price: Boolean(item.has_custom_price),
         status: item.status || 'available',
         codigo_mercos: item.codigo_mercos || '',
         source: item.source || (item.is_fornecedor ? 'fornecedor' : undefined),
@@ -726,6 +732,8 @@ export default function BancaPageClient({ bancaId }: { bancaId: string }) {
             sob_encomenda: Boolean(item.sob_encomenda),
             pre_venda: Boolean(item.pre_venda),
             pronta_entrega: Boolean(item.pronta_entrega),
+            price_hidden: Boolean(item.price_hidden),
+            has_custom_price: Boolean(item.has_custom_price),
             status: item.status || 'available',
             codigo_mercos: item.codigo_mercos || '',
           } as any;

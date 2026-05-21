@@ -23,7 +23,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     const response = await loadJornaleiroProductDetail({
       userId: user.id,
-      productId: context.params.id,
+      productId: decodeURIComponent(context.params.id),
     });
 
     return NextResponse.json(response, {
@@ -74,7 +74,7 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
 
     const response = await updateJornaleiroProduct({
       userId: user.id,
-      productId: context.params.id,
+      productId: decodeURIComponent(context.params.id),
       input: body,
     });
 
@@ -130,7 +130,7 @@ export async function DELETE(request: NextRequest, context: { params: { id: stri
 
     const response = await deleteJornaleiroProduct({
       userId: user.id,
-      productId: context.params.id,
+      productId: decodeURIComponent(context.params.id),
     });
 
     return NextResponse.json(response, {

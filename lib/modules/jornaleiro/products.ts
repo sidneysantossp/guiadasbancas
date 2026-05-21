@@ -1,5 +1,13 @@
 import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
-import { formatWholesaleProduct, hasWholesaleAccessForBanca } from "@/lib/modules/atacado/service";
+import {
+  applyWholesaleProductCustomization,
+  buildWholesaleProductCustomizationInput,
+  formatWholesaleProduct,
+  hasWholesaleAccessForBanca,
+  listWholesaleProductCustomizationsForBanca,
+  loadWholesaleProductCustomization,
+  saveWholesaleProductCustomization,
+} from "@/lib/modules/atacado/service";
 import { loadJornaleiroActor } from "@/lib/modules/jornaleiro/access";
 import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 import {
@@ -222,8 +230,14 @@ async function listFornecedorProductsForBanca(params: {
     throw new Error(error.message || "Erro ao buscar produtos do fornecedor");
   }
 
-  return ((data || []) as any[])
-    .map((row) => formatWholesaleProduct(row))
+  const products = ((data || []) as any[]).map((row) => formatWholesaleProduct(row));
+  const customizations = await listWholesaleProductCustomizationsForBanca({
+    bancaId: params.bancaId,
+    productIds: products.map((product) => product.id),
+  });
+
+  return products
+    .map((product) => applyWholesaleProductCustomization(product, customizations.get(product.id)))
     .filter((product) => product.visible_jornaleiro !== false)
     .map((product) => {
       const imageList = product.images.length > 0
@@ -244,10 +258,15 @@ async function listFornecedorProductsForBanca(params: {
         category_name: product.category_name || "Fornecedor Guia",
         price: product.price,
         cost_price: product.cost_price,
+        supplier_price: product.supplier_price,
+        supplier_current_price: product.supplier_current_price,
+        supplier_cost_price: product.supplier_cost_price,
+        has_custom_price: product.has_custom_price,
+        price_hidden: product.price_hidden,
         price_original: product.compare_at_price,
         stock_qty: product.available_quantity,
         track_stock: product.track_stock,
-        active: true,
+        active: product.active !== false,
         images: imageList,
         codigo_mercos: product.sku || product.supplier_reference || "",
         pronta_entrega: product.availability_status === "in_stock",
@@ -461,6 +480,78 @@ export async function loadJornaleiroProductDetail(params: {
 }) {
   const { banca, entitlements } = await ensureJornaleiroProductContext(params.userId, "id, user_id");
 
+  if (params.productId.startsWith("fornecedor:")) {
+    if (!banca) throw new Error("PRODUCT_NOT_FOUND");
+    const supplierProductId = params.productId.replace(/^fornecedor:/, "");
+    const allowed = await hasWholesaleAccessForBanca(banca.id);
+    if (!allowed) throw new Error("PRODUCT_NOT_FOUND");
+
+    const { data: wholesaleProduct, error: wholesaleError } = await supabaseAdmin
+      .from("own_wholesale_products")
+      .select("*, category:categories(id, name)")
+      .eq("id", supplierProductId)
+      .eq("active", true)
+      .eq("visible", true)
+      .maybeSingle();
+
+    if (wholesaleError || !wholesaleProduct) {
+      throw new Error("PRODUCT_NOT_FOUND");
+    }
+
+    const customization = await loadWholesaleProductCustomization({
+      bancaId: banca.id,
+      productId: supplierProductId,
+    });
+    const product = applyWholesaleProductCustomization(
+      formatWholesaleProduct(wholesaleProduct as any),
+      customization
+    );
+    const images = product.images.length > 0
+      ? product.images
+      : product.image_url
+        ? [product.image_url]
+        : [];
+
+    return {
+      success: true,
+      data: {
+        id: `fornecedor:${product.id}`,
+        source_id: product.id,
+        source: "fornecedor",
+        is_fornecedor: true,
+        is_distribuidor: false,
+        banca_id: banca.id,
+        name: product.name,
+        description: product.description || "",
+        description_full: product.description || "",
+        category_id: product.category_id,
+        category_name: product.category_name || "Fornecedor Guia",
+        images,
+        price: product.price,
+        cost_price: product.cost_price,
+        supplier_price: product.supplier_price,
+        supplier_current_price: product.supplier_current_price,
+        supplier_cost_price: product.supplier_cost_price,
+        has_custom_price: product.has_custom_price,
+        price_hidden: product.price_hidden,
+        price_original: null,
+        discount_percent: 0,
+        stock_qty: product.available_quantity,
+        track_stock: product.track_stock,
+        active: product.active !== false,
+        featured: product.featured === true,
+        codigo_mercos: product.sku || product.supplier_reference || "",
+        sob_encomenda: product.availability_status === "on_demand",
+        pre_venda: product.availability_status === "quote",
+        pronta_entrega: product.availability_status === "in_stock",
+        delivery_lead_time: product.delivery_lead_time,
+        min_order_quantity: product.min_order_quantity,
+        pack_size: product.pack_size,
+        updated_at: product.updated_at,
+      },
+    };
+  }
+
   const { data: product, error } = await supabaseAdmin
     .from("products")
     .select("*, bancas(name)")
@@ -535,6 +626,38 @@ export async function updateJornaleiroProduct(params: {
 
   if (!banca || !entitlements) {
     throw new Error("BANCA_NOT_FOUND");
+  }
+
+  if (params.productId.startsWith("fornecedor:")) {
+    const supplierProductId = params.productId.replace(/^fornecedor:/, "");
+    const allowed = await hasWholesaleAccessForBanca(banca.id);
+    if (!allowed) throw new Error("FORBIDDEN_PRODUCT_EDIT");
+
+    const { data: supplierProduct, error: supplierError } = await supabaseAdmin
+      .from("own_wholesale_products")
+      .select("id, active, visible")
+      .eq("id", supplierProductId)
+      .maybeSingle();
+
+    if (supplierError || !supplierProduct) {
+      throw new Error("PRODUCT_NOT_FOUND");
+    }
+
+    const customizationInput = buildWholesaleProductCustomizationInput(params.input, {
+      defaultEnabled: params.input.active !== false,
+      useProductEditorAliases: true,
+    });
+
+    await saveWholesaleProductCustomization({
+      bancaId: banca.id,
+      productId: supplierProductId,
+      input: customizationInput,
+    });
+
+    return {
+      success: true,
+      message: "Customização do fornecedor salva com sucesso",
+    };
   }
 
   const { data: existingProduct } = await supabaseAdmin

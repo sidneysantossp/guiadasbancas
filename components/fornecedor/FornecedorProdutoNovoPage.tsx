@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { IconArrowLeft, IconCheck, IconLoader2, IconPhoto, IconPlugConnected } from "@tabler/icons-react";
+import ProductImageUploader from "@/components/admin/ProductImageUploader";
 import { useToast } from "@/components/admin/ToastProvider";
 import { fetchAdminWithDevFallback } from "@/lib/admin-client-fetch";
 
@@ -26,6 +27,31 @@ function formatDeliveryLeadTime(daysInput: string) {
   return days === 1 ? "1 dia" : `${days} dias`;
 }
 
+async function uploadProductImages(images: string[]) {
+  const uploadedUrls: string[] = [];
+
+  for (const src of images) {
+    if (src.startsWith("data:")) {
+      const blob = await (await fetch(src)).blob();
+      const form = new FormData();
+      form.append("file", blob, `fornecedor-${Date.now()}.png`);
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: form,
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.ok || !json?.url) {
+        throw new Error("Falha no upload de imagem");
+      }
+      uploadedUrls.push(json.url);
+    } else if (src.trim()) {
+      uploadedUrls.push(src.trim());
+    }
+  }
+
+  return uploadedUrls;
+}
+
 export default function FornecedorProdutoNovoPage() {
   const router = useRouter();
   const toast = useToast();
@@ -39,7 +65,7 @@ export default function FornecedorProdutoNovoPage() {
     price: "",
     stock_qty: "0",
     codigo_mercos: "",
-    images: "",
+    images: [] as string[],
     active: true,
     visible: true,
     visible_jornaleiro: true,
@@ -80,12 +106,10 @@ export default function FornecedorProdutoNovoPage() {
     setSaving(true);
 
     try {
-      const imageUrls = form.images
-        .split(/[\n,]/)
-        .map((image) => image.trim())
-        .filter(Boolean);
-
-      const parsedPrice = Number(form.price);
+      const imageUrls = await uploadProductImages(form.images);
+      const allowsOpenPrice = form.sob_encomenda || form.pre_venda;
+      const parsedPrice = form.price.trim() ? Number(form.price) : 0;
+      const finalPrice = Number.isFinite(parsedPrice) ? parsedPrice : 0;
 
       const response = await fetchAdminWithDevFallback("/api/admin/atacado/products", {
         method: "POST",
@@ -98,8 +122,8 @@ export default function FornecedorProdutoNovoPage() {
           supplier_reference: form.codigo_mercos || null,
           image_url: imageUrls[0] || null,
           images: imageUrls,
-          cost_price: Number.isFinite(parsedPrice) ? parsedPrice : 0,
-          price: Number.isFinite(parsedPrice) ? parsedPrice : 0,
+          cost_price: allowsOpenPrice && finalPrice <= 0 ? 0 : finalPrice,
+          price: allowsOpenPrice && finalPrice <= 0 ? 0 : finalPrice,
           stock_quantity: Number(form.stock_qty),
           active: form.active,
           visible: form.visible,
@@ -218,9 +242,9 @@ export default function FornecedorProdutoNovoPage() {
                 <div>
                   <label className="text-sm font-medium text-gray-700">Preço de venda</label>
                   <input
-                    required={!form.sob_encomenda}
+                    required={!(form.sob_encomenda || form.pre_venda)}
                     type="number"
-                    min={form.sob_encomenda ? "0" : "0.01"}
+                    min={form.sob_encomenda || form.pre_venda ? "0" : "0.01"}
                     step="0.01"
                     value={form.price}
                     onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
@@ -228,9 +252,9 @@ export default function FornecedorProdutoNovoPage() {
                     placeholder="0,00"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    {form.sob_encomenda
-                      ? "Produtos sob encomenda podem ficar com valor 0 para compra com preço a definir."
-                      : "Informe um valor maior que zero para pronta entrega ou consulta."}
+                    {form.sob_encomenda || form.pre_venda
+                      ? "Produtos sob encomenda ou pré-venda podem ficar com valor 0 para compra com preço a definir."
+                      : "Informe um valor maior que zero para pronta entrega."}
                   </p>
                 </div>
 
@@ -255,16 +279,15 @@ export default function FornecedorProdutoNovoPage() {
               <h2 className="text-lg font-semibold">Imagens</h2>
             </div>
             <p className="mt-2 text-sm text-gray-600">
-              Se já tiver URLs das imagens, cole aqui. Se preferir, você também pode vincular imagens depois pela tela
-              de importação em massa.
+              Arraste as imagens do produto ou selecione arquivos do computador.
             </p>
-            <textarea
-              value={form.images}
-              onChange={(event) => setForm((current) => ({ ...current, images: event.target.value }))}
-              rows={4}
-              className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              placeholder="Uma URL por linha ou separadas por vírgula"
-            />
+            <div className="mt-3">
+              <ProductImageUploader
+                images={form.images}
+                onChange={(images) => setForm((current) => ({ ...current, images }))}
+                maxImages={4}
+              />
+            </div>
           </div>
         </div>
 
@@ -333,6 +356,7 @@ export default function FornecedorProdutoNovoPage() {
                       pre_venda: event.target.checked,
                       pronta_entrega: event.target.checked ? false : current.pronta_entrega,
                       sob_encomenda: event.target.checked ? false : current.sob_encomenda,
+                      price: event.target.checked && !current.price ? "0" : current.price,
                     }))
                   }
                   className="h-4 w-4 rounded border-gray-300"

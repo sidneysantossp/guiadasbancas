@@ -53,7 +53,7 @@ function formatPrice(value: number) {
 
 function statusLabel(value: Product["availability_status"]) {
   if (value === "on_demand") return "Sob encomenda";
-  if (value === "quote") return "Consulta";
+  if (value === "quote") return "Pré-venda";
   return "Pronta entrega";
 }
 
@@ -377,7 +377,7 @@ export default function FornecedorProdutosPage() {
                       <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
                         <span className="font-medium text-blue-700">Venda:</span>
                         <span className="whitespace-nowrap text-sm font-bold text-blue-700">
-                          {product.availability_status === "on_demand" && Number(product.price || 0) <= 0
+                          {(product.availability_status === "on_demand" || product.availability_status === "quote") && Number(product.price || 0) <= 0
                             ? "Valor a definir"
                             : formatPrice(product.price)}
                         </span>

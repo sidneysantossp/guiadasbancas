@@ -199,7 +199,7 @@ function formatDateTime(value?: string | null) {
 
 function availabilityLabel(value: Product["availability_status"]) {
   if (value === "on_demand") return "Sob encomenda";
-  if (value === "quote") return "Consulta";
+  if (value === "quote") return "Pré-venda";
   return "Pronta entrega";
 }
 
@@ -681,7 +681,7 @@ export default function FornecedorPortalPage({ view }: { view: FornecedorView })
             >
               <option value="in_stock">Pronta entrega</option>
               <option value="on_demand">Sob encomenda</option>
-              <option value="quote">Consulta</option>
+              <option value="quote">Pré-venda</option>
             </select>
           </div>
           <input

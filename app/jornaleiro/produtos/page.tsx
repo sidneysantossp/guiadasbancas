@@ -25,9 +25,15 @@ type ProdutoListItem = {
   category_name?: string;
   price: number;
   cost_price?: number;
+  supplier_price?: number;
+  supplier_current_price?: number;
+  has_custom_price?: boolean;
+  price_hidden?: boolean;
   price_original?: number;
   stock_qty: number;
   active: boolean;
+  sob_encomenda?: boolean;
+  pre_venda?: boolean;
   updated_at?: string;
   image?: string;
   codigo_mercos?: string;
@@ -37,6 +43,14 @@ type CategoryOption = { id: string; name: string };
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+
+const hasOpenPrice = (product: ProdutoListItem) =>
+  (product.sob_encomenda === true || product.pre_venda === true) &&
+  product.price_hidden === true &&
+  product.has_custom_price !== true;
+
+const formatProductPrice = (product: ProdutoListItem) =>
+  hasOpenPrice(product) ? "Valor a definir" : formatCurrency(product.price);
 
 export default function JornaleiroProdutosPage() {
   const toast = useToast();
@@ -139,9 +153,15 @@ export default function JornaleiroProdutosPage() {
           category_name: p.category_name || categoryMap[p.category_id] || p.category_id,
           price: Number(p.price ?? 0),
           cost_price: p.cost_price != null ? Number(p.cost_price) : undefined,
+          supplier_price: p.supplier_price != null ? Number(p.supplier_price) : undefined,
+          supplier_current_price: p.supplier_current_price != null ? Number(p.supplier_current_price) : undefined,
+          has_custom_price: Boolean(p.has_custom_price),
+          price_hidden: Boolean(p.price_hidden),
           price_original: p.price_original ? Number(p.price_original) : undefined,
           stock_qty: Number(p.stock_qty ?? 0),
           active: Boolean(p.active),
+          sob_encomenda: Boolean(p.sob_encomenda),
+          pre_venda: Boolean(p.pre_venda),
           updated_at: p.updated_at,
           image: Array.isArray(p.images) && p.images.length ? p.images[0] : undefined,
           codigo_mercos: p.codigo_mercos,
@@ -208,7 +228,7 @@ export default function JornaleiroProdutosPage() {
   const toggleActive = async (row: ProdutoListItem) => {
     try {
       setSavingId(row.id);
-      const res = await fetch(`/api/jornaleiro/products/${row.id}`, {
+      const res = await fetch(`/api/jornaleiro/products/${encodeURIComponent(row.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !row.active, updated_at: new Date().toISOString() }),
@@ -270,12 +290,12 @@ export default function JornaleiroProdutosPage() {
                 <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
                   <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Custo</div>
                   <div className="mt-1 text-sm font-semibold text-gray-700">
-                    {formatCurrency(r.cost_price ?? (r.price_original && r.price_original !== r.price ? r.price_original : r.price))}
+                    {formatCurrency(r.supplier_current_price ?? r.supplier_price ?? r.cost_price ?? (r.price_original && r.price_original !== r.price ? r.price_original : r.price))}
                   </div>
                 </div>
                 <div className="rounded-lg border border-gray-200 bg-orange-50 px-3 py-2">
                   <div className="text-[11px] font-medium uppercase tracking-wide text-orange-600">Venda</div>
-                  <div className="mt-1 text-sm font-semibold text-gray-900">{formatCurrency(r.price)}</div>
+                  <div className="mt-1 text-sm font-semibold text-gray-900">{formatProductPrice(r)}</div>
                 </div>
               </div>
             </div>
@@ -289,7 +309,7 @@ export default function JornaleiroProdutosPage() {
       hiddenOnMobile: true,
       render: (r) => {
         // Prioridade: cost_price > price_original (se diferente de price)
-        const costValue = r.cost_price ?? (r.price_original && r.price_original !== r.price ? r.price_original : r.price);
+        const costValue = r.supplier_current_price ?? r.supplier_price ?? r.cost_price ?? (r.price_original && r.price_original !== r.price ? r.price_original : r.price);
         return (
           <span className="text-gray-600">
             {formatCurrency(costValue)}
@@ -304,7 +324,7 @@ export default function JornaleiroProdutosPage() {
       hiddenOnMobile: true,
       render: (r) => (
         <span className="font-semibold text-gray-900">
-          {formatCurrency(r.price)}
+          {formatProductPrice(r)}
         </span>
       ),
       align: "right",
@@ -533,15 +553,42 @@ export default function JornaleiroProdutosPage() {
         renderActions={(row) => (
           <div className="flex flex-col items-end justify-end gap-2 sm:flex-row sm:items-center">
             {row.source === "fornecedor" ? (
-              marketplaceModuleEnabled ? (
+              <>
+                {marketplaceModuleEnabled ? (
+                  <Link
+                    href={"/jornaleiro/fornecedor" as Route}
+                    className="inline-flex h-10 items-center justify-center rounded-md border border-orange-200 px-3 text-xs font-medium text-orange-700 hover:bg-orange-50"
+                    title="Abrir Marketplace"
+                  >
+                    Marketplace
+                  </Link>
+                ) : null}
                 <Link
-                  href={"/jornaleiro/fornecedor" as Route}
-                  className="inline-flex h-10 items-center justify-center rounded-md border border-orange-200 px-3 text-xs font-medium text-orange-700 hover:bg-orange-50"
-                  title="Abrir Marketplace"
+                  href={`/jornaleiro/produtos/${encodeURIComponent(row.id)}` as Route}
+                  className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
+                  title="Editar produto"
                 >
-                  Marketplace
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
                 </Link>
-              ) : null
+                <button
+                  onClick={() => toggleActive(row)}
+                  disabled={savingId === row.id}
+                  className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  title={row.active ? "Desativar produto" : "Ativar produto"}
+                >
+                  {row.active ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+              </>
             ) : (
               <>
                 <Link
@@ -557,7 +604,7 @@ export default function JornaleiroProdutosPage() {
                   </svg>
                 </Link>
                 <Link
-                  href={( `/jornaleiro/produtos/${row.id}` ) as Route}
+                  href={`/jornaleiro/produtos/${encodeURIComponent(row.id)}` as Route}
                   className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
                   title="Editar produto"
                 >

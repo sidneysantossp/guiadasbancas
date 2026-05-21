@@ -39,7 +39,10 @@ export function validateProductUpdate(input: Partial<Produto>): ValidationResult
   if (input.category_id != null && !String(input.category_id).trim()) return { ok: false, error: "Categoria inválida" };
   if (input.price != null) {
     const price = Number(input.price);
-    if (!Number.isFinite(price) || price <= 0) return { ok: false, error: "Preço inválido" };
+    const allowsOpenPrice = input.sob_encomenda === true || input.pre_venda === true;
+    if (!Number.isFinite(price) || price < 0 || (!allowsOpenPrice && price <= 0)) {
+      return { ok: false, error: "Preço inválido" };
+    }
     if (input.price_original != null) {
       const po = Number(input.price_original);
       // price_original representa o preço de tabela antes do desconto.
