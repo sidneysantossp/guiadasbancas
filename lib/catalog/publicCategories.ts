@@ -59,6 +59,20 @@ function fallbackVisualByName(name: string) {
   return fallbackCategories.find((category) => normalizeCategoryText(category.name) === normalizedName);
 }
 
+function isPortableRootImage(value: unknown): boolean {
+  const image = sanitizePublicImageUrl(value);
+  if (!image) return false;
+  return !image.startsWith("/uploads/");
+}
+
+function resolveRootImage(value: unknown, fallbackImage: string): string {
+  const image = sanitizePublicImageUrl(value);
+  if (!image || image.startsWith("/uploads/")) {
+    return sanitizePublicImageUrl(fallbackImage);
+  }
+  return image;
+}
+
 export function buildFallbackPublicRootCategories(): PublicRootCategory[] {
   return PUBLIC_ROOT_CATEGORY_SOURCES.map((category, index) => {
     const visual = fallbackVisualByName(category.name);
@@ -88,9 +102,14 @@ export function curatePublicRootCategories(rawCategories: RawCategoryLike[]): Pu
     if (!fallbackIndexByName.has(key)) continue;
 
     const current = bestByName.get(key);
-    const score = (category?.image ? 2 : 0) + (category?.link ? 1 : 0);
-    const currentScore = current ? ((current.image ? 2 : 0) + (current.link ? 1 : 0)) : -1;
-    if (!current || score >= currentScore) {
+    const score = (isPortableRootImage(category?.image) ? 2 : 0) + (category?.link ? 1 : 0);
+    const currentScore = current
+      ? (isPortableRootImage(current.image) ? 2 : 0) + (current.link ? 1 : 0)
+      : -1;
+    const order = typeof category?.order === "number" ? category.order : Number.MAX_SAFE_INTEGER;
+    const currentOrder = typeof current?.order === "number" ? current.order : Number.MAX_SAFE_INTEGER;
+
+    if (!current || score > currentScore || (score === currentScore && order < currentOrder)) {
       bestByName.set(key, category);
     }
   }
@@ -104,7 +123,7 @@ export function curatePublicRootCategories(rawCategories: RawCategoryLike[]): Pu
     return {
       id: String(matched.id || category.id),
       name: String(matched.name || category.name),
-      image: sanitizePublicImageUrl(matched.image || category.image),
+      image: resolveRootImage(matched.image, category.image),
       link: String(matched.link || category.link),
       order: typeof matched.order === "number" ? matched.order : index,
     };
