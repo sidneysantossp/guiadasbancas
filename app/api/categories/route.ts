@@ -24,6 +24,8 @@ export type PublicCategory = {
   order: number;
   parent_category_id?: string | null;
   mercos_id?: number | null;
+  active?: boolean | null;
+  visible?: boolean | null;
 };
 
 type TreeSubcategory = {
@@ -302,6 +304,7 @@ async function buildFocusedMegaMenuTree(
 
   if (error || !data || data.length === 0) return null;
 
+  const visibleRootNames = new Set(normalizedData.map((category) => normalizeCategoryText(category.name)));
   const rows = data as DistribuidorCategoryRow[];
   const rowsByDistribuidor = new Map<string, DistribuidorCategoryRow[]>();
   for (const row of rows) {
@@ -390,7 +393,11 @@ async function buildFocusedMegaMenuTree(
     const rootRows = orderedRootNames
       .map((name) => rowByNormalizedName.get(name))
       .filter((row): row is DistribuidorCategoryRow => Boolean(row))
-      .filter((row) => !focusedOnly || focusedRootNames.has(normalizeCategoryText(row.nome)));
+      .filter((row) => {
+        const normalizedName = normalizeCategoryText(row.nome);
+        if (!visibleRootNames.has(normalizedName)) return false;
+        return !focusedOnly || focusedRootNames.has(normalizedName);
+      });
 
     if (rootRows.length === 0) continue;
 
@@ -515,9 +522,7 @@ export async function GET(request: NextRequest) {
   try {
     const { data, error } = await supabaseAdmin
       .from("categories")
-      .select("id, name, image, link, order, visible, parent_category_id, mercos_id")
-      .eq("active", true)
-      .eq("visible", true)
+      .select("id, name, image, link, order, active, visible, parent_category_id, mercos_id")
       .order("order", { ascending: true })
       .order("name", { ascending: true });
 
@@ -537,7 +542,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const normalizedData: PublicCategory[] = data.map((cat, index) => ({
+    const publicRows = data.filter((cat) => cat.active !== false && cat.visible !== false);
+
+    if (publicRows.length === 0) {
+      return NextResponse.json(
+        { success: true, data: [], tree: [], source: "database" },
+        { headers: cacheHeaders }
+      );
+    }
+
+    const normalizedData: PublicCategory[] = publicRows.map((cat, index) => ({
       id: String(cat.id),
       name: cat.name || "Categoria",
       image: sanitizePublicImageUrl(cat.image),
@@ -545,6 +559,8 @@ export async function GET(request: NextRequest) {
       order: typeof cat.order === "number" ? cat.order : index,
       parent_category_id: cat.parent_category_id || null,
       mercos_id: typeof cat.mercos_id === "number" ? cat.mercos_id : null,
+      active: cat.active,
+      visible: cat.visible,
     }));
 
     // Para o mega menu da home, priorizar categorias sincronizadas da Mercos

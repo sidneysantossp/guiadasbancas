@@ -50,7 +50,7 @@ function normalizeCategoryLink(name: string, link?: string): string {
 }
 
 export function useCategories(initialItems?: UICategory[]): { items: UICategory[]; loading: boolean } {
-  const seededItems = Array.isArray(initialItems) && initialItems.length > 0 ? initialItems : null;
+  const seededItems = Array.isArray(initialItems) ? initialItems : null;
   const [apiItems, setApiItems] = useState<UICategory[] | null>(seededItems);
   const [loading, setLoading] = useState(!seededItems);
   const [isMobile, setIsMobile] = useState<boolean>(false);

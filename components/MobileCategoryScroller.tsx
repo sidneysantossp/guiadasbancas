@@ -22,7 +22,7 @@ type MobileCategoryScrollerProps = {
 };
 
 export default function MobileCategoryScroller({ initialCategories }: MobileCategoryScrollerProps) {
-  const seeded = Array.isArray(initialCategories) && initialCategories.length > 0;
+  const seeded = Array.isArray(initialCategories);
   const [cats, setCats] = useState<PublicCategory[] | null>(seeded ? initialCategories : null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [pause, setPause] = useState(false);
@@ -70,7 +70,7 @@ export default function MobileCategoryScroller({ initialCategories }: MobileCate
 
   // Normalize to a unified shape
   const baseItems = useMemo(() => {
-    if (cats && cats.length > 0) {
+    if (cats !== null) {
       return cats.map((c) => ({ key: c.id, name: c.name, image: sanitizePublicImageUrl(c.image), link: c.link }));
     }
     // fallback to static when API has nothing yet

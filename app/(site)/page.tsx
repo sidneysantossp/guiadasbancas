@@ -291,12 +291,10 @@ async function getRecentBancas(limit = 12): Promise<HomeBanca[]> {
 
 async function getCategories(): Promise<HomeCategory[]> {
   try {
-    // Usar supabaseAdmin para bypassar RLS e garantir leitura do campo visible
+    // Usar supabaseAdmin para bypassar RLS e garantir leitura dos controles do admin.
     const { data, error } = await supabaseAdmin
       .from("categories")
-      .select("id, name, image, link, order, visible")
-      .eq("active", true)
-      .eq("visible", true)
+      .select("id, name, image, link, order, active, visible")
       .order("order", { ascending: true })
       .order("name", { ascending: true });
 
@@ -311,6 +309,8 @@ async function getCategories(): Promise<HomeCategory[]> {
         image: sanitizePublicImageUrl(cat.image),
         link: cat.link,
         order: typeof cat.order === "number" ? cat.order : index,
+        active: cat.active,
+        visible: cat.visible,
       }))
     );
   } catch (error) {

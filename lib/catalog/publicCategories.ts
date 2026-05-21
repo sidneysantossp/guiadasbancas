@@ -29,6 +29,8 @@ type RawCategoryLike = {
   image?: string | null;
   link?: string | null;
   order?: number | null;
+  active?: boolean | null;
+  visible?: boolean | null;
 };
 
 const ROOT_DISTRIBUTOR_BY_SLUG: Record<string, string> = {
@@ -73,11 +75,18 @@ export function buildFallbackPublicRootCategories(): PublicRootCategory[] {
 export function curatePublicRootCategories(rawCategories: RawCategoryLike[]): PublicRootCategory[] {
   const fallback = buildFallbackPublicRootCategories();
   const bestByName = new Map<string, RawCategoryLike>();
+  const fallbackIndexByName = new Map(
+    fallback.map((category, index) => [normalizeCategoryText(category.name), index])
+  );
 
   for (const category of rawCategories || []) {
+    if (category?.active === false || category?.visible === false) continue;
+
     const name = String(category?.name || "").trim();
     if (!name) continue;
     const key = normalizeCategoryText(name);
+    if (!fallbackIndexByName.has(key)) continue;
+
     const current = bestByName.get(key);
     const score = (category?.image ? 2 : 0) + (category?.link ? 1 : 0);
     const currentScore = current ? ((current.image ? 2 : 0) + (current.link ? 1 : 0)) : -1;
@@ -86,10 +95,10 @@ export function curatePublicRootCategories(rawCategories: RawCategoryLike[]): Pu
     }
   }
 
-  return fallback.map((category, index) => {
+  return fallback.flatMap((category, index) => {
     const matched = bestByName.get(normalizeCategoryText(category.name));
     if (!matched) {
-      return category;
+      return [];
     }
 
     return {
@@ -99,5 +108,10 @@ export function curatePublicRootCategories(rawCategories: RawCategoryLike[]): Pu
       link: String(matched.link || category.link),
       order: typeof matched.order === "number" ? matched.order : index,
     };
+  }).sort((a, b) => {
+    if (a.order !== b.order) return a.order - b.order;
+    const fallbackA = fallbackIndexByName.get(normalizeCategoryText(a.name)) ?? Number.MAX_SAFE_INTEGER;
+    const fallbackB = fallbackIndexByName.get(normalizeCategoryText(b.name)) ?? Number.MAX_SAFE_INTEGER;
+    return fallbackA - fallbackB;
   });
 }
