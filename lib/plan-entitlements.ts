@@ -72,7 +72,7 @@ export type BancaPlanEntitlements = {
 };
 
 const DEFAULT_OVERDUE_GRACE_DAYS = 5;
-const DEFAULT_ONBOARDING_PREMIUM_DAYS = 30;
+const DEFAULT_ONBOARDING_PREMIUM_DAYS = 0;
 
 function normalizeFeatures(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -315,13 +315,6 @@ function isPaidSubscriptionPlan(plan: SubscriptionPlan | null | undefined): bool
   return Boolean(plan) && (plan?.type || "free") !== "free" && Number(plan?.price || 0) > 0;
 }
 
-function isExpiredDate(isoDate: string | null | undefined): boolean {
-  if (!isoDate) return false;
-  const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime())) return false;
-  return new Date() > date;
-}
-
 export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Promise<BancaPlanEntitlements> {
   let subscription = await readCurrentSubscription(banca.id);
 
@@ -334,8 +327,7 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
 
   if (
     subscription?.status === "trial" &&
-    isPaidSubscriptionPlan(subscriptionPlan) &&
-    isExpiredDate(subscription.trial_ends_at || subscription.current_period_end)
+    isPaidSubscriptionPlan(subscriptionPlan)
   ) {
     const expiredAt = subscription.trial_ends_at || subscription.current_period_end || new Date().toISOString();
     await downgradeBancaToFreePlan(banca.id, {
@@ -414,9 +406,12 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
     hasFeature(features, [/distribuidor/i, /parceir/i]);
 
   const planIncludesDistributorCatalog =
-    accessPlanType === "premium" ||
-    Boolean(limits.distributor_catalog) ||
-    hasFeature(features, [/cat[aá]logo/i, /distribuidor/i, /fornecedor/i]);
+    isLegacyCotistaLinked &&
+    (
+      accessPlanType === "premium" ||
+      Boolean(limits.distributor_catalog) ||
+      hasFeature(features, [/cat[aá]logo/i, /distribuidor/i, /fornecedor/i])
+    );
 
   const canAccessCampaigns = resolveBooleanAccess({
     planType: accessPlanType,

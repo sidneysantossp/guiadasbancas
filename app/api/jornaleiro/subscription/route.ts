@@ -358,13 +358,16 @@ export async function POST(request: NextRequest) {
       whatsapp: string | null;
       cnpj: string | null;
       cpf: string | null;
+      is_cotista: boolean | null;
+      cotista_id: string | null;
+      created_at: string | null;
       address: string | null;
       cep: string | null;
       address_obj?: Record<string, any> | null;
       addressobj?: Record<string, any> | null;
     }>({
       userId: user.id,
-      select: "id, name, email, whatsapp, cnpj, cpf, address, cep, address_obj, addressobj",
+      select: "id, name, email, whatsapp, cnpj, cpf, is_cotista, cotista_id, created_at, address, cep, address_obj, addressobj",
     });
 
     if (!banca) {
@@ -406,10 +409,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const [pricingPreview, paidPlanTrialDays, paidPlanTrialAlreadyUsed] = await Promise.all([
+    const [pricingPreview, paidPlanTrialDays, paidPlanTrialAlreadyUsed, currentEntitlements] = await Promise.all([
       resolvePlanPricing(plan, banca.id),
       readPaidPlanTrialDays(),
       hasBancaUsedPaidPlanTrial(banca.id),
+      resolveBancaPlanEntitlements({
+        id: banca.id,
+        is_cotista: banca.is_cotista,
+        cotista_id: banca.cotista_id,
+        created_at: banca.created_at,
+      }),
     ]);
 
     let trialDaysApplied = 0;
@@ -418,6 +427,7 @@ export async function POST(request: NextRequest) {
     if (
       Number(plan.price || 0) > 0 &&
       (plan.type || "").toLowerCase() !== "free" &&
+      !currentEntitlements.onboardingPremiumEndsAt &&
       paidPlanTrialDays > 0 &&
       !paidPlanTrialAlreadyUsed
     ) {

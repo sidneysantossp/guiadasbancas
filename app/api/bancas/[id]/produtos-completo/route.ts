@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { loadDistributorPricingContext } from '@/lib/modules/products/service';
+import { resolveBancaPlanEntitlements } from '@/lib/plan-entitlements';
+import { listDistributorPreviewFallbackForBanca, loadDistributorPricingContext } from '@/lib/modules/products/service';
 
 const CATEGORIA_DISTRIBUIDORES_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
 const PRODUCT_FETCH_BATCH_SIZE = 1000;
@@ -64,6 +65,12 @@ export async function GET(
     }
 
     const partnerLinked = banca?.is_cotista === true || Boolean(banca?.cotista_id);
+    const entitlements = await resolveBancaPlanEntitlements({
+      id: banca.id,
+      is_cotista: banca.is_cotista,
+      cotista_id: banca.cotista_id,
+    });
+    const canAccessDistributorCatalog = entitlements.canAccessDistributorCatalog;
 
     if (!canShowMarketplaceCatalog(banca)) {
       return NextResponse.json({
@@ -95,18 +102,20 @@ export async function GET(
 
     const produtosPropriosExpostos = produtosProprios || [];
 
-    // 2. Buscar produtos de distribuidor para qualquer banca publicada.
+    // 2. Buscar produtos de distribuidor apenas quando o plano libera catálogo.
     let produtosDistribuidor: any[] = [];
 
-    const produtosBase = await fetchProductRows(() =>
-      supabase
-        .from('products')
-        .select('*')
-        .not('distribuidor_id', 'is', null)
-        .eq('active', true)
-        .gt('stock_qty', 0)
-        .order('name', { ascending: true })
-    );
+    const produtosBase = canAccessDistributorCatalog
+      ? await fetchProductRows(() =>
+          supabase
+            .from('products')
+            .select('*')
+            .not('distribuidor_id', 'is', null)
+            .eq('active', true)
+            .gt('stock_qty', 0)
+            .order('name', { ascending: true })
+        )
+      : [];
 
     if (produtosBase && produtosBase.length > 0) {
       const { customMap, calculateDistributorPrice } = await loadDistributorPricingContext<{
@@ -150,6 +159,17 @@ export async function GET(
       }).filter(Boolean);
     }
 
+    if (!canAccessDistributorCatalog && produtosPropriosExpostos.length === 0) {
+      const fallbackDistributorProducts = await listDistributorPreviewFallbackForBanca({
+        bancaId,
+        limit: 10,
+      });
+      produtosDistribuidor = fallbackDistributorProducts.items.map((produto) => ({
+        ...produto,
+        is_distribuidor: true,
+      }));
+    }
+
     // 4. Combinar todos os produtos
     const todosProdutos = [
       ...produtosPropriosExpostos.map(p => ({ ...p, is_distribuidor: false })),
@@ -161,8 +181,8 @@ export async function GET(
       banca_id: bancaId,
       is_cotista: partnerLinked,
       partner_linked: partnerLinked,
-      can_access_distributor_catalog: true,
-      partner_catalog_access: true,
+      can_access_distributor_catalog: canAccessDistributorCatalog,
+      partner_catalog_access: canAccessDistributorCatalog,
       data: todosProdutos,
       total: todosProdutos.length,
       stats: {

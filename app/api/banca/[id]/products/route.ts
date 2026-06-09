@@ -3,8 +3,9 @@ import { auth } from "@/lib/auth";
 import { readAuthenticatedUserClaims } from "@/lib/modules/auth/session";
 import { canPreviewMarketplaceBanca, isPublishedMarketplaceBanca } from "@/lib/public-banca-access";
 import { resolveCanonicalBancaRowById } from "@/lib/banca-canonical";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getEffectiveDistributorStock, isDistributorProductOutOfStock, loadDistributorPricingContext } from "@/lib/modules/products/service";
+import { getEffectiveDistributorStock, isDistributorProductOutOfStock, listDistributorPreviewFallbackForBanca, loadDistributorPricingContext } from "@/lib/modules/products/service";
 import { listPublicWholesaleProductsForBanca } from "@/lib/modules/atacado/service";
 
 // Sem cache para garantir dados atualizados
@@ -71,6 +72,12 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const effectiveBancaId = banca.id;
 
     const partnerLinked = banca.is_cotista === true || Boolean(banca.cotista_id);
+    const entitlements = await resolveBancaPlanEntitlements({
+      id: effectiveBancaId,
+      is_cotista: banca.is_cotista,
+      cotista_id: banca.cotista_id,
+    });
+    const canAccessDistributorCatalog = entitlements.canAccessDistributorCatalog;
     const canPreview = canPreviewMarketplaceBanca({
       bancaId: banca.id,
       bancaUserId: banca.user_id,
@@ -150,17 +157,30 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
     const [ownProductsResult, distributorProductsResult, fornecedorProducts] = await Promise.all([
       fetchProducts('own', fetchWindow),
-      fetchProducts('distributor', fetchWindow),
+      canAccessDistributorCatalog
+        ? fetchProducts('distributor', fetchWindow)
+        : Promise.resolve({ rows: [], count: 0 }),
       listPublicWholesaleProductsForBanca(effectiveBancaId, fetchWindow),
     ]);
 
     const ownProductsForExposure = ownProductsResult.rows;
     const ownProductsVisibleCount = ownProductsResult.count || ownProductsResult.rows.length;
+    const fallbackDistributorProducts =
+      !canAccessDistributorCatalog && ownProductsVisibleCount === 0
+        ? await listDistributorPreviewFallbackForBanca({
+            bancaId: effectiveBancaId,
+            limit: Math.min(10, requestedLimit),
+            fallbackImageUrl: DEFAULT_PRODUCT_IMAGE,
+          })
+        : { items: [], totalAvailable: 0 };
 
     const dedupMap = new Map<string, any>();
     for (const p of ownProductsForExposure) dedupMap.set(p.id, p);
     for (const p of distributorProductsResult.rows) {
       if (isDistributorProductOutOfStock(p)) continue;
+      if (!dedupMap.has(p.id)) dedupMap.set(p.id, p);
+    }
+    for (const p of fallbackDistributorProducts.items) {
       if (!dedupMap.has(p.id)) dedupMap.set(p.id, p);
     }
     for (const product of fornecedorProducts) {
@@ -203,7 +223,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     let produtos: any[] = [];
     let totalCount = 0;
     produtos = produtosCombinados;
-    totalCount = ownProductsVisibleCount + (distributorProductsResult.count || 0) + fornecedorProducts.length;
+    totalCount = ownProductsVisibleCount + (distributorProductsResult.count || 0) + fallbackDistributorProducts.items.length + fornecedorProducts.length;
 
     // 4. Modo rápido: retornar produtos sem processamento adicional
     if (fastMode) {
@@ -221,6 +241,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         pre_venda: p.pre_venda ?? false,
         status: 'available',
         is_distribuidor: !!p.distribuidor_id,
+        locked_by_plan: p.locked_by_plan === true,
+        preview_fallback: p.preview_fallback === true,
         is_fornecedor: p.is_fornecedor === true,
         source: p.source || (p.is_fornecedor ? 'fornecedor' : undefined),
         source_id: p.source_id,
@@ -368,6 +390,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
         pre_venda: custom?.custom_pre_venda ?? produto.pre_venda ?? false,
         status: customStatus,
         is_distribuidor: !!produto.distribuidor_id,
+        locked_by_plan: produto.locked_by_plan === true,
+        preview_fallback: produto.preview_fallback === true,
         is_fornecedor: produto.is_fornecedor === true,
         source: produto.source || (produto.is_fornecedor ? 'fornecedor' : undefined),
         source_id: produto.source_id,
@@ -380,8 +404,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       banca_id: effectiveBancaId,
       is_cotista: partnerLinked,
       partner_linked: partnerLinked,
-      can_access_distributor_catalog: true,
-      partner_catalog_access: true,
+      can_access_distributor_catalog: canAccessDistributorCatalog,
+      partner_catalog_access: canAccessDistributorCatalog,
       total: totalCount || produtos.length,
       limit: requestedLimit,
       offset: requestedOffset,

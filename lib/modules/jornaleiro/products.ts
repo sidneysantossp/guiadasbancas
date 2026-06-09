@@ -15,6 +15,7 @@ import {
   buildDistributorProductCustomizationInput,
   calculateDistributorProductMarkup,
   listDistributorCatalogForBanca,
+  listDistributorPreviewFallbackForBanca,
   listOwnedCatalogProducts,
   loadDistributorProductCustomization,
   saveDistributorProductCustomization,
@@ -337,7 +338,14 @@ export async function listJornaleiroProducts(params: {
   ]);
 
   const ownedProducts = (produtosBanca || []).map((product) => normalizeOwnedProductRecord(product));
-  let allItems = [...ownedProducts, ...distributorCatalog.items, ...fornecedorProducts];
+  const fallbackDistributorCatalog =
+    !entitlements.canAccessDistributorCatalog && ownedProducts.length === 0
+      ? await listDistributorPreviewFallbackForBanca({
+          bancaId: banca.id,
+          limit: 10,
+        })
+      : { items: [], totalAvailable: 0 };
+  let allItems = [...ownedProducts, ...distributorCatalog.items, ...fallbackDistributorCatalog.items, ...fornecedorProducts];
 
   if (priceFilter === "personalizado") {
     allItems = allItems.filter((product: any) => {
@@ -384,6 +392,7 @@ export async function listJornaleiroProducts(params: {
         ? distributorCatalog.totalAvailable
         : distributorCatalog.items.length,
       distribuidoresTotal: distributorCatalog.totalAvailable,
+      distribuidoresPreview: fallbackDistributorCatalog.items.length,
       fornecedor: fornecedorProducts.length,
     },
     timestamp: new Date().toISOString(),

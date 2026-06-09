@@ -530,6 +530,8 @@ async function formatBancaResponse(params: {
       overdue_features_locked: entitlements.overdueFeaturesLocked,
       overdue_in_grace_period: entitlements.overdueInGracePeriod,
       overdue_grace_ends_at: entitlements.overdueGraceEndsAt,
+      has_onboarding_premium_access: entitlements.hasOnboardingPremiumAccess,
+      onboarding_premium_ends_at: entitlements.onboardingPremiumEndsAt,
     },
     profile: {
       full_name: params.requester.fullName || "",

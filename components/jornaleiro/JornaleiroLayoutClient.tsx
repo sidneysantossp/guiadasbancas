@@ -8,6 +8,7 @@ import Image from "next/image";
 import ToastProvider from "@/components/admin/ToastProvider";
 import NotificationCenter from "@/components/admin/NotificationCenter";
 import DashboardOfficialLogo from "@/components/dashboard/DashboardOfficialLogo";
+import PlanCheckoutModal from "@/components/jornaleiro/PlanCheckoutModal";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { QueryProvider } from "@/app/providers/QueryProvider";
 import logger from "@/lib/logger";
@@ -76,6 +77,7 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   const [hasWholesaleAccess, setHasWholesaleAccess] = useState(false);
   const [wholesaleAccessLoaded, setWholesaleAccessLoaded] = useState(false);
   const [wholesaleAccessBancaId, setWholesaleAccessBancaId] = useState<string | null>(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const isAuthRoute = pathname === "/jornaleiro" || pathname?.startsWith("/jornaleiro/registrar") || pathname?.startsWith("/jornaleiro/onboarding") || pathname?.startsWith("/jornaleiro/esqueci-senha") || pathname?.startsWith("/jornaleiro/nova-senha") || pathname?.startsWith("/jornaleiro/reset-local");
@@ -245,6 +247,15 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
   const planType = typeof banca?.entitlements?.plan_type === "string"
     ? banca.entitlements.plan_type
     : null;
+  const shouldShowTrialEndedBanner = Boolean(
+    banca?.id &&
+    entitlementsLoaded &&
+    planType === "free" &&
+    !hasCatalogAccess
+  );
+  const isDistributorEligible = Boolean(
+    banca?.entitlements?.is_legacy_cotista_linked
+  );
 
   const menuSections = useMemo(() => {
     return buildJornaleiroMenuSections({
@@ -843,6 +854,25 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
           </div>
         </header>
 
+        {shouldShowTrialEndedBanner ? (
+          <div className="sticky top-0 z-30 border-b border-orange-300 bg-[#ff7a1a] text-white shadow-sm">
+            <div className="flex flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 font-medium">
+                {isDistributorEligible
+                  ? "Seu Periodo de Avaliação terminou. Volte a exibir os +4000 Produtos no perfil de sua banca ou continue com o Plano gratuito de 10 Produtos."
+                  : "Seu Periodo de Avaliação terminou. Amplie o catálogo da sua banca ou continue com o Plano gratuito de 10 Produtos."}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCheckoutOpen(true)}
+                className="inline-flex shrink-0 items-center justify-center rounded-md bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-[#c94b00] shadow-sm transition hover:bg-orange-50"
+              >
+                Renovar meu plano
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="flex">
           <aside
             className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-60 bg-[#334257] border-r border-gray-200 transition-transform duration-300 ease-in-out`}
@@ -1012,6 +1042,27 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
             </div>
           </nav>
         )}
+        <PlanCheckoutModal
+          open={checkoutOpen}
+          targetPlanType="premium"
+          bancaName={banca?.name || null}
+          distributorEligible={isDistributorEligible}
+          onClose={() => setCheckoutOpen(false)}
+          onSuccess={async () => {
+            try {
+              const res = await fetch(`/api/jornaleiro/banca?ts=${Date.now()}`, {
+                cache: "no-store",
+                credentials: "include",
+              });
+              const json = await res.json();
+              if (json?.success && json?.data) {
+                setBanca(json.data);
+              }
+            } catch (error) {
+              logger.error("[PlanCheckout] Falha ao recarregar banca:", error);
+            }
+          }}
+        />
       </div>
     </ToastProvider>
   );

@@ -3,6 +3,7 @@ import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import { loadPrimaryOwnedBanca } from "@/lib/modules/jornaleiro/access";
 import { ensureDefaultPremiumPlan } from "@/lib/banca-subscription";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import {
   hasBancaUsedPaidPlanTrial,
   readPaidPlanTrialDays,
@@ -33,21 +34,33 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
-    const { data: banca, error: bancaError } = await loadPrimaryOwnedBanca<{ id: string }>({
+    const { data: banca, error: bancaError } = await loadPrimaryOwnedBanca<{
+      id: string;
+      is_cotista: boolean | null;
+      cotista_id: string | null;
+      created_at: string | null;
+    }>({
       userId: user.id,
-      select: "id",
+      select: "id, is_cotista, cotista_id, created_at",
     });
 
     if (bancaError) {
       console.error("[API/JORNALEIRO/PLANS] Erro ao buscar banca:", bancaError);
     }
 
-    const [paidPlanTrialDays, paidPlanTrialAlreadyUsed] = banca?.id
+    const [paidPlanTrialDays, paidPlanTrialAlreadyUsed, entitlements] = banca?.id
       ? await Promise.all([
           readPaidPlanTrialDays(),
           hasBancaUsedPaidPlanTrial(banca.id),
+          resolveBancaPlanEntitlements({
+            id: banca.id,
+            is_cotista: banca.is_cotista,
+            cotista_id: banca.cotista_id,
+            created_at: banca.created_at,
+          }),
         ])
-      : [0, true];
+      : [0, true, null];
+    const canReceivePaidTrial = !entitlements?.onboardingPremiumEndsAt;
 
     const preferredPlans = (data || []).filter((plan) => {
       const normalizedType = String(plan.type || "").toLowerCase();
@@ -79,12 +92,14 @@ export async function GET(request: NextRequest) {
           launch_offer_available: pricing.launchOfferAvailable,
           trial_days:
             Number(plan.price || 0) > 0 && (plan.type || "").toLowerCase() !== "free" && !paidPlanTrialAlreadyUsed
+              && canReceivePaidTrial
               ? paidPlanTrialDays
               : 0,
           trial_available:
             Number(plan.price || 0) > 0 &&
             (plan.type || "").toLowerCase() !== "free" &&
             paidPlanTrialDays > 0 &&
+            canReceivePaidTrial &&
             !paidPlanTrialAlreadyUsed,
         };
       })

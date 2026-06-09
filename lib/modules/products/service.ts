@@ -775,6 +775,108 @@ export async function listDistributorCatalogForBanca(params: {
   };
 }
 
+export async function listDistributorPreviewFallbackForBanca(params: {
+  bancaId: string;
+  limit?: number;
+  fallbackImageUrl?: string | null;
+}): Promise<DistributorCatalogResult> {
+  const limit = Math.max(1, Math.min(Math.floor(Number(params.limit || 10)), 10));
+
+  const { data: brancaleoneDistributor } = await supabaseAdmin
+    .from("distribuidores")
+    .select("id")
+    .ilike("nome", "%brancaleone%")
+    .eq("ativo", true)
+    .limit(1)
+    .maybeSingle();
+
+  let query = supabaseAdmin
+    .from("products")
+    .select(`
+      *,
+      bancas(name)
+    `)
+    .not("distribuidor_id", "is", null)
+    .eq("active", true)
+    .or("stock_qty.is.null,stock_qty.gt.0")
+    .limit(limit);
+
+  if (brancaleoneDistributor?.id) {
+    query = query.eq("distribuidor_id", brancaleoneDistributor.id);
+  }
+
+  const { data: products, error } = await query.order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message || "Erro ao buscar vitrine gratuita do distribuidor");
+  }
+
+  const productRows = (products || []) as any[];
+  if (productRows.length === 0) {
+    return { items: [], totalAvailable: 0 };
+  }
+
+  const { customMap, calculateDistributorPrice } = await loadDistributorPricingContext<{
+    product_id: string;
+    enabled?: boolean | null;
+    custom_price?: number | null;
+    custom_description?: string | null;
+    custom_pronta_entrega?: boolean | null;
+    custom_sob_encomenda?: boolean | null;
+    custom_pre_venda?: boolean | null;
+    custom_stock_enabled?: boolean | null;
+    custom_stock_qty?: number | null;
+  }>({
+    products: productRows,
+    customFields: "product_id, enabled, custom_price, custom_description, custom_pronta_entrega, custom_sob_encomenda, custom_pre_venda, custom_stock_enabled, custom_stock_qty",
+    customBancaId: params.bancaId,
+  });
+
+  const items = productRows
+    .filter((product) => {
+      const customizacao = customMap.get(product.id);
+      if (customizacao?.enabled === false) return false;
+      const effectiveStock = getEffectiveDistributorStock(product, customizacao);
+      return effectiveStock == null || effectiveStock > 0;
+    })
+    .map((product) => {
+      const customizacao = customMap.get(product.id);
+      const computedPrice = calculateDistributorPrice(product);
+      const finalPrice = customizacao?.custom_price != null ? Number(customizacao.custom_price) : computedPrice;
+      const descriptionBase = typeof product.description === "string" ? product.description : "";
+      const customDescription =
+        typeof customizacao?.custom_description === "string" ? customizacao.custom_description : "";
+
+      return {
+        ...product,
+        source: "distribuidor",
+        source_id: product.id,
+        is_distribuidor: true,
+        locked_by_plan: true,
+        preview_fallback: true,
+        images: ensureProductImages(product.images, params.fallbackImageUrl),
+        price: finalPrice,
+        price_original: customizacao?.custom_price != null ? computedPrice : null,
+        cost_price: Number(product.price || 0),
+        discount_percent:
+          computedPrice > finalPrice && computedPrice > 0
+            ? Math.round(((computedPrice - finalPrice) / computedPrice) * 100)
+            : 0,
+        description: customDescription ? `${descriptionBase}\n\n${customDescription}` : descriptionBase,
+        pronta_entrega: customizacao?.custom_pronta_entrega ?? product.pronta_entrega,
+        sob_encomenda: customizacao?.custom_sob_encomenda ?? product.sob_encomenda,
+        pre_venda: customizacao?.custom_pre_venda ?? product.pre_venda,
+        stock_qty: getEffectiveDistributorStock(product, customizacao) ?? product.stock_qty,
+        active: true,
+      };
+    });
+
+  return {
+    items,
+    totalAvailable: items.length,
+  };
+}
+
 export function formatLegacyProductListItems(products: any[]) {
   return (products || []).map((product) => ({
     id: product.id,

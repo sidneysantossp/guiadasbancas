@@ -9,6 +9,7 @@ import DataTable, { type Column } from "@/components/admin/DataTable";
 import StatusBadge from "@/components/admin/StatusBadge";
 import { useToast } from "@/components/admin/ToastProvider";
 import PlanOverdueCard from "@/components/jornaleiro/PlanOverdueCard";
+import PlanCheckoutModal from "@/components/jornaleiro/PlanCheckoutModal";
 import PlanPendingActivationCard from "@/components/jornaleiro/PlanPendingActivationCard";
 import PlanUpgradeCard from "@/components/jornaleiro/PlanUpgradeCard";
 import JornaleiroPageHeading from "@/components/jornaleiro/JornaleiroPageHeading";
@@ -37,6 +38,8 @@ type ProdutoListItem = {
   updated_at?: string;
   image?: string;
   codigo_mercos?: string;
+  locked_by_plan?: boolean;
+  preview_fallback?: boolean;
 };
 
 type CategoryOption = { id: string; name: string };
@@ -55,6 +58,7 @@ const formatProductPrice = (product: ProdutoListItem) =>
 export default function JornaleiroProdutosPage() {
   const toast = useToast();
   const [bancaName, setBancaName] = useState("");
+  const [distributorEligible, setDistributorEligible] = useState(false);
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<string>("");
   const [status, setStatus] = useState<string>("");
@@ -74,6 +78,7 @@ export default function JornaleiroProdutosPage() {
   const [overdueGraceEndsAt, setOverdueGraceEndsAt] = useState<string | null>(null);
   const [contractedPlanName, setContractedPlanName] = useState<string | null>(null);
   const [marketplaceModuleEnabled, setMarketplaceModuleEnabled] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -96,8 +101,10 @@ export default function JornaleiroProdutosPage() {
         const res = await fetch("/api/jornaleiro/banca", { cache: "no-store" });
         const json = await res.json();
         setBancaName(String(json?.data?.name || "").trim());
+        setDistributorEligible(json?.data?.entitlements?.is_legacy_cotista_linked === true);
       } catch {
         setBancaName("");
+        setDistributorEligible(false);
       }
     };
 
@@ -165,6 +172,8 @@ export default function JornaleiroProdutosPage() {
           updated_at: p.updated_at,
           image: Array.isArray(p.images) && p.images.length ? p.images[0] : undefined,
           codigo_mercos: p.codigo_mercos,
+          locked_by_plan: p.locked_by_plan === true,
+          preview_fallback: p.preview_fallback === true,
         }))
       );
     } catch (e: any) {
@@ -226,6 +235,11 @@ export default function JornaleiroProdutosPage() {
   const productUpgradeHref = "/jornaleiro/dashboard" as Route;
 
   const toggleActive = async (row: ProdutoListItem) => {
+    if (row.locked_by_plan) {
+      setCheckoutOpen(true);
+      return;
+    }
+
     try {
       setSavingId(row.id);
       const res = await fetch(`/api/jornaleiro/products/${encodeURIComponent(row.id)}`, {
@@ -271,6 +285,11 @@ export default function JornaleiroProdutosPage() {
             {r.source === "fornecedor" && marketplaceModuleEnabled ? (
               <div className="mt-1 inline-flex rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-700">
                 Marketplace
+              </div>
+            ) : null}
+            {r.locked_by_plan ? (
+              <div className="mt-1 inline-flex rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-700">
+                Vitrine gratuita
               </div>
             ) : null}
             {r.codigo_mercos && (
@@ -475,6 +494,7 @@ export default function JornaleiroProdutosPage() {
           productLimit={productLimit}
           currentCount={ownProductsCount}
           primaryHref={productUpgradeHref}
+          onPrimaryAction={() => setCheckoutOpen(true)}
         />
       ) : null}
 
@@ -563,15 +583,28 @@ export default function JornaleiroProdutosPage() {
                     Marketplace
                   </Link>
                 ) : null}
-                <Link
-                  href={`/jornaleiro/produtos/${encodeURIComponent(row.id)}` as Route}
-                  className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
-                  title="Editar produto"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </Link>
+                {row.locked_by_plan ? (
+                  <button
+                    type="button"
+                    onClick={() => setCheckoutOpen(true)}
+                    className="flex h-10 w-10 items-center justify-center rounded-md border border-orange-200 p-2 text-orange-700 hover:bg-orange-50"
+                    title="Renovar plano para editar"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </button>
+                ) : (
+                  <Link
+                    href={`/jornaleiro/produtos/${encodeURIComponent(row.id)}` as Route}
+                    className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
+                    title="Editar produto"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </Link>
+                )}
                 <button
                   onClick={() => toggleActive(row)}
                   disabled={savingId === row.id}
@@ -603,15 +636,28 @@ export default function JornaleiroProdutosPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
                 </Link>
-                <Link
-                  href={`/jornaleiro/produtos/${encodeURIComponent(row.id)}` as Route}
-                  className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
-                  title="Editar produto"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </Link>
+                {row.locked_by_plan ? (
+                  <button
+                    type="button"
+                    onClick={() => setCheckoutOpen(true)}
+                    className="flex h-10 w-10 items-center justify-center rounded-md border border-orange-200 p-2 text-orange-700 hover:bg-orange-50"
+                    title="Renovar plano para editar"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </button>
+                ) : (
+                  <Link
+                    href={`/jornaleiro/produtos/${encodeURIComponent(row.id)}` as Route}
+                    className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
+                    title="Editar produto"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </Link>
+                )}
                 <button
                   onClick={() => toggleActive(row)}
                   disabled={savingId === row.id}
@@ -632,6 +678,16 @@ export default function JornaleiroProdutosPage() {
             )}
           </div>
         )}
+      />
+      <PlanCheckoutModal
+        open={checkoutOpen}
+        targetPlanType="premium"
+        bancaName={bancaName}
+        distributorEligible={distributorEligible}
+        onClose={() => setCheckoutOpen(false)}
+        onSuccess={async () => {
+          await Promise.all([fetchRows(), loadPlanUsage()]);
+        }}
       />
     </div>
   );

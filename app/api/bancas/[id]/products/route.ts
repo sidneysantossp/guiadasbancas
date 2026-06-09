@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
+import { listDistributorPreviewFallbackForBanca } from "@/lib/modules/products/service";
 
 // Regex simples para validar UUID v4 (mesmo que o banco aceite outras formas,
 // isso evita erros de sintaxe quando o frontend usa apelidos como "b1", "b2" etc.)
@@ -42,6 +44,12 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
     }
 
     const partnerLinked = banca?.is_cotista === true || Boolean(banca?.cotista_id);
+    const entitlements = await resolveBancaPlanEntitlements({
+      id: banca.id,
+      is_cotista: banca.is_cotista,
+      cotista_id: banca.cotista_id,
+    });
+    const canAccessDistributorCatalog = entitlements.canAccessDistributorCatalog;
 
     if (!canShowMarketplaceCatalog(banca)) {
       return NextResponse.json({
@@ -63,14 +71,16 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
         .is('distribuidor_id', null)
         .eq('active', true)
         .limit(limit),
-      supabaseAdmin
-        .from('products')
-        .select('id, name, price, images, codigo_mercos, banca_id, distribuidor_id, stock_qty')
-        .not('distribuidor_id', 'is', null)
-        .eq('active', true)
-        .gt('stock_qty', 0)
-        .order('name', { ascending: true })
-        .limit(limit),
+      canAccessDistributorCatalog
+        ? supabaseAdmin
+            .from('products')
+            .select('id, name, price, images, codigo_mercos, banca_id, distribuidor_id, stock_qty')
+            .not('distribuidor_id', 'is', null)
+            .eq('active', true)
+            .gt('stock_qty', 0)
+            .order('name', { ascending: true })
+            .limit(limit)
+        : Promise.resolve({ data: [], error: null }),
     ]);
 
     const error = ownError || distributorError;
@@ -80,15 +90,23 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    const products = [...(ownProducts || []), ...(distributorProducts || [])].slice(0, limit);
+    const fallbackDistributorProducts =
+      !canAccessDistributorCatalog && (ownProducts || []).length === 0
+        ? await listDistributorPreviewFallbackForBanca({
+            bancaId,
+            limit: Math.min(10, limit),
+          })
+        : { items: [] };
+
+    const products = [...(ownProducts || []), ...(distributorProducts || []), ...(fallbackDistributorProducts.items || [])].slice(0, limit);
 
     return NextResponse.json({
       success: true,
       banca_id: bancaId,
       is_cotista: partnerLinked,
       partner_linked: partnerLinked,
-      can_access_distributor_catalog: true,
-      partner_catalog_access: true,
+      can_access_distributor_catalog: canAccessDistributorCatalog,
+      partner_catalog_access: canAccessDistributorCatalog,
       items: products,
     });
   } catch (e: any) {

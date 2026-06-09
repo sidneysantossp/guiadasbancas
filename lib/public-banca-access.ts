@@ -1,4 +1,4 @@
-import type { DistribuidorAccessibleBanca } from "@/lib/distribuidor-access";
+import { getDistribuidorAccessibleBancas, type DistribuidorAccessibleBanca } from "@/lib/distribuidor-access";
 import { resolveBancaLifecycle } from "@/lib/jornaleiro-banca-status";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -72,8 +72,8 @@ function toDistributorCatalogBanca(banca: PublishedMarketplaceBanca): Distribuid
 }
 
 export async function getPublishedDistributorCatalogBancas(): Promise<DistribuidorAccessibleBanca[]> {
-  const bancas = await getPublishedMarketplaceBancas();
-  return bancas.map(toDistributorCatalogBanca);
+  const bancas = await getDistribuidorAccessibleBancas();
+  return bancas.filter((banca) => isPublishedMarketplaceBanca(banca));
 }
 
 export type PublishedMarketplaceBanca = PublicBancaVisibilityInput & {
@@ -138,6 +138,5 @@ export async function getActiveMarketplaceBancas(): Promise<PublishedMarketplace
 }
 
 export async function getActiveDistributorCatalogBancas(): Promise<DistribuidorAccessibleBanca[]> {
-  const bancas = await getActiveMarketplaceBancas();
-  return bancas.map(toDistributorCatalogBanca);
+  return getDistribuidorAccessibleBancas();
 }
