@@ -352,8 +352,7 @@ export async function POST(request: NextRequest) {
       name: string;
       email: string | null;
       whatsapp: string | null;
-      cnpj: string | null;
-      cpf: string | null;
+      cotista_cnpj_cpf: string | null;
       is_cotista: boolean | null;
       cotista_id: string | null;
       created_at: string | null;
@@ -363,7 +362,7 @@ export async function POST(request: NextRequest) {
       addressobj?: Record<string, any> | null;
     }>({
       userId: user.id,
-      select: "id, name, email, whatsapp, cnpj, cpf, is_cotista, cotista_id, created_at, address, cep, address_obj, addressobj",
+      select: "id, name, email, whatsapp, cotista_cnpj_cpf, is_cotista, cotista_id, created_at, address, cep, address_obj, addressobj",
     });
 
     if (!banca) {
@@ -448,7 +447,7 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
 
-    const cpfCnpj = digitsOnly(banca.cnpj || banca.cpf || (requesterProfile as any)?.cpf || null);
+    const cpfCnpj = digitsOnly(banca.cotista_cnpj_cpf || (requesterProfile as any)?.cpf || null);
     const billingEmail = banca.email || user.email;
     const structuredAddress =
       (banca.address_obj && typeof banca.address_obj === "object" ? banca.address_obj : null) ||
