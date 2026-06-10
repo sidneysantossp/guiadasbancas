@@ -47,7 +47,7 @@ const SETTINGS_METADATA = {
   premium_launch_price: {
     description: "Preço promocional da oferta de lançamento do Premium",
     is_secret: false,
-    defaultValue: "99.9",
+    defaultValue: "97",
   },
   premium_launch_slots: {
     description: "Quantidade de bancas elegíveis para a oferta de lançamento do Premium",
@@ -585,7 +585,7 @@ export default function AdminConfiguracoesPage() {
                     })
                   }
                   className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
-                  placeholder="99.90"
+                  placeholder="97.00"
                 />
                 <button
                   onClick={() => handleSave("premium_launch_price")}

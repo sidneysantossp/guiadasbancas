@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
-import { loadPrimaryOwnedBanca } from "@/lib/modules/jornaleiro/access";
+import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 import { ensureDefaultPremiumPlan } from "@/lib/banca-subscription";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import {
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
-    const { data: banca, error: bancaError } = await loadPrimaryOwnedBanca<{
+    const banca = await loadActiveJornaleiroBancaRow<{
       id: string;
       is_cotista: boolean | null;
       cotista_id: string | null;
@@ -43,10 +43,6 @@ export async function GET(request: NextRequest) {
       userId: user.id,
       select: "id, is_cotista, cotista_id, created_at",
     });
-
-    if (bancaError) {
-      console.error("[API/JORNALEIRO/PLANS] Erro ao buscar banca:", bancaError);
-    }
 
     const [paidPlanTrialDays, paidPlanTrialAlreadyUsed, entitlements] = banca?.id
       ? await Promise.all([

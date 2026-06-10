@@ -27,7 +27,7 @@ import {
 } from "@/lib/subscription-billing";
 import { getAuthenticatedRequestUser } from "@/lib/modules/auth/request-user";
 import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
-import { loadPrimaryOwnedBanca } from "@/lib/modules/jornaleiro/access";
+import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 import { RECURRING_BILLING_ENABLED } from "@/lib/jornaleiro-billing";
 import { supabaseAdmin } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { data: banca, error: bancaError } = await loadPrimaryOwnedBanca<{
+    const banca = await loadActiveJornaleiroBancaRow<{
       id: string;
       name: string;
       email: string | null;
@@ -192,10 +192,6 @@ export async function GET(request: NextRequest) {
     });
 
     if (!banca) {
-      if (bancaError) {
-        console.error("[API/JORNALEIRO/SUBSCRIPTION] GET banca error:", bancaError);
-      }
-
       return NextResponse.json(
         { success: false, error: "Banca não encontrada" },
         { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
@@ -351,7 +347,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: banca, error: bancaError } = await loadPrimaryOwnedBanca<{
+    const banca = await loadActiveJornaleiroBancaRow<{
       id: string;
       name: string;
       email: string | null;
@@ -371,10 +367,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (!banca) {
-      if (bancaError) {
-        console.error("[API/JORNALEIRO/SUBSCRIPTION] POST banca error:", bancaError);
-      }
-
       return NextResponse.json(
         { success: false, error: "Banca não encontrada" },
         { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }
@@ -754,7 +746,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const { data: banca, error: bancaError } = await loadPrimaryOwnedBanca<{
+    const banca = await loadActiveJornaleiroBancaRow<{
       id: string;
       name: string;
       email: string | null;
@@ -764,10 +756,6 @@ export async function DELETE(request: NextRequest) {
     });
 
     if (!banca) {
-      if (bancaError) {
-        console.error("[API/JORNALEIRO/SUBSCRIPTION] DELETE banca error:", bancaError);
-      }
-
       return NextResponse.json(
         { success: false, error: "Banca não encontrada" },
         { status: 404, headers: buildNoStoreHeaders({ isPrivate: true }) }

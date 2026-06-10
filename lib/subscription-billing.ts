@@ -8,7 +8,7 @@ const PAID_PLAN_TRIAL_CLAIMS_KEY = "paid_plan_trial_claimed_bancas_v1";
 const SUBSCRIPTION_BINDINGS_KEY = "asaas_subscription_bindings_v1";
 const SUBSCRIPTION_PRICING_OVERRIDES_KEY = "banca_subscription_pricing_overrides_v1";
 
-const DEFAULT_PREMIUM_LAUNCH_PRICE = 99.9;
+const DEFAULT_PREMIUM_LAUNCH_PRICE = 97;
 const DEFAULT_PREMIUM_LAUNCH_SLOTS = 100;
 const DEFAULT_PAID_PLAN_TRIAL_DAYS = 30;
 

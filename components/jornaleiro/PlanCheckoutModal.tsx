@@ -145,6 +145,8 @@ export default function PlanCheckoutModal(props: Props) {
               <div className="grid gap-3">
                 {plans.map((plan) => {
                   const effectivePrice = Number(plan.effective_price ?? plan.price ?? 0);
+                  const originalPrice = Number(plan.original_price ?? plan.price ?? 0);
+                  const hasPromotion = originalPrice > effectivePrice;
                   const selected = selectedPlanId === plan.id;
                   return (
                     <button
@@ -170,6 +172,11 @@ export default function PlanCheckoutModal(props: Props) {
                           ) : null}
                         </div>
                         <div className="text-right">
+                          {hasPromotion ? (
+                            <div className="text-sm text-gray-500">
+                              De <span className="line-through">{money(originalPrice)}</span>
+                            </div>
+                          ) : null}
                           <div className="text-lg font-semibold text-gray-900">{money(effectivePrice)}</div>
                           <div className="text-xs text-gray-500">por mês</div>
                         </div>
