@@ -770,7 +770,26 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
 
   return (
     <ToastProvider>
-      <div className="min-h-screen bg-gray-50">
+      <div className={`min-h-screen bg-gray-50 ${shouldShowTrialEndedBanner ? "pt-36 sm:pt-16" : ""}`}>
+        {shouldShowTrialEndedBanner ? (
+          <div className="fixed inset-x-0 top-0 z-[70] border-b border-orange-300 bg-[#ff7a1a] text-white shadow-md">
+            <div className="flex min-h-16 flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div className="min-w-0 font-medium">
+                {isDistributorEligible
+                  ? "Seu Periodo de Avaliação terminou. Volte a exibir os +4000 Produtos no perfil de sua banca ou continue com o Plano gratuito de 10 Produtos."
+                  : "Seu Periodo de Avaliação terminou. Amplie o catálogo da sua banca ou continue com o Plano gratuito de 10 Produtos."}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCheckoutOpen(true)}
+                className="inline-flex shrink-0 items-center justify-center rounded-md bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-[#c94b00] shadow-sm transition hover:bg-orange-50"
+              >
+                Renovar meu plano
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <header className="bg-white border-b border-gray-200 shadow-sm">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center">
@@ -854,28 +873,11 @@ export default function JornaleiroLayoutClient({ children }: { children: React.R
           </div>
         </header>
 
-        {shouldShowTrialEndedBanner ? (
-          <div className="sticky top-0 z-30 border-b border-orange-300 bg-[#ff7a1a] text-white shadow-sm">
-            <div className="flex flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0 font-medium">
-                {isDistributorEligible
-                  ? "Seu Periodo de Avaliação terminou. Volte a exibir os +4000 Produtos no perfil de sua banca ou continue com o Plano gratuito de 10 Produtos."
-                  : "Seu Periodo de Avaliação terminou. Amplie o catálogo da sua banca ou continue com o Plano gratuito de 10 Produtos."}
-              </div>
-              <button
-                type="button"
-                onClick={() => setCheckoutOpen(true)}
-                className="inline-flex shrink-0 items-center justify-center rounded-md bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-[#c94b00] shadow-sm transition hover:bg-orange-50"
-              >
-                Renovar meu plano
-              </button>
-            </div>
-          </div>
-        ) : null}
-
         <div className="flex">
           <aside
-            className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-60 bg-[#334257] border-r border-gray-200 transition-transform duration-300 ease-in-out`}
+            className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${
+              shouldShowTrialEndedBanner ? "top-36 sm:top-16" : "top-0"
+            } fixed bottom-0 left-0 z-40 w-60 border-r border-gray-200 bg-[#334257] transition-transform duration-300 ease-in-out lg:static lg:translate-x-0`}
           >
             <div className="flex h-full flex-col">
               <div className="border-b border-white/10 p-4 lg:hidden">

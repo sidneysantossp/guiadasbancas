@@ -406,11 +406,13 @@ export async function resolveBancaPlanEntitlements(banca: BancaPlanContext): Pro
     hasFeature(features, [/distribuidor/i, /parceir/i]);
 
   const planIncludesDistributorCatalog =
-    isLegacyCotistaLinked &&
+    accessPlanType === "premium" ||
     (
-      accessPlanType === "premium" ||
-      Boolean(limits.distributor_catalog) ||
-      hasFeature(features, [/cat[aá]logo/i, /distribuidor/i, /fornecedor/i])
+      isLegacyCotistaLinked &&
+      (
+        Boolean(limits.distributor_catalog) ||
+        hasFeature(features, [/cat[aá]logo/i, /distribuidor/i, /fornecedor/i])
+      )
     );
 
   const canAccessCampaigns = resolveBooleanAccess({

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { validateProductCreate } from "@/lib/validators/product";
 import ProductImageUploader from "@/components/admin/ProductImageUploader";
-import VideoTutorial from "@/components/admin/VideoTutorial";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import SpecificationsEditor from "@/components/admin/SpecificationsEditor";
 import { useToast } from "@/components/admin/ToastProvider";
@@ -311,13 +310,6 @@ export default function SellerProductCreatePage() {
         </div>
 
         <div className="space-y-3">
-          {/* Tutorial em vídeo */}
-          <VideoTutorial 
-            title="Como Cadastrar um Produto"
-            videoId="dQw4w9WgXcQ"
-            description="Aprenda passo a passo como adicionar produtos à sua banca"
-          />
-          
           <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
             {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
             <div>

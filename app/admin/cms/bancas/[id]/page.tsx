@@ -10,6 +10,15 @@ import { fetchViaCEP } from "@/lib/viacep";
 import ImageUploadDragDrop from "@/components/admin/ImageUploadDragDrop";
 import FileUploadDragDrop from "@/components/common/FileUploadDragDrop";
 
+type AdminPlanState = {
+  plan_type: string;
+  plan_name: string;
+  premium_active: boolean;
+  distributor_catalog_enabled: boolean;
+  subscription_status: string | null;
+  manual_grant: boolean;
+};
+
 export default function EditBancaPage() {
   const router = useRouter();
   const params = useParams();
@@ -63,6 +72,10 @@ export default function EditBancaPage() {
   const [featured, setFeatured] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [loadingCep, setLoadingCep] = useState(false);
+  const [planState, setPlanState] = useState<AdminPlanState | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [planSuccess, setPlanSuccess] = useState<string | null>(null);
     // Dono da banca (jornaleiro) e reset de senha (admin)
   const [ownerEmail, setOwnerEmail] = useState<string>("");
   const [resetPwd, setResetPwd] = useState<string>("");
@@ -76,6 +89,19 @@ export default function EditBancaPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState<string>("");
 
   const selectAllCategoriesRef = useRef<HTMLInputElement | null>(null);
+
+  const loadPlanState = async () => {
+    const response = await fetchAdminWithDevFallback(`/api/admin/bancas/${bancaId}/plan`, {
+      cache: "no-store",
+    });
+    const json = await response.json().catch(() => ({}));
+
+    if (!response.ok || !json?.success) {
+      throw new Error(json?.error || "Erro ao carregar plano da banca");
+    }
+
+    setPlanState(json.data || null);
+  };
 
   // Estados brasileiros
   const estados = [
@@ -169,6 +195,11 @@ export default function EditBancaPage() {
           if (banca.tpu_url) setTpuUrl(banca.tpu_url);
           // Email do jornaleiro (proprietário) quando disponível
           if (banca.ownerEmail) setOwnerEmail(String(banca.ownerEmail));
+          try {
+            await loadPlanState();
+          } catch (planLoadError: any) {
+            setPlanError(planLoadError?.message || "Erro ao carregar plano da banca");
+          }
         } else {
           setError("Banca não encontrada");
         }
@@ -324,6 +355,44 @@ export default function EditBancaPage() {
       setDeleteLoading(false);
       setShowDeleteConfirm(false);
       setDeleteConfirmText('');
+    }
+  };
+
+  const handlePlanAction = async (action: "grant_premium" | "revoke_premium") => {
+    const granting = action === "grant_premium";
+    const confirmed = window.confirm(
+      granting
+        ? "Conceder o Plano Premium manualmente? Eventual cobrança recorrente vinculada será cancelada."
+        : "Remover o Premium manual e retornar esta banca ao Plano Free?"
+    );
+    if (!confirmed) return;
+
+    setPlanLoading(true);
+    setPlanError(null);
+    setPlanSuccess(null);
+
+    try {
+      const response = await fetchAdminWithDevFallback(`/api/admin/bancas/${bancaId}/plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const json = await response.json().catch(() => ({}));
+
+      if (!response.ok || !json?.success) {
+        throw new Error(json?.error || "Erro ao atualizar plano da banca");
+      }
+
+      setPlanState(json.data || null);
+      setPlanSuccess(
+        granting
+          ? "Plano Premium concedido. Todos os catálogos foram liberados para esta banca."
+          : "Plano Premium removido. A banca retornou ao Plano Free."
+      );
+    } catch (planActionError: any) {
+      setPlanError(planActionError?.message || "Erro ao atualizar plano da banca");
+    } finally {
+      setPlanLoading(false);
     }
   };
 
@@ -872,6 +941,56 @@ export default function EditBancaPage() {
                   <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${featured ? 'transform translate-x-4' : ''}`}></div>
                 </div>
               </label>
+
+              <div className="md:col-span-2 rounded-lg border border-orange-200 bg-orange-50/60 p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-gray-900">Plano da banca</span>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          planState?.premium_active
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-gray-200 text-gray-700"
+                        }`}
+                      >
+                        {planState?.plan_name || "Carregando..."}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-600">
+                      O Premium manual libera todos os catálogos e recursos pagos sem gerar cobrança.
+                    </p>
+                    {planState?.premium_active ? (
+                      <p className="mt-1 text-xs font-medium text-emerald-700">
+                        Catálogos de distribuidores liberados
+                        {planState.manual_grant ? " por concessão administrativa." : "."}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handlePlanAction(planState?.premium_active ? "revoke_premium" : "grant_premium")
+                    }
+                    disabled={planLoading || !planState}
+                    className={`shrink-0 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                      planState?.premium_active
+                        ? "bg-gray-700 hover:bg-gray-800"
+                        : "bg-[#ff5c00] hover:bg-[#e65300]"
+                    }`}
+                  >
+                    {planLoading
+                      ? "Atualizando..."
+                      : planState?.premium_active
+                        ? "Retornar ao Free"
+                        : "Conceder Premium"}
+                  </button>
+                </div>
+
+                {planError ? <p className="mt-3 text-sm font-medium text-red-600">{planError}</p> : null}
+                {planSuccess ? <p className="mt-3 text-sm font-medium text-emerald-700">{planSuccess}</p> : null}
+              </div>
             </div>
           </div>
 
