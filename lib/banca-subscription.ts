@@ -144,7 +144,7 @@ export async function ensureDefaultPremiumPlan(): Promise<PlanRecord | null> {
     slug: "premium",
     description: "Plano premium por banca com distribuidores, campanhas, publi editorial, destaque e suporte prioritário.",
     type: "premium",
-    price: 149,
+    price: 97,
     billing_cycle: "monthly",
     features: [
       "Campanhas",
