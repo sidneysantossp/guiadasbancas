@@ -78,6 +78,10 @@ function tokenPathFor(environment: CoraEnvironment) {
   return environment === "production" ? "/token" : "/oauth/token";
 }
 
+function invoicePathFor() {
+  return "/v2/invoices";
+}
+
 async function readSettings(keys: string[]) {
   const { data, error } = await supabaseAdmin
     .from("system_settings")
@@ -303,12 +307,12 @@ export async function createCoraInvoice(input: CoraInvoiceInput): Promise<CoraIn
   const token = await getCoraAccessToken(config);
   const payload = buildInvoicePayload(input);
 
-  const data = await requestJson<any>(config, "/invoices/", {
+  const data = await requestJson<any>(config, invoicePathFor(), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
-      "Idempotency-Key": input.externalReference || payload.code || randomUUID(),
+      "Idempotency-Key": randomUUID(),
     },
     body: JSON.stringify(payload),
   });
