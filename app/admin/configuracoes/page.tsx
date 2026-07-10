@@ -174,6 +174,10 @@ export default function AdminConfiguracoesPage() {
     0
   );
   const marketplaceEnabled = editValues[JORNALEIRO_MARKETPLACE_SETTING_KEY] === "true";
+  const isSecretConfigured = (key: string) => {
+    const setting = settings.find((item) => item.key === key);
+    return Boolean(setting?.is_secret && setting.value);
+  };
 
   const handleSave = async (key: string, overrideValue?: string) => {
     if (overrideValue === undefined && !editValues[key] && settings.find(s => s.key === key)?.is_secret) {
@@ -631,6 +635,11 @@ export default function AdminConfiguracoesPage() {
                   {saving === "cora_client_id" ? "Salvando..." : "Salvar"}
                 </button>
               </div>
+              <p className="mt-2 text-xs text-gray-500">
+                {isSecretConfigured("cora_client_id")
+                  ? "Client ID já salvo. Preencha novamente apenas para substituir."
+                  : "Client ID ainda não configurado."}
+              </p>
             </div>
 
             <div>
@@ -650,6 +659,11 @@ export default function AdminConfiguracoesPage() {
               >
                 {saving === "cora_certificate" ? "Salvando..." : "Salvar certificado"}
               </button>
+              <p className="mt-2 text-xs text-gray-500">
+                {isSecretConfigured("cora_certificate")
+                  ? "Certificado já salvo. O conteúdo não é reexibido por segurança."
+                  : "Certificado ainda não configurado."}
+              </p>
             </div>
 
             <div>
@@ -669,6 +683,11 @@ export default function AdminConfiguracoesPage() {
               >
                 {saving === "cora_private_key" ? "Salvando..." : "Salvar private key"}
               </button>
+              <p className="mt-2 text-xs text-gray-500">
+                {isSecretConfigured("cora_private_key")
+                  ? "Private key já salva. O conteúdo não é reexibido por segurança."
+                  : "Private key ainda não configurada."}
+              </p>
             </div>
           </div>
 
@@ -700,6 +719,9 @@ export default function AdminConfiguracoesPage() {
               </button>
             </div>
             <p className="mt-2 text-xs text-gray-500">
+              {isSecretConfigured("cora_webhook_token")
+                ? "Token de webhook já salvo. Preencha novamente apenas para substituir."
+                : "Token de webhook ainda não configurado."}{" "}
               Configure a Cora para chamar <code>/api/webhooks/cora</code> enviando este token em <code>Authorization: Bearer</code> ou <code>x-cora-token</code>.
             </p>
           </div>
