@@ -167,7 +167,16 @@ function requestJson<T>(
           const data = text ? safeJson(text) : {};
 
           if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
+            const validationErrors = Array.isArray(data?.errors)
+              ? data.errors
+                  .map((item: any) => {
+                    const code = item?.code ? `${item.code}: ` : "";
+                    return `${code}${item?.message || "parâmetro inválido"}`;
+                  })
+                  .join("; ")
+              : "";
             const message =
+              validationErrors ||
               data?.message ||
               data?.error_description ||
               data?.error ||
@@ -235,37 +244,53 @@ function documentType(document?: string | null) {
   return digits.length > 11 ? "CNPJ" : "CPF";
 }
 
+function validateDocument(document?: string | null) {
+  const digits = String(document || "").replace(/\D/g, "");
+  if (!digits) {
+    throw new Error("Informe CPF ou CNPJ da banca antes de pagar com PIX.");
+  }
+
+  if (digits.length !== 11 && digits.length !== 14) {
+    throw new Error("CPF ou CNPJ da banca inválido. Verifique o cadastro antes de pagar com PIX.");
+  }
+
+  return digits;
+}
+
 function toCents(value: number) {
   return Math.round(Number(value || 0) * 100);
 }
 
 function buildInvoicePayload(input: CoraInvoiceInput) {
-  const document = String(input.customer.document || "").replace(/\D/g, "");
+  const document = validateDocument(input.customer.document);
   const address = input.customer.address || {};
+  const zipCode = String(address.zipCode || "").replace(/\D/g, "");
+  const addressPayload =
+    zipCode.length === 8
+      ? {
+          address: {
+            street: address.street || "Nao informado",
+            number: address.number || "S/N",
+            district: address.district || "Nao informado",
+            city: address.city || "Nao informado",
+            state: address.state || "SP",
+            zip_code: zipCode,
+            complement: address.complement || undefined,
+          },
+        }
+      : {};
 
   return {
     code: input.code || input.externalReference || randomUUID(),
     customer: {
       name: input.customer.name,
       email: input.customer.email,
-      ...(document
-        ? {
-            document: {
-              identity: document,
-              type: documentType(document),
-            },
-          }
-        : {}),
-      ...(input.customer.phone ? { phone: String(input.customer.phone).replace(/\D/g, "") } : {}),
-      address: {
-        street: address.street || "Nao informado",
-        number: address.number || "S/N",
-        district: address.district || "Nao informado",
-        city: address.city || "Nao informado",
-        state: address.state || "SP",
-        zip_code: String(address.zipCode || "").replace(/\D/g, ""),
-        complement: address.complement || undefined,
+      document: {
+        identity: document,
+        type: documentType(document),
       },
+      ...(input.customer.phone ? { phone: String(input.customer.phone).replace(/\D/g, "") } : {}),
+      ...addressPayload,
     },
     services: [
       {
