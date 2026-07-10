@@ -68,6 +68,12 @@ function shouldUseLegacySettings(error: any): boolean {
   );
 }
 
+function isRlsViolation(error: any): boolean {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "");
+  return code === "42501" || /row-level security policy/i.test(message);
+}
+
 function normalizeBindingRow(row: any): SubscriptionBinding {
   return {
     localSubscriptionId: row.subscription_id,
@@ -178,6 +184,18 @@ async function writeSetting(key: string, value: string, description: string): Pr
   }
 }
 
+async function writeLegacySettingBestEffort(key: string, value: string, description: string): Promise<void> {
+  try {
+    await writeSetting(key, value, description);
+  } catch (error) {
+    if (!isRlsViolation(error)) {
+      throw error;
+    }
+
+    console.warn(`[subscription-billing] Ignorando espelho legado em system_settings bloqueado por RLS: ${key}`);
+  }
+}
+
 async function readBindings(): Promise<SubscriptionBindingsMap> {
   const raw = await readSetting(SUBSCRIPTION_BINDINGS_KEY);
   const parsed = safeParseJson<SubscriptionBindingsMap>(raw, {});
@@ -185,7 +203,7 @@ async function readBindings(): Promise<SubscriptionBindingsMap> {
 }
 
 async function writeBindings(bindings: SubscriptionBindingsMap): Promise<void> {
-  await writeSetting(
+  await writeLegacySettingBestEffort(
     SUBSCRIPTION_BINDINGS_KEY,
     JSON.stringify(bindings),
     "Mapeamento local entre assinaturas do Asaas e subscriptions da plataforma"
@@ -199,7 +217,7 @@ async function readPricingOverrides(): Promise<PricingOverridesMap> {
 }
 
 async function writePricingOverrides(overrides: PricingOverridesMap): Promise<void> {
-  await writeSetting(
+  await writeLegacySettingBestEffort(
     SUBSCRIPTION_PRICING_OVERRIDES_KEY,
     JSON.stringify(overrides),
     "Preço contratado por banca para assinaturas recorrentes"
@@ -257,7 +275,7 @@ async function writePremiumLaunchClaims(bancaIds: string[]): Promise<void> {
     throw new Error(deleteError.message);
   }
 
-  await writeSetting(
+  await writeLegacySettingBestEffort(
     PREMIUM_LAUNCH_CLAIMS_KEY,
     JSON.stringify(uniqueBancaIds),
     "Lista de bancas que garantiram a oferta de lançamento do Premium"
@@ -317,7 +335,7 @@ async function writePaidPlanTrialClaims(bancaIds: string[]): Promise<void> {
     throw new Error(deleteError.message);
   }
 
-  await writeSetting(
+  await writeLegacySettingBestEffort(
     PAID_PLAN_TRIAL_CLAIMS_KEY,
     JSON.stringify(uniqueBancaIds),
     "Lista de bancas que já utilizaram o período de degustação dos planos pagos"
@@ -427,7 +445,7 @@ export async function claimPremiumLaunchOffer(bancaId: string): Promise<{ claime
     claims.push(bancaId);
     await writePremiumLaunchClaims(claims);
   } else {
-    await writeSetting(
+    await writeLegacySettingBestEffort(
       PREMIUM_LAUNCH_CLAIMS_KEY,
       JSON.stringify(Array.from(new Set([...claims, bancaId]))),
       "Lista de bancas que garantiram a oferta de lançamento do Premium"
@@ -507,7 +525,7 @@ export async function claimPaidPlanTrial(bancaId: string): Promise<{ claimedNow:
     claims.push(bancaId);
     await writePaidPlanTrialClaims(claims);
   } else {
-    await writeSetting(
+    await writeLegacySettingBestEffort(
       PAID_PLAN_TRIAL_CLAIMS_KEY,
       JSON.stringify(Array.from(new Set([...claims, bancaId]))),
       "Lista de bancas que já utilizaram o período de degustação dos planos pagos"
@@ -577,7 +595,11 @@ export async function saveBancaPricingOverride(override: BancaPricingOverride): 
       { onConflict: "banca_id" }
     );
 
-  if (error && !shouldUseLegacySettings(error)) {
+  if (!error) {
+    return;
+  }
+
+  if (!shouldUseLegacySettings(error)) {
     throw new Error(error.message);
   }
 
