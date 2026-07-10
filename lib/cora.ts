@@ -188,6 +188,18 @@ function safeJson(text: string) {
   }
 }
 
+function explainCoraError(message: string) {
+  if (message === "invalid_client") {
+    return (
+      "Cora recusou as credenciais com invalid_client. " +
+      "Confira se o Client ID pertence ao mesmo ambiente selecionado e ao mesmo certificado/private key cadastrados na Cora. " +
+      "O token de webhook não é usado no teste de conexão."
+    );
+  }
+
+  return message;
+}
+
 async function getCoraAccessToken(config: CoraConfig): Promise<string> {
   const body = new URLSearchParams({
     grant_type: "client_credentials",
@@ -307,7 +319,13 @@ export async function createCoraInvoice(input: CoraInvoiceInput): Promise<CoraIn
 
 export async function testCoraConnection() {
   const config = await getCoraConfig();
-  await getCoraAccessToken(config);
+  try {
+    await getCoraAccessToken(config);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(explainCoraError(message));
+  }
+
   return {
     success: true,
     environment: config.environment,
