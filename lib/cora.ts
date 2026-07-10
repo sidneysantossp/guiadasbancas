@@ -1,6 +1,7 @@
 import https from "node:https";
 import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isValidBrazilianDocument } from "@/lib/documents";
 
 export type CoraEnvironment = "stage" | "production";
 
@@ -251,6 +252,10 @@ function validateDocument(document?: string | null) {
   }
 
   if (digits.length !== 11 && digits.length !== 14) {
+    throw new Error("CPF ou CNPJ da banca inválido. Verifique o cadastro antes de pagar com PIX.");
+  }
+
+  if (!isValidBrazilianDocument(digits)) {
     throw new Error("CPF ou CNPJ da banca inválido. Verifique o cadastro antes de pagar com PIX.");
   }
 

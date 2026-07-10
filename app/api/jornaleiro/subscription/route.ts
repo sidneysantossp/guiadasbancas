@@ -31,6 +31,7 @@ import { buildNoStoreHeaders } from "@/lib/modules/http/no-store";
 import { loadActiveJornaleiroBancaRow } from "@/lib/modules/jornaleiro/bancas";
 import { RECURRING_BILLING_ENABLED } from "@/lib/jornaleiro-billing";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isValidBrazilianDocument, normalizeBrazilianDocument } from "@/lib/documents";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -53,6 +54,17 @@ function extractRemoteIp(request: NextRequest): string {
 
 function digitsOnly(value: string | null | undefined) {
   return String(value || "").replace(/\D/g, "");
+}
+
+function pickValidBrazilianDocument(...values: Array<string | null | undefined>) {
+  for (const value of values) {
+    const document = normalizeBrazilianDocument(value || "");
+    if (document && isValidBrazilianDocument(document)) {
+      return document;
+    }
+  }
+
+  return "";
 }
 
 async function readPaymentGateway(): Promise<"asaas" | "cora"> {
@@ -368,6 +380,8 @@ export async function POST(request: NextRequest) {
       email: string | null;
       whatsapp: string | null;
       cotista_cnpj_cpf: string | null;
+      cpf?: string | null;
+      cnpj?: string | null;
       is_cotista: boolean | null;
       cotista_id: string | null;
       created_at: string | null;
@@ -377,7 +391,7 @@ export async function POST(request: NextRequest) {
       addressobj?: Record<string, any> | null;
     }>({
       userId: user.id,
-      select: "id, name, email, whatsapp, cotista_cnpj_cpf, is_cotista, cotista_id, created_at, address, cep, address_obj, addressobj",
+      select: "id, name, email, whatsapp, cotista_cnpj_cpf, cpf, cnpj, is_cotista, cotista_id, created_at, address, cep, address_obj, addressobj",
     });
 
     if (!banca) {
@@ -462,7 +476,32 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
 
-    const cpfCnpj = digitsOnly(banca.cotista_cnpj_cpf || (requesterProfile as any)?.cpf || null);
+    const { data: linkedCotista } = banca.cotista_id
+      ? await supabaseAdmin
+          .from("cotistas")
+          .select("razao_social, cnpj_cpf")
+          .eq("id", banca.cotista_id)
+          .maybeSingle()
+      : { data: null };
+
+    const cpfCnpj = pickValidBrazilianDocument(
+      banca.cotista_cnpj_cpf,
+      banca.cnpj,
+      banca.cpf,
+      (requesterProfile as any)?.cpf,
+      (linkedCotista as any)?.cnpj_cpf
+    );
+    const hasAnyCpfCnpj = Boolean(
+      digitsOnly(banca.cotista_cnpj_cpf) ||
+        digitsOnly(banca.cnpj) ||
+        digitsOnly(banca.cpf) ||
+        digitsOnly((requesterProfile as any)?.cpf) ||
+        digitsOnly((linkedCotista as any)?.cnpj_cpf)
+    );
+    const billingName =
+      String((requesterProfile as any)?.full_name || "").trim() ||
+      String((linkedCotista as any)?.razao_social || "").trim() ||
+      banca.name;
     const billingEmail = banca.email || user.email;
     const structuredAddress =
       (banca.address_obj && typeof banca.address_obj === "object" ? banca.address_obj : null) ||
@@ -471,6 +510,18 @@ export async function POST(request: NextRequest) {
     if (!billingEmail) {
       return NextResponse.json(
         { success: false, error: "Defina um email da banca antes de contratar um plano." },
+        { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+      );
+    }
+
+    if (!cpfCnpj) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: hasAnyCpfCnpj
+            ? "O CPF/CNPJ cadastrado no perfil do jornaleiro ou na banca é inválido. Atualize o cadastro antes de pagar com PIX."
+            : "Cadastre o CPF ou CNPJ do jornaleiro antes de pagar com PIX.",
+        },
         { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
       );
     }
@@ -518,9 +569,9 @@ export async function POST(request: NextRequest) {
           code: externalReference,
           externalReference,
           customer: {
-            name: banca.name,
+            name: billingName,
             email: billingEmail,
-            document: cpfCnpj || null,
+            document: cpfCnpj,
             phone: banca.whatsapp || (requesterProfile as any)?.phone || null,
             address: {
               street: structuredAddress?.street || banca.address || null,
