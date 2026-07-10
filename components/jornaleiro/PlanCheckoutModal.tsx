@@ -28,7 +28,6 @@ const money = (value: number) =>
 export default function PlanCheckoutModal(props: Props) {
   const [plans, setPlans] = useState<PlanOption[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
-  const [billingType, setBillingType] = useState("PIX");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -85,7 +84,7 @@ export default function PlanCheckoutModal(props: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           plan_id: selectedPlan.id,
-          billing_type: billingType,
+          billing_type: "PIX",
         }),
       });
       const json = await response.json();
@@ -188,19 +187,12 @@ export default function PlanCheckoutModal(props: Props) {
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">Forma de pagamento</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {["PIX", "BOLETO"].map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setBillingType(type)}
-                      className={`rounded-md border px-3 py-2 text-sm font-medium ${
-                        billingType === type ? "border-[#ff5c00] bg-orange-50 text-orange-700" : "border-gray-200 text-gray-700"
-                      }`}
-                    >
-                      {type === "BOLETO" ? "Boleto" : "PIX"}
-                    </button>
-                  ))}
+                <div className="flex min-h-[96px] items-center justify-center rounded-lg border border-[#ff5c00] bg-orange-50 px-6 py-4">
+                  <img
+                    src="/images/payments/pix-banco-central.png"
+                    alt="PIX powered by Banco Central"
+                    className="h-auto max-h-16 w-auto max-w-[260px] object-contain"
+                  />
                 </div>
               </div>
             </>
@@ -250,7 +242,7 @@ export default function PlanCheckoutModal(props: Props) {
             disabled={loading || submitting || !selectedPlan || plans.length === 0}
             className="rounded-md bg-[#ff5c00] px-4 py-2 text-sm font-semibold text-white hover:bg-[#e65300] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? "Gerando cobrança..." : "Renovar meu plano"}
+            {submitting ? "Gerando cobrança..." : "PAGAR AGORA"}
           </button>
         </div>
       </div>
