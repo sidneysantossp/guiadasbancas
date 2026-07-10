@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminAuth } from "@/lib/security/admin-auth";
 import { supabaseAdmin } from '@/lib/supabase';
+import { uploadImage } from '@/lib/image-storage';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -110,34 +111,30 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // Upload da imagem para Supabase Storage
+        // Upload da imagem para o storage configurado
         const fileExt = fileName.split('.').pop();
         const filePath = `bancas/${codigoMercos}_${Date.now()}.${fileExt}`;
 
-        const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-          .from('images')
-          .upload(filePath, file, {
+        let uploadResult;
+        try {
+          uploadResult = await uploadImage({
+            path: filePath,
+            body: file,
             contentType: file.type,
             upsert: false
           });
-
-        if (uploadError) {
+        } catch (uploadError) {
           results.errors.push({
             file: fileName,
             codigo: codigoMercos,
-            error: `Erro no upload: ${uploadError.message}`
+            error: `Erro no upload: ${uploadError instanceof Error ? uploadError.message : String(uploadError)}`
           });
           continue;
         }
 
-        // Gerar URL pública da imagem
-        const { data: { publicUrl } } = supabaseAdmin.storage
-          .from('images')
-          .getPublicUrl(filePath);
-
         // Atualizar produto com a imagem
         const currentImages = Array.isArray(produto.images) ? produto.images : [];
-        const updatedImages = [publicUrl, ...currentImages];
+        const updatedImages = [uploadResult.url, ...currentImages];
 
         const { error: updateError } = await supabaseAdmin
           .from('products')
@@ -161,7 +158,7 @@ export async function POST(req: NextRequest) {
           codigo: codigoMercos,
           produtoId: produto.id,
           produtoNome: produto.name,
-          imageUrl: publicUrl
+          imageUrl: uploadResult.url
         });
 
       } catch (error: any) {

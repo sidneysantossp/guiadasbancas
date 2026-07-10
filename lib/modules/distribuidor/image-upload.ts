@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { uploadImage } from "@/lib/image-storage";
 
 export const DISTRIBUIDOR_UPLOAD_MAX_FILE_SIZE = 4 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]);
@@ -285,26 +286,25 @@ export async function processDistribuidorImageUploads(params: {
       const fileExt = file.name.split(".").pop();
       const filePath = `distribuidores/${params.distribuidorId}/${codigoMercos}_${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabaseAdmin.storage.from("images").upload(filePath, file, {
-        contentType: file.type,
-        upsert: false,
-      });
-
-      if (uploadError) {
+      let uploadResult;
+      try {
+        uploadResult = await uploadImage({
+          path: filePath,
+          body: file,
+          contentType: file.type,
+          upsert: false,
+        });
+      } catch (uploadError) {
         results.errors.push({
           file: file.name,
           codigo: codigoMercos,
-          error: `Erro no upload: ${uploadError.message}`,
+          error: `Erro no upload: ${uploadError instanceof Error ? uploadError.message : String(uploadError)}`,
         });
         continue;
       }
 
-      const {
-        data: { publicUrl },
-      } = supabaseAdmin.storage.from("images").getPublicUrl(filePath);
-
       const currentImages = Array.isArray(produto.images) ? produto.images : [];
-      const updatedImages = [publicUrl, ...currentImages];
+      const updatedImages = [uploadResult.url, ...currentImages];
 
       const { error: updateError } = await supabaseAdmin
         .from("products")
@@ -328,7 +328,7 @@ export async function processDistribuidorImageUploads(params: {
         codigo: codigoMercos,
         produtoId: produto.id,
         produtoNome: produto.name,
-        imageUrl: publicUrl,
+        imageUrl: uploadResult.url,
       });
     } catch (error: any) {
       results.errors.push({

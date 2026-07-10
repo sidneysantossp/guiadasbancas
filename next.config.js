@@ -101,6 +101,11 @@ const nextConfig = {
       },
       {
         protocol: 'https',
+        hostname: '*.r2.dev',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
         hostname: 'arquivos.mercos.com',
         pathname: '/**',
       },

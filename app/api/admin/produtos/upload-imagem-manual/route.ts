@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAdminAuth } from '@/lib/security/admin-auth';
+import { uploadImage } from '@/lib/image-storage';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Fazer upload da imagem para o Supabase Storage
+    // Fazer upload da imagem para o storage configurado
     const timestamp = Date.now();
     const ext = file.name.split('.').pop() || 'jpg';
     const productCode = produto.codigo_mercos || produto.mercos_id || produto.id;
@@ -70,27 +71,23 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from('images')
-      .upload(filePath, buffer, {
+    let uploadResult;
+    try {
+      uploadResult = await uploadImage({
+        path: filePath,
+        body: buffer,
         contentType: file.type,
         upsert: false,
       });
-
-    if (uploadError) {
+    } catch (uploadError) {
       console.error('[UPLOAD-MANUAL] Erro ao fazer upload:', uploadError);
       return NextResponse.json(
-        { error: `Erro ao fazer upload: ${uploadError.message}` },
+        { error: `Erro ao fazer upload: ${uploadError instanceof Error ? uploadError.message : String(uploadError)}` },
         { status: 500 }
       );
     }
 
-    // Obter URL pública
-    const { data: urlData } = supabaseAdmin.storage
-      .from('images')
-      .getPublicUrl(filePath);
-
-    const imageUrl = urlData.publicUrl;
+    const imageUrl = uploadResult.url;
 
     // Adicionar URL ao array de imagens do produto
     const currentImages = Array.isArray(produto.images) ? produto.images : [];

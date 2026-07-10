@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { uploadImage } from "@/lib/image-storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,24 +38,26 @@ export async function POST(request: NextRequest) {
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${extension}`;
     const filePath = `bancas/onboarding/${fileName}`;
 
-    const { error } = await supabaseAdmin.storage.from("images").upload(filePath, buffer, {
-      contentType: file.type,
-      upsert: false,
-    });
-
-    if (error) {
+    let uploadResult;
+    try {
+      uploadResult = await uploadImage({
+        path: filePath,
+        body: buffer,
+        contentType: file.type,
+        upsert: false,
+      });
+    } catch (error) {
       console.error("[upload/onboarding] Erro no upload:", error);
       const base64 = Buffer.from(buffer).toString("base64");
       const dataUrl = `data:${file.type};base64,${base64}`;
       return NextResponse.json({ ok: true, url: dataUrl, fallback: true });
     }
 
-    const { data: publicUrlData } = supabaseAdmin.storage.from("images").getPublicUrl(filePath);
-
     return NextResponse.json({
       ok: true,
-      url: publicUrlData.publicUrl,
-      path: filePath,
+      url: uploadResult.url,
+      path: uploadResult.path,
+      provider: uploadResult.provider,
     });
   } catch (error) {
     console.error("[upload/onboarding] Erro inesperado:", error);

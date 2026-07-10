@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readAuthenticatedUserClaims } from "@/lib/modules/auth/session";
 import { hasLegacyUploadAuthorizationHeader } from "@/lib/policies/legacy-tokens";
-import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
+import { uploadImage } from "@/lib/image-storage";
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -64,35 +64,31 @@ export async function POST(request: NextRequest) {
     const fileName = `${timestamp}-${random}.${extension}`;
     const filePath = `bancas/${fileName}`;
 
-    console.log('Fazendo upload para Supabase Storage:', filePath);
+    console.log('Fazendo upload de imagem:', filePath);
 
-    // Upload para Supabase Storage
-    const { data, error } = await supabaseAdmin.storage
-      .from('images')
-      .upload(filePath, buffer, {
+    let uploadResult;
+    try {
+      uploadResult = await uploadImage({
+        path: filePath,
+        body: buffer,
         contentType: file.type,
-        upsert: false
+        upsert: false,
       });
-
-    if (error) {
-      console.error('Erro no upload Supabase:', error);
+    } catch (error) {
+      console.error('Erro no upload:', error);
       // Fallback: retornar base64 se o storage falhar
       const base64 = Buffer.from(buffer).toString('base64');
       const dataUrl = `data:${file.type};base64,${base64}`;
       return NextResponse.json({ ok: true, url: dataUrl, fallback: true });
     }
 
-    // Obter URL pública
-    const { data: publicUrlData } = supabaseAdmin.storage
-      .from('images')
-      .getPublicUrl(filePath);
-
-    console.log('Upload concluído:', publicUrlData.publicUrl);
+    console.log('Upload concluído:', uploadResult.url);
 
     return NextResponse.json({ 
       ok: true, 
-      url: publicUrlData.publicUrl,
-      path: filePath
+      url: uploadResult.url,
+      path: uploadResult.path,
+      provider: uploadResult.provider
     });
   } catch (e) {
     console.error('upload error', e);
