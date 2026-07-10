@@ -74,6 +74,10 @@ function baseUrlFor(environment: CoraEnvironment) {
     : "https://matls-clients.api.cora.com.br";
 }
 
+function tokenPathFor(environment: CoraEnvironment) {
+  return environment === "production" ? "/token" : "/oauth/token";
+}
+
 async function readSettings(keys: string[]) {
   const { data, error } = await supabaseAdmin
     .from("system_settings")
@@ -206,7 +210,7 @@ async function getCoraAccessToken(config: CoraConfig): Promise<string> {
     client_id: config.clientId,
   }).toString();
 
-  const data = await requestJson<{ access_token?: string }>(config, "/oauth/token", {
+  const data = await requestJson<{ access_token?: string }>(config, tokenPathFor(config.environment), {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
