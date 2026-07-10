@@ -76,6 +76,14 @@ export async function POST(request: NextRequest) {
       normalizedValue = String(value).trim().toLowerCase() === "true" ? "true" : "false";
     }
 
+    if (key === "payment_gateway") {
+      normalizedValue = String(value).trim().toLowerCase() === "cora" ? "cora" : "asaas";
+    }
+
+    if (key === "cora_environment") {
+      normalizedValue = String(value).trim().toLowerCase() === "stage" ? "stage" : "production";
+    }
+
     if (
       key === "subscription_overdue_grace_days" ||
       key === "premium_launch_slots" ||

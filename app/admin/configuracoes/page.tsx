@@ -29,6 +29,36 @@ const SETTINGS_METADATA = {
     is_secret: false,
     defaultValue: "sandbox",
   },
+  payment_gateway: {
+    description: "Gateway usado para novas cobranças de assinatura",
+    is_secret: false,
+    defaultValue: "asaas",
+  },
+  cora_environment: {
+    description: "Ambiente da Cora",
+    is_secret: false,
+    defaultValue: "stage",
+  },
+  cora_client_id: {
+    description: "Client ID da integração direta Cora",
+    is_secret: true,
+    defaultValue: "",
+  },
+  cora_certificate: {
+    description: "Certificado PEM da integração direta Cora",
+    is_secret: true,
+    defaultValue: "",
+  },
+  cora_private_key: {
+    description: "Private key PEM da integração direta Cora",
+    is_secret: true,
+    defaultValue: "",
+  },
+  cora_webhook_token: {
+    description: "Token compartilhado para validar webhooks da Cora",
+    is_secret: true,
+    defaultValue: "",
+  },
   subscription_overdue_grace_days: {
     description: "Dias de carência para assinaturas em aberto antes de pausar recursos pagos",
     is_secret: false,
@@ -153,6 +183,14 @@ export default function AdminConfiguracoesPage() {
 
     let valueToSave = overrideValue ?? editValues[key] ?? "";
 
+    if (key === "payment_gateway") {
+      valueToSave = String(valueToSave).trim().toLowerCase() === "cora" ? "cora" : "asaas";
+    }
+
+    if (key === "cora_environment") {
+      valueToSave = String(valueToSave).trim().toLowerCase() === "stage" ? "stage" : "production";
+    }
+
     if (key === "subscription_overdue_grace_days" || key === "subscription_trial_days_paid") {
       const parsed = Number(valueToSave);
 
@@ -236,6 +274,23 @@ export default function AdminConfiguracoesPage() {
       }
     } catch (error) {
       alert("Erro ao testar conexão");
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const testCoraConnection = async () => {
+    setSaving("test-cora");
+    try {
+      const res = await fetchAdminWithDevFallback("/api/admin/cora/test-connection", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✅ Conexão Cora OK!\n\nAmbiente: ${data.environment}\nBase URL: ${data.baseUrl}`);
+      } else {
+        alert(`❌ Erro na conexão Cora:\n${data.error}`);
+      }
+    } catch (error) {
+      alert("Erro ao testar conexão com a Cora");
     } finally {
       setSaving(null);
     }
@@ -446,6 +501,216 @@ export default function AdminConfiguracoesPage() {
                   Testar Conexão
                 </>
               )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-rose-50 to-pink-50">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-rose-600 rounded-xl flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-2.21 0-4 1.119-4 2.5S9.79 13 12 13s4-1.119 4-2.5S14.21 8 12 8z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10.5V16c0 1.381 1.79 2.5 4 2.5s4-1.119 4-2.5v-5.5M5 7h14M7 4h10" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Cora - Gateway alternativo</h2>
+              <p className="text-sm text-gray-600">Cobranças via PIX e boleto para renovação manual de planos</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Gateway padrão para novas cobranças
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="payment_gateway"
+                  value="asaas"
+                  checked={(editValues.payment_gateway || "asaas") === "asaas"}
+                  onChange={(e) => setEditValues({ ...editValues, payment_gateway: e.target.value })}
+                  className="w-4 h-4 text-rose-600 focus:ring-rose-500"
+                />
+                <span className="text-sm font-medium">Asaas</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="payment_gateway"
+                  value="cora"
+                  checked={editValues.payment_gateway === "cora"}
+                  onChange={(e) => setEditValues({ ...editValues, payment_gateway: e.target.value })}
+                  className="w-4 h-4 text-rose-600 focus:ring-rose-500"
+                />
+                <span className="text-sm font-medium">Cora</span>
+              </label>
+            </div>
+            <button
+              onClick={() => handleSave("payment_gateway")}
+              disabled={saving === "payment_gateway"}
+              className="mt-2 text-sm text-rose-600 hover:underline disabled:opacity-50"
+            >
+              {saving === "payment_gateway" ? "Salvando..." : "Salvar gateway"}
+            </button>
+          </div>
+
+          <div className="border-t border-gray-200 pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Ambiente Cora
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="cora_environment"
+                  value="stage"
+                  checked={(editValues.cora_environment || "stage") === "stage"}
+                  onChange={(e) => setEditValues({ ...editValues, cora_environment: e.target.value })}
+                  className="w-4 h-4 text-rose-600 focus:ring-rose-500"
+                />
+                <span className="text-sm">
+                  <span className="font-medium">Stage</span>
+                  <span className="text-gray-500 ml-1">(testes)</span>
+                </span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="cora_environment"
+                  value="production"
+                  checked={editValues.cora_environment === "production"}
+                  onChange={(e) => setEditValues({ ...editValues, cora_environment: e.target.value })}
+                  className="w-4 h-4 text-rose-600 focus:ring-rose-500"
+                />
+                <span className="text-sm">
+                  <span className="font-medium">Produção</span>
+                  <span className="text-gray-500 ml-1">(real)</span>
+                </span>
+              </label>
+            </div>
+            <button
+              onClick={() => handleSave("cora_environment")}
+              disabled={saving === "cora_environment"}
+              className="mt-2 text-sm text-rose-600 hover:underline disabled:opacity-50"
+            >
+              {saving === "cora_environment" ? "Salvando..." : "Salvar ambiente Cora"}
+            </button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Client ID da Cora
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type={showSecrets.cora_client_id ? "text" : "password"}
+                  value={editValues.cora_client_id || ""}
+                  onChange={(e) => setEditValues({ ...editValues, cora_client_id: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  placeholder="Client ID"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSecrets({ ...showSecrets, cora_client_id: !showSecrets.cora_client_id })}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  {showSecrets.cora_client_id ? "Ocultar" : "Ver"}
+                </button>
+                <button
+                  onClick={() => handleSave("cora_client_id")}
+                  disabled={saving === "cora_client_id"}
+                  className="px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition disabled:opacity-50"
+                >
+                  {saving === "cora_client_id" ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Certificado PEM
+              </label>
+              <textarea
+                value={editValues.cora_certificate || ""}
+                onChange={(e) => setEditValues({ ...editValues, cora_certificate: e.target.value })}
+                className="h-36 w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-xs focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                placeholder="-----BEGIN CERTIFICATE-----"
+              />
+              <button
+                onClick={() => handleSave("cora_certificate")}
+                disabled={saving === "cora_certificate"}
+                className="mt-2 px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition disabled:opacity-50"
+              >
+                {saving === "cora_certificate" ? "Salvando..." : "Salvar certificado"}
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Private key PEM
+              </label>
+              <textarea
+                value={editValues.cora_private_key || ""}
+                onChange={(e) => setEditValues({ ...editValues, cora_private_key: e.target.value })}
+                className="h-36 w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-xs focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                placeholder="-----BEGIN PRIVATE KEY-----"
+              />
+              <button
+                onClick={() => handleSave("cora_private_key")}
+                disabled={saving === "cora_private_key"}
+                className="mt-2 px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition disabled:opacity-50"
+              >
+                {saving === "cora_private_key" ? "Salvando..." : "Salvar private key"}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Token do webhook Cora
+            </label>
+            <div className="flex gap-2">
+              <input
+                type={showSecrets.cora_webhook_token ? "text" : "password"}
+                value={editValues.cora_webhook_token || ""}
+                onChange={(e) => setEditValues({ ...editValues, cora_webhook_token: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                placeholder="Token configurado no webhook da Cora"
+              />
+              <button
+                type="button"
+                onClick={() => setShowSecrets({ ...showSecrets, cora_webhook_token: !showSecrets.cora_webhook_token })}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+              >
+                {showSecrets.cora_webhook_token ? "Ocultar" : "Ver"}
+              </button>
+              <button
+                onClick={() => handleSave("cora_webhook_token")}
+                disabled={saving === "cora_webhook_token"}
+                className="px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition disabled:opacity-50"
+              >
+                {saving === "cora_webhook_token" ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Configure a Cora para chamar <code>/api/webhooks/cora</code> enviando este token em <code>Authorization: Bearer</code> ou <code>x-cora-token</code>.
+            </p>
+          </div>
+
+          <div className="pt-4 border-t border-gray-200">
+            <button
+              onClick={testCoraConnection}
+              disabled={saving === "test-cora"}
+              className="px-4 py-2 border border-rose-600 text-rose-600 rounded-lg hover:bg-rose-50 transition disabled:opacity-50"
+            >
+              {saving === "test-cora" ? "Testando..." : "Testar conexão Cora"}
             </button>
           </div>
         </div>

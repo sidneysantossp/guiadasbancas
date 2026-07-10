@@ -7,6 +7,7 @@ import {
   getPaymentPixQrCode,
   getSubscriptionPayments,
 } from "@/lib/asaas";
+import { createCoraInvoice } from "@/lib/cora";
 import { downgradeBancaToFreePlan, ensureBancaHasOnboardingPlan } from "@/lib/banca-subscription";
 import { resolveBancaPlanEntitlements } from "@/lib/plan-entitlements";
 import {
@@ -52,6 +53,20 @@ function extractRemoteIp(request: NextRequest): string {
 
 function digitsOnly(value: string | null | undefined) {
   return String(value || "").replace(/\D/g, "");
+}
+
+async function readPaymentGateway(): Promise<"asaas" | "cora"> {
+  const envGateway = String(process.env.PAYMENT_GATEWAY || "").trim().toLowerCase();
+  if (envGateway === "cora") return "cora";
+  if (envGateway === "asaas") return "asaas";
+
+  const { data } = await supabaseAdmin
+    .from("system_settings")
+    .select("value")
+    .eq("key", "payment_gateway")
+    .maybeSingle();
+
+  return String(data?.value || "").trim().toLowerCase() === "cora" ? "cora" : "asaas";
 }
 
 async function waitForFirstSubscriptionPayment(asaasSubscriptionId: string) {
@@ -460,6 +475,171 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    const dueDate = formatDueDate(undefined, trialDaysApplied > 0 ? trialDaysApplied : 3);
+    const trialEndsAt = trialDaysApplied > 0 ? addDaysToIso(trialDaysApplied) : null;
+    const requestedBillingType = String(billing_type || "PIX").toUpperCase();
+    const normalizedBillingType: "BOLETO" | "PIX" | "CREDIT_CARD" =
+      requestedBillingType === "BOLETO"
+        ? "BOLETO"
+        : requestedBillingType === "CREDIT_CARD"
+          ? "CREDIT_CARD"
+          : "PIX";
+    const paymentGateway = await readPaymentGateway();
+
+    const previousBinding = await findSubscriptionBindingByBancaId(banca.id);
+    if (previousBinding?.asaasSubscriptionId) {
+      try {
+        await cancelSubscription(previousBinding.asaasSubscriptionId);
+      } catch (cancelError: any) {
+        console.warn("[API/JORNALEIRO/SUBSCRIPTION] Falha ao cancelar assinatura remota anterior:", cancelError?.message || cancelError);
+      }
+      await removeSubscriptionBindingByAsaasId(previousBinding.asaasSubscriptionId);
+    }
+
+    if (paymentGateway === "cora") {
+      if (normalizedBillingType === "CREDIT_CARD") {
+        return NextResponse.json(
+          { success: false, error: "A Cora está disponível apenas para PIX e boleto neste checkout." },
+          { status: 400, headers: buildNoStoreHeaders({ isPrivate: true }) }
+        );
+      }
+
+      const subscription = await createOrUpdateOpenSubscription({
+        bancaId: banca.id,
+        planId: plan.id,
+        status: trialDaysApplied > 0 ? "trial" : "pending",
+        asaasCustomerId: `cora:${banca.id}`,
+        currentPeriodEnd: trialEndsAt,
+      });
+
+      try {
+        const externalReference = `gb-sub:${subscription.id}`;
+        const invoice = await createCoraInvoice({
+          code: externalReference,
+          externalReference,
+          customer: {
+            name: banca.name,
+            email: billingEmail,
+            document: cpfCnpj || null,
+            phone: banca.whatsapp || (requesterProfile as any)?.phone || null,
+            address: {
+              street: structuredAddress?.street || banca.address || null,
+              number: structuredAddress?.number || "S/N",
+              district: structuredAddress?.neighborhood || null,
+              city: structuredAddress?.city || null,
+              state: structuredAddress?.uf || null,
+              zipCode: structuredAddress?.cep || banca.cep || null,
+              complement: structuredAddress?.complement || null,
+            },
+          },
+          amount: pricing.effectivePrice,
+          dueDate,
+          description: pricing.promotionLabel
+            ? `${plan.name} - ${pricing.promotionLabel}`
+            : trialDaysApplied > 0
+              ? `Assinatura ${plan.name} - ${trialDaysApplied} dias de degustação`
+              : `Assinatura ${plan.name} - Guia das Bancas`,
+          paymentForms: normalizedBillingType === "BOLETO" ? ["BANK_SLIP"] : ["PIX"],
+        });
+
+        await saveBancaPricingOverride({
+          bancaId: banca.id,
+          planId: plan.id,
+          effectivePrice: pricing.effectivePrice,
+          originalPrice: pricing.originalPrice,
+          promoApplied: pricing.promoApplied,
+          promotionLabel: pricing.promotionLabel,
+          updatedAt: new Date().toISOString(),
+        });
+
+        const { data: paymentRecord } = await supabaseAdmin
+          .from("payments")
+          .insert({
+            subscription_id: subscription.id,
+            banca_id: banca.id,
+            asaas_payment_id: invoice.id,
+            asaas_invoice_url: invoice.invoiceUrl,
+            asaas_bank_slip_url: invoice.bankSlipUrl,
+            asaas_pix_qrcode: invoice.pixQrCodeUrl,
+            asaas_pix_code: invoice.pixCode,
+            amount: pricing.effectivePrice,
+            status: "pending",
+            payment_method: normalizedBillingType.toLowerCase(),
+            due_date: invoice.dueDate || dueDate,
+            description: pricing.promotionLabel
+              ? `Assinatura ${plan.name} - ${pricing.promotionLabel}`
+              : `Assinatura ${plan.name}`,
+            metadata: {
+              provider: "cora",
+              provider_payment_id: invoice.id,
+              provider_code: invoice.code,
+              provider_status: invoice.status,
+              raw: invoice.raw,
+            },
+          })
+          .select()
+          .maybeSingle();
+
+        await supabaseAdmin.from("notifications").insert({
+          banca_id: banca.id,
+          type: "payment_created",
+          title: "Nova cobrança gerada",
+          message: `Cobrança Cora de R$ ${pricing.effectivePrice.toFixed(2)} para o plano ${plan.name} gerada com sucesso.`,
+          data: {
+            payment_id: paymentRecord?.id,
+            provider: "cora",
+            provider_payment_id: invoice.id,
+            promo_applied: pricing.promoApplied,
+            trial_days_applied: trialDaysApplied,
+          },
+        });
+
+        return NextResponse.json(
+          {
+            success: true,
+            subscription,
+            payment: {
+              id: paymentRecord?.id,
+              asaas_id: invoice.id,
+              provider: "cora",
+              provider_payment_id: invoice.id,
+              invoice_url: invoice.invoiceUrl,
+              bank_slip_url: invoice.bankSlipUrl,
+              pix_qrcode: invoice.pixQrCodeUrl,
+              pix_code: invoice.pixCode,
+              due_date: invoice.dueDate || dueDate,
+              amount: pricing.effectivePrice,
+              recurring: false,
+              original_amount: pricing.originalPrice,
+              promotion_label: pricing.promotionLabel,
+              trial_days_applied: trialDaysApplied,
+              trial_ends_at: trialEndsAt,
+              billing_type: normalizedBillingType,
+            },
+            message:
+              trialDaysApplied > 0
+                ? `Período de degustação de ${trialDaysApplied} dias ativado com cobrança Cora gerada.`
+                : "Cobrança Cora criada com sucesso.",
+          },
+          { headers: buildNoStoreHeaders({ isPrivate: true }) }
+        );
+      } catch (coraError) {
+        await clearBancaPricingOverride(banca.id);
+        await downgradeBancaToFreePlan(banca.id, {
+          cancelReason: "Falha ao gerar cobrança Cora. Banca retornou ao plano Free.",
+          matchSubscriptionId: subscription.id,
+        });
+
+        if (claimedLaunchOfferNow) {
+          await releasePremiumLaunchOffer(banca.id);
+        }
+        if (claimedTrialNow) {
+          await releasePaidPlanTrial(banca.id);
+        }
+        throw coraError;
+      }
+    }
+
     // Criar ou buscar cliente no Asaas
     const customer = await findOrCreateCustomer({
       name: banca.name,
@@ -476,18 +656,6 @@ export async function POST(request: NextRequest) {
       state: structuredAddress?.uf || undefined,
     });
 
-    const previousBinding = await findSubscriptionBindingByBancaId(banca.id);
-    if (previousBinding?.asaasSubscriptionId) {
-      try {
-        await cancelSubscription(previousBinding.asaasSubscriptionId);
-      } catch (cancelError: any) {
-        console.warn("[API/JORNALEIRO/SUBSCRIPTION] Falha ao cancelar assinatura remota anterior:", cancelError?.message || cancelError);
-      }
-      await removeSubscriptionBindingByAsaasId(previousBinding.asaasSubscriptionId);
-    }
-
-    const dueDate = formatDueDate(undefined, trialDaysApplied > 0 ? trialDaysApplied : 3);
-    const trialEndsAt = trialDaysApplied > 0 ? addDaysToIso(trialDaysApplied) : null;
     const subscription = await createOrUpdateOpenSubscription({
       bancaId: banca.id,
       planId: plan.id,
@@ -495,13 +663,6 @@ export async function POST(request: NextRequest) {
       asaasCustomerId: customer.id,
       currentPeriodEnd: trialEndsAt,
     });
-    const requestedBillingType = String(billing_type || "PIX").toUpperCase();
-    const normalizedBillingType: "BOLETO" | "PIX" | "CREDIT_CARD" =
-      requestedBillingType === "BOLETO"
-        ? "BOLETO"
-        : requestedBillingType === "CREDIT_CARD"
-          ? "CREDIT_CARD"
-          : "PIX";
     let asaasSubscription: any = null;
     let firstPayment: any = null;
     let pixData = null;
