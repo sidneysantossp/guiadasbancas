@@ -380,8 +380,6 @@ export async function POST(request: NextRequest) {
       email: string | null;
       whatsapp: string | null;
       cotista_cnpj_cpf: string | null;
-      cpf?: string | null;
-      cnpj?: string | null;
       is_cotista: boolean | null;
       cotista_id: string | null;
       created_at: string | null;
@@ -391,7 +389,7 @@ export async function POST(request: NextRequest) {
       addressobj?: Record<string, any> | null;
     }>({
       userId: user.id,
-      select: "id, name, email, whatsapp, cotista_cnpj_cpf, cpf, cnpj, is_cotista, cotista_id, created_at, address, cep, address_obj, addressobj",
+      select: "id, name, email, whatsapp, cotista_cnpj_cpf, is_cotista, cotista_id, created_at, address, cep, address_obj, addressobj",
     });
 
     if (!banca) {
@@ -486,15 +484,11 @@ export async function POST(request: NextRequest) {
 
     const cpfCnpj = pickValidBrazilianDocument(
       banca.cotista_cnpj_cpf,
-      banca.cnpj,
-      banca.cpf,
       (requesterProfile as any)?.cpf,
       (linkedCotista as any)?.cnpj_cpf
     );
     const hasAnyCpfCnpj = Boolean(
       digitsOnly(banca.cotista_cnpj_cpf) ||
-        digitsOnly(banca.cnpj) ||
-        digitsOnly(banca.cpf) ||
         digitsOnly((requesterProfile as any)?.cpf) ||
         digitsOnly((linkedCotista as any)?.cnpj_cpf)
     );
