@@ -25,6 +25,14 @@ type PlanOption = {
 const money = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
+function imageSource(value?: string | null) {
+  const source = String(value || "").trim();
+  if (!source) return "";
+  if (source.startsWith("data:image/")) return source;
+  if (/^https?:\/\//i.test(source)) return source;
+  return `data:image/png;base64,${source}`;
+}
+
 export default function PlanCheckoutModal(props: Props) {
   const [plans, setPlans] = useState<PlanOption[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
@@ -69,6 +77,7 @@ export default function PlanCheckoutModal(props: Props) {
     () => plans.find((plan) => plan.id === selectedPlanId) || plans[0] || null,
     [plans, selectedPlanId]
   );
+  const paymentImageSrc = imageSource(payment?.pix_qrcode) || imageSource(payment?.invoice_url) || imageSource(payment?.bank_slip_url);
 
   if (!props.open) return null;
 
@@ -102,7 +111,7 @@ export default function PlanCheckoutModal(props: Props) {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 py-6">
-      <div className="w-full max-w-xl overflow-hidden rounded-lg bg-white shadow-xl">
+      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
         <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
           <div>
             <div className="text-sm font-semibold uppercase tracking-[0.14em] text-[#ff5c00]">Renovar plano</div>
@@ -130,7 +139,7 @@ export default function PlanCheckoutModal(props: Props) {
           </button>
         </div>
 
-        <div className="space-y-4 px-5 py-5">
+        <div className="space-y-4 overflow-y-auto px-5 py-5">
           {loading ? (
             <div className="rounded-md border border-dashed border-gray-300 px-4 py-5 text-sm text-gray-500">
               Carregando planos...
@@ -202,6 +211,18 @@ export default function PlanCheckoutModal(props: Props) {
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
               <div className="font-semibold">Cobrança criada</div>
               <p className="mt-1">Finalize o pagamento para liberar o catálogo automaticamente.</p>
+              {paymentImageSrc ? (
+                <div className="mt-4 rounded-lg border border-emerald-200 bg-white p-3">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-800">
+                    Escaneie para pagar
+                  </div>
+                  <img
+                    src={paymentImageSrc}
+                    alt="Cobrança PIX para pagamento"
+                    className="mx-auto max-h-[520px] w-full rounded-md object-contain"
+                  />
+                </div>
+              ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 {payment.invoice_url ? (
                   <a className="rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white" href={payment.invoice_url} target="_blank" rel="noreferrer">
