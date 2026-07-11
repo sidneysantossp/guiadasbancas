@@ -196,7 +196,7 @@ export default function PlanCheckoutModal(props: Props) {
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">Forma de pagamento</label>
-                <div className="flex min-h-[96px] items-center justify-center rounded-lg border border-[#ff5c00] bg-orange-50 px-6 py-4">
+                <div className="flex min-h-[96px] items-center justify-center rounded-lg border border-[#ff5c00] bg-white px-6 py-4">
                   <img
                     src="/images/payments/pix-banco-central.png"
                     alt="PIX powered by Banco Central"
